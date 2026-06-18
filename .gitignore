@@ -27,6 +27,7 @@ rest/.git_backup_*/
 coverage/
 dist/
 tmp/
+repo_friend_main/
 *.log
 
 .idea/
