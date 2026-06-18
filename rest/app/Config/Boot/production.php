@@ -1,5 +1,37 @@
 <?php
 
+$compatEnvMap = [
+    'DB_HOST'            => 'database.default.hostname',
+    'DB_DATABASE'        => 'database.default.database',
+    'DB_USERNAME'        => 'database.default.username',
+    'DB_PASSWORD'        => 'database.default.password',
+    'DB_PORT'            => 'database.default.port',
+    'DB_DRIVER'          => 'database.default.DBDriver',
+    'DB_PREFIX'          => 'database.default.DBPrefix',
+    'DB_ENCRYPTION_KEY'  => 'database.default.DB_ENCRYPTION_KEY',
+    'APP_BASE_URL'       => 'app.baseURL',
+    'EMAIL_FROM_ADDRESS' => 'email.fromEmail',
+    'EMAIL_FROM_NAME'    => 'email.fromName',
+    'EMAIL_PROTOCOL'     => 'email.protocol',
+];
+
+foreach ($compatEnvMap as $sourceKey => $targetKey) {
+    $sourceValue = getenv($sourceKey);
+    $targetValue = getenv($targetKey);
+
+    if ($sourceValue === false || $sourceValue === '') {
+        continue;
+    }
+
+    if ($targetValue !== false && $targetValue !== '') {
+        continue;
+    }
+
+    putenv($targetKey . '=' . $sourceValue);
+    $_ENV[$targetKey]    = $sourceValue;
+    $_SERVER[$targetKey] = $sourceValue;
+}
+
 /*
  |--------------------------------------------------------------------------
  | ERROR DISPLAY
