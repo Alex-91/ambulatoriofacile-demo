@@ -1,13 +1,25 @@
 <IfModule mod_rewrite.c>
     RewriteEngine On
 
-    # Blocca l'accesso diretto alla cartella public
-    RewriteCond %{REQUEST_URI} ^/public/
-    RewriteRule ^.*$ - [R=403,L]
+    # Blocca file nascosti e percorsi che non devono mai essere esposti dal webroot.
+    RewriteRule (^|/)\.(?!well-known/) - [F,L]
+    RewriteRule ^(?:docker|dist|node_modules|repo_friend_main|src|vendor|rest)(?:/|$) - [F,L,NC]
+    RewriteRule ^(?:Dockerfile|composer\.(?:json|lock)|package(?:-lock)?\.json|coolify\.env\.example|README_DEPLOY\.md)$ - [F,L,NC]
+    RewriteRule \.(?:env|ini|log|sql|tar|gz|zip)$ - [F,L,NC]
 
-    # Se il file o la cartella non esistono, reindirizza a index.php
+    # Permette la home e gli asset pubblici richiesti dal frontend/PWA.
+    RewriteRule ^$ index.php [L,QSA]
+    RewriteRule ^(?:index\.php|manifest\.json|sw\.js|favicon\.ico)$ - [L,NC]
+    RewriteRule ^(?:public|icons|js)/.+$ - [L,NC]
+
+    # Qualsiasi altro file o directory esistente non deve essere servito direttamente.
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [F,L]
+
+    # Se il file o la cartella non esistono, reindirizza a index.php.
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d
-    RewriteRule ^(.*)$ index.php/$1 [L]
+    RewriteRule ^(.*)$ index.php/$1 [L,QSA]
 </IfModule>
 
