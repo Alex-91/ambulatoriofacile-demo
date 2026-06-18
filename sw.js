@@ -8,6 +8,7 @@ self.addEventListener('activate', event => {
 
 self.addEventListener('push', event => {
   let data = {};
+  const scopeBase = new URL('./', self.registration.scope);
 
   try {
     data = event.data ? event.data.json() : {};
@@ -15,12 +16,12 @@ self.addEventListener('push', event => {
     data = {};
   }
 
-  const title = data.title || 'AMBULATORI.Cloud';
+  const title = data.title || 'Ambulatorio Facile';
 
   const options = {
     body: 'Hai una nuova notifica',
-    icon: data.icon || '/test/public/assets/images/icon-192x192.png',
-    badge: data.badge || '/test/public/assets/images/icon-192x192.png',
+    icon: data.icon || new URL('public/assets/images/icon-192x192.png', scopeBase).href,
+    badge: data.badge || new URL('public/assets/images/icon-192x192.png', scopeBase).href,
     tag: data.tag || ('ambulatoricloud-' + Math.random().toString(36)),
     requireInteraction: true,
     renotify: true,
@@ -44,12 +45,13 @@ self.addEventListener('push', event => {
 
 self.addEventListener('notificationclick', event => {
   event.notification.close();
+  const scopeBase = new URL('./', self.registration.scope);
 
   if (event.action === 'close') {
     return;
   }
 
-  const url = event.notification?.data?.url || '/test/auth';
+  const url = event.notification?.data?.url || new URL('auth', scopeBase).href;
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clientList => {
