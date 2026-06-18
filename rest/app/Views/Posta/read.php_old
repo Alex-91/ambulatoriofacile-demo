@@ -1,0 +1,532 @@
+<?php
+/** @var array|null  $thread */   // elenco messaggi del thread, ordinati per data ASC
+/** @var string      $src */
+/** @var int|null    $selectedDoctorId */
+/** @var int|null    $tipoPers */
+/** @var bool|null   $isSegOrInf */
+
+use CodeIgniter\I18n\Time;
+
+$tz = 'Europe/Rome';
+
+/**
+ * Thread completo
+ */
+$threadMsgs = (isset($thread) && is_array($thread)) ? $thread : [];
+
+/**
+ * Messaggio â€œcorrenteâ€ per header/azioni:
+ * usiamo il primo elemento del thread (il controller garantisce che sia il root/main)
+ */
+$current = !empty($threadMsgs) ? $threadMsgs[0] : null;
+$isClient = ((int)(session()->get('tipoUser') ?? 0) === 3);
+// Se per qualche motivo il thread Ã¨ vuoto, mettiamo valori di fallback
+$dataDT = ($current && isset($current['dataora'])) ? Time::parse($current['dataora'], $tz) : null;
+$when   = $dataDT ? $dataDT->toLocalizedString('d MMM y HH:mm') : '';
+$human  = $dataDT ? $dataDT->humanize() : '';
+
+$fromName = 'Mittente';
+if ($current) {
+    $fromName = trim(
+        ($current['mitt_prefix']         ?? '') . ' ' .
+        ($current['mittente_cognome']    ?? '') . ' ' .
+        ($current['mittente_nome']       ?? '')
+    );
+    if ($fromName === '') {
+        $fromName = 'Mittente';
+    }
+}
+
+$fromEmail = $current['email']  ?? '';
+$toName    = session()->get('nome_visualizzato') ?: 'Tu';
+$subject   = $current['oggetto'] ?? '';
+
+$forwardNote = '';
+if ($current && !empty($current['inoltrato'] ?? '')) {
+    $forwardNote = (string)$current['inoltrato'];
+}
+
+// UID composto per azioni (es: M:123)
+$mainId = $current['id_message'] ?? ($current['uid'] ?? null);
+$uid    = ($src ?? 'M') . ':' . ($mainId ?: '0');
+$box = $box ?? 'inbox';
+$backUrl = ($box === 'sent') ? site_url('inviata') : site_url('posta');
+
+// Menu e dottori (come nella inbox)
+$result           = session()->get('menuData');
+$menu_items       = $result['result']       ?? [];
+$dottori          = $result['dottori']      ?? [];
+$contDott         = $result['cont_dottori'] ?? 0;
+$selectedDoctorId = $selectedDoctorId       ?? null;
+?>
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>AmbulatoriCLOUD | Leggi messaggio</title>
+    <meta content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" name="viewport">
+    <link rel="icon" href="<?= base_url('public/assets/images/logonew.jpg') ?>" type="image/x-icon" sizes="any">
+
+    <!-- Bootstrap 3.3.4 -->
+    <link href="<?= base_url('public/bootstrap/css/bootstrap.min.css') ?>" rel="stylesheet" type="text/css" />
+    <!-- Font Awesome -->
+    <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css" rel="stylesheet" />
+    <!-- Ionicons -->
+    <link href="https://code.ionicframework.com/ionicons/2.0.1/css/ionicons.min.css" rel="stylesheet" />
+    <!-- AmbulatoriCLOUD theme -->
+    <link href="<?= base_url('public/dist/css/AdminLTE.css') ?>" rel="stylesheet" type="text/css" />
+    <link href="<?= base_url('public/dist/css/skins/_all-skins.min.css') ?>" rel="stylesheet" type="text/css" />
+    <!-- iCheck -->
+    <link href="<?= base_url('public/plugins/iCheck/flat/blue.css') ?>" rel="stylesheet" type="text/css" />
+
+    <style>
+      /* Loader */
+      #page-loader {
+        position: fixed;
+        inset: 0;
+        background: rgba(255,255,255,.85);
+        z-index: 9999;
+        display: none;
+      }
+      #page-loader .spinner {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%,-50%);
+        text-align: center;
+      }
+      #page-loader .spinner .msg {
+        margin-top: 10px;
+        font-size: 13px;
+        color: #444;
+        letter-spacing: .2px;
+      }
+
+      .mailbox-read-info h3 { margin: 0 0 5px; }
+      .mailbox-read-info h5 { margin: 0; color: #777; }
+      .mailbox-read-message { padding: 15px; }
+      .btn-back { margin-bottom: 10px; }
+      .attachment-icon { width: 40px; text-align: center; display: inline-block; }
+      pre.mail-plain { white-space: pre-wrap; background: #fff; border: none; padding: 0; margin: 0; }
+
+      /* --- Conversazione (thread) --- */
+      .thread-wrap { padding: 10px 15px 20px; }
+      .thread-item { margin-bottom: 16px; }
+      .thread-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 6px;
+      }
+      .thread-from { font-weight: 600; }
+      .thread-time { font-size: 12px; color: #777; }
+      .bubble {
+        border: 1px solid #e6e6e6;
+        background: #fafafa;
+        border-radius: 10px;
+        padding: 10px 12px;
+      }
+      .bubble.me {
+        background: #e6f4ff;
+        border-color: #cfe7ff;
+      }
+      .day-sep {
+        text-align: center;
+        margin: 14px 0;
+        color: #888;
+        font-size: 12px;
+        position: relative;
+      }
+      .day-sep:before,
+      .day-sep:after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        width: 30%;
+        height: 1px;
+        background: #ddd;
+      }
+      .day-sep:before { left: 0; }
+      .day-sep:after  { right: 0; }
+
+      .nav-pills.nav-stacked > li.active > a {
+        background-color: #2c8895;
+        color: #fff;
+      }
+
+      /* --- Allegati nel thread --- */
+      .thread-att {
+        margin-top: 8px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .thread-att-item {
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        background: #fff;
+        padding: 6px 8px;
+        max-width: 190px;
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        font-size: 12px;
+      }
+
+      .thread-att-preview {
+        display: block;
+        text-decoration: none;
+        color: #333;
+      }
+
+      .thread-att-item:hover {
+        background: #f5f5f5;
+      }
+
+      .thread-att-item img {
+        max-width: 170px;
+        max-height: 140px;
+        display: block;
+        margin-bottom: 4px;
+        border-radius: 3px;
+      }
+
+      .thread-att-item-icon {
+        font-size: 24px;
+        margin-bottom: 4px;
+      }
+
+      .thread-att-item-name {
+        font-size: 12px;
+        word-break: break-all;
+      }
+
+      .thread-att-actions {
+        margin-top: 4px;
+        text-align: right;
+      }
+
+      /* Bottone download moderno */
+      .btn-download-file {
+        border-radius: 20px;
+        border: 1px solid #2c8895;
+        color: #2c8895;
+        padding: 3px 10px;
+        font-size: 11px;
+        background: #fff;
+      }
+      .btn-download-file i {
+        margin-right: 4px;
+      }
+      .btn-download-file:hover {
+        background: #2c8895;
+        color: #fff;
+        text-decoration: none;
+      }
+
+      /* Nota di inoltro */
+      .forward-note {
+        margin: 10px 15px 0;
+        padding: 10px 12px;
+        border-left: 3px solid #2c8895;
+        background: #f4fffb;
+        border-radius: 4px;
+        font-size: 13px;
+        color: #333;
+      }
+      .forward-note-header {
+        font-weight: 600;
+        margin-bottom: 4px;
+      }
+    </style>
+  </head>
+  <body class="skin-blue sidebar-mini">
+    <div id="page-loader" aria-hidden="true">
+      <div class="spinner">
+        <i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i>
+        <div class="msg">Caricamentoâ€¦</div>
+      </div>
+    </div>
+
+    <div class="wrapper">
+      <!-- HEADER uguale a inbox -->
+    <?= view('partials/header', [
+    'menu_items' => $menu_items ?? [],
+]) ?>
+
+
+      <aside class="main-sidebar" style="display:none">
+        <section class="sidebar">
+          <!-- Sidebar default (nascosta come nella inbox) -->
+        </section>
+      </aside>
+
+      <!-- CONTENT WRAPPER -->
+      <div class="content-wrapper">
+        <section class="content-header">
+          <h1>Posta <small>lettura</small></h1>
+          <ol class="breadcrumb">
+            <li><a href="<?= site_url('dashboard') ?>"><i class="fa fa-dashboard"></i> Home</a></li>
+            <li><a href="<?= site_url('posta') ?>">Posta</a></li>
+            <li class="active">Leggi</li>
+          </ol>
+        </section>
+
+        <section class="content">
+          <div class="row">
+            <!-- COLONNA SINISTRA (come inbox: cartelle + dottori) -->
+            <div class="col-md-3">
+              <a href="<?= site_url('./compose') ?>" class="btn btn-primary btn-block margin-bottom">Scrivi nuovo messaggio</a>
+
+              <!-- Cartelle -->
+               <?= view('partials/sidebar_posta', [
+                'menu_items'       => $menu_items ?? [],
+                'dottori'          => $dottori ?? [],
+                'contDott'         => $contDott ?? 0,
+                'selectedDoctorId' => $selectedDoctorId ?? null,
+                'result'           => $result ?? [],
+              ]) ?>
+          
+            </div><!-- /.col sinistra -->
+
+            <!-- COLONNA DESTRA: lettura + thread -->
+            <div class="col-md-9">
+              <a href="<?= $backUrl ?>" class="btn btn-default btn-back no-loader">
+                <i class="fa fa-chevron-left"></i> Torna alla posta
+              </a>
+
+              <div class="box box-primary">
+                <div class="box-header with-border">
+                  <h3 class="box-title">Leggi messaggio</h3>
+                  <div class="box-tools pull-right">
+                    <!-- eventuali prev/next -->
+                  </div>
+                </div>
+
+                <div class="box-body no-padding">
+                  <?php if ($current): ?>
+                    <div class="mailbox-read-info">
+                      <h3><?= esc($subject) ?></h3>
+                      <h5>
+                        Da: <?= esc($fromName) ?><?= $fromEmail ? ' &lt;' . esc($fromEmail) . '&gt;' : '' ?>
+                        <br>
+                        A: <?= esc($toName) ?>
+                        <?php if ($when): ?>
+                          <span class="mailbox-read-time pull-right" title="<?= esc($when) ?>"><?= esc($human) ?></span>
+                        <?php endif; ?>
+                      </h5>
+                    </div>
+
+                    <div class="mailbox-controls with-border text-center">
+                      <div class="btn-group">
+                        <a href="<?= site_url('posta/delete/' . urlencode($uid)) ?>" class="btn btn-default btn-sm btn-delete">
+                          <i class="fa fa-trash-o"></i> Elimina
+                        </a>
+                        <a href="<?= site_url('posta/reply/' . urlencode($uid)) ?>" class="btn btn-default btn-sm">
+                          <i class="fa fa-reply"></i> Rispondi
+                        </a>
+                       <?php if (!$isClient): ?>
+                        <a href="<?= site_url('posta/forward/' . urlencode($uid)) ?>" class="btn btn-default btn-sm">
+                          <i class="fa fa-share"></i> Inoltra
+                        </a>
+                      <?php endif; ?>
+                      </div>
+                        <?php if (!$isClient): ?>
+                      <button class="btn btn-default btn-sm no-loader" onclick="window.open('<?= site_url('posta/pdf?uid=' . urlencode($uid) . '&box=' . urlencode($box)) ?>','_blank')">
+  <i class="fa fa-print"></i> Stampa
+</button>
+ <?php endif; ?>
+                    </div>
+                  <?php else: ?>
+                    <div class="mailbox-read-info">
+                      <h3>(Nessun messaggio)</h3>
+                    </div>
+                  <?php endif; ?>
+
+                  <!-- Nota di inoltro (se presente sul main) -->
+                  <?php if (!empty($forwardNote)): ?>
+                    <div class="forward-note">
+                      <div class="forward-note-header">
+                        <i class="fa fa-share"></i>
+                        Messaggio del medico al momento dell'inoltro
+                      </div>
+                      <div>
+                        <?= nl2br(esc($forwardNote)) ?>
+                      </div>
+                    </div>
+                  <?php endif; ?>
+
+                  <!-- ======= CONVERSAZIONE (thread completo) ======= -->
+                  <div class="thread-wrap">
+                    <?php if (!empty($threadMsgs)): ?>
+                      <?php
+                        $prevDay    = null;
+                        $utenteSess = session()->get('utente_sess');
+                        $myId       = (int)($utenteSess->id_personale ?? 0); // usato per colorare "me"
+
+                        foreach ($threadMsgs as $m):
+                          $mDT     = isset($m['dataora']) ? Time::parse($m['dataora'], $tz) : null;
+                          $mWhen   = $mDT ? $mDT->toLocalizedString('d MMM y HH:mm') : '';
+                          $dayKey  = $mDT ? $mDT->toDateString() : '';
+                          $isHtmlM = !empty($m['is_html'] ?? false);
+                          $fromM   = trim(($m['mitt_prefix'] ?? '') . ' ' . ($m['mittente_cognome'] ?? '') . ' ' . ($m['mittente_nome'] ?? '')) ?: 'Mittente';
+                          $allegM  = $m['allegati'] ?? [];
+                          $isMe    = $myId && isset($m['id_mitt']) && ((int)$m['id_mitt'] === $myId);
+
+                          if ($dayKey && $dayKey !== $prevDay):
+                            $prevDay = $dayKey; ?>
+                            <div class="day-sep"><?= esc($mDT->toLocalizedString('EEEE d MMM y')) ?></div>
+                          <?php endif; ?>
+
+                          <div class="thread-item">
+                            <div class="thread-head">
+                              <div class="thread-from"><?= esc($fromM) ?></div>
+                              <div class="thread-time"><?= esc($mWhen) ?></div>
+                            </div>
+                            <div class="bubble <?= $isMe ? 'me' : '' ?>">
+                              <?php if ($isHtmlM): ?>
+                                <?= $m['testo'] ?? '' ?>
+                              <?php else: ?>
+                                <div><?= nl2br(esc($m['testo'] ?? '')) ?></div>
+                              <?php endif; ?>
+
+                              <?php if (!empty($allegM)): ?>
+                                <div class="thread-att">
+                                  <?php foreach ($allegM as $att): ?>
+                                    <?php
+                                      $tipo        = strtolower($att['tipo'] ?? '');
+                                      $isImg       = in_array($tipo, ['png','jpg','jpeg','gif','webp','bmp']);
+                                      $viewUrl     = $att['url'];                  // /posta/attachment/:id  (proxy)
+                                      $downloadUrl = $att['url'] . '?download=1';  // forza download
+                                    ?>
+                                    <div class="thread-att-item">
+                                      <a href="<?= esc($viewUrl) ?>" target="_blank" class="thread-att-preview no-loader">
+                                        <?php if ($isImg): ?>
+                                          <img src="<?= esc($viewUrl) ?>"
+                                               alt="<?= esc($att['nome'] ?? 'allegato') ?>">
+                                        <?php else: ?>
+                                          <div class="thread-att-item-icon">
+                                            <i class="fa fa-file-o"></i>
+                                          </div>
+                                        <?php endif; ?>
+                                        <div class="thread-att-item-name">
+                                          <?= esc($att['nome'] ?? 'allegato') ?>
+                                        </div>
+                                      </a>
+                                      <div class="thread-att-actions">
+                                        <a href="<?= esc($downloadUrl) ?>"
+                                           class="btn btn-download-file no-loader"
+                                           target="_blank"
+                                           title="Scarica allegato">
+                                          <i class="fa fa-download"></i> Scarica
+                                        </a>
+                                      </div>
+                                    </div>
+                                  <?php endforeach; ?>
+                                </div>
+                              <?php endif; ?>
+                            </div>
+                          </div>
+                      <?php endforeach; ?>
+                    <?php else: ?>
+                      <p class="text-center" style="padding:20px;">Nessun contenuto da mostrare.</p>
+                    <?php endif; ?>
+                  </div>
+                  <!-- ======= /CONVERSAZIONE ======= -->
+                </div>
+
+                <div class="box-footer">
+                  <div class="pull-right">
+                    <?php if ($current): ?>
+                      <a href="<?= site_url('posta/reply/' . urlencode($uid)) ?>" class="btn btn-default">
+                        <i class="fa fa-reply"></i> Rispondi
+                      </a>
+                     <?php if (!$isClient): ?>
+  <a href="<?= site_url('posta/forward/' . urlencode($uid)) ?>" class="btn btn-default">
+    <i class="fa fa-share"></i> Inoltra
+  </a>
+<?php endif; ?>
+                    <?php endif; ?>
+                  </div>
+                  <?php if ($current): ?>
+                    <a href="<?= site_url('posta/delete/' . urlencode($uid)) ?>" class="btn btn-default btn-delete">
+                      <i class="fa fa-trash-o"></i> Elimina
+                    </a>
+                  <?php endif; ?>
+                   <?php if (!$isClient): ?>
+             <button class="btn btn-default btn-sm no-loader" onclick="window.open('<?= site_url('posta/pdf?uid=' . urlencode($uid) . '&box=' . urlencode($box)) ?>','_blank')">
+  <i class="fa fa-print"></i> Stampa
+</button>
+<?php endif; ?>
+                </div>
+              </div>
+            </div><!-- /.col destra -->
+          </div><!-- /.row -->
+        </section>
+      </div><!-- /.content-wrapper -->
+
+      <footer class="main-footer">
+        <div class="pull-right hidden-xs"><b>Version</b> 2.0</div>
+        <strong>&copy; AmbulatoriCLOUD</strong>
+      </footer>
+
+      <aside class="control-sidebar control-sidebar-dark">
+        <!-- eventuale contenuto standard AmbulatoriCLOUD -->
+      </aside>
+      <div class='control-sidebar-bg'></div>
+    </div><!-- /.wrapper -->
+
+    <!-- JS -->
+    <script src="<?= base_url('public/plugins/jQuery/jQuery-2.1.4.min.js') ?>"></script>
+    <script src="<?= base_url('public/bootstrap/js/bootstrap.min.js') ?>"></script>
+    <script src="<?= base_url('public/plugins/slimScroll/jquery.slimscroll.min.js') ?>"></script>
+    <script src="<?= base_url('public/plugins/fastclick/fastclick.min.js') ?>"></script>
+    <script src="<?= base_url('public/dist/js/app.min.js') ?>"></script>
+    <script src="<?= base_url('public/plugins/iCheck/icheck.min.js') ?>"></script>
+
+    <script>
+      // Loader come nella inbox
+      (function() {
+        var loader = $('#page-loader');
+
+        function showLoader(){ loader.stop(true,true).fadeIn(100); }
+        function hideLoader(){ loader.stop(true,true).fadeOut(150); }
+
+        // Mostra loader SOLO per link normali (niente per .no-loader o target="_blank")
+        $(document).on('click', 'a[href]:not([href^="#"]):not([target="_blank"]):not(.no-loader)', function(e){
+          if (e.ctrlKey || e.shiftKey || e.metaKey || (this.href && this.href.indexOf('javascript:') === 0)) return;
+          var $a = $(this);
+          if ($a.attr('data-toggle') === 'dropdown' || $a.attr('data-toggle') === 'collapse' || $a.data('widget') === 'collapse') return;
+          showLoader();
+        });
+
+        $(document).on('submit', 'form:not(.no-loader)', function(){ showLoader(); });
+        window.addEventListener('beforeunload', function(){ showLoader(); });
+        $(window).on('load', hideLoader);
+      })();
+
+      // Conferma eliminazione
+      $(document).on('click', '.btn-delete', function(e){
+        if(!confirm('Eliminare questo messaggio?')) {
+          e.preventDefault();
+        }
+      });
+
+      // Shortcut tastiera
+      document.addEventListener('keydown', function(e){
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
+        var replyUrl  = "<?= site_url('posta/reply/' . urlencode($uid)) ?>";
+        var fwdUrl    = "<?= site_url('posta/forward/' . urlencode($uid)) ?>";
+        var delUrl    = "<?= site_url('posta/delete/' . urlencode($uid)) ?>";
+        var backUrl   = "<?= $backUrl ?>";
+        if (e.key === 'r' || e.key === 'R') { window.location = replyUrl; }
+        else if (e.key === 'f' || e.key === 'F') { window.location = fwdUrl; }
+        else if (e.key === 'Backspace') { window.location = backUrl; }
+        else if (e.key === 'Delete') {
+          if (confirm('Eliminare questo messaggio?')) window.location = delUrl;
+        }
+      });
+    </script>
+  </body>
+</html>

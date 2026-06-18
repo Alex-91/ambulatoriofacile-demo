@@ -1,0 +1,171 @@
+/* RESET BASE */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* SFONDO */
+body {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #6c5ce7, #2c8895);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* CONTENITORE */
+.container {
+  width: 100%;
+  padding: 20px;
+}
+
+/* CARD LOGIN */
+.wrapper {
+  max-width: 420px;
+  margin: auto;
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+}
+
+/* LOGO */
+.title {
+  height: 120px;
+  background-color: #f7f7f7;
+}
+
+/* FORM */
+form {
+  padding: 30px 25px 35px;
+}
+
+/* RIGHE INPUT */
+.row {
+  position: relative;
+  margin-bottom: 18px;
+}
+
+.row i.fa-user,
+.row i.fa-lock {
+  position: absolute;
+  top: 50%;
+  left: 14px;
+  transform: translateY(-50%);
+  color: #999;
+  font-size: 16px;
+}
+
+.toggle-password {
+  position: absolute;
+  top: 50%;
+  right: 14px;
+  transform: translateY(-50%);
+  color: #999;
+  cursor: pointer;
+}
+
+/* INPUT */
+.row input[type="text"],
+.row input[type="password"] {
+  width: 100%;
+  padding: 12px 42px;
+  border-radius: 10px;
+  border: 1px solid #ddd;
+  font-size: 15px;
+  transition: all 0.3s ease;
+}
+
+.row input:focus {
+  outline: none;
+  border-color: #6c5ce7;
+  box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.15);
+}
+
+/* MESSAGGI */
+#okLogin span {
+  font-size: 14px;
+}
+
+#errorLogin span {
+  font-size: 14px;
+}
+
+/* BOTTONI */
+.row.button {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.row.button input[type="button"] {
+  width: 100%;
+  padding: 12px;
+  border-radius: 10px;
+  border: none;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+/* LOGIN */
+#submit {
+  background: #6c5ce7;
+  color: #fff;
+}
+
+#submit:hover {
+  background: #5a4ed1;
+}
+
+/* REGISTRA */
+#register {
+  background: #2c8895;
+  color: #fff;
+}
+
+#register:hover {
+  background: #12806a;
+}
+
+/* RESET */
+#reset {
+  background: #f1f1f1;
+  color: #444;
+}
+
+#reset:hover {
+  background: #e3e3e3;
+}
+
+/* INSTALL PWA */
+#installPWA {
+  background: #0984e3;
+  color: #fff;
+}
+
+#installPWA:hover {
+  background: #0874c7;
+}
+
+/* NOTE PWA */
+#installNote {
+  margin-top: 10px;
+  font-size: 13px;
+  color: #666;
+  text-align: center;
+}
+
+/* RESPONSIVE */
+@media (max-width: 480px) {
+  .wrapper {
+    border-radius: 12px;
+  }
+
+  form {
+    padding: 25px 20px 30px;
+  }
+}

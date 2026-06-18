@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <link rel="shortcut icon" href="./images/logo.jpg" />
+    <title>Ambulatori.Cloud - Manutenzione</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <meta name="theme-color" content="#16a085">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="DottorAPP">
+
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="images/icon-192x192.png">
+    <link rel="stylesheet" href="./fontawesome/css/all.min.css">
+    <link rel="stylesheet" href="./css/style.css">
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .wrapper {
+            width: 100%;
+            max-width: 430px;
+        }
+
+        .title {
+            height: 110px;
+            background-image: url('./images/logonew.jpg');
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            margin-bottom: 20px;
+        }
+
+        .maintenance-box {
+            background: #fff;
+            border-radius: 10px;
+            padding: 30px 25px;
+            box-shadow: 0 4px 18px rgba(0, 0, 0, 0.12);
+            text-align: center;
+        }
+
+        .maintenance-icon {
+            font-size: 52px;
+            color: #16a085;
+            margin-bottom: 18px;
+        }
+
+        .maintenance-box h1 {
+            margin: 0 0 15px 0;
+            font-size: 28px;
+            color: #333;
+        }
+
+        .maintenance-box p {
+            margin: 10px 0;
+            font-size: 16px;
+            line-height: 1.6;
+            color: #555;
+        }
+
+        .maintenance-highlight {
+            margin-top: 18px;
+            font-weight: bold;
+            color: #16a085;
+        }
+
+        .maintenance-footer {
+            margin-top: 25px;
+            font-size: 14px;
+            color: #888;
+        }
+
+        .btn-home {
+            display: inline-block;
+            margin-top: 25px;
+            padding: 12px 24px;
+            background: #16a085;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 15px;
+            transition: 0.3s;
+        }
+
+        .btn-home:hover {
+            background: #13856d;
+        }
+
+        @media screen and (max-width: 600px) {
+            .maintenance-box {
+                padding: 25px 18px;
+            }
+
+            .maintenance-box h1 {
+                font-size: 24px;
+            }
+
+            .maintenance-box p {
+                font-size: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('sw.js?v=' + new Date().getTime()).then((registration) => {
+                console.log('Service Worker registrato con successo:', registration);
+            }).catch((error) => {
+                console.log('Registrazione del Service Worker fallita:', error);
+            });
+        });
+    }
+</script>
+
+<div class="container">
+    <div class="wrapper">
+        <div class="title"></div>
+
+        <div class="maintenance-box">
+            <div class="maintenance-icon">
+                <i class="fas fa-tools"></i>
+            </div>
+
+            <h1>Sito in manutenzione</h1>
+
+            <p>
+                Stiamo effettuando un aggiornamento del sistema per migliorare i nostri servizi.
+            </p>
+
+            <p>
+                Il portale <strong>Ambulatori.Cloud</strong> sarà nuovamente disponibile il prima possibile.
+            </p>
+
+            <p class="maintenance-highlight">
+                Ci scusiamo per il disagio.
+            </p>
+
+            <div class="maintenance-footer">
+                Per urgenze, contatta la struttura con i canali abituali.
+            </div>
+
+            <a href="javascript:void(0);" class="btn-home">Riprova più tardi</a>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

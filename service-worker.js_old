@@ -1,0 +1,53 @@
+// public/sw.js
+const BASE = new URL(self.registration.scope).pathname.replace(/\/?$/, '/');
+
+self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', () => self.clients.claim());
+
+self.addEventListener('push', (event) => {
+  event.waitUntil((async () => {
+    const reg = await self.registration;
+    const sub = await reg.pushManager.getSubscription();
+    const endpoint = sub ? sub.endpoint : '';
+
+    let data = { title: 'Nuova notifica', body: 'Hai un nuovo messaggio', data: { url: new URL(reg.scope).pathname } };
+
+    try {
+      const pullURL = new URL('push/pull', reg.scope); // es. https://host/dottorAppLTE/push/pull
+      pullURL.searchParams.set('endpoint', endpoint);
+
+      const res = await fetch(pullURL.toString(), { cache: 'no-store' });
+      if (res.ok) {
+        const json = await res.json();
+        if (json && json.title && json.body) data = json;
+      } else {
+        // log utile in dev
+        console.warn('[SW] pull non ok:', res.status);
+      }
+    } catch (e) {
+      console.warn('[SW] pull error:', e);
+    }
+
+    return reg.showNotification(data.title, {
+      body: data.body,
+      data: data.data,
+      tag: 'ambulatori',
+      renotify: true,
+      requireInteraction: true,
+      vibrate: [80, 40, 80]
+    });
+  })());
+});
+
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = (event.notification.data && event.notification.data.url) || BASE;
+  event.waitUntil((async () => {
+    const all = await clients.matchAll({ type:'window', includeUncontrolled:true });
+    for (const c of all) {
+      if (c.url.includes(self.location.origin)) { c.focus(); return; }
+    }
+    await clients.openWindow(url);
+  })());
+});

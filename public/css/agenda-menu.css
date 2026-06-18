@@ -1,0 +1,21 @@
+#agendaMenuLaterale > li > a {
+    border-radius: 0;
+}
+
+#agendaMenuLaterale .agenda-submenu {
+    margin: 0;
+    padding: 0;
+    background: #f9f9f9;
+}
+
+#agendaMenuLaterale .agenda-submenu li a {
+    border-radius: 0;
+}
+
+#agendaMenuLaterale .agenda-menu-toggle {
+    cursor: pointer;
+}
+
+#agendaMenuLaterale .agenda-menu-parent.open > a {
+    font-weight: 600;
+}

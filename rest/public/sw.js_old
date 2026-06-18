@@ -1,0 +1,116 @@
+self.addEventListener('install', (event) => {
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(self.clients.claim());
+});
+
+const DEFAULT_ICON_URL = '/notifications/icon.svg';
+const DEFAULT_BADGE_URL = '/notifications/badge.svg';
+const LEGACY_ASSET_PATHS = new Set([
+  '/public/assets/images/icon-192x192.png',
+  '/public/assets/images/icon-512x512.png',
+]);
+const DEFAULT_ICON_PATH = new URL(DEFAULT_ICON_URL, self.location.origin).pathname;
+
+function normalizeAssetUrl(value, fallback, extraLegacyPaths = []) {
+  const raw = typeof value === 'string' ? value.trim() : '';
+  if (!raw) {
+    return fallback;
+  }
+
+  try {
+    const parsed = new URL(raw, self.location.origin);
+    const legacyPaths = new Set([...LEGACY_ASSET_PATHS, ...extraLegacyPaths]);
+    if (legacyPaths.has(parsed.pathname)) {
+      return fallback;
+    }
+    return parsed.href;
+  } catch (e) {
+    return new URL(fallback, self.location.origin).href;
+  }
+}
+
+self.addEventListener('push', (event) => {
+  let payload = {};
+  try {
+    payload = event.data ? event.data.json() : {};
+  } catch (e) {
+    payload = {};
+  }
+
+  const title = payload.title || 'AMBULATORI.Cloud';
+  const type = typeof payload.type === 'string' ? payload.type.toLowerCase() : 'generic';
+  const tag = typeof payload.tag === 'string' && payload.tag.trim() !== '' ? payload.tag.trim() : undefined;
+  const badgeLegacyPaths = [DEFAULT_ICON_PATH];
+  const options = {
+    body: payload.body || 'Nuova notifica',
+    icon: normalizeAssetUrl(payload.icon, DEFAULT_ICON_URL),
+    badge: normalizeAssetUrl(payload.badge, DEFAULT_BADGE_URL, badgeLegacyPaths),
+    data: typeof payload.data === 'object' && payload.data !== null
+      ? { ...payload.data, notificationType: type }
+      : { notificationType: type },
+    lang: typeof payload.lang === 'string' && payload.lang.trim() !== '' ? payload.lang.trim() : 'it-IT',
+    timestamp: Number.isFinite(Number(payload.timestamp)) ? Number(payload.timestamp) : Date.now(),
+  };
+
+  if (tag) {
+    options.tag = tag;
+    if (payload.renotify === true || (payload.renotify !== false && ['otp', 'chat', 'mail', 'test', 'debug'].includes(type))) {
+      options.renotify = true;
+    }
+  }
+
+  if (typeof payload.image === 'string' && payload.image.trim() !== '') {
+    options.image = payload.image.trim();
+  }
+
+  if (Array.isArray(payload.actions) && payload.actions.length > 0) {
+    options.actions = payload.actions;
+  }
+
+  if (payload.requireInteraction === true || payload.sticky === true) {
+    options.requireInteraction = true;
+  }
+
+  if (typeof payload.silent === 'boolean') {
+    options.silent = payload.silent;
+  }
+
+  if (options.silent !== true && Array.isArray(payload.vibrate) && payload.vibrate.length > 0) {
+    options.vibrate = payload.vibrate;
+  }
+
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+
+  const data = event.notification.data || {};
+  const rawTargetUrl = data.url || '/';
+  let targetUrl = self.location.origin + '/';
+
+  try {
+    targetUrl = new URL(rawTargetUrl, self.location.origin).href;
+  } catch (e) {
+    targetUrl = self.location.origin + '/';
+  }
+
+  event.waitUntil((async () => {
+    const allClients = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const client of allClients) {
+      if ('focus' in client && client.url.includes(self.location.origin)) {
+        client.navigate(targetUrl);
+        return client.focus();
+      }
+    }
+
+    if (clients.openWindow) {
+      return clients.openWindow(targetUrl);
+    }
+
+    return null;
+  })());
+});

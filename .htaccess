@@ -1,0 +1,13 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Blocca l'accesso diretto alla cartella public
+    RewriteCond %{REQUEST_URI} ^/public/
+    RewriteRule ^.*$ - [R=403,L]
+
+    # Se il file o la cartella non esistono, reindirizza a index.php
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^(.*)$ index.php/$1 [L]
+</IfModule>
+

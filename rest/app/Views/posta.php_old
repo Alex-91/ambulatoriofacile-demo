@@ -1,0 +1,699 @@
+<?php
+/** @var array $messages */
+/** @var int   $rangeStart */
+/** @var int   $rangeEnd */
+/** @var int   $total */
+/** @var string|null $q */
+/** @var int   $page */
+/** @var int   $perPage */
+/** @var bool  $hasPrev */
+/** @var bool  $hasNext */
+/** @var bool|null $requireDoctorSelection */
+/** @var int|null  $selectedDoctorId */
+
+
+function buildForwardLabel(?string $inoltratoJson, string $fallbackOriginalSender = ''): ?string {
+    if (!$inoltratoJson) return null;
+
+    $meta = json_decode($inoltratoJson, true);
+    if (!is_array($meta)) return null;
+
+    $forName = trim((string)($meta['for_client_name'] ?? '')); // mittente originale (quando disponibile)
+    if ($forName === '') {
+        $forName = trim($fallbackOriginalSender);
+    }
+    $byRole  = (string)($meta['by_role'] ?? '');               // P/S/I
+
+    if ($forName === '' || !in_array($byRole, ['P','S','I'], true)) return null;
+
+    $perConto = match ($byRole) {
+        'S' => 'Inoltro dalla segreteria per conto di ',
+        'I' => "Inoltro dell'infermiere per conto di ",
+        'P' => 'Inoltro del medico per conto di ',
+        default => 'Inoltro per conto di ',
+    };
+
+    return $perConto.$forName;
+}
+
+
+$result = session()->get('menuData');
+$menu_items = $result['result'] ?? [];
+$dottori    = $result['dottori'] ?? [];
+$contDott   = $result['cont_dottori'] ?? 0;
+
+$folder         = $folder ?? 'inbox';          // default
+$isSentFolder   = ($folder === 'sent');
+$isDraftFolder  = ($folder === 'drafts');
+
+$boxTitle       = $isDraftFolder ? 'Bozze' : ($isSentFolder ? 'Posta inviata' : 'Posta in Arrivo');
+
+// gestitaFilter potrebbe non essere settato per la sent o drafts
+$gestitaFilter = $gestitaFilter ?? 'all';
+
+$needDoctor = !empty($requireDoctorSelection);
+?>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>AmbulatoriCLOUD | Posta</title>
+    <link rel="icon" href="<?= base_url('public/assets/images/logonew.jpg') ?>" type="image/x-icon" sizes="any">
+    <meta content='width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no' name='viewport'>
+    <!-- Bootstrap 3.3.4 -->
+    <link href="<?= base_url('public/bootstrap/css/bootstrap.min.css') ?>" rel="stylesheet" type="text/css" />
+    <!-- Font Awesome Icons -->
+    <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css" rel="stylesheet" type="text/css" />
+    <!-- Ionicons -->
+    <link href="https://code.ionicframework.com/ionicons/2.0.1/css/ionicons.min.css" rel="stylesheet" type="text/css" />
+    <!-- fullCalendar 2.2.5-->
+    <link href="<?= base_url('public/plugins/fullcalendar/fullcalendar.min.css') ?>" rel="stylesheet" type="text/css" />
+    <link href="<?= base_url('public/plugins/fullcalendar/fullcalendar.print.css') ?>" rel="stylesheet" type="text/css" media='print' />
+    <!-- Theme style -->
+    <link href="<?= base_url('public/dist/css/AdminLTE.css') ?>" rel="stylesheet" type="text/css" />
+    <!-- AmbulatoriCLOUD skins -->
+    <link href="<?= base_url('public/dist/css/skins/_all-skins.min.css') ?>" rel="stylesheet" type="text/css" />
+    <!-- iCheck -->
+    <link href="<?= base_url('public/plugins/iCheck/flat/blue.css') ?>" rel="stylesheet" type="text/css" />
+
+    <style>
+      #page-loader {
+        position: fixed; inset: 0;
+        background: rgba(255,255,255,.85);
+        z-index: 9999; display: none;
+      }
+      #page-loader .spinner {
+        position: absolute; top: 50%; left: 50%;
+        transform: translate(-50%,-50%); text-align: center;
+      }
+      #page-loader .spinner .msg {
+        margin-top: 10px; font-size: 13px; color: #444;
+        letter-spacing:.2px;
+      }
+      .nav-pills.nav-stacked > li.active > a {
+        background-color: #2c8895;
+        color: #fff;
+      }
+    </style>
+  </head>
+  <body class="skin-blue sidebar-mini">
+    <form id="open-message" method="post" style="display:none" action="<?= site_url('posta/read') ?>">
+      <?= csrf_field() ?>
+      <input type="hidden" id="csrf_name"  value="<?= csrf_token() ?>">
+      <input type="hidden" id="csrf_value" value="<?= csrf_hash() ?>">
+      <input type="hidden" name="uid" id="msg-uid">
+      <input type="hidden" name="box" id="msg-box" value="<?= esc($folder) ?>">
+    </form>
+
+    <div id="page-loader" aria-hidden="true">
+      <div class="spinner">
+        <i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i>
+        <div class="msg">Caricamentoâ€¦</div>
+      </div>
+    </div>
+
+    <div class="wrapper">
+
+     
+     <?= view('partials/header', [
+    'menu_items' => $menu_items ?? [],
+]) ?>
+
+
+
+      <aside class="main-sidebar" style="display:none">
+        <section class="sidebar">
+          <!-- lasciata di default, ma nascosta -->
+        </section>
+      </aside>
+
+      <!-- Content Wrapper. Contains page content -->
+      <div class="content-wrapper">
+        <section class="content-header">
+          <h1>
+            Posta
+            <small></small>
+          </h1>
+          <ol class="breadcrumb">
+            <li><a href="#"><i class="fa fa-dashboard"></i> Home</a></li>
+            <li class="active">Posta</li>
+          </ol>
+        </section>
+
+        <!-- Main content -->
+        <section class="content">
+          <div class="row">
+            <div class="col-md-3">
+              <a href="compose" class="btn btn-primary btn-block margin-bottom">Scrivi nuovo messaggio</a>
+
+            <!-- COLONNA SINISTRA -->
+           <?= view('partials/sidebar_posta', [
+                'menu_items'       => $menu_items ?? [],
+                'dottori'          => $dottori ?? [],
+                'contDott'         => $contDott ?? 0,
+                'selectedDoctorId' => $selectedDoctorId ?? null,
+                'result'           => $result ?? [],
+              ]) ?>
+
+
+              <!-- Labels nascosto -->
+              <div class="box box-solid" style="display:none !important">
+                <div class="box-header with-border">
+                  <h3 class="box-title">Labels</h3>
+                  <div class='box-tools'>
+                    <button class='btn btn-box-tool' data-widget='collapse'><i class='fa fa-minus'></i></button>
+                  </div>
+                </div>
+                <div class="box-body no-padding">
+                  <ul class="nav nav-pills nav-stacked">
+                    <li><a href="#"><i class="fa fa-circle-o text-red"></i> Important</a></li>
+                    <li><a href="#"><i class="fa fa-circle-o text-yellow"></i> Promotions</a></li>
+                    <li><a href="#"><i class="fa fa-circle-o text-light-blue"></i> Social</a></li>
+                  </ul>
+                </div>
+              </div><!-- /.box -->
+            </div><!-- /.col -->
+
+            <!-- COLONNA DESTRA -->
+            <div class="col-md-9">
+              <div class="box box-primary">
+                <div class="box-header with-border">
+                  <h3 class="box-title"><?= esc($boxTitle) ?></h3>
+
+                  <?php if (!$needDoctor): ?>
+                    <div class="box-tools pull-right" style="display:flex; gap:8px; align-items:center;">
+                      <!-- ðŸ” search -->
+                      <form method="get"
+                            action="<?= $isDraftFolder ? site_url('bozze') : ($isSentFolder ? site_url('inviata') : site_url('posta')) ?>"
+                            style="display:flex; gap:6px; align-items:center; margin:0;">
+
+                        <div class="has-feedback" style="max-width:180px;">
+                          <input type="text"
+                                 name="q"
+                                 class="form-control input-sm"
+                                 placeholder="Cercaâ€¦"
+                                 value="<?= esc($q ?? '') ?>">
+                          <span class="glyphicon glyphicon-search form-control-feedback"></span>
+                        </div>
+
+                        <?php if (!empty($selectedDoctorId)): ?>
+                          <input type="hidden" name="id_dottore" value="<?= (int)$selectedDoctorId ?>">
+                        <?php endif; ?>
+
+                        <?php if (!$isSentFolder && !$isDraftFolder): ?>
+                          <?php if (!empty($gestitaFilter) && $gestitaFilter !== 'all'): ?>
+                            <input type="hidden" name="gestita" value="<?= esc($gestitaFilter) ?>">
+                          <?php endif; ?>
+                        <?php endif; ?>
+
+                        <button class="btn btn-default btn-xs" type="submit">Vai</button>
+                      </form>
+
+                      <!-- ðŸ”˜ FILTRO GESTITA (solo inbox) -->
+                      <?php
+                        $baseParams = [];
+                        if (!empty($q)) $baseParams['q'] = $q;
+                        if (!empty($selectedDoctorId)) $baseParams['id_dottore'] = $selectedDoctorId;
+
+                        $mkUrl = function(array $extra) use ($baseParams) {
+                          $params = array_merge($baseParams, $extra);
+                          return site_url('posta') . ($params ? ('?' . http_build_query($params)) : '');
+                        };
+                      ?>
+                      <?php if (!$isSentFolder && !$isDraftFolder): ?>
+                        <div class="btn-group btn-group-xs" role="group" aria-label="Filtro gestita">
+                          <a href="<?= $mkUrl(['gestita' => 'all']) ?>"
+                             class="btn <?= $gestitaFilter === 'all' ? 'btn-success' : 'btn-default' ?>">
+                            Tutte
+                          </a>
+                          <a href="<?= $mkUrl(['gestita' => '0']) ?>"
+                             class="btn <?= $gestitaFilter === '0' ? 'btn-success' : 'btn-default' ?>">
+                            Non gestite
+                          </a>
+                          <a href="<?= $mkUrl(['gestita' => '1']) ?>"
+                             class="btn <?= $gestitaFilter === '1' ? 'btn-success' : 'btn-default' ?>">
+                            Gestite
+                          </a>
+                        </div>
+                      <?php endif; ?>
+                    </div>
+                  <?php endif; ?>
+                </div><!-- /.box-header -->
+
+                <?php if ($needDoctor): ?>
+                  <div class="box-body">
+                    <div class="alert alert-info" style="margin:15px;">
+                      Seleziona un dottore dall'elenco a sinistra per visualizzare i messaggi.
+                    </div>
+                  </div>
+                <?php else: ?>
+
+                  <div class="box-body no-padding">
+                    <div class="mailbox-controls">
+                      <!-- Check all button -->
+                      <button class="btn btn-default btn-sm checkbox-toggle"><i class="fa fa-square-o"></i></button>
+
+                      <?php if (!$isSentFolder && !$isDraftFolder): ?>
+                        <div class="btn-group">
+                          <button class="btn btn-default btn-sm btn-delete-mail" type="button">
+                            <i class="fa fa-trash-o"></i>
+                          </button>
+                          <button class="btn btn-default btn-sm btn-toggle-gestita" type="button" title="Segna come gestita / non gestita">
+                            <i class="fa fa-check-circle"></i>
+                          </button>
+                        </div>
+                      <?php endif; ?>
+
+                      <button class="btn btn-default btn-sm btn-refresh-mail" type="button">
+                        <i class="fa fa-refresh"></i>
+                      </button>
+
+                      <div class="pull-right">
+                        <?= esc($rangeStart) ?>-<?= esc($rangeEnd) ?>/<?= esc($total) ?>
+                        <div class="btn-group">
+                          <?php
+                            $base = $isDraftFolder ? site_url('bozze') : ($isSentFolder ? site_url('inviata') : site_url('posta'));
+                            $params = [];
+                            if (!empty($q)) $params['q'] = $q;
+                            if (!empty($selectedDoctorId)) $params['id_dottore'] = $selectedDoctorId;
+
+                            if (!$isSentFolder && !$isDraftFolder) {
+                              if (!empty($gestitaFilter) && $gestitaFilter !== 'all') $params['gestita'] = $gestitaFilter;
+                            }
+
+                            $queryBase = $params ? ('?' . http_build_query($params) . '&') : '?';
+
+                            if (!empty($hasPrev)) {
+                              $prevUrl = $base . $queryBase . 'page=' . max(1, ($page-1));
+                              echo '<a class="btn btn-default btn-sm" href="'.$prevUrl.'"><i class="fa fa-chevron-left"></i></a>';
+                            } else {
+                              echo '<button class="btn btn-default btn-sm" disabled><i class="fa fa-chevron-left"></i></button>';
+                            }
+                            if (!empty($hasNext)) {
+                              $nextUrl = $base . $queryBase . 'page=' . ($page+1);
+                              echo '<a class="btn btn-default btn-sm" href="'.$nextUrl.'"><i class="fa fa-chevron-right"></i></a>';
+                            } else {
+                              echo '<button class="btn btn-default btn-sm" disabled><i class="fa fa-chevron-right"></i></button>';
+                            }
+                          ?>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="table-responsive mailbox-messages">
+                      <table class="table table-hover table-striped">
+                        <tbody>
+                          <?php if (!empty($messages)): ?>
+                            <?php foreach ($messages as $row): ?>
+                              <?php
+                                $uid = $row['src'] . ':' . $row['uid'];
+
+                                $starred  = (int)($row['is_starred'] ?? 0) === 1;
+                                $isRead   = $isSentFolder || $isDraftFolder ? true : ((int)($row['letto'] ?? 0) === 1);
+                                $hasAtt   = false;
+
+                                // fromText: in drafts metto "Bozza"
+                                $qualifica = $row['mittente_qualifica'] ?? '';
+                                $nome      = $row['mittente_nome'] ?? '';
+                                $cognome   = $row['mittente_cognome'] ?? '';
+if ($isDraftFolder) {
+  $fromText = 'Bozza';
+} else {
+  $originalSenderName = trim("$cognome $nome");
+
+  // Se inoltrato, mostra sempre il ruolo di chi inoltra + mittente originale.
+  $fwText = null;
+  if (!empty($row['inoltrato'])) {
+    $fwText = buildForwardLabel($row['inoltrato'], $originalSenderName);
+  }
+
+  if (!empty($fwText)) {
+    $fromText = $fwText;
+  } else {
+
+    // Mittente standard: Nome Cognome (senza prefissi).
+    if ($originalSenderName !== '') {
+      $fromText = $originalSenderName;
+    } else {
+      if ($row['mittente'] == 'S') {
+        $fromText = "Segreteria";
+      } else if ($row['mittente'] == 'I') {
+        $fromText = "Infermiere";
+      } else if ($row['mittente'] == 'P') {
+        $fromText = "Medico";
+      } else {
+        $fromText = "Paziente";
+      }
+    }
+
+  }
+
+  if ($fromText === '') {
+    if ($isSentFolder) $fromText = 'Destinatario #'.(int)($row['id_dest'] ?? 0);
+    else $fromText = 'Mittente #'.(int)($row['id_mitt'] ?? 0);
+  }
+}
+
+                                $subject  = $row['oggetto'] ?? 'dsds';
+                                $preview  = '';
+                                if (!empty($row['testo'])) $preview = mb_strimwidth(strip_tags($row['testo']), 0, 60, '...');
+                                $date = $row['dataora'] ?? '';
+                              ?>
+                              <tr data-id="<?= esc($uid) ?>" style="cursor:pointer">
+                                <td><input type="checkbox" class="row-check" value="<?= esc($uid) ?>" /></td>
+
+                                <?php if (!$isSentFolder && !$isDraftFolder): ?>
+                                  <td class="mailbox-star">
+                                    <a href="#" class="toggle-star" data-id="<?= esc($uid) ?>">
+                                      <i class="fa <?= $starred ? 'fa-star' : 'fa-star-o' ?> text-yellow"></i>
+                                    </a>
+                                  </td>
+                                <?php endif; ?>
+
+                                <td class="mailbox-name"><?= esc($fromText) ?></td>
+                                <td class="mailbox-subject">
+                                  <?php if (!$isRead): ?><b><?php endif; ?>
+                                    <?= esc($subject) ?>
+                                    <?php if ($preview): ?> - <?= esc($preview) ?><?php endif; ?>
+                                  <?php if (!$isRead): ?></b><?php endif; ?>
+                                </td>
+                                <td class="mailbox-attachment">
+                                  <?php if ($hasAtt): ?><i class="fa fa-paperclip"></i><?php endif; ?>
+                                </td>
+                                <td class="mailbox-date"><?= esc($date) ?></td>
+                              </tr>
+                            <?php endforeach; ?>
+                          <?php else: ?>
+                            <?php
+                              $colspan = 5;
+                              if (!$isSentFolder && !$isDraftFolder) $colspan = 6;
+                            ?>
+                            <tr>
+                              <td colspan="<?= $colspan ?>" class="text-center text-muted">Nessun messaggio</td>
+                            </tr>
+                          <?php endif; ?>
+                        </tbody>
+                      </table>
+                    </div><!-- /.mail-box-messages -->
+                  </div><!-- /.box-body -->
+
+                  <div class="box-footer no-padding">
+                    <div class="mailbox-controls">
+                      <button class="btn btn-default btn-sm checkbox-toggle"><i class="fa fa-square-o"></i></button>
+
+                      <?php if (!$isSentFolder && !$isDraftFolder): ?>
+                        <div class="btn-group">
+                          <button class="btn btn-default btn-sm btn-delete-mail" type="button">
+                            <i class="fa fa-trash-o"></i>
+                          </button>
+                        </div>
+                      <?php endif; ?>
+
+                      <button class="btn btn-default btn-sm btn-refresh-mail" type="button">
+                        <i class="fa fa-refresh"></i>
+                      </button>
+
+                      <div class="pull-right">
+                        <?= esc($rangeStart) ?>-<?= esc($rangeEnd) ?>/<?= esc($total) ?>
+                        <div class="btn-group">
+                          <?php
+                            if (!isset($queryBase)) {
+                              $base = $isDraftFolder ? site_url('bozze') : ($isSentFolder ? site_url('inviata') : site_url('posta'));
+                              $params = [];
+                              if (!empty($q)) $params['q'] = $q;
+                              if (!empty($selectedDoctorId)) $params['id_dottore'] = $selectedDoctorId;
+                              if (!$isSentFolder && !$isDraftFolder) {
+                                if (!empty($gestitaFilter) && $gestitaFilter !== 'all') $params['gestita'] = $gestitaFilter;
+                              }
+                              $queryBase = $params ? ('?' . http_build_query($params) . '&') : '?';
+                            }
+
+                            if (!empty($hasPrev)) {
+                              $prevUrl = $base . $queryBase . 'page=' . max(1, ($page-1));
+                              echo '<a class="btn btn-default btn-sm" href="'.$prevUrl.'"><i class="fa fa-chevron-left"></i></a>';
+                            } else {
+                              echo '<button class="btn btn-default btn-sm" disabled><i class="fa fa-chevron-left"></i></button>';
+                            }
+                            if (!empty($hasNext)) {
+                              $nextUrl = $base . $queryBase . 'page=' . ($page+1);
+                              echo '<a class="btn btn-default btn-sm" href="'.$nextUrl.'"><i class="fa fa-chevron-right"></i></a>';
+                            } else {
+                              echo '<button class="btn btn-default btn-sm" disabled><i class="fa fa-chevron-right"></i></button>';
+                            }
+                          ?>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                <?php endif; // !needDoctor ?>
+              </div><!-- /. box -->
+            </div><!-- /.col -->
+          </div><!-- /.row -->
+        </section><!-- /.content -->
+      </div><!-- /.content-wrapper -->
+
+      <footer class="main-footer">
+        <div class="pull-right hidden-xs">
+          <b>Version</b> 2.0
+        </div>
+        <strong>&copy; AmbulatoriCLOUD</strong>
+      </footer>
+
+      <aside class="control-sidebar control-sidebar-dark">
+      </aside>
+      <div class='control-sidebar-bg'></div>
+    </div><!-- ./wrapper -->
+
+    <!-- jQuery 2.1.4 -->
+    <script src="<?= base_url('public/plugins/jQuery/jQuery-2.1.4.min.js') ?>"></script>
+    <!-- Bootstrap 3.3.2 JS -->
+    <script src="<?= base_url('public/bootstrap/js/bootstrap.min.js') ?>" type="text/javascript"></script>
+    <!-- Slimscroll -->
+    <script src="<?= base_url('public/plugins/slimScroll/jquery.slimscroll.min.js') ?>" type="text/javascript"></script>
+    <!-- FastClick -->
+    <script src="<?= base_url('public/plugins/fastclick/fastclick.min.js') ?>"></script>
+    <!-- AmbulatoriCLOUD app shell -->
+    <script src="<?= base_url('public/dist/js/app.min.js') ?>" type="text/javascript"></script>
+    <!-- iCheck -->
+    <script src="<?= base_url('public/plugins/iCheck/icheck.min.js') ?>" type="text/javascript"></script>
+    <!-- Demo -->
+    <script src="<?= base_url('public/dist/js/demo.js') ?>" type="text/javascript"></script>
+
+    <script>
+      $(function () {
+        $('.mailbox-messages input[type="checkbox"]').iCheck({
+          checkboxClass: 'icheckbox_flat-blue',
+          radioClass: 'iradio_flat-blue'
+        });
+
+        $(".checkbox-toggle").click(function () {
+          var clicks = $(this).data('clicks');
+          if (clicks) {
+            $(".mailbox-messages input[type='checkbox']").iCheck("uncheck");
+            $(".fa", this).removeClass("fa-check-square-o").addClass('fa-square-o');
+          } else {
+            $(".mailbox-messages input[type='checkbox']").iCheck("check");
+            $(".fa", this).removeClass("fa-square-o").addClass('fa-check-square-o');
+          }
+          $(this).data("clicks", !clicks);
+        });
+
+        // vecchio toggle visuale stella
+        $(".mailbox-star").click(function (e) {
+          e.preventDefault();
+          var $this = $(this).find("a > i");
+          var glyph = $this.hasClass("glyphicon");
+          var fa = $this.hasClass("fa");
+          if (glyph) {
+            $this.toggleClass("glyphicon-star");
+            $this.toggleClass("glyphicon-star-empty");
+          }
+          if (fa) {
+            $this.toggleClass("fa-star");
+            $this.toggleClass("fa-star-o");
+          }
+        });
+      });
+    </script>
+
+    <script>
+      (function() {
+        var loader = $('#page-loader');
+        function showLoader(){ loader.stop(true,true).fadeIn(100); }
+        function hideLoader(){ loader.stop(true,true).fadeOut(150); }
+
+        $(document).on('click', 'a[href]:not([href^="#"]):not([target="_blank"]):not(.no-loader)', function(e){
+          if (e.ctrlKey || e.shiftKey || e.metaKey || (this.href && this.href.indexOf('javascript:') === 0)) return;
+          var $a = $(this);
+          if ($a.attr('data-toggle') === 'dropdown' || $a.attr('data-toggle') === 'collapse' || $a.data('widget') === 'collapse') return;
+          showLoader();
+        });
+
+        $(document).on('submit', 'form:not(.no-loader)', function(){ showLoader(); });
+
+        window.addEventListener('beforeunload', function(){ showLoader(); });
+
+        $(window).on('load', function(){ hideLoader(); });
+
+        // ðŸ”„ REFRESH POSTA VIA AJAX
+        $('.btn-refresh-mail').on('click', function (e) {
+          e.preventDefault();
+          showLoader();
+
+          $.get(window.location.href)
+            .done(function (html) {
+              var $html = $(html);
+              var $newTableContent = $html.find('.table-responsive.mailbox-messages').html();
+
+              if ($newTableContent && $newTableContent.length) {
+                $('.table-responsive.mailbox-messages').html($newTableContent);
+
+                $('.mailbox-messages input[type="checkbox"]').iCheck({
+                  checkboxClass: 'icheckbox_flat-blue',
+                  radioClass: 'iradio_flat-blue'
+                });
+              } else {
+                console.warn('Impossibile trovare .table-responsive.mailbox-messages nella risposta');
+              }
+            })
+            .fail(function () {
+              alert('Errore durante l\'aggiornamento della posta.');
+            })
+            .always(function () {
+              hideLoader();
+            });
+        });
+
+      })();
+    </script>
+
+    <?php if (!$isSentFolder && !$isDraftFolder): ?>
+    <script>
+      $(function(){
+        // Elimina messaggi selezionati
+        $('.btn-delete-mail').on('click', function (e) {
+          e.preventDefault();
+
+          var ids = [];
+          $('.row-check:checked').each(function () {
+            ids.push($(this).val());
+          });
+
+          if (!ids.length) {
+            alert('Seleziona almeno un messaggio da eliminare.');
+            return;
+          }
+
+          if (!confirm('Vuoi eliminare i messaggi selezionati?')) {
+            return;
+          }
+
+          var csrfName  = $('#csrf_name').val();
+          var csrfValue = $('#csrf_value').val();
+
+          var data = { ids: ids };
+          if (csrfName && csrfValue) data[csrfName] = csrfValue;
+
+          $.ajax({
+            url: "<?= site_url('posta/bulkDelete') ?>",
+            type: "POST",
+            dataType: "json",
+            data: data
+          })
+          .done(function (resp) {
+            if (!resp || !resp.ok) {
+              alert('Errore durante l\'eliminazione dei messaggi.');
+              return;
+            }
+
+            if (resp.csrfName && resp.csrfHash) {
+              $('#csrf_name').val(resp.csrfName);
+              $('#csrf_value').val(resp.csrfHash);
+            }
+
+            $('.btn-refresh-mail').trigger('click');
+          })
+          .fail(function () {
+            alert('Errore di comunicazione con il server.');
+          });
+        });
+      });
+    </script>
+
+    <script>
+      $(function () {
+        $('.btn-toggle-gestita').on('click', function (e) {
+          e.preventDefault();
+
+          var ids = [];
+          $('.row-check:checked').each(function () {
+            ids.push($(this).val());
+          });
+
+          if (!ids.length) {
+            alert('Seleziona almeno una mail.');
+            return;
+          }
+
+          var csrfName  = $('#csrf_name').val();
+          var csrfValue = $('#csrf_value').val();
+
+          var data = { ids: ids };
+          if (csrfName && csrfValue) data[csrfName] = csrfValue;
+
+          $.ajax({
+            url: "<?= site_url('posta/bulkGestita') ?>",
+            type: "POST",
+            dataType: "json",
+            data: data
+          })
+          .done(function (resp) {
+            if (!resp || !resp.ok) {
+              alert('Errore durante l\'aggiornamento dello stato gestita.');
+              return;
+            }
+
+            if (resp.csrfName && resp.csrfHash) {
+              $('#csrf_name').val(resp.csrfName);
+              $('#csrf_value').val(resp.csrfHash);
+            }
+
+            $('.btn-refresh-mail').trigger('click');
+          })
+          .fail(function () {
+            alert('Errore di comunicazione con il server.');
+          });
+        });
+      });
+    </script>
+    <?php endif; ?>
+
+    <script>
+      $(function(){
+        var isDraftFolder = <?= $isDraftFolder ? 'true' : 'false' ?>;
+
+        $(".mailbox-messages").on("click", "tr[data-id]", function(e){
+          if ($(e.target).is("input[type=checkbox], .toggle-star, .toggle-star i")) return;
+
+          var uid = $(this).data("id"); // "M:123" oppure "R:..."
+          if (!uid) return;
+
+          if (isDraftFolder) {
+            var parts = String(uid).split(':');
+            var id = (parts.length === 2) ? parts[1] : '';
+            if (!id) return;
+
+            // apro la compose in modalitÃ  draft
+            window.location.href = "<?= site_url('compose') ?>" + "?id_message=" + encodeURIComponent(id) + "&mode=draft";
+            return;
+          }
+
+          $("#msg-uid").val(uid);
+          $("#open-message").trigger("submit");
+        });
+      });
+    </script>
+    <script src="<?= base_url('js/chat-notify.js') ?>"></script>
+
+  </body>
+</html>

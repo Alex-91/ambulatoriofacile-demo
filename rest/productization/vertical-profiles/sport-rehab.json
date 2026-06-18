@@ -1,0 +1,47 @@
+{
+  "profile_id": "sport_rehab",
+  "label": "Sport Medical / Fisioterapia / Riabilitazione",
+  "audience": [
+    "centri medici sportivi",
+    "fisioterapia",
+    "riabilitazione",
+    "recupero sportivo"
+  ],
+  "positioning": "Piattaforma operativa per prenotazioni, coordinamento team, sale, reminder e comunicazione in centri rehab e sport medicali.",
+  "ui_labels": {
+    "professional": "Professionista",
+    "client": "Cliente",
+    "coordinator": "Coordinatore",
+    "assistant": "Assistente",
+    "location": "Centro",
+    "room": "Sala"
+  },
+  "modules": [
+    "agenda",
+    "posta",
+    "chat",
+    "booking",
+    "reminders",
+    "multi_location",
+    "staff_visibility",
+    "otp"
+  ],
+  "demo_entities": {
+    "locations": 1,
+    "rooms": 3,
+    "professionals": 4,
+    "coordinators": 1,
+    "assistants": 1,
+    "clients": 20
+  },
+  "demo_storylines": [
+    "Pianificazione sedute e sale",
+    "Comunicazione tra coordinatore e team",
+    "Reminder al cliente e accesso con OTP",
+    "Gestione di piu professionisti sul calendario"
+  ],
+  "notes": [
+    "Per la demo usare copy meno clinico e piu orientato a percorso e recupero.",
+    "Non toccare ancora logica interna MMG o specialisti: cambiare prima solo il layer visibile."
+  ]
+}

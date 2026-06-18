@@ -1,0 +1,590 @@
+<?php
+set_time_limit(0);
+ini_set('max_execution_time', '0');
+ignore_user_abort(true);
+
+/**
+ * MIGRAZIONE MESSAGGI (vecchio + nuovo nello stesso DB)
+ *
+ * Vecchio:
+ *  - dap10_message
+ *  - dap10_message_reply
+ *  - dap10_message_delete
+ *  - dap10_message_reply_delete
+ *  - dap11_attachments
+ *  - dap11_attachments_temp
+ *
+ * Nuovo:
+ *  - msg_threads
+ *  - msg_messages
+ *  - msg_user_flags
+ *  - msg_attachments
+ *  - msg_drafts
+ *
+ * NOTE:
+ * - Non sposta file allegati: aggiorna solo DB.
+ * - storage_path viene ricavato dalle tabelle (riga allegato) o dedotto da nome_real.
+ */
+
+mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+
+// ========================
+// CONFIG MINIMA
+// ========================
+$DB = [
+  'host' => '89.46.111.163',
+  'user' => 'Sql1688505',
+  'pass' => 'Tira74GL!#',
+  'db'   => 'Sql1688505_1', // <-- CAMBIA
+];
+
+$DRY_RUN    = false; // true = non scrive nel db
+$BATCH_SIZE = 100;   // batch root per transazione
+$FILTER_ID_PERSONALE = 22;
+// (solo per calcolare mime/size se vuoi; se non ti serve, lascia false)
+$CALC_FILE_META = false;
+
+// root assoluta filesystem (solo se $CALC_FILE_META=true)
+// es: __DIR__ oppure '/var/www/html' o 'C:/xampp/htdocs'
+$FS_ROOT = __DIR__;
+
+// prefissi/nome tabelle
+$T_OLD_MSG      = 'dap10_message';
+$T_OLD_REPLY    = 'dap10_message_reply';
+$T_OLD_DEL      = 'dap10_message_delete';
+$T_OLD_RDEL     = 'dap10_message_reply_delete';
+$T_OLD_ATT      = 'dap11_attachments';
+$T_OLD_ATT_TMP  = 'dap11_attachments_temp';
+$T_CLIENTS      = 'dap02_clients';
+
+$T_NEW_THREADS  = 'msg_threads';
+$T_NEW_MSG      = 'msg_messages';
+$T_NEW_FLAGS    = 'msg_user_flags';
+$T_NEW_ATT      = 'msg_attachments';
+$T_NEW_DRAFTS   = 'msg_drafts';
+
+// ========================
+// CONNESSIONE
+// ========================
+$db = new mysqli($DB['host'], $DB['user'], $DB['pass'], $DB['db']);
+$db->set_charset('utf8mb4');
+
+// ========================
+// TABELLE SUPPORTO
+// ========================
+$db->query("
+CREATE TABLE IF NOT EXISTS msg_migration_map (
+  old_table   varchar(60) NOT NULL,
+  old_id      bigint NOT NULL,
+  new_id      bigint NOT NULL,
+  extra       varchar(150) DEFAULT NULL,
+  PRIMARY KEY (old_table, old_id),
+  KEY (new_id)
+) ENGINE=InnoDB
+");
+
+$db->query("
+CREATE TABLE IF NOT EXISTS msg_migration_checkpoint (
+  k varchar(80) PRIMARY KEY,
+  v varchar(255) NOT NULL
+) ENGINE=InnoDB
+");
+
+// ========================
+// HELPERS GENERICI
+// ========================
+function nowUtc(): string { return gmdate('Y-m-d H:i:s'); }
+
+function getCheckpoint(mysqli $db, string $k, string $default='0'): string {
+  $stmt = $db->prepare("SELECT v FROM msg_migration_checkpoint WHERE k=?");
+  $stmt->bind_param("s", $k);
+  $stmt->execute();
+  $row = $stmt->get_result()->fetch_assoc();
+  return $row ? (string)$row['v'] : $default;
+}
+function setCheckpoint(mysqli $db, string $k, string $v): void {
+  $stmt = $db->prepare("INSERT INTO msg_migration_checkpoint(k,v) VALUES(?,?)
+                        ON DUPLICATE KEY UPDATE v=VALUES(v)");
+  $stmt->bind_param("ss", $k, $v);
+  $stmt->execute();
+}
+function mapPut(mysqli $db, string $oldTable, int $oldId, int $newId, ?string $extra=null): void {
+  $stmt = $db->prepare("INSERT INTO msg_migration_map(old_table, old_id, new_id, extra)
+                        VALUES(?,?,?,?)
+                        ON DUPLICATE KEY UPDATE new_id=VALUES(new_id), extra=VALUES(extra)");
+  $stmt->bind_param("siis", $oldTable, $oldId, $newId, $extra);
+  $stmt->execute();
+}
+function pickFirst(array $row, array $keys): ?string {
+  foreach ($keys as $k) {
+    if (array_key_exists($k, $row)) {
+      $v = trim((string)$row[$k]);
+      if ($v !== '') return $v;
+    }
+  }
+  return null;
+}
+function normalizePath(string $p): string {
+  $p = trim($p);
+  $p = str_replace('\\', '/', $p);
+  $p = preg_replace('#/+#', '/', $p);
+  return rtrim($p, '/');
+}
+function splitDirAndFile(string $maybePath): array {
+  $p = normalizePath($maybePath);
+  if ($p === '' || strpos($p, '/') === false) return ['', $p];
+  $dir = dirname($p);
+  if ($dir === '.' || $dir === '/') $dir = '';
+  $file = basename($p);
+  return [normalizePath($dir), $file];
+}
+
+/**
+ * Se nel nuovo db gli user_id sono uguali ai vecchi -> lascia così.
+ * Se hai mapping (vecchi->nuovi), implementalo qui.
+ */
+function mapUserId(int $oldUserId): int {
+  return (int)$oldUserId;
+}
+
+// ========================
+// LOGICA MESSAGGI (RECIPIENT / ROOT AUTHOR / FORWARD)
+// ========================
+function computeRecipients(array $m): array {
+  $recipients = [];
+
+  $seg = (int)($m['seg_flag'] ?? 0) === 1;
+  $inf = (int)($m['inf_flag'] ?? 0) === 1;
+
+  if ($seg) $recipients[] = ['type'=>'ROLE', 'user_id'=>null, 'role'=>'SEGRETERIA'];
+  if ($inf) $recipients[] = ['type'=>'ROLE', 'user_id'=>null, 'role'=>'INFERMIERE'];
+
+  if (!$seg && !$inf) {
+    $idDest = (int)($m['id_dest'] ?? 0);
+    if ($idDest > 0) $recipients[] = ['type'=>'USER', 'user_id'=>$idDest, 'role'=>null];
+  }
+
+  return $recipients;
+}
+
+function computeRootAuthorUserId(array $m): int {
+  $dotSeg = (int)($m['dot_seg'] ?? 0);
+  $dotInf = (int)($m['dot_inf'] ?? 0);
+  if ($dotSeg > 0) return $dotSeg;
+  if ($dotInf > 0) return $dotInf;
+  return (int)($m['id_mitt'] ?? 0);
+}
+
+function isForward(array $m): bool {
+  return trim((string)($m['inoltrato'] ?? '')) !== '';
+}
+
+// ========================
+// STORAGE PATH (DALLE TABELLE!)
+// ========================
+/**
+ * Ricava storage_path dalla riga allegato:
+ * 1) se esiste una colonna path/dir/folder/... la usa
+ * 2) altrimenti se nome_real contiene sottocartelle -> usa la dir e separa file
+ * 3) altrimenti storage_path = '' (vuoto) e stored_name = nome_real
+ *
+ * Ritorna: [storage_path, stored_name]
+ */
+function resolveAttachmentLocation(array $attRow): array
+{
+  // nomi colonna possibili per path
+  $path = pickFirst($attRow, [
+    'storage_path','upload_path','percorso','path','dir','directory','folder','cartella','base_path'
+  ]);
+
+  $nomeReal = (string)($attRow['nome_real'] ?? '');
+  $nomeReal = str_replace('\\','/',$nomeReal);
+
+  // se path è presente, stored_name = nome_real "pulito" (solo filename se contiene path)
+  if ($path !== null) {
+    $path = normalizePath($path);
+    [, $file] = splitDirAndFile($nomeReal);
+    $stored = $file !== '' ? $file : basename($nomeReal);
+    return [$path, $stored];
+  }
+
+  // altrimenti: deduci da nome_real se contiene sottocartelle
+  [$dir, $file] = splitDirAndFile($nomeReal);
+  return [$dir, $file];
+}
+
+/**
+ * Se vuoi mime/size: prova a cercare FS_ROOT + storage_path + stored_name
+ * Non blocca se manca file.
+ */
+function fileMetaMaybe(string $fsRoot, string $storagePath, string $storedName, bool $enabled): array
+{
+  if (!$enabled) return ['application/octet-stream', 0, null];
+
+  $fsRoot = rtrim(str_replace('\\','/',$fsRoot), '/');
+  $storagePath = trim(normalizePath($storagePath), '/');
+  $storedName = trim($storedName);
+
+  $full = $fsRoot;
+  if ($storagePath !== '') $full .= '/' . $storagePath;
+  $full .= '/' . $storedName;
+  $full = preg_replace('#/+#','/',$full);
+
+  if (is_file($full)) {
+    $size = (int)filesize($full);
+    $mime = function_exists('mime_content_type') ? (mime_content_type($full) ?: 'application/octet-stream') : 'application/octet-stream';
+    return [$mime, $size, true];
+  }
+  return ['application/octet-stream', 0, false];
+}
+
+// ========================
+// INSERT HELPERS (NUOVO DB)
+// ========================
+function insertThread(mysqli $db, int $rootAuthorUserId, string $createdAt): int {
+  $stmt = $db->prepare("INSERT INTO msg_threads(root_message_id, root_author_user_id, created_at, updated_at)
+                        VALUES(NULL, ?, ?, ?)");
+  $stmt->bind_param("iss", $rootAuthorUserId, $createdAt, $createdAt);
+  $stmt->execute();
+  return (int)$db->insert_id;
+}
+
+function insertMessage(mysqli $db, array $row): int {
+  $stmt = $db->prepare("
+    INSERT INTO msg_messages(
+      id_thread, message_type, status,
+      root_message_id, parent_message_id, reply_to_user_id,
+      sender_user_id,
+      recipient_type, recipient_user_id, recipient_role,
+      body_cipher_hex, vector_id,
+      root_author_user_id,
+      created_at
+    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+  ");
+
+  $stmt->bind_param(
+    "issiiississsis",
+    $row['id_thread'],
+    $row['message_type'],
+    $row['status'],
+    $row['root_message_id'],
+    $row['parent_message_id'],
+    $row['reply_to_user_id'],
+    $row['sender_user_id'],
+    $row['recipient_type'],
+    $row['recipient_user_id'],
+    $row['recipient_role'],
+    $row['body_cipher_hex'],
+    $row['vector_id'],
+    $row['root_author_user_id'],
+    $row['created_at']
+  );
+  $stmt->execute();
+  return (int)$db->insert_id;
+}
+
+function updateThreadRoot(mysqli $db, int $threadId, int $rootMessageId, string $updatedAt): void {
+  $stmt = $db->prepare("UPDATE msg_threads SET root_message_id=?, updated_at=? WHERE id_thread=?");
+  $stmt->bind_param("isi", $rootMessageId, $updatedAt, $threadId);
+  $stmt->execute();
+}
+
+function upsertFlag(mysqli $db, int $messageId, int $userId, array $f): void {
+  $is_deleted = (int)($f['is_deleted'] ?? 0);
+  $deleted_at = $f['deleted_at'] ?? null;
+  $is_read    = (int)($f['is_read'] ?? 0);
+  $read_at    = $f['read_at'] ?? null;
+  $is_handled = (int)($f['is_handled'] ?? 0);
+  $handled_at = $f['handled_at'] ?? null;
+
+  $stmt = $db->prepare("
+    INSERT INTO msg_user_flags(id_message, user_id, is_deleted, deleted_at, is_read, read_at, is_handled, handled_at)
+    VALUES (?,?,?,?,?,?,?,?)
+    ON DUPLICATE KEY UPDATE
+      is_deleted=VALUES(is_deleted),
+      deleted_at=VALUES(deleted_at),
+      is_read=VALUES(is_read),
+      read_at=VALUES(read_at),
+      is_handled=VALUES(is_handled),
+      handled_at=VALUES(handled_at)
+  ");
+  $stmt->bind_param("iiisisis", $messageId, $userId, $is_deleted, $deleted_at, $is_read, $read_at, $is_handled, $handled_at);
+  $stmt->execute();
+}
+
+function insertAttachment(mysqli $db, array $a): int {
+  $stmt = $db->prepare("
+    INSERT INTO msg_attachments(
+      id_message, id_draft, uploaded_by_user_id,
+      original_name, stored_name, mime_type, file_size,
+      storage_path, created_at
+    ) VALUES (?,?,?,?,?,?,?,?,?)
+  ");
+  $stmt->bind_param(
+    "iiisssiss",
+    $a['id_message'],
+    $a['id_draft'],
+    $a['uploaded_by_user_id'],
+    $a['original_name'],
+    $a['stored_name'],
+    $a['mime_type'],
+    $a['file_size'],
+    $a['storage_path'],
+    $a['created_at']
+  );
+  $stmt->execute();
+  return (int)$db->insert_id;
+}
+
+// ========================
+// MIGRAZIONE
+// ========================
+echo "== MIGRAZIONE MESSAGGI (single DB) ==\n";
+$lastRoot = (int)getCheckpoint($db, 'last_root_id', '0');
+echo "Riparto da root id_message > $lastRoot\n";
+echo "DRY_RUN=" . ($GLOBALS['DRY_RUN'] ? 'true' : 'false') . "\n";
+
+while (true) {
+echo "ENTRO";
+$stmt = $db->prepare("
+    SELECT m.*
+    FROM $T_OLD_MSG m
+    INNER JOIN $T_CLIENTS c ON (c.id_client = m.id_mitt or c.id_client = m.id_dest)
+    WHERE m.id_message > ?
+      AND c.id_personale = ?
+    ORDER BY m.id_message ASC
+    LIMIT $BATCH_SIZE
+");
+$stmt->bind_param("ii", $lastRoot, $FILTER_ID_PERSONALE);
+  $stmt->execute();
+  $res = $stmt->get_result();
+  echo $res->num_rows;
+  if ($res->num_rows === 0) {echo "zero";break;}
+
+  if (!$DRY_RUN) $db->begin_transaction();
+
+  try {
+    while ($m = $res->fetch_assoc()) {
+echo "INIZIO";
+
+      $oldRootId = (int)$m['id_message'];
+      $lastRoot  = $oldRootId;
+
+      // ignoriamo draft root (se vuoi li migriamo dopo in msg_drafts)
+      if ((int)($m['draft'] ?? 0) === 1) {
+        continue;
+      }
+
+      $sender     = mapUserId((int)$m['id_mitt']);
+      $rootAuthor = mapUserId(computeRootAuthorUserId($m));
+      $createdAt  = (string)($m['dataora'] ?? nowUtc());
+      $bodyHex    = (string)($m['testo'] ?? '');
+      $vectorId   = $m['vector_id'] ?? random_bytes(16);
+
+      $recipients = computeRecipients($m);
+      if (!$recipients) continue;
+
+      foreach ($recipients as $r) {
+
+        if ($DRY_RUN) {
+          echo "DRY root#$oldRootId -> {$r['type']} " . ($r['role'] ?? ($r['user_id'] ?? '')) . "\n";
+          continue;
+        }
+
+        // thread + root message
+        $threadId = insertThread($db, $rootAuthor, $createdAt);
+
+        $rootMsgId = insertMessage($db, [
+          'id_thread'          => $threadId,
+          'message_type'       => isForward($m) ? 'FORWARD' : 'ROOT',
+          'status'             => 'SENT',
+          'root_message_id'    => null,
+          'parent_message_id'  => null,
+          'reply_to_user_id'   => null,
+          'sender_user_id'     => $sender,
+          'recipient_type'     => $r['type'],
+          'recipient_user_id'  => $r['type']==='USER' ? mapUserId((int)$r['user_id']) : null,
+          'recipient_role'     => $r['type']==='ROLE' ? $r['role'] : null,
+          'body_cipher_hex'    => $bodyHex,
+          'vector_id'          => $vectorId,
+          'root_author_user_id'=> $rootAuthor,
+          'created_at'         => $createdAt,
+        ]);
+
+        updateThreadRoot($db, $threadId, $rootMsgId, $createdAt);
+        mapPut($db, $T_OLD_MSG, $oldRootId, $rootMsgId, $r['type'].':'.($r['role'] ?? ($r['user_id'] ?? '')));
+
+        // flags sender
+        upsertFlag($db, $rootMsgId, $sender, ['is_read'=>1, 'read_at'=>$createdAt]);
+
+        // flags destinatario USER
+        if ($r['type']==='USER') {
+          $dest = mapUserId((int)$r['user_id']);
+          $letto = (int)($m['letto'] ?? 0) === 1;
+          $gest  = (int)($m['gestita'] ?? 0) === 1;
+          upsertFlag($db, $rootMsgId, $dest, [
+            'is_read'    => $letto ? 1 : 0,
+            'read_at'    => $letto ? $createdAt : null,
+            'is_handled' => $gest ? 1 : 0,
+            'handled_at' => $gest ? $createdAt : null,
+          ]);
+        }
+
+        // delete root per utente
+        $qd = $db->prepare("SELECT id_utente FROM $T_OLD_DEL WHERE id_message=? AND eliminato=1");
+        $qd->bind_param("i", $oldRootId);
+        $qd->execute();
+        $rd = $qd->get_result();
+        while ($d = $rd->fetch_assoc()) {
+          $u = mapUserId((int)$d['id_utente']);
+          upsertFlag($db, $rootMsgId, $u, ['is_deleted'=>1, 'deleted_at'=>$createdAt]);
+        }
+        $qd->close();
+
+        // attachments root
+        $qa = $db->prepare("SELECT * FROM $T_OLD_ATT WHERE id_message=?");
+        $qa->bind_param("i", $oldRootId);
+        $qa->execute();
+        $ra = $qa->get_result();
+        while ($a = $ra->fetch_assoc()) {
+
+          $origName = (string)($a['nome_vis'] ?? $a['nome_real'] ?? '');
+          [$storagePath, $storedName] = resolveAttachmentLocation($a);
+
+          // se storedName è vuoto, salta
+          if (trim($storedName) === '') continue;
+
+          [$mime, $size, $found] = fileMetaMaybe($GLOBALS['FS_ROOT'], $storagePath, $storedName, (bool)$GLOBALS['CALC_FILE_META']);
+
+          insertAttachment($db, [
+            'id_message'          => $rootMsgId,
+            'id_draft'            => null,
+            'uploaded_by_user_id' => $sender,
+            'original_name'       => $origName,
+            'stored_name'         => $storedName,
+            'mime_type'           => $mime,
+            'file_size'           => $size,
+            'storage_path'        => $storagePath, // <-- DALLE TABELLE / DEDOTTO
+            'created_at'          => $createdAt,
+          ]);
+        }
+        $qa->close();
+
+        // replies per root
+        $qr = $db->prepare("
+          SELECT *
+          FROM $T_OLD_REPLY
+          WHERE id_message_ini=?
+          ORDER BY id_message ASC
+        ");
+        $qr->bind_param("i", $oldRootId);
+        $qr->execute();
+        $rr = $qr->get_result();
+
+        $parentId = $rootMsgId;
+
+        while ($rep = $rr->fetch_assoc()) {
+
+          if ((int)($rep['draft'] ?? 0) === 1) continue;
+
+          $oldRepId   = (int)$rep['id_message'];
+          $repSender  = mapUserId((int)$rep['id_mitt']);
+          $repCreated = (string)($rep['dataora'] ?? $createdAt);
+          $repBody    = (string)($rep['testo'] ?? '');
+          $repVector  = $rep['vector_id'] ?? $vectorId;
+
+          $newRepId = insertMessage($db, [
+            'id_thread'          => $threadId,
+            'message_type'       => isForward($rep) ? 'FORWARD' : 'REPLY',
+            'status'             => 'SENT',
+            'root_message_id'    => $rootMsgId,
+            'parent_message_id'  => $parentId, // se vuoi chainare: poi $parentId=$newRepId
+            'reply_to_user_id'   => null,
+            'sender_user_id'     => $repSender,
+            'recipient_type'     => $r['type'],
+            'recipient_user_id'  => $r['type']==='USER' ? mapUserId((int)$r['user_id']) : null,
+            'recipient_role'     => $r['type']==='ROLE' ? $r['role'] : null,
+            'body_cipher_hex'    => $repBody,
+            'vector_id'          => $repVector,
+            'root_author_user_id'=> $rootAuthor,
+            'created_at'         => $repCreated,
+          ]);
+
+          mapPut($db, $T_OLD_REPLY, $oldRepId, $newRepId, 'reply');
+
+          // flags sender reply
+          upsertFlag($db, $newRepId, $repSender, ['is_read'=>1, 'read_at'=>$repCreated]);
+
+          // flags destinatario USER
+          if ($r['type']==='USER') {
+            $dest = mapUserId((int)$r['user_id']);
+            $letto = (int)($rep['letto'] ?? 0) === 1;
+            $gest  = (int)($rep['gestita'] ?? 0) === 1;
+            upsertFlag($db, $newRepId, $dest, [
+              'is_read'    => $letto ? 1 : 0,
+              'read_at'    => $letto ? $repCreated : null,
+              'is_handled' => $gest ? 1 : 0,
+              'handled_at' => $gest ? $repCreated : null,
+            ]);
+          }
+
+          // delete reply per utente
+          $qdr = $db->prepare("SELECT id_utente FROM $T_OLD_RDEL WHERE id_message=? AND eliminato=1");
+          $qdr->bind_param("i", $oldRepId);
+          $qdr->execute();
+          $rdr = $qdr->get_result();
+          while ($d = $rdr->fetch_assoc()) {
+            $u = mapUserId((int)$d['id_utente']);
+            upsertFlag($db, $newRepId, $u, ['is_deleted'=>1, 'deleted_at'=>$repCreated]);
+          }
+          $qdr->close();
+
+          // attachments reply
+          $qar = $db->prepare("SELECT * FROM $T_OLD_ATT WHERE id_message_reply=?");
+          $qar->bind_param("i", $oldRepId);
+          $qar->execute();
+          $rar = $qar->get_result();
+          while ($a = $rar->fetch_assoc()) {
+
+            $origName = (string)($a['nome_vis'] ?? $a['nome_real'] ?? '');
+            [$storagePath, $storedName] = resolveAttachmentLocation($a);
+            if (trim($storedName) === '') continue;
+
+            [$mime, $size, $found] = fileMetaMaybe($GLOBALS['FS_ROOT'], $storagePath, $storedName, (bool)$GLOBALS['CALC_FILE_META']);
+
+            insertAttachment($db, [
+              'id_message'          => $newRepId,
+              'id_draft'            => null,
+              'uploaded_by_user_id' => $repSender,
+              'original_name'       => $origName,
+              'stored_name'         => $storedName,
+              'mime_type'           => $mime,
+              'file_size'           => $size,
+              'storage_path'        => $storagePath, // <-- DALLE TABELLE / DEDOTTO
+              'created_at'          => $repCreated,
+            ]);
+          }
+          $qar->close();
+
+          // se vuoi chainare i reply:
+          // $parentId = $newRepId;
+        }
+
+        $qr->close();
+      }
+    }
+
+    if (!$DRY_RUN) {
+      setCheckpoint($db, 'last_root_id', (string)$lastRoot);
+      $db->commit();
+    }
+
+    echo "Batch OK. checkpoint=$lastRoot\n";
+
+  } catch (Throwable $e) {
+    if (!$DRY_RUN) $db->rollback();
+    throw $e;
+  }
+}
+
+echo "FINE. Ultimo root migrato: $lastRoot\n";

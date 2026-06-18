@@ -1,0 +1,22 @@
+{
+    "name": "bassi/dottor-app-lte",
+    "autoload": {
+        "psr-4": {
+            "Bassi\\DottorAppLte\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "ABassi",
+            "email": "alessiobassi25@gmail.com"
+        }
+    ],
+    "require": {
+        "minishlink/web-push": "^9.0",
+        "web-auth/webauthn-lib": "^5.2",
+        "web-auth/cose-lib": "^4.4",
+        "chillerlan/php-qrcode": "^5.0",
+        "phpmailer/phpmailer": "^7.0",
+        "dompdf/dompdf": "^3.1"
+    }
+}

@@ -1,0 +1,69 @@
+
+              <!-- Cartelle -->
+              <div class="box box-solid" style="margin-bottom: 0px !important">
+                <div class="box-header with-border">
+                  <h3 class="box-title">Cartelle</h3>
+                  <div class='box-tools'>
+                    <button class='btn btn-box-tool' data-widget='collapse'><i class='fa fa-minus'></i></button>
+                  </div>
+                </div>
+                <div class="box-body no-padding">
+                  <ul class="nav nav-pills nav-stacked">
+                    <?php if (!empty($menu_items)): ?>
+                      <?php foreach ($menu_items as $menu): ?>
+                        <li class="<?= esc($menu['class']) ?>">
+                          <a href="<?= base_url($menu['link']) ?>">
+                           <?php
+                              $icon = $menu['icon'] ?? $menu['class_icon'] ?? 'fa-circle-o';
+                              ?>
+                              <i class="fa <?= esc($icon) ?>"></i>
+                            <?= esc($menu['titolo_menu']) ?>
+                            <?php if (!empty($menu['conteggio'])): ?>
+                              <span class="label label-primary pull-right"><?= esc($menu['conteggio']) ?></span>
+                            <?php endif; ?>
+                          </a>
+                        </li>
+                      <?php endforeach; ?>
+                    <?php endif; ?>
+                  </ul>
+                </div>
+              </div><!-- /.box -->
+
+              <!-- Dottori / Medici -->
+              <?php if (!empty($dottori)): ?>
+                <div class="box box-solid">
+                  <div class="box-header with-border">
+                    <h3 class="box-title">Dottori (<?= (int)$contDott ?>)</h3>
+                    <div class='box-tools'>
+                      <button class='btn btn-box-tool' data-widget='collapse'><i class='fa fa-minus'></i></button>
+                    </div>
+                  </div>
+                  <div class="box-body no-padding">
+                    <ul class="nav nav-pills nav-stacked">
+                      <?php foreach ($dottori as $id => $dottore): ?>
+                        <?php if (!empty($dottore)): ?>
+                          <?php
+                            $isActiveDoc = isset($selectedDoctorId) && (int)$selectedDoctorId === (int)$id;
+                          ?>
+                          <li class="<?= $isActiveDoc ? 'active' : '' ?>">
+                            <a href="<?= site_url('posta') . '?id_dottore=' . urlencode((string)$id) ?>">
+                              <i class="fa fa-user-md"></i> <?= esc($dottore['titolo']) ?>
+                              <?php if (!empty($dottore['conteggio'])): ?>
+                                <span class="label label-primary pull-right"><?= esc($dottore['conteggio']) ?></span>
+                              <?php endif; ?>
+                            </a>
+                          </li>
+                        <?php endif; ?>
+                      <?php endforeach; ?>
+
+                      <?php if (!empty($result['resultLogout'])): ?>
+                        <li class="logout">
+                          <a href="logout">
+                            <i class="fa fa-sign-out"></i> Logout
+                          </a>
+                        </li>
+                      <?php endif; ?>
+                    </ul>
+                  </div>
+                </div><!-- /.box -->
+              <?php endif; ?>

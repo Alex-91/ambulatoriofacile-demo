@@ -1,0 +1,32 @@
+# Environment and secrets
+/.env
+/.env.*
+!/.env.example
+
+# Local tool metadata
+/.agents/
+/.codex/
+
+# PHP / JS dependencies
+/vendor/
+/node_modules/
+
+# Runtime and generated local data
+/writable/*
+!/writable/.gitkeep
+/upload/*
+!/upload/.gitkeep
+/dist/
+
+# Logs and local archives
+*.log
+*.zip
+*.tar
+*.gz
+*.tmp
+
+# Editor / OS noise
+/.idea/
+/.vscode/
+Thumbs.db
+.DS_Store

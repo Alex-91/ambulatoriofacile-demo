@@ -1,0 +1,46 @@
+{
+  "profile_id": "medical",
+  "label": "Medical / Poliambulatorio",
+  "audience": [
+    "studi medici",
+    "specialisti",
+    "poliambulatori"
+  ],
+  "positioning": "Suite operativa per agenda, comunicazione, reminder e coordinamento di strutture sanitarie leggere.",
+  "ui_labels": {
+    "professional": "Dottore",
+    "client": "Paziente",
+    "coordinator": "Segreteria",
+    "assistant": "Infermiere",
+    "location": "Sede",
+    "room": "Stanza"
+  },
+  "modules": [
+    "agenda",
+    "posta",
+    "chat",
+    "booking",
+    "reminders",
+    "multi_location",
+    "staff_visibility",
+    "otp"
+  ],
+  "demo_entities": {
+    "locations": 2,
+    "rooms": 4,
+    "professionals": 4,
+    "coordinators": 2,
+    "assistants": 1,
+    "clients": 20
+  },
+  "demo_storylines": [
+    "Presa appuntamento e gestione agenda",
+    "Messaggistica tra staff e paziente",
+    "Reminder e conferma accesso con OTP",
+    "Gestione visibilita per personale"
+  ],
+  "notes": [
+    "Riusare il piu possibile il naming sanitario gia presente.",
+    "Evitare riferimenti a clienti reali o alla farmacia."
+  ]
+}

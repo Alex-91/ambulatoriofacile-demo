@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>AmbulatoriCLOUD | Scrivi messaggio</title>
+  <link rel="icon" href="<?= base_url('public/assets/images/logonew.jpg') ?>" type="image/x-icon" sizes="any">
+  <meta content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" name="viewport">
+
+  <!-- Bootstrap -->
+  <link href="<?= base_url('public/bootstrap/css/bootstrap.min.css') ?>" rel="stylesheet" type="text/css" />
+  <!-- Font Awesome -->
+  <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css" rel="stylesheet" />
+  <!-- Ionicons -->
+  <link href="https://code.ionicframework.com/ionicons/2.0.1/css/ionicons.min.css" rel="stylesheet" />
+  <!-- AmbulatoriCLOUD theme -->
+  <link href="<?= base_url('public/dist/css/AdminLTE.css') ?>" rel="stylesheet" />
+  <link href="<?= base_url('public/dist/css/skins/_all-skins.min.css') ?>" rel="stylesheet" />
+  <!-- iCheck -->
+  <link href="<?= base_url('public/plugins/iCheck/flat/blue.css') ?>" rel="stylesheet" />
+  <!-- WYSIHTML5 -->
+  <link href="<?= base_url('public/plugins/bootstrap-wysihtml5/bootstrap3-wysihtml5.min.css') ?>" rel="stylesheet" />
+  <!-- Select2 -->
+  <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+  <!-- jQuery UI (dialog) -->
+  <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
+
+  <style>
+    @font-face {
+      font-family: 'Glyphicons Halflings';
+      src: url('<?= base_url('public/bootstrap/glyphicons-halflings-regular.eot') ?>');
+      src: url('<?= base_url('public/bootstrap/glyphicons-halflings-regular.eot?#iefix') ?>') format('embedded-opentype'),
+           url('<?= base_url('public/bootstrap/glyphicons-halflings-regular.woff2') ?>') format('woff2'),
+           url('<?= base_url('public/bootstrap/glyphicons-halflings-regular.woff') ?>') format('woff'),
+           url('<?= base_url('public/bootstrap/glyphicons-halflings-regular.ttf') ?>') format('truetype'),
+           url('<?= base_url('public/bootstrap/glyphicons-halflings-regular.svg#glyphicons_halflingsregular') ?>') format('svg');
+    }
+
+    /* Loader */
+    #page-loader { position: fixed; inset: 0; background: rgba(255,255,255,.85); z-index: 9999; display: none; }
+    #page-loader .spinner { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); text-align: center; }
+    #page-loader .spinner .msg { margin-top: 10px; font-size: 13px; color: #444; letter-spacing:.2px; }
+
+    /* Header */
+    .main-header { background:#2c8895; }
+    .navbar-static-top { background: transparent; }
+    .logo, .logo:hover { background:#138a72 !important; color:#fff !important; }
+    .logo .logo-lg, .logo .logo-mini { color:#fff; }
+
+    /* Compose */
+    .box-footer .btn + .btn { margin-left: 6px; }
+    .wysihtml5-toolbar .btn { margin-bottom: 5px; }
+
+    /* Lista allegati responsive */
+    #attachment-list li {
+      padding: 8px 10px;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      font-size: 14px;
+    }
+    #attachment-list li i.fa-paperclip { margin-right: 5px; }
+    #attachment-list li .file-name { flex: 1; word-break: break-all; }
+    #attachment-list li .remove-file { margin-top: 5px; }
+    @media (max-width: 480px) {
+      #attachment-list li { flex-direction: column; align-items: flex-start; }
+      #attachment-list li .remove-file { width: 100%; margin-top: 8px; }
+    }
+  </style>
+</head>
+
+<body class="skin-blue sidebar-mini">
+<?php
+  // Menu
+  $result     = session()->get('menuData');
+  $menu_items = $result['result'] ?? [];
+
+  // Paziente?
+  $isPatient = isset($isPatient) ? (bool)$isPatient : ((int)(session()->get('tipoUser') ?? 0) === 3);
+
+  // Opzioni paziente
+  $functionOptions = $functionOptions ?? [];
+
+  // âœ… BOZZE SOLO DOTTORI/PERSONALE (NON paziente)
+  $draftEnabled = !$isPatient;
+
+  // quando riapri bozza, il controller puÃ² passare:
+  // $draftId (int), $draftData (array con 'testo' decriptato + 'meta' ecc)
+  $draftId   = isset($draftId) ? (int)$draftId : 0;
+  $draftData = $draftData ?? null;
+
+  // id_message (se lo passi giÃ  dal controller, o pre-assegnato da contatore)
+  $id_message = isset($id_message) ? (int)$id_message : 0;
+
+  // âœ… Prefill testo server-side (fallback: cosÃ¬ lo vedi anche se JS/WYSIHTML5 non Ã¨ pronto)
+  $prefillText = '';
+  if ($draftEnabled && !empty($draftData) && is_array($draftData)) {
+      if (!empty($draftData['testo']))         $prefillText = (string)$draftData['testo'];
+      elseif (!empty($draftData['body']))      $prefillText = (string)$draftData['body'];
+      elseif (!empty($draftData['message']))   $prefillText = (string)$draftData['message'];
+      elseif (!empty($draftData['testo_dec'])) $prefillText = (string)$draftData['testo_dec'];
+  }
+?>
+
+<form id="open-message" method="post" action="<?= site_url('posta/read') ?>">
+  <?= csrf_field() ?>
+  <input type="hidden" name="uid" id="msg-uid">
+</form>
+
+<div id="page-loader" aria-hidden="true">
+  <div class="spinner">
+    <i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i>
+    <div class="msg">Caricamentoâ€¦</div>
+  </div>
+</div>
+
+<div class="wrapper">
+  <?= view('partials/header', [
+    'menu_items' => $menu_items ?? [],
+]) ?>
+
+
+  <aside class="main-sidebar" style="display:none"><section class="sidebar"></section></aside>
+
+  <div class="content-wrapper">
+    <section class="content-header">
+      <h1>Posta <small>Scrivi nuovo messaggio</small></h1>
+      <ol class="breadcrumb">
+        <li><a href="#"><i class="fa fa-dashboard"></i> Home</a></li>
+        <li><a href="<?= site_url('posta') ?>">Posta</a></li>
+        <li class="active">Scrivi</li>
+      </ol>
+    </section>
+
+    <section class="content">
+      <div class="row">
+
+        <!-- Colonna sinistra -->
+        <div class="col-md-3">
+          <a href="<?= site_url('posta') ?>" class="btn btn-default btn-block margin-bottom"><i class="fa fa-inbox"></i> Torna alla Inbox</a>
+
+           <?= view('partials/sidebar_posta', [
+                'menu_items'       => $menu_items ?? [],
+                'dottori'          => $dottori ?? [],
+                'contDott'         => $contDott ?? 0,
+                'selectedDoctorId' => $selectedDoctorId ?? null,
+                'result'           => $result ?? [],
+              ]) ?>
+
+        </div>
+
+        <!-- Colonna destra -->
+        <div class="col-md-9">
+          <div class="box box-primary">
+            <div class="box-header with-border">
+              <h3 class="box-title">Scrivi nuovo messaggio</h3>
+            </div>
+
+            <form id="compose-form" method="post" action="<?= site_url('posta/send') ?>" enctype="multipart/form-data">
+              <?= csrf_field() ?>
+
+              <!-- hidden usati dal backend -->
+              <input type="hidden" name="message_text" id="hid-message_text">
+              <input type="hidden" name="draft" id="hid-draft" value="0">
+              <input type="hidden" name="string_dest" id="hid-string_dest" value="">
+              <input type="hidden" name="version" id="hid-version" value="desktop">
+              <input type="hidden" name="count_div" id="hid-count_div" value="0">
+              <input type="hidden" name="id_message" id="hid-id_message" value="<?= $id_message ? (int)$id_message : '' ?>">
+              <input type="hidden" name="mode" value="new">
+              <input type="hidden" name="richiesta" id="hid-richiesta" value="0">
+
+              <?php if ($draftEnabled): ?>
+                <!-- helper bozze SOLO dottori/personale -->
+                <input type="hidden" id="hid-draft-id" value="<?= $draftId ? (int)$draftId : ($id_message ? (int)$id_message : 0) ?>">
+                <input type="hidden" id="hid-sessid" value="<?= esc(session_id()) ?>">
+              <?php endif; ?>
+
+              <div class="box-body">
+
+                <?php if ($isPatient): ?>
+                  <!-- PAZIENTE: NO BOZZE (solo invio normale) -->
+                  <div class="form-group">
+                    <label for="function_select">Tipo di richiesta</label>
+                    <select id="function_select" name="id_funzione" class="form-control" required>
+                      <option value="">Seleziona il tipo di richiestaâ€¦</option>
+                      <?php if (!empty($functionOptions)): foreach ($functionOptions as $opt): ?>
+                        <option value="<?= esc($opt['id_funzione']) ?>"><?= esc($opt['nome']) ?></option>
+                      <?php endforeach; endif; ?>
+                    </select>
+                    <p class="help-block">Seleziona il tipo di richiesta che vuoi inviare alla segreteria/medico.</p>
+                  </div>
+                <?php else: ?>
+                  <!-- DOTTORI/PERSONALE -->
+                  <div class="form-group">
+                    <select id="to" name="to" class="form-control js-recipient" multiple data-placeholder="Cerca destinatario..." style="width:100%"></select>
+                    <p class="help-block">Digita almeno 3 caratteri di <b>nome</b> o <b>cognome</b> per cercare tra i contatti.</p>
+                  </div>
+                <?php endif; ?>
+
+                <div class="form-group" style="display:none !important">
+                  <input name="subject" class="form-control" placeholder="Oggetto:" />
+                </div>
+
+                <!-- âœ… textarea con prefill server-side -->
+                <div class="form-group">
+                  <textarea
+                    id="compose-textarea"
+                    name="body"
+                    class="form-control"
+                    style="height: 300px"
+                    placeholder="Scrivi qui il messaggioâ€¦"
+                  ><?= esc($prefillText) ?></textarea>
+                </div>
+
+                <div class="form-group">
+                  <div class="btn btn-default btn-file">
+                    <i class="fa fa-paperclip"></i> Allega file
+                    <input type="file" id="file-attachments" name="attachment[]" multiple />
+                  </div>
+                  <p class="help-block">Max. 32MB</p>
+                  <ul id="attachment-list" class="list-unstyled" style="margin-top:10px;"></ul>
+                </div>
+              </div>
+
+              <div class="box-footer">
+                <div class="pull-right">
+                  <?php if ($draftEnabled): ?>
+                    <!-- âœ… Bozza SOLO dottori/personale -->
+                    <button type="button" id="btn-draft" class="btn btn-default"><i class="fa fa-pencil"></i> Bozza</button>
+                  <?php endif; ?>
+                  <button type="submit" class="btn btn-primary"><i class="fa fa-envelope-o"></i> Invia</button>
+                </div>
+                <a href="<?= site_url('posta') ?>" class="btn btn-default no-loader" id="btn-annulla"><i class="fa fa-times"></i> Annulla</a>
+              </div>
+            </form>
+          </div>
+        </div>
+
+      </div>
+    </section>
+  </div>
+
+  <footer class="main-footer">
+    <div class="pull-right hidden-xs"><b>Version</b> 2.0</div>
+    <strong>&copy; AmbulatoriCLOUD</strong>
+  </footer>
+
+  <aside class="control-sidebar control-sidebar-dark">
+    <ul class="nav nav-tabs nav-justified control-sidebar-tabs">
+      <li><a href="#control-sidebar-home-tab" data-toggle="tab"><i class="fa fa-home"></i></a></li>
+    </ul>
+    <div class="tab-content">
+      <div class="tab-pane" id="control-sidebar-home-tab"></div>
+      <div class="tab-pane" id="control-sidebar-settings-tab"><form method="post"></form></div>
+    </div>
+  </aside>
+  <div class="control-sidebar-bg"></div>
+</div>
+
+<!-- Modale conferma invio -->
+<div id="messageSendDialogPazienteSegreteria" title="Messaggio inviato con successo" style="display:none;">
+  <p>Messaggio inviato</p><br>
+  <p><b>Il vostro medico vi ricorda che le richieste saranno evase entro 48 h (sabato e domenica esclusi).
+  Le ricette saranno stampate salvo indicazioni diverse da specificare nel testo.</b></p>
+</div>
+
+<?php if ($draftEnabled): ?>
+  <!-- Dialog uscita compose (Elimina / Tieni bozza) SOLO dottori/personale -->
+  <div id="exitDraftDialog" title="Uscire dal messaggio?" style="display:none;">
+    <p>Vuoi <b>tenere</b> la bozza oppure <b>eliminarla</b> (con eventuali allegati)?</p>
+  </div>
+<?php endif; ?>
+
+<script>
+  const IS_PATIENT     = <?= $isPatient ? 'true' : 'false' ?>;
+  const DRAFT_ENABLED  = <?= $draftEnabled ? 'true' : 'false' ?>;
+
+  // Dati bozza (solo se dottore/personale)
+  const DRAFT_ID   = <?= ($draftEnabled && $draftId) ? (int)$draftId : 0 ?>;
+  const DRAFT_DATA = <?= ($draftEnabled && $draftData) ? json_encode($draftData, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) : 'null' ?>;
+</script>
+
+<!-- JS -->
+<script src="<?= base_url('public/plugins/jQuery/jQuery-2.1.4.min.js') ?>"></script>
+<script src="<?= base_url('public/bootstrap/js/bootstrap.min.js') ?>"></script>
+<script src="<?= base_url('public/plugins/slimScroll/jquery.slimscroll.min.js') ?>"></script>
+<script src="<?= base_url('public/plugins/fastclick/fastclick.min.js') ?>"></script>
+<script src="<?= base_url('public/dist/js/app.min.js') ?>"></script>
+<script src="<?= base_url('public/plugins/iCheck/icheck.min.js') ?>"></script>
+<script src="<?= base_url('public/plugins/bootstrap-wysihtml5/bootstrap3-wysihtml5.all.min.js') ?>"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script src="<?= base_url('public/dist/js/demo.js') ?>"></script>
+<script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+
+<script>
+  // Loader link & submit
+  (function() {
+    var loader = $('#page-loader');
+
+    function showLoader(){ loader.stop(true,true).fadeIn(100); }
+    function hideLoader(){ loader.stop(true,true).fadeOut(150); }
+
+    window.__DRAFT_BLOCK_NAV__ = false;
+    window.__HIDE_PAGE_LOADER__ = hideLoader;
+    window.__SHOW_PAGE_LOADER__ = showLoader;
+
+    $(document).on('click', 'a[href]:not([href^="#"]):not([target="_blank"]):not(.no-loader)', function(e){
+      if (window.__DRAFT_BLOCK_NAV__) { hideLoader(); return; }
+      if (e.ctrlKey || e.shiftKey || e.metaKey || (this.href && this.href.indexOf('javascript:') === 0)) return;
+
+      var $a = $(this);
+      if ($a.attr('data-toggle') === 'dropdown' || $a.attr('data-toggle') === 'collapse' || $a.data('widget') === 'collapse') return;
+      showLoader();
+    });
+
+    $(document).on('submit', 'form:not(.no-loader)', function(){ showLoader(); });
+    window.addEventListener('beforeunload', function(){ showLoader(); });
+    $(window).on('load', function(){ hideLoader(); });
+  })();
+</script>
+
+<script>
+  // Allegati temp: render + load
+  function renderAttachmentList(attachments) {
+    var $list = $('#attachment-list');
+    $list.empty();
+
+    if (!attachments || !attachments.length) {
+      $list.append('<li style="color:#999;">Nessun file selezionato</li>');
+      return;
+    }
+
+    attachments.forEach(function(att) {
+      var nomeVis =
+        (att.nome_vis && att.nome_vis.trim() !== '') ? att.nome_vis :
+        (att.nome_vis_enc && att.nome_vis_enc.trim() !== '') ? att.nome_vis_enc :
+        (att.nome_real && att.nome_real.trim() !== '') ? att.nome_real :
+        (att.nome_real_enc && att.nome_real_enc.trim() !== '') ? att.nome_real_enc :
+        'Allegato';
+
+      $list.append(
+        '<li>' +
+          '<span class="file-name"><i class="fa fa-paperclip"></i> ' + nomeVis + '</span>' +
+          '<button type="button" class="btn btn-xs btn-danger remove-file" data-id="' + att.id_attachments + '">' +
+            '<i class="fa fa-trash"></i> Rimuovi' +
+          '</button>' +
+        '</li>'
+      );
+    });
+  }
+
+  function loadAttachmentList() {
+    $.getJSON('<?= site_url('posta/attachment/list') ?>', function(resp) {
+      if (resp && resp.ok) {
+        renderAttachmentList(resp.attachments);
+
+        var $form = $('#compose-form');
+        var csrfInput = $form.find('input[name^="csrf_"]').first();
+        if (csrfInput.length && resp.csrfName && resp.csrfHash) {
+          csrfInput.attr('name', resp.csrfName).val(resp.csrfHash);
+        }
+      }
+    });
+  }
+
+  $(function () {
+    var $form     = $('#compose-form');
+    var $to       = $('.js-recipient');
+    var $editorTA = $('#compose-textarea');
+    var csrfInput = $form.find('input[name^="csrf_"]').first();
+    var inboxUrl  = '<?= site_url('posta') ?>';
+    var inviaUrl  = '<?= site_url('posta/send') ?>';
+
+    function updateCsrfFromResp(resp) {
+      if (resp && resp.csrfName && resp.csrfHash && csrfInput.length) {
+        csrfInput.attr('name', resp.csrfName).val(resp.csrfHash);
+      }
+    }
+
+    function getEditorHtml() {
+      try {
+        var w = $editorTA.data('wysihtml5');
+        if (w && w.editor) return w.editor.getValue(true);
+      } catch(e) {}
+      return $editorTA.val();
+    }
+
+    // WYSIHTML5 (sempre)
+    $('#compose-textarea').wysihtml5({ locale: 'it-IT' });
+
+    // Select2 (solo non-paziente)
+    if (!IS_PATIENT && $to.length) {
+      $to.select2({
+        placeholder: $to.data('placeholder') || 'Cerca destinatario...',
+        minimumInputLength: 3,
+        allowClear: true,
+        ajax: {
+          url: '<?= site_url('posta/contacts') ?>',
+          type: 'POST',
+          delay: 250,
+          dataType: 'json',
+          data: function (params) {
+            var payload = { q: params.term };
+            if (csrfInput.length) payload[csrfInput.attr('name')] = csrfInput.val();
+            return payload;
+          },
+          processResults: function (data) { return { results: data }; },
+          cache: true
+        },
+        width: 'resolve'
+      });
+    }
+
+    // iCheck (se presenti checkbox)
+    $('input[type="checkbox"]').iCheck({
+      checkboxClass: 'icheckbox_flat-blue',
+      radioClass: 'iradio_flat-blue'
+    });
+
+    // Lista allegati iniziale
+    loadAttachmentList();
+
+    // Upload allegati (sempre)
+    $('#file-attachments').off('change').on('change', function () {
+      var inputEl = this;
+      var files = inputEl.files;
+      if (!files || !files.length) return;
+
+      var fd = new FormData();
+      for (var i = 0; i < files.length; i++) fd.append('attachment[]', files[i]);
+
+      var idMessageField = $('#hid-id_message');
+      if (idMessageField.length) fd.append('id_message', idMessageField.val() || '');
+
+      if (csrfInput.length) fd.append(csrfInput.attr('name'), csrfInput.val());
+
+      inputEl.value = '';
+
+      $('#page-loader .msg').text('Caricamento allegatiâ€¦');
+      $('#page-loader').fadeIn(100);
+
+      $.ajax({
+        url: '<?= site_url('posta/attachment/upload') ?>',
+        method: 'POST',
+        data: fd,
+        processData: false,
+        contentType: false,
+        dataType: 'json'
+      }).done(function(resp) {
+        $('#page-loader').fadeOut(150);
+
+        if (resp && resp.ok) {
+          renderAttachmentList(resp.attachments);
+          updateCsrfFromResp(resp);
+        } else {
+          alert(resp && resp.err ? resp.err : 'Errore durante l\'upload degli allegati');
+        }
+      }).fail(function() {
+        $('#page-loader').fadeOut(150);
+        alert('Errore durante l\'upload degli allegati');
+      });
+    });
+
+    // Rimozione allegato temp (sempre)
+    $(document).on('click', '.remove-file', function (e) {
+      e.preventDefault();
+      var id = $(this).data('id');
+      if (!id) return;
+
+      var fd = new FormData();
+      fd.append('id_attachments', id);
+      if (csrfInput.length) fd.append(csrfInput.attr('name'), csrfInput.val());
+
+      $('#page-loader .msg').text('Rimozione allegatoâ€¦');
+      $('#page-loader').fadeIn(100);
+
+      $.ajax({
+        url: '<?= site_url('posta/attachment/delete') ?>',
+        method: 'POST',
+        data: fd,
+        processData: false,
+        contentType: false,
+        dataType: 'json'
+      }).done(function(resp) {
+        $('#page-loader').fadeOut(150);
+
+        if (resp && resp.ok) {
+          renderAttachmentList(resp.attachments);
+          updateCsrfFromResp(resp);
+        } else {
+          alert(resp && resp.err ? resp.err : 'Errore durante la rimozione dell\'allegato');
+        }
+      }).fail(function() {
+        $('#page-loader').fadeOut(150);
+        alert('Errore durante la rimozione dell\'allegato');
+      });
+    });
+
+    // Submit invio (sempre)
+    $form.off('submit').on('submit', function(e){
+      e.preventDefault();
+
+      $('#page-loader .msg').text('Invio in corsoâ€¦');
+      $('#page-loader').fadeIn(100);
+
+      var fd = new FormData($form.get(0));
+      fd.set('message_text', getEditorHtml());
+      fd.set('version', window.matchMedia('(max-width: 767px)').matches ? 'mobile' : 'desktop');
+      fd.set('count_div', '0');
+
+      if (!IS_PATIENT && $to.length) {
+        var ids = ($to.val() || []).map(function(v){ return String(v).trim(); }).filter(Boolean);
+        fd.set('string_dest', ids.length ? (',' + ids.join(',')) : '');
+      } else {
+        fd.set('string_dest', '');
+      }
+
+      $.ajax({
+        url: inviaUrl,
+        method: 'POST',
+        data: fd,
+        processData: false,
+        contentType: false,
+        cache: false,
+        dataType: 'json'
+      })
+      .done(function(resp) {
+        $('#page-loader').fadeOut(150, function(){
+          var showPatientNotice = (resp && typeof resp.showPatientNotice !== 'undefined')
+                                  ? !!resp.showPatientNotice
+                                  : IS_PATIENT;
+
+          if (showPatientNotice) {
+            $("#messageSendDialogPazienteSegreteria").dialog({
+              modal: true,
+              width: 600,
+              show: { effect: "fadeIn", duration: 300 },
+              open: function () { $(this).css({ "font-size": "22px" }); },
+              buttons: {
+                "Ok letto": function() {
+                  $(this).dialog("close");
+                  $('#page-loader .msg').text('Ritorno alla postaâ€¦');
+                  $('#page-loader').fadeIn(100, function(){ window.location = inboxUrl; });
+                }
+              }
+            });
+          } else {
+            $('#page-loader .msg').text('Ritorno alla postaâ€¦');
+            $('#page-loader').fadeIn(100, function(){ window.location = inboxUrl; });
+          }
+        });
+
+        updateCsrfFromResp(resp);
+      })
+      .fail(function() {
+        $('#page-loader').fadeOut(150);
+        alert('Errore durante lâ€™invio del messaggio. Riprova.');
+      });
+    });
+
+    // =====================================================================
+    // âœ… BOZZE SOLO DOTTORI/PERSONALE (paziente: qui non entra)
+    // =====================================================================
+    if (DRAFT_ENABLED) {
+
+      // endpoints (usa le tue rotte reali)
+      var DRAFT_CREATE_URL = '<?= site_url('draft/create') ?>';
+      var DRAFT_SAVE_URL   = '<?= site_url('draft/save') ?>';
+      var DRAFT_DELETE_URL = '<?= site_url('draft/delete') ?>';
+
+      var draftId     = parseInt($('#hid-draft-id').val() || '0', 10);
+      var sessid      = $('#hid-sessid').val() || '';
+      var dirty       = false;
+      var saving      = false;
+      var allowLeave  = false;
+      var pendingHref = null;
+      var debounceT   = null;
+
+      var openedFromDraft = (DRAFT_ID && DRAFT_DATA) ? true : false;
+      if (openedFromDraft) {
+        draftId = parseInt(DRAFT_ID, 10) || draftId;
+        $('#hid-draft-id').val(draftId);
+        $('#hid-id_message').val(String(draftId));
+      }
+
+      function csrfPayload(obj) {
+        obj = obj || {};
+        if (csrfInput.length) obj[csrfInput.attr('name')] = csrfInput.val();
+        return obj;
+      }
+
+      function setDraftId(id) {
+        draftId = parseInt(id || 0, 10) || 0;
+        $('#hid-draft-id').val(draftId);
+        $('#hid-id_message').val(draftId ? String(draftId) : '');
+      }
+
+      function markDirty(){ dirty = true; }
+
+      function debounceSave() {
+        markDirty();
+        clearTimeout(debounceT);
+        debounceT = setTimeout(function(){ saveDraft(false); }, 1500);
+      }
+
+      function buildDraftMeta() {
+        var meta = {};
+        meta.version = window.matchMedia('(max-width: 767px)').matches ? 'mobile' : 'desktop';
+
+        var ids = ($to.val() || []).map(function(v){ return String(v).trim(); }).filter(Boolean);
+        meta.string_dest = ids.length ? (',' + ids.join(',')) : '';
+
+        meta.recipients = [];
+        $to.find('option:selected').each(function(){
+          meta.recipients.push({ id: $(this).val(), text: $(this).text() });
+        });
+
+        return meta;
+      }
+
+      function ensureDraftId(cb) {
+        if (draftId > 0) return cb && cb();
+        if (openedFromDraft) return cb && cb();
+
+        var payload = csrfPayload({ sessid: sessid });
+
+        $.ajax({
+          url: DRAFT_CREATE_URL,
+          method: 'POST',
+          data: payload,
+          dataType: 'json'
+        }).done(function(resp){
+          if (resp && resp.ok && resp.draftId) {
+            setDraftId(resp.draftId);
+            updateCsrfFromResp(resp);
+          }
+          if (cb) cb();
+        }).fail(function(){ if (cb) cb(); });
+      }
+
+      function saveDraft(force) {
+        if (saving) return;
+        if (!force && !dirty) return;
+
+        ensureDraftId(function(){
+          if (!draftId) return;
+
+          saving = true;
+          var meta = buildDraftMeta();
+
+          var payload = csrfPayload({
+            draftId: draftId,
+            testo: getEditorHtml(),
+            meta: JSON.stringify(meta)
+          });
+
+          $.ajax({
+            url: DRAFT_SAVE_URL,
+            method: 'POST',
+            data: payload,
+            dataType: 'json'
+          }).done(function(resp){
+            saving = false;
+            if (resp && resp.ok) dirty = false;
+            updateCsrfFromResp(resp);
+          }).fail(function(){ saving = false; });
+        });
+      }
+
+      // âœ… Salva con loader + OK (tasto "Bozza")
+      function saveDraftWithFeedback() {
+        markDirty();
+
+        $('#page-loader .msg').text('Salvataggio bozzaâ€¦');
+        $('#page-loader').fadeIn(100);
+
+        ensureDraftId(function(){
+          if (!draftId) {
+            $('#page-loader').fadeOut(150);
+            alert('Impossibile salvare la bozza (id non valido).');
+            return;
+          }
+
+          saving = true;
+          var meta = buildDraftMeta();
+
+          var payload = csrfPayload({
+            draftId: draftId,
+            testo: getEditorHtml(),
+            meta: JSON.stringify(meta)
+          });
+
+          $.ajax({
+            url: DRAFT_SAVE_URL,
+            method: 'POST',
+            data: payload,
+            dataType: 'json'
+          }).done(function(resp){
+            saving = false;
+            $('#page-loader').fadeOut(150);
+
+            if (resp && resp.ok) {
+              dirty = false;
+              updateCsrfFromResp(resp);
+              alert('Bozza salvata âœ…');
+            } else {
+              updateCsrfFromResp(resp);
+              alert(resp && resp.err ? resp.err : 'Errore durante il salvataggio della bozza.');
+            }
+          }).fail(function(){
+            saving = false;
+            $('#page-loader').fadeOut(150);
+            alert('Errore durante il salvataggio della bozza.');
+          });
+        });
+      }
+
+      function deleteDraftAndExit() {
+        if (!draftId) {
+          allowLeave = true;
+          if (pendingHref) window.location = pendingHref;
+          return;
+        }
+
+        var payload = csrfPayload({ draftId: draftId });
+
+        $('#page-loader .msg').text('Eliminazione bozzaâ€¦');
+        $('#page-loader').fadeIn(100);
+
+        $.ajax({
+          url: DRAFT_DELETE_URL,
+          method: 'POST',
+          data: payload,
+          dataType: 'json'
+        }).done(function(resp){
+          $('#page-loader').fadeOut(150);
+          updateCsrfFromResp(resp);
+          allowLeave = true;
+          if (pendingHref) window.location = pendingHref;
+        }).fail(function(){
+          $('#page-loader').fadeOut(150);
+          allowLeave = true;
+          if (pendingHref) window.location = pendingHref;
+        });
+      }
+
+      function keepDraftAndExit() {
+        saveDraft(true);
+        allowLeave = true;
+        if (pendingHref) window.location = pendingHref;
+      }
+
+      function openExitDialog(href) {
+        pendingHref = href;
+        $("#exitDraftDialog").dialog({
+          modal: true,
+          width: 520,
+          buttons: {
+            "Elimina bozza": function() {
+              $(this).dialog("close");
+              deleteDraftAndExit();
+            },
+            "Tieni in bozze": function() {
+              $(this).dialog("close");
+              keepDraftAndExit();
+            }
+          }
+        });
+      }
+
+      // âœ… RIPRISTINO TESTO BOZZA (robusto, anche se l'editor non Ã¨ pronto subito)
+      function getDraftTextFromData() {
+        if (!DRAFT_DATA) return '';
+        return String((DRAFT_DATA.testo ?? DRAFT_DATA.body ?? DRAFT_DATA.message ?? DRAFT_DATA.testo_dec ?? ''));
+      }
+
+      function setEditorTextRobust(html) {
+        html = html || '';
+
+        // fallback textarea
+        $editorTA.val(html);
+
+        // retry fino a quando wysihtml5 Ã¨ pronto
+        var tries = 0;
+        var t = setInterval(function () {
+          tries++;
+          try {
+            var w = $editorTA.data('wysihtml5');
+            if (w && w.editor) {
+              w.editor.setValue(html, true);
+              clearInterval(t);
+            }
+          } catch(e) {}
+
+          if (tries >= 20) clearInterval(t); // ~2s
+        }, 100);
+      }
+
+      if (openedFromDraft) {
+        var txt = getDraftTextFromData();
+        if (txt && txt.trim() !== '') setEditorTextRobust(txt);
+      }
+
+      // Ripristino destinatari da meta (se il controller passa draftData.meta.recipients)
+      if (openedFromDraft && DRAFT_DATA && DRAFT_DATA.meta && Array.isArray(DRAFT_DATA.meta.recipients)) {
+        DRAFT_DATA.meta.recipients.forEach(function(r){
+          if (!r || !r.id) return;
+          var opt = new Option(r.text || ('#'+r.id), String(r.id), true, true);
+          $to.append(opt);
+        });
+        $to.trigger('change');
+      }
+
+      // Hook cambi: editor
+      setTimeout(function(){
+        try {
+          var w = $editorTA.data('wysihtml5');
+          if (w && w.editor) {
+            w.editor.on('change', function(){ debounceSave(); });
+            w.editor.on('keyup', function(){ debounceSave(); });
+          }
+        } catch(e) {}
+      }, 300);
+
+      // Hook cambi: select2 e textarea fallback
+      $to.on('change', function(){ debounceSave(); });
+      $editorTA.on('input', function(){ debounceSave(); });
+
+      // Crea draft subito solo se NON sto aprendo bozza esistente
+      if (!openedFromDraft) ensureDraftId(function(){});
+
+      // Autosave
+      setInterval(function(){ saveDraft(false); }, 15000);
+
+      // âœ… Bottone Bozza: loader + ok
+      $('#btn-draft').off('click').on('click', function(e){
+        e.preventDefault();
+        saveDraftWithFeedback();
+      });
+
+      // Fix loader + dialog uscita: quando nav con bozza sporca
+      function interceptNavClick(e, href) {
+        if (allowLeave) return false;
+        if (!dirty) return false;
+
+        e.preventDefault();
+        window.__DRAFT_BLOCK_NAV__ = true;
+        if (window.__HIDE_PAGE_LOADER__) window.__HIDE_PAGE_LOADER__();
+        setTimeout(function(){ window.__DRAFT_BLOCK_NAV__ = false; }, 0);
+
+        openExitDialog(href);
+        return true;
+      }
+
+      $(document).on('click', 'a[href]:not([href^="#"]):not([target="_blank"]):not(.no-loader)', function(e){
+        if (allowLeave) return;
+        var $a = $(this);
+        if ($a.attr('data-toggle') === 'dropdown' || $a.attr('data-toggle') === 'collapse' || $a.data('widget') === 'collapse') return;
+
+        var href = $a.attr('href');
+        if (!href) return;
+        interceptNavClick(e, href);
+      });
+
+      $('#btn-annulla').on('click', function(e){
+        if (allowLeave) return;
+        var href = $(this).attr('href') || inboxUrl;
+        interceptNavClick(e, href);
+      });
+
+      // beforeunload best-effort save
+      window.addEventListener('beforeunload', function(e){
+        if (allowLeave) return;
+        if (!dirty) return;
+
+        try {
+          var meta = buildDraftMeta();
+          var payload = csrfPayload({
+            draftId: draftId || '',
+            testo: getEditorHtml(),
+            meta: JSON.stringify(meta)
+          });
+
+          var enc = [];
+          for (var k in payload) if (payload.hasOwnProperty(k)) enc.push(encodeURIComponent(k)+'='+encodeURIComponent(payload[k]));
+          var blob = new Blob([enc.join('&')], {type:'application/x-www-form-urlencoded'});
+          if (navigator.sendBeacon) navigator.sendBeacon(DRAFT_SAVE_URL, blob);
+        } catch(err) {}
+
+        e.preventDefault();
+        e.returnValue = '';
+      });
+
+      // se riapro bozza: non sporco finchÃ© non tocchi
+      if (openedFromDraft) dirty = false;
+    }
+  });
+</script>
+
+</body>
+</html>

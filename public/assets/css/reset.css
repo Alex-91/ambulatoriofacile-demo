@@ -1,0 +1,21 @@
+.button {
+    text-align: center;
+    margin-top: 20px;
+}
+
+.row.button input[type="button"] {
+    width: calc(50% - 20px); /* Divide lo spazio orizzontale disponibile per due pulsanti */
+    margin: 0 5px; /* Margine tra i pulsanti */
+}
+
+/* Assicurati che i pulsanti rimangano uno sotto l'altro su schermi piccoli */
+@media screen and (max-width: 600px) {
+    .row.button input[type="button"] {
+        width: 100%; /* Pulsanti a larghezza completa su schermi piccoli */
+        margin: 5px 0; /* Margine top e bottom per separare i pulsanti */
+		
+    }
+	  .row.button {
+        margin-bottom: 48px !important;
+    }
+}

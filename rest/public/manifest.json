@@ -1,0 +1,19 @@
+{
+  "name": "AgendaFlow",
+  "short_name": "AgendaFlow",
+  "id": "/",
+  "start_url": "/login",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2c8895",
+  "description": "Piattaforma operativa per prenotazioni, comunicazione e notifiche.",
+  "icons": [
+    {
+      "src": "/public/notifications/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
