@@ -10,7 +10,7 @@
 
     # Permette la home e gli asset pubblici richiesti dal frontend/PWA.
     RewriteRule ^$ index.php [L,QSA]
-    RewriteRule ^(?:index\.php|manifest\.json|sw\.js|favicon\.ico)$ - [L,NC]
+    RewriteRule ^(?:index\.php(?:/.*)?|manifest\.json|sw\.js|favicon\.ico)$ - [L,NC]
     RewriteRule ^(?:public|icons|js)/.+$ - [L,NC]
 
     # Qualsiasi altro file o directory esistente non deve essere servito direttamente.
