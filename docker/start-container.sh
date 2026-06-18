@@ -56,21 +56,30 @@ bootstrap_demo_database() {
     sleep 2
   done
 
-  table_exists="$(MYSQL_PWD="$db_pass" mysql \
+  users_count="$(MYSQL_PWD="$db_pass" mysql \
     --host="$db_host" \
     --port="$db_port" \
     --user="$db_user" \
     --batch \
     --skip-column-names \
-    --execute="SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = '$db_name' AND table_name = 'dap01_users';" 2>/dev/null || printf '0')"
+    --execute="SELECT COUNT(*) FROM \`$db_name\`.\`dap01_users\`;" 2>/dev/null || printf '0')"
 
-  if [ "$table_exists" != "0" ]; then
+  appointments_count="$(MYSQL_PWD="$db_pass" mysql \
+    --host="$db_host" \
+    --port="$db_port" \
+    --user="$db_user" \
+    --batch \
+    --skip-column-names \
+    --execute="SELECT COUNT(*) FROM \`$db_name\`.\`dap12_agenda_appuntamenti\`;" 2>/dev/null || printf '0')"
+
+  if [ "${users_count:-0}" -gt 0 ] && [ "${appointments_count:-0}" -gt 0 ]; then
     echo "Database gia inizializzato, bootstrap demo non necessario."
     return 0
   fi
 
   echo "Database vuoto rilevato, importo il dump demo iniziale..."
   MYSQL_PWD="$db_pass" mysql \
+    --binary-mode=1 \
     --host="$db_host" \
     --port="$db_port" \
     --user="$db_user" \
