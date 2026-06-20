@@ -1,4 +1,6 @@
 <?php
+helper('portal');
+
 $tenant = is_array($tenant ?? null) ? $tenant : [];
 $capacity = is_array($capacity ?? null) ? $capacity : [];
 $errors = is_array($errors ?? null) ? $errors : [];
@@ -80,7 +82,7 @@ $tenantName = trim((string) ($tenantContext->tenantName ?? ($tenant['tenant_name
           <div class="check-card">
             <h4 style="margin-top:0;">2. Invita il team del cliente</h4>
             <p class="text-muted">Aggiungi collaboratori e segreteria del tuo spazio, nel limite del pacchetto assegnato.</p>
-            <a href="<?= site_url('spazio/utenti') ?>" class="btn btn-default btn-flat">
+            <a href="<?= portal_tenant_space_url('utenti') ?>" class="btn btn-default btn-flat">
               <i class="fa fa-users"></i> Gestisci utenti dello spazio
             </a>
           </div>
@@ -93,7 +95,7 @@ $tenantName = trim((string) ($tenantContext->tenantName ?? ($tenant['tenant_name
           <div class="check-card">
             <h4 style="margin-top:0;">4. Chiudi onboarding</h4>
             <p class="text-muted">Quando hai verificato che il team puo entrare e che il pacchetto e corretto, chiudi l onboarding iniziale.</p>
-            <form action="<?= site_url('spazio/onboarding/completa') ?>" method="post" style="display:inline-block;">
+            <form action="<?= portal_tenant_space_url('onboarding/completa') ?>" method="post" style="display:inline-block;">
               <?= csrf_field() ?>
               <button type="submit" class="btn btn-success">
                 <i class="fa fa-check"></i> Conferma onboarding completato

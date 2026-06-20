@@ -1,4 +1,6 @@
 <?php
+helper('portal');
+
 if (empty($menu_items) || !is_array($menu_items)) {
     $menu_items = session()->get('header_menu_items') ?? [];
 }
@@ -115,7 +117,7 @@ $oldValue = static function (string $key, $fallback = '') {
     <section class="content">
       <div class="row">
         <div class="col-md-3">
-          <?= view('partials/sidebar_admin', ['menu_items' => $menu_items]) ?>
+          <?= view('partials/sidebar_platform', ['platformMasterEmails' => $platformMasterEmails ?? []]) ?>
         </div>
 
         <div class="col-md-9">
@@ -135,9 +137,9 @@ $oldValue = static function (string $key, $fallback = '') {
           <?php endif; ?>
 
           <div class="intro-box">
-            <h3 style="margin-top:0; margin-bottom:8px;">Provisioning da pannello admin</h3>
+            <h3 style="margin-top:0; margin-bottom:8px;">Console master sotto /login</h3>
             <p style="margin:0 0 12px 0; color:#52676c;">
-              Questo pannello sostituisce il comando console per la gestione ordinaria. Il tenant master usa la sua email come login piattaforma.
+              Questo pannello e disponibile solo agli account master del login unico. Qui gestisci onboarding commerciale, tenant, pacchetti e accessi senza usare `/admin`.
             </p>
             <span class="summary-badge">Login unico via email</span>
             <span class="summary-badge">DB separato per cliente</span>
@@ -150,7 +152,7 @@ $oldValue = static function (string $key, $fallback = '') {
               <h3 class="box-title">Ricerca Spazi</h3>
             </div>
             <div class="box-body">
-              <form method="get" action="<?= site_url('admin/piattaforma/spazi-clienti') ?>">
+              <form method="get" action="<?= portal_platform_url('spazi-clienti') ?>">
                 <div class="row">
                   <div class="col-md-4">
                     <label>Ricerca</label>
@@ -180,7 +182,7 @@ $oldValue = static function (string $key, $fallback = '') {
                 </div>
                 <div style="margin-top:12px;">
                   <button class="btn btn-primary" type="submit"><i class="fa fa-search"></i> Filtra</button>
-                  <a class="btn btn-default" href="<?= site_url('admin/piattaforma/spazi-clienti') ?>"><i class="fa fa-refresh"></i> Reset</a>
+                  <a class="btn btn-default" href="<?= portal_platform_url('spazi-clienti') ?>"><i class="fa fa-refresh"></i> Reset</a>
                 </div>
               </form>
             </div>
@@ -207,7 +209,7 @@ $oldValue = static function (string $key, $fallback = '') {
                     <tr><td colspan="6" class="text-muted">Nessun tenant trovato.</td></tr>
                   <?php else: ?>
                     <?php foreach ($tenantRows as $row): ?>
-                      <?php $tenantLink = site_url('admin/piattaforma/spazi-clienti') . '?id_tenant=' . (int)$row['id_tenant']; ?>
+                      <?php $tenantLink = portal_platform_url('spazi-clienti') . '?id_tenant=' . (int)$row['id_tenant']; ?>
                       <tr <?= ((int)$row['id_tenant'] === $selectedTenantId) ? 'class="info"' : '' ?>>
                         <td>
                           <strong><?= esc((string)($row['tenant_name'] ?? '')) ?></strong><br>
@@ -242,7 +244,7 @@ $oldValue = static function (string $key, $fallback = '') {
               <h3 class="box-title"><?= $isEdit ? 'Modifica spazio cliente' : 'Nuovo spazio cliente' ?></h3>
             </div>
 
-            <form method="post" action="<?= site_url('admin/piattaforma/spazi-clienti/save') ?>">
+            <form method="post" action="<?= portal_platform_url('spazi-clienti/save') ?>">
               <?= csrf_field() ?>
               <input type="hidden" name="id_tenant" value="<?= (int)$selectedTenantId ?>">
               <input type="hidden" name="is_active" value="0">
@@ -503,7 +505,7 @@ $oldValue = static function (string $key, $fallback = '') {
                 <button class="btn btn-primary" type="submit" name="provision_after_save" value="1">
                   <i class="fa fa-database"></i> <?= $isEdit ? 'Salva e provisiona' : 'Crea e provisiona' ?>
                 </button>
-                <a class="btn btn-default" href="<?= site_url('admin/piattaforma/spazi-clienti') ?>">
+                <a class="btn btn-default" href="<?= portal_platform_url('spazi-clienti') ?>">
                   <i class="fa fa-plus"></i> Nuovo spazio
                 </a>
               </div>
@@ -606,7 +608,7 @@ $oldValue = static function (string $key, $fallback = '') {
                                 >
                                   <i class="fa fa-pencil"></i> Modifica
                                 </button>
-                                <form method="post" action="<?= site_url('admin/piattaforma/spazi-clienti/members/accesso') ?>" style="display:inline-block; margin-top:4px;">
+                                <form method="post" action="<?= portal_platform_url('spazi-clienti/members/accesso') ?>" style="display:inline-block; margin-top:4px;">
                                   <?= csrf_field() ?>
                                   <input type="hidden" name="id_tenant" value="<?= (int)$selectedTenantId ?>">
                                   <input type="hidden" name="member_id_platform_user_tenant" value="<?= esc((string)$memberId, 'attr') ?>">
@@ -623,7 +625,7 @@ $oldValue = static function (string $key, $fallback = '') {
                   </table>
                 </div>
 
-                <form method="post" action="<?= site_url('admin/piattaforma/spazi-clienti/members/save') ?>" id="tenant-member-form">
+                <form method="post" action="<?= portal_platform_url('spazi-clienti/members/save') ?>" id="tenant-member-form">
                   <?= csrf_field() ?>
                   <input type="hidden" name="id_tenant" value="<?= (int)$selectedTenantId ?>">
                   <input type="hidden" name="member_id_platform_user_tenant" id="member_id_platform_user_tenant" value="<?= esc((string)$oldValue('member_id_platform_user_tenant', '')) ?>">

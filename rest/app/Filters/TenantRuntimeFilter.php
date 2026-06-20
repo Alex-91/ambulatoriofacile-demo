@@ -77,7 +77,6 @@ class TenantRuntimeFilter implements FilterInterface
             'otp',
             'password/scaduta',
             'tenant',
-            'admin/piattaforma/spazi-clienti',
         ];
 
         foreach ($prefixes as $prefix) {

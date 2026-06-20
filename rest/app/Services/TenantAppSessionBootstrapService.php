@@ -17,6 +17,7 @@ class TenantAppSessionBootstrapService
     private PlatformUserTenantsModel $membershipsModel;
     private \App\Models\PlatformUsersModel $platformUsersModel;
     private PlatformAuthService $platformAuth;
+    private PlatformAdminAccessService $platformAdminAccess;
     private Crypto_helper $crypto;
 
     public function __construct()
@@ -27,6 +28,7 @@ class TenantAppSessionBootstrapService
         $this->membershipsModel = new PlatformUserTenantsModel();
         $this->platformUsersModel = new \App\Models\PlatformUsersModel();
         $this->platformAuth = new PlatformAuthService();
+        $this->platformAdminAccess = new PlatformAdminAccessService($this->platformUsersModel, $this->platformAuth);
         $this->crypto = new Crypto_helper();
     }
 
@@ -109,6 +111,7 @@ class TenantAppSessionBootstrapService
             'isLoggedInConfirmed' => true,
             'platform_user_id' => $platformUserId,
             'platform_user_email' => (string) ($platformUser['email'] ?? ''),
+            'platform_is_admin' => $this->platformAdminAccess->isPlatformAdmin($platformUser),
             self::PLATFORM_SELECTABLE_TENANTS_SESSION_KEY => $this->platformAuth->buildSelectableTenants(
                 $this->catalog->listTenantsForPlatformUser($platformUserId)
             ),
@@ -172,6 +175,7 @@ class TenantAppSessionBootstrapService
             'loginSource',
             'platform_user_id',
             'platform_user_email',
+            'platform_is_admin',
             self::PLATFORM_SELECTABLE_TENANTS_SESSION_KEY,
             PlatformAccessService::SESSION_KEY_PENDING_PASSWORD_SETUP,
             TenantContextService::SESSION_KEY,

@@ -1,4 +1,6 @@
 <?php
+helper('portal');
+
 $tenantMembers = is_array($tenantMembers ?? null) ? $tenantMembers : [];
 $tenantCapacity = is_array($tenantCapacity ?? null) ? $tenantCapacity : [];
 $memberErrors = is_array($memberErrors ?? null) ? $memberErrors : [];
@@ -159,7 +161,7 @@ $oldValue = static function (string $key, $fallback = '') {
                             >
                               <i class="fa fa-pencil"></i> Modifica
                             </button>
-                            <form method="post" action="<?= site_url('spazio/utenti/accesso') ?>" style="display:inline-block; margin-top:4px;">
+                            <form method="post" action="<?= portal_tenant_space_url('utenti/accesso') ?>" style="display:inline-block; margin-top:4px;">
                               <?= csrf_field() ?>
                               <input type="hidden" name="member_id_platform_user_tenant" value="<?= esc((string)$memberId, 'attr') ?>">
                               <button class="btn btn-xs btn-default" type="submit">
@@ -180,7 +182,7 @@ $oldValue = static function (string $key, $fallback = '') {
             <div class="box-header with-border">
               <h3 class="box-title"><?= $isEditingMember ? 'Modifica utente' : 'Aggiungi utente' ?></h3>
             </div>
-            <form method="post" action="<?= site_url('spazio/utenti/save') ?>" id="tenant-member-form">
+            <form method="post" action="<?= portal_tenant_space_url('utenti/save') ?>" id="tenant-member-form">
               <?= csrf_field() ?>
               <input type="hidden" name="member_id_platform_user_tenant" id="member_id_platform_user_tenant" value="<?= esc((string)$oldValue('member_id_platform_user_tenant', '')) ?>">
               <input type="hidden" name="member_is_default" value="0">

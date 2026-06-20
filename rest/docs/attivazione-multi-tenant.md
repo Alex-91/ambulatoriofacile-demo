@@ -1,6 +1,6 @@
 # Attivazione Multi Tenant
 
-Questa checklist serve per passare dalla base codice al primo uso reale del login unico e degli spazi cliente da pannello admin.
+Questa checklist serve per passare dalla base codice al primo uso reale del login unico e degli spazi cliente dalla console master sotto `/login`.
 
 ## Architettura consigliata produzione
 
@@ -60,6 +60,14 @@ Variabili minime:
 
 ## 4. Provisioning tenant dal pannello
 
+Prima di usare la console master, configura anche:
+
+- `PLATFORM_MASTER_EMAILS`
+
+Esempio:
+
+- `PLATFORM_MASTER_EMAILS=tuamail@dominio.it,amico@dominio.it`
+
 Il pulsante `Salva e provisiona` del pannello admin usa queste env:
 
 - `TENANT_PROVISIONING_ADMIN_HOST`
@@ -107,8 +115,9 @@ Ordine consigliato:
 6. imposta la password
 7. entra da `ambulatoriofacile.it/login`
 8. verifica che il tenant master veda solo il suo spazio
-9. aggiungi un utente da `spazio/utenti`
-10. invia accesso anche a lui e verifica il flusso
+9. verifica che l account master centrale apra `ambulatoriofacile.it/login/piattaforma/spazi-clienti`
+10. aggiungi un utente da `login/spazio/utenti`
+11. invia accesso anche a lui e verifica il flusso
 
 ## 7. Regole operative
 

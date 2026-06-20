@@ -133,7 +133,8 @@ Per il portale reale con login unico su root dominio usa questa logica:
 2. `app.baseURL=https://ambulatoriofacile.it/app/`
 3. `APP_CANONICAL_URL=https://ambulatoriofacile.it/app/`
 4. `APP_PUBLIC_ACCESS_BASE_URL=https://ambulatoriofacile.it/`
-5. domini Coolify della app reale:
+5. `PLATFORM_MASTER_EMAILS=tuamail@dominio.it,amico@dominio.it`
+6. domini Coolify della app reale:
    `https://ambulatoriofacile.it/login,https://ambulatoriofacile.it/app`
 
 ### 5. Monta i volumi persistenti
@@ -174,7 +175,8 @@ Se attivi il multi-tenant, aggiungi anche questi test:
 2. `Salva e provisiona` senza errori
 3. invio email di accesso al tenant master
 4. primo login da `ambulatoriofacile.it/login`
-5. gestione utenti da `spazio/utenti`
+5. accesso master a `ambulatoriofacile.it/login/piattaforma/spazi-clienti`
+6. gestione utenti cliente da `ambulatoriofacile.it/login/spazio/utenti`
 
 ## Flusso futuro con Codex
 

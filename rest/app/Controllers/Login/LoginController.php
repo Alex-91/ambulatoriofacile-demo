@@ -8,6 +8,7 @@ use App\Libraries\Crypto_helper; // Importa la libreria
 use App\Libraries\SystemUserMask;
 use App\Models\ClientDoctorModel;
 use App\Services\PlatformAccessService;
+use App\Services\PlatformAdminAccessService;
 use App\Services\PlatformAuthService;
 use App\Services\TenantAppSessionBootstrapService;
 
@@ -189,6 +190,17 @@ class LoginController extends BaseController
             ]);
         }
 
+        $platformAdminAccess = new PlatformAdminAccessService();
+        if ($platformAdminAccess->isPlatformAdmin($platformUser)) {
+            $platformAdminAccess->bootstrapSession($platformUser, (array) ($result['memberships'] ?? []));
+
+            return $this->response->setJSON([
+                'resp' => 'OK',
+                'success' => true,
+                'redirectUrl' => portal_platform_url('spazi-clienti'),
+            ]);
+        }
+
         if (count($selectableTenants) === 1) {
             try {
                 $tenantId = (int) ($selectableTenants[0]['id_tenant'] ?? 0);
@@ -280,16 +292,17 @@ class LoginController extends BaseController
 
     public function switchTenant(int $tenantId = 0)
     {
+        helper('portal');
         $platformUserId = (int) (session()->get('platform_user_id') ?? 0);
         if ($platformUserId <= 0 || $tenantId <= 0) {
-            return redirect()->to(site_url('/'))->with('error', 'Cambio spazio non disponibile.');
+            return redirect()->to($this->postLoginFallbackUrl())->with('error', 'Cambio spazio non disponibile.');
         }
 
         try {
             $bootstrap = (new TenantAppSessionBootstrapService())->bootstrap($platformUserId, $tenantId);
             return redirect()->to(site_url((string) ($bootstrap['redirectUrl'] ?? '/')));
         } catch (\Throwable $e) {
-            return redirect()->to(site_url('/'))->with('error', $e->getMessage());
+            return redirect()->to($this->postLoginFallbackUrl())->with('error', $e->getMessage());
         }
     }
 
@@ -301,6 +314,16 @@ class LoginController extends BaseController
         }*/
 
         // Mostra la pagina di login
+        helper('portal');
+
+        if ((bool) (session()->get('isLoggedInConfirmed') ?? false) === true) {
+            if ((bool) (session()->get('platform_is_admin') ?? false) === true) {
+                return redirect()->to(portal_platform_url('spazi-clienti'));
+            }
+
+            return redirect()->to(site_url('/'));
+        }
+
         return view('login/login', $this->buildLoginViewData());
     }
 
@@ -340,6 +363,7 @@ session()->remove('otp_identity');
 session()->remove(\App\Services\TenantContextService::SESSION_KEY);
 session()->remove('platform_user_id');
 session()->remove('platform_user_email');
+session()->remove('platform_is_admin');
 session()->remove(\App\Services\TenantAppSessionBootstrapService::PLATFORM_SELECTABLE_TENANTS_SESSION_KEY);
 session()->remove(\App\Services\PlatformAccessService::SESSION_KEY_PENDING_PASSWORD_SETUP);
         if (!$credentials || !isset($credentials->username) || !isset($credentials->password)) {
@@ -849,5 +873,16 @@ session()->remove(\App\Services\PlatformAccessService::SESSION_KEY_PENDING_PASSW
         $this->clearPendingPlatformLogin();
         session()->destroy();
         return redirect()->to('/login');
+    }
+
+    private function postLoginFallbackUrl(): string
+    {
+        helper('portal');
+
+        if ((bool) (session()->get('platform_is_admin') ?? false) === true) {
+            return portal_platform_url('spazi-clienti');
+        }
+
+        return site_url('/');
     }
 }

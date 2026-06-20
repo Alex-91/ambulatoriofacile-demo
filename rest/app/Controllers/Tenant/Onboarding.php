@@ -24,6 +24,10 @@ class Onboarding extends BaseController
             return $guard;
         }
 
+        if (trim(service('uri')->getPath(), '/') !== 'login/spazio/onboarding') {
+            return redirect()->to(portal_tenant_space_url('onboarding'));
+        }
+
         $context = $this->tenantContext->getCurrentTenant();
         if ($context === null) {
             return redirect()->to(site_url('/'));

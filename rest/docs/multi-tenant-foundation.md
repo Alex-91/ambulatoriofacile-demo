@@ -88,11 +88,11 @@ Effetti:
 - restituisce il blueprint runtime
 - opzionalmente crea le cartelle locali tenant
 
-## Pannello admin
+## Console master
 
 Route UI:
 
-- `admin/piattaforma/spazi-clienti`
+- `login/piattaforma/spazi-clienti`
 
 Il pannello permette di:
 
@@ -106,6 +106,12 @@ Il pannello permette di:
 - preparare le cartelle locali tenant senza passare da console
 - lanciare il provisioning tecnico del tenant con il pulsante `Salva e provisiona`
 - inviare o reinviare l accesso email a tenant master e membri dello spazio
+
+Accesso:
+
+- la console master resta sotto `/login/...`
+- gli account master si distinguono per email tramite `PLATFORM_MASTER_EMAILS`
+- il namespace `/admin` resta riservato al gestionale legacy e non e la home del nuovo login unico
 
 Confine operativo:
 
@@ -124,10 +130,10 @@ Route pubbliche introdotte:
 
 Route autenticata introdotta:
 
-- `tenant/switch/{id}`
-- `spazio/utenti`
-- `spazio/utenti/accesso`
-- `spazio/onboarding`
+- `login/spazi/cambia/{id}`
+- `login/spazio/utenti`
+- `login/spazio/utenti/accesso`
+- `login/spazio/onboarding`
 
 Comportamento attuale:
 
@@ -185,8 +191,8 @@ Note operative:
 
 Flussi introdotti:
 
-- invio accesso dal pannello admin per tenant master e membri
-- invio accesso dal pannello `spazio/utenti` per il tenant master del cliente
+- invio accesso dalla console master per tenant master e membri
+- invio accesso dal pannello `login/spazio/utenti` per il tenant master del cliente
 - recupero password dal login unico tramite `login/recupero`
 - impostazione password via token oppure dopo login temporaneo
 

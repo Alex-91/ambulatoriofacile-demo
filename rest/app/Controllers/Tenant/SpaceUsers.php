@@ -24,6 +24,10 @@ class SpaceUsers extends BaseController
             return $guard;
         }
 
+        if (trim(service('uri')->getPath(), '/') !== 'login/spazio/utenti') {
+            return redirect()->to(portal_tenant_space_url('utenti'));
+        }
+
         $context = $this->tenantContext->getCurrentTenant();
         if ($context === null) {
             return redirect()->to(site_url('/'));
@@ -98,7 +102,7 @@ class SpaceUsers extends BaseController
             }
 
             $redirect = redirect()
-                ->to(site_url('spazio/utenti'))
+                ->to(portal_tenant_space_url('utenti'))
                 ->with('member_success', implode(' ', $messages));
 
             if ($warnings !== []) {
@@ -110,7 +114,7 @@ class SpaceUsers extends BaseController
             log_message('error', 'Tenant\\SpaceUsers::save failed: ' . $e->getMessage());
 
             return redirect()
-                ->to(site_url('spazio/utenti'))
+                ->to(portal_tenant_space_url('utenti'))
                 ->withInput()
                 ->with('member_errors', ['generic' => $e->getMessage()]);
         }
@@ -137,20 +141,20 @@ class SpaceUsers extends BaseController
         }
 
         if (!$membership) {
-            return redirect()->to(site_url('spazio/utenti'))->with('member_errors', ['generic' => 'Utente dello spazio non trovato.']);
+            return redirect()->to(portal_tenant_space_url('utenti'))->with('member_errors', ['generic' => 'Utente dello spazio non trovato.']);
         }
 
         try {
             (new PlatformAccessService())->sendMembershipAccessEmail($membershipId, 'tenant_member_action');
 
             return redirect()
-                ->to(site_url('spazio/utenti'))
+                ->to(portal_tenant_space_url('utenti'))
                 ->with('member_success', 'Email di accesso inviata con successo.');
         } catch (\Throwable $e) {
             log_message('error', 'Tenant\\SpaceUsers::sendAccess failed: ' . $e->getMessage());
 
             return redirect()
-                ->to(site_url('spazio/utenti'))
+                ->to(portal_tenant_space_url('utenti'))
                 ->with('member_errors', ['generic' => $e->getMessage()]);
         }
     }

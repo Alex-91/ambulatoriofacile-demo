@@ -1,5 +1,6 @@
 <?php
 helper('admin_menu');
+helper('portal');
 
 $sess = session();
 
@@ -60,6 +61,9 @@ $tenantRole = is_array($tenantContext) ? trim((string)($tenantContext['tenant_ro
 $tenantFeatureFlags = is_array($tenantContext) ? (array)($tenantContext['feature_flags'] ?? []) : [];
 $platformTenants = $sess->get('platform_selectable_tenants');
 $platformTenants = is_array($platformTenants) ? $platformTenants : [];
+$canAccessPlatformConsole = (bool) ($sess->get('platform_is_admin') ?? false) === true;
+$isPlatformConsoleSession = $canAccessPlatformConsole
+    && (string) ($sess->get('loginSource') ?? '') === 'platform_console';
 $canManageTenantUsers = $tenantId > 0
     && in_array($tenantRole, ['tenant_master', 'tenant_admin'], true)
     && !empty($tenantFeatureFlags['staff_management']);
@@ -251,7 +255,7 @@ if ($disableMenuFallback) {
                     $availableTenantId = (int)($availableTenant['id_tenant'] ?? 0);
                     $isCurrentTenant = $availableTenantId === $tenantId;
                     $tenantLabel = trim((string)($availableTenant['tenant_name'] ?? $availableTenant['tenant_key'] ?? 'Spazio cliente'));
-                    $tenantSwitchUrl = site_url('tenant/switch/' . $availableTenantId);
+                    $tenantSwitchUrl = portal_tenant_switch_url($availableTenantId);
                   ?>
                   <div style="margin-bottom:6px;">
                     <?php if ($isCurrentTenant): ?>
@@ -267,20 +271,28 @@ if ($disableMenuFallback) {
                 <?php endforeach; ?>
               </div>
               <?php endif; ?>
+              <?php if ($canAccessPlatformConsole): ?>
+              <div style="padding:0 0 10px 0; margin-bottom:10px; border-bottom:1px solid #eee;">
+                <a href="<?= portal_platform_url('spazi-clienti') ?>" class="btn btn-default btn-flat" style="width:100%; text-align:left;">
+                  <i class="fa fa-sitemap"></i> Console piattaforma
+                </a>
+              </div>
+              <?php endif; ?>
               <?php if ($canManageTenantUsers): ?>
               <div style="padding:0 0 10px 0; margin-bottom:10px; border-bottom:1px solid #eee;">
-                <a href="<?= site_url('spazio/utenti') ?>" class="btn btn-default btn-flat" style="width:100%; text-align:left;">
+                <a href="<?= portal_tenant_space_url('utenti') ?>" class="btn btn-default btn-flat" style="width:100%; text-align:left;">
                   <i class="fa fa-users"></i> Gestisci utenti dello spazio
                 </a>
               </div>
               <?php endif; ?>
               <?php if ($showTenantOnboardingLink): ?>
               <div style="padding:0 0 10px 0; margin-bottom:10px; border-bottom:1px solid #eee;">
-                <a href="<?= site_url('spazio/onboarding') ?>" class="btn btn-default btn-flat" style="width:100%; text-align:left;">
+                <a href="<?= portal_tenant_space_url('onboarding') ?>" class="btn btn-default btn-flat" style="width:100%; text-align:left;">
                   <i class="fa fa-check-square-o"></i> Completa onboarding spazio
                 </a>
               </div>
               <?php endif; ?>
+              <?php if (!$isPlatformConsoleSession): ?>
               <div style="padding:0 0 10px 0; margin-bottom:10px; border-bottom:1px solid #eee;">
                 <label for="chatBrowserNotifyToggle" style="font-weight:600; cursor:pointer; margin:0;">
                   <input type="checkbox" id="chatBrowserNotifyToggle" style="vertical-align:middle; margin-right:6px;">
@@ -290,9 +302,12 @@ if ($disableMenuFallback) {
                   Popup nel browser quando arrivano nuovi messaggi.
                 </div>
               </div>
+              <?php endif; ?>
+              <?php if (!$isPlatformConsoleSession): ?>
               <div class="pull-left">
               <a href="<?= base_url('profilo') ?>" class="btn btn-default btn-flat">Profilo</a>
               </div>
+              <?php endif; ?>
               <div class="pull-right">
                 <a href="<?= base_url('logout') ?>" class="btn btn-default btn-flat">Logout</a>
               </div>
