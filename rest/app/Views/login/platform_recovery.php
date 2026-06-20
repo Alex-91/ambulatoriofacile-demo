@@ -1,4 +1,5 @@
 <?php
+helper('portal');
 $success = $success ?? null;
 $errors = is_array($errors ?? null) ? $errors : [];
 ?>
@@ -62,7 +63,7 @@ $errors = is_array($errors ?? null) ? $errors : [];
         <div class="flash-box flash-error"><?= esc((string) $errors['generic']) ?></div>
       <?php endif; ?>
 
-      <form action="<?= site_url('login/recupero/invia') ?>" method="post">
+      <form action="<?= portal_public_access_url('login/recupero/invia') ?>" method="post">
         <?= csrf_field() ?>
         <div class="access-card">
           <h3>Recupera accesso spazi cliente</h3>
@@ -81,7 +82,7 @@ $errors = is_array($errors ?? null) ? $errors : [];
           <a href="<?= site_url('reset') ?>">Apri recupero password legacy</a>
         </div>
         <div class="row button" style="margin-top:12px;">
-          <input type="button" value="Torna al login" onclick="window.location.href='<?= site_url('login') ?>'">
+          <input type="button" value="Torna al login" onclick="window.location.href='<?= portal_public_access_url('login') ?>'">
         </div>
       </form>
     </div>

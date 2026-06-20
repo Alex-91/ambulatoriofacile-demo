@@ -1,4 +1,5 @@
 <?php
+helper('portal');
 $demoMode = (bool) ($demoMode ?? false);
 $prefillUsername = (string) ($prefillUsername ?? '');
 $demoProfileSlug = (string) ($demoProfileSlug ?? '');
@@ -120,7 +121,7 @@ $loginError = trim((string) ($loginError ?? ''));
         		<div class="container">
       <div class="wrapper">
 <div class="title" style="background-image: url('<?= base_url('public/assets/images/logonew.jpg'); ?>'); background-size: contain; background-repeat: no-repeat; background-position-x: center;"></div>
-     <form action="<?= site_url('login') ?>" method="post">
+     <form action="<?= portal_public_access_url('login') ?>" method="post">
         <?php if ($demoMode): ?>
           <div class="demo-login-banner">
             <strong>Accesso demo guidato</strong>
@@ -226,10 +227,10 @@ $loginError = trim((string) ($loginError ?? ''));
 
 <script>
 (function () {
-  var loginUrl = <?= json_encode(site_url('login')) ?>;
-  var selectTenantUrl = <?= json_encode(site_url('login/tenant-select')) ?>;
+  var loginUrl = <?= json_encode(portal_public_access_url('login')) ?>;
+  var selectTenantUrl = <?= json_encode(portal_public_access_url('login/tenant-select')) ?>;
   var registerUrl = <?= json_encode(site_url('register')) ?>;
-  var resetUrl = <?= json_encode(site_url('login/recupero')) ?>;
+  var resetUrl = <?= json_encode(portal_public_access_url('login/recupero')) ?>;
   var authUrl = <?= json_encode(site_url('auth')) ?>;
   var hasPrefilledUsername = <?= json_encode($prefillUsername !== '') ?>;
   var tenantPicker = document.getElementById('tenantPicker');

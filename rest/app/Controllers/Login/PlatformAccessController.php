@@ -12,6 +12,7 @@ class PlatformAccessController extends BaseController
 
     public function __construct()
     {
+        helper('portal');
         $this->accessService = new PlatformAccessService();
     }
 
@@ -33,13 +34,13 @@ class PlatformAccessController extends BaseController
             }
 
             return redirect()
-                ->to(site_url('login/recupero'))
+                ->to(portal_public_access_url('login/recupero'))
                 ->with('success', 'Se l account esiste, abbiamo inviato una email con le istruzioni per l accesso.');
         } catch (\Throwable $e) {
             log_message('error', 'PlatformAccessController::sendRecovery failed: ' . $e->getMessage());
 
             return redirect()
-                ->to(site_url('login/recupero'))
+                ->to(portal_public_access_url('login/recupero'))
                 ->withInput()
                 ->with('errors', ['generic' => $e->getMessage()]);
         }
@@ -53,13 +54,13 @@ class PlatformAccessController extends BaseController
 
         if ($token !== '' && $resolved === null) {
             return redirect()
-                ->to(site_url('login'))
+                ->to(portal_public_access_url('login'))
                 ->with('login_error', 'Il link di accesso non e valido oppure e scaduto.');
         }
 
         if ($token === '' && $pending === null) {
             return redirect()
-                ->to(site_url('login'))
+                ->to(portal_public_access_url('login'))
                 ->with('login_error', 'La sessione per impostare la password e scaduta. Effettua di nuovo il login.');
         }
 
@@ -92,7 +93,7 @@ class PlatformAccessController extends BaseController
                 $this->accessService->completePasswordSetupByToken($token, $password);
 
                 return redirect()
-                    ->to(site_url('login'))
+                    ->to(portal_public_access_url('login'))
                     ->with('login_success', 'Password salvata correttamente. Ora puoi entrare dal login unico con la tua email.');
             }
 
@@ -109,7 +110,7 @@ class PlatformAccessController extends BaseController
             }
 
             return redirect()
-                ->to(site_url('login'))
+                ->to(portal_public_access_url('login'))
                 ->with('login_success', 'Password aggiornata. Ora accedi con la tua email per entrare nel tuo spazio.');
         } catch (\Throwable $e) {
             log_message('error', 'PlatformAccessController::savePassword failed: ' . $e->getMessage());

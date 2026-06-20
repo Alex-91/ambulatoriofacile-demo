@@ -13,6 +13,7 @@ class TenantRuntimeFilter implements FilterInterface
 {
     public function before(RequestInterface $request, $arguments = null)
     {
+        helper('portal');
         if ($this->shouldSkipPath($request)) {
             return null;
         }
@@ -40,7 +41,7 @@ class TenantRuntimeFilter implements FilterInterface
         } catch (\Throwable $e) {
             log_message('error', 'TenantRuntimeFilter failed: ' . $e->getMessage());
             $this->clearTenantSession();
-            return redirect()->to(site_url('login'))->with('error', 'Spazio cliente non disponibile. Effettua di nuovo il login.');
+            return redirect()->to(portal_public_access_url('login'))->with('error', 'Spazio cliente non disponibile. Effettua di nuovo il login.');
         }
 
         return null;

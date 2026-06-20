@@ -127,6 +127,15 @@ Se vuoi attivare anche il multi-tenant con provisioning da pannello admin:
 3. prepara un template DB pulito oppure un file SQL pulito
 4. segui la checklist in `rest/docs/attivazione-multi-tenant.md`
 
+Per il portale reale con login unico su root dominio usa questa logica:
+
+1. `BOOTSTRAP_DEMO_DB=0`
+2. `app.baseURL=https://ambulatoriofacile.it/app/`
+3. `APP_CANONICAL_URL=https://ambulatoriofacile.it/app/`
+4. `APP_PUBLIC_ACCESS_BASE_URL=https://ambulatoriofacile.it/`
+5. domini Coolify della app reale:
+   `https://ambulatoriofacile.it/login,https://ambulatoriofacile.it/app`
+
 ### 5. Monta i volumi persistenti
 
 Devi montare questi path dentro il container:

@@ -1,4 +1,5 @@
 <?php
+helper('portal');
 $platformUser = is_array($platformUser ?? null) ? $platformUser : [];
 $tenant = is_array($tenant ?? null) ? $tenant : null;
 $errors = is_array($errors ?? null) ? $errors : [];
@@ -61,7 +62,7 @@ $token = trim((string) ($token ?? ''));
         Dopo il salvataggio entrerai dal login unico e vedrai solo i tuoi spazi.
       </div>
 
-      <form action="<?= site_url('login/password-imposta') ?>" method="post">
+      <form action="<?= portal_public_access_url('login/password-imposta') ?>" method="post">
         <?= csrf_field() ?>
         <input type="hidden" name="token" value="<?= esc($token) ?>">
 

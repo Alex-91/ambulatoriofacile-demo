@@ -151,6 +151,7 @@ class LoginController extends BaseController
 
     private function handlePlatformLogin(string $username, string $password)
     {
+        helper('portal');
         $this->clearPendingPlatformLogin();
 
         $result = (new PlatformAuthService())->authenticate($username, $password);
@@ -184,7 +185,7 @@ class LoginController extends BaseController
             return $this->response->setJSON([
                 'resp' => 'PASSWORD_SETUP_REQUIRED',
                 'success' => true,
-                'redirectUrl' => site_url('login/password-imposta'),
+                'redirectUrl' => portal_public_access_url('login/password-imposta'),
             ]);
         }
 

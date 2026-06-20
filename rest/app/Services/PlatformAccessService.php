@@ -254,8 +254,9 @@ class PlatformAccessService
             'triggered_by' => $triggeredBy,
         ]);
 
-        $setupUrl = site_url('login/password-imposta') . '?token=' . rawurlencode($token);
-        $loginUrl = site_url('login');
+        helper('portal');
+        $setupUrl = portal_public_access_url('login/password-imposta') . '?token=' . rawurlencode($token);
+        $loginUrl = portal_public_access_url('login');
         $subject = $tokenType === self::TOKEN_TYPE_PASSWORD_RESET
             ? 'Reimposta la password di accesso ad AmbulatorioFacile'
             : 'Completa l accesso al tuo spazio su AmbulatorioFacile';

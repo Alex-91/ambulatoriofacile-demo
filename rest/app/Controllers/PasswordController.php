@@ -9,9 +9,10 @@ class PasswordController extends BaseController
 {
     public function index()
     {
+        helper('portal');
         // devo essere passato dal login scaduto
         if (!session()->get('isLoggedIn') || (int)session()->get('forcePwdChange') !== 1) {
-            return redirect()->to(site_url('login'));
+            return redirect()->to(portal_public_access_url('login'));
         }
 
         if ((int)session()->get('otp_ok_for_expired') !== 1) {

@@ -14,6 +14,7 @@ class SpaceUsers extends BaseController
 
     public function __construct()
     {
+        helper('portal');
         $this->tenantContext = new TenantContextService();
     }
 
@@ -152,7 +153,7 @@ class SpaceUsers extends BaseController
     private function ensureAllowed()
     {
         if ((bool)(session()->get('isLoggedInConfirmed') ?? false) !== true) {
-            return redirect()->to(site_url('login'));
+            return redirect()->to(portal_public_access_url('login'));
         }
 
         $context = $this->tenantContext->getCurrentTenant();

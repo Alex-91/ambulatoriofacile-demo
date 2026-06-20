@@ -2,6 +2,20 @@
 
 Questa checklist serve per passare dalla base codice al primo uso reale del login unico e degli spazi cliente da pannello admin.
 
+## Architettura consigliata produzione
+
+- `https://ambulatoriofacile.it/` = sito vetrina
+- `https://ambulatoriofacile.it/demo` = demo commerciale
+- `https://ambulatoriofacile.it/login` = ingresso pubblico login unico
+- `https://ambulatoriofacile.it/app/...` = area privata reale
+
+Env minime consigliate sulla app reale:
+
+- `BOOTSTRAP_DEMO_DB=0`
+- `app.baseURL=https://ambulatoriofacile.it/app/`
+- `APP_CANONICAL_URL=https://ambulatoriofacile.it/app/`
+- `APP_PUBLIC_ACCESS_BASE_URL=https://ambulatoriofacile.it/`
+
 ## 1. Database centrale piattaforma
 
 Scegli una delle due modalita:
