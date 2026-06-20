@@ -7,9 +7,15 @@ use App\Controllers\BaseController;
 use App\Libraries\Crypto_helper; // Importa la libreria
 use App\Libraries\SystemUserMask;
 use App\Models\ClientDoctorModel;
+use App\Services\PlatformAccessService;
+use App\Services\PlatformAuthService;
+use App\Services\TenantAppSessionBootstrapService;
 
 class LoginController extends BaseController
 {
+    private const PLATFORM_TENANT_SELECTION_SESSION_KEY = 'platform_pending_tenant_login';
+    private const PLATFORM_TENANT_SELECTION_TTL_SECONDS = 600;
+
     private function storedPasswordLooksCorrupted(\CodeIgniter\Database\BaseConnection $db, int $idUser): bool
     {
         if ($idUser <= 0) {
@@ -74,7 +80,7 @@ class LoginController extends BaseController
     private function demoProfileLabels(): array
     {
         return [
-            'medical' => 'Percorso medical',
+            'medical' => 'Percorso dietistica',
             'sport-rehab' => 'Percorso sport rehab',
         ];
     }
@@ -110,8 +116,180 @@ class LoginController extends BaseController
             'prefillUsername' => $prefillUsername,
             'demoProfileSlug' => $profileSlug,
             'demoProfileLabel' => $profileLabels[$profileSlug] ?? 'Percorso demo',
-            'demoOtpHint' => in_array($prefillUsername, ['alessio2', 'demo.admin->demo.frontdesk.med'], true),
+            'demoOtpHint' => in_array($prefillUsername, ['demo.dietista', 'demo.admin->demo.segreteria'], true),
+            'loginSuccess' => session()->getFlashdata('login_success'),
+            'loginError' => session()->getFlashdata('login_error'),
         ];
+    }
+
+    private function legacyUserExistsByUsername(\CodeIgniter\Database\BaseConnection $db, string $username): bool
+    {
+        $username = trim($username);
+        if ($username === '') {
+            return false;
+        }
+
+        return $db->table('dap01_users')
+            ->select('id_user')
+            ->where('username', $username)
+            ->get(1)
+            ->getRowArray() !== null;
+    }
+
+    private function clearPendingPlatformLogin(): void
+    {
+        session()->remove(self::PLATFORM_TENANT_SELECTION_SESSION_KEY);
+        (new PlatformAccessService())->clearPendingPasswordSetup();
+    }
+
+    private function shouldAttemptPlatformLogin(string $username, bool $legacyUserExists): bool
+    {
+        return str_contains($username, '@')
+            && !$legacyUserExists
+            && !str_contains($username, '->');
+    }
+
+    private function handlePlatformLogin(string $username, string $password)
+    {
+        $this->clearPendingPlatformLogin();
+
+        $result = (new PlatformAuthService())->authenticate($username, $password);
+        if ($result === null) {
+            return null;
+        }
+
+        $platformUser = (array) ($result['platform_user'] ?? []);
+        $selectableTenants = (array) ($result['selectable_tenants'] ?? []);
+        $platformUserId = (int) ($platformUser['id_platform_user'] ?? 0);
+
+        if ($platformUserId <= 0) {
+            return $this->response->setJSON([
+                'resp' => 'KO',
+                'success' => false,
+                'message' => 'Account piattaforma non valido.',
+            ])->setStatusCode(403);
+        }
+
+        if ($selectableTenants === []) {
+            return $this->response->setJSON([
+                'resp' => 'KO',
+                'success' => false,
+                'message' => 'Nessuno spazio cliente disponibile per questo account.',
+            ])->setStatusCode(403);
+        }
+
+        if ((int) ($platformUser['must_reset_password'] ?? 0) === 1) {
+            (new PlatformAccessService())->storePendingPasswordSetup($platformUser, $selectableTenants);
+
+            return $this->response->setJSON([
+                'resp' => 'PASSWORD_SETUP_REQUIRED',
+                'success' => true,
+                'redirectUrl' => site_url('login/password-imposta'),
+            ]);
+        }
+
+        if (count($selectableTenants) === 1) {
+            try {
+                $tenantId = (int) ($selectableTenants[0]['id_tenant'] ?? 0);
+                $bootstrap = (new TenantAppSessionBootstrapService())->bootstrap($platformUserId, $tenantId);
+                return $this->response->setJSON([
+                    'resp' => 'OK',
+                    'success' => true,
+                    'redirectUrl' => (string) ($bootstrap['redirectUrl'] ?? '/'),
+                ]);
+            } catch (\Throwable $e) {
+                $this->clearPendingPlatformLogin();
+                return $this->response->setJSON([
+                    'resp' => 'KO',
+                    'success' => false,
+                    'message' => $e->getMessage(),
+                ])->setStatusCode(403);
+            }
+        }
+
+        session()->set(self::PLATFORM_TENANT_SELECTION_SESSION_KEY, [
+            'platform_user_id' => $platformUserId,
+            'platform_user_email' => (string) ($platformUser['email'] ?? ''),
+            'tenant_ids' => array_values(array_map(static fn(array $tenant): int => (int) ($tenant['id_tenant'] ?? 0), $selectableTenants)),
+            'created_at' => time(),
+        ]);
+
+        return $this->response->setJSON([
+            'resp' => 'TENANT_SELECT',
+            'success' => true,
+            'message' => 'Seleziona lo spazio cliente.',
+            'tenants' => $selectableTenants,
+        ]);
+    }
+
+    public function selectTenant()
+    {
+        $payload = $this->request->getJSON();
+        $tenantId = (int) (($payload->tenant_id ?? 0));
+        $pending = session()->get(self::PLATFORM_TENANT_SELECTION_SESSION_KEY);
+
+        if (!is_array($pending) || $tenantId <= 0) {
+            return $this->response->setJSON([
+                'resp' => 'KO',
+                'success' => false,
+                'message' => 'Selezione tenant non valida.',
+            ])->setStatusCode(400);
+        }
+
+        $createdAt = (int) ($pending['created_at'] ?? 0);
+        if ($createdAt <= 0 || (time() - $createdAt) > self::PLATFORM_TENANT_SELECTION_TTL_SECONDS) {
+            $this->clearPendingPlatformLogin();
+            return $this->response->setJSON([
+                'resp' => 'KO',
+                'success' => false,
+                'message' => 'La selezione dello spazio e scaduta. Effettua di nuovo il login.',
+            ])->setStatusCode(440);
+        }
+
+        $allowedTenantIds = array_map('intval', (array) ($pending['tenant_ids'] ?? []));
+        if (!in_array($tenantId, $allowedTenantIds, true)) {
+            return $this->response->setJSON([
+                'resp' => 'KO',
+                'success' => false,
+                'message' => 'Spazio cliente non autorizzato.',
+            ])->setStatusCode(403);
+        }
+
+        try {
+            $bootstrap = (new TenantAppSessionBootstrapService())->bootstrap(
+                (int) ($pending['platform_user_id'] ?? 0),
+                $tenantId
+            );
+            $this->clearPendingPlatformLogin();
+
+            return $this->response->setJSON([
+                'resp' => 'OK',
+                'success' => true,
+                'redirectUrl' => (string) ($bootstrap['redirectUrl'] ?? '/'),
+            ]);
+        } catch (\Throwable $e) {
+            $this->clearPendingPlatformLogin();
+            return $this->response->setJSON([
+                'resp' => 'KO',
+                'success' => false,
+                'message' => $e->getMessage(),
+            ])->setStatusCode(403);
+        }
+    }
+
+    public function switchTenant(int $tenantId = 0)
+    {
+        $platformUserId = (int) (session()->get('platform_user_id') ?? 0);
+        if ($platformUserId <= 0 || $tenantId <= 0) {
+            return redirect()->to(site_url('/'))->with('error', 'Cambio spazio non disponibile.');
+        }
+
+        try {
+            $bootstrap = (new TenantAppSessionBootstrapService())->bootstrap($platformUserId, $tenantId);
+            return redirect()->to(site_url((string) ($bootstrap['redirectUrl'] ?? '/')));
+        } catch (\Throwable $e) {
+            return redirect()->to(site_url('/'))->with('error', $e->getMessage());
+        }
     }
 
     public function index()
@@ -133,12 +311,36 @@ class LoginController extends BaseController
         $db = \Config\Database::connect(); // Connessione al database
         $credentials = $this->request->getJSON(); // Recupera le credenziali inviate tramite POST
         $crypto_helper = new Crypto_helper();
+        $this->clearPendingPlatformLogin();
 session()->remove('is_admin_arrow_login');
 session()->remove('admin_arrow_username');
+session()->remove('isLoggedIn');
+session()->remove('isLoggedInConfirmed');
+session()->remove('is_admin');
+session()->remove('admin');
+session()->remove('userId');
+session()->remove('id_user');
+session()->remove('username');
+session()->remove('tipoUser');
+session()->remove('utente_sess');
+session()->remove('nome_visualizzato');
+session()->remove('cellulare');
+session()->remove('menuData');
+session()->remove('menuAgenda');
+session()->remove('menuDataAdmin');
+session()->remove('header_nav_items');
+session()->remove('header_menu_items');
+session()->remove('badge_posta_unread');
+session()->remove('badge_chat_unread');
 session()->remove('nav_refresh_meta');
 session()->remove('schede_access_map');
 session()->remove('schede_data');
 session()->remove('otp_identity');
+session()->remove(\App\Services\TenantContextService::SESSION_KEY);
+session()->remove('platform_user_id');
+session()->remove('platform_user_email');
+session()->remove(\App\Services\TenantAppSessionBootstrapService::PLATFORM_SELECTABLE_TENANTS_SESSION_KEY);
+session()->remove(\App\Services\PlatformAccessService::SESSION_KEY_PENDING_PASSWORD_SETUP);
         if (!$credentials || !isset($credentials->username) || !isset($credentials->password)) {
             $this->logErrorLogin('Richiesta login non valida: payload JSON assente o incompleto. Il frontend mostrera errorLogin perche non ci sono username/password utilizzabili.');
             return $this->response->setJSON([
@@ -161,6 +363,14 @@ session()->remove('otp_identity');
                 'success' => false,
                 'message' => 'Username e password sono obbligatori'
             ])->setStatusCode(400);
+        }
+
+        $legacyUserExists = $this->legacyUserExistsByUsername($db, $username);
+        if ($this->shouldAttemptPlatformLogin($username, $legacyUserExists)) {
+            $platformResponse = $this->handlePlatformLogin($username, $password);
+            if ($platformResponse !== null) {
+                return $platformResponse;
+            }
         }
 
         if (strpos($username, '->') !== false) {
@@ -635,6 +845,7 @@ session()->remove('otp_identity');
     public function logout()
     {
         // Distruggi la sessione per fare il logout
+        $this->clearPendingPlatformLogin();
         session()->destroy();
         return redirect()->to('/login');
     }

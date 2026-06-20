@@ -7,6 +7,7 @@ Questo progetto e' stato preparato per essere pubblicato su Coolify con il minim
 - `Dockerfile` per build automatica in Coolify
 - `docker/start-container.sh` per creare cartelle runtime, linkare gli upload legacy e lanciare le migration
 - `coolify.env.example` con le variabili da incollare in Coolify
+- `rest/docs/attivazione-multi-tenant.md` con la checklist operativa del login unico e degli spazi cliente
 - `.gitignore` e `.dockerignore` per evitare di caricare segreti e file runtime
 - fix codice per:
   - URL base PWA
@@ -119,6 +120,13 @@ con lo stesso valore finale.
 3. Sostituisci i placeholder `CHANGE_ME`
 4. Per il DB usa i valori della risorsa MySQL appena creata
 
+Se vuoi attivare anche il multi-tenant con provisioning da pannello admin:
+
+1. compila anche le variabili `PLATFORM_DB_*` se vuoi separare il catalogo centrale
+2. compila le variabili `TENANT_PROVISIONING_*`
+3. prepara un template DB pulito oppure un file SQL pulito
+4. segui la checklist in `rest/docs/attivazione-multi-tenant.md`
+
 ### 5. Monta i volumi persistenti
 
 Devi montare questi path dentro il container:
@@ -151,6 +159,14 @@ Dopo il deploy verifica:
 5. creazione sessione
 6. eventuale invio email/OTP
 
+Se attivi il multi-tenant, aggiungi anche questi test:
+
+1. creazione di uno spazio cliente dal pannello admin
+2. `Salva e provisiona` senza errori
+3. invio email di accesso al tenant master
+4. primo login da `ambulatoriofacile.it/login`
+5. gestione utenti da `spazio/utenti`
+
 ## Flusso futuro con Codex
 
 Da quel momento il flusso e':
@@ -170,4 +186,3 @@ Per cambiare la struttura DB:
 3. lascia che il deploy lanci `php rest/spark migrate --all --no-header`
 
 Evita modifiche strutturali fatte a mano direttamente sul DB live, se puoi.
-

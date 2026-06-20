@@ -10,6 +10,7 @@ $currentPath = trim(service('uri')->getPath(), '/');
 $otpStatsActive = str_starts_with($currentPath, 'admin/otp-statistiche') ? 'active' : '';
 $whatsappRemindersActive = str_starts_with($currentPath, 'admin/whatsapp-reminders') ? 'active' : '';
 $moduleVisibilityActive = str_starts_with($currentPath, 'admin/personale/visibilita-moduli') ? 'active' : '';
+$tenantSpacesActive = str_starts_with($currentPath, 'admin/piattaforma/spazi-clienti') ? 'active' : '';
 $dap14Active = str_starts_with($currentPath, 'admin/personale/dap14') ? 'active' : '';
 $dap15Active = str_starts_with($currentPath, 'admin/personale/dap15') ? 'active' : '';
 ?>
@@ -70,6 +71,12 @@ $dap15Active = str_starts_with($currentPath, 'admin/personale/dap15') ? 'active'
                       <a href="<?= site_url('admin/personale/visibilita-moduli') ?>">
                         <i class="fa fa-toggle-on"></i>
                         Visibilita moduli
+                      </a>
+                    </li>
+                    <li class="<?= esc($tenantSpacesActive) ?>">
+                      <a href="<?= site_url('admin/piattaforma/spazi-clienti') ?>">
+                        <i class="fa fa-sitemap"></i>
+                        Spazi cliente
                       </a>
                     </li>
                     <li class="<?= esc($dap14Active) ?>">

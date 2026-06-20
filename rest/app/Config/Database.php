@@ -27,6 +27,13 @@ class Database extends Config
     public array $default = [];
 
     /**
+     * Stable connection to the central platform catalog.
+     *
+     * @var array<string, mixed>
+     */
+    public array $platform = [];
+
+    /**
      * Constructor to initialize the default database connection.
      */
     public function __construct()
@@ -38,8 +45,11 @@ class Database extends Config
             $this->defaultGroup = 'tests';
         }
 
+        $defaultEncryptionKey = (string) (getenv('database.default.DB_ENCRYPTION_KEY') ?: '');
+        $platformEncryptionKey = (string) (getenv('database.platform.DB_ENCRYPTION_KEY') ?: $defaultEncryptionKey);
+
         // Initialize the default database connection settings
-        $this->default = [
+        $baseConfig = [
             'DSN'          => '',
             'hostname'     => getenv('database.default.hostname') ?: 'localhost',
             'username'     => getenv('database.default.username') ?: 'root',
@@ -66,10 +76,27 @@ class Database extends Config
             ],
             'options'  => [
             \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION, // Abilita le eccezioni sugli errori PDO
-            \PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES latin1, lc_time_names = 'it_IT', block_encryption_mode = 'aes-256-cbc', @key_str = SHA2('".getenv('database.default.DB_ENCRYPTION_KEY')."', 512), @init_vector = RANDOM_BYTES(16)",
+            \PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES latin1, lc_time_names = 'it_IT', block_encryption_mode = 'aes-256-cbc', @key_str = SHA2('".$defaultEncryptionKey."', 512), @init_vector = RANDOM_BYTES(16)",
             \PDO::ATTR_AUTOCOMMIT => false, // Disabilita l'autocompletamento delle transazioni
         ],
         ];
+
+        $platformConfig = $baseConfig;
+        $platformConfig['hostname'] = getenv('database.platform.hostname') ?: $baseConfig['hostname'];
+        $platformConfig['username'] = getenv('database.platform.username') ?: $baseConfig['username'];
+        $platformConfig['password'] = getenv('database.platform.password') ?: $baseConfig['password'];
+        $platformConfig['database'] = getenv('database.platform.database') ?: $baseConfig['database'];
+        $platformConfig['DBDriver'] = getenv('database.platform.DBDriver') ?: $baseConfig['DBDriver'];
+        $platformConfig['DBPrefix'] = getenv('database.platform.DBPrefix') ?: $baseConfig['DBPrefix'];
+        $platformConfig['port'] = (int) (getenv('database.platform.port') ?: $baseConfig['port']);
+        $platformConfig['options'] = [
+            \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
+            \PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES latin1, lc_time_names = 'it_IT', block_encryption_mode = 'aes-256-cbc', @key_str = SHA2('".$platformEncryptionKey."', 512), @init_vector = RANDOM_BYTES(16)",
+            \PDO::ATTR_AUTOCOMMIT => false,
+        ];
+
+        $this->default = $baseConfig;
+        $this->platform = $platformConfig;
 
      
     }

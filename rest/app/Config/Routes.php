@@ -22,6 +22,17 @@ $routes->set404Override('App\Controllers\Errors::redirectHome');
 
 $routes->get('login', 'Login\LoginController::index');
 $routes->post('login', 'Login\LoginController::login');
+$routes->post('login/tenant-select', 'Login\LoginController::selectTenant');
+$routes->get('login/recupero', 'Login\PlatformAccessController::recovery');
+$routes->post('login/recupero/invia', 'Login\PlatformAccessController::sendRecovery');
+$routes->get('login/password-imposta', 'Login\PlatformAccessController::passwordSetup');
+$routes->post('login/password-imposta', 'Login\PlatformAccessController::savePassword');
+$routes->get('tenant/switch/(:num)', 'Login\LoginController::switchTenant/$1');
+$routes->get('spazio/utenti', 'Tenant\SpaceUsers::index');
+$routes->post('spazio/utenti/save', 'Tenant\SpaceUsers::save');
+$routes->post('spazio/utenti/accesso', 'Tenant\SpaceUsers::sendAccess');
+$routes->get('spazio/onboarding', 'Tenant\Onboarding::index');
+$routes->post('spazio/onboarding/completa', 'Tenant\Onboarding::complete');
 $routes->get('logout', 'Login\LoginController::logout');
 $routes->get('admin/personale/logout', 'Login\LoginController::logout');
 
@@ -152,6 +163,10 @@ $routes->group('admin', ['namespace' => 'App\Controllers\Admin'], function($rout
        $routes->get('personale/nuovo', 'Personale::create');
 $routes->post('personale/salva', 'Personale::store');
 $routes->get('personale/modifica_cliente', 'Clienti::index');
+$routes->get('piattaforma/spazi-clienti', 'TenantSpaces::index');
+$routes->post('piattaforma/spazi-clienti/save', 'TenantSpaces::save');
+$routes->post('piattaforma/spazi-clienti/members/save', 'TenantSpaces::saveMember');
+$routes->post('piattaforma/spazi-clienti/members/accesso', 'TenantSpaces::sendMemberAccess');
 $routes->get('personale/visibilita-moduli', 'PersonaleModuleVisibility::index');
 $routes->get('personale/visibilita-moduli/search', 'PersonaleModuleVisibility::search');
 $routes->get('personale/visibilita-moduli/get/(:num)', 'PersonaleModuleVisibility::get/$1');
