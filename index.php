@@ -31,6 +31,10 @@ require __DIR__ . '/vendor/autoload.php';
 // Scegline una delle due, in base a dove si trova davvero il file:
 //putenv('OPENSSL_CONF=C:\xampp_82\apache\bin\openssl.cnf');
 
+if (PHP_SAPI !== 'cli') {
+    normalizeVisibleAppRequest();
+}
+
 /*
  *---------------------------------------------------------------
  * SET THE CURRENT DIRECTORY
@@ -66,3 +70,42 @@ require $paths->systemDirectory . '/Boot.php';
 
 
 exit(CodeIgniter\Boot::bootWeb($paths));
+
+function normalizeVisibleAppRequest(): void
+{
+    $requestUri = (string) ($_SERVER['REQUEST_URI'] ?? '');
+    if ($requestUri === '') {
+        return;
+    }
+
+    $canonicalUrl = trim((string) (getenv('APP_CANONICAL_URL') ?: getenv('APP_BASE_URL') ?: ''));
+    $visibleAppPath = trim((string) parse_url($canonicalUrl, PHP_URL_PATH), '/');
+    if ($visibleAppPath === '') {
+        return;
+    }
+
+    $parts = parse_url($requestUri);
+    if ($parts === false) {
+        return;
+    }
+
+    $path = (string) ($parts['path'] ?? '');
+    $prefix = '/' . $visibleAppPath;
+    if ($path !== $prefix && !str_starts_with($path, $prefix . '/')) {
+        return;
+    }
+
+    $_SERVER['AF_ORIGINAL_REQUEST_URI'] = $requestUri;
+
+    $normalizedPath = substr($path, strlen($prefix));
+    if ($normalizedPath === false || $normalizedPath === '') {
+        $normalizedPath = '/';
+    }
+
+    $normalizedRequestUri = $normalizedPath;
+    if (isset($parts['query']) && $parts['query'] !== '') {
+        $normalizedRequestUri .= '?' . $parts['query'];
+    }
+
+    $_SERVER['REQUEST_URI'] = $normalizedRequestUri;
+}

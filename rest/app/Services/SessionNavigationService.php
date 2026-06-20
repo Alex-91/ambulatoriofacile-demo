@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Libraries\TenantFeatureRegistry;
 use App\Config\MessageRoles;
 use App\Libraries\DatabaseConfig;
 use App\Models\MenuModel;
@@ -17,6 +18,7 @@ class SessionNavigationService
     private SchedeModel $schedeModel;
     private MessageService $messageService;
     private StaffDoctorAccessService $staffAccessService;
+    private TenantContextService $tenantContext;
 
     public function __construct()
     {
@@ -25,6 +27,7 @@ class SessionNavigationService
         $this->schedeModel = new SchedeModel();
         $this->messageService = new MessageService($this->db, new DatabaseConfig());
         $this->staffAccessService = new StaffDoctorAccessService($this->db);
+        $this->tenantContext = new TenantContextService();
     }
 
     public function refreshCurrentSession(bool $force = false): void
@@ -86,8 +89,10 @@ class SessionNavigationService
             return;
         }
 
+        $menuData = $this->applyTenantFeatureVisibilityToMenu($menuData);
         $badgePosta = $this->extractInboxPostaBadge($menuData, (int)($session->get('badge_posta_unread') ?? 0));
         $schede = $this->schedeModel->getSchedeForUser($idUser, $badgePosta, $badgeChat);
+        $schede = $this->applyTenantFeatureVisibilityToSchede($schede);
         $header = $this->buildHeaderArtifacts($schede);
 
         $session->set([
@@ -348,6 +353,70 @@ class SessionNavigationService
         }
 
         return $fallback;
+    }
+
+    private function applyTenantFeatureVisibilityToMenu(array $menuData): array
+    {
+        $rows = $menuData['result'] ?? [];
+        if (!is_array($rows) || !$this->tenantContext->hasCurrentTenant()) {
+            return $menuData;
+        }
+
+        $filtered = [];
+        foreach ($rows as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+
+            $featureKey = $this->resolveFeatureKeyFromLink((string) ($row['link'] ?? ''));
+            if ($featureKey !== null && !$this->tenantContext->currentTenantAllows($featureKey)) {
+                continue;
+            }
+
+            $filtered[] = $row;
+        }
+
+        $menuData['result'] = $filtered;
+        return $menuData;
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $schede
+     * @return array<int, array<string, mixed>>
+     */
+    private function applyTenantFeatureVisibilityToSchede(array $schede): array
+    {
+        if (!$this->tenantContext->hasCurrentTenant()) {
+            return $schede;
+        }
+
+        foreach ($schede as &$scheda) {
+            if (!is_array($scheda)) {
+                continue;
+            }
+
+            $featureKey = $this->resolveFeatureKeyFromCodice((string) ($scheda['codice'] ?? ''));
+            if ($featureKey === null || $this->tenantContext->currentTenantAllows($featureKey)) {
+                continue;
+            }
+
+            $scheda['can_view'] = 0;
+            $scheda['can_access'] = 0;
+            $scheda['badge'] = 0;
+        }
+        unset($scheda);
+
+        return array_values(array_filter($schede, static fn(array $scheda): bool => (int) ($scheda['can_view'] ?? 0) === 1));
+    }
+
+    private function resolveFeatureKeyFromCodice(string $codice): ?string
+    {
+        return TenantFeatureRegistry::resolveFeatureKeyFromSchedaCode($codice);
+    }
+
+    private function resolveFeatureKeyFromLink(string $link): ?string
+    {
+        return TenantFeatureRegistry::resolveFeatureKeyFromMenuLink($link);
     }
 
     private function countDirectPostaUnread(object $utente): int

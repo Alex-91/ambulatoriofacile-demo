@@ -17,6 +17,8 @@ class Home extends Controller
 
     public function index()
     {
+        helper('portal');
+
         if ((bool)session()->get('isLoggedIn') && !$this->isLogged()) {
             if ((int)session()->get('forcePwdChange') === 1) {
                 return redirect()->to(site_url('password/scaduta'));
@@ -26,6 +28,10 @@ class Home extends Controller
         }
 
         if (!$this->isLogged()) {
+            if ($this->isVisibleAppEntryRequest()) {
+                return redirect()->to(portal_public_access_url('login'));
+            }
+
             return view('login/login');
         }
 
@@ -141,5 +147,13 @@ class Home extends Controller
     private function refreshHeaderSession(): void
     {
         $this->navigation->refreshCurrentSession();
+    }
+
+    private function isVisibleAppEntryRequest(): bool
+    {
+        $requestUri = (string) ($_SERVER['AF_ORIGINAL_REQUEST_URI'] ?? $_SERVER['REQUEST_URI'] ?? '');
+        $path = trim((string) parse_url($requestUri, PHP_URL_PATH), '/');
+
+        return $path === 'app';
     }
 }

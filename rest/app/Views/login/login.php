@@ -1,22 +1,25 @@
 <?php
+helper('portal');
 $demoMode = (bool) ($demoMode ?? false);
 $prefillUsername = (string) ($prefillUsername ?? '');
 $demoProfileSlug = (string) ($demoProfileSlug ?? '');
 $demoProfileLabel = (string) ($demoProfileLabel ?? '');
 $demoOtpHint = (bool) ($demoOtpHint ?? false);
+$loginSuccess = trim((string) ($loginSuccess ?? ''));
+$loginError = trim((string) ($loginError ?? ''));
 ?>
 <html><head>
        
 
 <link rel="shortcut icon"  href="<?= base_url('public/assets/images/logonew.jpg'); ?>" />
-<title><?= esc('AmbulatoriCLOUD') ?></title>
+<title><?= esc('AmbulatorioFacile') ?></title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 <meta name="theme-color" content="#2c8895">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="<?= esc('AmbulatoriCLOUD') ?>">
+<meta name="apple-mobile-web-app-title" content="<?= esc('AmbulatorioFacile') ?>">
 <link rel="apple-touch-icon" href="<?= base_url('public/assets/images/logonew.jpg'); ?>">     
  <link rel="stylesheet" href="<?= base_url('public/assets/css/login.css'); ?>">
  <script src="<?= base_url('public/assets/js/jquery.min.js'); ?>"></script>
@@ -65,6 +68,50 @@ $demoOtpHint = (bool) ($demoOtpHint ?? false);
     color: #4f5f65;
     line-height: 1.45;
   }
+
+  .tenant-picker {
+    display: none;
+    margin: 14px 0 6px;
+    padding: 14px;
+    border-radius: 18px;
+    background: rgba(44, 136, 149, 0.08);
+    border: 1px solid rgba(44, 136, 149, 0.16);
+    text-align: left;
+  }
+
+  .tenant-picker h4 {
+    margin: 0 0 8px;
+    color: #1d5058;
+    font-size: 16px;
+  }
+
+  .tenant-picker p {
+    margin: 0 0 10px;
+    color: #4f5f65;
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .tenant-picker button {
+    width: 100%;
+    margin-bottom: 8px;
+    border: 0;
+    border-radius: 12px;
+    padding: 10px 12px;
+    background: #2c8895;
+    color: #fff;
+    font-weight: 700;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .tenant-picker button span {
+    display: block;
+    font-weight: 400;
+    font-size: 12px;
+    margin-top: 3px;
+    opacity: 0.92;
+  }
 </style>
     </head>
 
@@ -74,7 +121,7 @@ $demoOtpHint = (bool) ($demoOtpHint ?? false);
         		<div class="container">
       <div class="wrapper">
 <div class="title" style="background-image: url('<?= base_url('public/assets/images/logonew.jpg'); ?>'); background-size: contain; background-repeat: no-repeat; background-position-x: center;"></div>
-     <form action="<?= site_url('login') ?>" method="post">
+     <form action="<?= portal_public_access_url('login') ?>" method="post">
         <?php if ($demoMode): ?>
           <div class="demo-login-banner">
             <strong>Accesso demo guidato</strong>
@@ -95,9 +142,19 @@ $demoOtpHint = (bool) ($demoOtpHint ?? false);
 				<span style="color:green"><b>Registrazione avvenuta correttamente</b></span>
             
           </div>
+          <?php if ($loginSuccess !== ''): ?>
+            <div class="demo-login-banner" style="background:rgba(40,167,69,.08); border-color:rgba(40,167,69,.18); color:#1f6b35;">
+              <strong><?= esc($loginSuccess) ?></strong>
+            </div>
+          <?php endif; ?>
+          <?php if ($loginError !== ''): ?>
+            <div class="demo-login-banner" style="background:rgba(220,53,69,.08); border-color:rgba(220,53,69,.16); color:#8f2130;">
+              <strong><?= esc($loginError) ?></strong>
+            </div>
+          <?php endif; ?>
           <div class="row">
             <i class="fa fa-user"></i>
-            <input type="text" id="username" placeholder="Username o Codice Fiscale" value="<?= esc($prefillUsername) ?>" autocomplete="username" required>
+            <input type="text" id="username" placeholder="Email o Username" value="<?= esc($prefillUsername) ?>" autocomplete="username" required>
           </div>
          <div class="row">
 				<i class="fa fa-lock"></i>
@@ -114,6 +171,11 @@ $demoOtpHint = (bool) ($demoOtpHint ?? false);
            
 				<span style="color:red"><b>Username o password errati oppure utente non autorizzato</b></span>
             
+          </div>
+          <div id="tenantPicker" class="tenant-picker">
+            <h4>Seleziona il tuo spazio</h4>
+            <p>Scegli lo spazio cliente in cui vuoi entrare.</p>
+            <div id="tenantPickerOptions"></div>
           </div>
 <div class="row button">
             <input type="button" id="submit" value="Login">
@@ -165,14 +227,76 @@ $demoOtpHint = (bool) ($demoOtpHint ?? false);
 
 <script>
 (function () {
-  var loginUrl = <?= json_encode(site_url('login')) ?>;
+  var loginUrl = <?= json_encode(portal_public_access_url('login')) ?>;
+  var selectTenantUrl = <?= json_encode(portal_public_access_url('login/tenant-select')) ?>;
   var registerUrl = <?= json_encode(site_url('register')) ?>;
-  var resetUrl = <?= json_encode(site_url('reset')) ?>;
+  var resetUrl = <?= json_encode(portal_public_access_url('login/recupero')) ?>;
   var authUrl = <?= json_encode(site_url('auth')) ?>;
   var hasPrefilledUsername = <?= json_encode($prefillUsername !== '') ?>;
+  var tenantPicker = document.getElementById('tenantPicker');
+  var tenantPickerOptions = document.getElementById('tenantPickerOptions');
 
   function showError(message) {
     window.showLoginError(message || 'Username o password errati oppure utente non autorizzato');
+  }
+
+  function hideTenantPicker() {
+    if (!tenantPicker) return;
+    tenantPicker.style.display = 'none';
+    if (tenantPickerOptions) tenantPickerOptions.innerHTML = '';
+  }
+
+  async function submitTenantSelection(tenantId) {
+    $('#errorLogin').hide();
+
+    try {
+      var response = await fetch(selectTenantUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify({
+          tenant_id: tenantId
+        })
+      });
+
+      var payload = await response.json();
+      if (payload && payload.resp === 'OK') {
+        window.location.href = resolveRedirect(payload);
+        return;
+      }
+
+      hideTenantPicker();
+      showError((payload && (payload.message || payload.error)) || 'Selezione spazio non riuscita.');
+    } catch (error) {
+      hideTenantPicker();
+      showError('Errore di comunicazione con il server.');
+    }
+  }
+
+  function renderTenantPicker(tenants) {
+    if (!tenantPicker || !tenantPickerOptions) {
+      return;
+    }
+
+    tenantPickerOptions.innerHTML = '';
+    (tenants || []).forEach(function (tenant) {
+      var button = document.createElement('button');
+      button.type = 'button';
+      button.innerHTML =
+        String(tenant.tenant_name || tenant.tenant_key || 'Spazio cliente') +
+        '<span>' +
+        String(tenant.package_name || tenant.package_code || '') +
+        (tenant.login_hint ? ' · ' + String(tenant.login_hint) : '') +
+        '</span>';
+      button.addEventListener('click', function () {
+        submitTenantSelection(Number(tenant.id_tenant || 0));
+      });
+      tenantPickerOptions.appendChild(button);
+    });
+
+    tenantPicker.style.display = 'block';
   }
 
   function resolveRedirect(payload) {
@@ -194,6 +318,7 @@ $demoOtpHint = (bool) ($demoOtpHint ?? false);
     }
 
     $('#errorLogin').hide();
+    hideTenantPicker();
 
     try {
       var response = await fetch(loginUrl, {
@@ -211,6 +336,16 @@ $demoOtpHint = (bool) ($demoOtpHint ?? false);
       var payload = await response.json();
 
       if (payload && (payload.resp === 'OK' || payload.resp === 'SCADENZA')) {
+        window.location.href = resolveRedirect(payload);
+        return;
+      }
+
+      if (payload && payload.resp === 'TENANT_SELECT') {
+        renderTenantPicker(payload.tenants || []);
+        return;
+      }
+
+      if (payload && payload.resp === 'PASSWORD_SETUP_REQUIRED') {
         window.location.href = resolveRedirect(payload);
         return;
       }

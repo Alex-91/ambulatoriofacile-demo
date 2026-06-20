@@ -1,5 +1,6 @@
 <?php
 helper('admin_menu');
+helper('portal');
 
 $sess = session();
 
@@ -53,13 +54,32 @@ if ($pushMobileUserId <= 0) {
 
 $currentPath = trim(service('uri')->getPath(), '/');
 $hideHeaderMenu = str_starts_with($currentPath, 'admin');
+$tenantContext = $sess->get('tenant_context');
+$tenantName = is_array($tenantContext) ? trim((string)($tenantContext['tenant_name'] ?? '')) : '';
+$tenantId = is_array($tenantContext) ? (int)($tenantContext['tenant_id'] ?? 0) : 0;
+$tenantRole = is_array($tenantContext) ? trim((string)($tenantContext['tenant_role'] ?? '')) : '';
+$tenantFeatureFlags = is_array($tenantContext) ? (array)($tenantContext['feature_flags'] ?? []) : [];
+$platformTenants = $sess->get('platform_selectable_tenants');
+$platformTenants = is_array($platformTenants) ? $platformTenants : [];
+$canAccessPlatformConsole = (bool) ($sess->get('platform_is_admin') ?? false) === true;
+$isPlatformConsoleSession = $canAccessPlatformConsole
+    && (string) ($sess->get('loginSource') ?? '') === 'platform_console';
+$canManageTenantFeatures = $tenantId > 0
+    && $tenantRole === 'tenant_master'
+    && (int) ($sess->get('platform_user_id') ?? 0) > 0;
+$canManageTenantUsers = $tenantId > 0
+    && in_array($tenantRole, ['tenant_master', 'tenant_admin'], true)
+    && !empty($tenantFeatureFlags['staff_management']);
+$showTenantOnboardingLink = $tenantId > 0
+    && $tenantRole === 'tenant_master'
+    && in_array(strtolower(trim((string)($tenantContext['onboarding_status'] ?? 'draft'))), ['draft', 'setup'], true);
 ?>
 
 <header class="main-header" style="background:#2c8895">
   <!-- Logo -->
   <a href="./index2.html" class="logo">
-    <span class="logo-mini"><b>Ambulatori</b>CLOUD</span>
-    <span class="logo-lg"><b>Ambulatori</b>CLOUD</span>
+    <span class="logo-mini"><b>Ambulatorio</b>Facile</span>
+    <span class="logo-lg"><b>Ambulatorio</b>Facile</span>
   </a>
 
   <nav class="navbar navbar-static-top" role="navigation">
@@ -69,6 +89,12 @@ $hideHeaderMenu = str_starts_with($currentPath, 'admin');
       <span class="icon-bar"></span>
       <span class="icon-bar"></span>
     </a>
+
+    <?php if ($tenantName !== ''): ?>
+      <div class="navbar-text hidden-xs" style="float:left; color:#e8f6f8; margin-left:16px; font-weight:600;">
+        Spazio: <?= esc($tenantName) ?>
+      </div>
+    <?php endif; ?>
 
     <?php if (!$hideHeaderMenu): ?>
     <div class="navbar-custom-menu" style="float:left !important">
@@ -218,9 +244,65 @@ if ($disableMenuFallback) {
               <p>
                 <small>Sei autenticato come:</small>
                 <?= session()->get('nome_visualizzato') ?>
+                <?php if ($tenantName !== ''): ?>
+                  <br><small>Spazio attivo: <?= esc($tenantName) ?></small>
+                <?php endif; ?>
               </p>
             </li>
             <li class="user-footer">
+              <?php if (count($platformTenants) > 1): ?>
+              <div style="padding:0 0 10px 0; margin-bottom:10px; border-bottom:1px solid #eee;">
+                <div style="font-weight:600; margin-bottom:8px;">Cambia spazio</div>
+                <?php foreach ($platformTenants as $availableTenant): ?>
+                  <?php
+                    $availableTenantId = (int)($availableTenant['id_tenant'] ?? 0);
+                    $isCurrentTenant = $availableTenantId === $tenantId;
+                    $tenantLabel = trim((string)($availableTenant['tenant_name'] ?? $availableTenant['tenant_key'] ?? 'Spazio cliente'));
+                    $tenantSwitchUrl = portal_tenant_switch_url($availableTenantId);
+                  ?>
+                  <div style="margin-bottom:6px;">
+                    <?php if ($isCurrentTenant): ?>
+                      <span class="btn btn-default btn-flat" style="width:100%; text-align:left; opacity:.85;">
+                        <?= esc($tenantLabel) ?> (attivo)
+                      </span>
+                    <?php else: ?>
+                      <a href="<?= esc($tenantSwitchUrl) ?>" class="btn btn-default btn-flat" style="width:100%; text-align:left;">
+                        <?= esc($tenantLabel) ?>
+                      </a>
+                    <?php endif; ?>
+                  </div>
+                <?php endforeach; ?>
+              </div>
+              <?php endif; ?>
+              <?php if ($canAccessPlatformConsole): ?>
+              <div style="padding:0 0 10px 0; margin-bottom:10px; border-bottom:1px solid #eee;">
+                <a href="<?= portal_platform_url('spazi-clienti') ?>" class="btn btn-default btn-flat" style="width:100%; text-align:left;">
+                  <i class="fa fa-sitemap"></i> Console piattaforma
+                </a>
+              </div>
+              <?php endif; ?>
+              <?php if ($canManageTenantUsers): ?>
+              <div style="padding:0 0 10px 0; margin-bottom:10px; border-bottom:1px solid #eee;">
+                <a href="<?= portal_tenant_space_url('utenti') ?>" class="btn btn-default btn-flat" style="width:100%; text-align:left;">
+                  <i class="fa fa-users"></i> Gestisci utenti dello spazio
+                </a>
+              </div>
+              <?php endif; ?>
+              <?php if ($canManageTenantFeatures): ?>
+              <div style="padding:0 0 10px 0; margin-bottom:10px; border-bottom:1px solid #eee;">
+                <a href="<?= portal_tenant_space_url('funzioni') ?>" class="btn btn-default btn-flat" style="width:100%; text-align:left;">
+                  <i class="fa fa-toggle-on"></i> Gestisci funzioni dello spazio
+                </a>
+              </div>
+              <?php endif; ?>
+              <?php if ($showTenantOnboardingLink): ?>
+              <div style="padding:0 0 10px 0; margin-bottom:10px; border-bottom:1px solid #eee;">
+                <a href="<?= portal_tenant_space_url('onboarding') ?>" class="btn btn-default btn-flat" style="width:100%; text-align:left;">
+                  <i class="fa fa-check-square-o"></i> Completa onboarding spazio
+                </a>
+              </div>
+              <?php endif; ?>
+              <?php if (!$isPlatformConsoleSession): ?>
               <div style="padding:0 0 10px 0; margin-bottom:10px; border-bottom:1px solid #eee;">
                 <label for="chatBrowserNotifyToggle" style="font-weight:600; cursor:pointer; margin:0;">
                   <input type="checkbox" id="chatBrowserNotifyToggle" style="vertical-align:middle; margin-right:6px;">
@@ -230,9 +312,12 @@ if ($disableMenuFallback) {
                   Popup nel browser quando arrivano nuovi messaggi.
                 </div>
               </div>
+              <?php endif; ?>
+              <?php if (!$isPlatformConsoleSession): ?>
               <div class="pull-left">
               <a href="<?= base_url('profilo') ?>" class="btn btn-default btn-flat">Profilo</a>
               </div>
+              <?php endif; ?>
               <div class="pull-right">
                 <a href="<?= base_url('logout') ?>" class="btn btn-default btn-flat">Logout</a>
               </div>

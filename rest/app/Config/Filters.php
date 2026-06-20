@@ -49,6 +49,8 @@ public function __construct()
         'pagecache'     => PageCache::class,
         'performance'   => PerformanceMetrics::class,
         'auth'          => \App\Filters\AuthFilter::class,
+        'tenantruntime' => \App\Filters\TenantRuntimeFilter::class,
+        'tenantfeatures' => \App\Filters\TenantFeatureAccessFilter::class,
         'cryptodb'      => \App\Filters\CryptoDbVarsFilter::class,
                 'maintenance'   => \App\Filters\MaintenanceFilter::class,
 
@@ -89,6 +91,7 @@ public function __construct()
     public array $globals = [
         'before' => [
             'cors',
+            'tenantruntime',
             'cryptodb',
             'auth' => [
                 'except' => [
@@ -97,6 +100,7 @@ public function __construct()
                     'demo',
                     'demo/*',
                     'login',
+                    'login/*',
                     'logout',
                     'admin/personale/logout',
                     'register',
@@ -125,6 +129,7 @@ public function __construct()
                     'test',
                 ],
             ],
+            'tenantfeatures',
         ],
       
     ];

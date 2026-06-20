@@ -33,6 +33,7 @@ class AuthenticationController extends BaseController
 
     public function index()
     {
+        helper('portal');
         $otpFromUrl = trim((string)$this->request->getGet('otp'));
         $codeFromUrl = trim((string)$this->request->getGet('code'));
         $openedFromPush = (string)$this->request->getGet('fromPush') === '1'
@@ -60,7 +61,11 @@ class AuthenticationController extends BaseController
         $userId    = (int)(session()->get('userId') ?? 0);
 
         if ($userId <= 0 || $otpIdentity === '') {
-            return redirect()->to('/')->with('error', 'Sessione scaduta, reinserire il codice fiscale.');
+            if ($this->isLocalRequest()) {
+                return redirect()->to('/')->with('error', 'Sessione scaduta, reinserire il codice fiscale.');
+            }
+
+            return redirect()->to(portal_public_access_url('login'))->with('error', 'Sessione scaduta. Effettua di nuovo il login.');
         }
 
         $isCurrentMobile = $this->isCurrentRequestMobile();
@@ -686,6 +691,18 @@ class AuthenticationController extends BaseController
 
         session()->set('otp', $otp);
         return $otp;
+    }
+
+    private function isLocalRequest(): bool
+    {
+        $forwardedHost = trim((string) ($_SERVER['HTTP_X_FORWARDED_HOST'] ?? ''));
+        $host = $forwardedHost !== ''
+            ? trim((string) explode(',', $forwardedHost)[0])
+            : trim((string) ($_SERVER['HTTP_HOST'] ?? ''));
+
+        $host = strtolower((string) preg_replace('/:\d+$/', '', $host));
+
+        return in_array($host, ['localhost', '127.0.0.1', '::1'], true);
     }
 
     private function getForcedOtpForCurrentSession(): ?string

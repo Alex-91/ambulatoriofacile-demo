@@ -16,6 +16,12 @@ class AuthFilter implements FilterInterface
             return null;
         }
 
+        helper('portal');
+
+        if (!$this->isLocalRequest()) {
+            return redirect()->to(portal_public_access_url('login'));
+        }
+
         return redirect()->to($this->canonicalHomeUrl());
     }
 

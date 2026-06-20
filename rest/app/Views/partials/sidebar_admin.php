@@ -1,5 +1,6 @@
 <?php
 helper('admin_menu');
+helper('portal');
 
 // fallback: se $menu_items e` vuoto o non definito, prendo dalla sessione
 if (empty($menu_items) || !is_array($menu_items)) {
@@ -10,6 +11,7 @@ $currentPath = trim(service('uri')->getPath(), '/');
 $otpStatsActive = str_starts_with($currentPath, 'admin/otp-statistiche') ? 'active' : '';
 $whatsappRemindersActive = str_starts_with($currentPath, 'admin/whatsapp-reminders') ? 'active' : '';
 $moduleVisibilityActive = str_starts_with($currentPath, 'admin/personale/visibilita-moduli') ? 'active' : '';
+$tenantSpacesActive = str_starts_with($currentPath, 'login/piattaforma') ? 'active' : '';
 $dap14Active = str_starts_with($currentPath, 'admin/personale/dap14') ? 'active' : '';
 $dap15Active = str_starts_with($currentPath, 'admin/personale/dap15') ? 'active' : '';
 ?>
@@ -70,6 +72,12 @@ $dap15Active = str_starts_with($currentPath, 'admin/personale/dap15') ? 'active'
                       <a href="<?= site_url('admin/personale/visibilita-moduli') ?>">
                         <i class="fa fa-toggle-on"></i>
                         Visibilita moduli
+                      </a>
+                    </li>
+                    <li class="<?= esc($tenantSpacesActive) ?>">
+                      <a href="<?= portal_platform_url('spazi-clienti') ?>">
+                        <i class="fa fa-sitemap"></i>
+                        Console piattaforma
                       </a>
                     </li>
                     <li class="<?= esc($dap14Active) ?>">
