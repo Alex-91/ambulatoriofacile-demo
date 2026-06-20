@@ -8,6 +8,7 @@ use App\Models\PlatformPackagesModel;
 use App\Models\PlatformTenantsModel;
 use App\Services\PlatformAccessService;
 use App\Services\PlatformAdminAccessService;
+use App\Services\PlatformMasterAccountService;
 use App\Services\TenantCatalogService;
 use App\Services\TenantFeatureService;
 use App\Services\TenantInfrastructureProvisioningService;
@@ -61,6 +62,7 @@ class PlatformTenantSpacesController extends BaseController
             ? $this->loadTenantDetail($selectedTenantId)
             : null;
         $legacyBootstrapMode = $this->legacyBootstrapMode();
+        $masterAccounts = (new PlatformMasterAccountService())->listConfiguredMasterAccounts();
 
         return view('admin/tenant_spaces', [
             'menu_items' => [],
@@ -80,11 +82,93 @@ class PlatformTenantSpacesController extends BaseController
             'memberTempPassword' => session()->getFlashdata('tenant_member_temp_password'),
             'warnings' => session()->getFlashdata('warnings') ?? [],
             'memberWarnings' => session()->getFlashdata('member_warnings') ?? [],
+            'masterAccountWarnings' => session()->getFlashdata('master_account_warnings') ?? [],
+            'masterTempPasswords' => session()->getFlashdata('platform_master_temp_passwords') ?? [],
             'platformUser' => $this->platformAdminAccess->currentPlatformUser(),
             'platformMasterEmails' => $this->platformAdminAccess->configuredMasterEmails(),
+            'platformMasterAccounts' => $masterAccounts,
             'legacyBootstrapMode' => $legacyBootstrapMode,
             'platformBootstrapWarnings' => $this->platformBootstrapWarnings($legacyBootstrapMode),
         ]);
+    }
+
+    public function syncMasterAccounts()
+    {
+        if ($guard = $this->ensurePlatformAdminPage()) {
+            return $guard;
+        }
+
+        $sendAccess = (int) ($this->request->getPost('send_access') ?? 0) === 1;
+
+        try {
+            $result = (new PlatformMasterAccountService())->syncConfiguredMasterAccounts($sendAccess);
+
+            $messages = [];
+            if ((int) ($result['created_count'] ?? 0) > 0) {
+                $messages[] = 'Account master creati: ' . (int) ($result['created_count'] ?? 0) . '.';
+            } else {
+                $messages[] = 'Gli account master configurati erano gia pronti.';
+            }
+
+            if ($sendAccess) {
+                $messages[] = 'Email di accesso inviate: ' . (int) ($result['emailed_count'] ?? 0) . '.';
+            }
+
+            $redirect = redirect()
+                ->to($this->tenantSpacesUrl())
+                ->with('success', implode(' ', $messages));
+
+            $tempPasswords = is_array($result['temp_passwords'] ?? null) ? $result['temp_passwords'] : [];
+            if ($tempPasswords !== []) {
+                $redirect = $redirect->with('platform_master_temp_passwords', $tempPasswords);
+            }
+
+            $warnings = is_array($result['warnings'] ?? null) ? $result['warnings'] : [];
+            if ($warnings !== []) {
+                $redirect = $redirect->with('master_account_warnings', $warnings);
+            }
+
+            return $redirect;
+        } catch (\Throwable $e) {
+            log_message('error', 'PlatformTenantSpacesController::syncMasterAccounts failed: ' . $e->getMessage());
+
+            return redirect()
+                ->to($this->tenantSpacesUrl())
+                ->with('errors', ['generic' => $e->getMessage()]);
+        }
+    }
+
+    public function sendMasterAccess()
+    {
+        if ($guard = $this->ensurePlatformAdminPage()) {
+            return $guard;
+        }
+
+        $email = (string) ($this->request->getPost('email') ?? '');
+
+        try {
+            $result = (new PlatformMasterAccountService())->sendConfiguredMasterAccess($email);
+            $messages = ['Email di accesso inviata a ' . (string) (($result['account']['email'] ?? $email)) . '.'];
+
+            $redirect = redirect()
+                ->to($this->tenantSpacesUrl())
+                ->with('success', implode(' ', $messages));
+
+            $tempPassword = trim((string) ($result['temporary_password'] ?? ''));
+            if ($tempPassword !== '') {
+                $redirect = $redirect->with('platform_master_temp_passwords', [
+                    (string) (($result['account']['email'] ?? $email)) => $tempPassword,
+                ]);
+            }
+
+            return $redirect;
+        } catch (\Throwable $e) {
+            log_message('error', 'PlatformTenantSpacesController::sendMasterAccess failed: ' . $e->getMessage());
+
+            return redirect()
+                ->to($this->tenantSpacesUrl())
+                ->with('errors', ['generic' => $e->getMessage()]);
+        }
     }
 
     public function save()

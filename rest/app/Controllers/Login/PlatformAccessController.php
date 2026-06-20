@@ -4,6 +4,7 @@ namespace App\Controllers\Login;
 
 use App\Controllers\BaseController;
 use App\Services\PlatformAccessService;
+use App\Services\PlatformAdminAccessService;
 use App\Services\TenantAppSessionBootstrapService;
 
 class PlatformAccessController extends BaseController
@@ -66,11 +67,13 @@ class PlatformAccessController extends BaseController
 
         $platformUser = (array) (($resolved['platform_user'] ?? null) ?: ($pending['platform_user'] ?? null) ?: []);
         $tenant = is_array($resolved['tenant'] ?? null) ? $resolved['tenant'] : null;
+        $isPlatformAdmin = (new PlatformAdminAccessService())->isPlatformAdmin($platformUser);
 
         return view('login/platform_password_setup', [
             'token' => $token,
             'platformUser' => $platformUser,
             'tenant' => $tenant,
+            'isPlatformAdmin' => $isPlatformAdmin,
             'errors' => session()->getFlashdata('errors') ?? [],
         ]);
     }
@@ -90,19 +93,37 @@ class PlatformAccessController extends BaseController
 
         try {
             if ($token !== '') {
-                $this->accessService->completePasswordSetupByToken($token, $password);
+                $tokenResult = $this->accessService->completePasswordSetupByToken($token, $password);
+                $isPlatformAdmin = (new PlatformAdminAccessService())->isPlatformAdmin((array) ($tokenResult['platform_user'] ?? []));
+                $successMessage = $isPlatformAdmin && empty($tokenResult['tenant'])
+                    ? 'Password salvata correttamente. Ora puoi entrare dal login unico con la tua email e aprire la console piattaforma.'
+                    : 'Password salvata correttamente. Ora puoi entrare dal login unico con la tua email.';
 
                 return redirect()
                     ->to(portal_public_access_url('login'))
-                    ->with('login_success', 'Password salvata correttamente. Ora puoi entrare dal login unico con la tua email.');
+                    ->with('login_success', $successMessage);
             }
 
             $result = $this->accessService->completePendingPasswordSetup($password);
             $selectableTenants = (array) ($result['selectable_tenants'] ?? []);
+            $platformUser = (array) ($result['platform_user'] ?? []);
+            $platformAdminAccess = new PlatformAdminAccessService();
+
+            if ($platformAdminAccess->isPlatformAdmin($platformUser)) {
+                $platformUserId = (int) ($platformUser['id_platform_user'] ?? 0);
+                $memberships = [];
+
+                if ($platformUserId > 0) {
+                    $memberships = (new \App\Services\TenantCatalogService())->listTenantsForPlatformUser($platformUserId);
+                }
+
+                $platformAdminAccess->bootstrapSession($platformUser, $memberships);
+                return redirect()->to(portal_platform_url('spazi-clienti'));
+            }
 
             if (count($selectableTenants) === 1) {
                 $tenantId = (int) ($selectableTenants[0]['id_tenant'] ?? 0);
-                $platformUserId = (int) (($result['platform_user']['id_platform_user'] ?? 0));
+                $platformUserId = (int) (($platformUser['id_platform_user'] ?? 0));
                 if ($platformUserId > 0 && $tenantId > 0) {
                     $bootstrap = (new TenantAppSessionBootstrapService())->bootstrap($platformUserId, $tenantId);
                     return redirect()->to(site_url((string) ($bootstrap['redirectUrl'] ?? '/')));

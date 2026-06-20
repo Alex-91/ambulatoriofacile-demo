@@ -100,6 +100,8 @@ Route UI:
 Il pannello permette di:
 
 - creare un nuovo spazio cliente
+- preparare gli account master configurati in `PLATFORM_MASTER_EMAILS`
+- inviare o reinviare il primo accesso agli account master anche senza tenant gia associati
 - gestire il catalogo funzioni globale da `login/piattaforma/funzioni`
 - assegnare o cambiare il tenant master
 - aggiungere utenti allo spazio e collegarli al tenant
@@ -115,6 +117,7 @@ Accesso:
 
 - la console master resta sotto `/login/...`
 - gli account master si distinguono per email tramite `PLATFORM_MASTER_EMAILS`
+- il primo accesso dei master puo essere preparato dalla sezione `Account master piattaforma` dentro `login/piattaforma/spazi-clienti`
 - il namespace `/admin` resta riservato al gestionale legacy e non e la home del nuovo login unico
 
 Confine operativo:

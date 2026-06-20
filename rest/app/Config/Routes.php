@@ -34,6 +34,8 @@ $routes->get('login/piattaforma', 'Login\PlatformTenantSpacesController::index')
 $routes->get('login/piattaforma/funzioni', 'Login\PlatformFeaturesController::index');
 $routes->post('login/piattaforma/funzioni/save', 'Login\PlatformFeaturesController::save');
 $routes->get('login/piattaforma/spazi-clienti', 'Login\PlatformTenantSpacesController::index');
+$routes->post('login/piattaforma/spazi-clienti/master-accounts/sync', 'Login\PlatformTenantSpacesController::syncMasterAccounts');
+$routes->post('login/piattaforma/spazi-clienti/master-accounts/accesso', 'Login\PlatformTenantSpacesController::sendMasterAccess');
 $routes->post('login/piattaforma/spazi-clienti/save', 'Login\PlatformTenantSpacesController::save');
 $routes->post('login/piattaforma/spazi-clienti/members/save', 'Login\PlatformTenantSpacesController::saveMember');
 $routes->post('login/piattaforma/spazi-clienti/members/accesso', 'Login\PlatformTenantSpacesController::sendMemberAccess');

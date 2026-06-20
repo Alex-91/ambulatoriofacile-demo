@@ -107,20 +107,22 @@ Importante:
 
 Ordine consigliato:
 
-1. crea dal pannello admin un nuovo spazio cliente
-2. se serve, definisci o aggiorna la funzione globale da `login/piattaforma/funzioni`
-3. spunta `Invia accesso al tenant master dopo il salvataggio`
-4. usa `Salva e provisiona`
-5. verifica che nel pannello compaia il riepilogo dell ultimo provisioning
-6. il provisioning crea o collega automaticamente anche l `app_user_id` del tenant master nel DB del tenant
-7. apri il link email del tenant master
-8. imposta la password
-9. entra da `ambulatoriofacile.it/login`
-10. verifica che il tenant master veda solo il suo spazio
-11. verifica che l account master centrale apra `ambulatoriofacile.it/login/piattaforma/spazi-clienti`
-12. se la funzione e delegabile, verifica che il tenant master la possa governare da `login/spazio/funzioni`
-13. aggiungi un utente da `login/spazio/utenti`
-14. invia accesso anche a lui e verifica il flusso
+1. apri `https://ambulatoriofacile.it/login/piattaforma/spazi-clienti`
+2. nella sezione `Account master piattaforma`, prepara o invita gli account master configurati in `PLATFORM_MASTER_EMAILS`
+3. crea dal pannello admin un nuovo spazio cliente
+4. se serve, definisci o aggiorna la funzione globale da `login/piattaforma/funzioni`
+5. spunta `Invia accesso al tenant master dopo il salvataggio`
+6. usa `Salva e provisiona`
+7. verifica che nel pannello compaia il riepilogo dell ultimo provisioning
+8. il provisioning crea o collega automaticamente anche l `app_user_id` del tenant master nel DB del tenant
+9. apri il link email del tenant master
+10. imposta la password
+11. entra da `ambulatoriofacile.it/login`
+12. verifica che il tenant master veda solo il suo spazio
+13. verifica che l account master centrale apra `ambulatoriofacile.it/login/piattaforma/spazi-clienti`
+14. se la funzione e delegabile, verifica che il tenant master la possa governare da `login/spazio/funzioni`
+15. aggiungi un utente da `login/spazio/utenti`
+16. invia accesso anche a lui e verifica il flusso
 
 ## 7. Regole operative
 
