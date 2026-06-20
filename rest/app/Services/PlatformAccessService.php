@@ -182,7 +182,9 @@ class PlatformAccessService
         $selectableTenants = $this->auth->buildSelectableTenants(
             $this->catalog->listTenantsForPlatformUser((int) ($platformUser['id_platform_user'] ?? 0))
         );
-        if ($selectableTenants === []) {
+        $isPlatformAdmin = (new PlatformAdminAccessService())->isPlatformAdmin($platformUser);
+
+        if ($selectableTenants === [] && !$isPlatformAdmin) {
             return false;
         }
 
@@ -236,10 +238,11 @@ class PlatformAccessService
             throw new \RuntimeException('L account piattaforma non ha una email valida.');
         }
 
+        $isPlatformAdmin = (new PlatformAdminAccessService())->isPlatformAdmin($platformUser);
         $selectableTenants = $this->auth->buildSelectableTenants(
             $this->catalog->listTenantsForPlatformUser($platformUserId)
         );
-        if ($selectableTenants === []) {
+        if ($selectableTenants === [] && !$isPlatformAdmin) {
             throw new \RuntimeException('Questo account non ha spazi cliente attivi associati.');
         }
 
@@ -257,11 +260,17 @@ class PlatformAccessService
         helper('portal');
         $setupUrl = portal_public_access_url('login/password-imposta') . '?token=' . rawurlencode($token);
         $loginUrl = portal_public_access_url('login');
-        $subject = $tokenType === self::TOKEN_TYPE_PASSWORD_RESET
-            ? 'Reimposta la password di accesso ad AmbulatorioFacile'
-            : 'Completa l accesso al tuo spazio su AmbulatorioFacile';
+        if ($tokenType === self::TOKEN_TYPE_PASSWORD_RESET) {
+            $subject = $isPlatformAdmin && $selectableTenants === []
+                ? 'Reimposta la password della console AmbulatorioFacile'
+                : 'Reimposta la password di accesso ad AmbulatorioFacile';
+        } else {
+            $subject = $isPlatformAdmin && $selectableTenants === []
+                ? 'Completa l accesso alla console AmbulatorioFacile'
+                : 'Completa l accesso al tuo spazio su AmbulatorioFacile';
+        }
 
-        $body = $this->buildEmailBody($platformUser, $tenant, $selectableTenants, $tokenType, $setupUrl, $loginUrl);
+        $body = $this->buildEmailBody($platformUser, $tenant, $selectableTenants, $tokenType, $setupUrl, $loginUrl, $isPlatformAdmin);
         $this->sendEmail($email, $subject, $body);
 
         if ($tenantId > 0) {
@@ -378,22 +387,35 @@ class PlatformAccessService
         array $selectableTenants,
         string $tokenType,
         string $setupUrl,
-        string $loginUrl
+        string $loginUrl,
+        bool $isPlatformAdmin
     ): string {
         $fullName = trim((string) ($platformUser['first_name'] ?? '') . ' ' . (string) ($platformUser['last_name'] ?? ''));
         $greeting = $fullName !== '' ? 'Ciao ' . $fullName . ',' : 'Ciao,';
         $tenantName = trim((string) ($tenant['tenant_name'] ?? ''));
-        $tenantLine = $tenantName !== ''
-            ? 'Spazio cliente: ' . $tenantName
-            : 'Spazi cliente disponibili: ' . implode(', ', array_filter(array_map(static fn(array $row): string => (string) ($row['tenant_name'] ?? ''), $selectableTenants)));
+        if ($tenantName !== '') {
+            $tenantLine = 'Spazio cliente: ' . $tenantName;
+        } elseif ($selectableTenants !== []) {
+            $tenantLine = 'Spazi cliente disponibili: ' . implode(', ', array_filter(array_map(static fn(array $row): string => (string) ($row['tenant_name'] ?? ''), $selectableTenants)));
+        } elseif ($isPlatformAdmin) {
+            $tenantLine = 'Accesso previsto: console piattaforma sotto /login.';
+        } else {
+            $tenantLine = 'Accesso disponibile dal login unico.';
+        }
 
         $actionLabel = $tokenType === self::TOKEN_TYPE_PASSWORD_RESET
             ? 'Per reimpostare la password usa questo link:'
             : 'Per completare il primo accesso imposta la tua password da questo link:';
 
-        $note = $tokenType === self::TOKEN_TYPE_PASSWORD_RESET
-            ? 'Dopo il salvataggio potrai entrare dal login unico con la tua email.'
-            : 'Dopo il salvataggio potrai entrare dal login unico con la tua email e vedere solo i tuoi spazi.';
+        if ($tokenType === self::TOKEN_TYPE_PASSWORD_RESET) {
+            $note = $isPlatformAdmin
+                ? 'Dopo il salvataggio potrai entrare dal login unico con la tua email e aprire la console piattaforma.'
+                : 'Dopo il salvataggio potrai entrare dal login unico con la tua email.';
+        } else {
+            $note = $isPlatformAdmin
+                ? 'Dopo il salvataggio potrai entrare dal login unico con la tua email e aprire la console piattaforma.'
+                : 'Dopo il salvataggio potrai entrare dal login unico con la tua email e vedere solo i tuoi spazi.';
+        }
 
         return implode("\n", [
             $greeting,

@@ -33,6 +33,9 @@ $warnings = is_array($warnings ?? null) ? $warnings : [];
 $memberWarnings = is_array($memberWarnings ?? null) ? $memberWarnings : [];
 $legacyBootstrapMode = (bool)($legacyBootstrapMode ?? false);
 $platformBootstrapWarnings = is_array($platformBootstrapWarnings ?? null) ? $platformBootstrapWarnings : [];
+$masterAccountWarnings = is_array($masterAccountWarnings ?? null) ? $masterAccountWarnings : [];
+$masterTempPasswords = is_array($masterTempPasswords ?? null) ? $masterTempPasswords : [];
+$platformMasterAccounts = is_array($platformMasterAccounts ?? null) ? $platformMasterAccounts : [];
 
 $oldValue = static function (string $key, $fallback = '') {
     $old = old($key);
@@ -101,6 +104,23 @@ $oldValue = static function (string $key, $fallback = '') {
       display: inline-block;
       margin: 0 6px 6px 0;
     }
+    .start-steps {
+      margin: 10px 0 0;
+      padding-left: 18px;
+      color: #52676c;
+    }
+    .master-account-actions form {
+      display: inline-block;
+      margin: 0 8px 8px 0;
+    }
+    .master-account-table td,
+    .master-account-table th {
+      vertical-align: middle !important;
+    }
+    .master-password-list {
+      margin: 0;
+      padding-left: 18px;
+    }
   </style>
 </head>
 
@@ -132,12 +152,25 @@ $oldValue = static function (string $key, $fallback = '') {
           <?php foreach ($warnings as $warning): ?>
             <div class="alert alert-warning"><?= esc((string)$warning) ?></div>
           <?php endforeach; ?>
+          <?php foreach ($masterAccountWarnings as $warning): ?>
+            <div class="alert alert-warning"><?= esc((string)$warning) ?></div>
+          <?php endforeach; ?>
           <?php foreach ($platformBootstrapWarnings as $bootstrapWarning): ?>
             <div class="alert <?= $legacyBootstrapMode ? 'alert-info' : 'alert-warning' ?>"><?= esc((string)$bootstrapWarning) ?></div>
           <?php endforeach; ?>
           <?php if ($tempPassword !== ''): ?>
             <div class="alert alert-warning">
               <strong>Password temporanea tenant master:</strong> <code><?= esc($tempPassword) ?></code>
+            </div>
+          <?php endif; ?>
+          <?php if ($masterTempPasswords !== []): ?>
+            <div class="alert alert-warning">
+              <strong>Password temporanee account master piattaforma:</strong>
+              <ul class="master-password-list">
+                <?php foreach ($masterTempPasswords as $email => $password): ?>
+                  <li><strong><?= esc((string)$email) ?>:</strong> <code><?= esc((string)$password) ?></code></li>
+                <?php endforeach; ?>
+              </ul>
             </div>
           <?php endif; ?>
 
@@ -155,6 +188,109 @@ $oldValue = static function (string $key, $fallback = '') {
             <span class="summary-badge">DB separato per cliente</span>
             <span class="summary-badge">Feature flag per verticalizzazioni</span>
             <span class="summary-badge">Storage per tenant</span>
+            <ul class="start-steps">
+              <li>1. Prepara gli account master che devono governare la piattaforma.</li>
+              <li>2. Definisci o aggiorna il catalogo funzioni comune a tutti.</li>
+              <li>3. Crea lo spazio cliente, assegna pacchetto e master email.</li>
+              <li>4. Salva e provisiona lo spazio quando il database cliente e pronto.</li>
+            </ul>
+          </div>
+
+          <div class="box box-info">
+            <div class="box-header with-border">
+              <h3 class="box-title">Account master piattaforma</h3>
+            </div>
+            <div class="box-body">
+              <p class="text-muted" style="margin:0 0 14px 0;">
+                Qui vedi le email master configurate in Coolify e puoi preparare il primo accesso senza dipendere dalla creazione del primo cliente. Anche i master entrano sempre da <code>/login</code>.
+              </p>
+
+              <div class="master-account-actions">
+                <form method="post" action="<?= portal_platform_url('spazi-clienti/master-accounts/sync') ?>">
+                  <?= csrf_field() ?>
+                  <button class="btn btn-default" type="submit">
+                    <i class="fa fa-user-plus"></i> Prepara account master
+                  </button>
+                </form>
+                <form method="post" action="<?= portal_platform_url('spazi-clienti/master-accounts/sync') ?>">
+                  <?= csrf_field() ?>
+                  <input type="hidden" name="send_access" value="1">
+                  <button class="btn btn-primary" type="submit">
+                    <i class="fa fa-envelope"></i> Prepara e invia accesso
+                  </button>
+                </form>
+                <a class="btn btn-default" href="<?= portal_platform_url('funzioni') ?>">
+                  <i class="fa fa-toggle-on"></i> Apri catalogo funzioni
+                </a>
+              </div>
+
+              <div class="table-responsive" style="margin-top:10px;">
+                <table class="table table-bordered table-hover master-account-table">
+                  <thead>
+                    <tr>
+                      <th>Email master</th>
+                      <th>Stato account</th>
+                      <th>Primo accesso</th>
+                      <th>Ultimo accesso</th>
+                      <th style="width:140px;">Azioni</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <?php if ($platformMasterAccounts === []): ?>
+                      <tr>
+                        <td colspan="5" class="text-muted">
+                          Nessuna email master configurata. Inserisci `PLATFORM_MASTER_EMAILS` in Coolify per attivare il login centrale dei master.
+                        </td>
+                      </tr>
+                    <?php else: ?>
+                      <?php foreach ($platformMasterAccounts as $account): ?>
+                        <?php
+                          $exists = !empty($account['exists']);
+                          $needsSetup = !empty($account['needs_password_setup']);
+                          $statusLabelClass = !$exists
+                              ? 'default'
+                              : (((string)($account['status'] ?? '')) === 'active' ? 'success' : 'warning');
+                        ?>
+                        <tr>
+                          <td>
+                            <strong><?= esc((string)($account['email'] ?? '')) ?></strong>
+                            <?php if (trim((string)($account['full_name'] ?? '')) !== ''): ?>
+                              <br><span class="text-muted"><?= esc((string)($account['full_name'] ?? '')) ?></span>
+                            <?php endif; ?>
+                          </td>
+                          <td>
+                            <span class="label label-<?= esc($statusLabelClass) ?>">
+                              <?= esc((string)($account['status_label'] ?? 'n/d')) ?>
+                            </span>
+                          </td>
+                          <td>
+                            <span class="label label-<?= $needsSetup ? 'warning' : 'success' ?>">
+                              <?= esc((string)($account['access_label'] ?? 'n/d')) ?>
+                            </span>
+                          </td>
+                          <td>
+                            <?php if (trim((string)($account['last_login_at'] ?? '')) !== ''): ?>
+                              <?= esc((string)($account['last_login_at'] ?? '')) ?>
+                            <?php else: ?>
+                              <span class="text-muted">Mai entrato</span>
+                            <?php endif; ?>
+                          </td>
+                          <td>
+                            <form method="post" action="<?= portal_platform_url('spazi-clienti/master-accounts/accesso') ?>">
+                              <?= csrf_field() ?>
+                              <input type="hidden" name="email" value="<?= esc((string)($account['email'] ?? ''), 'attr') ?>">
+                              <button class="btn btn-xs btn-default" type="submit">
+                                <i class="fa fa-envelope"></i> Invia accesso
+                              </button>
+                            </form>
+                          </td>
+                        </tr>
+                      <?php endforeach; ?>
+                    <?php endif; ?>
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
 
           <div class="box box-primary">

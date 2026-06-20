@@ -172,14 +172,6 @@ class LoginController extends BaseController
             ])->setStatusCode(403);
         }
 
-        if ($selectableTenants === []) {
-            return $this->response->setJSON([
-                'resp' => 'KO',
-                'success' => false,
-                'message' => 'Nessuno spazio cliente disponibile per questo account.',
-            ])->setStatusCode(403);
-        }
-
         if ((int) ($platformUser['must_reset_password'] ?? 0) === 1) {
             (new PlatformAccessService())->storePendingPasswordSetup($platformUser, $selectableTenants);
 
@@ -199,6 +191,14 @@ class LoginController extends BaseController
                 'success' => true,
                 'redirectUrl' => portal_platform_url('spazi-clienti'),
             ]);
+        }
+
+        if ($selectableTenants === []) {
+            return $this->response->setJSON([
+                'resp' => 'KO',
+                'success' => false,
+                'message' => 'Nessuno spazio cliente disponibile per questo account.',
+            ])->setStatusCode(403);
         }
 
         if (count($selectableTenants) === 1) {

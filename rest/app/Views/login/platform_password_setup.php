@@ -4,6 +4,7 @@ $platformUser = is_array($platformUser ?? null) ? $platformUser : [];
 $tenant = is_array($tenant ?? null) ? $tenant : null;
 $errors = is_array($errors ?? null) ? $errors : [];
 $token = trim((string) ($token ?? ''));
+$isPlatformAdmin = (bool) ($isPlatformAdmin ?? false);
 ?>
 <!DOCTYPE html>
 <html>
@@ -59,7 +60,11 @@ $token = trim((string) ($token ?? ''));
         <?php if ($tenant !== null): ?>
           Spazio: <?= esc((string) ($tenant['tenant_name'] ?? $tenant['tenant_key'] ?? '')) ?><br>
         <?php endif; ?>
-        Dopo il salvataggio entrerai dal login unico e vedrai solo i tuoi spazi.
+        <?php if ($isPlatformAdmin && $tenant === null): ?>
+          Dopo il salvataggio entrerai dal login unico e potrai aprire la console piattaforma sotto <code>/login</code>.
+        <?php else: ?>
+          Dopo il salvataggio entrerai dal login unico e vedrai solo i tuoi spazi.
+        <?php endif; ?>
       </div>
 
       <form action="<?= portal_public_access_url('login/password-imposta') ?>" method="post">

@@ -45,6 +45,10 @@ class PlatformAdminAccessService
             throw new \RuntimeException('Account non autorizzato alla console piattaforma.');
         }
 
+        $this->usersModel->update($platformUserId, [
+            'last_login_at' => date('Y-m-d H:i:s'),
+        ]);
+
         $session = session();
         $session->regenerate(true);
         $session->remove([
