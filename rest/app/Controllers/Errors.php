@@ -8,7 +8,7 @@ class Errors extends BaseController
     {
         helper('portal');
 
-        $requestUri = (string) ($_SERVER['REQUEST_URI'] ?? '');
+        $requestUri = (string) ($_SERVER['AF_ORIGINAL_REQUEST_URI'] ?? $_SERVER['REQUEST_URI'] ?? '');
         $path = trim((string) parse_url($requestUri, PHP_URL_PATH), '/');
 
         if ($path === 'app') {

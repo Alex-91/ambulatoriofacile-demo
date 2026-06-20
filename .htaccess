@@ -9,8 +9,8 @@
     RewriteRule ^(?:app/)?[^/]+\.(?:env|ini|log|sql|tar|gz|zip)$ - [F,L,NC]
 
     # Permette la home, la root /app e gli asset pubblici richiesti dal frontend/PWA.
-    RewriteRule ^$ index.php/ [L,QSA]
-    RewriteRule ^app/?$ index.php/ [L,QSA]
+    RewriteRule ^$ index.php [L,QSA]
+    RewriteRule ^app/?$ index.php [L,QSA]
     RewriteRule ^(?:index\.php(?:/.*)?|manifest\.json|sw\.js|favicon\.ico)$ - [L,NC]
     RewriteRule ^(?:public|icons|js)/.+$ - [L,NC]
     RewriteRule ^app/(manifest\.json|sw\.js|favicon\.ico)$ $1 [L,NC]
