@@ -29,9 +29,7 @@ class Home extends Controller
 
         if (!$this->isLogged()) {
             if ($this->isVisibleAppEntryRequest()) {
-                return redirect()
-                    ->to(portal_public_access_url('login'))
-                    ->setHeader('X-AF-Debug', 'home-visible-app-entry');
+                return redirect()->to(portal_public_access_url('login'));
             }
 
             return view('login/login');
@@ -153,7 +151,9 @@ class Home extends Controller
 
     private function isVisibleAppEntryRequest(): bool
     {
-        $path = trim((string) $this->request->getUri()->getPath(), '/');
-        return $path === 'app' || $path === 'app/index.php';
+        $requestUri = (string) ($_SERVER['REQUEST_URI'] ?? '');
+        $path = trim((string) parse_url($requestUri, PHP_URL_PATH), '/');
+
+        return $path === 'app';
     }
 }
