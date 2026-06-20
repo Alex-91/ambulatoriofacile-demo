@@ -12,6 +12,8 @@ $routes->get('demo/richiesta', 'DemoController::requestDemo');
 $routes->post('demo/richiesta/invia', 'DemoController::submitDemoRequest');
 $routes->get('demo/richieste-locali', 'DemoController::requestInbox');
 $routes->get('demo/richieste-locali/export', 'DemoController::exportRequestInbox');
+$routes->get('app', 'Home::index');
+$routes->head('app', 'Home::index');
 $routes->get('/', 'Home::index');
 $routes->set404Override('App\Controllers\Errors::redirectHome');
 
@@ -21,6 +23,7 @@ $routes->set404Override('App\Controllers\Errors::redirectHome');
 //$routes->get('chat',  'Home::chat');
 
 $routes->get('login', 'Login\LoginController::index');
+$routes->head('login', 'Login\LoginController::index');
 $routes->post('login', 'Login\LoginController::login');
 $routes->post('login/tenant-select', 'Login\LoginController::selectTenant');
 $routes->get('login/recupero', 'Login\PlatformAccessController::recovery');

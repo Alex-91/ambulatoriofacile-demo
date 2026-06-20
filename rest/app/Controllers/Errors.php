@@ -6,6 +6,17 @@ class Errors extends BaseController
 {
     public function redirectHome()
     {
+        helper('portal');
+
+        $path = trim((string) $this->request->getUri()->getPath(), '/');
+        if ($path === 'app' || $path === 'app/index.php') {
+            if ((bool) session()->get('isLoggedInConfirmed') === true) {
+                return redirect()->to(site_url('/'));
+            }
+
+            return redirect()->to(portal_public_access_url('login'));
+        }
+
         return redirect()->to($this->canonicalHomeUrl());
     }
 
