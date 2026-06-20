@@ -278,12 +278,23 @@ class TenantProvisioningService
             }
 
             $this->db->transCommit();
+            try {
+                $tenantAppSync = (new TenantAppUserProvisioningService())->syncMembership($membershipId, false);
+            } catch (\Throwable $syncError) {
+                $tenantAppSync = [
+                    'status' => 'error',
+                    'membership_id' => $membershipId,
+                    'message' => $syncError->getMessage(),
+                ];
+            }
+            $syncedMembership = $this->membershipsModel->find($membershipId) ?? [];
 
             return [
                 'mode' => $mode,
                 'platform_user' => $userResult['platform_user'],
-                'membership' => $this->membershipsModel->find($membershipId) ?? [],
+                'membership' => $syncedMembership,
                 'capacity' => $this->getTenantUserCapacity($tenantId),
+                'tenant_app_sync' => $tenantAppSync,
             ];
         } catch (\Throwable $e) {
             $this->db->transRollback();
@@ -403,6 +414,23 @@ class TenantProvisioningService
             $this->db->transCommit();
 
             $tenant = $this->tenantsModel->find($resolvedTenantId) ?? [];
+            $membershipId = (int) ($membership['id_platform_user_tenant'] ?? 0);
+            if ($membershipId > 0) {
+                try {
+                    $tenantAppSync = (new TenantAppUserProvisioningService())->syncMembership($membershipId, false);
+                } catch (\Throwable $syncError) {
+                    $tenantAppSync = [
+                        'status' => 'error',
+                        'membership_id' => $membershipId,
+                        'message' => $syncError->getMessage(),
+                    ];
+                }
+            } else {
+                $tenantAppSync = ['status' => 'skipped', 'message' => 'Membership tenant master non disponibile.'];
+            }
+            if ($membershipId > 0) {
+                $membership = $this->membershipsModel->find($membershipId) ?? $membership;
+            }
 
             return [
                 'tenant' => $tenant,
@@ -411,6 +439,7 @@ class TenantProvisioningService
                 'membership' => $membership,
                 'runtime' => $this->buildRuntimeBlueprint($tenant),
                 'mode' => $isUpdate ? 'updated' : 'created',
+                'tenant_app_sync' => $tenantAppSync,
             ];
         } catch (\Throwable $e) {
             $this->db->transRollback();

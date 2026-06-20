@@ -71,6 +71,7 @@ Per il database tenant sono previsti questi campi:
 - `TenantDatabaseConnector`: costruisce la connessione DB tenant
 - `TenantProvisioningService`: crea tenant, tenant master e blueprint runtime
 - `TenantInfrastructureProvisioningService`: provisiona DB tenant, template, migration e cartelle dal pannello admin
+- `TenantAppUserProvisioningService`: crea o collega automaticamente l utente legacy/app del tenant partendo dalla membership piattaforma
 - `PlatformAccessService`: gestisce inviti email, reset password e token di primo accesso
 
 ## Comando rapido
@@ -146,6 +147,7 @@ Nota importante:
 ## Provisioning tecnico da pannello
 
 Il provisioning tecnico ora puo essere lanciato dal pannello admin con il bottone `Salva e provisiona`.
+Durante il provisioning viene sincronizzato anche l `app_user_id` del tenant master, cosi il login unico puo aprire subito il portale corretto.
 
 Flusso previsto:
 

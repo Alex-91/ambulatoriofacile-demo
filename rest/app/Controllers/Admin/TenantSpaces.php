@@ -165,10 +165,15 @@ class TenantSpaces extends BaseController
                 ? 'Spazio cliente aggiornato con successo.'
                 : 'Spazio cliente creato con successo.'];
             $warnings = [];
+            $tenantAppSync = (array) ($result['tenant_app_sync'] ?? []);
 
             $tempPassword = (string)(($result['platform_user']['temporary_password'] ?? '') ?: '');
             if ($tempPassword !== '') {
                 session()->setFlashdata('tenant_master_temp_password', $tempPassword);
+            }
+
+            if (in_array((string) ($tenantAppSync['status'] ?? ''), ['skipped', 'error'], true)) {
+                $warnings[] = 'Spazio cliente salvato, ma il profilo applicativo del tenant master non e ancora pronto: ' . (string) ($tenantAppSync['message'] ?? 'sincronizzazione rimandata');
             }
 
             if ((int) ($this->request->getPost('send_master_access_email') ?? 0) === 1) {
@@ -237,6 +242,7 @@ class TenantSpaces extends BaseController
             $result = $service->saveTenantMember($tenantId, $payload);
             $messages = [];
             $warnings = [];
+            $tenantAppSync = (array) ($result['tenant_app_sync'] ?? []);
             $tempPassword = (string)(($result['platform_user']['temporary_password'] ?? '') ?: '');
             if ($tempPassword !== '') {
                 session()->setFlashdata('tenant_member_temp_password', $tempPassword);
@@ -245,6 +251,10 @@ class TenantSpaces extends BaseController
             $messages[] = (($result['mode'] ?? 'created') === 'updated')
                 ? 'Utente dello spazio aggiornato con successo.'
                 : 'Utente dello spazio aggiunto con successo.';
+
+            if (in_array((string) ($tenantAppSync['status'] ?? ''), ['skipped', 'error'], true)) {
+                $warnings[] = 'Utente salvato, ma il profilo applicativo del tenant non e ancora pronto: ' . (string) ($tenantAppSync['message'] ?? 'sincronizzazione rimandata');
+            }
 
             if ((int) ($this->request->getPost('member_send_access_email') ?? 0) === 1) {
                 try {

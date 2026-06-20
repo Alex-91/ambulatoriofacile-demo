@@ -23,12 +23,14 @@ class TenantInfrastructureProvisioningService
     private PlatformTenantsModel $tenantsModel;
     private TenantProvisioningService $tenantProvisioning;
     private TenantCatalogService $catalog;
+    private TenantAppUserProvisioningService $tenantAppUsers;
 
     public function __construct()
     {
         $this->tenantsModel = new PlatformTenantsModel();
         $this->tenantProvisioning = new TenantProvisioningService();
         $this->catalog = new TenantCatalogService();
+        $this->tenantAppUsers = new TenantAppUserProvisioningService();
     }
 
     /**
@@ -54,6 +56,7 @@ class TenantInfrastructureProvisioningService
             }
 
             $migrationsApplied = $this->runTenantMigrations($resolvedTenant);
+            $appUsersSynced = $this->tenantAppUsers->syncTenantMembers($tenantId, true);
             $directories = $this->tenantProvisioning->prepareLocalDirectories(
                 (string) ($resolvedTenant['tenant_key'] ?? ''),
                 (string) ($resolvedTenant['storage_key'] ?? '')
@@ -68,6 +71,7 @@ class TenantInfrastructureProvisioningService
                 'template_mode' => $templateMode,
                 'table_count_before' => $tableCountBefore,
                 'migrations_applied' => $migrationsApplied,
+                'app_users_synced' => $appUsersSynced,
                 'directories' => $directories,
             ];
 
@@ -88,6 +92,7 @@ class TenantInfrastructureProvisioningService
                 'template_mode' => $templateMode,
                 'table_count_before' => $tableCountBefore,
                 'migrations_applied' => $migrationsApplied,
+                'app_users_synced' => $appUsersSynced,
                 'directories' => $directories,
             ];
         } finally {

@@ -102,6 +102,7 @@ Ordine consigliato:
 2. spunta `Invia accesso al tenant master dopo il salvataggio`
 3. usa `Salva e provisiona`
 4. verifica che nel pannello compaia il riepilogo dell ultimo provisioning
+5. il provisioning crea o collega automaticamente anche l `app_user_id` del tenant master nel DB del tenant
 5. apri il link email del tenant master
 6. imposta la password
 7. entra da `ambulatoriofacile.it/login`
@@ -121,4 +122,5 @@ Ordine consigliato:
 - email non arriva: controlla config SMTP e log mail
 - `Salva e provisiona` fallisce: controlla `TENANT_PROVISIONING_*` e i permessi MySQL dell utente admin
 - utente entra ma non apre il tenant: probabilmente manca `app_user_id` e non c e match automatico via email nel DB tenant
+- se salvi utenti prima che il DB tenant sia pronto, il pannello mostra un warning e la sincronizzazione dell `app_user_id` viene rimandata
 - lo spazio non compare nel login: controlla `is_active`, `status` tenant e membership del platform user

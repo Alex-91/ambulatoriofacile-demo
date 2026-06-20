@@ -74,6 +74,7 @@ class SpaceUsers extends BaseController
             $result = $service->saveTenantMember($tenantId, $payload);
             $messages = [];
             $warnings = [];
+            $tenantAppSync = (array) ($result['tenant_app_sync'] ?? []);
             $tempPassword = (string)(($result['platform_user']['temporary_password'] ?? '') ?: '');
             if ($tempPassword !== '') {
                 session()->setFlashdata('tenant_member_temp_password', $tempPassword);
@@ -82,6 +83,10 @@ class SpaceUsers extends BaseController
             $messages[] = (($result['mode'] ?? 'created') === 'updated')
                 ? 'Utente dello spazio aggiornato con successo.'
                 : 'Utente dello spazio aggiunto con successo.';
+
+            if (in_array((string) ($tenantAppSync['status'] ?? ''), ['skipped', 'error'], true)) {
+                $warnings[] = 'Utente salvato, ma il profilo applicativo del tenant non e ancora pronto: ' . (string) ($tenantAppSync['message'] ?? 'sincronizzazione rimandata');
+            }
 
             if ((int) ($this->request->getPost('member_send_access_email') ?? 0) === 1) {
                 try {
