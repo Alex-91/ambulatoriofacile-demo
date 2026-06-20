@@ -95,6 +95,19 @@ function normalizeVisibleAppRequest(): void
         return;
     }
 
+    file_put_contents(
+        sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'af_request_debug.log',
+        json_encode([
+            'stage' => 'before-normalize',
+            'request_uri' => $requestUri,
+            'path' => $path,
+            'prefix' => $prefix,
+            'script_name' => (string) ($_SERVER['SCRIPT_NAME'] ?? ''),
+            'path_info' => (string) ($_SERVER['PATH_INFO'] ?? ''),
+        ], JSON_UNESCAPED_SLASHES) . PHP_EOL,
+        FILE_APPEND
+    );
+
     $_SERVER['AF_ORIGINAL_REQUEST_URI'] = $requestUri;
 
     $normalizedPath = substr($path, strlen($prefix));
@@ -108,4 +121,16 @@ function normalizeVisibleAppRequest(): void
     }
 
     $_SERVER['REQUEST_URI'] = $normalizedRequestUri;
+
+    file_put_contents(
+        sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'af_request_debug.log',
+        json_encode([
+            'stage' => 'after-normalize',
+            'request_uri' => (string) ($_SERVER['REQUEST_URI'] ?? ''),
+            'original_request_uri' => (string) ($_SERVER['AF_ORIGINAL_REQUEST_URI'] ?? ''),
+            'script_name' => (string) ($_SERVER['SCRIPT_NAME'] ?? ''),
+            'path_info' => (string) ($_SERVER['PATH_INFO'] ?? ''),
+        ], JSON_UNESCAPED_SLASHES) . PHP_EOL,
+        FILE_APPEND
+    );
 }
