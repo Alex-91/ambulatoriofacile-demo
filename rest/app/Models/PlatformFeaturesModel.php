@@ -16,6 +16,10 @@ class PlatformFeaturesModel extends Model
         'feature_scope',
         'description',
         'default_enabled',
+        'icon_class',
+        'is_tenant_managed',
+        'tenant_default_enabled',
+        'sort_order',
         'created_at',
         'updated_at',
     ];

@@ -12,12 +12,14 @@ class TenantCatalogService
     private \CodeIgniter\Database\BaseConnection $db;
     private PlatformTenantsModel $tenantsModel;
     private PlatformUsersModel $usersModel;
+    private TenantFeatureService $tenantFeatures;
 
     public function __construct()
     {
         $this->db = Database::connect('platform');
         $this->tenantsModel = new PlatformTenantsModel();
         $this->usersModel = new PlatformUsersModel();
+        $this->tenantFeatures = new TenantFeatureService();
     }
 
     public function getTenantById(int $tenantId): ?array
@@ -81,30 +83,7 @@ class TenantCatalogService
             return [];
         }
 
-        $sql = "
-            SELECT
-                f.feature_key,
-                COALESCE(tf.is_enabled, pf.is_enabled, f.default_enabled, 0) AS is_enabled
-            FROM platform_features f
-            LEFT JOIN platform_tenants t
-                ON t.id_tenant = ?
-            LEFT JOIN platform_package_features pf
-                ON pf.id_feature = f.id_feature
-               AND pf.id_package = t.id_package
-            LEFT JOIN platform_tenant_features tf
-                ON tf.id_feature = f.id_feature
-               AND tf.id_tenant = t.id_tenant
-            ORDER BY f.feature_key ASC
-        ";
-
-        $rows = $this->db->query($sql, [$tenantId])->getResultArray();
-        $featureMap = [];
-
-        foreach ($rows as $row) {
-            $featureMap[(string) ($row['feature_key'] ?? '')] = (int) ($row['is_enabled'] ?? 0) === 1;
-        }
-
-        return $featureMap;
+        return $this->tenantFeatures->resolveEffectiveFeatureMapForTenant($tenantId);
     }
 
     public function buildTenantContext(array $membership): TenantContext

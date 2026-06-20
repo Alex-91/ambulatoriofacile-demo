@@ -9,6 +9,7 @@ use App\Models\PlatformTenantsModel;
 use App\Services\PlatformAccessService;
 use App\Services\PlatformAdminAccessService;
 use App\Services\TenantCatalogService;
+use App\Services\TenantFeatureService;
 use App\Services\TenantInfrastructureProvisioningService;
 use App\Services\TenantProvisioningService;
 
@@ -45,10 +46,7 @@ class PlatformTenantSpacesController extends BaseController
             ->where('is_active', 1)
             ->orderBy('package_name', 'ASC')
             ->findAll();
-        $features = (new PlatformFeaturesModel())
-            ->orderBy('feature_scope', 'ASC')
-            ->orderBy('feature_name', 'ASC')
-            ->findAll();
+        $features = (new TenantFeatureService())->listPlatformFeatures();
 
         $filters = [
             'q' => trim((string) ($this->request->getGet('q') ?? '')),
@@ -476,9 +474,7 @@ class PlatformTenantSpacesController extends BaseController
      */
     private function allFeatureKeys(): array
     {
-        $rows = (new PlatformFeaturesModel())
-            ->orderBy('feature_name', 'ASC')
-            ->findAll();
+        $rows = (new TenantFeatureService())->listPlatformFeatures();
 
         $keys = [];
         foreach ($rows as $row) {

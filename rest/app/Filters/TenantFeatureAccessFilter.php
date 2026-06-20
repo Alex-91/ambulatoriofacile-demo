@@ -2,6 +2,7 @@
 
 namespace App\Filters;
 
+use App\Libraries\TenantFeatureRegistry;
 use App\Services\TenantContextService;
 use CodeIgniter\Filters\FilterInterface;
 use CodeIgniter\HTTP\RequestInterface;
@@ -49,30 +50,6 @@ class TenantFeatureAccessFilter implements FilterInterface
     private function resolveFeatureKey(RequestInterface $request): ?string
     {
         $path = trim($request->getUri()->getPath(), '/');
-        if ($path === '') {
-            return null;
-        }
-
-        $map = [
-            'agenda' => 'agenda',
-            'prenotazioni' => 'agenda',
-            'visite-domiciliari' => 'agenda',
-            'sostituzioni' => 'agenda',
-            'posta' => 'posta',
-            'compose' => 'posta',
-            'inviata' => 'posta',
-            'draft' => 'posta',
-            'bozze' => 'posta',
-            'messaggi' => 'posta',
-            'chat' => 'chat',
-        ];
-
-        foreach ($map as $prefix => $featureKey) {
-            if ($path === $prefix || str_starts_with($path, $prefix . '/')) {
-                return $featureKey;
-            }
-        }
-
-        return null;
+        return TenantFeatureRegistry::resolveFeatureKeyFromRoutePath($path);
     }
 }

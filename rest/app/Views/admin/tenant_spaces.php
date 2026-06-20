@@ -452,7 +452,7 @@ $oldValue = static function (string $key, $fallback = '') {
                 <hr>
                 <h4 style="margin-top:0;">Feature override tenant</h4>
                 <p class="text-muted">
-                  In questo primo step il salvataggio imposta un override esplicito per tutte le feature mostrate qui, cosi le verticalizzazioni restano governabili da pannello.
+                  Qui decidi quali funzioni sono concesse a questo cliente. Se una funzione e marcata come governabile dal tenant master, il cliente potra poi accenderla o spegnerla dal suo pannello sotto `/login/spazio/funzioni`.
                 </p>
                 <div class="row">
                   <?php foreach ($features as $feature): ?>
@@ -476,6 +476,11 @@ $oldValue = static function (string $key, $fallback = '') {
                         </div>
                         <div class="text-muted" style="font-size:12px; margin-top:6px;">
                           Scope: <?= esc((string)($feature['feature_scope'] ?? 'module')) ?>
+                        </div>
+                        <div style="margin-top:6px;">
+                          <span class="label label-<?= ((int)($feature['is_tenant_managed'] ?? 0) === 1) ? 'info' : 'default' ?>">
+                            <?= ((int)($feature['is_tenant_managed'] ?? 0) === 1) ? 'Governabile dal master cliente' : 'Gestita centralmente' ?>
+                          </span>
                         </div>
                       </div>
                     </div>

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Libraries\TenantFeatureRegistry;
 use App\Config\MessageRoles;
 use App\Libraries\DatabaseConfig;
 use App\Models\MenuModel;
@@ -410,27 +411,12 @@ class SessionNavigationService
 
     private function resolveFeatureKeyFromCodice(string $codice): ?string
     {
-        return match (trim(strtolower($codice))) {
-            'agenda' => 'agenda',
-            'posta' => 'posta',
-            'chat' => 'chat',
-            default => null,
-        };
+        return TenantFeatureRegistry::resolveFeatureKeyFromSchedaCode($codice);
     }
 
     private function resolveFeatureKeyFromLink(string $link): ?string
     {
-        $link = trim(strtolower($link));
-        if ($link === '') {
-            return null;
-        }
-
-        return match (true) {
-            str_starts_with($link, 'agenda') || str_starts_with($link, 'prenotazioni') || str_starts_with($link, 'visite-domiciliari') => 'agenda',
-            str_starts_with($link, 'posta') || str_starts_with($link, 'compose') || str_starts_with($link, 'messaggi') || str_starts_with($link, 'draft') || str_starts_with($link, 'bozze') || str_starts_with($link, 'inviata') => 'posta',
-            str_starts_with($link, 'chat') => 'chat',
-            default => null,
-        };
+        return TenantFeatureRegistry::resolveFeatureKeyFromMenuLink($link);
     }
 
     private function countDirectPostaUnread(object $utente): int

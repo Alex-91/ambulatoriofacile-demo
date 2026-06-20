@@ -28,6 +28,7 @@ Tabelle create:
 - `platform_package_features`
 - `platform_tenants`
 - `platform_tenant_features`
+- `platform_tenant_feature_preferences`
 - `platform_users`
 - `platform_user_tenants`
 - `platform_user_access_tokens`
@@ -38,7 +39,8 @@ Tabelle create:
 - `platform_tenants`: anagrafica del cliente business, non del paziente
 - `platform_user_tenants`: collega un utente piattaforma a uno o piu spazi
 - `platform_packages`: definisce il pacchetto commerciale
-- `platform_tenant_features`: override puntuali per singolo cliente
+- `platform_tenant_features`: override puntuali centrali per singolo cliente
+- `platform_tenant_feature_preferences`: preferenze operative del tenant master, applicate solo alle funzioni che la piattaforma decide di delegare
 
 ## Runtime scelto
 
@@ -68,6 +70,7 @@ Per il database tenant sono previsti questi campi:
 
 - `TenantCatalogService`: legge tenant, membership e feature effettive
 - `TenantContextService`: salva e legge il tenant attivo dalla sessione
+- `TenantFeatureService`: separa feature concesse centralmente da quelle attivate dal tenant master
 - `TenantDatabaseConnector`: costruisce la connessione DB tenant
 - `TenantProvisioningService`: crea tenant, tenant master e blueprint runtime
 - `TenantInfrastructureProvisioningService`: provisiona DB tenant, template, migration e cartelle dal pannello admin
@@ -97,11 +100,12 @@ Route UI:
 Il pannello permette di:
 
 - creare un nuovo spazio cliente
+- gestire il catalogo funzioni globale da `login/piattaforma/funzioni`
 - assegnare o cambiare il tenant master
 - aggiungere utenti allo spazio e collegarli al tenant
 - configurare package, stato e onboarding
 - salvare host e credenziali logiche del DB tenant
-- governare le feature del tenant dalla UI
+- governare le feature concesse al tenant dalla UI
 - rispettare il limite utenti del pacchetto scelto
 - preparare le cartelle locali tenant senza passare da console
 - lanciare il provisioning tecnico del tenant con il pulsante `Salva e provisiona`
@@ -131,6 +135,7 @@ Route pubbliche introdotte:
 Route autenticata introdotta:
 
 - `login/spazi/cambia/{id}`
+- `login/spazio/funzioni`
 - `login/spazio/utenti`
 - `login/spazio/utenti/accesso`
 - `login/spazio/onboarding`
@@ -143,7 +148,8 @@ Comportamento attuale:
 - se l account ha `must_reset_password = 1`, prima imposta la password e solo dopo entra nello spazio
 - dopo il login puo cambiare spazio dal menu utente senza uscire dall applicazione
 - dopo la scelta, la richiesta successiva usa il DB applicativo del tenant come connessione `default`
-- i moduli principali `agenda`, `posta`, `chat` vengono filtrati anche in base alle feature abilitate per il tenant
+- i moduli principali `agenda`, `posta`, `chat` vengono filtrati in base alle feature effettive del tenant
+- le feature effettive nascono da due livelli: concessione centrale e attivazione eventuale del tenant master
 - il tenant master vede una pagina di onboarding iniziale finche lo spazio non viene segnato come `ready`
 
 Nota importante:
@@ -219,9 +225,15 @@ Regola pratica:
 - `advanced_reporting`
 - `custom_branding`
 
+Ogni feature puo avere anche questi attributi operativi:
+
+- `is_tenant_managed`: decide se il tenant master la puo governare
+- `tenant_default_enabled`: stato iniziale lato cliente quando la funzione e delegabile
+- `sort_order` e `icon_class`: supportano l ordinamento e la UI dei pannelli
+
 ## Punti ancora aperti
 
 1. Definire e mantenere un template database pulito dedicato ai nuovi tenant.
 2. Decidere se tenere un solo runtime user DB condiviso oppure passare a utenti DB dedicati per tenant.
 3. Valutare se portare anche l OTP nel flusso login piattaforma, oltre al bootstrap tenant gia attivo.
-4. Estendere il controllo feature oltre `agenda`, `posta` e `chat` man mano che emergono altre verticalizzazioni.
+4. Quando nasce una nuova feature applicativa, aggiungerla nel catalogo globale e nel registro centralizzato di mapping route/menu, cosi i controlli restano concentrati in un solo punto.

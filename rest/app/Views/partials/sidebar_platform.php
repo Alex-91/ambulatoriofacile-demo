@@ -2,7 +2,8 @@
 helper('portal');
 
 $currentPath = trim(service('uri')->getPath(), '/');
-$tenantSpacesActive = str_starts_with($currentPath, 'login/piattaforma') ? 'active' : '';
+$tenantSpacesActive = ($currentPath === 'login/piattaforma' || str_starts_with($currentPath, 'login/piattaforma/spazi-clienti')) ? 'active' : '';
+$platformFeaturesActive = str_starts_with($currentPath, 'login/piattaforma/funzioni') ? 'active' : '';
 $platformMasterEmails = is_array($platformMasterEmails ?? null) ? $platformMasterEmails : [];
 ?>
 <div class="box box-solid" style="margin-bottom: 0 !important">
@@ -18,6 +19,12 @@ $platformMasterEmails = is_array($platformMasterEmails ?? null) ? $platformMaste
         <a href="<?= portal_platform_url('spazi-clienti') ?>">
           <i class="fa fa-sitemap"></i>
           Spazi cliente
+        </a>
+      </li>
+      <li class="<?= esc($platformFeaturesActive) ?>">
+        <a href="<?= portal_platform_url('funzioni') ?>">
+          <i class="fa fa-toggle-on"></i>
+          Catalogo funzioni
         </a>
       </li>
       <li>

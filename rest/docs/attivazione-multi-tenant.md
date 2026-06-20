@@ -30,6 +30,7 @@ Nel DB centrale verranno create e usate queste tabelle:
 - `platform_package_features`
 - `platform_tenants`
 - `platform_tenant_features`
+- `platform_tenant_feature_preferences`
 - `platform_users`
 - `platform_user_tenants`
 - `platform_user_access_tokens`
@@ -107,17 +108,19 @@ Importante:
 Ordine consigliato:
 
 1. crea dal pannello admin un nuovo spazio cliente
-2. spunta `Invia accesso al tenant master dopo il salvataggio`
-3. usa `Salva e provisiona`
-4. verifica che nel pannello compaia il riepilogo dell ultimo provisioning
-5. il provisioning crea o collega automaticamente anche l `app_user_id` del tenant master nel DB del tenant
-5. apri il link email del tenant master
-6. imposta la password
-7. entra da `ambulatoriofacile.it/login`
-8. verifica che il tenant master veda solo il suo spazio
-9. verifica che l account master centrale apra `ambulatoriofacile.it/login/piattaforma/spazi-clienti`
-10. aggiungi un utente da `login/spazio/utenti`
-11. invia accesso anche a lui e verifica il flusso
+2. se serve, definisci o aggiorna la funzione globale da `login/piattaforma/funzioni`
+3. spunta `Invia accesso al tenant master dopo il salvataggio`
+4. usa `Salva e provisiona`
+5. verifica che nel pannello compaia il riepilogo dell ultimo provisioning
+6. il provisioning crea o collega automaticamente anche l `app_user_id` del tenant master nel DB del tenant
+7. apri il link email del tenant master
+8. imposta la password
+9. entra da `ambulatoriofacile.it/login`
+10. verifica che il tenant master veda solo il suo spazio
+11. verifica che l account master centrale apra `ambulatoriofacile.it/login/piattaforma/spazi-clienti`
+12. se la funzione e delegabile, verifica che il tenant master la possa governare da `login/spazio/funzioni`
+13. aggiungi un utente da `login/spazio/utenti`
+14. invia accesso anche a lui e verifica il flusso
 
 ## 7. Regole operative
 
@@ -125,6 +128,7 @@ Ordine consigliato:
 - i clienti non devono vedere host, credenziali o env
 - i clienti possono solo gestire utenti del proprio spazio se il pacchetto lo consente
 - eventuali verticalizzazioni devono essere abilitate con feature flag tenant, non con controlli sparsi su username
+- se una funzione deve essere governabile dal cliente, la decisione nasce nel catalogo globale e non in if sparsi nel codice
 
 ## 8. Cosa controllare se qualcosa non va
 

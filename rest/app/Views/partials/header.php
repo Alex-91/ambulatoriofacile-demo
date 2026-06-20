@@ -64,6 +64,9 @@ $platformTenants = is_array($platformTenants) ? $platformTenants : [];
 $canAccessPlatformConsole = (bool) ($sess->get('platform_is_admin') ?? false) === true;
 $isPlatformConsoleSession = $canAccessPlatformConsole
     && (string) ($sess->get('loginSource') ?? '') === 'platform_console';
+$canManageTenantFeatures = $tenantId > 0
+    && $tenantRole === 'tenant_master'
+    && (int) ($sess->get('platform_user_id') ?? 0) > 0;
 $canManageTenantUsers = $tenantId > 0
     && in_array($tenantRole, ['tenant_master', 'tenant_admin'], true)
     && !empty($tenantFeatureFlags['staff_management']);
@@ -282,6 +285,13 @@ if ($disableMenuFallback) {
               <div style="padding:0 0 10px 0; margin-bottom:10px; border-bottom:1px solid #eee;">
                 <a href="<?= portal_tenant_space_url('utenti') ?>" class="btn btn-default btn-flat" style="width:100%; text-align:left;">
                   <i class="fa fa-users"></i> Gestisci utenti dello spazio
+                </a>
+              </div>
+              <?php endif; ?>
+              <?php if ($canManageTenantFeatures): ?>
+              <div style="padding:0 0 10px 0; margin-bottom:10px; border-bottom:1px solid #eee;">
+                <a href="<?= portal_tenant_space_url('funzioni') ?>" class="btn btn-default btn-flat" style="width:100%; text-align:left;">
+                  <i class="fa fa-toggle-on"></i> Gestisci funzioni dello spazio
                 </a>
               </div>
               <?php endif; ?>
