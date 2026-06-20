@@ -62,6 +62,7 @@ class PlatformTenantSpacesController extends BaseController
         $selectedTenant = $selectedTenantId > 0
             ? $this->loadTenantDetail($selectedTenantId)
             : null;
+        $legacyBootstrapMode = $this->legacyBootstrapMode();
 
         return view('admin/tenant_spaces', [
             'menu_items' => [],
@@ -83,6 +84,8 @@ class PlatformTenantSpacesController extends BaseController
             'memberWarnings' => session()->getFlashdata('member_warnings') ?? [],
             'platformUser' => $this->platformAdminAccess->currentPlatformUser(),
             'platformMasterEmails' => $this->platformAdminAccess->configuredMasterEmails(),
+            'legacyBootstrapMode' => $legacyBootstrapMode,
+            'platformBootstrapWarnings' => $this->platformBootstrapWarnings($legacyBootstrapMode),
         ]);
     }
 
@@ -293,11 +296,82 @@ class PlatformTenantSpacesController extends BaseController
             return redirect()->to(portal_public_access_url('login'));
         }
 
+        if ($this->legacyBootstrapMode()) {
+            return null;
+        }
+
         if (!$this->platformAdminAccess->canAccessPlatformConsole()) {
             return redirect()->to(portal_public_access_url('login'))->with('login_error', 'Area piattaforma riservata agli account master.');
         }
 
         return null;
+    }
+
+    private function legacyBootstrapMode(): bool
+    {
+        if ($this->platformAdminAccess->canAccessPlatformConsole()) {
+            return false;
+        }
+
+        if (!$this->isLegacyAdminAuthorized()) {
+            return false;
+        }
+
+        if ($this->platformUsersCount() === 0) {
+            return true;
+        }
+
+        return $this->platformAdminAccess->configuredMasterEmails() === [];
+    }
+
+    private function isLegacyAdminAuthorized(): bool
+    {
+        $me = session()->get('utente_sess');
+        if (!$me || empty($me->id_user)) {
+            return false;
+        }
+
+        if (session()->get(\App\Services\TenantContextService::SESSION_KEY)) {
+            return false;
+        }
+
+        return session()->get('is_admin') === true
+            || (int) (session()->get('admin') ?? 0) === 1
+            || (int) ($me->tipo ?? 0) === 1;
+    }
+
+    private function platformUsersCount(): int
+    {
+        try {
+            return (int) $this->platformDb->table('platform_users')->countAllResults();
+        } catch (\Throwable $e) {
+            log_message('error', 'PlatformTenantSpacesController::platformUsersCount failed: ' . $e->getMessage());
+            return PHP_INT_MAX;
+        }
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function platformBootstrapWarnings(bool $legacyBootstrapMode): array
+    {
+        if (!$legacyBootstrapMode) {
+            return [];
+        }
+
+        $warnings = [
+            'Accesso bootstrap attivo: stai entrando con un account admin legacy per inizializzare la nuova console sotto /login.',
+        ];
+
+        if ($this->platformUsersCount() === 0) {
+            $warnings[] = 'Il catalogo piattaforma e ancora vuoto. Crea il primo spazio usando la tua email o quella del tuo socio come tenant master per generare il primo account piattaforma.';
+        }
+
+        if ($this->platformAdminAccess->configuredMasterEmails() === []) {
+            $warnings[] = 'In Coolify manca ancora PLATFORM_MASTER_EMAILS. Finche non viene configurata, la console resta in modalita bootstrap.';
+        }
+
+        return $warnings;
     }
 
     /**

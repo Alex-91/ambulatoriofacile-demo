@@ -31,6 +31,8 @@ $editingMemberId = (int) old('member_id_platform_user_tenant');
 $isEditingMember = $editingMemberId > 0;
 $warnings = is_array($warnings ?? null) ? $warnings : [];
 $memberWarnings = is_array($memberWarnings ?? null) ? $memberWarnings : [];
+$legacyBootstrapMode = (bool)($legacyBootstrapMode ?? false);
+$platformBootstrapWarnings = is_array($platformBootstrapWarnings ?? null) ? $platformBootstrapWarnings : [];
 
 $oldValue = static function (string $key, $fallback = '') {
     $old = old($key);
@@ -130,6 +132,9 @@ $oldValue = static function (string $key, $fallback = '') {
           <?php foreach ($warnings as $warning): ?>
             <div class="alert alert-warning"><?= esc((string)$warning) ?></div>
           <?php endforeach; ?>
+          <?php foreach ($platformBootstrapWarnings as $bootstrapWarning): ?>
+            <div class="alert <?= $legacyBootstrapMode ? 'alert-info' : 'alert-warning' ?>"><?= esc((string)$bootstrapWarning) ?></div>
+          <?php endforeach; ?>
           <?php if ($tempPassword !== ''): ?>
             <div class="alert alert-warning">
               <strong>Password temporanea tenant master:</strong> <code><?= esc($tempPassword) ?></code>
@@ -141,6 +146,11 @@ $oldValue = static function (string $key, $fallback = '') {
             <p style="margin:0 0 12px 0; color:#52676c;">
               Questo pannello e disponibile solo agli account master del login unico. Qui gestisci onboarding commerciale, tenant, pacchetti e accessi senza usare `/admin`.
             </p>
+            <?php if ($legacyBootstrapMode): ?>
+              <p style="margin:0 0 12px 0; color:#2b5d67;">
+                Modalita bootstrap attiva: puoi completare l avvio iniziale dalla console nuova, ma il passaggio definitivo agli account master del login unico richiede la configurazione finale delle email master.
+              </p>
+            <?php endif; ?>
             <span class="summary-badge">Login unico via email</span>
             <span class="summary-badge">DB separato per cliente</span>
             <span class="summary-badge">Feature flag per verticalizzazioni</span>
