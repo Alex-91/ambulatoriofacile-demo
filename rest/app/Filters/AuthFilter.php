@@ -19,7 +19,9 @@ class AuthFilter implements FilterInterface
         helper('portal');
 
         if (!$this->isLocalRequest()) {
-            return redirect()->to(portal_public_access_url('login'));
+            return redirect()
+                ->to(portal_public_access_url('login'))
+                ->setHeader('X-AF-Debug', 'auth-filter-login');
         }
 
         return redirect()->to($this->canonicalHomeUrl());

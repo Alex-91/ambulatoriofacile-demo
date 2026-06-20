@@ -29,7 +29,9 @@ class Home extends Controller
 
         if (!$this->isLogged()) {
             if ($this->isVisibleAppEntryRequest()) {
-                return redirect()->to(portal_public_access_url('login'));
+                return redirect()
+                    ->to(portal_public_access_url('login'))
+                    ->setHeader('X-AF-Debug', 'home-visible-app-entry');
             }
 
             return view('login/login');

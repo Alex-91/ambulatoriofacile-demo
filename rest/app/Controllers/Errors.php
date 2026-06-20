@@ -11,10 +11,14 @@ class Errors extends BaseController
         $path = trim((string) $this->request->getUri()->getPath(), '/');
         if ($path === 'app' || $path === 'app/index.php') {
             if ((bool) session()->get('isLoggedInConfirmed') === true) {
-                return redirect()->to(site_url('/'));
+                return redirect()
+                    ->to(site_url('/'))
+                    ->setHeader('X-AF-Debug', 'errors-app-authenticated');
             }
 
-            return redirect()->to(portal_public_access_url('login'));
+            return redirect()
+                ->to(portal_public_access_url('login'))
+                ->setHeader('X-AF-Debug', 'errors-app-public');
         }
 
         return redirect()->to($this->canonicalHomeUrl());
