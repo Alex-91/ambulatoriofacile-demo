@@ -7,12 +7,21 @@ class EntryController extends BaseController
     public function index()
     {
         $originalPath = $this->resolveOriginalPath();
+        $entryMode = strtolower(trim((string) env('APP_ROOT_ENTRY', '')));
 
         if ($originalPath === 'login') {
             return $this->delegate(\App\Controllers\Login\LoginController::class);
         }
 
         if ($originalPath === 'app') {
+            return $this->delegate(Home::class);
+        }
+
+        if ($entryMode === 'login') {
+            return $this->delegate(\App\Controllers\Login\LoginController::class);
+        }
+
+        if ($entryMode === 'app') {
             return $this->delegate(Home::class);
         }
 
