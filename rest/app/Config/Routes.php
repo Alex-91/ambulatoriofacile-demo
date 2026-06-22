@@ -5,7 +5,7 @@ use CodeIgniter\Router\RouteCollection;
 /**
  * @var RouteCollection $routes
  */
-$routes->get('/', 'DemoController::index');
+$routes->get('/', 'EntryController::index');
 $routes->get('access', 'DemoController::access');
 $routes->get('vertical/(:segment)', 'DemoController::vertical/$1');
 $routes->get('access/(:segment)', 'DemoController::access/$1');
