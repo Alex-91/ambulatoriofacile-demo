@@ -61,6 +61,8 @@ $tenantRole = is_array($tenantContext) ? trim((string)($tenantContext['tenant_ro
 $tenantFeatureFlags = is_array($tenantContext) ? (array)($tenantContext['feature_flags'] ?? []) : [];
 $platformTenants = $sess->get('platform_selectable_tenants');
 $platformTenants = is_array($platformTenants) ? $platformTenants : [];
+$platformTenantCount = count($platformTenants);
+$showTenantSwitchSection = $platformTenantCount > 1;
 $canAccessPlatformConsole = (bool) ($sess->get('platform_is_admin') ?? false) === true;
 $isPlatformConsoleSession = $canAccessPlatformConsole
     && (string) ($sess->get('loginSource') ?? '') === 'platform_console';
@@ -73,11 +75,17 @@ $canManageTenantUsers = $tenantId > 0
 $showTenantOnboardingLink = $tenantId > 0
     && $tenantRole === 'tenant_master'
     && in_array(strtolower(trim((string)($tenantContext['onboarding_status'] ?? 'draft'))), ['draft', 'setup'], true);
+$isTenantOnboardingRoute = in_array($currentPath, ['login/spazio/onboarding', 'spazio/onboarding'], true);
+$useMinimalTenantOnboardingHeader = $isTenantOnboardingRoute
+    && $tenantRole === 'tenant_master'
+    && $showTenantOnboardingLink;
+$hideHeaderMenu = $hideHeaderMenu || $useMinimalTenantOnboardingHeader;
 $isPortalConsoleHeader = preg_match('#^(login|piattaforma|spazio|spazi)(/|$)#', $currentPath) === 1;
 $headerLogoUrl = $isPortalConsoleHeader
     ? portal_public_access_url('login')
     : site_url('/');
 $useStructuredHeader = $tenantName !== '' || $isPortalConsoleHeader;
+$profileImageFallbackUrl = base_url('public/dist/img/user.png');
 ?>
 
 <style>
@@ -257,6 +265,17 @@ $useStructuredHeader = $tenantName !== '' || $isPortalConsoleHeader;
     margin: 0;
   }
 
+  .main-header .platform-navbar-shell.platform-navbar-shell-minimal {
+    grid-template-columns: 1fr auto;
+    grid-template-areas: "empty user";
+    min-height: 58px;
+    padding: 10px 0;
+  }
+
+  .main-header .platform-navbar-shell.platform-navbar-shell-minimal .platform-navbar-secondary {
+    justify-self: end;
+  }
+
   .main-header .platform-nav-link .nav-label {
     display: inline-flex;
     align-items: center;
@@ -285,6 +304,15 @@ $useStructuredHeader = $tenantName !== '' || $isPortalConsoleHeader;
     .main-header .platform-navbar-secondary {
       justify-self: start;
     }
+
+    .main-header .platform-navbar-shell.platform-navbar-shell-minimal {
+      grid-template-columns: 1fr auto;
+      grid-template-areas: "empty user";
+    }
+
+    .main-header .platform-navbar-shell.platform-navbar-shell-minimal .platform-navbar-secondary {
+      justify-self: end;
+    }
   }
 </style>
 <?php endif; ?>
@@ -305,10 +333,10 @@ $useStructuredHeader = $tenantName !== '' || $isPortalConsoleHeader;
     </a>
 
     <?php if ($useStructuredHeader): ?>
-    <div class="platform-navbar-shell">
+    <div class="platform-navbar-shell<?= $useMinimalTenantOnboardingHeader ? ' platform-navbar-shell-minimal' : '' ?>">
     <?php endif; ?>
 
-    <?php if ($tenantName !== ''): ?>
+    <?php if ($tenantName !== '' && !$useMinimalTenantOnboardingHeader): ?>
       <?php if ($useStructuredHeader): ?>
       <div class="platform-navbar-tenant hidden-xs">
         <span class="platform-navbar-tenant-label">Spazio</span>
@@ -415,7 +443,7 @@ if ($disableMenuFallback) {
     <i class="fa fa-bars"></i>
   </a>
 
-  <ul class="dropdown-menu" style="left:0; right:auto;background:#2c8895">
+  <ul class="dropdown-menu platform-console-mobile-menu" style="left:0; right:auto;background:#2c8895">
     <?php foreach ($navItems as $i => $item): ?>
       <?php
         $itemLink = (string)($item['link'] ?? '');
@@ -447,8 +475,8 @@ if ($disableMenuFallback) {
 
     <div class="navbar-custom-menu<?= $useStructuredHeader ? ' platform-navbar-secondary' : '' ?>">
       <ul class="nav navbar-nav">
-        <li class="dropdown user user-menu">
-          <a href="#" class="dropdown-toggle" data-toggle="dropdown">
+        <li class="dropdown user user-menu platform-console-user-menu<?= $useMinimalTenantOnboardingHeader ? ' platform-console-user-menu-minimal' : '' ?>">
+          <a href="#" class="dropdown-toggle platform-console-user-trigger" data-toggle="dropdown">
             <?php
               $immagineProfilo = session()->get('immagine_profilo');
               if (empty($immagineProfilo)) {
@@ -456,17 +484,19 @@ if ($disableMenuFallback) {
               }
             ?>
             <img src="<?= base_url('public/dist/img/' . $immagineProfilo) ?>"
+                 onerror="this.onerror=null;this.src='<?= esc($profileImageFallbackUrl, 'attr') ?>';"
                  class="user-image"
                  alt="User Image" />
-            <span class="hidden-xs"><?= session()->get('nome_visualizzato') ?></span>
+            <span class="hidden-xs platform-console-user-name"><?= session()->get('nome_visualizzato') ?></span>
           </a>
 
-          <ul class="dropdown-menu">
-            <li class="user-header">
+          <ul class="dropdown-menu platform-console-user-dropdown">
+            <li class="user-header platform-console-user-summary">
               <img src="<?= base_url('public/dist/img/' . $immagineProfilo) ?>"
+                   onerror="this.onerror=null;this.src='<?= esc($profileImageFallbackUrl, 'attr') ?>';"
                    class="user-image"
                    alt="User Image" />
-              <p>
+              <p class="platform-console-user-summary-text">
                 <small>Sei autenticato come:</small>
                 <?= session()->get('nome_visualizzato') ?>
                 <?php if ($tenantName !== ''): ?>
@@ -474,10 +504,10 @@ if ($disableMenuFallback) {
                 <?php endif; ?>
               </p>
             </li>
-            <li class="user-footer">
-              <?php if (count($platformTenants) > 1): ?>
-              <div style="padding:0 0 10px 0; margin-bottom:10px; border-bottom:1px solid #eee;">
-                <div style="font-weight:600; margin-bottom:8px;">Cambia spazio</div>
+            <li class="user-footer platform-console-user-footer">
+              <?php if (!$useMinimalTenantOnboardingHeader && $showTenantSwitchSection): ?>
+              <div class="platform-console-dropdown-block">
+                <div class="platform-console-dropdown-title">Cambia spazio</div>
                 <?php foreach ($platformTenants as $availableTenant): ?>
                   <?php
                     $availableTenantId = (int)($availableTenant['id_tenant'] ?? 0);
@@ -485,13 +515,13 @@ if ($disableMenuFallback) {
                     $tenantLabel = trim((string)($availableTenant['tenant_name'] ?? $availableTenant['tenant_key'] ?? 'Spazio cliente'));
                     $tenantSwitchUrl = portal_tenant_switch_url($availableTenantId);
                   ?>
-                  <div style="margin-bottom:6px;">
+                  <div class="platform-console-dropdown-action">
                     <?php if ($isCurrentTenant): ?>
-                      <span class="btn btn-default btn-flat" style="width:100%; text-align:left; opacity:.85;">
+                      <span class="btn btn-default btn-flat platform-console-dropdown-current">
                         <?= esc($tenantLabel) ?> (attivo)
                       </span>
                     <?php else: ?>
-                      <a href="<?= esc($tenantSwitchUrl) ?>" class="btn btn-default btn-flat" style="width:100%; text-align:left;">
+                      <a href="<?= esc($tenantSwitchUrl) ?>" class="btn btn-default btn-flat">
                         <?= esc($tenantLabel) ?>
                       </a>
                     <?php endif; ?>
@@ -499,51 +529,49 @@ if ($disableMenuFallback) {
                 <?php endforeach; ?>
               </div>
               <?php endif; ?>
-              <?php if ($canAccessPlatformConsole): ?>
-              <div style="padding:0 0 10px 0; margin-bottom:10px; border-bottom:1px solid #eee;">
-                <a href="<?= portal_platform_url('spazi-clienti') ?>" class="btn btn-default btn-flat" style="width:100%; text-align:left;">
+              <?php if (!$useMinimalTenantOnboardingHeader && $canAccessPlatformConsole): ?>
+              <div class="platform-console-dropdown-block">
+                <a href="<?= portal_platform_url('spazi-clienti') ?>" class="btn btn-default btn-flat">
                   <i class="fa fa-sitemap"></i> Console piattaforma
                 </a>
               </div>
               <?php endif; ?>
-              <?php if ($canManageTenantUsers): ?>
-              <div style="padding:0 0 10px 0; margin-bottom:10px; border-bottom:1px solid #eee;">
-                <a href="<?= portal_tenant_space_url('utenti') ?>" class="btn btn-default btn-flat" style="width:100%; text-align:left;">
+              <?php if (!$useMinimalTenantOnboardingHeader && $canManageTenantUsers): ?>
+              <div class="platform-console-dropdown-block">
+                <a href="<?= portal_tenant_space_url('utenti') ?>" class="btn btn-default btn-flat">
                   <i class="fa fa-users"></i> Gestisci utenti dello spazio
                 </a>
               </div>
               <?php endif; ?>
-              <?php if ($canManageTenantFeatures): ?>
-              <div style="padding:0 0 10px 0; margin-bottom:10px; border-bottom:1px solid #eee;">
-                <a href="<?= portal_tenant_space_url('funzioni') ?>" class="btn btn-default btn-flat" style="width:100%; text-align:left;">
+              <?php if (!$useMinimalTenantOnboardingHeader && $canManageTenantFeatures): ?>
+              <div class="platform-console-dropdown-block">
+                <a href="<?= portal_tenant_space_url('funzioni') ?>" class="btn btn-default btn-flat">
                   <i class="fa fa-toggle-on"></i> Gestisci funzioni dello spazio
                 </a>
               </div>
               <?php endif; ?>
-              <?php if ($showTenantOnboardingLink): ?>
-              <div style="padding:0 0 10px 0; margin-bottom:10px; border-bottom:1px solid #eee;">
-                <a href="<?= portal_tenant_space_url('onboarding') ?>" class="btn btn-default btn-flat" style="width:100%; text-align:left;">
+              <?php if (!$useMinimalTenantOnboardingHeader && $showTenantOnboardingLink): ?>
+              <div class="platform-console-dropdown-block">
+                <a href="<?= portal_tenant_space_url('onboarding') ?>" class="btn btn-default btn-flat">
                   <i class="fa fa-check-square-o"></i> Completa onboarding spazio
                 </a>
               </div>
               <?php endif; ?>
-              <?php if (!$isPlatformConsoleSession): ?>
-              <div style="padding:0 0 10px 0; margin-bottom:10px; border-bottom:1px solid #eee;">
-                <label for="chatBrowserNotifyToggle" style="font-weight:600; cursor:pointer; margin:0;">
+              <?php if (!$useMinimalTenantOnboardingHeader && !$isPlatformConsoleSession): ?>
+              <div class="platform-console-dropdown-block">
+                <label for="chatBrowserNotifyToggle" class="platform-console-toggle-label">
                   <input type="checkbox" id="chatBrowserNotifyToggle" style="vertical-align:middle; margin-right:6px;">
                   Notifiche browser chat
                 </label>
-                <div style="font-size:12px; color:#777; margin-top:4px;">
+                <div class="platform-console-help-text">
                   Popup nel browser quando arrivano nuovi messaggi.
                 </div>
               </div>
               <?php endif; ?>
-              <?php if (!$isPlatformConsoleSession): ?>
-              <div class="pull-left">
-              <a href="<?= base_url('profilo') ?>" class="btn btn-default btn-flat">Profilo</a>
-              </div>
-              <?php endif; ?>
-              <div class="pull-right">
+              <div class="platform-console-user-actions<?= $isPlatformConsoleSession ? ' platform-console-user-actions-logout-only' : '' ?>">
+                <?php if (!$isPlatformConsoleSession): ?>
+                <a href="<?= base_url('profilo') ?>" class="btn btn-default btn-flat">Profilo</a>
+                <?php endif; ?>
                 <a href="<?= base_url('logout') ?>" class="btn btn-default btn-flat">Logout</a>
               </div>
             </li>

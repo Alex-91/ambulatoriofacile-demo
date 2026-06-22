@@ -196,11 +196,61 @@ body.platform-console-body .platform-console-user-trigger {
 body.platform-console-body .platform-console-user-name {
   white-space: nowrap;
   font-weight: 600;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 body.platform-console-body .platform-navbar-secondary .user-image {
   margin-top: 0;
   margin-right: 10px;
+}
+
+body.platform-console-body .platform-console-user-dropdown {
+  right: 0;
+  left: auto;
+  width: 360px;
+  min-width: 320px;
+  max-width: calc(100vw - 24px);
+  padding: 0;
+  background: #ffffff;
+}
+
+body.platform-console-body .platform-console-user-summary {
+  padding: 18px 20px 14px;
+  background: linear-gradient(180deg, #f5fbfc 0%, #edf6f7 100%);
+  border-bottom: 1px solid #deeaec;
+}
+
+body.platform-console-body .platform-console-user-summary .user-image {
+  float: none;
+  display: block;
+  width: 54px;
+  height: 54px;
+  margin: 0 auto 12px;
+  border-color: #dbe8eb;
+  background: #ffffff;
+}
+
+body.platform-console-body .platform-console-user-summary-text {
+  margin: 0;
+  color: #23363a;
+  font-size: 14px;
+  line-height: 1.5;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+body.platform-console-body .platform-console-user-summary-text small {
+  display: inline-block;
+  color: #5a747a;
+  font-size: 12px;
+}
+
+body.platform-console-body .platform-console-user-footer {
+  padding: 16px 18px 18px;
+  background: #ffffff;
 }
 
 body.platform-console-body .platform-console-nav-badge {
@@ -230,8 +280,14 @@ body.platform-console-body .platform-console-dropdown-action + .platform-console
 
 body.platform-console-body .platform-console-dropdown-action .btn,
 body.platform-console-body .platform-console-dropdown-block > .btn {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
   width: 100%;
+  padding: 12px 14px;
   text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 body.platform-console-body .platform-console-user-actions {
@@ -242,6 +298,34 @@ body.platform-console-body .platform-console-user-actions {
 
 body.platform-console-body .platform-console-user-actions .btn {
   flex: 1 1 auto;
+  white-space: normal;
+  text-align: center;
+}
+
+body.platform-console-body .platform-console-user-actions-logout-only .btn {
+  flex-basis: auto;
+}
+
+body.platform-console-body .platform-console-dropdown-current {
+  pointer-events: none;
+  opacity: 1;
+  background: #f4f9fa;
+  color: #44595e;
+}
+
+body.platform-console-body .platform-console-toggle-label {
+  display: block;
+  margin: 0;
+  color: #28474d;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+body.platform-console-body .platform-console-help-text {
+  margin-top: 4px;
+  color: #6a8186;
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 body.platform-console-body .platform-console-mobile-menu {
@@ -526,6 +610,19 @@ body.platform-console-body .table-responsive {
 
   body.platform-console-body .platform-navbar-primary .platform-navbar-links {
     gap: 8px;
+  }
+
+  body.platform-console-body .platform-console-user-dropdown {
+    min-width: 0;
+    width: min(360px, calc(100vw - 24px));
+  }
+
+  body.platform-console-body .platform-console-user-actions {
+    flex-direction: column;
+  }
+
+  body.platform-console-body .platform-console-user-actions .btn {
+    width: 100%;
   }
 
   body.platform-console-body .content-header,
