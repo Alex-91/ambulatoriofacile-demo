@@ -2,7 +2,7 @@
 <html>
   <head>
     <meta charset="UTF-8">
-    <title>AmbulatoriCLOUD | Agenda</title>
+    <title>AmbulatorioFacile | Agenda</title>
     <meta content='width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no' name='viewport'>
     <!-- Bootstrap 3.3.4 -->
     <link href="<?= base_url('public/bootstrap/css/bootstrap.min.css') ?>" rel="stylesheet" type="text/css" />
@@ -13,7 +13,7 @@
     <!-- fullCalendar 2.2.5 (lasciato come nel template) -->
     <link href="<?= base_url('public/plugins/fullcalendar/fullcalendar.min.css') ?>" rel="stylesheet" type="text/css" />
     <link href="<?= base_url('public/plugins/fullcalendar/fullcalendar.print.css') ?>" rel="stylesheet" type="text/css" media='print' />
-    <!-- AmbulatoriCLOUD theme -->
+    <!-- AmbulatorioFacile theme -->
     <link href="<?= base_url('public/dist/css/AdminLTE.css') ?>" rel="stylesheet" type="text/css" />
     <link href="<?= base_url('public/dist/css/skins/_all-skins.min.css') ?>" rel="stylesheet" type="text/css" />
     <!-- iCheck -->
@@ -256,7 +256,7 @@
 
       <footer class="main-footer">
         <div class="pull-right hidden-xs"><b>Version</b> 2.0</div>
-        <strong>Copyright &copy; AmbulatoriCLOUD.</strong> Tutti i diritti riservati.
+        <strong>Copyright &copy; AmbulatorioFacile.</strong> Tutti i diritti riservati.
       </footer>
 
       <aside class="control-sidebar control-sidebar-dark"></aside>

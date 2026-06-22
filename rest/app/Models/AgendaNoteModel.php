@@ -215,10 +215,36 @@ class AgendaNoteModel extends Model
 
     public function getNoteFatteByDoctorPaginate(int $idDot, int $perPage = 20, int $page = 1, string $searchTerm = ''): array
     {
+        return $this->getNoteFatteByDoctorsPaginate([$idDot], $perPage, $page, $searchTerm);
+    }
+
+    /**
+     * @param array<int, int|string> $idDots
+     * @return array<string, mixed>
+     */
+    public function getNoteFatteByDoctorsPaginate(array $idDots, int $perPage = 20, int $page = 1, string $searchTerm = ''): array
+    {
+        $normalizedIds = array_values(array_unique(array_filter(array_map(
+            static fn($value): int => (int) $value,
+            $idDots
+        ), static fn(int $id): bool => $id > 0)));
+
         $page = max(1, $page);
-        $offset = ($page - 1) * $perPage;
-        $searchTerm = trim((string)(preg_replace('/\s+/', ' ', $searchTerm) ?? ''));
+        $searchTerm = trim((string) (preg_replace('/\s+/', ' ', $searchTerm) ?? ''));
         $searchTokens = array_values(array_filter(preg_split('/\s+/', $searchTerm) ?: []));
+
+        if ($normalizedIds === []) {
+            return [
+                'rows' => [],
+                'total' => 0,
+                'page' => $page,
+                'perPage' => $perPage,
+                'lastPage' => 1,
+            ];
+        }
+
+        sort($normalizedIds);
+        $offset = ($page - 1) * $perPage;
 
         $builder = $this->db->table('dap15_agenda_note')
             ->select("
@@ -240,7 +266,7 @@ class AgendaNoteModel extends Model
                 updated_at
             ")
             ->join('dap01_users u_created', 'u_created.id_user = dap15_agenda_note.created_by', 'left')
-            ->where('id_dot', $idDot)
+            ->whereIn('id_dot', $normalizedIds)
             ->where('attiva', 1)
             ->where('fatta', 1);
 
@@ -252,17 +278,15 @@ class AgendaNoteModel extends Model
             $builder->groupEnd();
         }
 
-        $builder
-            ->orderBy('created_at', 'ASC')
-            ->orderBy('id_nota', 'ASC');
-
         $rows = $builder
+            ->orderBy('created_at', 'ASC')
+            ->orderBy('id_nota', 'ASC')
             ->limit($perPage, $offset)
             ->get()
             ->getResultArray();
 
         $countBuilder = $this->db->table('dap15_agenda_note')
-            ->where('id_dot', $idDot)
+            ->whereIn('id_dot', $normalizedIds)
             ->where('attiva', 1)
             ->where('fatta', 1);
 
@@ -277,11 +301,11 @@ class AgendaNoteModel extends Model
         $total = $countBuilder->countAllResults();
 
         return [
-            'rows'      => $rows,
-            'total'     => $total,
-            'page'      => $page,
-            'perPage'   => $perPage,
-            'lastPage'  => max(1, (int) ceil($total / $perPage)),
+            'rows' => $rows,
+            'total' => $total,
+            'page' => $page,
+            'perPage' => $perPage,
+            'lastPage' => max(1, (int) ceil($total / $perPage)),
         ];
     }
 
@@ -296,6 +320,39 @@ class AgendaNoteModel extends Model
             ->where('id_dot', $idDot)
             ->where('attiva', 1)
             ->where('fatta', 0)
+            ->orderBy('created_at', 'ASC')
+            ->orderBy('id_nota', 'ASC')
+            ->get()
+            ->getResultArray();
+    }
+
+    /**
+     * @param array<int, int|string> $idDots
+     * @return array<int, array<string, mixed>>
+     */
+    public function getNoteByDoctors(array $idDots): array
+    {
+        $normalizedIds = array_values(array_unique(array_filter(array_map(
+            static fn($value): int => (int) $value,
+            $idDots
+        ), static fn(int $id): bool => $id > 0)));
+
+        if ($normalizedIds === []) {
+            return [];
+        }
+
+        sort($normalizedIds);
+
+        return $this->db->table('dap15_agenda_note')
+            ->select("
+                dap15_agenda_note.*,
+                COALESCE(u_created.username, '') AS created_by_username
+            ")
+            ->join('dap01_users u_created', 'u_created.id_user = dap15_agenda_note.created_by', 'left')
+            ->whereIn('id_dot', $normalizedIds)
+            ->where('attiva', 1)
+            ->where('fatta', 0)
+            ->orderBy('data_inizio_validita', 'ASC')
             ->orderBy('created_at', 'ASC')
             ->orderBy('id_nota', 'ASC')
             ->get()

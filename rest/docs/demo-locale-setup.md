@@ -122,28 +122,28 @@ Nota pratica:
 
 Password comune demo:
 
-`Demo2026!`
+`Demo2026`
 
 Accessi principali:
 
 - admin diretto: `demo.admin`
-- operativo diretto con OTP fisso: `alessio2`
-- portale cliente demo: `demo.portal.med`
+- operativo diretto con OTP fisso: `demo.dietista`
+- portale cliente demo: `demo.portal.nutri`
 - portale cliente sport demo: `demo.portal.sport`
 
 OTP demo utile:
 
-- per `alessio2` il codice OTP e sempre `2510`
+- per `demo.dietista` il codice OTP e sempre `2510`
 
 Accesso impersonato demo:
 
-- `demo.admin->demo.frontdesk.med`
+- `demo.admin->demo.segreteria`
 - `demo.admin->demo.frontdesk.sport`
 - `demo.admin->demo.fisio1`
 
 Per questi accessi impersonati:
 
-- password: `Demo2026!`
+- password: `Demo2026`
 - OTP: `2510`
 
 Questo e utile per mostrare rapidamente flussi diversi senza dover configurare SMS o email reali.

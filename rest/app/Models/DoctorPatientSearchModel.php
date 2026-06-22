@@ -97,50 +97,74 @@ class DoctorPatientSearchModel extends Model
 
     public function listClientIdsForDoctor(int $legacyIdDot, string $term = ''): array
     {
-        if ($legacyIdDot <= 0 || !$this->tableExists()) {
+        return $this->listClientIdsForDoctors([$legacyIdDot], $term);
+    }
+
+    public function listClientIdsForDoctors(array $legacyIdDots, string $term = ''): array
+    {
+        $legacyIdDots = $this->normalizeLegacyDoctorIds($legacyIdDots);
+        if ($legacyIdDots === [] || !$this->tableExists()) {
             return [];
         }
 
         $term = trim($term);
         if ($term !== '') {
-            return $this->searchClientIdsForDoctor($legacyIdDot, $term, 500);
+            return $this->searchClientIdsForDoctors($legacyIdDots, $term, 500);
         }
+
+        [$doctorWhereSql, $doctorParams] = $this->buildDoctorWhereSql($legacyIdDots);
 
         $sqlWithIndex = "
             SELECT id_client
             FROM " . self::TABLE . " FORCE INDEX (idx_dps_cognome)
-            WHERE id_dot = ?
+            WHERE {$doctorWhereSql}
               AND {$this->buildVisibleIndexWhereSql()}
-            ORDER BY cognome_norm ASC, nome_norm ASC, id_client ASC
+            GROUP BY id_client
+            ORDER BY
+                CASE WHEN MAX(CASE WHEN COALESCE(paz_spec_norm, '') <> '' THEN 1 ELSE 0 END) = 1 THEN 0 ELSE 1 END,
+                MIN(cognome_norm) ASC,
+                MIN(nome_norm) ASC,
+                id_client ASC
         ";
 
         $sqlFallback = "
             SELECT id_client
             FROM " . self::TABLE . "
-            WHERE id_dot = ?
+            WHERE {$doctorWhereSql}
               AND {$this->buildVisibleIndexWhereSql()}
-            ORDER BY cognome_norm ASC, nome_norm ASC, id_client ASC
+            GROUP BY id_client
+            ORDER BY
+                CASE WHEN MAX(CASE WHEN COALESCE(paz_spec_norm, '') <> '' THEN 1 ELSE 0 END) = 1 THEN 0 ELSE 1 END,
+                MIN(cognome_norm) ASC,
+                MIN(nome_norm) ASC,
+                id_client ASC
         ";
 
         try {
-            $rows = $this->db->query($sqlWithIndex, [$legacyIdDot])->getResultArray();
+            $rows = $this->db->query($sqlWithIndex, $doctorParams)->getResultArray();
         } catch (\Throwable $e) {
             log_message('warning', 'DoctorPatientSearchModel list fallback without FORCE INDEX: ' . $e->getMessage());
-            $rows = $this->db->query($sqlFallback, [$legacyIdDot])->getResultArray();
+            $rows = $this->db->query($sqlFallback, $doctorParams)->getResultArray();
         }
 
-        return array_values(array_unique(array_map(
+        return array_values(array_filter(array_map(
             static fn(array $row): int => (int) ($row['id_client'] ?? 0),
             $rows
-        )));
+        ), static fn(int $id): bool => $id > 0));
     }
 
     public function paginateClientIdsForDoctor(int $legacyIdDot, string $term = '', int $page = 1, int $perPage = 20): array
     {
+        return $this->paginateClientIdsForDoctors([$legacyIdDot], $term, $page, $perPage);
+    }
+
+    public function paginateClientIdsForDoctors(array $legacyIdDots, string $term = '', int $page = 1, int $perPage = 20): array
+    {
         $page = max(1, $page);
         $perPage = max(1, min(100, $perPage));
 
-        if ($legacyIdDot <= 0 || !$this->tableExists()) {
+        $legacyIdDots = $this->normalizeLegacyDoctorIds($legacyIdDots);
+        if ($legacyIdDots === [] || !$this->tableExists()) {
             return [
                 'ids' => [],
                 'page' => 1,
@@ -155,7 +179,7 @@ class DoctorPatientSearchModel extends Model
         $term = trim($term);
         if ($term !== '') {
             $lookupLimit = min(5000, max(500, ($page * $perPage) + 400));
-            $ids = $this->searchClientIdsForDoctor($legacyIdDot, $term, $lookupLimit);
+            $ids = $this->searchClientIdsForDoctors($legacyIdDots, $term, $lookupLimit);
             $total = count($ids);
             $lastPage = max(1, (int) ceil($total / $perPage));
             $page = min($page, $lastPage);
@@ -173,25 +197,27 @@ class DoctorPatientSearchModel extends Model
             ];
         }
 
+        [$doctorWhereSql, $doctorParams] = $this->buildDoctorWhereSql($legacyIdDots);
+
         $countSqlWithIndex = "
-            SELECT COUNT(*) AS total
+            SELECT COUNT(DISTINCT id_client) AS total
             FROM " . self::TABLE . " FORCE INDEX (idx_dps_cognome)
-            WHERE id_dot = ?
+            WHERE {$doctorWhereSql}
               AND {$this->buildVisibleIndexWhereSql()}
         ";
 
         $countSqlFallback = "
-            SELECT COUNT(*) AS total
+            SELECT COUNT(DISTINCT id_client) AS total
             FROM " . self::TABLE . "
-            WHERE id_dot = ?
+            WHERE {$doctorWhereSql}
               AND {$this->buildVisibleIndexWhereSql()}
         ";
 
         try {
-            $countRow = $this->db->query($countSqlWithIndex, [$legacyIdDot])->getRowArray();
+            $countRow = $this->db->query($countSqlWithIndex, $doctorParams)->getRowArray();
         } catch (\Throwable $e) {
             log_message('warning', 'DoctorPatientSearchModel paginate count fallback without FORCE INDEX: ' . $e->getMessage());
-            $countRow = $this->db->query($countSqlFallback, [$legacyIdDot])->getRowArray();
+            $countRow = $this->db->query($countSqlFallback, $doctorParams)->getRowArray();
         }
 
         $total = (int) ($countRow['total'] ?? 0);
@@ -214,12 +240,13 @@ class DoctorPatientSearchModel extends Model
         $pageSqlWithIndex = "
             SELECT id_client
             FROM " . self::TABLE . " FORCE INDEX (idx_dps_cognome)
-            WHERE id_dot = ?
+            WHERE {$doctorWhereSql}
               AND {$this->buildVisibleIndexWhereSql()}
+            GROUP BY id_client
             ORDER BY
-                CASE WHEN COALESCE(paz_spec_norm, '') <> '' THEN 0 ELSE 1 END,
-                cognome_norm ASC,
-                nome_norm ASC,
+                CASE WHEN MAX(CASE WHEN COALESCE(paz_spec_norm, '') <> '' THEN 1 ELSE 0 END) = 1 THEN 0 ELSE 1 END,
+                MIN(cognome_norm) ASC,
+                MIN(nome_norm) ASC,
                 id_client ASC
             LIMIT {$perPage} OFFSET {$offset}
         ";
@@ -227,21 +254,22 @@ class DoctorPatientSearchModel extends Model
         $pageSqlFallback = "
             SELECT id_client
             FROM " . self::TABLE . "
-            WHERE id_dot = ?
+            WHERE {$doctorWhereSql}
               AND {$this->buildVisibleIndexWhereSql()}
+            GROUP BY id_client
             ORDER BY
-                CASE WHEN COALESCE(paz_spec_norm, '') <> '' THEN 0 ELSE 1 END,
-                cognome_norm ASC,
-                nome_norm ASC,
+                CASE WHEN MAX(CASE WHEN COALESCE(paz_spec_norm, '') <> '' THEN 1 ELSE 0 END) = 1 THEN 0 ELSE 1 END,
+                MIN(cognome_norm) ASC,
+                MIN(nome_norm) ASC,
                 id_client ASC
             LIMIT {$perPage} OFFSET {$offset}
         ";
 
         try {
-            $rows = $this->db->query($pageSqlWithIndex, [$legacyIdDot])->getResultArray();
+            $rows = $this->db->query($pageSqlWithIndex, $doctorParams)->getResultArray();
         } catch (\Throwable $e) {
             log_message('warning', 'DoctorPatientSearchModel paginate rows fallback without FORCE INDEX: ' . $e->getMessage());
-            $rows = $this->db->query($pageSqlFallback, [$legacyIdDot])->getResultArray();
+            $rows = $this->db->query($pageSqlFallback, $doctorParams)->getResultArray();
         }
 
         $ids = array_values(array_filter(array_map(
@@ -262,14 +290,22 @@ class DoctorPatientSearchModel extends Model
 
     public function hasVisibleClientForDoctor(int $legacyIdDot, int $idClient): bool
     {
-        if ($legacyIdDot <= 0 || $idClient <= 0 || !$this->tableExists()) {
+        return $this->hasVisibleClientForDoctors([$legacyIdDot], $idClient);
+    }
+
+    public function hasVisibleClientForDoctors(array $legacyIdDots, int $idClient): bool
+    {
+        $legacyIdDots = $this->normalizeLegacyDoctorIds($legacyIdDots);
+        if ($legacyIdDots === [] || $idClient <= 0 || !$this->tableExists()) {
             return false;
         }
+
+        [$doctorWhereSql, $doctorParams] = $this->buildDoctorWhereSql($legacyIdDots);
 
         $sqlWithIndex = "
             SELECT 1
             FROM " . self::TABLE . " FORCE INDEX (PRIMARY)
-            WHERE id_dot = ?
+            WHERE {$doctorWhereSql}
               AND id_client = ?
               AND {$this->buildVisibleIndexWhereSql()}
             LIMIT 1
@@ -278,20 +314,22 @@ class DoctorPatientSearchModel extends Model
         $sqlFallback = "
             SELECT 1
             FROM " . self::TABLE . "
-            WHERE id_dot = ?
+            WHERE {$doctorWhereSql}
               AND id_client = ?
               AND {$this->buildVisibleIndexWhereSql()}
             LIMIT 1
         ";
 
+        $params = array_merge($doctorParams, [$idClient]);
+
         try {
-            $row = $this->db->query($sqlWithIndex, [$legacyIdDot, $idClient])->getRowArray();
+            $row = $this->db->query($sqlWithIndex, $params)->getRowArray();
         } catch (\Throwable $e) {
             log_message('warning', 'DoctorPatientSearchModel visible client fallback without FORCE INDEX: ' . $e->getMessage(), [
-                'id_dot' => $legacyIdDot,
+                'id_dot' => implode(',', $legacyIdDots),
                 'id_client' => $idClient,
             ]);
-            $row = $this->db->query($sqlFallback, [$legacyIdDot, $idClient])->getRowArray();
+            $row = $this->db->query($sqlFallback, $params)->getRowArray();
         }
 
         return !empty($row);
@@ -299,7 +337,13 @@ class DoctorPatientSearchModel extends Model
 
     public function searchClientIdsForDoctor(int $legacyIdDot, string $term, int $limit = 20): array
     {
-        if ($legacyIdDot <= 0 || !$this->tableExists()) {
+        return $this->searchClientIdsForDoctors([$legacyIdDot], $term, $limit);
+    }
+
+    public function searchClientIdsForDoctors(array $legacyIdDots, string $term, int $limit = 20): array
+    {
+        $legacyIdDots = $this->normalizeLegacyDoctorIds($legacyIdDots);
+        if ($legacyIdDots === [] || !$this->tableExists()) {
             return [];
         }
 
@@ -316,20 +360,22 @@ class DoctorPatientSearchModel extends Model
         if ($phone !== '' && strlen($phone) >= 3) {
             $prefix = $phone . '%';
 
-            $this->appendIndexedMatches(
+            $this->appendIndexedMatchesForDoctors(
                 $matches,
+                $legacyIdDots,
                 'idx_dps_cell',
                 'cell_norm LIKE ?',
-                [$legacyIdDot, $prefix],
+                [$prefix],
                 'cell_norm ASC, id_client ASC',
                 $branchLimit
             );
 
-            $this->appendIndexedMatches(
+            $this->appendIndexedMatchesForDoctors(
                 $matches,
+                $legacyIdDots,
                 'idx_dps_tel',
                 'tel_norm LIKE ?',
-                [$legacyIdDot, $prefix],
+                [$prefix],
                 'tel_norm ASC, id_client ASC',
                 $branchLimit
             );
@@ -350,57 +396,63 @@ class DoctorPatientSearchModel extends Model
                 $email = $normalized . '%';
                 $cfPrefix = $cf !== '' ? $cf . '%' : $normalized . '%';
 
-                $this->appendIndexedMatches(
+                $this->appendIndexedMatchesForDoctors(
                     $matches,
+                    $legacyIdDots,
                     'idx_dps_cognome',
                     'cognome_norm LIKE ? AND nome_norm LIKE ?',
-                    [$legacyIdDot, $first, $second],
+                    [$first, $second],
                     'cognome_norm ASC, nome_norm ASC, id_client ASC',
                     $branchLimit
                 );
 
-                $this->appendIndexedMatches(
+                $this->appendIndexedMatchesForDoctors(
                     $matches,
+                    $legacyIdDots,
                     'idx_dps_nome',
                     'nome_norm LIKE ? AND cognome_norm LIKE ?',
-                    [$legacyIdDot, $first, $second],
+                    [$first, $second],
                     'nome_norm ASC, cognome_norm ASC, id_client ASC',
                     $branchLimit
                 );
 
-                $this->appendIndexedMatches(
+                $this->appendIndexedMatchesForDoctors(
                     $matches,
+                    $legacyIdDots,
                     'idx_dps_full',
                     'full_norm LIKE ?',
-                    [$legacyIdDot, $full],
+                    [$full],
                     'full_norm ASC, id_client ASC',
                     $branchLimit
                 );
 
-                $this->appendIndexedMatches(
+                $this->appendIndexedMatchesForDoctors(
                     $matches,
+                    $legacyIdDots,
                     'idx_dps_email',
                     'email_norm LIKE ?',
-                    [$legacyIdDot, $email],
+                    [$email],
                     'email_norm ASC, id_client ASC',
                     $branchLimit
                 );
 
-                $this->appendIndexedMatches(
+                $this->appendIndexedMatchesForDoctors(
                     $matches,
+                    $legacyIdDots,
                     'idx_dps_cf',
                     'cf_norm LIKE ?',
-                    [$legacyIdDot, $cfPrefix],
+                    [$cfPrefix],
                     'cf_norm ASC, id_client ASC',
                     $branchLimit
                 );
 
                 if ($this->hasPazSpecColumn()) {
-                    $this->appendIndexedMatches(
+                    $this->appendIndexedMatchesForDoctors(
                         $matches,
+                        $legacyIdDots,
                         'idx_dps_paz_spec',
                         'paz_spec_norm LIKE ?',
-                        [$legacyIdDot, $email],
+                        [$email],
                         'paz_spec_norm ASC, id_client ASC',
                         $branchLimit
                     );
@@ -409,57 +461,63 @@ class DoctorPatientSearchModel extends Model
                 $prefix = $normalized . '%';
                 $cfPrefix = $cf !== '' ? $cf . '%' : $prefix;
 
-                $this->appendIndexedMatches(
+                $this->appendIndexedMatchesForDoctors(
                     $matches,
+                    $legacyIdDots,
                     'idx_dps_cognome',
                     'cognome_norm LIKE ?',
-                    [$legacyIdDot, $prefix],
+                    [$prefix],
                     'cognome_norm ASC, nome_norm ASC, id_client ASC',
                     $branchLimit
                 );
 
-                $this->appendIndexedMatches(
+                $this->appendIndexedMatchesForDoctors(
                     $matches,
+                    $legacyIdDots,
                     'idx_dps_nome',
                     'nome_norm LIKE ?',
-                    [$legacyIdDot, $prefix],
+                    [$prefix],
                     'nome_norm ASC, cognome_norm ASC, id_client ASC',
                     $branchLimit
                 );
 
-                $this->appendIndexedMatches(
+                $this->appendIndexedMatchesForDoctors(
                     $matches,
+                    $legacyIdDots,
                     'idx_dps_full',
                     'full_norm LIKE ?',
-                    [$legacyIdDot, $prefix],
+                    [$prefix],
                     'full_norm ASC, id_client ASC',
                     $branchLimit
                 );
 
-                $this->appendIndexedMatches(
+                $this->appendIndexedMatchesForDoctors(
                     $matches,
+                    $legacyIdDots,
                     'idx_dps_email',
                     'email_norm LIKE ?',
-                    [$legacyIdDot, $prefix],
+                    [$prefix],
                     'email_norm ASC, id_client ASC',
                     $branchLimit
                 );
 
-                $this->appendIndexedMatches(
+                $this->appendIndexedMatchesForDoctors(
                     $matches,
+                    $legacyIdDots,
                     'idx_dps_cf',
                     'cf_norm LIKE ?',
-                    [$legacyIdDot, $cfPrefix],
+                    [$cfPrefix],
                     'cf_norm ASC, id_client ASC',
                     $branchLimit
                 );
 
                 if ($this->hasPazSpecColumn()) {
-                    $this->appendIndexedMatches(
+                    $this->appendIndexedMatchesForDoctors(
                         $matches,
+                        $legacyIdDots,
                         'idx_dps_paz_spec',
                         'paz_spec_norm LIKE ?',
-                        [$legacyIdDot, $prefix],
+                        [$prefix],
                         'paz_spec_norm ASC, id_client ASC',
                         $branchLimit
                     );
@@ -563,8 +621,9 @@ class DoctorPatientSearchModel extends Model
         return $this->pazSpecColumnExistsCache;
     }
 
-    private function appendIndexedMatches(
+    private function appendIndexedMatchesForDoctors(
         array &$matches,
+        array $legacyIdDots,
         string $indexName,
         string $whereSql,
         array $params,
@@ -572,31 +631,41 @@ class DoctorPatientSearchModel extends Model
         int $limit
     ): void
     {
+        $legacyIdDots = $this->normalizeLegacyDoctorIds($legacyIdDots);
+        if ($legacyIdDots === []) {
+            return;
+        }
+
+        [$doctorWhereSql, $doctorParams] = $this->buildDoctorWhereSql($legacyIdDots);
+        $effectiveLimit = max($limit, min(600, $limit * max(1, count($legacyIdDots))));
+
         $sql = "
             SELECT id_client, cognome_norm, nome_norm
             FROM " . self::TABLE . " FORCE INDEX ({$indexName})
-            WHERE id_dot = ?
+            WHERE {$doctorWhereSql}
               AND {$this->buildVisibleIndexWhereSql()}
               AND {$whereSql}
             ORDER BY {$orderBy}
-            LIMIT {$limit}
+            LIMIT {$effectiveLimit}
         ";
 
         $fallbackSql = "
             SELECT id_client, cognome_norm, nome_norm
             FROM " . self::TABLE . "
-            WHERE id_dot = ?
+            WHERE {$doctorWhereSql}
               AND {$this->buildVisibleIndexWhereSql()}
               AND {$whereSql}
             ORDER BY {$orderBy}
-            LIMIT {$limit}
+            LIMIT {$effectiveLimit}
         ";
 
+        $queryParams = array_merge($doctorParams, $params);
+
         try {
-            $rows = $this->db->query($sql, $params)->getResultArray();
+            $rows = $this->db->query($sql, $queryParams)->getResultArray();
         } catch (\Throwable $e) {
             log_message('warning', 'DoctorPatientSearchModel indexed search fallback without FORCE INDEX [' . $indexName . ']: ' . $e->getMessage());
-            $rows = $this->db->query($fallbackSql, $params)->getResultArray();
+            $rows = $this->db->query($fallbackSql, $queryParams)->getResultArray();
         }
 
         foreach ($rows as $row) {
@@ -611,6 +680,33 @@ class DoctorPatientSearchModel extends Model
                 'nome_norm'     => (string) ($row['nome_norm'] ?? ''),
             ];
         }
+    }
+
+    private function normalizeLegacyDoctorIds(array $legacyIdDots): array
+    {
+        $normalized = array_values(array_unique(array_filter(array_map(
+            static fn($value): int => (int) $value,
+            $legacyIdDots
+        ), static fn(int $id): bool => $id > 0)));
+
+        sort($normalized);
+
+        return $normalized;
+    }
+
+    /**
+     * @return array{0:string,1:array<int,int>}
+     */
+    private function buildDoctorWhereSql(array $legacyIdDots): array
+    {
+        $legacyIdDots = $this->normalizeLegacyDoctorIds($legacyIdDots);
+        if ($legacyIdDots === []) {
+            return ['1 = 0', []];
+        }
+
+        $placeholders = implode(',', array_fill(0, count($legacyIdDots), '?'));
+
+        return ['id_dot IN (' . $placeholders . ')', $legacyIdDots];
     }
 
     private function buildBulkRebuildQueries(): array

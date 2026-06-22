@@ -6,6 +6,8 @@ use CodeIgniter\Database\Migration;
 
 class CreatePlatformMultiTenantFoundation extends Migration
 {
+    protected $DBGroup = 'platform';
+
     public function up()
     {
         $this->createPlatformPackagesTable();

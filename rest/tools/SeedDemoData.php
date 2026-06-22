@@ -16,6 +16,8 @@ const DEMO_SEED_DEFAULT_PASSWORD = 'Demo2026';
 const DEMO_SEED_FORBIDDEN_DATABASES = ['farmacia', 'mail', 'mailsimo'];
 const DEMO_SEED_REPORT_DIR = __DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . 'writable' . DIRECTORY_SEPARATOR . 'demo_setup';
 const DEMO_SEED_LOCAL_DOCTOR_ID_BASE = 1000000000;
+const DEMO_SEED_AGENDA_START_DATE = '2026-06-01';
+const DEMO_SEED_AGENDA_END_DATE = '2026-06-30';
 
 main($argv ?? []);
 
@@ -89,8 +91,8 @@ function main(array $argv): void
         $report['accounts'] = buildAccountSummary($fixtures['staff'], $fixtures['clients']);
         $report['summary']['login_notes'] = [
             'admin_direct' => 'demo.admin / ' . $config['demo_password'],
-            'doctor_direct' => 'alessio2 / ' . $config['demo_password'] . ' / OTP 2510',
-            'impersonation' => 'demo.admin->demo.frontdesk.med / ' . $config['demo_password'] . ' / OTP 2510',
+            'doctor_direct' => 'demo.dietista / ' . $config['demo_password'] . ' / OTP 2510',
+            'impersonation' => 'demo.admin->demo.segreteria / ' . $config['demo_password'] . ' / OTP 2510',
         ];
 
         $path = writeReport($report);
@@ -99,7 +101,7 @@ function main(array $argv): void
         echo "Brand demo: {$config['brand']}\n";
         echo "Password demo comune: {$config['demo_password']}\n";
         echo "Account admin: demo.admin\n";
-        echo "Account operativo con OTP fisso: alessio2 (OTP 2510)\n";
+        echo "Account operativo con OTP fisso: demo.dietista (OTP 2510)\n";
         echo "Report: {$path}\n";
         exit(0);
     } catch (Throwable $e) {
@@ -616,8 +618,8 @@ function seedUserSchede(mysqli $db, array $state, array &$report): void
         $tipoUser = (int)($user['tipo_user'] ?? 0);
 
         $codes = match ($tipoUser) {
-            1, 2 => ['agenda', 'posta', 'chat', 'prenotazione_medico_famiglia', 'prenotazione_visita_specialistica'],
-            3 => ['posta', 'chat', 'prenotazione_medico_famiglia', 'prenotazione_visita_specialistica'],
+            1, 2 => ['agenda', 'posta', 'chat'],
+            3 => ['posta', 'chat'],
             default => [],
         };
 
@@ -705,7 +707,7 @@ function seedDoctorReminderFlags(mysqli $db, array &$state, array &$report): voi
 
 function seedAgenda(mysqli $db, array $agendaFixtures, array &$state, array &$report): void
 {
-    $businessDays = nextBusinessDays(3);
+    $businessDays = demoAgendaBusinessDays();
     $slotCount = 0;
     $appointmentCount = 0;
 
@@ -722,11 +724,14 @@ function seedAgenda(mysqli $db, array $agendaFixtures, array &$state, array &$re
         }
 
         foreach ($businessDays as $dayIndex => $date) {
-            $bookedSlots = (int)($fixture['booked_per_day'][$dayIndex] ?? 0);
-            $blockedSlotIndex = (int)($fixture['blocked_slot_index'][$dayIndex] ?? -1);
             $slotsPerDay = (int)$fixture['slots_per_day'];
+            $bookedSlots = min($slotsPerDay, agendaFixtureBookedSlotsForDay($fixture, $dayIndex, $date));
+            $blockedSlotIndex = agendaFixtureBlockedSlotIndexForDay($fixture, $dayIndex, $date);
+            if ($blockedSlotIndex >= $slotsPerDay) {
+                $blockedSlotIndex = -1;
+            }
             $duration = (int)$fixture['slot_minutes'];
-            $cursorTime = $fixture['start_times'][$dayIndex] ?? $fixture['start_times'][0];
+            $cursorTime = agendaFixtureStartTimeForDay($fixture, $dayIndex);
 
             for ($slotIndex = 0; $slotIndex < $slotsPerDay; $slotIndex++) {
                 $slotStart = date('Y-m-d H:i:s', strtotime($date . ' ' . $cursorTime));
@@ -790,6 +795,42 @@ function clientsForDoctor(array $clients, string $doctorKey): array
     }
 
     return $result;
+}
+
+function agendaFixtureStartTimeForDay(array $fixture, int $dayIndex): string
+{
+    $startTimes = is_array($fixture['start_times'] ?? null) ? $fixture['start_times'] : [];
+    $selected = $startTimes[$dayIndex] ?? $startTimes[0] ?? '09:00:00';
+
+    return is_string($selected) && $selected !== '' ? $selected : '09:00:00';
+}
+
+function agendaFixtureBookedSlotsForDay(array $fixture, int $dayIndex, string $date): int
+{
+    if (isset($fixture['booked_per_day'][$dayIndex])) {
+        return max(0, (int)$fixture['booked_per_day'][$dayIndex]);
+    }
+
+    $dayOfWeek = (int)date('N', strtotime($date));
+    $recurring = is_array($fixture['recurring_booked_per_weekday'] ?? null)
+        ? $fixture['recurring_booked_per_weekday']
+        : [];
+
+    return max(0, (int)($recurring[$dayOfWeek] ?? 0));
+}
+
+function agendaFixtureBlockedSlotIndexForDay(array $fixture, int $dayIndex, string $date): int
+{
+    if (isset($fixture['blocked_slot_index'][$dayIndex])) {
+        return (int)$fixture['blocked_slot_index'][$dayIndex];
+    }
+
+    $dayOfWeek = (int)date('N', strtotime($date));
+    $recurring = is_array($fixture['recurring_blocked_slot_index_by_weekday'] ?? null)
+        ? $fixture['recurring_blocked_slot_index_by_weekday']
+        : [];
+
+    return (int)($recurring[$dayOfWeek] ?? -1);
 }
 
 function insertAgendaSlot(
@@ -1271,6 +1312,27 @@ function nextBusinessDays(int $count): array
     return $days;
 }
 
+function businessDaysInRange(string $startDate, string $endDate): array
+{
+    $days = [];
+    $cursor = strtotime($startDate);
+    $end = strtotime($endDate);
+
+    while ($cursor !== false && $end !== false && $cursor <= $end) {
+        if ((int)date('N', $cursor) <= 5) {
+            $days[] = date('Y-m-d', $cursor);
+        }
+        $cursor = strtotime('+1 day', $cursor);
+    }
+
+    return $days;
+}
+
+function demoAgendaBusinessDays(): array
+{
+    return businessDaysInRange(DEMO_SEED_AGENDA_START_DATE, DEMO_SEED_AGENDA_END_DATE);
+}
+
 function buildAccountSummary(array $staffFixtures, array $clientFixtures): array
 {
     $accounts = [];
@@ -1301,18 +1363,18 @@ function buildAccountSummary(array $staffFixtures, array $clientFixtures): array
 
 function buildFixtures(string $demoPassword): array
 {
-    $futureDays = nextBusinessDays(3);
+    $futureDays = demoAgendaBusinessDays();
     $clients = [
-        clientFixture('medical_01', 'Laura', 'Bianchi', 'medical_gp', 61001, 'Controllo pressione e terapia', 'laura.bianchi@example.test', '3477001001', '0217001001', 'Via Solari 12', 'Milano', 'MI', 'BNCLRA80A41F205A', 'demo.portal.med', $demoPassword),
-        clientFixture('medical_02', 'Marco', 'Conti', 'medical_gp', 61002, 'Follow up diabete', 'marco.conti@example.test', '3477001002', '0217001002', 'Via Savona 24', 'Milano', 'MI', 'CNTMRC79B12F205B'),
-        clientFixture('medical_03', 'Sara', 'Rinaldi', 'medical_gp', 61003, 'Controllo esami annuali', 'sara.rinaldi@example.test', '3477001003', '0217001003', 'Via Foppa 7', 'Milano', 'MI', 'RNLSRA84C53F205C'),
-        clientFixture('medical_04', 'Paolo', 'Gatti', 'medical_gp', 61004, 'Valutazione terapia cronica', 'paolo.gatti@example.test', '3477001004', '0217001004', 'Viale Coni Zugna 81', 'Milano', 'MI', 'GTTPLA76D14F205D'),
-        clientFixture('medical_05', 'Elena', 'Neri', 'medical_gp', 61005, 'Richiesta rinnovo prescrizione', 'elena.neri@example.test', '3477001005', '0217001005', 'Via Tortona 48', 'Milano', 'MI', 'NRELEN88E55F205E'),
-        clientFixture('medical_06', 'Giorgio', 'Villa', 'medical_gp', 61006, 'Verifica pressione domiciliare', 'giorgio.villa@example.test', '3477001006', '0217001006', 'Via Savona 110', 'Milano', 'MI', 'VLLGRG73F16F205F'),
-        clientFixture('medical_07', 'Anna', 'Ferri', 'medical_cardio', 61007, 'ECG di controllo', 'anna.ferri@example.test', '3477001007', '0217001007', 'Via Pacini 30', 'Milano', 'MI', 'FRRNNA82G57F205G'),
-        clientFixture('medical_08', 'Davide', 'Greco', 'medical_cardio', 61008, 'Prima visita cardiologica', 'davide.greco@example.test', '3477001008', '0217001008', 'Via Ampere 72', 'Milano', 'MI', 'GRCDVD77H18F205H'),
-        clientFixture('medical_09', 'Marta', 'Leone', 'medical_cardio', 61009, 'Controllo post holter', 'marta.leone@example.test', '3477001009', '0217001009', 'Via Vallazze 15', 'Milano', 'MI', 'LNEMRT81I59F205I'),
-        clientFixture('medical_10', 'Stefano', 'Pini', 'medical_cardio', 61010, 'Valutazione idoneita sportiva', 'stefano.pini@example.test', '3477001010', '0217001010', 'Via Bassini 19', 'Milano', 'MI', 'PNISFN75L20F205L'),
+        clientFixture('nutrition_01', 'Laura', 'Bianchi', 'nutrition_lead', 61001, 'Prima visita nutrizionale dimagrimento', 'laura.bianchi@example.test', '3477001001', '0217001001', 'Via Solari 12', 'Milano', 'MI', 'BNCLRA80A41F205A', 'demo.portal.nutri', $demoPassword),
+        clientFixture('nutrition_02', 'Marco', 'Conti', 'nutrition_lead', 61002, 'Controllo piano alimentare e aderenza', 'marco.conti@example.test', '3477001002', '0217001002', 'Via Savona 24', 'Milano', 'MI', 'CNTMRC79B12F205B'),
+        clientFixture('nutrition_03', 'Sara', 'Rinaldi', 'nutrition_lead', 61003, 'Follow up insulino-resistenza', 'sara.rinaldi@example.test', '3477001003', '0217001003', 'Via Foppa 7', 'Milano', 'MI', 'RNLSRA84C53F205C'),
+        clientFixture('nutrition_04', 'Paolo', 'Gatti', 'nutrition_lead', 61004, 'Educazione alimentare colon irritabile', 'paolo.gatti@example.test', '3477001004', '0217001004', 'Viale Coni Zugna 81', 'Milano', 'MI', 'GTTPLA76D14F205D'),
+        clientFixture('nutrition_05', 'Elena', 'Neri', 'nutrition_lead', 61005, 'Ricomposizione corporea e monitoraggio', 'elena.neri@example.test', '3477001005', '0217001005', 'Via Tortona 48', 'Milano', 'MI', 'NRELEN88E55F205E'),
+        clientFixture('nutrition_06', 'Giulia', 'Pellegrini', 'nutrition_lead', 61006, 'Consulenza nutrizionale post partum', 'giulia.pellegrini@example.test', '3477001006', '0217001006', 'Via Savona 110', 'Milano', 'MI', 'PLLGLI88F16F205F'),
+        clientFixture('nutrition_07', 'Chiara', 'Marini', 'nutrition_collab', 61007, 'Bioimpedenziometria e follow up sportivo', 'chiara.marini@example.test', '3477001007', '0217001007', 'Via Arena 5', 'Milano', 'MI', 'MRNCHR93A41F205M'),
+        clientFixture('nutrition_08', 'Davide', 'Greco', 'nutrition_collab', 61008, 'Revisione diario alimentare', 'davide.greco@example.test', '3477001008', '0217001008', 'Via Ampere 72', 'Milano', 'MI', 'GRCDVD77H18F205H'),
+        clientFixture('nutrition_09', 'Marta', 'Leone', 'nutrition_collab', 61009, 'Nutrizione vegetariana e integrazione', 'marta.leone@example.test', '3477001009', '0217001009', 'Via Vallazze 15', 'Milano', 'MI', 'LNEMRT81I59F205I'),
+        clientFixture('nutrition_10', 'Stefano', 'Pini', 'nutrition_collab', 61010, 'Aumento massa muscolare', 'stefano.pini@example.test', '3477001010', '0217001010', 'Via Bassini 19', 'Milano', 'MI', 'PNISFN75L20F205L'),
         clientFixture('sport_01', 'Chiara', 'Marini', 'sport_physio_1', 62001, 'Recupero caviglia post distorsione', 'chiara.marini@example.test', '3477002001', '0288002001', 'Via Arena 5', 'Milano', 'MI', 'MRNCHR93A41F205M', 'demo.portal.sport', $demoPassword),
         clientFixture('sport_02', 'Luca', 'Serra', 'sport_physio_1', 62002, 'Valutazione ritorno alla corsa', 'luca.serra@example.test', '3477002002', '0288002002', 'Via Procaccini 22', 'Milano', 'MI', 'SRRLCU91B12F205N'),
         clientFixture('sport_03', 'Federica', 'Longhi', 'sport_physio_1', 62003, 'Trattamento cervicale sportivo', 'federica.longhi@example.test', '3477002003', '0288002003', 'Via Piero della Francesca 47', 'Milano', 'MI', 'LNGFRC90C53F205O'),
@@ -1333,45 +1395,60 @@ function buildFixtures(string $demoPassword): array
             'tipo_user' => 1,
             'tipo_personale' => 4,
             'first_name' => 'Giulia',
-            'last_name' => 'Admin',
-            'qualifica' => 'Amministrazione',
+            'last_name' => 'Conti',
+            'qualifica' => 'Admin demo',
             'email' => 'admin.demo@example.test',
             'phone' => '3477100000',
-            'group_key' => 'medical_navigli',
+            'group_key' => 'nutrition_studio',
             'legacy_dot_tipo_id' => 0,
             'f_dom' => 0,
         ],
         [
-            'key' => 'medical_gp',
-            'username' => 'alessio2',
+            'key' => 'nutrition_lead',
+            'username' => 'demo.dietista',
             'password' => $demoPassword,
             'tipo_user' => 2,
             'tipo_personale' => 1,
-            'first_name' => 'Alessio',
-            'last_name' => 'Verdi',
-            'qualifica' => 'Dott.',
-            'email' => 'alessio.verdi@example.test',
+            'first_name' => 'Elena',
+            'last_name' => 'Rossi',
+            'qualifica' => 'Dietista',
+            'email' => 'elena.rossi@example.test',
             'phone' => '3477100001',
-            'group_key' => 'medical_navigli',
-            'legacy_dot_tipo_id' => 1,
-            'f_dom' => 1,
-            'titolare' => 1,
-        ],
-        [
-            'key' => 'medical_cardio',
-            'username' => 'demo.cardiologia',
-            'password' => $demoPassword,
-            'tipo_user' => 2,
-            'tipo_personale' => 1,
-            'first_name' => 'Elisa',
-            'last_name' => 'Carli',
-            'qualifica' => 'Dr.ssa Cardiologia',
-            'email' => 'elisa.carli@example.test',
-            'phone' => '3477100002',
-            'group_key' => 'medical_cittastudi',
+            'group_key' => 'nutrition_studio',
             'legacy_dot_tipo_id' => 2,
             'f_dom' => 0,
             'titolare' => 1,
+        ],
+        [
+            'key' => 'nutrition_collab',
+            'username' => 'demo.nutrizionista',
+            'password' => $demoPassword,
+            'tipo_user' => 2,
+            'tipo_personale' => 1,
+            'first_name' => 'Marta',
+            'last_name' => 'Riva',
+            'qualifica' => 'Biologa nutrizionista',
+            'email' => 'marta.riva@example.test',
+            'phone' => '3477100002',
+            'group_key' => 'nutrition_studio',
+            'legacy_dot_tipo_id' => 2,
+            'f_dom' => 0,
+            'titolare' => 1,
+        ],
+        [
+            'key' => 'frontdesk_nutri',
+            'username' => 'demo.segreteria',
+            'password' => $demoPassword,
+            'tipo_user' => 2,
+            'tipo_personale' => 3,
+            'first_name' => 'Sara',
+            'last_name' => 'Colombo',
+            'qualifica' => 'Segreteria',
+            'email' => 'segreteria.nutri@example.test',
+            'phone' => '3477100003',
+            'group_key' => 'nutrition_studio',
+            'legacy_dot_tipo_id' => 0,
+            'f_dom' => 0,
         ],
         [
             'key' => 'sport_physio_1',
@@ -1383,7 +1460,7 @@ function buildFixtures(string $demoPassword): array
             'last_name' => 'Riva',
             'qualifica' => 'Fisioterapista',
             'email' => 'marco.riva@example.test',
-            'phone' => '3477100003',
+            'phone' => '3477100004',
             'group_key' => 'sport_centro',
             'legacy_dot_tipo_id' => 2,
             'f_dom' => 0,
@@ -1399,41 +1476,11 @@ function buildFixtures(string $demoPassword): array
             'last_name' => 'Pace',
             'qualifica' => 'Osteopata',
             'email' => 'lorenzo.pace@example.test',
-            'phone' => '3477100004',
+            'phone' => '3477100005',
             'group_key' => 'sport_centro',
             'legacy_dot_tipo_id' => 2,
             'f_dom' => 0,
             'titolare' => 1,
-        ],
-        [
-            'key' => 'frontdesk_med',
-            'username' => 'demo.frontdesk.med',
-            'password' => $demoPassword,
-            'tipo_user' => 2,
-            'tipo_personale' => 3,
-            'first_name' => 'Sara',
-            'last_name' => 'Colombo',
-            'qualifica' => 'Front office',
-            'email' => 'frontdesk.med@example.test',
-            'phone' => '3477100005',
-            'group_key' => 'medical_navigli',
-            'legacy_dot_tipo_id' => 0,
-            'f_dom' => 0,
-        ],
-        [
-            'key' => 'nurse_med',
-            'username' => 'demo.nurse.med',
-            'password' => $demoPassword,
-            'tipo_user' => 2,
-            'tipo_personale' => 2,
-            'first_name' => 'Chiara',
-            'last_name' => 'Mele',
-            'qualifica' => 'Infermiera',
-            'email' => 'nurse.med@example.test',
-            'phone' => '3477100006',
-            'group_key' => 'medical_navigli',
-            'legacy_dot_tipo_id' => 0,
-            'f_dom' => 0,
         ],
         [
             'key' => 'frontdesk_sport',
@@ -1445,7 +1492,7 @@ function buildFixtures(string $demoPassword): array
             'last_name' => 'Sala',
             'qualifica' => 'Coordinamento',
             'email' => 'frontdesk.sport@example.test',
-            'phone' => '3477100007',
+            'phone' => '3477100006',
             'group_key' => 'sport_centro',
             'legacy_dot_tipo_id' => 0,
             'f_dom' => 0,
@@ -1454,33 +1501,21 @@ function buildFixtures(string $demoPassword): array
 
     return [
         'groups' => [
-            ['key' => 'medical_navigli', 'name' => 'Aurora Navigli'],
-            ['key' => 'medical_cittastudi', 'name' => 'Aurora Citta Studi'],
+            ['key' => 'nutrition_studio', 'name' => 'Studio Nutrizione Equilibrio'],
             ['key' => 'sport_centro', 'name' => 'SportLab Arena'],
         ],
         'locations' => [
             [
-                'key' => 'aurora_navigli',
+                'key' => 'nutrition_equilibrio',
                 'amb_id' => 101,
-                'name' => 'Aurora Navigli',
+                'name' => 'Studio Nutrizione Equilibrio',
                 'address' => 'Via Tortona 42',
                 'city' => 'Milano',
                 'phone' => '0211000101',
                 'rooms' => [
-                    ['key' => 'navigli_visita_1', 'name' => 'Visita 1', 'order' => 1],
-                    ['key' => 'navigli_visita_2', 'name' => 'Visita 2', 'order' => 2],
-                ],
-            ],
-            [
-                'key' => 'aurora_cittastudi',
-                'amb_id' => 102,
-                'name' => 'Aurora Citta Studi',
-                'address' => 'Via Ampere 89',
-                'city' => 'Milano',
-                'phone' => '0211000102',
-                'rooms' => [
-                    ['key' => 'cittastudi_cardio', 'name' => 'Cardio', 'order' => 1],
-                    ['key' => 'cittastudi_ecg', 'name' => 'ECG', 'order' => 2],
+                    ['key' => 'nutri_visita_1', 'name' => 'Visita 1', 'order' => 1],
+                    ['key' => 'nutri_visita_2', 'name' => 'Visita 2', 'order' => 2],
+                    ['key' => 'nutri_bia', 'name' => 'Bioimpedenziometria', 'order' => 3],
                 ],
             ],
             [
@@ -1502,13 +1537,8 @@ function buildFixtures(string $demoPassword): array
         'staff_links' => [
             [
                 'type' => 'segreteria',
-                'staff_key' => 'frontdesk_med',
-                'doctor_keys' => ['medical_gp', 'medical_cardio'],
-            ],
-            [
-                'type' => 'infermiere',
-                'staff_key' => 'nurse_med',
-                'doctor_keys' => ['medical_gp'],
+                'staff_key' => 'frontdesk_nutri',
+                'doctor_keys' => ['nutrition_lead', 'nutrition_collab'],
             ],
             [
                 'type' => 'segreteria',
@@ -1518,54 +1548,58 @@ function buildFixtures(string $demoPassword): array
         ],
         'agenda' => [
             [
-                'doctor_key' => 'medical_gp',
-                'room_key' => 'navigli_visita_1',
-                'slots_per_day' => 7,
+                'doctor_key' => 'nutrition_lead',
+                'room_key' => 'nutri_visita_1',
+                'slots_per_day' => 9,
                 'slot_minutes' => 30,
                 'start_times' => ['09:00:00', '09:00:00', '09:00:00'],
-                'booked_per_day' => [6, 4, 0],
-                'blocked_slot_index' => [6, -1, -1],
-                'visit_reasons' => ['Controllo periodico', 'Follow up terapia', 'Visita rapida', 'Valutazione esami'],
+                'booked_per_day' => [6, 5, 1],
+                'blocked_slot_index' => [-1, -1, -1],
+                'recurring_booked_per_weekday' => [1 => 5, 2 => 4, 3 => 4, 4 => 3, 5 => 2],
+                'visit_reasons' => ['Prima visita nutrizionale', 'Controllo piano alimentare', 'Follow up composizione corporea', 'Revisione esami e diario alimentare'],
             ],
             [
-                'doctor_key' => 'medical_cardio',
-                'room_key' => 'cittastudi_cardio',
-                'slots_per_day' => 6,
-                'slot_minutes' => 40,
+                'doctor_key' => 'nutrition_collab',
+                'room_key' => 'nutri_bia',
+                'slots_per_day' => 7,
+                'slot_minutes' => 45,
                 'start_times' => ['14:00:00', '14:00:00', '14:00:00'],
-                'booked_per_day' => [5, 3, 0],
-                'blocked_slot_index' => [-1, 5, -1],
-                'visit_reasons' => ['ECG', 'Controllo holter', 'Prima visita cardio', 'Referto visita'],
+                'booked_per_day' => [4, 4, 0],
+                'blocked_slot_index' => [-1, -1, -1],
+                'recurring_booked_per_weekday' => [1 => 3, 2 => 3, 3 => 2, 4 => 3, 5 => 1],
+                'visit_reasons' => ['Bioimpedenziometria', 'Educazione alimentare', 'Controllo sportivo', 'Revisione diario alimentare'],
             ],
             [
                 'doctor_key' => 'sport_physio_1',
                 'room_key' => 'sport_terapia_1',
-                'slots_per_day' => 6,
+                'slots_per_day' => 7,
                 'slot_minutes' => 45,
                 'start_times' => ['08:30:00', '08:30:00', '08:30:00'],
                 'booked_per_day' => [5, 4, 1],
                 'blocked_slot_index' => [-1, -1, -1],
+                'recurring_booked_per_weekday' => [1 => 4, 2 => 3, 3 => 3, 4 => 4, 5 => 2],
                 'visit_reasons' => ['Seduta fisioterapia', 'Recupero caviglia', 'Valutazione postura', 'Mobilita articolare'],
             ],
             [
                 'doctor_key' => 'sport_physio_2',
                 'room_key' => 'sport_terapia_2',
-                'slots_per_day' => 6,
+                'slots_per_day' => 7,
                 'slot_minutes' => 45,
                 'start_times' => ['14:15:00', '14:15:00', '14:15:00'],
                 'booked_per_day' => [4, 3, 0],
-                'blocked_slot_index' => [5, -1, -1],
+                'blocked_slot_index' => [-1, -1, -1],
+                'recurring_booked_per_weekday' => [1 => 3, 2 => 2, 3 => 2, 4 => 3, 5 => 1],
                 'visit_reasons' => ['Seduta osteopatica', 'Recupero schiena', 'Trattamento spalla', 'Valutazione funzionale'],
             ],
         ],
         'home_visits' => [
             [
-                'doctor_key' => 'medical_gp',
-                'client_key' => 'medical_06',
+                'doctor_key' => 'nutrition_lead',
+                'client_key' => 'nutrition_06',
                 'date' => $futureDays[1],
                 'address' => 'Via Savona 110',
                 'city' => 'Milano',
-                'note' => 'Controllo domiciliare paziente cronico demo',
+                'note' => 'Consulenza nutrizionale domiciliare demo',
                 'legacy_id_vis' => 71001,
             ],
         ],
@@ -1574,29 +1608,29 @@ function buildFixtures(string $demoPassword): array
                 'thread_type' => 'group',
                 'group_key_prefix' => 'segreteria',
                 'title' => 'Segreteria',
-                'member_staff_keys' => ['medical_gp', 'frontdesk_med'],
+                'member_staff_keys' => ['nutrition_lead', 'frontdesk_nutri'],
                 'messages' => [
-                    ['sender_key' => 'frontdesk_med', 'body' => 'Ho confermato la visita di Laura Bianchi per domani mattina.', 'created_at' => $futureDays[0] . ' 08:15:00'],
-                    ['sender_key' => 'medical_gp', 'body' => 'Perfetto, tieni libero anche uno slot breve per un controllo rapido.', 'created_at' => $futureDays[0] . ' 08:19:00'],
-                    ['sender_key' => 'frontdesk_med', 'body' => 'Ricevuto, blocco l ultimo spazio da 30 minuti.', 'created_at' => $futureDays[0] . ' 08:26:00'],
+                    ['sender_key' => 'frontdesk_nutri', 'body' => 'Ho confermato la prima visita di Laura Bianchi per domani mattina e le ho ricordato di portare gli esami.', 'created_at' => $futureDays[0] . ' 08:15:00'],
+                    ['sender_key' => 'nutrition_lead', 'body' => 'Perfetto, tieni liberi anche gli ultimi slot prima di pranzo per nuovi inserimenti.', 'created_at' => $futureDays[0] . ' 08:19:00'],
+                    ['sender_key' => 'frontdesk_nutri', 'body' => 'Ricevuto, lascio due spazi da 30 minuti disponibili per prenotazioni rapide.', 'created_at' => $futureDays[0] . ' 08:26:00'],
                 ],
                 'read_state' => [
-                    'medical_gp' => $futureDays[0] . ' 08:19:30',
-                    'frontdesk_med' => $futureDays[0] . ' 08:30:00',
+                    'nutrition_lead' => $futureDays[0] . ' 08:19:30',
+                    'frontdesk_nutri' => $futureDays[0] . ' 08:30:00',
                 ],
             ],
             [
                 'thread_type' => 'group',
-                'group_key_prefix' => 'infermieri',
-                'title' => 'Infermieri',
-                'member_staff_keys' => ['medical_gp', 'nurse_med'],
+                'group_key_prefix' => 'segreteria',
+                'title' => 'Segreteria',
+                'member_staff_keys' => ['nutrition_collab', 'frontdesk_nutri'],
                 'messages' => [
-                    ['sender_key' => 'nurse_med', 'body' => 'Ho caricato i parametri del paziente domiciliare nel promemoria interno.', 'created_at' => $futureDays[0] . ' 08:40:00'],
-                    ['sender_key' => 'medical_gp', 'body' => 'Perfetto, lo controllo prima di uscire per la visita.', 'created_at' => $futureDays[0] . ' 08:47:00'],
+                    ['sender_key' => 'frontdesk_nutri', 'body' => 'Chiara Marini chiede se puo anticipare la bioimpedenziometria di 15 minuti.', 'created_at' => $futureDays[0] . ' 08:40:00'],
+                    ['sender_key' => 'nutrition_collab', 'body' => 'Va bene, anticipiamola e lasciamo la stanza libera per il controllo successivo.', 'created_at' => $futureDays[0] . ' 08:47:00'],
                 ],
                 'read_state' => [
-                    'medical_gp' => $futureDays[0] . ' 08:50:00',
-                    'nurse_med' => $futureDays[0] . ' 08:50:00',
+                    'nutrition_collab' => $futureDays[0] . ' 08:50:00',
+                    'frontdesk_nutri' => $futureDays[0] . ' 08:50:00',
                 ],
             ],
             [
@@ -1616,17 +1650,17 @@ function buildFixtures(string $demoPassword): array
         ],
         'posta_threads' => [
             [
-                'client_key' => 'medical_01',
-                'doctor_key' => 'medical_gp',
+                'client_key' => 'nutrition_01',
+                'doctor_key' => 'nutrition_lead',
                 'messages' => [
                     [
                         'sender' => 'patient',
-                        'body' => 'Buongiorno, posso anticipare il controllo di domani di trenta minuti?',
+                        'body' => 'Buongiorno, per la prima visita devo portare anche gli esami del sangue e venire digiuna?',
                         'created_at' => $futureDays[0] . ' 09:10:00',
                     ],
                     [
                         'sender' => 'doctor',
-                        'body' => 'Si, ti facciamo trovare lo slot delle 09:30 gia confermato.',
+                        'body' => 'Porta pure gli esami e il diario alimentare degli ultimi giorni. Non serve venire digiuna.',
                         'created_at' => $futureDays[0] . ' 09:22:00',
                     ],
                 ],
@@ -1634,17 +1668,22 @@ function buildFixtures(string $demoPassword): array
                 'mark_doctor_read' => false,
             ],
             [
-                'client_key' => 'medical_08',
-                'doctor_key' => 'medical_cardio',
+                'client_key' => 'nutrition_08',
+                'doctor_key' => 'nutrition_collab',
                 'messages' => [
                     [
                         'sender' => 'patient',
-                        'body' => 'Ho caricato gli esami del sangue e vorrei sapere se portarli stampati.',
+                        'body' => 'Ho caricato il diario alimentare del weekend. Va bene se domani aggiungiamo anche la bioimpedenziometria?',
                         'created_at' => $futureDays[0] . ' 10:05:00',
                     ],
+                    [
+                        'sender' => 'doctor',
+                        'body' => 'Si, lo inserisco nello stesso appuntamento cosi facciamo la revisione completa.',
+                        'created_at' => $futureDays[0] . ' 10:19:00',
+                    ],
                 ],
-                'mark_patient_read' => true,
-                'mark_doctor_read' => false,
+                'mark_patient_read' => false,
+                'mark_doctor_read' => true,
             ],
             [
                 'client_key' => 'sport_02',

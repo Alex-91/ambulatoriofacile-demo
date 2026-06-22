@@ -176,7 +176,7 @@ function renderWebUsage(): void
 <body>
     <div class="box">
         <h1>Sync visibilita legacy -> dap14_seg_dot / dap15_inf_dot</h1>
-        <p>Questo step legge i permessi legacy dalla tabella <code>far10_vis_dot</code> del DB che indichi tu in <code>source-db</code> e importa in modo additivo solo i link compatibili con <code>ambulatori.cloud</code>.</p>
+        <p>Questo step legge i permessi legacy dalla tabella <code>far10_vis_dot</code> del DB che indichi tu in <code>source-db</code> e importa in modo additivo solo i link compatibili con <code>ambulatoriofacile.it</code>.</p>
         <p>Lo script non usa piu nessun database legacy in modo implicito: <code>source-db</code> va indicato esplicitamente solo per una migrazione una tantum.</p>
         <p>Non cancella nulla da <code>mail</code>. I log e i report vengono salvati in <code>writable/dap_visibility_sync</code>.</p>
     </div>

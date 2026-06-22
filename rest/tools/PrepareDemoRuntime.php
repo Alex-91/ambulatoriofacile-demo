@@ -152,9 +152,17 @@ function assertPathIsInsideProject(string $projectRoot, string $path): void
 
 function assertDestinationIsSafe(string $projectRoot, string $dest): void
 {
-    $allowedBase = normalizePath($projectRoot . DIRECTORY_SEPARATOR . 'dist' . DIRECTORY_SEPARATOR . 'demo-runtime');
-    if ($dest !== $allowedBase && !str_starts_with($dest . DIRECTORY_SEPARATOR, $allowedBase . DIRECTORY_SEPARATOR)) {
-        throw new RuntimeException('La runtime demo puo essere generata solo dentro dist/demo-runtime.');
+    $distRoot = normalizePath($projectRoot . DIRECTORY_SEPARATOR . 'dist') . DIRECTORY_SEPARATOR;
+    $dest = normalizePath($dest);
+
+    if (!str_starts_with($dest . DIRECTORY_SEPARATOR, $distRoot)) {
+        throw new RuntimeException('La runtime demo deve rimanere dentro dist/.');
+    }
+
+    $relative = substr($dest, strlen($distRoot));
+    $firstSegment = strtok(str_replace('\\', '/', $relative), '/');
+    if (!is_string($firstSegment) || !str_starts_with($firstSegment, 'demo-runtime')) {
+        throw new RuntimeException('La runtime demo puo essere generata solo in cartelle dist/demo-runtime*.');
     }
 }
 
@@ -310,8 +318,22 @@ function copyExternalWebAssets(string $root, string $dest, array &$report): void
     }
 
     $directoryCopies = [
-        $parentRoot . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . 'assets' . DIRECTORY_SEPARATOR . 'fontawesome'
-            => $dest . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . 'assets' . DIRECTORY_SEPARATOR . 'fontawesome',
+        $parentRoot . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . 'assets'
+            => $dest . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . 'assets',
+        $parentRoot . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . 'bootstrap'
+            => $dest . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . 'bootstrap',
+        $parentRoot . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . 'css'
+            => $dest . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . 'css',
+        $parentRoot . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . 'dist'
+            => $dest . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . 'dist',
+        $parentRoot . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . 'js'
+            => $dest . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . 'js',
+        $parentRoot . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . 'plugins'
+            => $dest . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . 'plugins',
+        $parentRoot . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . 'sounds'
+            => $dest . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . 'sounds',
+        $parentRoot . DIRECTORY_SEPARATOR . 'js'
+            => $dest . DIRECTORY_SEPARATOR . 'js',
         $parentRoot . DIRECTORY_SEPARATOR . 'icons'
             => $dest . DIRECTORY_SEPARATOR . 'icons',
     ];
@@ -325,29 +347,8 @@ function copyExternalWebAssets(string $root, string $dest, array &$report): void
         $report['copied'][] = ['type' => 'dir', 'from' => $from, 'to' => $to];
     }
 
-    $fileCopies = [
-        $parentRoot . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . 'assets' . DIRECTORY_SEPARATOR . 'css' . DIRECTORY_SEPARATOR . 'login.css'
-            => $dest . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . 'assets' . DIRECTORY_SEPARATOR . 'css' . DIRECTORY_SEPARATOR . 'login.css',
-        $parentRoot . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . 'assets' . DIRECTORY_SEPARATOR . 'js' . DIRECTORY_SEPARATOR . 'jquery.min.js'
-            => $dest . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . 'assets' . DIRECTORY_SEPARATOR . 'js' . DIRECTORY_SEPARATOR . 'jquery.min.js',
-        $parentRoot . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . 'assets' . DIRECTORY_SEPARATOR . 'images' . DIRECTORY_SEPARATOR . 'logonew.jpg'
-            => $dest . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . 'assets' . DIRECTORY_SEPARATOR . 'images' . DIRECTORY_SEPARATOR . 'logonew.jpg',
-        $parentRoot . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . 'assets' . DIRECTORY_SEPARATOR . 'images' . DIRECTORY_SEPARATOR . 'logonew.png'
-            => $dest . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . 'assets' . DIRECTORY_SEPARATOR . 'images' . DIRECTORY_SEPARATOR . 'logonew.png',
-    ];
-
-    foreach ($fileCopies as $from => $to) {
-        if (!is_file($from)) {
-            continue;
-        }
-
-        ensureDirectory(dirname($to));
-        if (!copy($from, $to)) {
-            throw new RuntimeException('Impossibile copiare il file asset esterno: ' . $from);
-        }
-
-        $report['copied'][] = ['type' => 'file', 'from' => $from, 'to' => $to];
-    }
+    // The demo runtime reuses the legacy frontend shell, so it needs the full
+    // shared asset tree from the workspace root instead of a handful of files.
 }
 
 function rewriteRuntimeRoutes(string $dest, array &$report): void
@@ -362,14 +363,17 @@ function rewriteRuntimeRoutes(string $dest, array &$report): void
         throw new RuntimeException('Impossibile leggere Routes.php della runtime demo.');
     }
 
-    $updated = str_replace(
-        "\$routes->get('/', 'Home::index');",
-        "\$routes->get('/', 'DemoController::index');",
-        $content
-    );
+    $demoRoot = "\$routes->get('/', 'DemoController::index');";
+    $appRoot = "\$routes->get('/', 'Home::index');";
 
-    if ($updated === $content) {
-        throw new RuntimeException('Non sono riuscito a riscrivere la route root della runtime demo.');
+    if (str_contains($content, $demoRoot)) {
+        $updated = str_replace($demoRoot, $appRoot, $content);
+    } else {
+        $updated = $content;
+    }
+
+    if (!str_contains($updated, $appRoot)) {
+        throw new RuntimeException('Non sono riuscito a normalizzare la route root della runtime demo.');
     }
 
     if (file_put_contents($routesPath, $updated) === false) {

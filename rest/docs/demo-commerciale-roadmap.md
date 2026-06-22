@@ -137,10 +137,9 @@ Da mostrare:
 
 ### Branding
 
-Da neutralizzare in seguito:
+Da mantenere coerente:
 
-- `AMBULATORI.Cloud`
-- `AmbulatoriCLOUD`
+- `AmbulatorioFacile`
 - descrizioni PWA e notifiche
 - oggetti email e testi OTP
 

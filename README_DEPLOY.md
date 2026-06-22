@@ -133,7 +133,7 @@ Per il portale reale con login unico su root dominio usa questa logica:
 2. `app.baseURL=https://ambulatoriofacile.it/app/`
 3. `APP_CANONICAL_URL=https://ambulatoriofacile.it/app/`
 4. `APP_PUBLIC_ACCESS_BASE_URL=https://ambulatoriofacile.it/`
-5. `PLATFORM_MASTER_EMAILS=tuamail@dominio.it,amico@dominio.it`
+5. `PLATFORM_MASTER_EMAILS=tuamail@dominio.it,amico@dominio.it` solo se vuoi tenere un seed/bootstrap tecnico da Coolify per i master piattaforma
 6. domini Coolify della app reale:
    `https://ambulatoriofacile.it/login,https://ambulatoriofacile.it/app`
 

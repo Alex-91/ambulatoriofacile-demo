@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= esc($brandName) ?> Demo Showcase</title>
+    <title><?= esc($brandName) ?> Demo</title>
     <meta name="description" content="<?= esc($brandDescription) ?>">
-    <link rel="stylesheet" href="<?= base_url('public/assets/css/demo-showcase.css') ?>">
+    <link rel="stylesheet" href="<?= base_url('rest/public/assets/css/demo-showcase.css') ?>">
 </head>
 <body>
 <div class="demo-shell">
@@ -14,73 +14,59 @@
 
     <main class="demo-page">
         <section class="hero-card">
-            <p class="eyebrow">Demo commerciale separata</p>
+            <p class="eyebrow">Demo unica</p>
             <h1><?= esc($brandName) ?></h1>
             <p class="hero-copy">
                 <?= esc($brandDescription) ?>
-                <?php if ($showLocalAccess): ?>
-                    La demo locale usa dati finti, database dedicato e una runtime separata dalla farmacia.
-                <?php else: ?>
-                    Due percorsi verticali gia pronti per una presentazione commerciale guidata, costruiti per mostrare valore operativo senza esporre dati reali.
-                <?php endif; ?>
+                La demo e una sola, usa dati separati dalla produzione e porta sempre allo stesso login operativo del prodotto.
+            </p>
+            <p class="hero-copy hero-copy-secondary">
+                Il sito vetrina resta commerciale, la demo serve a provare il prodotto con account di test, mentre clienti e master entrano sempre dal login ufficiale.
             </p>
             <div class="hero-actions">
-                <a class="btn btn-primary" href="<?= site_url('demo/vertical/medical') ?>">Apri percorso medical</a>
-                <a class="btn btn-secondary" href="<?= site_url('demo/vertical/sport-rehab') ?>">Apri percorso sport rehab</a>
-                <a class="btn btn-secondary" href="<?= site_url('demo/richiesta') ?>">Richiedi demo guidata</a>
+                <a class="btn btn-primary" href="<?= esc((string) ($demoCredentials['demo_access_url'] ?? site_url('access'))) ?>">Apri la demo</a>
+                <a class="btn btn-secondary" href="<?= esc((string) ($demoCredentials['official_login_url'] ?? site_url('login'))) ?>">Login ufficiale</a>
+                <a class="btn btn-secondary" href="<?= esc((string) ($demoCredentials['demo_request_url'] ?? site_url('richiesta'))) ?>">Richiedi demo guidata</a>
             </div>
         </section>
 
         <section class="panel">
             <div class="panel-head">
-                <p class="eyebrow">Verticali scelti</p>
-                <h2>Dove il prodotto e gia forte e vendibile</h2>
+                <p class="eyebrow">Tre strade ordinate</p>
+                <h2>Cosa vede il cliente e cosa usate voi</h2>
             </div>
-            <div class="profile-grid">
-                <?php foreach ($profiles as $index => $profile): ?>
-                    <article class="profile-card" style="--delay: <?= (int) $index ?>">
-                        <p class="profile-kicker"><?= esc((string) ($profile['profile_id'] ?? 'vertical')) ?></p>
-                        <h3><?= esc((string) ($profile['label'] ?? 'Profilo')) ?></h3>
-                        <p class="profile-positioning"><?= esc((string) ($profile['positioning'] ?? '')) ?></p>
+            <div class="feature-grid">
+                <article class="detail-card feature-card">
+                    <p class="status-label">Vetrina</p>
+                    <h3>ambulatoriofacile.it</h3>
+                    <p class="access-note">Resta il sito pubblico di presentazione, senza account di lavoro e senza percorsi tecnici.</p>
+                </article>
+                <article class="detail-card feature-card">
+                    <p class="status-label">Demo</p>
+                    <h3>Un solo percorso prova</h3>
+                    <p class="access-note">Da qui si entra nella demo con account test gia pronti, password comune e dati finti separati dalla produzione.</p>
+                </article>
+                <article class="detail-card feature-card">
+                    <p class="status-label">Produzione</p>
+                    <h3>Login unico sotto /login</h3>
+                    <p class="access-note">Master piattaforma, tenant master e clienti reali usano sempre lo stesso ingresso ufficiale.</p>
+                </article>
+            </div>
+        </section>
 
-                        <?php $audience = (array) ($profile['audience'] ?? []); ?>
-                        <?php if ($audience !== []): ?>
-                            <div class="chip-row">
-                                <?php foreach ($audience as $segment): ?>
-                                    <span class="chip"><?= esc((string) $segment) ?></span>
-                                <?php endforeach; ?>
-                            </div>
-                        <?php endif; ?>
-
-                        <div class="metrics">
-                            <?php foreach ((array) ($profile['demo_entities'] ?? []) as $key => $value): ?>
-                                <div class="metric">
-                                    <span class="metric-value"><?= esc((string) $value) ?></span>
-                                    <span class="metric-label"><?= esc(str_replace('_', ' ', (string) $key)) ?></span>
-                                </div>
-                            <?php endforeach; ?>
-                        </div>
-
-                        <div class="split-list">
-                            <div>
-                                <h4>Storyline demo</h4>
-                                <ul>
-                                    <?php foreach ((array) ($profile['demo_storylines'] ?? []) as $story): ?>
-                                        <li><?= esc((string) $story) ?></li>
-                                    <?php endforeach; ?>
-                                </ul>
-                            </div>
-                            <div>
-                                <h4>Moduli valorizzati</h4>
-                                <ul>
-                                    <?php foreach ((array) ($profile['modules'] ?? []) as $module): ?>
-                                        <li><?= esc((string) $module) ?></li>
-                                    <?php endforeach; ?>
-                                </ul>
-                            </div>
-                        </div>
-                        <div class="card-actions">
-                            <a class="btn btn-secondary btn-inline" href="<?= esc((string) ($profileLinks[(string) ($profile['profile_id'] ?? '')] ?? site_url('demo'))) ?>">Apri percorso guidato</a>
+        <section class="panel">
+            <div class="panel-head">
+                <p class="eyebrow">Ordine di prova</p>
+                <h2>Come testare la demo senza perderti pezzi</h2>
+            </div>
+            <div class="flow-grid">
+                <?php foreach ((array) ($demoChecklist ?? []) as $index => $item): ?>
+                    <article class="flow-card">
+                        <div class="flow-index"><?= esc((string) ($index + 1)) ?></div>
+                        <div class="flow-body">
+                            <h3><?= esc((string) ($item['title'] ?? 'Passo demo')) ?></h3>
+                            <p class="access-note">Entra con <strong><?= esc((string) ($item['username'] ?? '')) ?></strong></p>
+                            <p class="access-note"><?= esc((string) ($item['goal'] ?? '')) ?></p>
                         </div>
                     </article>
                 <?php endforeach; ?>
@@ -89,8 +75,8 @@
 
         <section class="panel">
             <div class="panel-head">
-                <p class="eyebrow">Perche entra adesso</p>
-                <h2>Cosa rende il prodotto gia vendibile</h2>
+                <p class="eyebrow">Valore prodotto</p>
+                <h2>Cosa conviene far emergere durante la prova</h2>
             </div>
             <div class="feature-grid">
                 <?php foreach ((array) ($commercialHighlights ?? []) as $item): ?>
@@ -105,8 +91,8 @@
 
         <section class="panel">
             <div class="panel-head">
-                <p class="eyebrow">Packaging commerciale</p>
-                <h2>Come proporlo senza stravolgere il core</h2>
+                <p class="eyebrow">Pacchetti</p>
+                <h2>Come presentarlo in modo semplice</h2>
             </div>
             <div class="package-grid">
                 <?php foreach ((array) ($commercialPackages ?? []) as $package): ?>
@@ -128,68 +114,70 @@
         <section class="panel panel-status">
             <div class="panel-head">
                 <p class="eyebrow">Stato demo</p>
-                <h2>Base separata pronta per la commercializzazione</h2>
+                <h2>Base separata pronta per essere provata</h2>
             </div>
             <div class="status-grid">
                 <article class="status-card">
                     <p class="status-label">Database demo</p>
                     <h3><?= esc((string) ($seedStatus['database'] ?? 'dottorapp_demo')) ?></h3>
                     <p class="status-note">Seed piu recente: <?= esc((string) ($seedStatus['finished_at'] ?: 'non disponibile')) ?></p>
-                    <ul class="status-list">
-                        <?php foreach (array_slice((array) ($seedStatus['counts'] ?? []), 0, 8, true) as $key => $value): ?>
-                            <li><strong><?= esc(str_replace('_', ' ', (string) $key)) ?>:</strong> <?= esc((string) (is_array($value) ? json_encode($value) : $value)) ?></li>
-                        <?php endforeach; ?>
-                    </ul>
                 </article>
-
                 <article class="status-card">
                     <p class="status-label">Runtime separata</p>
                     <h3><?= esc((string) strtoupper((string) ($runtimeStatus['status'] ?? 'missing'))) ?></h3>
                     <p class="status-note">Ultimo build: <?= esc((string) ($runtimeStatus['finished_at'] ?: 'non disponibile')) ?></p>
                     <p class="status-note">Path: <span class="path-text"><?= esc((string) ($runtimeStatus['destination'] ?? '')) ?></span></p>
-                    <p class="status-note">Asset legacy mancanti rilevati: <?= esc((string) ($runtimeStatus['missing_assets'] ?? 0)) ?></p>
                 </article>
             </div>
-
-            <?php if (! empty($runtimeStatus['missing_assets_summary'])): ?>
-                <div class="summary-strip">
-                    <?php foreach ((array) $runtimeStatus['missing_assets_summary'] as $bucket): ?>
-                        <div class="summary-pill">
-                            <span><?= esc((string) ($bucket['bucket'] ?? 'bucket')) ?></span>
-                            <strong><?= esc((string) ($bucket['count'] ?? 0)) ?></strong>
-                        </div>
-                    <?php endforeach; ?>
-                </div>
-            <?php endif; ?>
-
-            <?php if (! empty($runtimeStatus['notes'])): ?>
-                <div class="note-box">
-                    <?php foreach ((array) $runtimeStatus['notes'] as $note): ?>
-                        <p><?= esc((string) $note) ?></p>
-                    <?php endforeach; ?>
-                </div>
-            <?php endif; ?>
         </section>
         <?php endif; ?>
 
-        <?php if ($showLocalAccess): ?>
-            <section class="panel panel-access">
-                <div class="panel-head">
-                    <p class="eyebrow">Accessi locali</p>
-                    <h2>Solo per la demo interna su localhost</h2>
+        <section class="panel panel-access">
+            <div class="panel-head">
+                <p class="eyebrow">Account demo</p>
+                <h2>Lista pronta per provare tutto</h2>
+            </div>
+            <div class="note-box">
+                <p>Password demo comune: <strong><?= esc((string) ($demoCredentials['password'] ?? 'Demo2026')) ?></strong></p>
+                <p>Quando un account o un alias richiede OTP, usa sempre <strong><?= esc((string) ($demoCredentials['otp'] ?? '2510')) ?></strong>.</p>
+                <p>Tutti gli account qui sotto aprono lo stesso form di accesso sotto <strong>/login</strong>.</p>
+            </div>
+
+            <?php foreach ((array) ($demoAccountGroups ?? []) as $group): ?>
+                <div class="account-section">
+                    <div class="account-section-head">
+                        <p class="status-label"><?= esc((string) ($group['title'] ?? 'Account demo')) ?></p>
+                        <p class="access-note"><?= esc((string) ($group['note'] ?? '')) ?></p>
+                    </div>
+                    <div class="access-grid access-grid-wide">
+                        <?php foreach ((array) ($group['accounts'] ?? []) as $account): ?>
+                            <article class="access-card">
+                                <div class="access-card-topline">
+                                    <p class="status-label"><?= esc((string) ($account['role'] ?? 'Account demo')) ?></p>
+                                    <?php if ((string) ($account['otp'] ?? '') !== ''): ?>
+                                        <span class="status-pill status-pill-warning">OTP <?= esc((string) $account['otp']) ?></span>
+                                    <?php endif; ?>
+                                </div>
+                                <h3><?= esc((string) ($account['username'] ?? '')) ?></h3>
+                                <p class="access-note"><?= esc((string) ($account['label'] ?? '')) ?></p>
+                                <p class="access-note"><?= esc((string) ($account['note'] ?? '')) ?></p>
+                                <p class="access-secret">Password: <strong><?= esc((string) ($account['password'] ?? '')) ?></strong></p>
+                                <?php if (!empty($account['scenarios']) && is_array($account['scenarios'])): ?>
+                                    <div class="chip-row">
+                                        <?php foreach ($account['scenarios'] as $scenario): ?>
+                                            <span class="chip"><?= esc((string) $scenario) ?></span>
+                                        <?php endforeach; ?>
+                                    </div>
+                                <?php endif; ?>
+                                <div class="card-actions">
+                                    <a class="btn btn-secondary btn-inline" href="<?= esc((string) ($account['login_url'] ?? ($demoCredentials['login_url'] ?? site_url('login')))) ?>">Apri /login precompilato</a>
+                                </div>
+                            </article>
+                        <?php endforeach; ?>
+                    </div>
                 </div>
-                <div class="access-grid">
-                    <?php foreach ($demoAccounts as $account): ?>
-                        <article class="access-card">
-                            <p class="status-label"><?= esc($account['role']) ?></p>
-                            <h3><?= esc($account['username']) ?></h3>
-                            <p class="access-secret">Password: <strong><?= esc($account['password']) ?></strong></p>
-                            <p class="access-note"><?= esc($account['note']) ?></p>
-                        </article>
-                    <?php endforeach; ?>
-                </div>
-            </section>
-        <?php endif; ?>
+            <?php endforeach; ?>
+        </section>
     </main>
 </div>
 </body>

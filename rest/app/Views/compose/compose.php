@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <?php $brandName = 'AmbulatoriCLOUD'; ?>
+  <?php $brandName = 'AmbulatorioFacile'; ?>
   <title><?= esc($brandName) ?> | Scrivi messaggio</title>
   <link rel="icon" href="<?= base_url('public/assets/images/logonew.jpg') ?>" type="image/x-icon" sizes="any">
   <meta content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" name="viewport">

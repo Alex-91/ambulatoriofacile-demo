@@ -55,12 +55,38 @@ class TenantInfrastructureProvisioningService
                 $templateMode = $this->provisionTemplate($adminConnection, $resolvedTenant);
             }
 
-            $migrationsApplied = $this->runTenantMigrations($resolvedTenant);
-            $appUsersSynced = $this->tenantAppUsers->syncTenantMembers($tenantId, true);
-            $directories = $this->tenantProvisioning->prepareLocalDirectories(
-                (string) ($resolvedTenant['tenant_key'] ?? ''),
-                (string) ($resolvedTenant['storage_key'] ?? '')
-            );
+            try {
+                $migrationsApplied = $this->runTenantMigrations($resolvedTenant);
+            } catch (\Throwable $e) {
+                throw new \RuntimeException(
+                    'Migrazioni tenant fallite in ' . basename((string) $e->getFile()) . ':' . (int) $e->getLine() . ' - ' . $e->getMessage(),
+                    0,
+                    $e
+                );
+            }
+
+            try {
+                $appUsersSynced = $this->tenantAppUsers->syncTenantMembers($tenantId, true);
+            } catch (\Throwable $e) {
+                throw new \RuntimeException(
+                    'Sincronizzazione utenti tenant fallita in ' . basename((string) $e->getFile()) . ':' . (int) $e->getLine() . ' - ' . $e->getMessage(),
+                    0,
+                    $e
+                );
+            }
+
+            try {
+                $directories = $this->tenantProvisioning->prepareLocalDirectories(
+                    (string) ($resolvedTenant['tenant_key'] ?? ''),
+                    (string) ($resolvedTenant['storage_key'] ?? '')
+                );
+            } catch (\Throwable $e) {
+                throw new \RuntimeException(
+                    'Preparazione cartelle tenant fallita in ' . basename((string) $e->getFile()) . ':' . (int) $e->getLine() . ' - ' . $e->getMessage(),
+                    0,
+                    $e
+                );
+            }
 
             $metadata = $this->decodeMetadata((string) ($resolvedTenant['metadata_json'] ?? ''));
             $metadata['provisioning'] = [

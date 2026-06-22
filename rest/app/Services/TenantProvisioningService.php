@@ -4,11 +4,14 @@ namespace App\Services;
 
 use App\Models\PlatformFeaturesModel;
 use App\Models\PlatformPackagesModel;
+use App\Models\PlatformTenantFeaturePreferencesModel;
 use App\Models\PlatformTenantFeaturesModel;
 use App\Models\PlatformTenantsModel;
 use App\Models\PlatformUsersModel;
 use App\Models\PlatformUserTenantsModel;
+use Config\Database as DatabaseConfig;
 use Config\Database;
+use mysqli;
 
 class TenantProvisioningService
 {
@@ -19,6 +22,7 @@ class TenantProvisioningService
     private PlatformUserTenantsModel $membershipsModel;
     private PlatformFeaturesModel $featuresModel;
     private PlatformTenantFeaturesModel $tenantFeaturesModel;
+    private PlatformTenantFeaturePreferencesModel $tenantFeaturePreferencesModel;
 
     public function __construct()
     {
@@ -29,6 +33,7 @@ class TenantProvisioningService
         $this->membershipsModel = new PlatformUserTenantsModel();
         $this->featuresModel = new PlatformFeaturesModel();
         $this->tenantFeaturesModel = new PlatformTenantFeaturesModel();
+        $this->tenantFeaturePreferencesModel = new PlatformTenantFeaturePreferencesModel();
     }
 
     /**
@@ -51,6 +56,91 @@ class TenantProvisioningService
         }
 
         return $this->saveTenantInternal($tenantId, $payload);
+    }
+
+    /**
+     * @param array<string, mixed> $options
+     * @return array<string, mixed>
+     */
+    public function deleteTenant(int $tenantId, array $options = []): array
+    {
+        if ($tenantId <= 0) {
+            throw new \InvalidArgumentException('Tenant non valido.');
+        }
+
+        $tenant = $this->tenantsModel->find($tenantId);
+        if (!$tenant) {
+            throw new \RuntimeException('Spazio cliente non trovato.');
+        }
+
+        $normalizedOptions = [
+            'drop_database' => !empty($options['drop_database']),
+            'delete_directories' => !empty($options['delete_directories']),
+            'delete_tokens' => array_key_exists('delete_tokens', $options) ? !empty($options['delete_tokens']) : true,
+        ];
+
+        $resolvedTenant = (new TenantInfrastructureProvisioningService())->resolveDatabaseDefaults($tenant);
+        $cleanup = [
+            'database_dropped' => false,
+            'deleted_paths' => [],
+            'tokens_deleted' => 0,
+        ];
+
+        if ($normalizedOptions['drop_database']) {
+            $cleanup['database_dropped'] = $this->dropTenantDatabase($resolvedTenant);
+        }
+
+        if ($normalizedOptions['delete_directories']) {
+            $cleanup['deleted_paths'] = $this->deleteTenantDirectories($resolvedTenant);
+        }
+
+        $this->db->transBegin();
+
+        try {
+            if ($normalizedOptions['delete_tokens'] && $this->db->tableExists('platform_user_access_tokens')) {
+                $this->db->table('platform_user_access_tokens')
+                    ->where('id_tenant', $tenantId)
+                    ->delete();
+                $cleanup['tokens_deleted'] = max(0, (int) $this->db->affectedRows());
+            }
+
+            if ($this->db->tableExists('platform_tenant_feature_preferences')) {
+                $this->tenantFeaturePreferencesModel
+                    ->where('id_tenant', $tenantId)
+                    ->delete();
+            }
+
+            if ($this->db->tableExists('platform_tenant_features')) {
+                $this->tenantFeaturesModel
+                    ->where('id_tenant', $tenantId)
+                    ->delete();
+            }
+
+            if ($this->db->tableExists('platform_user_tenants')) {
+                $this->membershipsModel
+                    ->where('id_tenant', $tenantId)
+                    ->delete();
+            }
+
+            if ($this->tenantsModel->delete($tenantId) === false) {
+                throw new \RuntimeException('Eliminazione dello spazio cliente non riuscita.');
+            }
+
+            if (!$this->db->transStatus()) {
+                throw new \RuntimeException('Eliminazione dello spazio cliente non riuscita.');
+            }
+
+            $this->db->transCommit();
+        } catch (\Throwable $e) {
+            $this->db->transRollback();
+            throw $e;
+        }
+
+        return [
+            'tenant' => $tenant,
+            'options' => $normalizedOptions,
+            'cleanup' => $cleanup,
+        ];
     }
 
     /**
@@ -718,5 +808,185 @@ class TenantProvisioningService
     private function projectRoot(): string
     {
         return dirname(rtrim(APPPATH, DIRECTORY_SEPARATOR), 2);
+    }
+
+    /**
+     * @param array<string, mixed> $tenant
+     * @return array<int, string>
+     */
+    private function deleteTenantDirectories(array $tenant): array
+    {
+        $runtime = $this->buildRuntimeBlueprint($tenant);
+        $storageKey = trim((string) ($runtime['storage_key'] ?? ''));
+        if ($storageKey === '') {
+            throw new \RuntimeException('Storage key tenant non valido per la pulizia cartelle.');
+        }
+
+        $paths = [
+            (string) ($runtime['upload_path'] ?? ''),
+            (string) ($runtime['writable_path'] ?? ''),
+        ];
+
+        $deleted = [];
+        foreach ($paths as $path) {
+            $path = trim($path);
+            if ($path === '' || !file_exists($path)) {
+                continue;
+            }
+
+            $this->assertSafeTenantPath($path, $storageKey);
+            $this->removeDirectoryTree($path);
+            $deleted[] = $path;
+        }
+
+        return $deleted;
+    }
+
+    /**
+     * @param array<string, mixed> $tenant
+     */
+    private function dropTenantDatabase(array $tenant): bool
+    {
+        $databaseName = trim((string) ($tenant['db_name'] ?? ''));
+        if ($databaseName === '') {
+            return false;
+        }
+
+        $mysqli = $this->connectAdminMysql($tenant);
+        try {
+            $exists = $this->queryMysqlValue($mysqli, "
+                SELECT SCHEMA_NAME
+                FROM information_schema.SCHEMATA
+                WHERE SCHEMA_NAME = '" . $mysqli->real_escape_string($databaseName) . "'
+                LIMIT 1
+            ");
+
+            if ($exists === null) {
+                return false;
+            }
+
+            if (!$mysqli->query('DROP DATABASE ' . $this->escapeMysqlIdentifier($databaseName))) {
+                throw new \RuntimeException('Drop database tenant non riuscito: ' . $mysqli->error);
+            }
+
+            return true;
+        } finally {
+            $mysqli->close();
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $tenant
+     */
+    private function connectAdminMysql(array $tenant): mysqli
+    {
+        $databaseConfig = new DatabaseConfig();
+        $platform = $databaseConfig->platform;
+
+        $host = $this->envValue('tenant.provisioning.adminHost', 'TENANT_PROVISIONING_ADMIN_HOST', (string) ($tenant['db_host'] ?? $platform['hostname'] ?? 'localhost'));
+        $port = (int) $this->envValue('tenant.provisioning.adminPort', 'TENANT_PROVISIONING_ADMIN_PORT', (string) ($tenant['db_port'] ?? $platform['port'] ?? 3306));
+        $user = $this->envValue('tenant.provisioning.adminUsername', 'TENANT_PROVISIONING_ADMIN_USERNAME', (string) ($platform['username'] ?? ''));
+        $password = $this->envValue('tenant.provisioning.adminPassword', 'TENANT_PROVISIONING_ADMIN_PASSWORD', (string) ($platform['password'] ?? ''));
+
+        if ($host === '' || $user === '') {
+            throw new \RuntimeException('Configurazione admin MySQL mancante per il reset del tenant.');
+        }
+
+        $mysqli = new mysqli($host, $user, $password, '', $port);
+        if ($mysqli->connect_errno) {
+            throw new \RuntimeException('Connessione MySQL admin fallita: ' . $mysqli->connect_error);
+        }
+
+        $mysqli->set_charset('utf8mb4');
+        return $mysqli;
+    }
+
+    private function queryMysqlValue(mysqli $mysqli, string $sql): ?string
+    {
+        $result = $mysqli->query($sql);
+        if (!$result) {
+            throw new \RuntimeException('Errore SQL reset tenant: ' . $mysqli->error);
+        }
+
+        $row = $result->fetch_row();
+        $result->free();
+
+        if (!is_array($row) || !array_key_exists(0, $row)) {
+            return null;
+        }
+
+        return $row[0] !== null ? (string) $row[0] : null;
+    }
+
+    private function escapeMysqlIdentifier(string $identifier): string
+    {
+        return '`' . str_replace('`', '``', $identifier) . '`';
+    }
+
+    private function envValue(string $primaryKey, string $fallbackKey, string $default = ''): string
+    {
+        $value = env($primaryKey);
+        if ($value !== null && $value !== '') {
+            return trim((string) $value);
+        }
+
+        $value = env($fallbackKey);
+        if ($value !== null && $value !== '') {
+            return trim((string) $value);
+        }
+
+        return $default;
+    }
+
+    private function assertSafeTenantPath(string $path, string $storageKey): void
+    {
+        $normalizedPath = str_replace(['/', '\\'], DIRECTORY_SEPARATOR, rtrim($path, '\\/'));
+        $projectRoot = $this->projectRoot();
+        $allowedPrefixes = [
+            $projectRoot . DIRECTORY_SEPARATOR . 'upload' . DIRECTORY_SEPARATOR . 'tenants' . DIRECTORY_SEPARATOR . $storageKey,
+            rtrim(WRITEPATH, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'tenants' . DIRECTORY_SEPARATOR . $storageKey,
+        ];
+
+        foreach ($allowedPrefixes as $prefix) {
+            $normalizedPrefix = str_replace(['/', '\\'], DIRECTORY_SEPARATOR, rtrim($prefix, '\\/'));
+            if (strcasecmp($normalizedPath, $normalizedPrefix) === 0 || str_starts_with(strtolower($normalizedPath), strtolower($normalizedPrefix . DIRECTORY_SEPARATOR))) {
+                return;
+            }
+        }
+
+        throw new \RuntimeException('Percorso tenant non sicuro per la cancellazione: ' . $path);
+    }
+
+    private function removeDirectoryTree(string $path): void
+    {
+        if (is_file($path) || is_link($path)) {
+            if (!@unlink($path)) {
+                throw new \RuntimeException('Impossibile eliminare il file tenant: ' . $path);
+            }
+
+            return;
+        }
+
+        if (!is_dir($path)) {
+            return;
+        }
+
+        $items = scandir($path);
+        if (!is_array($items)) {
+            throw new \RuntimeException('Impossibile leggere la cartella tenant: ' . $path);
+        }
+
+        foreach ($items as $item) {
+            if ($item === '.' || $item === '..') {
+                continue;
+            }
+
+            $childPath = $path . DIRECTORY_SEPARATOR . $item;
+            $this->removeDirectoryTree($childPath);
+        }
+
+        if (!@rmdir($path)) {
+            throw new \RuntimeException('Impossibile eliminare la cartella tenant: ' . $path);
+        }
     }
 }

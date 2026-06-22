@@ -154,7 +154,7 @@ $threadQs = http_build_query($threadParams);
 <html>
 <head>
   <meta charset="UTF-8">
-  <title><?= esc('AmbulatoriCLOUD') ?> | Posta</title>
+  <title><?= esc('AmbulatorioFacile') ?> | Posta</title>
   <link rel="icon" href="<?= base_url('public/assets/images/logonew.jpg') ?>" type="image/x-icon" sizes="any">
   <meta content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" name="viewport">
 

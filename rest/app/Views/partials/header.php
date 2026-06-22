@@ -61,28 +61,55 @@ $tenantRole = is_array($tenantContext) ? trim((string)($tenantContext['tenant_ro
 $tenantFeatureFlags = is_array($tenantContext) ? (array)($tenantContext['feature_flags'] ?? []) : [];
 $platformTenants = $sess->get('platform_selectable_tenants');
 $platformTenants = is_array($platformTenants) ? $platformTenants : [];
+$platformTenantCount = count($platformTenants);
+$showTenantSwitchSection = $platformTenantCount > 0;
+$tenantSwitchSectionTitle = $platformTenantCount > 1 ? 'Cambia spazio' : 'Apri spazio';
 $canAccessPlatformConsole = (bool) ($sess->get('platform_is_admin') ?? false) === true;
 $isPlatformConsoleSession = $canAccessPlatformConsole
     && (string) ($sess->get('loginSource') ?? '') === 'platform_console';
 $canManageTenantFeatures = $tenantId > 0
     && $tenantRole === 'tenant_master'
     && (int) ($sess->get('platform_user_id') ?? 0) > 0;
+$canManageAppointmentNotifications = $tenantId > 0
+    && $tenantRole === 'tenant_master'
+    && (int) ($sess->get('platform_user_id') ?? 0) > 0
+    && !empty($tenantFeatureFlags['appointment_notifications']);
 $canManageTenantUsers = $tenantId > 0
     && in_array($tenantRole, ['tenant_master', 'tenant_admin'], true)
     && !empty($tenantFeatureFlags['staff_management']);
 $showTenantOnboardingLink = $tenantId > 0
     && $tenantRole === 'tenant_master'
     && in_array(strtolower(trim((string)($tenantContext['onboarding_status'] ?? 'draft'))), ['draft', 'setup'], true);
+$isTenantOnboardingRoute = in_array($currentPath, ['login/spazio/onboarding', 'spazio/onboarding'], true);
+$useMinimalTenantOnboardingHeader = $isTenantOnboardingRoute
+    && $tenantRole === 'tenant_master'
+    && $showTenantOnboardingLink;
+$hideHeaderMenu = $hideHeaderMenu || $useMinimalTenantOnboardingHeader;
+$tenantOperationalHomeUrl = $tenantId > 0 ? site_url('/') : null;
+$portalConsoleHeaderOverride = isset($portal_console_header) ? (bool) $portal_console_header : null;
+$portalConsolePrefixes = ['login', 'spazio', 'piattaforma'];
+$isPortalConsoleRoute = false;
+foreach ($portalConsolePrefixes as $portalConsolePrefix) {
+    if ($currentPath === $portalConsolePrefix || str_starts_with($currentPath, $portalConsolePrefix . '/')) {
+        $isPortalConsoleRoute = true;
+        break;
+    }
+}
+$isPortalConsoleHeader = $portalConsoleHeaderOverride ?? $isPortalConsoleRoute;
+$headerLogoUrl = $isPortalConsoleHeader
+    ? portal_public_access_url('login')
+    : site_url('/');
+$profileImageFallbackUrl = base_url('public/dist/img/user.png');
 ?>
 
 <header class="main-header" style="background:#2c8895">
   <!-- Logo -->
-  <a href="./index2.html" class="logo">
+  <a href="<?= esc($headerLogoUrl) ?>" class="logo">
     <span class="logo-mini"><b>Ambulatorio</b>Facile</span>
     <span class="logo-lg"><b>Ambulatorio</b>Facile</span>
   </a>
 
-  <nav class="navbar navbar-static-top" role="navigation">
+  <nav class="navbar navbar-static-top<?= $isPortalConsoleHeader ? ' platform-console-navbar' : '' ?>" role="navigation">
     <a href="#" class="sidebar-toggle" data-toggle="offcanvas" role="button" style="display:none">
       <span class="sr-only">Toggle navigation</span>
       <span class="icon-bar"></span>
@@ -90,15 +117,26 @@ $showTenantOnboardingLink = $tenantId > 0
       <span class="icon-bar"></span>
     </a>
 
-    <?php if ($tenantName !== ''): ?>
+    <?php if ($isPortalConsoleHeader): ?>
+    <div class="platform-navbar-shell<?= $useMinimalTenantOnboardingHeader ? ' platform-navbar-shell-minimal' : '' ?>">
+    <?php endif; ?>
+
+    <?php if ($tenantName !== '' && !$useMinimalTenantOnboardingHeader): ?>
+      <?php if ($isPortalConsoleHeader): ?>
+      <div class="platform-navbar-tenant hidden-xs">
+        <span class="platform-navbar-tenant-label">Spazio</span>
+        <strong class="platform-navbar-tenant-name"><?= esc($tenantName) ?></strong>
+      </div>
+      <?php else: ?>
       <div class="navbar-text hidden-xs" style="float:left; color:#e8f6f8; margin-left:16px; font-weight:600;">
         Spazio: <?= esc($tenantName) ?>
       </div>
+      <?php endif; ?>
     <?php endif; ?>
 
     <?php if (!$hideHeaderMenu): ?>
-    <div class="navbar-custom-menu" style="float:left !important">
-      <ul class="nav navbar-nav">
+    <div class="navbar-custom-menu<?= $isPortalConsoleHeader ? ' platform-navbar-primary' : '' ?>"<?= $isPortalConsoleHeader ? '' : ' style="float:left !important"' ?>>
+      <ul class="nav navbar-nav<?= $isPortalConsoleHeader ? ' platform-navbar-links' : '' ?>">
 
 <?php
 $disableMenuFallback = !empty($disable_menu_fallback);
@@ -166,7 +204,7 @@ if ($disableMenuFallback) {
     $itemIcon = admin_menu_resolve_icon((string)($item['fa_icon'] ?? ''), $itemTitle, $itemLink);
   ?>
   <li class="hidden-xs">
-    <a href="<?= site_url($itemLink) ?>" title="<?= esc($itemTitle) ?>">
+    <a href="<?= site_url($itemLink) ?>" title="<?= esc($itemTitle) ?>"<?= $isPortalConsoleHeader ? ' class="platform-nav-link"' : '' ?>>
       <i class="fa <?= esc($itemIcon) ?>"></i>
       <span class="nav-label" style="position:relative; display:inline-block;">
         <?= esc($itemTitle) ?>
@@ -220,10 +258,10 @@ if ($disableMenuFallback) {
     </div>
     <?php endif; ?>
 
-    <div class="navbar-custom-menu">
+    <div class="navbar-custom-menu<?= $isPortalConsoleHeader ? ' platform-navbar-secondary' : '' ?>">
       <ul class="nav navbar-nav">
-        <li class="dropdown user user-menu">
-          <a href="#" class="dropdown-toggle" data-toggle="dropdown">
+        <li class="dropdown user user-menu platform-user-menu<?= $useMinimalTenantOnboardingHeader ? ' platform-user-menu-minimal' : '' ?>">
+          <a href="#" class="dropdown-toggle platform-user-toggle" data-toggle="dropdown">
             <?php
               $immagineProfilo = session()->get('immagine_profilo');
               if (empty($immagineProfilo)) {
@@ -231,17 +269,19 @@ if ($disableMenuFallback) {
               }
             ?>
             <img src="<?= base_url('public/dist/img/' . $immagineProfilo) ?>"
+                 onerror="this.onerror=null;this.src='<?= esc($profileImageFallbackUrl, 'attr') ?>';"
                  class="user-image"
                  alt="User Image" />
-            <span class="hidden-xs"><?= session()->get('nome_visualizzato') ?></span>
+            <span class="hidden-xs platform-user-name"><?= session()->get('nome_visualizzato') ?></span>
           </a>
 
-          <ul class="dropdown-menu">
-            <li class="user-header">
+          <ul class="dropdown-menu platform-user-dropdown<?= $useMinimalTenantOnboardingHeader ? ' platform-user-dropdown-minimal' : '' ?>">
+            <li class="user-header platform-user-summary">
               <img src="<?= base_url('public/dist/img/' . $immagineProfilo) ?>"
+                   onerror="this.onerror=null;this.src='<?= esc($profileImageFallbackUrl, 'attr') ?>';"
                    class="user-image"
                    alt="User Image" />
-              <p>
+              <p class="platform-user-summary-text">
                 <small>Sei autenticato come:</small>
                 <?= session()->get('nome_visualizzato') ?>
                 <?php if ($tenantName !== ''): ?>
@@ -249,10 +289,17 @@ if ($disableMenuFallback) {
                 <?php endif; ?>
               </p>
             </li>
-            <li class="user-footer">
-              <?php if (count($platformTenants) > 1): ?>
-              <div style="padding:0 0 10px 0; margin-bottom:10px; border-bottom:1px solid #eee;">
-                <div style="font-weight:600; margin-bottom:8px;">Cambia spazio</div>
+            <li class="user-footer platform-user-footer">
+              <?php if (!$useMinimalTenantOnboardingHeader && $tenantOperationalHomeUrl !== null): ?>
+              <div class="platform-user-section">
+                <a href="<?= esc($tenantOperationalHomeUrl) ?>" class="btn btn-default btn-flat platform-user-action">
+                  <i class="fa fa-home"></i> Vai al portale operativo
+                </a>
+              </div>
+              <?php endif; ?>
+              <?php if (!$useMinimalTenantOnboardingHeader && $showTenantSwitchSection): ?>
+              <div class="platform-user-section">
+                <div class="platform-user-section-title"><?= esc($tenantSwitchSectionTitle) ?></div>
                 <?php foreach ($platformTenants as $availableTenant): ?>
                   <?php
                     $availableTenantId = (int)($availableTenant['id_tenant'] ?? 0);
@@ -260,13 +307,13 @@ if ($disableMenuFallback) {
                     $tenantLabel = trim((string)($availableTenant['tenant_name'] ?? $availableTenant['tenant_key'] ?? 'Spazio cliente'));
                     $tenantSwitchUrl = portal_tenant_switch_url($availableTenantId);
                   ?>
-                  <div style="margin-bottom:6px;">
+                  <div class="platform-user-option">
                     <?php if ($isCurrentTenant): ?>
-                      <span class="btn btn-default btn-flat" style="width:100%; text-align:left; opacity:.85;">
+                      <span class="btn btn-default btn-flat platform-user-action platform-user-action-current">
                         <?= esc($tenantLabel) ?> (attivo)
                       </span>
                     <?php else: ?>
-                      <a href="<?= esc($tenantSwitchUrl) ?>" class="btn btn-default btn-flat" style="width:100%; text-align:left;">
+                      <a href="<?= esc($tenantSwitchUrl) ?>" class="btn btn-default btn-flat platform-user-action">
                         <?= esc($tenantLabel) ?>
                       </a>
                     <?php endif; ?>
@@ -274,51 +321,56 @@ if ($disableMenuFallback) {
                 <?php endforeach; ?>
               </div>
               <?php endif; ?>
-              <?php if ($canAccessPlatformConsole): ?>
-              <div style="padding:0 0 10px 0; margin-bottom:10px; border-bottom:1px solid #eee;">
-                <a href="<?= portal_platform_url('spazi-clienti') ?>" class="btn btn-default btn-flat" style="width:100%; text-align:left;">
+              <?php if (!$useMinimalTenantOnboardingHeader && $canAccessPlatformConsole): ?>
+              <div class="platform-user-section">
+                <a href="<?= portal_platform_url('spazi-clienti') ?>" class="btn btn-default btn-flat platform-user-action">
                   <i class="fa fa-sitemap"></i> Console piattaforma
                 </a>
               </div>
               <?php endif; ?>
-              <?php if ($canManageTenantUsers): ?>
-              <div style="padding:0 0 10px 0; margin-bottom:10px; border-bottom:1px solid #eee;">
-                <a href="<?= portal_tenant_space_url('utenti') ?>" class="btn btn-default btn-flat" style="width:100%; text-align:left;">
+              <?php if (!$useMinimalTenantOnboardingHeader && $canManageTenantUsers): ?>
+              <div class="platform-user-section">
+                <a href="<?= portal_tenant_space_url('utenti') ?>" class="btn btn-default btn-flat platform-user-action">
                   <i class="fa fa-users"></i> Gestisci utenti dello spazio
                 </a>
               </div>
               <?php endif; ?>
-              <?php if ($canManageTenantFeatures): ?>
-              <div style="padding:0 0 10px 0; margin-bottom:10px; border-bottom:1px solid #eee;">
-                <a href="<?= portal_tenant_space_url('funzioni') ?>" class="btn btn-default btn-flat" style="width:100%; text-align:left;">
+              <?php if (!$useMinimalTenantOnboardingHeader && $canManageTenantFeatures): ?>
+              <div class="platform-user-section">
+                <a href="<?= portal_tenant_space_url('funzioni') ?>" class="btn btn-default btn-flat platform-user-action">
                   <i class="fa fa-toggle-on"></i> Gestisci funzioni dello spazio
                 </a>
               </div>
               <?php endif; ?>
-              <?php if ($showTenantOnboardingLink): ?>
-              <div style="padding:0 0 10px 0; margin-bottom:10px; border-bottom:1px solid #eee;">
-                <a href="<?= portal_tenant_space_url('onboarding') ?>" class="btn btn-default btn-flat" style="width:100%; text-align:left;">
+              <?php if (!$useMinimalTenantOnboardingHeader && $canManageAppointmentNotifications): ?>
+              <div class="platform-user-section">
+                <a href="<?= portal_tenant_space_url('notifiche-appuntamenti') ?>" class="btn btn-default btn-flat platform-user-action">
+                  <i class="fa fa-commenting"></i> Gestisci notifiche appuntamenti
+                </a>
+              </div>
+              <?php endif; ?>
+              <?php if (!$useMinimalTenantOnboardingHeader && $showTenantOnboardingLink): ?>
+              <div class="platform-user-section">
+                <a href="<?= portal_tenant_space_url('onboarding') ?>" class="btn btn-default btn-flat platform-user-action">
                   <i class="fa fa-check-square-o"></i> Completa onboarding spazio
                 </a>
               </div>
               <?php endif; ?>
-              <?php if (!$isPlatformConsoleSession): ?>
-              <div style="padding:0 0 10px 0; margin-bottom:10px; border-bottom:1px solid #eee;">
-                <label for="chatBrowserNotifyToggle" style="font-weight:600; cursor:pointer; margin:0;">
+              <?php if (!$useMinimalTenantOnboardingHeader && !$isPlatformConsoleSession): ?>
+              <div class="platform-user-section">
+                <label for="chatBrowserNotifyToggle" class="platform-user-toggle-label">
                   <input type="checkbox" id="chatBrowserNotifyToggle" style="vertical-align:middle; margin-right:6px;">
                   Notifiche browser chat
                 </label>
-                <div style="font-size:12px; color:#777; margin-top:4px;">
+                <div class="platform-user-help">
                   Popup nel browser quando arrivano nuovi messaggi.
                 </div>
               </div>
               <?php endif; ?>
-              <?php if (!$isPlatformConsoleSession): ?>
-              <div class="pull-left">
-              <a href="<?= base_url('profilo') ?>" class="btn btn-default btn-flat">Profilo</a>
-              </div>
-              <?php endif; ?>
-              <div class="pull-right">
+              <div class="platform-user-footer-actions<?= $isPlatformConsoleSession ? ' platform-user-footer-actions-logout-only' : '' ?>">
+                <?php if (!$isPlatformConsoleSession): ?>
+                <a href="<?= base_url('profilo') ?>" class="btn btn-default btn-flat">Profilo</a>
+                <?php endif; ?>
                 <a href="<?= base_url('logout') ?>" class="btn btn-default btn-flat">Logout</a>
               </div>
             </li>
@@ -326,6 +378,10 @@ if ($disableMenuFallback) {
         </li>
       </ul>
     </div>
+
+    <?php if ($isPortalConsoleHeader): ?>
+    </div>
+    <?php endif; ?>
 
   </nav>
 </header>

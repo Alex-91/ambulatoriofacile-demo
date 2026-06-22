@@ -29,8 +29,7 @@ $oldValue = static function (string $key, $fallback = '') {
   <meta content="width=device-width, initial-scale=1" name="viewport">
   <link href="<?= base_url('public/bootstrap/css/bootstrap.min.css') ?>" rel="stylesheet" />
   <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css" rel="stylesheet" />
-  <link href="<?= base_url('public/dist/css/AdminLTE.css') ?>" rel="stylesheet" />
-  <link href="<?= base_url('public/dist/css/skins/_all-skins.min.css') ?>" rel="stylesheet" />
+  <link href="<?= base_url('public/assets/css/platform-console.css') ?>" rel="stylesheet" />
   <style>
     .intro-box {
       border: 1px solid #dbe8eb;
@@ -56,9 +55,9 @@ $oldValue = static function (string $key, $fallback = '') {
   </style>
 </head>
 
-<body class="skin-blue sidebar-mini">
+<body class="platform-console-body">
 <div class="wrapper">
-  <?= view('partials/header', ['menu_items' => $menu_items]) ?>
+  <?= view('partials/header', ['menu_items' => $menu_items, 'portal_console_header' => true]) ?>
 
   <div class="content-wrapper">
     <section class="content-header">
@@ -265,6 +264,5 @@ $oldValue = static function (string $key, $fallback = '') {
 
 <script src="<?= base_url('public/plugins/jQuery/jQuery-2.1.4.min.js') ?>"></script>
 <script src="<?= base_url('public/bootstrap/js/bootstrap.min.js') ?>"></script>
-<script src="<?= base_url('public/dist/js/app.min.js') ?>"></script>
 </body>
 </html>

@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title><?= esc('AmbulatoriCLOUD') ?> | Profilo</title>
+  <title><?= esc('AmbulatorioFacile') ?> | Profilo</title>
  <meta charset="UTF-8">
 
      <script src="<?= base_url('public/plugins/jQuery/jQuery-2.1.4.min.js') ?>"></script>
@@ -20,7 +20,7 @@
     <link href="<?= base_url('public/plugins/fullcalendar/fullcalendar.print.css') ?>" rel="stylesheet" type="text/css" media='print' />
     <!-- Theme style -->
     <link href="<?= base_url('public/dist/css/AdminLTE.css') ?>" rel="stylesheet" type="text/css" />
-    <!-- AmbulatoriCLOUD skins -->
+    <!-- AmbulatorioFacile skins -->
     <link href="<?= base_url('public/dist/css/skins/_all-skins.min.css') ?>" rel="stylesheet" type="text/css" />
     <!-- iCheck -->
     <link href="<?= base_url('public/plugins/iCheck/flat/blue.css') ?>" rel="stylesheet" type="text/css" />
@@ -495,7 +495,7 @@
     const tag = 'push-healthcheck-' + Date.now() + '-' + Math.random().toString(36).slice(2);
 
     try {
-      await reg.showNotification(<?= json_encode('AmbulatoriCLOUD') ?>, {
+      await reg.showNotification(<?= json_encode('AmbulatorioFacile') ?>, {
         body: 'Verifica notifiche attive...',
         tag,
         silent: true,

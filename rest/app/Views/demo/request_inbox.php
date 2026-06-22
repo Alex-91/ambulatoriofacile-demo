@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= esc($brandName) ?> | Archivio richieste demo</title>
     <meta name="description" content="Archivio locale richieste demo guidata">
-    <link rel="stylesheet" href="<?= base_url('public/assets/css/demo-showcase.css') ?>">
+    <link rel="stylesheet" href="<?= base_url('rest/public/assets/css/demo-showcase.css') ?>">
 </head>
 <body>
 <div class="demo-shell">
@@ -23,7 +23,7 @@
         <section class="hero-card hero-card-vertical">
             <div class="hero-stack">
                 <div class="hero-main">
-                    <a class="back-link" href="<?= site_url('demo/richiesta') ?>">Torna alla richiesta demo</a>
+                    <a class="back-link" href="<?= site_url('richiesta') ?>">Torna alla richiesta demo</a>
                     <p class="eyebrow">Archivio locale</p>
                     <h1>Richieste demo salvate</h1>
                     <p class="hero-copy">
@@ -33,8 +33,8 @@
                         I file restano salvati separatamente in <strong><?= esc((string) $storagePath) ?></strong>.
                     </p>
                     <div class="hero-actions">
-                        <a class="btn btn-primary" href="<?= site_url('demo/richiesta') ?>">Nuova richiesta demo</a>
-                        <a class="btn btn-secondary" href="<?= site_url('demo') ?>">Torna alla showcase</a>
+                        <a class="btn btn-primary" href="<?= site_url('richiesta') ?>">Nuova richiesta demo</a>
+                        <a class="btn btn-secondary" href="<?= site_url('/') ?>">Torna alla showcase</a>
                     </div>
                 </div>
 
@@ -57,12 +57,12 @@
                 <h2>Seleziona i lead da lavorare</h2>
             </div>
             <div class="demo-form-card">
-                <form method="get" action="<?= site_url('demo/richieste-locali') ?>" class="filter-toolbar">
+                <form method="get" action="<?= site_url('richieste-locali') ?>" class="filter-toolbar">
                     <div class="filter-grid">
                         <div class="form-field">
-                            <label for="vertical">Verticale</label>
+                            <label for="vertical">Contesto demo</label>
                             <select name="vertical" id="vertical">
-                                <option value="">Tutte le verticali</option>
+                                <option value="">Tutti i contesti</option>
                                 <?php foreach ($verticalOptions as $option): ?>
                                     <option value="<?= esc((string) ($option['value'] ?? '')) ?>" <?= ((string) ($filters['vertical'] ?? '') === (string) ($option['value'] ?? '')) ? 'selected' : '' ?>>
                                         <?= esc((string) ($option['label'] ?? $option['value'] ?? '')) ?>
@@ -94,7 +94,7 @@
                     </div>
                     <div class="hero-actions hero-actions-compact">
                         <button class="btn btn-primary btn-button" type="submit">Applica filtri</button>
-                        <a class="btn btn-secondary" href="<?= site_url('demo/richieste-locali') ?>">Reset</a>
+                        <a class="btn btn-secondary" href="<?= site_url('richieste-locali') ?>">Reset</a>
                         <a class="btn btn-secondary" href="<?= esc((string) $exportUrl) ?>">Esporta CSV</a>
                     </div>
                 </form>
@@ -144,7 +144,7 @@
                     <?php foreach ($requests as $request): ?>
                         <article class="access-card">
                             <div class="access-card-topline">
-                                <p class="status-label"><?= esc((string) ($request['vertical_label'] ?? $request['vertical'] ?? 'verticale')) ?></p>
+                                <p class="status-label"><?= esc((string) ($request['vertical_label'] ?? $request['vertical'] ?? 'demo')) ?></p>
                                 <span class="status-pill status-pill-<?= esc((string) ($request['notification_tone'] ?? 'neutral')) ?>">
                                     <?= esc((string) ($request['notification_label'] ?? 'In attesa')) ?>
                                 </span>

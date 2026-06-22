@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= esc($brandName) ?> | <?= esc((string) ($profile['label'] ?? 'Verticale demo')) ?></title>
     <meta name="description" content="<?= esc((string) (($playbook['subheadline'] ?? '') ?: $brandDescription)) ?>">
-    <link rel="stylesheet" href="<?= base_url('public/assets/css/demo-showcase.css') ?>">
+    <link rel="stylesheet" href="<?= base_url('rest/public/assets/css/demo-showcase.css') ?>">
 </head>
 <body>
 <div class="demo-shell">
@@ -25,11 +25,12 @@
                     <p class="hero-copy hero-copy-secondary">
                         <?= esc((string) ($playbook['subheadline'] ?? '')) ?>
                     </p>
-                    <div class="hero-actions">
-                        <a class="btn btn-primary" href="<?= site_url('demo/access/' . $profileSlug) ?>">Scegli accesso demo</a>
-                        <a class="btn btn-secondary" href="<?= site_url('demo') ?>">Torna ai due verticali</a>
-                        <a class="btn btn-secondary" href="<?= site_url('demo/richiesta?profile=' . $profileSlug) ?>">Richiedi demo guidata</a>
-                    </div>
+                <div class="hero-actions">
+                    <a class="btn btn-primary" href="<?= site_url('demo/access/' . $profileSlug) ?>">Scegli accesso demo</a>
+                    <a class="btn btn-secondary" href="<?= esc((string) ($demoCredentials['official_login_url'] ?? site_url('login'))) ?>">Apri login ufficiale</a>
+                    <a class="btn btn-secondary" href="<?= site_url('demo') ?>">Torna alla panoramica</a>
+                    <a class="btn btn-secondary" href="<?= site_url('demo/richiesta?profile=' . $profileSlug) ?>">Richiedi demo guidata</a>
+                </div>
                 </div>
 
                 <aside class="hero-side">
@@ -50,6 +51,23 @@
                         </div>
                     </div>
                 </aside>
+            </div>
+        </section>
+
+        <section class="panel">
+            <div class="panel-head">
+                <p class="eyebrow">Accesso coerente</p>
+                <h2>Questo verticale usa sempre il login unico</h2>
+            </div>
+            <div class="dual-grid">
+                <article class="detail-card">
+                    <h3>Demo pubblica</h3>
+                    <p class="access-note">Da qui accompagni il cliente fino allo stesso <strong>/login</strong> che verra usato in produzione, ma con credenziali prova su dati separati.</p>
+                </article>
+                <article class="detail-card">
+                    <h3>Credenziali rapide</h3>
+                    <p class="access-note">Password comune demo: <strong><?= esc((string) ($demoCredentials['password'] ?? 'Demo2026')) ?></strong>. Quando un account richiede MFA usa OTP fisso <strong><?= esc((string) ($demoCredentials['otp'] ?? '2510')) ?></strong>.</p>
+                </article>
             </div>
         </section>
 
@@ -191,20 +209,35 @@
         </section>
         <?php endif; ?>
 
-        <?php if ($showLocalAccess && $profileAccounts !== []): ?>
+        <?php if ($profileAccounts !== []): ?>
             <section class="panel panel-access">
                 <div class="panel-head">
-                    <p class="eyebrow">Accessi demo interni</p>
-                    <h2>Account utili per questo verticale su localhost</h2>
+                    <p class="eyebrow">Account del verticale</p>
+                    <h2>Ruoli pronti per provare questo percorso</h2>
                 </div>
-                <div class="access-grid">
+                <div class="access-grid access-grid-wide">
                     <?php foreach ($profileAccounts as $account): ?>
                         <article class="access-card">
-                            <p class="status-label"><?= esc($account['role']) ?></p>
-                            <h3><?= esc($account['username']) ?></h3>
-                            <p class="access-secret">Password: <strong><?= esc($account['password']) ?></strong></p>
-                            <p class="access-note"><?= esc($account['label']) ?></p>
-                            <p class="access-note"><?= esc($account['note']) ?></p>
+                            <div class="access-card-topline">
+                                <p class="status-label"><?= esc((string) ($account['role'] ?? 'Account demo')) ?></p>
+                                <?php if ((string) ($account['otp'] ?? '') !== ''): ?>
+                                    <span class="status-pill status-pill-warning">OTP <?= esc((string) $account['otp']) ?></span>
+                                <?php endif; ?>
+                            </div>
+                            <h3><?= esc((string) ($account['username'] ?? '')) ?></h3>
+                            <p class="access-note"><?= esc((string) ($account['label'] ?? '')) ?></p>
+                            <p class="access-note"><?= esc((string) ($account['note'] ?? '')) ?></p>
+                            <p class="access-secret">Password: <strong><?= esc((string) ($account['password'] ?? '')) ?></strong></p>
+                            <?php if (!empty($account['scenarios']) && is_array($account['scenarios'])): ?>
+                                <div class="chip-row">
+                                    <?php foreach ($account['scenarios'] as $scenario): ?>
+                                        <span class="chip"><?= esc((string) $scenario) ?></span>
+                                    <?php endforeach; ?>
+                                </div>
+                            <?php endif; ?>
+                            <div class="card-actions">
+                                <a class="btn btn-secondary btn-inline" href="<?= esc((string) ($account['login_url'] ?? ($demoCredentials['login_url'] ?? site_url('login')))) ?>">Apri login precompilato</a>
+                            </div>
                         </article>
                     <?php endforeach; ?>
                 </div>

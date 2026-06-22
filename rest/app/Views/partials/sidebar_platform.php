@@ -4,14 +4,12 @@ helper('portal');
 $currentPath = trim(service('uri')->getPath(), '/');
 $tenantSpacesActive = ($currentPath === 'login/piattaforma' || str_starts_with($currentPath, 'login/piattaforma/spazi-clienti')) ? 'active' : '';
 $platformFeaturesActive = str_starts_with($currentPath, 'login/piattaforma/funzioni') ? 'active' : '';
+$appointmentNotificationsActive = str_starts_with($currentPath, 'login/piattaforma/notifiche-appuntamenti') ? 'active' : '';
 $platformMasterEmails = is_array($platformMasterEmails ?? null) ? $platformMasterEmails : [];
 ?>
 <div class="box box-solid" style="margin-bottom: 0 !important">
   <div class="box-header with-border">
     <h3 class="box-title">Console piattaforma</h3>
-    <div class="box-tools">
-      <button class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-minus"></i></button>
-    </div>
   </div>
   <div class="box-body no-padding">
     <ul class="nav nav-pills nav-stacked">
@@ -25,6 +23,12 @@ $platformMasterEmails = is_array($platformMasterEmails ?? null) ? $platformMaste
         <a href="<?= portal_platform_url('funzioni') ?>">
           <i class="fa fa-toggle-on"></i>
           Catalogo funzioni
+        </a>
+      </li>
+      <li class="<?= esc($appointmentNotificationsActive) ?>">
+        <a href="<?= portal_platform_url('notifiche-appuntamenti') ?>">
+          <i class="fa fa-commenting"></i>
+          Notifiche appuntamenti
         </a>
       </li>
       <li>

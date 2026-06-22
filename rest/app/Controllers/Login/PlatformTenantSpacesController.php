@@ -32,8 +32,7 @@ class PlatformTenantSpacesController extends BaseController
             return $guard;
         }
 
-        $canonicalPath = trim(service('uri')->getPath(), '/');
-        if ($canonicalPath !== 'login/piattaforma/spazi-clienti') {
+        if (!portal_current_path_matches('login/piattaforma/spazi-clienti')) {
             $canonicalUrl = portal_platform_url('spazi-clienti');
             $queryString = trim((string) ($_SERVER['QUERY_STRING'] ?? ''));
             if ($queryString !== '') {
@@ -62,7 +61,7 @@ class PlatformTenantSpacesController extends BaseController
             ? $this->loadTenantDetail($selectedTenantId)
             : null;
         $legacyBootstrapMode = $this->legacyBootstrapMode();
-        $masterAccounts = (new PlatformMasterAccountService())->listConfiguredMasterAccounts();
+        $masterAccounts = (new PlatformMasterAccountService())->listManagedMasterAccounts();
 
         return view('admin/tenant_spaces', [
             'menu_items' => [],
@@ -147,7 +146,7 @@ class PlatformTenantSpacesController extends BaseController
         $email = (string) ($this->request->getPost('email') ?? '');
 
         try {
-            $result = (new PlatformMasterAccountService())->sendConfiguredMasterAccess($email);
+            $result = (new PlatformMasterAccountService())->sendMasterAccess($email);
             $messages = ['Email di accesso inviata a ' . (string) (($result['account']['email'] ?? $email)) . '.'];
 
             $redirect = redirect()
@@ -164,6 +163,79 @@ class PlatformTenantSpacesController extends BaseController
             return $redirect;
         } catch (\Throwable $e) {
             log_message('error', 'PlatformTenantSpacesController::sendMasterAccess failed: ' . $e->getMessage());
+
+            return redirect()
+                ->to($this->tenantSpacesUrl())
+                ->with('errors', ['generic' => $e->getMessage()]);
+        }
+    }
+
+    public function saveMasterAccount()
+    {
+        if ($guard = $this->ensurePlatformAdminPage()) {
+            return $guard;
+        }
+
+        $payload = [
+            'email' => (string) ($this->request->getPost('master_account_email') ?? ''),
+            'first_name' => (string) ($this->request->getPost('master_account_first_name') ?? ''),
+            'last_name' => (string) ($this->request->getPost('master_account_last_name') ?? ''),
+            'force_password_reset' => (int) ($this->request->getPost('master_account_force_password_reset') ?? 0),
+        ];
+        $sendAccess = (int) ($this->request->getPost('master_account_send_access') ?? 0) === 1;
+
+        try {
+            $result = (new PlatformMasterAccountService())->saveMasterAccount($payload, $sendAccess);
+            $accountEmail = (string) (($result['account']['email'] ?? $payload['email']) ?: $payload['email']);
+            $messages = [
+                !empty($result['created'])
+                    ? 'Account master piattaforma creato con successo.'
+                    : 'Account master piattaforma aggiornato con successo.',
+            ];
+
+            if ($sendAccess) {
+                $messages[] = 'Email di accesso inviata a ' . $accountEmail . '.';
+            }
+
+            $redirect = redirect()
+                ->to($this->tenantSpacesUrl())
+                ->with('success', implode(' ', $messages));
+
+            $tempPassword = trim((string) ($result['temporary_password'] ?? ''));
+            if ($tempPassword !== '') {
+                $redirect = $redirect->with('platform_master_temp_passwords', [
+                    $accountEmail => $tempPassword,
+                ]);
+            }
+
+            return $redirect;
+        } catch (\Throwable $e) {
+            log_message('error', 'PlatformTenantSpacesController::saveMasterAccount failed: ' . $e->getMessage());
+
+            return redirect()
+                ->to($this->tenantSpacesUrl())
+                ->withInput()
+                ->with('errors', ['generic' => $e->getMessage()]);
+        }
+    }
+
+    public function revokeMasterAccount()
+    {
+        if ($guard = $this->ensurePlatformAdminPage()) {
+            return $guard;
+        }
+
+        $platformUserId = (int) ($this->request->getPost('platform_user_id') ?? 0);
+
+        try {
+            $result = (new PlatformMasterAccountService())->revokeMasterAccount($platformUserId);
+            $email = (string) (($result['account']['email'] ?? ''));
+
+            return redirect()
+                ->to($this->tenantSpacesUrl())
+                ->with('success', 'Accesso master revocato per ' . $email . '.');
+        } catch (\Throwable $e) {
+            log_message('error', 'PlatformTenantSpacesController::revokeMasterAccount failed: ' . $e->getMessage());
 
             return redirect()
                 ->to($this->tenantSpacesUrl())
@@ -278,6 +350,73 @@ class PlatformTenantSpacesController extends BaseController
             return redirect()
                 ->to($this->tenantSpacesUrl($tenantId))
                 ->withInput()
+                ->with('errors', ['generic' => $e->getMessage()]);
+        }
+    }
+
+    public function delete()
+    {
+        if ($guard = $this->ensurePlatformAdminPage()) {
+            return $guard;
+        }
+
+        $tenantId = (int) ($this->request->getPost('id_tenant') ?? 0);
+        $options = [
+            'drop_database' => (int) ($this->request->getPost('drop_database') ?? 0) === 1,
+            'delete_directories' => (int) ($this->request->getPost('delete_directories') ?? 0) === 1,
+            'delete_tokens' => (int) ($this->request->getPost('delete_tokens') ?? 0) === 1,
+        ];
+
+        try {
+            $result = (new TenantProvisioningService())->deleteTenant($tenantId, $options);
+            $tenant = (array) ($result['tenant'] ?? []);
+            $cleanup = (array) ($result['cleanup'] ?? []);
+
+            $messages = [
+                'Spazio cliente eliminato con successo.',
+            ];
+            $warnings = [];
+
+            $tenantLabel = trim((string) ($tenant['tenant_name'] ?? $tenant['tenant_key'] ?? ''));
+            if ($tenantLabel !== '') {
+                $messages[] = 'Spazio rimosso: ' . $tenantLabel . '.';
+            }
+
+            if ($options['drop_database']) {
+                if (!empty($cleanup['database_dropped'])) {
+                    $messages[] = 'Database tenant eliminato.';
+                } else {
+                    $warnings[] = 'Nessun database tenant da eliminare oppure database gia assente.';
+                }
+            }
+
+            if ($options['delete_directories']) {
+                $deletedPaths = array_values(array_filter(array_map('strval', (array) ($cleanup['deleted_paths'] ?? []))));
+                if ($deletedPaths !== []) {
+                    $messages[] = 'Cartelle tenant eliminate.';
+                } else {
+                    $warnings[] = 'Nessuna cartella tenant trovata da eliminare.';
+                }
+            }
+
+            if ($options['delete_tokens']) {
+                $messages[] = 'Token accesso rimossi: ' . (int) ($cleanup['tokens_deleted'] ?? 0) . '.';
+            }
+
+            $redirect = redirect()
+                ->to($this->tenantSpacesUrl())
+                ->with('success', implode(' ', $messages));
+
+            if ($warnings !== []) {
+                $redirect = $redirect->with('warnings', $warnings);
+            }
+
+            return $redirect;
+        } catch (\Throwable $e) {
+            log_message('error', 'PlatformTenantSpacesController::delete failed: ' . $e->getMessage());
+
+            return redirect()
+                ->to($this->tenantSpacesUrl($tenantId))
                 ->with('errors', ['generic' => $e->getMessage()]);
         }
     }
@@ -399,11 +538,7 @@ class PlatformTenantSpacesController extends BaseController
             return false;
         }
 
-        if ($this->platformUsersCount() === 0) {
-            return true;
-        }
-
-        return $this->platformAdminAccess->configuredMasterEmails() === [];
+        return !$this->platformAdminAccess->hasPersistentPlatformAdmins();
     }
 
     private function isLegacyAdminAuthorized(): bool
@@ -445,12 +580,12 @@ class PlatformTenantSpacesController extends BaseController
             'Accesso bootstrap attivo: stai entrando con un account admin legacy per inizializzare la nuova console sotto /login.',
         ];
 
-        if ($this->platformUsersCount() === 0) {
-            $warnings[] = 'Il catalogo piattaforma e ancora vuoto. Crea il primo spazio usando la tua email o quella del tuo socio come tenant master per generare il primo account piattaforma.';
+        if (!$this->platformAdminAccess->hasPersistentPlatformAdmins()) {
+            $warnings[] = 'Non esiste ancora un account master piattaforma persistente. Creane almeno uno dal pannello qui sotto prima di uscire dalla modalita bootstrap.';
         }
 
         if ($this->platformAdminAccess->configuredMasterEmails() === []) {
-            $warnings[] = 'In Coolify manca ancora PLATFORM_MASTER_EMAILS. Finche non viene configurata, la console resta in modalita bootstrap.';
+            $warnings[] = 'PLATFORM_MASTER_EMAILS non e configurata in Coolify. Va bene: da ora i master possono essere gestiti dal pannello. Usa la env solo se vuoi tenere una scorciatoia bootstrap tecnica.';
         }
 
         return $warnings;

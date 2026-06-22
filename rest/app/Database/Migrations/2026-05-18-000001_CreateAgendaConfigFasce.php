@@ -58,6 +58,11 @@ class CreateAgendaConfigFasce extends Migration
             $existingDayIds[(int)($row['id_config_giorno'] ?? 0)] = true;
         }
 
+        // On fresh tenant databases the legacy source table may not exist yet.
+        if (!$this->db->tableExists('far10_agenda_config_giorni')) {
+            return;
+        }
+
         $giorni = $this->db->table('far10_agenda_config_giorni')
             ->orderBy('id_config_giorno', 'ASC')
             ->get()

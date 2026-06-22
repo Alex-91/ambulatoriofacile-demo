@@ -21,7 +21,7 @@ $missingLocationNames = array_map(static fn(array $row): string => (string)($row
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>AmbulatoriCLOUD | Segretarie e medici</title>
+  <title>AmbulatorioFacile | Segretarie e medici</title>
   <meta content="width=device-width, initial-scale=1" name="viewport">
   <link href="<?= base_url('public/bootstrap/css/bootstrap.min.css') ?>" rel="stylesheet" />
   <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css" rel="stylesheet" />

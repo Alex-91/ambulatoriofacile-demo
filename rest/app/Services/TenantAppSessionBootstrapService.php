@@ -18,6 +18,7 @@ class TenantAppSessionBootstrapService
     private \App\Models\PlatformUsersModel $platformUsersModel;
     private PlatformAuthService $platformAuth;
     private PlatformAdminAccessService $platformAdminAccess;
+    private TenantAppUserProvisioningService $tenantAppUserProvisioning;
     private Crypto_helper $crypto;
 
     public function __construct()
@@ -29,6 +30,7 @@ class TenantAppSessionBootstrapService
         $this->platformUsersModel = new \App\Models\PlatformUsersModel();
         $this->platformAuth = new PlatformAuthService();
         $this->platformAdminAccess = new PlatformAdminAccessService($this->platformUsersModel, $this->platformAuth);
+        $this->tenantAppUserProvisioning = new TenantAppUserProvisioningService();
         $this->crypto = new Crypto_helper();
     }
 
@@ -37,6 +39,8 @@ class TenantAppSessionBootstrapService
      */
     public function bootstrap(int $platformUserId, int $tenantId): array
     {
+        helper('portal');
+
         $membership = $this->catalog->getTenantMembership($platformUserId, $tenantId);
         if (!$membership) {
             throw new \RuntimeException('Accesso al tenant non autorizzato.');
@@ -65,16 +69,14 @@ class TenantAppSessionBootstrapService
         (new DatabaseConfig())->setEncryptionConfig($tenantDb);
 
         $appUserId = (int) ($membership['app_user_id'] ?? 0);
-        if ($appUserId <= 0) {
-            $appUserId = $this->resolveAppUserIdByEmail($tenantDb, (string) ($platformUser['email'] ?? ''));
-
-            if ($appUserId <= 0) {
-                throw new \RuntimeException('Utente applicativo del tenant non collegato. Imposta App user ID nello spazio cliente.');
-            }
-
-            $this->membershipsModel->update((int) ($membership['id_platform_user_tenant'] ?? 0), [
-                'app_user_id' => $appUserId,
-            ]);
+        if ($appUserId <= 0 || !$this->findTenantUserById($tenantDb, $appUserId)) {
+            $appUserId = $this->ensureMembershipAppUser(
+                $tenantDb,
+                $membership,
+                $platformUserId,
+                $tenantId,
+                (string) ($platformUser['email'] ?? '')
+            );
         }
 
         $user = $this->findTenantUserById($tenantDb, $appUserId);
@@ -118,13 +120,7 @@ class TenantAppSessionBootstrapService
             'loginSource' => 'platform_tenant',
         ]);
 
-        $redirectUrl = ((int) ($user['tipo_user'] ?? 0) === 1) ? 'admin' : '/';
-        if ((string) ($membership['tenant_role'] ?? '') === 'tenant_master') {
-            $onboardingStatus = strtolower(trim((string) ($membership['onboarding_status'] ?? 'draft')));
-            if (in_array($onboardingStatus, ['draft', 'setup'], true)) {
-                $redirectUrl = 'spazio/onboarding';
-            }
-        }
+        $redirectUrl = $this->resolvePlatformTenantRedirectUrl($context, $membership);
 
         return [
             'redirectUrl' => $redirectUrl,
@@ -133,6 +129,21 @@ class TenantAppSessionBootstrapService
             'app_user_id' => $appUserId,
             'tipoUser' => (int) ($user['tipo_user'] ?? 0),
         ];
+    }
+
+    /**
+     * @param array<string, mixed> $membership
+     */
+    private function resolvePlatformTenantRedirectUrl(\App\Libraries\TenantContext $context, array $membership): string
+    {
+        $tenantRole = strtolower(trim((string) ($membership['tenant_role'] ?? $context->tenantRole)));
+        $onboardingStatus = strtolower(trim((string) ($membership['onboarding_status'] ?? $context->onboardingStatus)));
+
+        if ($tenantRole === 'tenant_master' && in_array($onboardingStatus, ['draft', 'setup'], true)) {
+            return portal_tenant_space_url('onboarding');
+        }
+
+        return site_url('/');
     }
 
     private function resetSessionState(): void
@@ -212,17 +223,8 @@ class TenantAppSessionBootstrapService
             return 0;
         }
 
-        $personaleRows = $db->query("
-            SELECT p.id_user
-            FROM dap03_personale p
-            WHERE LOWER(" . $this->crypto->decryptSenzaAlias('p.email') . ") = ?
-        ", [$email])->getResultArray();
-
-        $clientRows = $db->query("
-            SELECT c.id_user
-            FROM dap02_clients c
-            WHERE LOWER(" . $this->crypto->decryptSenzaAlias('c.email') . ") = ?
-        ", [$email])->getResultArray();
+        $personaleRows = $this->queryUserIdsByEncryptedEmail($db, 'dap03_personale', 'p', $email);
+        $clientRows = $this->queryUserIdsByEncryptedEmail($db, 'dap02_clients', 'c', $email);
 
         $matches = [];
         foreach (array_merge($personaleRows, $clientRows) as $row) {
@@ -233,6 +235,89 @@ class TenantAppSessionBootstrapService
         }
 
         return count($matches) === 1 ? $matches[0] : 0;
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function queryUserIdsByEncryptedEmail(
+        \CodeIgniter\Database\BaseConnection $db,
+        string $table,
+        string $alias,
+        string $email
+    ): array {
+        if (!$db->tableExists($table) || !$db->fieldExists('email', $table)) {
+            return [];
+        }
+
+        try {
+            $query = $db->query("
+                SELECT {$alias}.id_user
+                FROM {$table} {$alias}
+                WHERE LOWER(" . $this->crypto->decryptSenzaAlias($alias . '.email') . ") = ?
+            ", [$email]);
+        } catch (\Throwable $e) {
+            log_message('warning', 'Tenant app session lookup by email failed: ' . $e->getMessage(), [
+                'table' => $table,
+                'email' => $email,
+            ]);
+            return [];
+        }
+
+        if (!$query) {
+            log_message('warning', 'Tenant app session lookup by email returned no result object.', [
+                'table' => $table,
+                'email' => $email,
+                'db_error' => $db->error(),
+            ]);
+            return [];
+        }
+
+        return $query->getResultArray();
+    }
+
+    /**
+     * @param array<string, mixed> $membership
+     */
+    private function ensureMembershipAppUser(
+        \CodeIgniter\Database\BaseConnection $tenantDb,
+        array $membership,
+        int $platformUserId,
+        int $tenantId,
+        string $email
+    ): int {
+        $membershipId = (int) ($membership['id_platform_user_tenant'] ?? 0);
+
+        if ($membershipId > 0) {
+            try {
+                $this->tenantAppUserProvisioning->syncMembership($membershipId, false);
+            } catch (\Throwable $e) {
+                log_message('warning', 'Tenant app user sync failed during login bootstrap: ' . $e->getMessage(), [
+                    'membership_id' => $membershipId,
+                    'tenant_id' => $tenantId,
+                    'platform_user_id' => $platformUserId,
+                ]);
+            }
+
+            $membership = $this->catalog->getTenantMembership($platformUserId, $tenantId) ?? $membership;
+            $appUserId = (int) ($membership['app_user_id'] ?? 0);
+            if ($appUserId > 0 && $this->findTenantUserById($tenantDb, $appUserId)) {
+                return $appUserId;
+            }
+        }
+
+        $appUserId = $this->resolveAppUserIdByEmail($tenantDb, $email);
+        if ($appUserId > 0 && $membershipId > 0) {
+            $this->membershipsModel->update($membershipId, [
+                'app_user_id' => $appUserId,
+            ]);
+
+            return $appUserId;
+        }
+
+        throw new \RuntimeException(
+            'Utente applicativo del tenant non collegato automaticamente. Apri lo spazio cliente e usa Salva e provisiona, oppure imposta App user ID nello spazio cliente.'
+        );
     }
 
     /**

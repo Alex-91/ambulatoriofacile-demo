@@ -4,13 +4,13 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="shortcut icon" href="<?= base_url('public/assets/images/logonew.jpg'); ?>" />
-  <title><?= esc('AmbulatoriCLOUD') ?> - Cambio Password</title>
+  <title><?= esc('AmbulatorioFacile') ?> - Cambio Password</title>
 
   <meta name="theme-color" content="#2c8895">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="<?= esc('AmbulatoriCLOUD') ?>">
+  <meta name="apple-mobile-web-app-title" content="<?= esc('AmbulatorioFacile') ?>">
   <link rel="apple-touch-icon" href="<?= base_url('public/assets/images/logonew.jpg'); ?>">
 
   <link rel="stylesheet" href="<?= base_url('public/assets/css/register.css'); ?>">

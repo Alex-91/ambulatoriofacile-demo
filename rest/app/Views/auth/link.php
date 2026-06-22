@@ -8,9 +8,9 @@ $token = $_GET['token'] ?? '';
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Collegamento dispositivo â€¢ AMBULATORI.Cloud</title>
+<title>Collegamento dispositivo â€¢ AmbulatorioFacile</title>
 <meta name="theme-color" content="#2c8895">
-<script>document.title = <?= json_encode('Collegamento dispositivo - ' . 'AmbulatoriCLOUD') ?>;</script>
+<script>document.title = <?= json_encode('Collegamento dispositivo - ' . 'AmbulatorioFacile') ?>;</script>
 <style>
   :root{
     --ink:#1f2d3d; --muted:#667085; --brand:#2c8895;
@@ -125,7 +125,7 @@ $token = $_GET['token'] ?? '';
     const tag = 'push-healthcheck-' + Date.now() + '-' + Math.random().toString(36).slice(2);
 
     try {
-      await reg.showNotification(<?= json_encode('AmbulatoriCLOUD') ?>, {
+      await reg.showNotification(<?= json_encode('AmbulatorioFacile') ?>, {
         body: 'Verifica notifiche attive...',
         tag,
         silent: true,

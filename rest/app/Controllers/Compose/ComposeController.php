@@ -194,7 +194,7 @@ class ComposeController extends BaseController
         log_message('info', "Invio OTP via WhatsApp a {$numero}");
 
         $smsSender = new SmsSender();
-        $messaggio = "Ambulatori.Cloud - Il suo codice di accesso OTP è {$otp}. Non divulgare questo codice. Il codice rimarrà attivo solamente per 2 minuti.";
+        $messaggio = "AmbulatorioFacile - Il suo codice di accesso OTP è {$otp}. Non divulgare questo codice. Il codice rimarrà attivo solamente per 2 minuti.";
         $response = $smsSender->sendWA($numero, $messaggio);
 
         if ($response) {
@@ -209,7 +209,7 @@ class ComposeController extends BaseController
         log_message('info', "Invio OTP via SMS a {$numero}");
 
         $smsSender = new SmsSender();
-        $messaggio = "Ambulatori.Cloud - Il suo codice di accesso OTP è {$otp}. Non divulgare questo codice. Il codice rimarrà attivo solamente per 2 minuti.";
+        $messaggio = "AmbulatorioFacile - Il suo codice di accesso OTP è {$otp}. Non divulgare questo codice. Il codice rimarrà attivo solamente per 2 minuti.";
         $response = $smsSender->sendSMSIndex($numero, $messaggio);
 
         if ($response) {

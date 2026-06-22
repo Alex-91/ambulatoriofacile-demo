@@ -1,18 +1,18 @@
 {
   "profile_id": "medical",
-  "label": "Medical / Poliambulatorio",
+  "label": "Dietistica / Nutrizione",
   "audience": [
-    "studi medici",
-    "specialisti",
-    "poliambulatori"
+    "studi di dietistica",
+    "biologi nutrizionisti",
+    "percorsi alimentari personalizzati"
   ],
-  "positioning": "Suite operativa per agenda, comunicazione, reminder e coordinamento di strutture sanitarie leggere.",
+  "positioning": "Suite operativa per agenda, segreteria, follow-up e comunicazione in studi nutrizionali con piu professionisti.",
   "ui_labels": {
-    "professional": "Dottore",
+    "professional": "Dietista",
     "client": "Paziente",
     "coordinator": "Segreteria",
-    "assistant": "Infermiere",
-    "location": "Sede",
+    "assistant": "Assistente",
+    "location": "Studio",
     "room": "Stanza"
   },
   "modules": [
@@ -26,21 +26,21 @@
     "otp"
   ],
   "demo_entities": {
-    "locations": 2,
-    "rooms": 4,
-    "professionals": 4,
-    "coordinators": 2,
-    "assistants": 1,
-    "clients": 20
+    "locations": 1,
+    "rooms": 3,
+    "professionals": 2,
+    "coordinators": 1,
+    "assistants": 0,
+    "clients": 10
   },
   "demo_storylines": [
-    "Presa appuntamento e gestione agenda",
-    "Messaggistica tra staff e paziente",
-    "Reminder e conferma accesso con OTP",
-    "Gestione visibilita per personale"
+    "Prima visita e follow-up nutrizionale",
+    "Conferme e spostamenti gestiti dalla segreteria",
+    "Chat interna e continuita con il paziente",
+    "Accesso sicuro con OTP e comunicazione strutturata"
   ],
   "notes": [
-    "Riusare il piu possibile il naming sanitario gia presente.",
+    "Il layer demo deve parlare il linguaggio di uno studio nutrizionale da 3 persone.",
     "Evitare riferimenti a clienti reali o alla farmacia."
   ]
 }

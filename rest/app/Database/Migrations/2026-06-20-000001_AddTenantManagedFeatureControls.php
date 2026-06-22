@@ -6,6 +6,8 @@ use CodeIgniter\Database\Migration;
 
 class AddTenantManagedFeatureControls extends Migration
 {
+    protected $DBGroup = 'platform';
+
     public function up()
     {
         $this->addFeatureCatalogColumns();
@@ -130,9 +132,9 @@ class AddTenantManagedFeatureControls extends Migration
         $this->forge->addKey('id_tenant');
         $this->forge->addKey('id_feature');
         $this->forge->addKey('updated_by_platform_user');
-        $this->forge->addForeignKey('id_tenant', 'platform_tenants', 'id_tenant', 'CASCADE', 'CASCADE');
-        $this->forge->addForeignKey('id_feature', 'platform_features', 'id_feature', 'CASCADE', 'CASCADE');
-        $this->forge->addForeignKey('updated_by_platform_user', 'platform_users', 'id_platform_user', 'SET NULL', 'CASCADE');
+        $this->forge->addForeignKey('id_tenant', 'platform_tenants', 'id_tenant', 'CASCADE', 'CASCADE', 'fk_ptfp_tenant');
+        $this->forge->addForeignKey('id_feature', 'platform_features', 'id_feature', 'CASCADE', 'CASCADE', 'fk_ptfp_feature');
+        $this->forge->addForeignKey('updated_by_platform_user', 'platform_users', 'id_platform_user', 'CASCADE', 'SET NULL', 'fk_ptfp_user');
         $this->forge->createTable('platform_tenant_feature_preferences', true);
     }
 

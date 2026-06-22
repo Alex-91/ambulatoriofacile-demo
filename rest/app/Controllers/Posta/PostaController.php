@@ -424,7 +424,7 @@ CSS;
     $html .= "<div class='header'>";
     $html .= "<div class='h-title'>Conversazione</div>";
     $html .= "<div class='meta'>";
-    $html .= "<div class='kv'><strong>Oggetto:</strong> {$safeSubject}<span class='badge'>AmbulatoriCLOUD</span></div>";
+    $html .= "<div class='kv'><strong>Oggetto:</strong> {$safeSubject}<span class='badge'>AmbulatorioFacile</span></div>";
 
     // âœ… qui mettiamo chiaro paziente + dottore
     if ($patientName !== '') {
@@ -1157,7 +1157,7 @@ public function attachment(int $id)
     if ($pathRel === '') {
         throw PageNotFoundException::forPageNotFound('Percorso allegato vuoto');
     }
-$fullPath = 'https://www.ambulatori.cloud/upload/'.$row['id_message']
+$fullPath = 'https://www.ambulatoriofacile.it/upload/'.$row['id_message']
          . '/'
          . ltrim($pathRel, '/');
     log_message('error',$fullPath); 

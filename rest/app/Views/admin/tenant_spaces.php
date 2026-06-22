@@ -36,6 +36,15 @@ $platformBootstrapWarnings = is_array($platformBootstrapWarnings ?? null) ? $pla
 $masterAccountWarnings = is_array($masterAccountWarnings ?? null) ? $masterAccountWarnings : [];
 $masterTempPasswords = is_array($masterTempPasswords ?? null) ? $masterTempPasswords : [];
 $platformMasterAccounts = is_array($platformMasterAccounts ?? null) ? $platformMasterAccounts : [];
+$selectableTenants = session()->get('platform_selectable_tenants');
+$selectableTenants = is_array($selectableTenants) ? $selectableTenants : [];
+$accessibleTenantIds = [];
+foreach ($selectableTenants as $selectableTenant) {
+    $selectableTenantId = (int)($selectableTenant['id_tenant'] ?? 0);
+    if ($selectableTenantId > 0) {
+        $accessibleTenantIds[$selectableTenantId] = true;
+    }
+}
 
 $oldValue = static function (string $key, $fallback = '') {
     $old = old($key);
@@ -50,8 +59,7 @@ $oldValue = static function (string $key, $fallback = '') {
   <meta content="width=device-width, initial-scale=1" name="viewport">
   <link href="<?= base_url('public/bootstrap/css/bootstrap.min.css') ?>" rel="stylesheet" />
   <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css" rel="stylesheet" />
-  <link href="<?= base_url('public/dist/css/AdminLTE.css') ?>" rel="stylesheet" />
-  <link href="<?= base_url('public/dist/css/skins/_all-skins.min.css') ?>" rel="stylesheet" />
+  <link href="<?= base_url('public/assets/css/platform-console.css') ?>" rel="stylesheet" />
   <style>
     .nav-pills.nav-stacked > li.active > a { background-color:#2c8895; color:#fff; }
     .intro-box {
@@ -124,9 +132,9 @@ $oldValue = static function (string $key, $fallback = '') {
   </style>
 </head>
 
-<body class="skin-blue sidebar-mini">
+<body class="platform-console-body">
 <div class="wrapper">
-  <?= view('partials/header', ['menu_items' => $menu_items]) ?>
+  <?= view('partials/header', ['menu_items' => $menu_items, 'portal_console_header' => true]) ?>
 
   <div class="content-wrapper">
     <section class="content-header">
@@ -202,23 +210,63 @@ $oldValue = static function (string $key, $fallback = '') {
             </div>
             <div class="box-body">
               <p class="text-muted" style="margin:0 0 14px 0;">
-                Qui vedi le email master configurate in Coolify e puoi preparare il primo accesso senza dipendere dalla creazione del primo cliente. Anche i master entrano sempre da <code>/login</code>.
+                Qui governi direttamente gli account master della piattaforma. Puoi crearli dal pannello, inviare il primo accesso e, se vuoi, usare ancora le email bootstrap di Coolify come scorciatoia tecnica.
               </p>
 
+              <form method="post" action="<?= portal_platform_url('spazi-clienti/master-accounts/save') ?>" style="margin-bottom:16px;">
+                <?= csrf_field() ?>
+                <div class="row">
+                  <div class="col-md-4">
+                    <label>Email master</label>
+                    <input class="form-control" type="email" name="master_account_email" value="<?= esc((string) $oldValue('master_account_email')) ?>" placeholder="master@ambulatoriofacile.it" required>
+                  </div>
+                  <div class="col-md-3">
+                    <label>Nome</label>
+                    <input class="form-control" type="text" name="master_account_first_name" value="<?= esc((string) $oldValue('master_account_first_name')) ?>" placeholder="Nome">
+                  </div>
+                  <div class="col-md-3">
+                    <label>Cognome</label>
+                    <input class="form-control" type="text" name="master_account_last_name" value="<?= esc((string) $oldValue('master_account_last_name')) ?>" placeholder="Cognome">
+                  </div>
+                  <div class="col-md-2">
+                    <label>&nbsp;</label>
+                    <button class="btn btn-success btn-block" type="submit">
+                      <i class="fa fa-save"></i> Salva master
+                    </button>
+                  </div>
+                </div>
+                <div class="row" style="margin-top:10px;">
+                  <div class="col-md-4">
+                    <label style="font-weight:normal;">
+                      <input type="checkbox" name="master_account_send_access" value="1" <?= $oldValue('master_account_send_access', '1') ? 'checked' : '' ?>>
+                      Invia subito email di accesso
+                    </label>
+                  </div>
+                  <div class="col-md-4">
+                    <label style="font-weight:normal;">
+                      <input type="checkbox" name="master_account_force_password_reset" value="1" <?= $oldValue('master_account_force_password_reset', '') ? 'checked' : '' ?>>
+                      Rigenera password temporanea
+                    </label>
+                  </div>
+                </div>
+              </form>
+
               <div class="master-account-actions">
-                <form method="post" action="<?= portal_platform_url('spazi-clienti/master-accounts/sync') ?>">
-                  <?= csrf_field() ?>
-                  <button class="btn btn-default" type="submit">
-                    <i class="fa fa-user-plus"></i> Prepara account master
-                  </button>
-                </form>
-                <form method="post" action="<?= portal_platform_url('spazi-clienti/master-accounts/sync') ?>">
-                  <?= csrf_field() ?>
-                  <input type="hidden" name="send_access" value="1">
-                  <button class="btn btn-primary" type="submit">
-                    <i class="fa fa-envelope"></i> Prepara e invia accesso
-                  </button>
-                </form>
+                <?php if (($platformMasterEmails ?? []) !== []): ?>
+                  <form method="post" action="<?= portal_platform_url('spazi-clienti/master-accounts/sync') ?>">
+                    <?= csrf_field() ?>
+                    <button class="btn btn-default" type="submit">
+                      <i class="fa fa-user-plus"></i> Importa seed da Coolify
+                    </button>
+                  </form>
+                  <form method="post" action="<?= portal_platform_url('spazi-clienti/master-accounts/sync') ?>">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="send_access" value="1">
+                    <button class="btn btn-primary" type="submit">
+                      <i class="fa fa-envelope"></i> Importa e invia accesso
+                    </button>
+                  </form>
+                <?php endif; ?>
                 <a class="btn btn-default" href="<?= portal_platform_url('funzioni') ?>">
                   <i class="fa fa-toggle-on"></i> Apri catalogo funzioni
                 </a>
@@ -229,17 +277,18 @@ $oldValue = static function (string $key, $fallback = '') {
                   <thead>
                     <tr>
                       <th>Email master</th>
+                      <th>Origine</th>
                       <th>Stato account</th>
                       <th>Primo accesso</th>
                       <th>Ultimo accesso</th>
-                      <th style="width:140px;">Azioni</th>
+                      <th style="width:220px;">Azioni</th>
                     </tr>
                   </thead>
                   <tbody>
                     <?php if ($platformMasterAccounts === []): ?>
                       <tr>
-                        <td colspan="5" class="text-muted">
-                          Nessuna email master configurata. Inserisci `PLATFORM_MASTER_EMAILS` in Coolify per attivare il login centrale dei master.
+                        <td colspan="6" class="text-muted">
+                          Nessun master piattaforma ancora configurato. Puoi crearne uno dal form qui sopra oppure importare le email bootstrap da Coolify.
                         </td>
                       </tr>
                     <?php else: ?>
@@ -257,6 +306,12 @@ $oldValue = static function (string $key, $fallback = '') {
                             <?php if (trim((string)($account['full_name'] ?? '')) !== ''): ?>
                               <br><span class="text-muted"><?= esc((string)($account['full_name'] ?? '')) ?></span>
                             <?php endif; ?>
+                            <?php if (!empty($account['is_current_user'])): ?>
+                              <br><span class="label label-info" style="margin-top:4px;">Sessione corrente</span>
+                            <?php endif; ?>
+                          </td>
+                          <td>
+                            <span class="label label-default"><?= esc((string)($account['source_label'] ?? 'Pannello')) ?></span>
                           </td>
                           <td>
                             <span class="label label-<?= esc($statusLabelClass) ?>">
@@ -283,6 +338,15 @@ $oldValue = static function (string $key, $fallback = '') {
                                 <i class="fa fa-envelope"></i> Invia accesso
                               </button>
                             </form>
+                            <?php if (!empty($account['can_revoke'])): ?>
+                              <form method="post" action="<?= portal_platform_url('spazi-clienti/master-accounts/revoke') ?>" onsubmit="return confirm('Revocare i permessi master per questo account?');">
+                                <?= csrf_field() ?>
+                                <input type="hidden" name="platform_user_id" value="<?= (int)($account['platform_user_id'] ?? 0) ?>">
+                                <button class="btn btn-xs btn-danger" type="submit">
+                                  <i class="fa fa-user-times"></i> Revoca master
+                                </button>
+                              </form>
+                            <?php endif; ?>
                           </td>
                         </tr>
                       <?php endforeach; ?>
@@ -290,6 +354,10 @@ $oldValue = static function (string $key, $fallback = '') {
                   </tbody>
                 </table>
               </div>
+
+              <p class="text-muted" style="margin:10px 0 0 0;">
+                Gli account con origine <code>Pannello</code> sono quelli gestiti stabilmente dal database centrale. <code>Bootstrap Coolify</code> resta solo come scorciatoia iniziale e non serve piu per la gestione ordinaria.
+              </p>
             </div>
           </div>
 
@@ -347,7 +415,7 @@ $oldValue = static function (string $key, $fallback = '') {
                     <th>Master</th>
                     <th>Stato</th>
                     <th>Storage</th>
-                    <th style="width:90px;">Azioni</th>
+                    <th style="width:170px;">Azioni</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -356,6 +424,8 @@ $oldValue = static function (string $key, $fallback = '') {
                   <?php else: ?>
                     <?php foreach ($tenantRows as $row): ?>
                       <?php $tenantLink = portal_platform_url('spazi-clienti') . '?id_tenant=' . (int)$row['id_tenant']; ?>
+                      <?php $tenantAccessUrl = portal_tenant_switch_url((int)$row['id_tenant']); ?>
+                      <?php $canOpenOperationalSpace = !empty($accessibleTenantIds[(int)$row['id_tenant']]); ?>
                       <tr <?= ((int)$row['id_tenant'] === $selectedTenantId) ? 'class="info"' : '' ?>>
                         <td>
                           <strong><?= esc((string)($row['tenant_name'] ?? '')) ?></strong><br>
@@ -374,8 +444,13 @@ $oldValue = static function (string $key, $fallback = '') {
                         <td><?= esc((string)($row['storage_key'] ?? '-')) ?></td>
                         <td>
                           <a class="btn btn-xs btn-primary" href="<?= esc($tenantLink) ?>">
-                            <i class="fa fa-pencil"></i> Apri
+                            <i class="fa fa-pencil"></i> Modifica
                           </a>
+                          <?php if ($canOpenOperationalSpace): ?>
+                            <a class="btn btn-xs btn-default" href="<?= esc($tenantAccessUrl) ?>" style="margin-top:4px;">
+                              <i class="fa fa-external-link"></i> Entra
+                            </a>
+                          <?php endif; ?>
                         </td>
                       </tr>
                     <?php endforeach; ?>
@@ -664,6 +739,33 @@ $oldValue = static function (string $key, $fallback = '') {
           </div>
 
           <?php if ($isEdit): ?>
+            <div class="box box-danger">
+              <div class="box-header with-border">
+                <h3 class="box-title">Reset spazio cliente</h3>
+              </div>
+              <div class="box-body">
+                <p class="text-muted" style="margin-top:0;">
+                  Usa questa azione solo per tenant di test o provisioning da rifare da zero. La cancellazione rimuove lo spazio dal catalogo centrale e, se selezionato, elimina anche database, cartelle locali e token di accesso collegati.
+                </p>
+                <form method="post" action="<?= portal_platform_url('spazi-clienti/delete') ?>" onsubmit="return confirm('Eliminare definitivamente questo spazio cliente e gli elementi tecnici selezionati?');">
+                  <?= csrf_field() ?>
+                  <input type="hidden" name="id_tenant" value="<?= (int)$selectedTenantId ?>">
+                  <div class="checkbox">
+                    <label><input type="checkbox" name="drop_database" value="1" checked> Elimina anche il database tenant</label>
+                  </div>
+                  <div class="checkbox">
+                    <label><input type="checkbox" name="delete_directories" value="1" checked> Elimina anche cartelle `upload/tenants` e `rest/writable/tenants`</label>
+                  </div>
+                  <div class="checkbox">
+                    <label><input type="checkbox" name="delete_tokens" value="1" checked> Elimina anche i token di accesso tenant</label>
+                  </div>
+                  <button class="btn btn-danger" type="submit">
+                    <i class="fa fa-trash"></i> Elimina spazio cliente
+                  </button>
+                </form>
+              </div>
+            </div>
+
             <?php
               $capacityCurrent = (int)($tenantCapacity['current_users'] ?? 0);
               $capacityMax = $tenantCapacity['max_users'] ?? null;
@@ -864,7 +966,6 @@ $oldValue = static function (string $key, $fallback = '') {
 
 <script src="<?= base_url('public/plugins/jQuery/jQuery-2.1.4.min.js') ?>"></script>
 <script src="<?= base_url('public/bootstrap/js/bootstrap.min.js') ?>"></script>
-<script src="<?= base_url('public/dist/js/app.min.js') ?>"></script>
 <script>
 (function () {
   var form = document.getElementById('tenant-member-form');

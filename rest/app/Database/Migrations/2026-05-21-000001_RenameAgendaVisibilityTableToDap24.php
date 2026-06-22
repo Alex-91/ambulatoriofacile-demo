@@ -124,7 +124,12 @@ class RenameAgendaVisibilityTableToDap24 extends Migration
 
     private function tableColumns(string $table): array
     {
-        $rows = $this->db->query(sprintf('SHOW COLUMNS FROM `%s`', $table))->getResultArray();
+        $query = $this->db->query(sprintf('SHOW COLUMNS FROM `%s`', $table));
+        if (!$query) {
+            return [];
+        }
+
+        $rows = $query->getResultArray();
         return array_map(static fn(array $row): string => (string)($row['Field'] ?? ''), $rows);
     }
 

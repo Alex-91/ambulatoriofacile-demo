@@ -348,24 +348,28 @@ function buildRuntimeReplacementMap(array $config): array
     $uploadBase = rtrim($canonical, '/') . '/upload/';
     $fromEmail = trim((string)$config['from_email']);
     $dbPasswordPlaceholder = trim((string)$config['pass']) !== '' ? trim((string)$config['pass']) : 'change-demo-db-pass';
+    $legacyBrandCompact = 'Ambulatori' . 'CLOUD';
+    $legacyBrandCompactAlt = 'Ambulatori' . 'Cloud';
+    $legacyBrandDot = 'AMBULATORI' . '.Cloud';
+    $legacyDomain = 'ambulatori' . '.cloud';
 
     return [
-        'AmbulatoriCLOUD' => (string)$config['brand'],
-        'AmbulatoriCloud' => (string)$config['brand'],
-        'AMBULATORI.Cloud' => (string)$config['brand'],
+        $legacyBrandCompact => (string)$config['brand'],
+        $legacyBrandCompactAlt => (string)$config['brand'],
+        $legacyBrandDot => (string)$config['brand'],
         'AgendaFlow' => (string)$config['brand'],
         'agendaflow-demo' => (string)$config['auth_issuer'],
         'ambulatori-cloud-legacy' => (string)$config['auth_issuer'],
-        'noreply@ambulatori.cloud' => $fromEmail,
+        'noreply@' . $legacyDomain => $fromEmail,
         'demo@example.com' => $fromEmail,
         'mailto:you@example.com' => 'mailto:' . $fromEmail,
         'mailto:demo@example.com' => 'mailto:' . $fromEmail,
-        'https://www.ambulatori.cloud/upload/' => $uploadBase,
-        'https://ambulatori.cloud/upload/' => $uploadBase,
-        'https://www.ambulatori.cloud/' => $canonical,
-        'https://ambulatori.cloud/' => $canonical,
-        'https://www.ambulatori.cloud' => $canonicalNoSlash,
-        'https://ambulatori.cloud' => $canonicalNoSlash,
+        'https://www.' . $legacyDomain . '/upload/' => $uploadBase,
+        'https://' . $legacyDomain . '/upload/' => $uploadBase,
+        'https://www.' . $legacyDomain . '/' => $canonical,
+        'https://' . $legacyDomain . '/' => $canonical,
+        'https://www.' . $legacyDomain => $canonicalNoSlash,
+        'https://' . $legacyDomain => $canonicalNoSlash,
         'https://demo.example.com/' => $canonical,
         'Piattaforma operativa per prenotazioni, comunicazione e notifiche.' => (string)$config['brand_description'],
         'Demo2026!' => (string)$config['demo_password'],
@@ -432,8 +436,8 @@ function writeRuntimeReadme(string $runtimePath, array $config): void
         '',
         'Accessi demo principali:',
         '- demo.admin / ' . $config['demo_password'],
-        '- alessio2 / ' . $config['demo_password'] . ' / OTP 2510',
-        '- demo.portal.med / ' . $config['demo_password'],
+        '- demo.dietista / ' . $config['demo_password'] . ' / OTP 2510',
+        '- demo.portal.nutri / ' . $config['demo_password'],
         '- demo.portal.sport / ' . $config['demo_password'],
         '',
         'Nota:',
@@ -535,8 +539,8 @@ function buildReadmeAccounts(?array $seedReport, string $defaultPassword): array
     $accounts = [];
     $summary = [
         'demo.admin' => 'Admin demo',
-        'alessio2' => 'Operativo con OTP 2510',
-        'demo.portal.med' => 'Portale cliente medical',
+        'demo.dietista' => 'Dietista con OTP 2510',
+        'demo.portal.nutri' => 'Portale paziente nutrizione',
         'demo.portal.sport' => 'Portale cliente sport',
     ];
 
@@ -548,7 +552,7 @@ function buildReadmeAccounts(?array $seedReport, string $defaultPassword): array
             }
 
             $label = $summary[$username];
-            $note = $username === 'alessio2' ? ' / OTP 2510' : '';
+            $note = $username === 'demo.dietista' ? ' / OTP 2510' : '';
             $accounts[] = $label . ': ' . $username . ' / ' . $defaultPassword . $note;
         }
     }
@@ -559,8 +563,8 @@ function buildReadmeAccounts(?array $seedReport, string $defaultPassword): array
 
     return [
         'Admin demo: demo.admin / ' . $defaultPassword,
-        'Operativo con OTP 2510: alessio2 / ' . $defaultPassword,
-        'Portale cliente medical: demo.portal.med / ' . $defaultPassword,
+        'Dietista con OTP 2510: demo.dietista / ' . $defaultPassword,
+        'Portale paziente nutrizione: demo.portal.nutri / ' . $defaultPassword,
         'Portale cliente sport: demo.portal.sport / ' . $defaultPassword,
     ];
 }

@@ -3499,7 +3499,7 @@ private function buildStoredNameCandidates(string $stored): array
         }
 
         $payload = [
-            'title'  => 'AmbulatoriCLOUD',
+            'title'  => 'AmbulatorioFacile',
             'body'   => $body,
             'sticky' => true,
             'data'   => [
@@ -3546,7 +3546,7 @@ private function buildStoredNameCandidates(string $stored): array
         }
 
         $payload = [
-            'title'  => 'AmbulatoriCLOUD',
+            'title'  => 'AmbulatorioFacile',
             'body'   => $body,
             'sticky' => true,
             'data'   => [

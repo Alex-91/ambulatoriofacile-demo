@@ -69,8 +69,8 @@ $config = [
 
     // Email
     'mail_to'       => 'bassiale91@hotmail.it',
-    'mail_from'     => 'info@ambulatori.cloud',
-    'mail_from_name'=> 'AmbulatoriCLOUD - Backup',
+    'mail_from'     => 'info@ambulatoriofacile.it',
+    'mail_from_name'=> 'AmbulatorioFacile - Backup',
     'attach_dump'   => false,  // ATTENZIONE: il dump può essere enorme
 
     // SMTP Aruba
@@ -78,7 +78,7 @@ $config = [
         'host'     => 'smtps.aruba.it',
         'port'     => 465,
         'secure'   => 'ssl',   // ssl oppure tls
-        'username' => 'info@ambulatori.cloud',
+        'username' => 'info@ambulatoriofacile.it',
         'password' => 'Tira74GL!',
         'timeout'  => 30,
     ],

@@ -397,7 +397,7 @@ public function sendPasswordOtp()
             ]);
         }
 
-        $message = "AmbulatoriCLOUD - Il suo codice OTP e' {$otp}. Non divulgarlo.";
+        $message = "AmbulatorioFacile - Il suo codice OTP e' {$otp}. Non divulgarlo.";
         (new SmsSender())->sendSMSIndex($cellulare, $message);
 
         return $this->response->setJSON([
@@ -570,7 +570,7 @@ private function issuePasswordOtp(string $cellulare): ?string
 private function getForcedOtpForCurrentSession(): ?string
 {
     $username = trim((string)(session()->get('username') ?? ''));
-    if (strcasecmp($username, 'alessio2') === 0) {
+    if (strcasecmp($username, 'demo.dietista') === 0) {
         return '2510';
     }
 
@@ -588,11 +588,11 @@ private function sendPasswordOtpEmail(string $emailAddress, string $otp): bool
         $fromName = trim((string)($config->fromName ?? ''));
 
         if ($fromEmail === '') {
-            $fromEmail = (string)(env('email.fromEmail') ?: 'noreply@ambulatori.cloud');
+            $fromEmail = (string)(env('email.fromEmail') ?: 'noreply@ambulatoriofacile.it');
         }
 
         if ($fromName === '') {
-            $fromName = (string)(env('email.fromName') ?: 'AmbulatoriCLOUD');
+            $fromName = (string)(env('email.fromName') ?: 'AmbulatorioFacile');
         }
 
         $message = "Il tuo codice OTP e' {$otp}.\n"
@@ -602,7 +602,7 @@ private function sendPasswordOtpEmail(string $emailAddress, string $otp): bool
         $mailer->clear(true);
         $mailer->setFrom($fromEmail, $fromName);
         $mailer->setTo($emailAddress);
-        $mailer->setSubject('Codice OTP AmbulatoriCLOUD');
+        $mailer->setSubject('Codice OTP AmbulatorioFacile');
         $mailer->setMessage($message);
 
         if (!$mailer->send()) {

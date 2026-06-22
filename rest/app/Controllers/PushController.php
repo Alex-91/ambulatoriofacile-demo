@@ -100,7 +100,7 @@ class PushController extends BaseController
 
         $payload = [
             'type'  => 'test',
-            'title' => 'AmbulatoriCLOUD',
+            'title' => 'AmbulatorioFacile',
             'body'  => 'Le notifiche push sono attive.',
             'tag'   => 'push-test',
             'icon'  => NotificationService::notificationIconUrl(),
@@ -188,7 +188,7 @@ class PushController extends BaseController
             $userId,
             [
                 'type'  => 'debug',
-                'title' => 'AmbulatoriCLOUD',
+                'title' => 'AmbulatorioFacile',
                 'body'  => 'Debug notifica push.',
                 'tag'   => 'debug-' . time(),
                 'data'  => ['url' => base_url('profilo')],

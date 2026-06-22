@@ -248,12 +248,33 @@ class TenantAppUserProvisioningService
             return 0;
         }
 
-        $rows = $db->query("
-            SELECT p.id_user
-            FROM dap03_personale p
-            WHERE LOWER(" . $this->crypto->decryptSenzaAlias('p.email') . ") = ?
-            ORDER BY p.id_user ASC
-        ", [$email])->getResultArray();
+        if (!$db->tableExists('dap03_personale') || !$db->fieldExists('email', 'dap03_personale')) {
+            return 0;
+        }
+
+        try {
+            $query = $db->query("
+                SELECT p.id_user
+                FROM dap03_personale p
+                WHERE LOWER(" . $this->crypto->decryptSenzaAlias('p.email') . ") = ?
+                ORDER BY p.id_user ASC
+            ", [$email]);
+        } catch (\Throwable $e) {
+            log_message('warning', 'Tenant app user lookup by email failed: ' . $e->getMessage(), [
+                'email' => $email,
+            ]);
+            return 0;
+        }
+
+        if (!$query) {
+            log_message('warning', 'Tenant app user lookup by email returned no result object.', [
+                'email' => $email,
+                'db_error' => $db->error(),
+            ]);
+            return 0;
+        }
+
+        $rows = $query->getResultArray();
 
         $matches = [];
         foreach ($rows as $row) {

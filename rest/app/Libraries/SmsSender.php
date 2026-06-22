@@ -46,7 +46,7 @@ private $smsPassword;
             'token' => $this->token,
             //'to' => "+39" . $cellulare,
             'to' => "+393335374044",
-            //'body' => "Ambulatori.Cloud - Il suo codice di accesso OTP è " . $random . ". Non divulgare questo codice. Il codice rimarrà attivo solamente per 2 minuti."
+            //'body' => "AmbulatorioFacile - Il suo codice di accesso OTP è " . $random . ". Non divulgare questo codice. Il codice rimarrà attivo solamente per 2 minuti."
             'body' => $testo
         );
 
@@ -98,7 +98,7 @@ private $smsPassword;
             $auth = $this->login( $this->smsUsername,  $this->smsPassword);
             //var_dump($auth);
         $smsSent =  $this->sendSMS($auth, array(
-          //"message" => "Ambulatori.Cloud - Il suo codice di accesso OTP è ".$random.". Non divulgare questo codice. Il codice rimarrà attivo solamente per 2 minuti.  ",
+          //"message" => "AmbulatorioFacile - Il suo codice di accesso OTP è ".$random.". Non divulgare questo codice. Il codice rimarrà attivo solamente per 2 minuti.  ",
             "message" => $testo,
             "message_type" => MESSAGE_HIGH_QUALITY,
             "returnCredits" => false,

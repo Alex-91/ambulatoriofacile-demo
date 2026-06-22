@@ -63,7 +63,7 @@ $selectedDoctorId = $selectedDoctorId       ?? null;
 <html>
   <head>
     <meta charset="UTF-8">
-    <title>AmbulatoriCLOUD | Leggi messaggio</title>
+    <title>AmbulatorioFacile | Leggi messaggio</title>
     <meta content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" name="viewport">
     <link rel="icon" href="<?= base_url('public/assets/images/logonew.jpg') ?>" type="image/x-icon" sizes="any">
 
@@ -73,7 +73,7 @@ $selectedDoctorId = $selectedDoctorId       ?? null;
     <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css" rel="stylesheet" />
     <!-- Ionicons -->
     <link href="https://code.ionicframework.com/ionicons/2.0.1/css/ionicons.min.css" rel="stylesheet" />
-    <!-- AmbulatoriCLOUD theme -->
+    <!-- AmbulatorioFacile theme -->
     <link href="<?= base_url('public/dist/css/AdminLTE.css') ?>" rel="stylesheet" type="text/css" />
     <link href="<?= base_url('public/dist/css/skins/_all-skins.min.css') ?>" rel="stylesheet" type="text/css" />
     <!-- iCheck -->
@@ -468,11 +468,11 @@ $selectedDoctorId = $selectedDoctorId       ?? null;
 
       <footer class="main-footer">
         <div class="pull-right hidden-xs"><b>Version</b> 2.0</div>
-        <strong>&copy; AmbulatoriCLOUD</strong>
+        <strong>&copy; AmbulatorioFacile</strong>
       </footer>
 
       <aside class="control-sidebar control-sidebar-dark">
-        <!-- eventuale contenuto standard AmbulatoriCLOUD -->
+        <!-- eventuale contenuto standard AmbulatorioFacile -->
       </aside>
       <div class='control-sidebar-bg'></div>
     </div><!-- /.wrapper -->

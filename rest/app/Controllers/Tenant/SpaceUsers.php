@@ -4,6 +4,7 @@ namespace App\Controllers\Tenant;
 
 use App\Controllers\BaseController;
 use App\Services\PlatformAccessService;
+use App\Services\SessionNavigationService;
 use App\Services\TenantCatalogService;
 use App\Services\TenantContextService;
 use App\Services\TenantProvisioningService;
@@ -24,7 +25,7 @@ class SpaceUsers extends BaseController
             return $guard;
         }
 
-        if (trim(service('uri')->getPath(), '/') !== 'login/spazio/utenti') {
+        if (!portal_current_path_matches('login/spazio/utenti')) {
             return redirect()->to(portal_tenant_space_url('utenti'));
         }
 
@@ -32,6 +33,8 @@ class SpaceUsers extends BaseController
         if ($context === null) {
             return redirect()->to(site_url('/'));
         }
+
+        (new SessionNavigationService())->refreshCurrentSession();
 
         $tenantId = $context->tenantId;
         $service = new TenantProvisioningService();

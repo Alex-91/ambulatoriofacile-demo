@@ -32,7 +32,7 @@ function formatDataOraIt(?string $datetime): string
 <html>
   <head>
     <meta charset="UTF-8">
-    <title><?= esc('AmbulatoriCLOUD') ?> | Gestisci prenotazioni MMG</title>
+    <title><?= esc('AmbulatorioFacile') ?> | Gestisci prenotazioni MMG</title>
     <link rel="icon" href="<?= base_url('public/assets/images/logonew.jpg') ?>" type="image/x-icon" sizes="any">
     <meta content='width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no' name='viewport'>
 
@@ -112,7 +112,7 @@ function formatDataOraIt(?string $datetime): string
 
       <footer class="main-footer">
         <div class="pull-right hidden-xs"><b>Version</b> 2.0</div>
-        <strong>&copy; <?= esc('AmbulatoriCLOUD') ?></strong>
+        <strong>&copy; <?= esc('AmbulatorioFacile') ?></strong>
       </footer>
       <aside class="control-sidebar control-sidebar-dark"></aside>
       <div class='control-sidebar-bg'></div>

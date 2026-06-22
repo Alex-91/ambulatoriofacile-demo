@@ -17,6 +17,52 @@ class LoginController extends BaseController
     private const PLATFORM_TENANT_SELECTION_SESSION_KEY = 'platform_pending_tenant_login';
     private const PLATFORM_TENANT_SELECTION_TTL_SECONDS = 600;
 
+    private function ensureLegacyCryptoSession(\CodeIgniter\Database\BaseConnection $db, string $charset = 'latin1'): void
+    {
+        if (isset($this->dbConfig) && $this->dbConfig instanceof \App\Libraries\DatabaseConfig) {
+            $this->dbConfig->setEncryptionConfig($db, $charset);
+            return;
+        }
+
+        (new \App\Libraries\DatabaseConfig())->setEncryptionConfig($db, $charset);
+    }
+
+    /**
+     * @param array<int|string, mixed> $params
+     * @param array<string, mixed> $context
+     * @return \CodeIgniter\Database\BaseResult|\CodeIgniter\Database\Query|false
+     */
+    private function runQueryWithCryptoRecovery(
+        \CodeIgniter\Database\BaseConnection $db,
+        string $sql,
+        array $params = [],
+        array $context = [],
+        string $charset = 'latin1'
+    ) {
+        $query = $db->query($sql, $params);
+        if ($query !== false) {
+            return $query;
+        }
+
+        $firstError = $db->error();
+        $this->ensureLegacyCryptoSession($db, $charset);
+
+        $query = $db->query($sql, $params);
+        if ($query !== false) {
+            return $query;
+        }
+
+        $secondError = $db->error();
+        $this->logErrorLogin('Query database fallita anche dopo il ripristino della sessione crypto.', array_merge($context, [
+            'db_error_code' => (string) ($firstError['code'] ?? ''),
+            'db_error_message' => (string) ($firstError['message'] ?? ''),
+            'retry_db_error_code' => (string) ($secondError['code'] ?? ''),
+            'retry_db_error_message' => (string) ($secondError['message'] ?? ''),
+        ]));
+
+        return false;
+    }
+
     private function storedPasswordLooksCorrupted(\CodeIgniter\Database\BaseConnection $db, int $idUser): bool
     {
         if ($idUser <= 0) {
@@ -28,7 +74,15 @@ class LoginController extends BaseController
                 WHERE id_user = ?
                 LIMIT 1";
 
-        $row = $db->query($sql, [$idUser])->getRowArray();
+        $query = $this->runQueryWithCryptoRecovery($db, $sql, [$idUser], [
+            'query_name' => 'stored_password_plaintext_lookup',
+            'id_user' => $idUser,
+        ]);
+        if ($query === false) {
+            return false;
+        }
+
+        $row = $query->getRowArray();
         $plainPassword = trim((string)($row['plain_pwd'] ?? ''));
         if ($plainPassword === '') {
             return false;
@@ -111,13 +165,15 @@ class LoginController extends BaseController
         $profileSlug = array_key_exists($requestedProfile, $profileLabels) ? $requestedProfile : '';
         $prefillUsername = $this->sanitizeDemoUsername((string) $this->request->getGet('u'));
         $demoMode = $this->request->getGet('demo') === '1' || $prefillUsername !== '' || $profileSlug !== '';
+        $demoOtpHint = in_array($prefillUsername, ['demo.dietista', 'demo.segreteria'], true)
+            || str_contains($prefillUsername, '->');
 
         return [
             'demoMode' => $demoMode,
             'prefillUsername' => $prefillUsername,
             'demoProfileSlug' => $profileSlug,
-            'demoProfileLabel' => $profileLabels[$profileSlug] ?? 'Percorso demo',
-            'demoOtpHint' => in_array($prefillUsername, ['demo.dietista', 'demo.admin->demo.segreteria'], true),
+            'demoProfileLabel' => $profileLabels[$profileSlug] ?? 'Demo AmbulatorioFacile',
+            'demoOtpHint' => $demoOtpHint,
             'loginSuccess' => session()->getFlashdata('login_success'),
             'loginError' => session()->getFlashdata('login_error'),
         ];
@@ -145,9 +201,31 @@ class LoginController extends BaseController
 
     private function shouldAttemptPlatformLogin(string $username, bool $legacyUserExists): bool
     {
-        return str_contains($username, '@')
-            && !$legacyUserExists
-            && !str_contains($username, '->');
+        if (!str_contains($username, '@') || str_contains($username, '->')) {
+            return false;
+        }
+
+        if (!$legacyUserExists) {
+            return true;
+        }
+
+        return $this->platformUserExistsByEmail($username);
+    }
+
+    private function platformUserExistsByEmail(string $username): bool
+    {
+        $username = strtolower(trim($username));
+        if ($username === '' || !filter_var($username, FILTER_VALIDATE_EMAIL)) {
+            return false;
+        }
+
+        try {
+            return model(\App\Models\PlatformUsersModel::class)
+                ->findByEmailInsensitive($username) !== null;
+        } catch (\Throwable $e) {
+            log_message('error', 'LoginController::platformUserExistsByEmail failed: ' . $e->getMessage());
+            return false;
+        }
     }
 
     private function handlePlatformLogin(string $username, string $password)
@@ -300,7 +378,7 @@ class LoginController extends BaseController
 
         try {
             $bootstrap = (new TenantAppSessionBootstrapService())->bootstrap($platformUserId, $tenantId);
-            return redirect()->to(site_url((string) ($bootstrap['redirectUrl'] ?? '/')));
+            return redirect()->to(portal_resolve_redirect_url((string) ($bootstrap['redirectUrl'] ?? '/')));
         } catch (\Throwable $e) {
             return redirect()->to($this->postLoginFallbackUrl())->with('error', $e->getMessage());
         }
@@ -316,8 +394,10 @@ class LoginController extends BaseController
         // Mostra la pagina di login
         helper('portal');
 
-        if ((bool) (session()->get('isLoggedInConfirmed') ?? false) === true) {
-            if ((bool) (session()->get('platform_is_admin') ?? false) === true) {
+        // Mostra sempre il form di login: se c'e' una sessione residua, l'utente deve
+        // poter rientrare o cambiare account senza essere rimandato alla home.
+        if (false && (bool) (session()->get('isLoggedInConfirmed') ?? false) === true) {
+            if ((bool) (session()->get('platform_is_admin') ?? false) === true || $this->isLegacyPlatformBootstrapSession()) {
                 return redirect()->to(portal_platform_url('spazi-clienti'));
             }
 
@@ -332,7 +412,8 @@ class LoginController extends BaseController
         $username = '';
 
         try {
-        $db = \Config\Database::connect(); // Connessione al database
+        $db = $this->db ?? \Config\Database::connect();
+        $this->ensureLegacyCryptoSession($db);
         $credentials = $this->request->getJSON(); // Recupera le credenziali inviate tramite POST
         $crypto_helper = new Crypto_helper();
         $this->clearPendingPlatformLogin();
@@ -391,10 +472,19 @@ session()->remove(\App\Services\PlatformAccessService::SESSION_KEY_PENDING_PASSW
         }
 
         $legacyUserExists = $this->legacyUserExistsByUsername($db, $username);
+        $platformUserExists = $this->platformUserExistsByEmail($username);
         if ($this->shouldAttemptPlatformLogin($username, $legacyUserExists)) {
             $platformResponse = $this->handlePlatformLogin($username, $password);
             if ($platformResponse !== null) {
                 return $platformResponse;
+            }
+
+            if ($platformUserExists) {
+                return $this->response->setJSON([
+                    'resp' => 'KO',
+                    'success' => false,
+                    'message' => 'Credenziali non valide per il login unico. Usa la password aggiornata del tuo account piattaforma.',
+                ])->setStatusCode(401);
             }
         }
 
@@ -436,15 +526,31 @@ session()->remove(\App\Services\PlatformAccessService::SESSION_KEY_PENDING_PASSW
 
             // Esegui la query con i parametri username e password criptata
             if (strpos($username, '->') !== false) {
-                $query = $db->query($sql, [
+                $query = $this->runQueryWithCryptoRecovery($db, $sql, [
                     $usernamesArray['username_adm'],  // Passa il parametro direttamente
                     $password                // Passa la password criptata
+                ], [
+                    'query_name' => 'legacy_login_credentials_check',
+                    'login_mode' => 'admin_arrow',
+                    'username' => $usernamesArray['username_adm'],
                 ]);
             } else {
-                $query = $db->query($sql, [
+                $query = $this->runQueryWithCryptoRecovery($db, $sql, [
                     $username,                         // Passa il parametro direttamente
                     $password                    // Passa la password criptata
+                ], [
+                    'query_name' => 'legacy_login_credentials_check',
+                    'login_mode' => 'standard',
+                    'username' => $username,
                 ]);
+            }
+
+            if ($query === false) {
+                return $this->response->setJSON([
+                    'resp'    => 'KO',
+                    'success' => false,
+                    'message' => 'Accesso momentaneamente non disponibile. Riprova tra poco.'
+                ])->setStatusCode(503);
             }
 
             $user = $query->getRowArray();
@@ -546,7 +652,7 @@ session()->remove(\App\Services\PlatformAccessService::SESSION_KEY_PENDING_PASSW
                                 return $this->response->setJSON([
                                     'resp'        => 'OK',
                                     'success'     => true,
-                                    'redirectUrl' => 'admin'
+                                    'redirectUrl' => $this->legacyAdminPostLoginRedirectUrl()
                                 ]);
                             }
 
@@ -860,10 +966,17 @@ session()->remove(\App\Services\PlatformAccessService::SESSION_KEY_PENDING_PASSW
             'line'     => $e->getLine(),
         ]);
 
-        return $this->response->setJSON([
-            'error' => $e->getMessage(),
-            'trace' => $e->getTraceAsString()  // Aggiungi la traccia dello stack per il debug
-        ])->setStatusCode(500);
+        $payload = [
+            'resp'    => 'KO',
+            'success' => false,
+            'message' => 'Errore temporaneo durante il login. Riprova tra poco.'
+        ];
+
+        if ((string) env('CI_ENVIRONMENT', '') === 'development') {
+            $payload['error'] = $e->getMessage();
+        }
+
+        return $this->response->setJSON($payload)->setStatusCode(500);
     }
     }
 
@@ -879,10 +992,67 @@ session()->remove(\App\Services\PlatformAccessService::SESSION_KEY_PENDING_PASSW
     {
         helper('portal');
 
-        if ((bool) (session()->get('platform_is_admin') ?? false) === true) {
+        if ((bool) (session()->get('platform_is_admin') ?? false) === true || $this->isLegacyPlatformBootstrapSession()) {
             return portal_platform_url('spazi-clienti');
         }
 
         return site_url('/');
+    }
+
+    private function legacyAdminPostLoginRedirectUrl(): string
+    {
+        helper('portal');
+
+        if ($this->shouldBootstrapLegacyAdminToPlatformConsole()) {
+            return portal_platform_url('spazi-clienti');
+        }
+
+        return 'admin';
+    }
+
+    private function shouldBootstrapLegacyAdminToPlatformConsole(): bool
+    {
+        if ((int) (session()->get('tipoUser') ?? 0) !== 1) {
+            return false;
+        }
+
+        if (session()->get(\App\Services\TenantContextService::SESSION_KEY)) {
+            return false;
+        }
+
+        return $this->legacyPlatformBootstrapModeEnabled();
+    }
+
+    private function isLegacyPlatformBootstrapSession(): bool
+    {
+        if ((bool) (session()->get('isLoggedInConfirmed') ?? false) !== true) {
+            return false;
+        }
+
+        $me = session()->get('utente_sess');
+        if (!$me || empty($me->id_user)) {
+            return false;
+        }
+
+        $isLegacyAdmin = session()->get('is_admin') === true
+            || (int) (session()->get('admin') ?? 0) === 1
+            || (int) ($me->tipo ?? 0) === 1
+            || (int) (session()->get('tipoUser') ?? 0) === 1;
+
+        if (!$isLegacyAdmin) {
+            return false;
+        }
+
+        if (session()->get(\App\Services\TenantContextService::SESSION_KEY)) {
+            return false;
+        }
+
+        return $this->legacyPlatformBootstrapModeEnabled();
+    }
+
+    private function legacyPlatformBootstrapModeEnabled(): bool
+    {
+        $platformAdminAccess = new PlatformAdminAccessService();
+        return !$platformAdminAccess->hasPersistentPlatformAdmins();
     }
 }

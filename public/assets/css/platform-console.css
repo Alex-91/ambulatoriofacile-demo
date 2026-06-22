@@ -1,0 +1,666 @@
+body.platform-console-body {
+  background: #f3f7f7;
+  color: #23363a;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+body.platform-console-body a {
+  color: #1d7280;
+}
+
+body.platform-console-body a:hover,
+body.platform-console-body a:focus {
+  color: #155a65;
+}
+
+body.platform-console-body .wrapper {
+  min-height: 100vh;
+}
+
+body.platform-console-body .main-header {
+  background: linear-gradient(135deg, #1c6f7a 0%, #2c8895 58%, #43a6ae 100%);
+  box-shadow: 0 16px 36px rgba(20, 56, 61, 0.18);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+body.platform-console-body .main-header .logo {
+  float: left;
+  width: 230px;
+  min-height: 58px;
+  line-height: 58px;
+  padding: 0 16px;
+  background: rgba(11, 41, 45, 0.16);
+  color: #ffffff;
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+  text-align: center;
+}
+
+body.platform-console-body .main-header .logo:hover,
+body.platform-console-body .main-header .logo:focus {
+  color: #ffffff;
+  text-decoration: none;
+  background: rgba(11, 41, 45, 0.24);
+}
+
+body.platform-console-body .main-header .logo .logo-mini {
+  display: none;
+}
+
+body.platform-console-body .main-header .logo .logo-lg {
+  display: inline;
+}
+
+body.platform-console-body .main-header .navbar {
+  margin: 0 0 0 230px;
+  min-height: 58px;
+  border: 0;
+  background: transparent;
+  padding: 0 18px;
+}
+
+body.platform-console-body .platform-navbar-shell {
+  display: grid;
+  grid-template-columns: minmax(220px, max-content) minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 16px;
+  row-gap: 12px;
+  min-height: 88px;
+  padding: 14px 0 12px;
+}
+
+body.platform-console-body .platform-navbar-shell .navbar-custom-menu {
+  float: none !important;
+}
+
+body.platform-console-body .platform-navbar-tenant {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+  max-width: 320px;
+  padding: 0 14px;
+  min-height: 42px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: #f4fdff;
+  white-space: nowrap;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+body.platform-console-body .platform-navbar-tenant-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.78;
+}
+
+body.platform-console-body .platform-navbar-tenant-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+body.platform-console-body .platform-navbar-primary {
+  grid-column: 1 / -1;
+  min-width: 0;
+  overflow: visible;
+}
+
+body.platform-console-body .platform-navbar-primary .platform-navbar-links {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  float: none;
+  margin: 0;
+  overflow: visible;
+  white-space: normal;
+}
+
+body.platform-console-body .platform-navbar-primary .navbar-nav > li,
+body.platform-console-body .platform-navbar-secondary .navbar-nav > li {
+  float: none;
+}
+
+body.platform-console-body .platform-navbar-secondary {
+  grid-column: 3;
+  justify-self: end;
+  margin-left: 0;
+}
+
+body.platform-console-body .platform-navbar-secondary .navbar-nav {
+  display: flex;
+  align-items: center;
+  float: none;
+  margin: 0;
+}
+
+body.platform-console-body .platform-nav-link {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+  min-height: auto !important;
+  padding: 11px 14px !important;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.09);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 10px 20px rgba(18, 55, 60, 0.08);
+}
+
+body.platform-console-body .platform-nav-link .fa {
+  width: 16px;
+  text-align: center;
+}
+
+body.platform-console-body .platform-nav-link .nav-label {
+  display: inline-flex;
+  align-items: center;
+  min-height: 18px;
+  padding-right: 14px;
+}
+
+body.platform-console-body .main-header .navbar-nav > li > a,
+body.platform-console-body .main-header .navbar-text {
+  color: #e9f9fb !important;
+  min-height: auto;
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
+body.platform-console-body .main-header .navbar-nav > li > a:hover,
+body.platform-console-body .main-header .navbar-nav > li > a:focus {
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff !important;
+}
+
+body.platform-console-body .platform-navbar-secondary .user-menu > a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px !important;
+  padding: 6px 12px !important;
+  border-radius: 999px;
+  background: rgba(11, 41, 45, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+body.platform-console-body .platform-navbar-shell-minimal {
+  grid-template-columns: 1fr auto;
+  min-height: 64px;
+  padding: 10px 0;
+}
+
+body.platform-console-body .platform-navbar-shell-minimal .platform-navbar-secondary {
+  grid-column: 2;
+  justify-self: end;
+}
+
+body.platform-console-body .platform-navbar-shell-minimal .platform-navbar-secondary .navbar-nav {
+  justify-content: flex-end;
+}
+
+body.platform-console-body .main-header .dropdown-menu {
+  border: 1px solid #d7e7e9;
+  border-radius: 16px;
+  box-shadow: 0 18px 40px rgba(29, 57, 64, 0.18);
+  overflow: hidden;
+  padding: 8px 0;
+}
+
+body.platform-console-body .main-header .dropdown-menu > li > a {
+  padding: 10px 16px;
+}
+
+body.platform-console-body .main-header .user-image {
+  width: 32px;
+  height: 32px;
+  margin-top: -6px;
+  margin-right: 8px;
+  border: 2px solid rgba(255, 255, 255, 0.45);
+  border-radius: 50%;
+  object-fit: cover;
+  background: rgba(255, 255, 255, 0.16);
+}
+
+body.platform-console-body .platform-user-menu {
+  position: relative;
+}
+
+body.platform-console-body .platform-user-toggle {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 8px;
+}
+
+body.platform-console-body .platform-user-name {
+  display: inline-block;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.platform-console-body .platform-user-dropdown {
+  right: 0;
+  left: auto;
+  width: 360px;
+  min-width: 320px;
+  max-width: calc(100vw - 24px);
+  padding: 0;
+  background: #ffffff;
+}
+
+body.platform-console-body .platform-user-summary {
+  padding: 18px 20px 14px;
+  background: linear-gradient(180deg, #f5fbfc 0%, #edf6f7 100%);
+  border-bottom: 1px solid #deeaec;
+}
+
+body.platform-console-body .platform-user-summary .user-image {
+  float: none;
+  display: block;
+  width: 54px;
+  height: 54px;
+  margin: 0 auto 12px;
+  border-color: #dbe8eb;
+  background: #ffffff;
+}
+
+body.platform-console-body .platform-user-summary-text {
+  margin: 0;
+  text-align: center;
+  color: #23363a;
+  font-size: 14px;
+  line-height: 1.5;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+body.platform-console-body .platform-user-summary-text small {
+  display: inline-block;
+  color: #5a747a;
+  font-size: 12px;
+}
+
+body.platform-console-body .platform-user-footer {
+  padding: 16px 18px 18px;
+  background: #ffffff;
+}
+
+body.platform-console-body .platform-user-section {
+  margin: 0 0 14px;
+  padding: 0 0 14px;
+  border-bottom: 1px solid #e5eff1;
+}
+
+body.platform-console-body .platform-user-section-title {
+  display: block;
+  margin-bottom: 8px;
+  color: #28474c;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+body.platform-console-body .platform-user-option + .platform-user-option {
+  margin-top: 8px;
+}
+
+body.platform-console-body .platform-user-action.btn {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 9px;
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border-color: #d3e2e5;
+  background: #ffffff;
+  color: #176872;
+  font-weight: 600;
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  box-shadow: none;
+}
+
+body.platform-console-body .platform-user-action.btn .fa {
+  min-width: 16px;
+  margin-top: 2px;
+  text-align: center;
+}
+
+body.platform-console-body .platform-user-action.btn:hover,
+body.platform-console-body .platform-user-action.btn:focus {
+  background: #f3f9fa;
+  border-color: #bcd5da;
+  color: #145863;
+}
+
+body.platform-console-body .platform-user-action-current {
+  pointer-events: none;
+  background: #f4f9fa;
+  color: #44595e;
+  opacity: 1;
+}
+
+body.platform-console-body .platform-user-toggle-label {
+  display: block;
+  margin: 0;
+  color: #28474c;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+body.platform-console-body .platform-user-help {
+  margin-top: 4px;
+  color: #6a8186;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+body.platform-console-body .platform-user-footer-actions {
+  display: flex;
+  gap: 12px;
+}
+
+body.platform-console-body .platform-user-footer-actions .btn {
+  flex: 1 1 0;
+  padding: 11px 14px;
+  border-radius: 14px;
+  font-weight: 600;
+  text-align: center;
+  white-space: normal;
+}
+
+body.platform-console-body .platform-user-footer-actions-logout-only .btn {
+  flex-basis: auto;
+}
+
+body.platform-console-body .content-wrapper {
+  margin-left: 0;
+  min-height: calc(100vh - 58px);
+  background: transparent;
+  padding: 26px 0 44px;
+}
+
+body.platform-console-body .content-header,
+body.platform-console-body .content {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding-left: 20px;
+  padding-right: 20px;
+}
+
+body.platform-console-body .content-header {
+  margin-bottom: 18px;
+}
+
+body.platform-console-body .content-header > h1 {
+  margin: 0;
+  color: #18383d;
+  font-size: 30px;
+  font-weight: 700;
+}
+
+body.platform-console-body .box {
+  background: #ffffff;
+  border: 1px solid #dbe7e9;
+  border-radius: 18px;
+  box-shadow: 0 14px 30px rgba(35, 61, 66, 0.08);
+  margin-bottom: 18px;
+}
+
+body.platform-console-body .box.box-info,
+body.platform-console-body .box.box-primary {
+  border-top: 4px solid #2f91a0;
+}
+
+body.platform-console-body .box.box-success {
+  border-top: 4px solid #2f9f6e;
+}
+
+body.platform-console-body .box.box-warning {
+  border-top: 4px solid #d8a949;
+}
+
+body.platform-console-body .box.box-default,
+body.platform-console-body .box.box-solid {
+  border-top: 4px solid #56737a;
+}
+
+body.platform-console-body .box-header {
+  border-bottom: 1px solid #e7f0f1;
+  padding: 18px 20px;
+}
+
+body.platform-console-body .box-header.with-border {
+  border-bottom: 1px solid #e7f0f1;
+}
+
+body.platform-console-body .box-title {
+  color: #18383d;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+body.platform-console-body .box-body {
+  padding: 18px 20px;
+}
+
+body.platform-console-body .box-footer {
+  background: #fbfdfd;
+  border-top: 1px solid #e7f0f1;
+  border-radius: 0 0 18px 18px;
+  padding: 16px 20px;
+}
+
+body.platform-console-body .form-control {
+  min-height: 42px;
+  border: 1px solid #cfe0e3;
+  border-radius: 12px;
+  box-shadow: none;
+}
+
+body.platform-console-body textarea.form-control {
+  min-height: 110px;
+}
+
+body.platform-console-body .form-control:focus {
+  border-color: #2f91a0;
+  box-shadow: 0 0 0 3px rgba(47, 145, 160, 0.14);
+}
+
+body.platform-console-body label {
+  color: #28474d;
+  font-weight: 600;
+}
+
+body.platform-console-body .checkbox label,
+body.platform-console-body .radio label {
+  font-weight: 500;
+}
+
+body.platform-console-body .btn {
+  border-radius: 12px;
+  font-weight: 600;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+body.platform-console-body .btn:hover,
+body.platform-console-body .btn:focus {
+  transform: translateY(-1px);
+}
+
+body.platform-console-body .btn-success {
+  box-shadow: 0 8px 16px rgba(47, 159, 110, 0.18);
+}
+
+body.platform-console-body .btn-primary {
+  box-shadow: 0 8px 16px rgba(47, 145, 160, 0.18);
+}
+
+body.platform-console-body .alert {
+  border: 0;
+  border-radius: 14px;
+  box-shadow: 0 10px 24px rgba(29, 58, 64, 0.08);
+}
+
+body.platform-console-body .table {
+  margin-bottom: 0;
+}
+
+body.platform-console-body .table > thead > tr > th {
+  border-bottom: 1px solid #dbe7e9;
+  color: #506b70;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+body.platform-console-body .table > tbody > tr > td {
+  border-top: 1px solid #edf2f3;
+  vertical-align: middle;
+}
+
+body.platform-console-body .label {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 0.45em 0.8em;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+body.platform-console-body .label-default {
+  background: #e7eff1;
+  color: #476267;
+}
+
+body.platform-console-body .label-primary,
+body.platform-console-body .label-info {
+  background: #dff3f5;
+  color: #1c7280;
+}
+
+body.platform-console-body .label-success {
+  background: #e4f6ec;
+  color: #1f7f4f;
+}
+
+body.platform-console-body .label-warning {
+  background: #fff2d8;
+  color: #9a6d12;
+}
+
+body.platform-console-body .label-danger {
+  background: #fde6e7;
+  color: #b2383d;
+}
+
+body.platform-console-body .nav.nav-pills.nav-stacked {
+  padding: 10px;
+}
+
+body.platform-console-body .nav.nav-pills.nav-stacked > li + li {
+  margin-top: 4px;
+}
+
+body.platform-console-body .nav.nav-pills.nav-stacked > li > a {
+  border-radius: 12px;
+  color: #28474d;
+  padding: 12px 14px;
+  font-weight: 600;
+}
+
+body.platform-console-body .nav.nav-pills.nav-stacked > li > a:hover,
+body.platform-console-body .nav.nav-pills.nav-stacked > li > a:focus {
+  background: #eef6f7;
+}
+
+body.platform-console-body .text-muted {
+  color: #688085;
+}
+
+body.platform-console-body code {
+  background: #edf6f7;
+  color: #145863;
+  border-radius: 8px;
+}
+
+body.platform-console-body .table-responsive {
+  border: 0;
+}
+
+@media (max-width: 991px) {
+  body.platform-console-body .main-header .logo {
+    float: none;
+    width: 100%;
+  }
+
+  body.platform-console-body .main-header .navbar {
+    margin-left: 0;
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  body.platform-console-body .platform-navbar-shell {
+    grid-template-columns: 1fr auto;
+    row-gap: 10px;
+    min-height: 76px;
+    padding: 10px 0 12px;
+  }
+
+  body.platform-console-body .platform-navbar-tenant {
+    max-width: none;
+  }
+
+  body.platform-console-body .platform-navbar-primary,
+  body.platform-console-body .platform-navbar-secondary {
+    grid-column: 1 / -1;
+  }
+
+  body.platform-console-body .platform-navbar-secondary {
+    justify-self: start;
+  }
+
+  body.platform-console-body .platform-navbar-secondary .navbar-nav {
+    justify-content: flex-start;
+  }
+
+  body.platform-console-body .platform-navbar-shell-minimal .platform-navbar-secondary {
+    grid-column: 2;
+    justify-self: end;
+  }
+
+  body.platform-console-body .platform-navbar-shell-minimal .platform-navbar-secondary .navbar-nav {
+    justify-content: flex-end;
+  }
+
+  body.platform-console-body .platform-navbar-primary .platform-navbar-links {
+    gap: 8px;
+  }
+
+  body.platform-console-body .platform-user-dropdown {
+    min-width: 0;
+    width: min(360px, calc(100vw - 24px));
+  }
+
+  body.platform-console-body .platform-user-footer-actions {
+    flex-direction: column;
+  }
+
+  body.platform-console-body .platform-user-footer-actions .btn {
+    width: 100%;
+  }
+
+  body.platform-console-body .content-header,
+  body.platform-console-body .content {
+    padding-left: 15px;
+    padding-right: 15px;
+  }
+}

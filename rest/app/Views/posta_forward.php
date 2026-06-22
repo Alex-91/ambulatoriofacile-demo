@@ -71,7 +71,7 @@ function displayNameFromMsg(array $msg): string {
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>AmbulatoriCLOUD | Inoltra</title>
+  <title>AmbulatorioFacile | Inoltra</title>
   <link rel="icon" href="<?= base_url('public/assets/images/logonew.jpg') ?>" type="image/x-icon" sizes="any">
   <meta content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" name="viewport">
 
@@ -389,7 +389,7 @@ function displayNameFromMsg(array $msg): string {
 
   <footer class="main-footer">
     <div class="pull-right hidden-xs"><b>Version</b> 2.0</div>
-    <strong>&copy; AmbulatoriCLOUD</strong>
+    <strong>&copy; AmbulatorioFacile</strong>
   </footer>
 </div>
 

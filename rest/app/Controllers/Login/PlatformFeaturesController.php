@@ -25,7 +25,7 @@ class PlatformFeaturesController extends BaseController
             return $guard;
         }
 
-        if (trim(service('uri')->getPath(), '/') !== 'login/piattaforma/funzioni') {
+        if (!portal_current_path_matches('login/piattaforma/funzioni')) {
             return redirect()->to(portal_platform_url('funzioni'));
         }
 
@@ -157,11 +157,7 @@ class PlatformFeaturesController extends BaseController
             return false;
         }
 
-        if ($this->platformUsersCount() === 0) {
-            return true;
-        }
-
-        return $this->platformAdminAccess->configuredMasterEmails() === [];
+        return !$this->platformAdminAccess->hasPersistentPlatformAdmins();
     }
 
     private function isLegacyAdminAuthorized(): bool
@@ -203,12 +199,12 @@ class PlatformFeaturesController extends BaseController
             'Accesso bootstrap attivo: stai entrando con un account admin legacy per inizializzare la nuova console sotto /login.',
         ];
 
-        if ($this->platformUsersCount() === 0) {
-            $warnings[] = 'Il catalogo piattaforma e ancora vuoto. Crea il primo spazio usando la tua email o quella del tuo socio come tenant master per generare il primo account piattaforma.';
+        if (!$this->platformAdminAccess->hasPersistentPlatformAdmins()) {
+            $warnings[] = 'Non esiste ancora un account master piattaforma persistente. Creane almeno uno dal pannello degli spazi cliente prima di uscire dalla modalita bootstrap.';
         }
 
         if ($this->platformAdminAccess->configuredMasterEmails() === []) {
-            $warnings[] = 'In Coolify manca ancora PLATFORM_MASTER_EMAILS. Finche non viene configurata, la console resta in modalita bootstrap.';
+            $warnings[] = 'PLATFORM_MASTER_EMAILS non e configurata in Coolify. Va bene: da ora i master possono essere gestiti dal pannello. Usa la env solo se vuoi tenere una scorciatoia bootstrap tecnica.';
         }
 
         return $warnings;
