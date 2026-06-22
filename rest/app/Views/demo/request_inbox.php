@@ -60,9 +60,9 @@
                 <form method="get" action="<?= site_url('demo/richieste-locali') ?>" class="filter-toolbar">
                     <div class="filter-grid">
                         <div class="form-field">
-                            <label for="vertical">Verticale</label>
+                            <label for="vertical">Contesto demo</label>
                             <select name="vertical" id="vertical">
-                                <option value="">Tutte le verticali</option>
+                                <option value="">Tutti i contesti</option>
                                 <?php foreach ($verticalOptions as $option): ?>
                                     <option value="<?= esc((string) ($option['value'] ?? '')) ?>" <?= ((string) ($filters['vertical'] ?? '') === (string) ($option['value'] ?? '')) ? 'selected' : '' ?>>
                                         <?= esc((string) ($option['label'] ?? $option['value'] ?? '')) ?>
@@ -144,7 +144,7 @@
                     <?php foreach ($requests as $request): ?>
                         <article class="access-card">
                             <div class="access-card-topline">
-                                <p class="status-label"><?= esc((string) ($request['vertical_label'] ?? $request['vertical'] ?? 'verticale')) ?></p>
+                                <p class="status-label"><?= esc((string) ($request['vertical_label'] ?? $request['vertical'] ?? 'demo')) ?></p>
                                 <span class="status-pill status-pill-<?= esc((string) ($request['notification_tone'] ?? 'neutral')) ?>">
                                     <?= esc((string) ($request['notification_label'] ?? 'In attesa')) ?>
                                 </span>

@@ -111,13 +111,15 @@ class LoginController extends BaseController
         $profileSlug = array_key_exists($requestedProfile, $profileLabels) ? $requestedProfile : '';
         $prefillUsername = $this->sanitizeDemoUsername((string) $this->request->getGet('u'));
         $demoMode = $this->request->getGet('demo') === '1' || $prefillUsername !== '' || $profileSlug !== '';
+        $demoOtpHint = in_array($prefillUsername, ['demo.dietista', 'demo.segreteria'], true)
+            || str_contains($prefillUsername, '->');
 
         return [
             'demoMode' => $demoMode,
             'prefillUsername' => $prefillUsername,
             'demoProfileSlug' => $profileSlug,
-            'demoProfileLabel' => $profileLabels[$profileSlug] ?? 'Percorso demo',
-            'demoOtpHint' => in_array($prefillUsername, ['demo.dietista', 'demo.admin->demo.segreteria'], true),
+            'demoProfileLabel' => $profileLabels[$profileSlug] ?? 'Demo AmbulatorioFacile',
+            'demoOtpHint' => $demoOtpHint,
             'loginSuccess' => session()->getFlashdata('login_success'),
             'loginError' => session()->getFlashdata('login_error'),
         ];
@@ -145,9 +147,31 @@ class LoginController extends BaseController
 
     private function shouldAttemptPlatformLogin(string $username, bool $legacyUserExists): bool
     {
-        return str_contains($username, '@')
-            && !$legacyUserExists
-            && !str_contains($username, '->');
+        if (!str_contains($username, '@') || str_contains($username, '->')) {
+            return false;
+        }
+
+        if (!$legacyUserExists) {
+            return true;
+        }
+
+        return $this->platformUserExistsByEmail($username);
+    }
+
+    private function platformUserExistsByEmail(string $username): bool
+    {
+        $username = strtolower(trim($username));
+        if ($username === '' || !filter_var($username, FILTER_VALIDATE_EMAIL)) {
+            return false;
+        }
+
+        try {
+            return model(\App\Models\PlatformUsersModel::class)
+                ->findByEmailInsensitive($username) !== null;
+        } catch (\Throwable $e) {
+            log_message('error', 'LoginController::platformUserExistsByEmail failed: ' . $e->getMessage());
+            return false;
+        }
     }
 
     private function handlePlatformLogin(string $username, string $password)
@@ -300,7 +324,7 @@ class LoginController extends BaseController
 
         try {
             $bootstrap = (new TenantAppSessionBootstrapService())->bootstrap($platformUserId, $tenantId);
-            return redirect()->to(site_url((string) ($bootstrap['redirectUrl'] ?? '/')));
+            return redirect()->to(portal_resolve_redirect_url((string) ($bootstrap['redirectUrl'] ?? '/')));
         } catch (\Throwable $e) {
             return redirect()->to($this->postLoginFallbackUrl())->with('error', $e->getMessage());
         }
@@ -317,7 +341,7 @@ class LoginController extends BaseController
         helper('portal');
 
         if ((bool) (session()->get('isLoggedInConfirmed') ?? false) === true) {
-            if ((bool) (session()->get('platform_is_admin') ?? false) === true) {
+            if ((bool) (session()->get('platform_is_admin') ?? false) === true || $this->isLegacyPlatformBootstrapSession()) {
                 return redirect()->to(portal_platform_url('spazi-clienti'));
             }
 
@@ -391,10 +415,19 @@ session()->remove(\App\Services\PlatformAccessService::SESSION_KEY_PENDING_PASSW
         }
 
         $legacyUserExists = $this->legacyUserExistsByUsername($db, $username);
+        $platformUserExists = $this->platformUserExistsByEmail($username);
         if ($this->shouldAttemptPlatformLogin($username, $legacyUserExists)) {
             $platformResponse = $this->handlePlatformLogin($username, $password);
             if ($platformResponse !== null) {
                 return $platformResponse;
+            }
+
+            if ($platformUserExists) {
+                return $this->response->setJSON([
+                    'resp' => 'KO',
+                    'success' => false,
+                    'message' => 'Credenziali non valide per il login unico. Usa la password aggiornata del tuo account piattaforma.',
+                ])->setStatusCode(401);
             }
         }
 
@@ -546,7 +579,7 @@ session()->remove(\App\Services\PlatformAccessService::SESSION_KEY_PENDING_PASSW
                                 return $this->response->setJSON([
                                     'resp'        => 'OK',
                                     'success'     => true,
-                                    'redirectUrl' => 'admin'
+                                    'redirectUrl' => $this->legacyAdminPostLoginRedirectUrl()
                                 ]);
                             }
 
@@ -879,10 +912,67 @@ session()->remove(\App\Services\PlatformAccessService::SESSION_KEY_PENDING_PASSW
     {
         helper('portal');
 
-        if ((bool) (session()->get('platform_is_admin') ?? false) === true) {
+        if ((bool) (session()->get('platform_is_admin') ?? false) === true || $this->isLegacyPlatformBootstrapSession()) {
             return portal_platform_url('spazi-clienti');
         }
 
         return site_url('/');
+    }
+
+    private function legacyAdminPostLoginRedirectUrl(): string
+    {
+        helper('portal');
+
+        if ($this->shouldBootstrapLegacyAdminToPlatformConsole()) {
+            return portal_platform_url('spazi-clienti');
+        }
+
+        return 'admin';
+    }
+
+    private function shouldBootstrapLegacyAdminToPlatformConsole(): bool
+    {
+        if ((int) (session()->get('tipoUser') ?? 0) !== 1) {
+            return false;
+        }
+
+        if (session()->get(\App\Services\TenantContextService::SESSION_KEY)) {
+            return false;
+        }
+
+        return $this->legacyPlatformBootstrapModeEnabled();
+    }
+
+    private function isLegacyPlatformBootstrapSession(): bool
+    {
+        if ((bool) (session()->get('isLoggedInConfirmed') ?? false) !== true) {
+            return false;
+        }
+
+        $me = session()->get('utente_sess');
+        if (!$me || empty($me->id_user)) {
+            return false;
+        }
+
+        $isLegacyAdmin = session()->get('is_admin') === true
+            || (int) (session()->get('admin') ?? 0) === 1
+            || (int) ($me->tipo ?? 0) === 1
+            || (int) (session()->get('tipoUser') ?? 0) === 1;
+
+        if (!$isLegacyAdmin) {
+            return false;
+        }
+
+        if (session()->get(\App\Services\TenantContextService::SESSION_KEY)) {
+            return false;
+        }
+
+        return $this->legacyPlatformBootstrapModeEnabled();
+    }
+
+    private function legacyPlatformBootstrapModeEnabled(): bool
+    {
+        $platformAdminAccess = new PlatformAdminAccessService();
+        return !$platformAdminAccess->hasPersistentPlatformAdmins();
     }
 }

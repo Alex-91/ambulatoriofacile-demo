@@ -6,6 +6,7 @@ use CodeIgniter\Router\RouteCollection;
  * @var RouteCollection $routes
  */
 $routes->get('demo', 'DemoController::index');
+$routes->get('demo/access', 'DemoController::access');
 $routes->get('demo/vertical/(:segment)', 'DemoController::vertical/$1');
 $routes->get('demo/access/(:segment)', 'DemoController::access/$1');
 $routes->get('demo/richiesta', 'DemoController::requestDemo');
@@ -33,15 +34,22 @@ $routes->post('login/password-imposta', 'Login\PlatformAccessController::savePas
 $routes->get('login/piattaforma', 'Login\PlatformTenantSpacesController::index');
 $routes->get('login/piattaforma/funzioni', 'Login\PlatformFeaturesController::index');
 $routes->post('login/piattaforma/funzioni/save', 'Login\PlatformFeaturesController::save');
+$routes->get('login/piattaforma/notifiche-appuntamenti', 'Login\PlatformAppointmentNotificationsController::index');
+$routes->post('login/piattaforma/notifiche-appuntamenti/launch', 'Login\PlatformAppointmentNotificationsController::launch');
+$routes->get('login/piattaforma/notifiche-appuntamenti/run', 'Login\PlatformAppointmentNotificationsController::run');
 $routes->get('login/piattaforma/spazi-clienti', 'Login\PlatformTenantSpacesController::index');
 $routes->post('login/piattaforma/spazi-clienti/master-accounts/sync', 'Login\PlatformTenantSpacesController::syncMasterAccounts');
 $routes->post('login/piattaforma/spazi-clienti/master-accounts/accesso', 'Login\PlatformTenantSpacesController::sendMasterAccess');
+$routes->post('login/piattaforma/spazi-clienti/master-accounts/save', 'Login\PlatformTenantSpacesController::saveMasterAccount');
+$routes->post('login/piattaforma/spazi-clienti/master-accounts/revoke', 'Login\PlatformTenantSpacesController::revokeMasterAccount');
 $routes->post('login/piattaforma/spazi-clienti/save', 'Login\PlatformTenantSpacesController::save');
 $routes->post('login/piattaforma/spazi-clienti/members/save', 'Login\PlatformTenantSpacesController::saveMember');
 $routes->post('login/piattaforma/spazi-clienti/members/accesso', 'Login\PlatformTenantSpacesController::sendMemberAccess');
 $routes->get('login/spazi/cambia/(:num)', 'Login\LoginController::switchTenant/$1');
 $routes->get('login/spazio/funzioni', 'Tenant\SpaceFeatures::index');
 $routes->post('login/spazio/funzioni/save', 'Tenant\SpaceFeatures::save');
+$routes->get('login/spazio/notifiche-appuntamenti', 'Tenant\AppointmentNotifications::index');
+$routes->post('login/spazio/notifiche-appuntamenti/save', 'Tenant\AppointmentNotifications::save');
 $routes->get('login/spazio/utenti', 'Tenant\SpaceUsers::index');
 $routes->post('login/spazio/utenti/save', 'Tenant\SpaceUsers::save');
 $routes->post('login/spazio/utenti/accesso', 'Tenant\SpaceUsers::sendAccess');
@@ -50,6 +58,8 @@ $routes->post('login/spazio/onboarding/completa', 'Tenant\Onboarding::complete')
 $routes->get('tenant/switch/(:num)', 'Login\LoginController::switchTenant/$1');
 $routes->get('spazio/funzioni', 'Tenant\SpaceFeatures::index');
 $routes->post('spazio/funzioni/save', 'Tenant\SpaceFeatures::save');
+$routes->get('spazio/notifiche-appuntamenti', 'Tenant\AppointmentNotifications::index');
+$routes->post('spazio/notifiche-appuntamenti/save', 'Tenant\AppointmentNotifications::save');
 $routes->get('spazio/utenti', 'Tenant\SpaceUsers::index');
 $routes->post('spazio/utenti/save', 'Tenant\SpaceUsers::save');
 $routes->post('spazio/utenti/accesso', 'Tenant\SpaceUsers::sendAccess');
@@ -283,6 +293,7 @@ $routes->get('chat/attachment/(:num)', 'Chat::attachment/$1');
 $routes->group('agenda', function($routes) {
     $routes->get('/', 'Agenda::index');
     $routes->get('calendario', 'Agenda::calendario');
+    $routes->get('calendario-team-day', 'Agenda::calendarioTeamDay');
     $routes->get('disponibilita-mese', 'Agenda::disponibilitaMese');
     $routes->get('refresh', 'Agenda::refresh');
     $routes->get('domiciliari', 'Agenda::domiciliari');

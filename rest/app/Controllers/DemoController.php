@@ -6,6 +6,9 @@ use CodeIgniter\Controller;
 
 class DemoController extends Controller
 {
+    private const UNIFIED_DEMO_KEY = 'ambulatoriofacile_demo';
+    private const UNIFIED_DEMO_LABEL = 'Demo AmbulatorioFacile';
+
     /**
      * @var list<string>
      */
@@ -15,19 +18,20 @@ class DemoController extends Controller
     {
         $runtimeReport = $this->loadLatestReport('demo_runtime_*.json');
         $seedReport = $this->loadLatestReport('demo_seed_*.json');
-        $profiles = $this->loadVerticalProfiles();
         $isLocal = $this->isLocalHost();
+        $demoAccounts = $this->demoAccounts($seedReport);
 
         return view('demo/showcase', [
-            'brandName' => 'AmbulatoriCLOUD',
+            'brandName' => 'AmbulatorioFacile',
             'brandDescription' => 'Piattaforma operativa per prenotazioni, comunicazione e notifiche.',
-            'profiles' => $profiles,
             'runtimeStatus' => $this->buildRuntimeStatus($runtimeReport),
             'seedStatus' => $this->buildSeedStatus($seedReport),
-            'demoAccounts' => $this->demoAccounts(),
+            'demoAccounts' => $demoAccounts,
+            'demoAccountGroups' => $this->demoAccountGroups($demoAccounts),
+            'demoCredentials' => $this->demoCredentialsSummary($seedReport),
+            'demoChecklist' => $this->demoChecklist(),
             'showLocalAccess' => $isLocal,
             'showTechnicalStatus' => $isLocal,
-            'profileLinks' => $this->profileLinks($profiles),
             'commercialHighlights' => $this->commercialHighlights(),
             'commercialPackages' => $this->commercialPackages(),
         ]);
@@ -35,75 +39,42 @@ class DemoController extends Controller
 
     public function vertical(string $profileId)
     {
-        $seedReport = $this->loadLatestReport('demo_seed_*.json');
-        $runtimeReport = $this->loadLatestReport('demo_runtime_*.json');
-        $profiles = $this->loadVerticalProfiles();
-        $normalizedProfileId = $this->normalizeProfileId($profileId);
-        $profile = $this->findProfile($profiles, $normalizedProfileId);
-        if ($profile === null) {
-            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
-        }
-
-        $playbook = $this->verticalPlaybooks()[$normalizedProfileId] ?? [];
-        $isLocal = $this->isLocalHost();
-
-        return view('demo/vertical', [
-            'brandName' => 'AmbulatoriCLOUD',
-            'brandDescription' => 'Piattaforma operativa per prenotazioni, comunicazione e notifiche.',
-            'profile' => $profile,
-            'profileSlug' => $this->profileSlug((string) ($profile['profile_id'] ?? '')),
-            'playbook' => $playbook,
-            'seedStatus' => $this->buildSeedStatus($seedReport),
-            'runtimeStatus' => $this->buildRuntimeStatus($runtimeReport),
-            'showLocalAccess' => $isLocal,
-            'showTechnicalStatus' => $isLocal,
-            'profileAccounts' => $this->accountsForProfile((string) ($profile['profile_id'] ?? ''), $seedReport),
-            'commercialPackages' => $this->commercialPackages(),
-        ]);
+        return redirect()->to(site_url('demo'));
     }
 
-    public function access(string $profileId)
+    public function access(?string $profileId = null)
     {
         $seedReport = $this->loadLatestReport('demo_seed_*.json');
-        $profiles = $this->loadVerticalProfiles();
-        $normalizedProfileId = $this->normalizeProfileId($profileId);
-        $profile = $this->findProfile($profiles, $normalizedProfileId);
-        if ($profile === null) {
-            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
-        }
-
-        $profileKey = (string) ($profile['profile_id'] ?? '');
-        $accounts = $this->accountsForProfile($profileKey, $seedReport);
         $isLocal = $this->isLocalHost();
+        $demoAccounts = $this->demoAccounts($seedReport);
 
         return view('demo/access', [
-            'brandName' => 'AmbulatoriCLOUD',
+            'brandName' => 'AmbulatorioFacile',
             'brandDescription' => 'Piattaforma operativa per prenotazioni, comunicazione e notifiche.',
-            'profile' => $profile,
-            'profileSlug' => $this->profileSlug($profileKey),
+            'demoLabel' => self::UNIFIED_DEMO_LABEL,
             'showLocalAccess' => $isLocal,
             'showTechnicalStatus' => $isLocal,
-            'profileAccounts' => $this->withDemoLoginLinks($accounts, $profileKey),
+            'demoAccounts' => $demoAccounts,
+            'demoAccountGroups' => $this->demoAccountGroups($demoAccounts),
             'seedStatus' => $this->buildSeedStatus($seedReport),
+            'demoCredentials' => $this->demoCredentialsSummary($seedReport),
+            'demoChecklist' => $this->demoChecklist(),
         ]);
     }
 
     public function requestDemo()
     {
-        $profiles = $this->loadVerticalProfiles();
         $isLocal = $this->isLocalHost();
-        $selectedProfile = $this->normalizeProfileId((string) ($this->request->getGet('profile') ?? ''));
         $feedback = session()->getFlashdata('demo_request_feedback');
         $errors = session()->getFlashdata('demo_request_errors');
         $old = session()->getFlashdata('demo_request_old');
 
         return view('demo/request', [
-            'brandName' => 'AmbulatoriCLOUD',
+            'brandName' => 'AmbulatorioFacile',
             'brandDescription' => 'Piattaforma operativa per prenotazioni, comunicazione e notifiche.',
-            'profiles' => $profiles,
             'showLocalAccess' => $isLocal,
             'showTechnicalStatus' => $isLocal,
-            'selectedProfile' => $selectedProfile,
+            'demoRequestContext' => $this->unifiedDemoRequestContext(),
             'requestFeedback' => is_array($feedback) ? $feedback : null,
             'requestErrors' => is_array($errors) ? $errors : [],
             'requestOld' => is_array($old) ? $old : [],
@@ -112,14 +83,14 @@ class DemoController extends Controller
 
     public function submitDemoRequest()
     {
-        $profiles = $this->loadVerticalProfiles();
+        $demoContext = $this->unifiedDemoRequestContext();
         $payload = [
             'full_name' => trim((string) $this->request->getPost('full_name')),
             'business_name' => trim((string) $this->request->getPost('business_name')),
             'email' => trim((string) $this->request->getPost('email')),
             'phone' => trim((string) $this->request->getPost('phone')),
             'contact_role' => trim((string) $this->request->getPost('contact_role')),
-            'vertical' => $this->normalizeProfileId((string) $this->request->getPost('vertical')),
+            'vertical' => self::UNIFIED_DEMO_KEY,
             'team_size' => trim((string) $this->request->getPost('team_size')),
             'preferred_slot' => trim((string) $this->request->getPost('preferred_slot')),
             'notes' => trim((string) $this->request->getPost('notes')),
@@ -127,7 +98,7 @@ class DemoController extends Controller
             'website' => trim((string) $this->request->getPost('website')),
         ];
 
-        $errors = $this->validateDemoRequestPayload($payload, $profiles);
+        $errors = $this->validateDemoRequestPayload($payload);
         if ($errors !== []) {
             session()->setFlashdata('demo_request_errors', $errors);
             session()->setFlashdata('demo_request_old', $payload);
@@ -149,14 +120,13 @@ class DemoController extends Controller
         }
 
         try {
-            $profile = $this->findProfile($profiles, $payload['vertical']);
             $requestId = 'demo-' . date('YmdHis') . '-' . substr(bin2hex(random_bytes(4)), 0, 8);
             $record = [
                 'request_id' => $requestId,
                 'created_at' => date('c'),
-                'brand' => 'AmbulatoriCLOUD',
+                'brand' => 'AmbulatorioFacile',
                 'vertical' => $payload['vertical'],
-                'vertical_label' => (string) ($profile['label'] ?? $payload['vertical']),
+                'vertical_label' => (string) ($demoContext['label'] ?? self::UNIFIED_DEMO_LABEL),
                 'full_name' => $payload['full_name'],
                 'business_name' => $payload['business_name'],
                 'email' => strtolower($payload['email']),
@@ -221,7 +191,7 @@ class DemoController extends Controller
         $filteredRequests = $this->applyRequestInboxFilters($allRequests, $filters);
 
         return view('demo/request_inbox', [
-            'brandName' => 'AmbulatoriCLOUD',
+            'brandName' => 'AmbulatorioFacile',
             'brandDescription' => 'Piattaforma operativa per prenotazioni, comunicazione e notifiche.',
             'showLocalAccess' => true,
             'requests' => $filteredRequests,
@@ -341,64 +311,168 @@ class DemoController extends Controller
             'status' => (string) ($report['status'] ?? 'missing'),
             'finished_at' => (string) ($report['finished_at'] ?? ''),
             'database' => (string) ($report['target_db'] ?? $report['database'] ?? (env('database.default.database') ?: 'dottorapp_demo')),
-            'brand' => (string) ($report['brand'] ?? 'AmbulatoriCLOUD'),
+            'brand' => (string) ($report['brand'] ?? 'AmbulatorioFacile'),
             'counts' => $summary !== [] ? $summary : (array) ($report['counts'] ?? []),
         ];
     }
 
     /**
-     * @return list<array<string, string>>
+     * @param array<string, mixed>|null $seedReport
+     * @return list<array<string, mixed>>
      */
-    private function demoAccounts(): array
+    private function demoAccounts(?array $seedReport): array
     {
-        return [
+        $password = (string) ($seedReport['password'] ?? 'Demo2026');
+        $seedLabels = $this->demoAccountLabels($seedReport);
+
+        $accounts = [
             [
+                'group_key' => 'main',
+                'group_title' => 'Accessi principali',
+                'group_note' => 'Questi sono gli account da usare per provare il flusso demo standard di AmbulatorioFacile.',
                 'role' => 'Admin demo',
                 'username' => 'demo.admin',
-                'password' => 'Demo2026!',
-                'note' => 'Accesso completo per panoramica piattaforma.',
+                'label' => 'Admin demo Conti Giulia',
+                'note' => 'Ideale per aprire la demo, spiegare moduli, ruoli e verificare le funzioni di base dello spazio.',
+                'otp' => '',
+                'scenarios' => ['ruoli e moduli', 'configurazione studio', 'verifiche finali'],
             ],
             [
-                'role' => 'Operativo OTP',
-                'username' => 'alessio2',
-                'password' => 'Demo2026!',
-                'note' => 'OTP fisso 2510 per mostrare il flusso MFA.',
+                'group_key' => 'main',
+                'group_title' => 'Accessi principali',
+                'group_note' => 'Questi sono gli account da usare per provare il flusso demo standard di AmbulatorioFacile.',
+                'role' => 'Segreteria',
+                'username' => 'demo.segreteria',
+                'label' => 'Segreteria Colombo Sara',
+                'note' => 'Perfetto per mostrare agenda del giorno, conferme, spostamenti, memo e presa appuntamenti per altri dottori.',
+                'otp' => '2510',
+                'scenarios' => ['agenda operativa', 'cross booking', 'reminder'],
             ],
             [
-                'role' => 'Portale cliente medical',
-                'username' => 'demo.portal.med',
-                'password' => 'Demo2026!',
-                'note' => 'Scenario poliambulatorio e paziente.',
+                'group_key' => 'main',
+                'group_title' => 'Accessi principali',
+                'group_note' => 'Questi sono gli account da usare per provare il flusso demo standard di AmbulatorioFacile.',
+                'role' => 'Dietista con OTP',
+                'username' => 'demo.dietista',
+                'label' => 'Dietista Rossi Elena',
+                'note' => 'Mostra il lato professionista con MFA, agenda personale, messaggi e continuita del percorso paziente.',
+                'otp' => '2510',
+                'scenarios' => ['accesso MFA', 'agenda dottore', 'messaggi e follow-up'],
             ],
             [
-                'role' => 'Portale cliente sport rehab',
-                'username' => 'demo.portal.sport',
-                'password' => 'Demo2026!',
-                'note' => 'Scenario centro sportivo e riabilitazione.',
+                'group_key' => 'main',
+                'group_title' => 'Accessi principali',
+                'group_note' => 'Questi sono gli account da usare per provare il flusso demo standard di AmbulatorioFacile.',
+                'role' => 'Collaboratrice',
+                'username' => 'demo.nutrizionista',
+                'label' => 'Biologa nutrizionista Riva Marta',
+                'note' => 'Utile per provare visibilita differenziate, presa appuntamenti interna e convivenza tra piu professionisti.',
+                'otp' => '',
+                'scenarios' => ['secondo professionista', 'permessi differenziati', 'agenda condivisa'],
             ],
             [
-                'role' => 'Impersonation rapida',
-                'username' => 'demo.admin->demo.frontdesk.med',
-                'password' => 'Demo2026!',
-                'note' => 'OTP 2510. Utile per demo guidata multi-ruolo.',
+                'group_key' => 'main',
+                'group_title' => 'Accessi principali',
+                'group_note' => 'Questi sono gli account da usare per provare il flusso demo standard di AmbulatorioFacile.',
+                'role' => 'Portale paziente',
+                'username' => 'demo.portal.nutri',
+                'label' => 'Bianchi Laura',
+                'note' => 'Serve per far vedere il lato paziente e completare la demo con accesso esterno controllato.',
+                'otp' => '',
+                'scenarios' => ['portale paziente', 'continuita', 'accesso esterno'],
             ],
+            [
+                'group_key' => 'quick',
+                'group_title' => 'Accessi rapidi demo',
+                'group_note' => 'Alias pronti per entrare al volo nelle viste operative senza perdere tempo in presentazione.',
+                'role' => 'Accesso rapido',
+                'username' => 'demo.admin->demo.segreteria',
+                'label' => 'Accesso rapido segreteria',
+                'note' => 'La scorciatoia piu utile per passare subito alla vista segreteria durante la demo commerciale.',
+                'otp' => '2510',
+                'scenarios' => ['demo veloce', 'vista segreteria', 'agenda e conferme'],
+            ],
+        ];
+
+        foreach ($accounts as $index => $account) {
+            $username = (string) ($account['username'] ?? '');
+            $accounts[$index]['password'] = $password;
+            $accounts[$index]['login_url'] = $this->demoLoginUrl($username, self::UNIFIED_DEMO_KEY);
+            if ($username !== '' && array_key_exists($username, $seedLabels)) {
+                $accounts[$index]['label'] = $seedLabels[$username];
+            }
+        }
+
+        return $accounts;
+    }
+
+    /**
+     * @param list<array<string, mixed>> $accounts
+     * @return list<array<string, mixed>>
+     */
+    private function demoAccountGroups(array $accounts): array
+    {
+        $groups = [];
+        foreach ($accounts as $account) {
+            $groupKey = (string) ($account['group_key'] ?? '');
+            if ($groupKey === '') {
+                continue;
+            }
+
+            if (!array_key_exists($groupKey, $groups)) {
+                $groups[$groupKey] = [
+                    'group_key' => $groupKey,
+                    'title' => (string) ($account['group_title'] ?? 'Account demo'),
+                    'note' => (string) ($account['group_note'] ?? ''),
+                    'accounts' => [],
+                ];
+            }
+
+            $groups[$groupKey]['accounts'][] = $account;
+        }
+
+        return array_values($groups);
+    }
+
+    /**
+     * @param array<string, mixed>|null $seedReport
+     * @return array<string, string>
+     */
+    private function demoCredentialsSummary(?array $seedReport): array
+    {
+        return [
+            'password' => (string) ($seedReport['password'] ?? 'Demo2026'),
+            'otp' => '2510',
+            'login_url' => site_url('login') . '?demo=1',
+            'official_login_url' => site_url('login'),
         ];
     }
 
     /**
-     * @param list<array<string, mixed>> $profiles
+     * @param array<string, mixed>|null $seedReport
      * @return array<string, string>
      */
-    private function validateDemoRequestPayload(array $payload, array $profiles): array
+    private function demoAccountLabels(?array $seedReport): array
+    {
+        $labels = [];
+        foreach ((array) ($seedReport['accounts'] ?? []) as $account) {
+            $username = trim((string) ($account['username'] ?? ''));
+            if ($username === '') {
+                continue;
+            }
+
+            $labels[$username] = (string) ($account['label'] ?? $username);
+        }
+
+        return $labels;
+    }
+
+    /**
+     * @return list<array<string, string>>
+     */
+    private function validateDemoRequestPayload(array $payload): array
     {
         $errors = [];
-        $allowedProfiles = [];
-        foreach ($profiles as $profile) {
-            $profileId = $this->normalizeProfileId((string) ($profile['profile_id'] ?? ''));
-            if ($profileId !== '') {
-                $allowedProfiles[$profileId] = true;
-            }
-        }
 
         if (mb_strlen($payload['full_name']) < 3) {
             $errors['full_name'] = 'Inserisci nome e cognome del referente.';
@@ -416,8 +490,8 @@ class DemoController extends Controller
             $errors['phone'] = 'Inserisci un numero di telefono valido oppure lascia il campo vuoto.';
         }
 
-        if (!isset($allowedProfiles[$payload['vertical']])) {
-            $errors['vertical'] = 'Seleziona il verticale per cui vuoi la demo guidata.';
+        if ((string) ($payload['vertical'] ?? '') !== self::UNIFIED_DEMO_KEY) {
+            $errors['vertical'] = 'Contesto demo non valido.';
         }
 
         if ($payload['contact_role'] !== '' && mb_strlen($payload['contact_role']) > 80) {
@@ -527,12 +601,7 @@ class DemoController extends Controller
 
     private function demoRequestReturnUrl(string $profileId): string
     {
-        $profileSlug = $this->profileSlug($profileId);
-        if ($profileSlug === '') {
-            return site_url('demo/richiesta');
-        }
-
-        return site_url('demo/richiesta') . '?profile=' . rawurlencode($profileSlug);
+        return site_url('demo/richiesta');
     }
 
     /**
@@ -561,10 +630,10 @@ class DemoController extends Controller
             $fromEmail = trim((string) ($config->fromEmail ?? ''));
             $fromName = trim((string) ($config->fromName ?? ''));
             if ($fromEmail === '') {
-                $fromEmail = (string) (env('email.fromEmail') ?: 'noreply@ambulatori.cloud');
+                $fromEmail = (string) (env('email.fromEmail') ?: 'noreply@ambulatoriofacile.it');
             }
             if ($fromName === '') {
-                $fromName = (string) (env('email.fromName') ?: 'AmbulatoriCLOUD');
+                $fromName = (string) (env('email.fromName') ?: 'AmbulatorioFacile');
             }
 
             $subject = '[Demo guidata] ' . (string) ($record['vertical_label'] ?? $record['vertical'] ?? 'Richiesta');
@@ -653,7 +722,7 @@ class DemoController extends Controller
     private function buildDemoRequestNotificationMessage(array $record): string
     {
         $lines = [
-            'AmbulatoriCLOUD' . ' - nuova richiesta demo guidata',
+            'AmbulatorioFacile' . ' - nuova richiesta demo guidata',
             '',
             'ID richiesta: ' . (string) ($record['request_id'] ?? '-'),
             'Data: ' . (string) ($record['created_at'] ?? '-'),
@@ -1012,17 +1081,12 @@ class DemoController extends Controller
             $query['u'] = $username;
         }
 
-        $profileSlug = $this->profileSlug($profileId);
-        if ($profileSlug !== '') {
-            $query['profile'] = $profileSlug;
-        }
-
         return site_url('login') . '?' . http_build_query($query);
     }
 
     /**
-     * @param list<array<string, string>> $accounts
-     * @return list<array<string, string>>
+     * @param list<array<string, mixed>> $accounts
+     * @return list<array<string, mixed>>
      */
     private function withDemoLoginLinks(array $accounts, string $profileId): array
     {
@@ -1137,54 +1201,54 @@ class DemoController extends Controller
     {
         return [
             'medical' => [
-                'headline' => 'Percorso demo per studi medici, specialisti e piccoli poliambulatori',
-                'subheadline' => 'Mostra in pochi minuti come agenda, reminder, ruoli e comunicazione eliminano attriti operativi di front office e coordinamento clinico.',
+                'headline' => 'Percorso demo per studi di dietistica, nutrizione clinica e percorsi alimentari personalizzati',
+                'subheadline' => 'Mostra in pochi minuti come agenda, segreteria, follow-up e comunicazione col paziente riducono caos operativo in uno studio nutrizionale da 3 persone.',
                 'outcomes' => [
-                    'Riduzione del tempo speso tra telefono, agenda e conferme manuali.',
-                    'Controllo chiaro su sedi, stanze e operatori nello stesso calendario operativo.',
-                    'Maggiore continuita tra segreteria, professionisti, infermiere e paziente.',
+                    'Riduzione del tempo speso tra chiamate, spostamenti agenda e conferme manuali.',
+                    'Controllo chiaro su professionisti, stanze e appuntamenti nello stesso flusso operativo.',
+                    'Maggiore continuita tra segreteria, dietista, collaboratrice e paziente.',
                 ],
                 'buyer_signals' => [
-                    'Studio con piu professionisti o piu stanze.',
-                    'Segreteria che gestisce cambi, reminder e richieste ogni giorno.',
-                    'Necessita di accesso protetto, device linking e OTP per team o pazienti.',
+                    'Studio con titolare, collaboratrice e una persona di segreteria.',
+                    'Molti follow-up ricorrenti e continue richieste di spostamento o conferma visita.',
+                    'Bisogno di tenere insieme prima visita, controlli e comunicazione paziente senza usare tre strumenti diversi.',
                 ],
                 'pain_points' => [
-                    'Agenda frammentata tra fogli, WhatsApp e chiamate.',
-                    'Conferme appuntamento manuali e difficili da tracciare.',
-                    'Visibilita limitata su chi puo fare cosa nei moduli operativi.',
+                    'Agenda frammentata tra agenda condivisa, WhatsApp e telefonate.',
+                    'Conferme, spostamenti e richieste paziente gestiti in modo poco tracciabile.',
+                    'Poca chiarezza su cosa vede la segreteria e cosa resta in carico ai professionisti.',
                 ],
                 'demo_flow' => [
                     [
-                        'title' => 'Front office operativo',
+                        'title' => 'Segreteria operativa',
                         'steps' => [
-                            'Apro la dashboard moduli e mostro l agenda del giorno.',
-                            'Cerco disponibilita, scelgo sede e stanza e inserisco un appuntamento.',
-                            'Chiudo con reminder e riepilogo appuntamento.',
+                            'Apro la dashboard moduli e mostro l agenda del giorno dello studio nutrizionale.',
+                            'Cerco disponibilita, scelgo professionista e stanza e inserisco una prima visita o un controllo.',
+                            'Chiudo con reminder, conferma e promemoria organizzativo.',
                         ],
                     ],
                     [
-                        'title' => 'Coordinamento team',
+                        'title' => 'Professionisti e coordinamento',
                         'steps' => [
-                            'Mostro i collegamenti tra staff, segreterie e professionisti.',
-                            'Evidenzio chat, posta interna e visibilita moduli per ruolo.',
-                            'Faccio vedere come il team resta allineato senza uscire dal gestionale.',
+                            'Entro come dietista e faccio vedere agenda, posta e continuita dei follow-up.',
+                            'Mostro i collegamenti tra segreteria e professionisti, con chat interna e visibilita per ruolo.',
+                            'Faccio vedere come titolare e collaboratrice restano allineate senza uscire dal gestionale.',
                         ],
                     ],
                     [
-                        'title' => 'Esperienza paziente',
+                        'title' => 'Accesso sicuro e paziente',
                         'steps' => [
-                            'Entro nel flusso OTP con utente demo dedicato.',
-                            'Mostro il lato portale e la conferma di accesso sicuro.',
-                            'Chiudo con reminder e continuita comunicativa.',
+                            'Mostro il flusso OTP con account operativo dedicato.',
+                            'Se serve, apro il portale paziente per raccontare accesso sicuro e messaggistica.',
+                            'Chiudo collegando il tutto a riduzione no-show e continuita del percorso alimentare.',
                         ],
                     ],
                 ],
-                'pricing_hint' => 'Ingresso ideale come pacchetto Team o Pro per studio evoluto e poliambulatorio leggero.',
+                'pricing_hint' => 'Ingresso ideale come pacchetto Team per studio nutrizionale con 2 professionisti e segreteria dedicata.',
                 'next_moves' => [
-                    'Rendere configurabili alcune etichette di ruolo mantenendo il modello dati sanitario.',
-                    'Preparare una mini landing dedicata a studi medici e specialisti.',
-                    'Decidere il bundle minimo da recuperare o sostituire per le schermate legacy ad alta frequenza.',
+                    'Preparare una mini landing dedicata a dietistica e nutrizione.',
+                    'Rendere sempre piu esplicito il linguaggio di prima visita, controllo e follow-up alimentare.',
+                    'Valutare in un secondo step moduli aggiuntivi come piani o pacchetti, senza toccare il core adesso.',
                 ],
             ],
             'sport_rehab' => [
@@ -1243,35 +1307,61 @@ class DemoController extends Controller
 
     /**
      * @param array<string, mixed>|null $seedReport
-     * @return list<array<string, string>>
+     * @return list<array<string, mixed>>
      */
     private function accountsForProfile(string $profileId, ?array $seedReport): array
     {
-        $profileId = $this->normalizeProfileId($profileId);
-        $accounts = [];
-        $allAccounts = (array) ($seedReport['accounts'] ?? []);
+        return $this->demoAccounts($seedReport);
+    }
 
-        $profileKeys = [
-            'medical' => ['demo.admin', 'alessio2', 'demo.cardiologia', 'demo.frontdesk.med', 'demo.nurse.med', 'demo.portal.med'],
-            'sport_rehab' => ['demo.admin', 'demo.fisio1', 'demo.osteopata', 'demo.frontdesk.sport', 'demo.portal.sport'],
+    /**
+     * @return array<string, string>
+     */
+    private function unifiedDemoRequestContext(): array
+    {
+        return [
+            'id' => self::UNIFIED_DEMO_KEY,
+            'label' => self::UNIFIED_DEMO_LABEL,
         ];
+    }
 
-        $allowedUsernames = $profileKeys[$profileId] ?? [];
-        foreach ($allAccounts as $account) {
-            $username = (string) ($account['username'] ?? '');
-            if ($username === '' || ! in_array($username, $allowedUsernames, true)) {
-                continue;
-            }
-
-            $accounts[] = [
-                'username' => $username,
-                'role' => (string) ($account['type'] ?? 'account'),
-                'label' => (string) ($account['label'] ?? $username),
-                'password' => (string) ($seedReport['password'] ?? 'Demo2026!'),
-                'note' => $username === 'alessio2' ? 'OTP fisso 2510 per mostrare il flusso MFA.' : 'Account demo separato dal ramo farmacia.',
-            ];
-        }
-        return $accounts;
+    /**
+     * @return list<array<string, string>>
+     */
+    private function demoChecklist(): array
+    {
+        return [
+            [
+                'title' => 'Ingresso generale',
+                'username' => 'demo.admin',
+                'goal' => 'Apri moduli, ruoli, configurazioni e controlla che la base comune della piattaforma sia completa.',
+            ],
+            [
+                'title' => 'Vista segreteria veloce',
+                'username' => 'demo.admin->demo.segreteria',
+                'goal' => 'Mostra agenda del giorno, ricerca disponibilita, inserimento appuntamento per un altro dottore e note operative.',
+            ],
+            [
+                'title' => 'Vista segreteria diretta',
+                'username' => 'demo.segreteria',
+                'goal' => 'Controlla conferme, reminder, blocchi giornata e comportamento delle funzioni condivise.',
+            ],
+            [
+                'title' => 'Vista professionista con OTP',
+                'username' => 'demo.dietista',
+                'goal' => 'Verifica MFA, agenda per singolo dottore, memo, posta e notifiche ricevute quando altri prenotano per lui.',
+            ],
+            [
+                'title' => 'Secondo professionista',
+                'username' => 'demo.nutrizionista',
+                'goal' => 'Prova visibilita differenziate, presa appuntamenti interna e convivenza tra piu professionisti.',
+            ],
+            [
+                'title' => 'Portale paziente',
+                'username' => 'demo.portal.nutri',
+                'goal' => 'Chiudi il giro dal lato paziente e verifica il percorso esterno della demo.',
+            ],
+        ];
     }
 }
 
