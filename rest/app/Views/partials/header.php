@@ -73,10 +73,10 @@ $canManageTenantUsers = $tenantId > 0
 $showTenantOnboardingLink = $tenantId > 0
     && $tenantRole === 'tenant_master'
     && in_array(strtolower(trim((string)($tenantContext['onboarding_status'] ?? 'draft'))), ['draft', 'setup'], true);
-$headerLogoUrl = str_starts_with($currentPath, 'login')
+$isPortalConsoleHeader = preg_match('#^(login|piattaforma|spazio|spazi)(/|$)#', $currentPath) === 1;
+$headerLogoUrl = $isPortalConsoleHeader
     ? portal_public_access_url('login')
     : site_url('/');
-$isPortalConsoleHeader = str_starts_with($currentPath, 'login');
 $useStructuredHeader = $tenantName !== '' || $isPortalConsoleHeader;
 ?>
 
