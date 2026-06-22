@@ -23,7 +23,7 @@ if (!function_exists('portal_login_area_url')) {
     function portal_login_area_url(string $path = ''): string
     {
         $path = trim($path, '/');
-        return site_url($path === '' ? 'login' : 'login/' . $path);
+        return portal_public_access_url($path === '' ? 'login' : 'login/' . $path);
     }
 }
 
