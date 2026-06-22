@@ -49,3 +49,71 @@ if (!function_exists('portal_tenant_switch_url')) {
         return portal_login_area_url('spazi/cambia/' . max(0, $tenantId));
     }
 }
+
+if (!function_exists('portal_current_path_matches')) {
+    function portal_current_path_matches(string $path): bool
+    {
+        $targetPath = trim($path, '/');
+        $currentPath = trim(service('uri')->getPath(), '/');
+
+        if ($currentPath === $targetPath) {
+            return true;
+        }
+
+        return $currentPath !== '' && str_ends_with($currentPath, '/' . $targetPath);
+    }
+}
+
+if (!function_exists('portal_resolve_redirect_url')) {
+    function portal_resolve_redirect_url(string $path = ''): string
+    {
+        $path = trim($path);
+        if ($path === '') {
+            return site_url('/');
+        }
+
+        if (preg_match('#^https?://#i', $path) === 1) {
+            return $path;
+        }
+
+        return site_url(ltrim($path, '/'));
+    }
+}
+
+if (!function_exists('portal_session_console_url')) {
+    function portal_session_console_url(): ?string
+    {
+        $tenantContextRaw = session()->get(\App\Services\TenantContextService::SESSION_KEY);
+        if (is_array($tenantContextRaw) && $tenantContextRaw !== []) {
+            $tenantContext = \App\Libraries\TenantContext::fromArray($tenantContextRaw);
+            if ($tenantContext->isValid()) {
+                $tenantRole = strtolower(trim($tenantContext->tenantRole));
+                $onboardingStatus = strtolower(trim($tenantContext->onboardingStatus));
+
+                if ($tenantRole === 'tenant_master') {
+                    if (in_array($onboardingStatus, ['draft', 'setup'], true)) {
+                        return portal_tenant_space_url('onboarding');
+                    }
+
+                    if ($tenantContext->allows('staff_management')) {
+                        return portal_tenant_space_url('utenti');
+                    }
+
+                    return portal_tenant_space_url('funzioni');
+                }
+
+                if ($tenantRole === 'tenant_admin' && $tenantContext->allows('staff_management')) {
+                    return portal_tenant_space_url('utenti');
+                }
+
+                return site_url('/');
+            }
+        }
+
+        if ((bool) (session()->get('platform_is_admin') ?? false) === true) {
+            return portal_platform_url('spazi-clienti');
+        }
+
+        return null;
+    }
+}
