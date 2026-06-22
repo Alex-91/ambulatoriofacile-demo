@@ -189,6 +189,67 @@ body.platform-console-body .platform-navbar-secondary .user-menu > a {
   border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
+body.platform-console-body .platform-console-user-trigger {
+  gap: 10px;
+}
+
+body.platform-console-body .platform-console-user-name {
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+body.platform-console-body .platform-navbar-secondary .user-image {
+  margin-top: 0;
+  margin-right: 10px;
+}
+
+body.platform-console-body .platform-console-nav-badge {
+  position: relative;
+  top: -1px;
+  margin-left: 8px;
+}
+
+body.platform-console-body .platform-console-dropdown-block {
+  padding: 0 0 10px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid #e7eff1;
+}
+
+body.platform-console-body .platform-console-dropdown-title {
+  margin-bottom: 8px;
+  color: #28474d;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+body.platform-console-body .platform-console-dropdown-action + .platform-console-dropdown-action {
+  margin-top: 6px;
+}
+
+body.platform-console-body .platform-console-dropdown-action .btn,
+body.platform-console-body .platform-console-dropdown-block > .btn {
+  width: 100%;
+  text-align: left;
+}
+
+body.platform-console-body .platform-console-user-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+body.platform-console-body .platform-console-user-actions .btn {
+  flex: 1 1 auto;
+}
+
+body.platform-console-body .platform-console-mobile-menu {
+  left: 0;
+  right: auto;
+  min-width: 240px;
+}
+
 body.platform-console-body .main-header .dropdown-menu {
   border: 1px solid #d7e7e9;
   border-radius: 16px;
