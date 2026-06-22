@@ -18,6 +18,7 @@ class TenantAppSessionBootstrapService
     private \App\Models\PlatformUsersModel $platformUsersModel;
     private PlatformAuthService $platformAuth;
     private PlatformAdminAccessService $platformAdminAccess;
+    private TenantAppUserProvisioningService $tenantAppUserProvisioning;
     private Crypto_helper $crypto;
 
     public function __construct()
@@ -29,6 +30,7 @@ class TenantAppSessionBootstrapService
         $this->platformUsersModel = new \App\Models\PlatformUsersModel();
         $this->platformAuth = new PlatformAuthService();
         $this->platformAdminAccess = new PlatformAdminAccessService($this->platformUsersModel, $this->platformAuth);
+        $this->tenantAppUserProvisioning = new TenantAppUserProvisioningService();
         $this->crypto = new Crypto_helper();
     }
 
@@ -65,16 +67,14 @@ class TenantAppSessionBootstrapService
         (new DatabaseConfig())->setEncryptionConfig($tenantDb);
 
         $appUserId = (int) ($membership['app_user_id'] ?? 0);
-        if ($appUserId <= 0) {
-            $appUserId = $this->resolveAppUserIdByEmail($tenantDb, (string) ($platformUser['email'] ?? ''));
-
-            if ($appUserId <= 0) {
-                throw new \RuntimeException('Utente applicativo del tenant non collegato. Imposta App user ID nello spazio cliente.');
-            }
-
-            $this->membershipsModel->update((int) ($membership['id_platform_user_tenant'] ?? 0), [
-                'app_user_id' => $appUserId,
-            ]);
+        if ($appUserId <= 0 || !$this->findTenantUserById($tenantDb, $appUserId)) {
+            $appUserId = $this->ensureMembershipAppUser(
+                $tenantDb,
+                $membership,
+                $platformUserId,
+                $tenantId,
+                (string) ($platformUser['email'] ?? '')
+            );
         }
 
         $user = $this->findTenantUserById($tenantDb, $appUserId);
@@ -233,6 +233,50 @@ class TenantAppSessionBootstrapService
         }
 
         return count($matches) === 1 ? $matches[0] : 0;
+    }
+
+    /**
+     * @param array<string, mixed> $membership
+     */
+    private function ensureMembershipAppUser(
+        \CodeIgniter\Database\BaseConnection $tenantDb,
+        array $membership,
+        int $platformUserId,
+        int $tenantId,
+        string $email
+    ): int {
+        $membershipId = (int) ($membership['id_platform_user_tenant'] ?? 0);
+
+        if ($membershipId > 0) {
+            try {
+                $this->tenantAppUserProvisioning->syncMembership($membershipId, false);
+            } catch (\Throwable $e) {
+                log_message('warning', 'Tenant app user sync failed during login bootstrap: ' . $e->getMessage(), [
+                    'membership_id' => $membershipId,
+                    'tenant_id' => $tenantId,
+                    'platform_user_id' => $platformUserId,
+                ]);
+            }
+
+            $membership = $this->catalog->getTenantMembership($platformUserId, $tenantId) ?? $membership;
+            $appUserId = (int) ($membership['app_user_id'] ?? 0);
+            if ($appUserId > 0 && $this->findTenantUserById($tenantDb, $appUserId)) {
+                return $appUserId;
+            }
+        }
+
+        $appUserId = $this->resolveAppUserIdByEmail($tenantDb, $email);
+        if ($appUserId > 0 && $membershipId > 0) {
+            $this->membershipsModel->update($membershipId, [
+                'app_user_id' => $appUserId,
+            ]);
+
+            return $appUserId;
+        }
+
+        throw new \RuntimeException(
+            'Utente applicativo del tenant non collegato automaticamente. Apri lo spazio cliente e usa Salva e provisiona, oppure imposta App user ID nello spazio cliente.'
+        );
     }
 
     /**
