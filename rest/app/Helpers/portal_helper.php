@@ -53,37 +53,57 @@ if (!function_exists('portal_tenant_switch_url')) {
 if (!function_exists('portal_current_path_matches')) {
     function portal_current_path_matches(string $path): bool
     {
-        $targetPath = trim($path, '/');
-        $currentPath = trim(service('uri')->getPath(), '/');
+        $normalizePath = static function ($value): string {
+            $pathValue = trim((string) $value);
+            if ($pathValue === '') {
+                return '';
+            }
 
-        if ($currentPath === $targetPath) {
-            return true;
+            $parsedPath = parse_url($pathValue, PHP_URL_PATH);
+            if (is_string($parsedPath) && $parsedPath !== '') {
+                $pathValue = $parsedPath;
+            }
+
+            return trim(str_replace('\\', '/', $pathValue), '/');
+        };
+
+        $appendVariants = static function (array &$variants, string $candidate): void {
+            $candidate = trim($candidate, '/');
+            if ($candidate === '') {
+                return;
+            }
+
+            $variants[$candidate] = true;
+
+            if (str_starts_with($candidate, 'login/')) {
+                $relativeCandidate = substr($candidate, strlen('login/'));
+                if (is_string($relativeCandidate) && $relativeCandidate !== '') {
+                    $variants[$relativeCandidate] = true;
+                }
+            }
+        };
+
+        $targetVariants = [];
+        $appendVariants($targetVariants, $normalizePath($path));
+
+        $requestVariants = [];
+        $appendVariants($requestVariants, $normalizePath(service('uri')->getPath()));
+        $appendVariants($requestVariants, $normalizePath($_SERVER['AF_ORIGINAL_REQUEST_URI'] ?? ''));
+        $appendVariants($requestVariants, $normalizePath($_SERVER['REQUEST_URI'] ?? ''));
+
+        foreach (array_keys($requestVariants) as $currentPath) {
+            foreach (array_keys($targetVariants) as $targetPath) {
+                if ($currentPath === $targetPath) {
+                    return true;
+                }
+
+                if ($currentPath !== '' && str_ends_with($currentPath, '/' . $targetPath)) {
+                    return true;
+                }
+            }
         }
 
-        if ($currentPath !== '' && str_ends_with($currentPath, '/' . $targetPath)) {
-            return true;
-        }
-
-        $appConfig = config('App');
-        $baseUrl = is_object($appConfig) && isset($appConfig->baseURL)
-            ? (string) $appConfig->baseURL
-            : '';
-        $basePath = trim((string) parse_url($baseUrl, PHP_URL_PATH), '/');
-
-        if ($basePath === '' || !str_starts_with($targetPath, $basePath . '/')) {
-            return false;
-        }
-
-        $relativeTargetPath = substr($targetPath, strlen($basePath) + 1);
-        if (!is_string($relativeTargetPath) || $relativeTargetPath === '') {
-            return false;
-        }
-
-        if ($currentPath === $relativeTargetPath) {
-            return true;
-        }
-
-        return $currentPath !== '' && str_ends_with($currentPath, '/' . $relativeTargetPath);
+        return false;
     }
 }
 
