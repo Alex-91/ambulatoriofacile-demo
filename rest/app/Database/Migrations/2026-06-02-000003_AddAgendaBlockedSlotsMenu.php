@@ -75,10 +75,15 @@ class AddAgendaBlockedSlotsMenu extends Migration
             return;
         }
 
-        $rows = $this->db->table('dap18_agenda_menu_permessi')
+        $query = $this->db->table('dap18_agenda_menu_permessi')
             ->where('id_menu', $sourceMenuId)
-            ->get()
-            ->getResultArray();
+            ->get();
+
+        if (!$query) {
+            return;
+        }
+
+        $rows = $query->getResultArray();
 
         if (empty($rows)) {
             return;
