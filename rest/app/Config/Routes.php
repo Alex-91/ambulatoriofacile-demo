@@ -50,6 +50,7 @@ $routes->post('login/piattaforma/spazi-clienti/master-accounts/accesso', 'Login\
 $routes->post('login/piattaforma/spazi-clienti/master-accounts/save', 'Login\PlatformTenantSpacesController::saveMasterAccount');
 $routes->post('login/piattaforma/spazi-clienti/master-accounts/revoke', 'Login\PlatformTenantSpacesController::revokeMasterAccount');
 $routes->post('login/piattaforma/spazi-clienti/save', 'Login\PlatformTenantSpacesController::save');
+$routes->post('login/piattaforma/spazi-clienti/delete', 'Login\PlatformTenantSpacesController::delete');
 $routes->post('login/piattaforma/spazi-clienti/members/save', 'Login\PlatformTenantSpacesController::saveMember');
 $routes->post('login/piattaforma/spazi-clienti/members/accesso', 'Login\PlatformTenantSpacesController::sendMemberAccess');
 $routes->get('login/spazi/cambia/(:num)', 'Login\LoginController::switchTenant/$1');
