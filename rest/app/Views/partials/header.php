@@ -80,6 +80,88 @@ $headerLogoUrl = $isPortalConsoleHeader
 $useStructuredHeader = $tenantName !== '' || $isPortalConsoleHeader;
 ?>
 
+<style>
+  body.platform-console-body .main-header .logo {
+    height: 78px;
+    line-height: 78px;
+  }
+
+  body.platform-console-body .main-header .navbar {
+    min-height: 78px;
+    padding: 10px 16px 12px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 16px;
+  }
+
+  body.platform-console-body .main-header .navbar > .navbar-custom-menu {
+    float: none !important;
+  }
+
+  body.platform-console-body .main-header .navbar > .navbar-custom-menu:first-of-type {
+    order: 2;
+    flex: 1 1 100%;
+    overflow: hidden;
+  }
+
+  body.platform-console-body .main-header .navbar > .navbar-custom-menu:first-of-type .navbar-nav {
+    float: none;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+  }
+
+  body.platform-console-body .main-header .navbar > .navbar-custom-menu:first-of-type .navbar-nav > li {
+    float: none;
+  }
+
+  body.platform-console-body .main-header .navbar > .navbar-custom-menu:first-of-type .navbar-nav > li > a {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: auto;
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.12);
+  }
+
+  body.platform-console-body .main-header .navbar > .navbar-custom-menu:last-of-type {
+    order: 1;
+    margin-left: auto;
+  }
+
+  body.platform-console-body .main-header .navbar > .navbar-custom-menu:last-of-type .navbar-nav {
+    float: none;
+    display: flex;
+    align-items: center;
+    margin: 0;
+  }
+
+  body.platform-console-body .main-header .navbar > .navbar-text {
+    order: 0;
+    float: none !important;
+    margin: 0 !important;
+    padding: 8px 14px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.12);
+    color: #f4fdff !important;
+    font-weight: 600;
+  }
+
+  @media (max-width: 991px) {
+    body.platform-console-body .main-header .navbar {
+      padding: 10px 12px 12px;
+    }
+
+    body.platform-console-body .main-header .navbar > .navbar-custom-menu:last-of-type {
+      margin-left: 0;
+    }
+  }
+</style>
+
 <?php if ($useStructuredHeader): ?>
 <style>
   .main-header .navbar.platform-console-navbar {
