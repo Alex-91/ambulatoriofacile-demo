@@ -17,6 +17,52 @@ class LoginController extends BaseController
     private const PLATFORM_TENANT_SELECTION_SESSION_KEY = 'platform_pending_tenant_login';
     private const PLATFORM_TENANT_SELECTION_TTL_SECONDS = 600;
 
+    private function ensureLegacyCryptoSession(\CodeIgniter\Database\BaseConnection $db, string $charset = 'latin1'): void
+    {
+        if (isset($this->dbConfig) && $this->dbConfig instanceof \App\Libraries\DatabaseConfig) {
+            $this->dbConfig->setEncryptionConfig($db, $charset);
+            return;
+        }
+
+        (new \App\Libraries\DatabaseConfig())->setEncryptionConfig($db, $charset);
+    }
+
+    /**
+     * @param array<int|string, mixed> $params
+     * @param array<string, mixed> $context
+     * @return \CodeIgniter\Database\BaseResult|\CodeIgniter\Database\Query|false
+     */
+    private function runQueryWithCryptoRecovery(
+        \CodeIgniter\Database\BaseConnection $db,
+        string $sql,
+        array $params = [],
+        array $context = [],
+        string $charset = 'latin1'
+    ) {
+        $query = $db->query($sql, $params);
+        if ($query !== false) {
+            return $query;
+        }
+
+        $firstError = $db->error();
+        $this->ensureLegacyCryptoSession($db, $charset);
+
+        $query = $db->query($sql, $params);
+        if ($query !== false) {
+            return $query;
+        }
+
+        $secondError = $db->error();
+        $this->logErrorLogin('Query database fallita anche dopo il ripristino della sessione crypto.', array_merge($context, [
+            'db_error_code' => (string) ($firstError['code'] ?? ''),
+            'db_error_message' => (string) ($firstError['message'] ?? ''),
+            'retry_db_error_code' => (string) ($secondError['code'] ?? ''),
+            'retry_db_error_message' => (string) ($secondError['message'] ?? ''),
+        ]));
+
+        return false;
+    }
+
     private function storedPasswordLooksCorrupted(\CodeIgniter\Database\BaseConnection $db, int $idUser): bool
     {
         if ($idUser <= 0) {
@@ -28,7 +74,15 @@ class LoginController extends BaseController
                 WHERE id_user = ?
                 LIMIT 1";
 
-        $row = $db->query($sql, [$idUser])->getRowArray();
+        $query = $this->runQueryWithCryptoRecovery($db, $sql, [$idUser], [
+            'query_name' => 'stored_password_plaintext_lookup',
+            'id_user' => $idUser,
+        ]);
+        if ($query === false) {
+            return false;
+        }
+
+        $row = $query->getRowArray();
         $plainPassword = trim((string)($row['plain_pwd'] ?? ''));
         if ($plainPassword === '') {
             return false;
@@ -356,7 +410,8 @@ class LoginController extends BaseController
         $username = '';
 
         try {
-        $db = \Config\Database::connect(); // Connessione al database
+        $db = $this->db ?? \Config\Database::connect();
+        $this->ensureLegacyCryptoSession($db);
         $credentials = $this->request->getJSON(); // Recupera le credenziali inviate tramite POST
         $crypto_helper = new Crypto_helper();
         $this->clearPendingPlatformLogin();
@@ -469,15 +524,31 @@ session()->remove(\App\Services\PlatformAccessService::SESSION_KEY_PENDING_PASSW
 
             // Esegui la query con i parametri username e password criptata
             if (strpos($username, '->') !== false) {
-                $query = $db->query($sql, [
+                $query = $this->runQueryWithCryptoRecovery($db, $sql, [
                     $usernamesArray['username_adm'],  // Passa il parametro direttamente
                     $password                // Passa la password criptata
+                ], [
+                    'query_name' => 'legacy_login_credentials_check',
+                    'login_mode' => 'admin_arrow',
+                    'username' => $usernamesArray['username_adm'],
                 ]);
             } else {
-                $query = $db->query($sql, [
+                $query = $this->runQueryWithCryptoRecovery($db, $sql, [
                     $username,                         // Passa il parametro direttamente
                     $password                    // Passa la password criptata
+                ], [
+                    'query_name' => 'legacy_login_credentials_check',
+                    'login_mode' => 'standard',
+                    'username' => $username,
                 ]);
+            }
+
+            if ($query === false) {
+                return $this->response->setJSON([
+                    'resp'    => 'KO',
+                    'success' => false,
+                    'message' => 'Accesso momentaneamente non disponibile. Riprova tra poco.'
+                ])->setStatusCode(503);
             }
 
             $user = $query->getRowArray();
@@ -893,10 +964,17 @@ session()->remove(\App\Services\PlatformAccessService::SESSION_KEY_PENDING_PASSW
             'line'     => $e->getLine(),
         ]);
 
-        return $this->response->setJSON([
-            'error' => $e->getMessage(),
-            'trace' => $e->getTraceAsString()  // Aggiungi la traccia dello stack per il debug
-        ])->setStatusCode(500);
+        $payload = [
+            'resp'    => 'KO',
+            'success' => false,
+            'message' => 'Errore temporaneo durante il login. Riprova tra poco.'
+        ];
+
+        if ((string) env('CI_ENVIRONMENT', '') === 'development') {
+            $payload['error'] = $e->getMessage();
+        }
+
+        return $this->response->setJSON($payload)->setStatusCode(500);
     }
     }
 
