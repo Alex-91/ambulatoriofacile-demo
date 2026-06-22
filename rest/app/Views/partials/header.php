@@ -73,16 +73,20 @@ $canManageTenantUsers = $tenantId > 0
 $showTenantOnboardingLink = $tenantId > 0
     && $tenantRole === 'tenant_master'
     && in_array(strtolower(trim((string)($tenantContext['onboarding_status'] ?? 'draft'))), ['draft', 'setup'], true);
+$headerLogoUrl = str_starts_with($currentPath, 'login')
+    ? portal_public_access_url('login')
+    : site_url('/');
+$isPortalConsoleHeader = str_starts_with($currentPath, 'login');
 ?>
 
 <header class="main-header" style="background:#2c8895">
   <!-- Logo -->
-  <a href="./index2.html" class="logo">
+  <a href="<?= esc($headerLogoUrl) ?>" class="logo">
     <span class="logo-mini"><b>Ambulatorio</b>Facile</span>
     <span class="logo-lg"><b>Ambulatorio</b>Facile</span>
   </a>
 
-  <nav class="navbar navbar-static-top" role="navigation">
+  <nav class="navbar navbar-static-top<?= $isPortalConsoleHeader ? ' platform-console-navbar' : '' ?>" role="navigation">
     <a href="#" class="sidebar-toggle" data-toggle="offcanvas" role="button" style="display:none">
       <span class="sr-only">Toggle navigation</span>
       <span class="icon-bar"></span>
@@ -90,15 +94,26 @@ $showTenantOnboardingLink = $tenantId > 0
       <span class="icon-bar"></span>
     </a>
 
+    <?php if ($isPortalConsoleHeader): ?>
+    <div class="platform-navbar-shell">
+    <?php endif; ?>
+
     <?php if ($tenantName !== ''): ?>
+      <?php if ($isPortalConsoleHeader): ?>
+      <div class="platform-navbar-tenant hidden-xs">
+        <span class="platform-navbar-tenant-label">Spazio</span>
+        <strong class="platform-navbar-tenant-name"><?= esc($tenantName) ?></strong>
+      </div>
+      <?php else: ?>
       <div class="navbar-text hidden-xs" style="float:left; color:#e8f6f8; margin-left:16px; font-weight:600;">
         Spazio: <?= esc($tenantName) ?>
       </div>
+      <?php endif; ?>
     <?php endif; ?>
 
     <?php if (!$hideHeaderMenu): ?>
-    <div class="navbar-custom-menu" style="float:left !important">
-      <ul class="nav navbar-nav">
+    <div class="navbar-custom-menu<?= $isPortalConsoleHeader ? ' platform-navbar-primary' : '' ?>"<?= $isPortalConsoleHeader ? '' : ' style="float:left !important"' ?>>
+      <ul class="nav navbar-nav<?= $isPortalConsoleHeader ? ' platform-navbar-links' : '' ?>">
 
 <?php
 $disableMenuFallback = !empty($disable_menu_fallback);
@@ -166,7 +181,7 @@ if ($disableMenuFallback) {
     $itemIcon = admin_menu_resolve_icon((string)($item['fa_icon'] ?? ''), $itemTitle, $itemLink);
   ?>
   <li class="hidden-xs">
-    <a href="<?= site_url($itemLink) ?>" title="<?= esc($itemTitle) ?>">
+    <a href="<?= site_url($itemLink) ?>" title="<?= esc($itemTitle) ?>"<?= $isPortalConsoleHeader ? ' class="platform-nav-link"' : '' ?>>
       <i class="fa <?= esc($itemIcon) ?>"></i>
       <span class="nav-label" style="position:relative; display:inline-block;">
         <?= esc($itemTitle) ?>
@@ -220,7 +235,7 @@ if ($disableMenuFallback) {
     </div>
     <?php endif; ?>
 
-    <div class="navbar-custom-menu">
+    <div class="navbar-custom-menu<?= $isPortalConsoleHeader ? ' platform-navbar-secondary' : '' ?>">
       <ul class="nav navbar-nav">
         <li class="dropdown user user-menu">
           <a href="#" class="dropdown-toggle" data-toggle="dropdown">
@@ -326,6 +341,10 @@ if ($disableMenuFallback) {
         </li>
       </ul>
     </div>
+
+    <?php if ($isPortalConsoleHeader): ?>
+    </div>
+    <?php endif; ?>
 
   </nav>
 </header>
