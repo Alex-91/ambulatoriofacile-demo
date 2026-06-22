@@ -69,6 +69,10 @@ $isPlatformConsoleSession = $canAccessPlatformConsole
 $canManageTenantFeatures = $tenantId > 0
     && $tenantRole === 'tenant_master'
     && (int) ($sess->get('platform_user_id') ?? 0) > 0;
+$canManageAppointmentNotifications = $tenantId > 0
+    && $tenantRole === 'tenant_master'
+    && (int) ($sess->get('platform_user_id') ?? 0) > 0
+    && !empty($tenantFeatureFlags['appointment_notifications']);
 $canManageTenantUsers = $tenantId > 0
     && in_array($tenantRole, ['tenant_master', 'tenant_admin'], true)
     && !empty($tenantFeatureFlags['staff_management']);
@@ -547,6 +551,13 @@ if ($disableMenuFallback) {
               <div class="platform-console-dropdown-block">
                 <a href="<?= portal_tenant_space_url('funzioni') ?>" class="btn btn-default btn-flat">
                   <i class="fa fa-toggle-on"></i> Gestisci funzioni dello spazio
+                </a>
+              </div>
+              <?php endif; ?>
+              <?php if (!$useMinimalTenantOnboardingHeader && $canManageAppointmentNotifications): ?>
+              <div class="platform-console-dropdown-block">
+                <a href="<?= portal_tenant_space_url('notifiche-appuntamenti') ?>" class="btn btn-default btn-flat">
+                  <i class="fa fa-commenting"></i> Centro notifiche appuntamenti
                 </a>
               </div>
               <?php endif; ?>

@@ -4,15 +4,14 @@
 
 Elencare i punti del codice piu esposti per la demo commerciale, in modo da sapere dove intervenire dopo senza toccare a caso l'applicativo.
 
-Questa mappa non cambia il comportamento dell'app: serve solo a guidare il refactoring demo.
+Questa mappa non cambia il comportamento dell'app: serve solo a guidare il refactoring demo e a mantenere coerente il branding.
 
-## Brand attuale osservato
+## Brand attuale desiderato
 
-Il brand attuale esposto nel codice e soprattutto:
+Il brand da esporre nella demo e:
 
-- `AMBULATORI.Cloud`
-- `AmbulatoriCLOUD`
-- descrizioni orientate a `ambulatorio`
+- `AmbulatorioFacile`
+- descrizioni coerenti con una piattaforma operativa moderna
 
 ## Punti ad alta visibilita
 

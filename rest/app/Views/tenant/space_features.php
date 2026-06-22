@@ -9,6 +9,7 @@ $errors = is_array($errors ?? null) ? $errors : [];
 $success = $success ?? null;
 $featureStates = is_array($featureStates ?? null) ? $featureStates : [];
 $tenantContext = $tenantContext ?? null;
+$appointmentNotificationsAvailable = false;
 
 $manageableRows = [];
 $lockedRows = [];
@@ -17,6 +18,11 @@ $unavailableRows = [];
 foreach ($featureStates as $row) {
     $entitled = (bool) ($row['entitlement_enabled'] ?? false);
     $tenantManaged = (bool) ($row['is_tenant_managed'] ?? false);
+    $featureKey = trim((string) ($row['feature_key'] ?? ''));
+
+    if ($featureKey === 'appointment_notifications' && (bool) ($row['effective_enabled'] ?? false)) {
+        $appointmentNotificationsAvailable = true;
+    }
 
     if (!$entitled) {
         $unavailableRows[] = $row;
@@ -109,6 +115,13 @@ foreach ($featureStates as $row) {
         <span class="status-chip">Gestibili da te: <?= count($manageableRows) ?></span>
         <span class="status-chip">Centrali: <?= count($lockedRows) ?></span>
         <span class="status-chip">Non incluse: <?= count($unavailableRows) ?></span>
+        <?php if ($appointmentNotificationsAvailable): ?>
+          <div style="margin-top:12px;">
+            <a class="btn btn-default" href="<?= portal_tenant_space_url('notifiche-appuntamenti') ?>">
+              <i class="fa fa-commenting"></i> Apri centro notifiche appuntamenti
+            </a>
+          </div>
+        <?php endif; ?>
       </div>
 
       <div class="box box-success">

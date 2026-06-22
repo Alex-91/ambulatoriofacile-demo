@@ -7,7 +7,7 @@ $specs = $specs ?? [];
 <html>
 <head>
   <meta charset="UTF-8">
-  <title><?= esc('AmbulatoriCLOUD') ?> | Scegli specialista</title>
+  <title><?= esc('AmbulatorioFacile') ?> | Scegli specialista</title>
   <meta content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" name="viewport">
   <link rel="icon" href="<?= base_url('public/assets/images/logonew.jpg') ?>" type="image/x-icon" sizes="any">
 
@@ -18,7 +18,7 @@ $specs = $specs ?? [];
 
 <style>
   .spec-card {
-    background: linear-gradient(135deg, #3c8dbc, #367fa9); /* blu AmbulatoriCLOUD */
+    background: linear-gradient(135deg, #3c8dbc, #367fa9); /* blu AmbulatorioFacile */
     border-radius: 6px;
     padding: 20px 15px;
     margin-bottom: 20px;
@@ -128,7 +128,7 @@ $specs = $specs ?? [];
 
   <footer class="main-footer">
     <div class="pull-right hidden-xs"><b>Version</b> 2.0</div>
-    <strong>&copy; <?= esc('AmbulatoriCLOUD') ?></strong>
+    <strong>&copy; <?= esc('AmbulatorioFacile') ?></strong>
   </footer>
 
 </div>

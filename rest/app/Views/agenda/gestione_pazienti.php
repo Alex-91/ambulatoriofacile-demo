@@ -4,7 +4,7 @@
  <link href="<?= base_url('public/css/agenda-menu.css') ?>" rel="stylesheet" type="text/css" />
     <meta charset="UTF-8">
     <?php $patientPageTitle = 'Gestione pazienti'; ?>
-    <title><?= esc($patientPageTitle . (' | AmbulatoriCLOUD')) ?></title>
+    <title><?= esc($patientPageTitle . (' | AmbulatorioFacile')) ?></title>
     <meta content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" name="viewport">
 
     <link href="<?= base_url('public/bootstrap/css/bootstrap.min.css') ?>" rel="stylesheet" />

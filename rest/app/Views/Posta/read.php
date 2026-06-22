@@ -242,7 +242,7 @@ $backUrl = $base . '?' . http_build_query($params);
 // Header â€œDa/Aâ€
 $fromName = $current ? displayFrom($current) : 'Mittente';
 $toName = $current ? displayTo($current) : 'Destinatario';
-$brandName = 'AmbulatoriCLOUD';
+$brandName = 'AmbulatorioFacile';
 ?>
 <!DOCTYPE html>
 <html>

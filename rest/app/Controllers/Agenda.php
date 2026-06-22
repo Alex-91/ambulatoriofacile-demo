@@ -14,12 +14,19 @@ use App\Models\AgendaLockModel;
 use App\Models\AgendaNoteModel;
 use App\Models\AgendaSlotModel;
 use App\Models\PazientiModel;
+use App\Services\AgendaAppointmentNotificationService;
 use App\Services\NotificationService;
+use App\Services\SmsReminderDashboardService;
+use App\Services\StaffDoctorAccessService;
+use App\Services\TenantContextService;
 use Exception;
 
 class Agenda extends BaseController
 {
     private const BACKUP_PDF_MAX_ROWS = 1200;
+    private const DEMO_DEFAULT_DATE = '2026-06-01';
+    private const TEAM_DAY_VIEW_FEATURE = 'agenda_team_day_view';
+    private const SHARED_AGENDA_MEMOS_FEATURE = 'shared_agenda_memos';
 
     protected AgendaModel $agendaModel;
     protected AgendaSlotModel $slotModel;
@@ -32,6 +39,7 @@ class Agenda extends BaseController
     protected AgendaJobModel $agendaJobModel;
     protected AgendaLocationModel $locationModel;
     protected NotificationService $notificationService;
+    protected TenantContextService $tenantContextService;
     protected $db;
 
     public function __construct()
@@ -47,6 +55,7 @@ class Agenda extends BaseController
         $this->agendaJobModel    = new AgendaJobModel();
         $this->locationModel     = new AgendaLocationModel();
         $this->notificationService = new NotificationService();
+        $this->tenantContextService = new TenantContextService();
 
         $this->db = \Config\Database::connect();
 
@@ -239,12 +248,19 @@ public function storicoMemo()
 {
     try {
         $currentUserId = $this->getCurrentUserId();
-        $medici = $this->agendaModel->getMediciVisibili($currentUserId);
         $lockToCurrentDoctor = false;
-        $selectedDot = (int)($this->request->getGet('id_dot') ?: $this->getFirstVisibleDoctorId($medici));
+        $sharedMemoManagementEnabled = $this->isSharedAgendaMemosFeatureEnabled();
 
-        if ($selectedDot > 0 && !$this->agendaModel->canUserAccessDoctor($currentUserId, $selectedDot)) {
-            $selectedDot = $this->getFirstVisibleDoctorId($medici);
+        if ($sharedMemoManagementEnabled) {
+            $medici = $this->agendaModel->getAllAgendaProfessionals();
+            $selectedDot = max(0, (int)($this->request->getGet('id_dot') ?? 0));
+        } else {
+            $medici = $this->agendaModel->getMediciVisibili($currentUserId);
+            $selectedDot = (int)($this->request->getGet('id_dot') ?: $this->getFirstVisibleDoctorId($medici));
+
+            if ($selectedDot > 0 && !$this->agendaModel->canUserAccessDoctor($currentUserId, $selectedDot)) {
+                $selectedDot = $this->getFirstVisibleDoctorId($medici);
+            }
         }
 
         $page = max(1, (int)($this->request->getGet('page') ?? 1));
@@ -255,7 +271,24 @@ public function storicoMemo()
         $total = 0;
         $lastPage = 1;
 
-        if ($selectedDot > 0) {
+        if ($sharedMemoManagementEnabled) {
+            if ($selectedDot > 0) {
+                $this->assertMemoDoctorAllowed($selectedDot);
+                $result = $this->noteModel->getNoteFatteByDoctorPaginate($selectedDot, $perPage, $page, $searchTerm);
+            } else {
+                $result = $this->noteModel->getNoteFatteByDoctorsPaginate(
+                    $this->getSharedAgendaMemoDoctorIds(),
+                    $perPage,
+                    $page,
+                    $searchTerm
+                );
+            }
+
+            $rows = $this->enrichMemoRowsForResponse($result['rows']);
+            $total = $result['total'];
+            $lastPage = $result['lastPage'];
+            $page = min($result['page'], $lastPage);
+        } elseif ($selectedDot > 0) {
             $this->assertDoctorAllowed($selectedDot);
 
             $result = $this->noteModel->getNoteFatteByDoctorPaginate($selectedDot, $perPage, $page, $searchTerm);
@@ -276,6 +309,7 @@ public function storicoMemo()
             'perPage'     => $perPage,
             'total'       => $total,
             'lastPage'    => $lastPage,
+            'sharedMemoManagementEnabled' => $sharedMemoManagementEnabled,
             'menuAgenda'  => method_exists($this->agendaModel, 'getMenuVisibleByUser')
                 ? $this->agendaModel->getMenuVisibleByUser($currentUserId)
                 : $this->agendaModel->getMenuVisible(),
@@ -500,6 +534,213 @@ public function eseguiRepairRecurringExtraSlots()
         }
 
         return (int)($user->id_user ?? 0);
+    }
+
+    protected function notifyBookedAppointmentIfNeeded(int $appointmentId, int $targetLegacyIdDot): void
+    {
+        if ($appointmentId <= 0 || $targetLegacyIdDot <= 0) {
+            return;
+        }
+
+        $sessionUser = $this->getUserSession();
+        $actorTipoPers = is_object($sessionUser) ? (int) ($sessionUser->tipo_pers ?? 0) : 0;
+        $actorIsDoctor = $actorTipoPers === StaffDoctorAccessService::TIPO_DOTTORE;
+        $actorUserId = $this->getCurrentUserId();
+        if ($actorUserId <= 0) {
+            return;
+        }
+
+        $actorLegacyIdDot = $actorIsDoctor
+            ? $this->agendaModel->getIdDotByOperatore($actorUserId)
+            : 0;
+
+        try {
+            (new AgendaAppointmentNotificationService($this->db))
+                ->handleBookedAppointment($appointmentId, $targetLegacyIdDot, $actorUserId, $actorLegacyIdDot, $actorIsDoctor);
+        } catch (\Throwable $e) {
+            log_message('warning', '[Agenda] Notifiche appuntamento fallite: {message}', [
+                'message' => $e->getMessage(),
+                'appointment_id' => $appointmentId,
+                'actor_user_id' => $actorUserId,
+                'actor_id_dot' => $actorLegacyIdDot,
+                'target_id_dot' => $targetLegacyIdDot,
+            ]);
+        }
+    }
+
+    protected function getDefaultAgendaDate(): string
+    {
+        $selectedDate = trim((string)($this->request->getGet('data') ?? ''));
+        if ($selectedDate !== '') {
+            return $selectedDate;
+        }
+
+        $username = strtolower(trim((string)(session()->get('username') ?? '')));
+        if ($username !== '' && strpos($username, 'demo.') === 0) {
+            return self::DEMO_DEFAULT_DATE;
+        }
+
+        return date('Y-m-d');
+    }
+
+    protected function isTeamDayViewFeatureEnabled(): bool
+    {
+        $context = $this->tenantContextService->getCurrentTenant();
+
+        return $context !== null && $context->allows(self::TEAM_DAY_VIEW_FEATURE);
+    }
+
+    protected function canUseTeamDayView(array $medici): bool
+    {
+        return $this->isTeamDayViewFeatureEnabled() && count($medici) > 1;
+    }
+
+    protected function isSharedAgendaMemosFeatureEnabled(): bool
+    {
+        $context = $this->tenantContextService->getCurrentTenant();
+
+        return $context !== null && $context->allows(self::SHARED_AGENDA_MEMOS_FEATURE);
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    protected function getSharedAgendaMemoDoctorIds(): array
+    {
+        $ids = [];
+
+        foreach ($this->agendaModel->getAllAgendaProfessionals() as $doctor) {
+            $idDot = (int) ($doctor['id_dot'] ?? 0);
+            if ($idDot > 0) {
+                $ids[] = $idDot;
+            }
+        }
+
+        $ids = array_values(array_unique($ids));
+        sort($ids);
+
+        return $ids;
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    protected function getMemoDoctorOptions(array $visibleDoctors): array
+    {
+        if ($this->isSharedAgendaMemosFeatureEnabled()) {
+            return $this->agendaModel->getAllAgendaProfessionals();
+        }
+
+        return $visibleDoctors;
+    }
+
+    protected function assertMemoDoctorAllowed(int $idDot): void
+    {
+        if ($idDot <= 0) {
+            throw new \Exception('Medico non valido.');
+        }
+
+        if (!$this->isSharedAgendaMemosFeatureEnabled()) {
+            $this->assertDoctorAllowed($idDot);
+            return;
+        }
+
+        if ($this->agendaModel->getAgendaProfessionalByLegacyId($idDot) === null) {
+            throw new \Exception('Medico non valido.');
+        }
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $rows
+     * @return array<int, array<string, mixed>>
+     */
+    protected function enrichMemoRowsForResponse(array $rows, string $agendaData = ''): array
+    {
+        if ($rows === []) {
+            return [];
+        }
+
+        $doctorMap = $this->agendaModel->getAgendaProfessionalMapByLegacyIds(array_map(
+            static fn(array $row): int => (int) ($row['id_dot'] ?? 0),
+            $rows
+        ));
+
+        foreach ($rows as &$row) {
+            $idDot = (int) ($row['id_dot'] ?? 0);
+            $doctor = $doctorMap[$idDot] ?? null;
+
+            $row['doctor_label'] = trim((string) ($doctor['label'] ?? ''));
+            $row['memo_action_blocked'] = $agendaData !== '' && $idDot > 0
+                ? $this->agendaModel->isMemoGiornoBloccato($idDot, $agendaData)
+                : false;
+        }
+        unset($row);
+
+        return $rows;
+    }
+
+    protected function normalizeAgendaViewMode(string $viewMode, bool $teamDayEnabled): string
+    {
+        $viewMode = trim(strtolower($viewMode));
+
+        if ($viewMode === 'week') {
+            return 'week';
+        }
+
+        if ($viewMode === 'team_day' && $teamDayEnabled) {
+            return 'team_day';
+        }
+
+        return 'day';
+    }
+
+    /**
+     * @param object|array<string, mixed> $medico
+     * @return array<string, mixed>
+     */
+    protected function normalizeAgendaProfessionalRow($medico): array
+    {
+        $row = is_object($medico) ? get_object_vars($medico) : (array)$medico;
+        $label = trim((string)($row['label'] ?? ''));
+
+        if ($label === '') {
+            $label = trim((string)($row['cognome'] ?? '') . ' ' . (string)($row['nome'] ?? ''));
+        }
+
+        return [
+            'id_dot' => (int)($row['id_dot'] ?? 0),
+            'label' => $label,
+            'tipo' => (int)($row['tipo'] ?? 0),
+            'f_dom' => (int)($row['f_dom'] ?? 0),
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $doctor
+     * @return array<string, mixed>
+     */
+    protected function buildTeamDayColumnPayload(array $doctor, string $data, bool $isSelected): array
+    {
+        $idDot = (int)($doctor['id_dot'] ?? 0);
+        $slots = $idDot > 0 ? $this->slotModel->getSlotsCalendario($idDot, $data, 'day') : [];
+        $hasSlots = !empty($slots);
+        $message = '';
+
+        if (!$hasSlots && $idDot > 0) {
+            $message = $this->agendaConfigModel->getNoAgendaMessageForDate($idDot, $data);
+        }
+
+        return [
+            'id_dot' => $idDot,
+            'label' => (string)($doctor['label'] ?? ''),
+            'tipo' => (int)($doctor['tipo'] ?? 0),
+            'f_dom' => (int)($doctor['f_dom'] ?? 0),
+            'is_selected' => $isSelected,
+            'has_slots' => $hasSlots,
+            'slots' => $slots,
+            'message' => $message,
+            'giorno_bloccato' => $idDot > 0 ? $this->agendaModel->isGiornoBloccato($idDot, $data) : false,
+        ];
     }
 
     protected function assertDoctorAllowed(int $idDot): void
@@ -986,6 +1227,7 @@ public function eseguiRepairRecurringExtraSlots()
     public function index()
     {
         $medici = $this->agendaModel->getMediciVisibili($this->getCurrentUserId());
+        $teamDayViewEnabled = $this->canUseTeamDayView($medici);
 
         $selectedDot = (int)($this->request->getGet('id_dot') ?: $this->getFirstVisibleDoctorId($medici));
 
@@ -998,10 +1240,13 @@ public function eseguiRepairRecurringExtraSlots()
         $data = [
             'pageTitle'            => 'Agenda',
             'today'                => date('Y-m-d'),
-            'selectedDate'         => $this->request->getGet('data') ?: date('Y-m-d'),
-            'viewMode'             => $this->request->getGet('view') ?: 'day',
+            'selectedDate'         => $this->getDefaultAgendaDate(),
+            'viewMode'             => $this->normalizeAgendaViewMode((string)($this->request->getGet('view') ?? 'day'), $teamDayViewEnabled),
             'medici'               => $medici,
+            'memoDoctorOptions'    => $this->getMemoDoctorOptions($medici),
             'selectedDot'          => $selectedDot,
+            'teamDayViewEnabled'   => $teamDayViewEnabled,
+            'sharedMemoManagementEnabled' => $this->isSharedAgendaMemosFeatureEnabled(),
             'domiciliariAbilitati' => $domiciliariAbilitati,
             'locationCatalog'      => $this->locationModel->getCatalog(true),
             'menuAgenda'           => method_exists($this->agendaModel, 'getMenuVisibleByUser')
@@ -1766,7 +2011,7 @@ public function eseguiRepairRecurringExtraSlots()
 
         $payload = [
             'type'  => 'agenda_job',
-            'title' => 'AmbulatoriCLOUD',
+            'title' => 'AmbulatorioFacile',
             'body'  => $body,
             'tag'   => 'agenda-job-' . (int)($job['id_job'] ?? 0),
             'data'  => [
@@ -1812,6 +2057,22 @@ public function eseguiRepairRecurringExtraSlots()
             $memoGiornoBloccato = $this->agendaModel->isMemoGiornoBloccato($idDot, $data);
             $domiciliareGiornoBloccato = $this->agendaModel->isDomiciliareGiornoBloccato($idDot, $data);
             $canBloccareGiorno = $this->agendaModel->canBloccareGiorno($currentUserId);
+            $range = $this->getCalendarioRangeSafe($data, $view);
+            $giorniBloccatiMap = $this->agendaModel->getGiorniBloccatiMapForRange(
+                $idDot,
+                (string)($range['start'] ?? $data),
+                (string)($range['end'] ?? $data)
+            );
+            $memoGiorniBloccatiMap = $this->agendaModel->getMemoGiorniBloccatiMapForRange(
+                $idDot,
+                (string)($range['start'] ?? $data),
+                (string)($range['end'] ?? $data)
+            );
+            $domiciliareGiorniBloccatiMap = $this->agendaModel->getDomiciliareGiorniBloccatiMapForRange(
+                $idDot,
+                (string)($range['start'] ?? $data),
+                (string)($range['end'] ?? $data)
+            );
 
             $minTime = null;
             $maxTime = null;
@@ -1878,6 +2139,9 @@ public function eseguiRepairRecurringExtraSlots()
                 'giorno_bloccato' => $giornoBloccato,
                 'memo_giorno_bloccato' => $memoGiornoBloccato,
                 'domiciliare_giorno_bloccato' => $domiciliareGiornoBloccato,
+                'giorni_bloccati_map' => $giorniBloccatiMap,
+                'memo_giorni_bloccati_map' => $memoGiorniBloccatiMap,
+                'domiciliare_giorni_bloccati_map' => $domiciliareGiorniBloccatiMap,
                 'can_bloccare' => $canBloccareGiorno,
             ]);
         } catch (\Throwable $e) {
@@ -1896,6 +2160,138 @@ public function eseguiRepairRecurringExtraSlots()
                 'min_time'      => null,
                 'max_time'      => null,
                 'message'       => 'Errore interno durante il caricamento dell\'agenda.',
+                'debug_message' => ENVIRONMENT === 'production' ? '' : $e->getMessage(),
+                'giorno_bloccato' => false,
+                'memo_giorno_bloccato' => false,
+                'domiciliare_giorno_bloccato' => false,
+                'giorni_bloccati_map' => [],
+                'memo_giorni_bloccati_map' => [],
+                'domiciliare_giorni_bloccati_map' => [],
+                'can_bloccare' => false,
+            ], 500);
+        }
+    }
+
+    public function calendarioTeamDay()
+    {
+        $selectedDot = (int)$this->request->getGet('id_dot');
+        $data = $this->request->getGet('data') ?: date('Y-m-d');
+        $step = 'start';
+
+        try {
+            $currentUserId = $this->getCurrentUserId();
+
+            $step = 'load_visible_doctors';
+            $medici = $this->agendaModel->getMediciVisibili($currentUserId);
+            if (!$this->canUseTeamDayView($medici)) {
+                return $this->respondCalendarioJson([
+                    'status' => false,
+                    'has_slots' => false,
+                    'columns' => [],
+                    'grid_duration' => 15,
+                    'min_time' => '08:00:00',
+                    'max_time' => '18:00:00',
+                    'message' => 'La vista giorno team non e disponibile per questo spazio.',
+                    'giorno_bloccato' => false,
+                    'memo_giorno_bloccato' => false,
+                    'domiciliare_giorno_bloccato' => false,
+                    'can_bloccare' => false,
+                ], 403);
+            }
+
+            $selectedDot = $selectedDot > 0 ? $selectedDot : $this->getFirstVisibleDoctorId($medici);
+            if ($selectedDot > 0 && !$this->agendaModel->canUserAccessDoctor($currentUserId, $selectedDot)) {
+                $selectedDot = $this->getFirstVisibleDoctorId($medici);
+            }
+
+            $step = 'cleanup_expired_locks';
+            $this->lockModel->cleanupExpiredLocks();
+
+            $step = 'build_columns';
+            $columns = [];
+            $allSlots = [];
+
+            foreach ($medici as $medico) {
+                $doctor = $this->normalizeAgendaProfessionalRow($medico);
+                if ((int)($doctor['id_dot'] ?? 0) <= 0) {
+                    continue;
+                }
+
+                $column = $this->buildTeamDayColumnPayload($doctor, $data, (int)$doctor['id_dot'] === $selectedDot);
+                $columns[] = $column;
+
+                if (!empty($column['slots']) && is_array($column['slots'])) {
+                    $allSlots = array_merge($allSlots, $column['slots']);
+                }
+            }
+
+            $hasSlots = !empty($allSlots);
+            $gridDuration = $hasSlots ? $this->calcolaStepCalendario($allSlots) : 15;
+            $minTime = '08:00:00';
+            $maxTime = '18:00:00';
+
+            if ($hasSlots) {
+                $minTime = null;
+                $maxTime = null;
+
+                foreach ($allSlots as $slot) {
+                    $oraInizio = date('H:i:s', strtotime((string)($slot['ora_inizio'] ?? '')));
+                    $oraFine = date('H:i:s', strtotime((string)($slot['ora_fine'] ?? '')));
+
+                    if ($minTime === null || $oraInizio < $minTime) {
+                        $minTime = $oraInizio;
+                    }
+
+                    if ($maxTime === null || $oraFine > $maxTime) {
+                        $maxTime = $oraFine;
+                    }
+                }
+
+                $minTime = $this->floorTimeToStep($minTime ?? '08:00:00', 5);
+                $maxTime = $this->ceilTimeToStep($maxTime ?? '18:00:00', 5);
+            }
+
+            $step = 'build_selected_state';
+            $giornoBloccato = false;
+            $memoGiornoBloccato = false;
+            $domiciliareGiornoBloccato = false;
+            $canBloccareGiorno = $this->agendaModel->canBloccareGiorno($currentUserId);
+
+            if ($selectedDot > 0) {
+                $giornoBloccato = $this->agendaModel->isGiornoBloccato($selectedDot, $data);
+                $memoGiornoBloccato = $this->agendaModel->isMemoGiornoBloccato($selectedDot, $data);
+                $domiciliareGiornoBloccato = $this->agendaModel->isDomiciliareGiornoBloccato($selectedDot, $data);
+            }
+
+            return $this->respondCalendarioJson([
+                'status' => true,
+                'has_slots' => $hasSlots,
+                'columns' => $columns,
+                'grid_duration' => $gridDuration,
+                'min_time' => $minTime,
+                'max_time' => $maxTime,
+                'message' => $hasSlots ? '' : 'Nessuna agenda impostata per il giorno selezionato.',
+                'giorno_bloccato' => $giornoBloccato,
+                'memo_giorno_bloccato' => $memoGiornoBloccato,
+                'domiciliare_giorno_bloccato' => $domiciliareGiornoBloccato,
+                'can_bloccare' => $canBloccareGiorno,
+            ]);
+        } catch (\Throwable $e) {
+            $context = $this->buildCalendarioErrorContext($selectedDot, $data, 'team_day', $step, $e);
+
+            log_message(
+                'error',
+                '[Agenda::calendarioTeamDay] ERROR ' . $this->encodeLogContext($context)
+            );
+
+            return $this->respondCalendarioJson([
+                'status' => false,
+                'has_slots' => false,
+                'columns' => [],
+                'grid_duration' => 15,
+                'min_time' => '08:00:00',
+                'max_time' => '18:00:00',
+                'message' => 'Errore interno durante il caricamento della vista team.',
                 'debug_message' => ENVIRONMENT === 'production' ? '' : $e->getMessage(),
                 'giorno_bloccato' => false,
                 'memo_giorno_bloccato' => false,
@@ -2138,11 +2534,21 @@ public function eseguiRepairRecurringExtraSlots()
     {
         try {
             $idDot = (int)$this->request->getGet('id_dot');
-            $this->assertDoctorAllowed($idDot);
+            $agendaData = $this->resolveAgendaDateFromPayload(
+                $this->request->getGet(),
+                $this->getDefaultAgendaDate()
+            );
+
+            if ($this->isSharedAgendaMemosFeatureEnabled()) {
+                $rows = $this->noteModel->getNoteByDoctors($this->getSharedAgendaMemoDoctorIds());
+            } else {
+                $this->assertDoctorAllowed($idDot);
+                $rows = $this->noteModel->getNoteByDoctor($idDot);
+            }
 
             return $this->respondJsonSafe([
                 'status' => true,
-                'rows'   => $this->noteModel->getNoteByDoctor($idDot),
+                'rows'   => $this->enrichMemoRowsForResponse($rows, $agendaData),
             ]);
         } catch (\Exception $e) {
             return $this->respondJsonSafe([
@@ -2161,11 +2567,19 @@ public function eseguiRepairRecurringExtraSlots()
                 throw new \Exception('Nota non valida.');
             }
 
-            $this->assertDoctorAllowed($this->getIdDotFromNota($idNota));
+            $this->assertMemoDoctorAllowed($this->getIdDotFromNota($idNota));
+
+            $row = $this->noteModel->getNota($idNota);
 
             return $this->respondJsonSafe([
                 'status' => true,
-                'row'    => $this->noteModel->getNota($idNota),
+                'row'    => $this->enrichMemoRowsForResponse(
+                    $row ? [$row] : [],
+                    $this->resolveAgendaDateFromPayload(
+                        $this->request->getGet(),
+                        $this->getDefaultAgendaDate()
+                    )
+                )[0] ?? null,
             ]);
         } catch (\Exception $e) {
             return $this->respondJsonSafe([
@@ -2191,7 +2605,7 @@ public function eseguiRepairRecurringExtraSlots()
             }
 
             $idDot = (int)($row['id_dot'] ?? 0);
-            $this->assertDoctorAllowed($idDot);
+            $this->assertMemoDoctorAllowed($idDot);
             $this->assertMemoActionAllowed(
                 $idDot,
                 $this->resolveAgendaDateFromPayload(
@@ -2269,12 +2683,17 @@ public function eseguiRepairRecurringExtraSlots()
             $term  = trim((string)$this->request->getGet('term'));
             $idDot = (int)$this->request->getGet('id_dot');
             $onlyFutureAppointments = (int)$this->request->getGet('only_future_appointments') === 1;
+            $memoScope = (int)$this->request->getGet('memo_scope') === 1;
 
-            $this->assertDoctorAllowed($idDot);
+            if ($memoScope && $this->isSharedAgendaMemosFeatureEnabled()) {
+                $this->assertMemoDoctorAllowed($idDot);
+            } else {
+                $this->assertDoctorAllowed($idDot);
+            }
 
             return $this->respondJsonSafe([
                 'status' => true,
-                'rows'   => $this->pazientiModel->autocompleteByDoctor($idDot, $term, $onlyFutureAppointments),
+                'rows'   => $this->pazientiModel->autocompleteByDoctor($idDot, $term, $onlyFutureAppointments, $this->getCurrentUserId()),
             ]);
         } catch (\Throwable $e) {
             log_message('error', 'Agenda::cercaPazienti failed: ' . $e->getMessage(), [
@@ -2325,7 +2744,7 @@ public function eseguiRepairRecurringExtraSlots()
 
             $this->assertDoctorAllowed($idDot);
 
-            $row = $this->pazientiModel->getPazienteByDoctor((int)$idPaziente, $idDot);
+            $row = $this->pazientiModel->getPazienteByDoctor((int)$idPaziente, $idDot, $this->getCurrentUserId());
             if (!$row) {
                 throw new \Exception('Paziente non trovato.');
             }
@@ -2350,7 +2769,7 @@ public function eseguiRepairRecurringExtraSlots()
 
             $this->assertDoctorAllowed($idDot);
 
-            $idPaziente = $this->pazientiModel->savePatientAndLink($payload, $idDot);
+            $idPaziente = $this->pazientiModel->savePatientAndLink($payload, $idDot, $this->getCurrentUserId());
 
             return $this->response->setJSON([
                 'status'      => true,
@@ -2396,10 +2815,11 @@ public function eseguiRepairRecurringExtraSlots()
             $idDot = (int)$slot['id_dot'];
             $payload['id_dot'] = $idDot;
 
-            $idPaziente = $this->pazientiModel->savePatientAndLink($payload, $idDot);
+            $idPaziente = $this->pazientiModel->savePatientAndLink($payload, $idDot, $this->getCurrentUserId());
             $payload['id_paziente'] = $idPaziente;
 
             $id = $this->appointmentModel->saveAppointment($payload);
+            $this->notifyBookedAppointmentIfNeeded($id, $idDot);
 
             return $this->response->setJSON([
                 'status'          => true,
@@ -2428,7 +2848,7 @@ public function eseguiRepairRecurringExtraSlots()
             if ($idDot > 0) {
                 $this->assertDoctorAllowed($idDot);
 
-                $idPaziente = $this->pazientiModel->savePatientAndLink($payload, $idDot);
+                $idPaziente = $this->pazientiModel->savePatientAndLink($payload, $idDot, $this->getCurrentUserId());
                 $payload['id_paziente'] = $idPaziente;
             }
 
@@ -2474,7 +2894,7 @@ public function eseguiRepairRecurringExtraSlots()
             $payload['created_by'] = $this->getCurrentUserId();
 
             $idDot = (int)($payload['id_dot'] ?? 0);
-            $this->assertDoctorAllowed($idDot);
+            $this->assertMemoDoctorAllowed($idDot);
             $this->assertMemoActionAllowed(
                 $idDot,
                 $this->resolveAgendaDateFromPayload($payload, (string)($payload['data_inizio_validita'] ?? ''))
@@ -2505,7 +2925,7 @@ public function eseguiRepairRecurringExtraSlots()
             }
 
             $idDot = (int)($row['id_dot'] ?? 0);
-            $this->assertDoctorAllowed($idDot);
+            $this->assertMemoDoctorAllowed($idDot);
             $this->assertMemoActionAllowed(
                 $idDot,
                 $this->resolveAgendaDateFromPayload(
@@ -2752,7 +3172,7 @@ public function eseguiRepairRecurringExtraSlots()
 
             $this->assertDoctorAllowed($idDot);
 
-            $result = $this->pazientiModel->getPatientsByDoctorPaginate($idDot, $term, $page, $perPage);
+            $result = $this->pazientiModel->getPatientsByDoctorPaginate($idDot, $term, $page, $perPage, $this->getCurrentUserId());
 
             return $this->respondJsonSafe([
                 'status'   => true,
@@ -2784,7 +3204,7 @@ public function eseguiRepairRecurringExtraSlots()
 
             $this->assertDoctorAllowed($idDot);
 
-            $idPaziente = $this->pazientiModel->savePatientAndLink($payload, $idDot);
+            $idPaziente = $this->pazientiModel->savePatientAndLink($payload, $idDot, $this->getCurrentUserId());
 
             return $this->response->setJSON([
                 'status'      => true,
@@ -3850,6 +4270,12 @@ public function gestioneSmsAppuntamenti()
 {
     try {
         $medici = $this->agendaModel->getMediciVisibili($this->getCurrentUserId());
+        $doctorIds = array_values(array_unique(array_filter(array_map(
+            static function ($medico): int {
+                return (int) (is_object($medico) ? ($medico->id_dot ?? 0) : ($medico['id_dot'] ?? 0));
+            },
+            $medici
+        ), static fn(int $id): bool => $id > 0)));
 
         $selectedDot = (int)($this->request->getGet('id_dot') ?: $this->getFirstVisibleDoctorId($medici));
 
@@ -3864,6 +4290,8 @@ public function gestioneSmsAppuntamenti()
         }
 
         $abilitati = $this->agendaModel->getSmsAppointmentsEnabledByDoctor();
+        $smsDashboard = (new SmsReminderDashboardService($this->db))
+            ->buildDashboard($doctorIds, $selectedDot, 30, 50);
 
         return view('agenda/gestione_sms_appuntamenti', [
             'pageTitle'      => 'Gestione SMS appuntamenti',
@@ -3871,6 +4299,8 @@ public function gestioneSmsAppuntamenti()
             'selectedDot'    => $selectedDot,
             'configCorrente' => $configCorrente,
             'abilitati'      => $abilitati,
+            'smsDashboard'   => $smsDashboard,
+            'appointmentNotificationsAvailable' => (bool) (($this->tenantContextService->getCurrentTenant()?->allows('appointment_notifications')) ?? false),
             'menuAgenda'     => method_exists($this->agendaModel, 'getMenuVisibleByUser')
                 ? $this->agendaModel->getMenuVisibleByUser($this->getCurrentUserId())
                 : $this->agendaModel->getMenuVisible(),
@@ -4133,12 +4563,15 @@ public function eliminaGiorniFerieSelezionati()
 
             $medici = $this->agendaModel->getMediciVisibili($this->getCurrentUserId());
             $domiciliariAbilitati = $this->isDomiciliareAbilitatoPerDottore($medici, $idDot);
+            $noteRows = $this->isSharedAgendaMemosFeatureEnabled()
+                ? $this->noteModel->getNoteByDoctors($this->getSharedAgendaMemoDoctorIds())
+                : $this->noteModel->getNoteByDoctor($idDot);
 
             return $this->respondJsonSafe([
                 'status'      => true,
                 'slots'       => $this->slotModel->getSlotsCalendario($idDot, $data, $view),
                 'domiciliari' => $domiciliariAbilitati ? $this->slotModel->getDomiciliari($idDot, $data) : [],
-                'note'        => $this->noteModel->getNoteByDoctor($idDot),
+                'note'        => $this->enrichMemoRowsForResponse($noteRows, $data),
                 'server_time' => date('Y-m-d H:i:s')
             ]);
         } catch (\Exception $e) {

@@ -15,6 +15,7 @@ class PlatformUsersModel extends Model
         'password_hash',
         'first_name',
         'last_name',
+        'is_platform_admin',
         'status',
         'must_reset_password',
         'email_verified_at',

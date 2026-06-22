@@ -2,21 +2,21 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8" />
-  <title>AMBULATORI.Cloud â€” Menu</title>
+  <title>AmbulatorioFacile â€” Menu</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
   <meta name="theme-color" content="#2c8895">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="<?= esc('AmbulatoriCLOUD') ?>">
+  <meta name="apple-mobile-web-app-title" content="<?= esc('AmbulatorioFacile') ?>">
 
   <link rel="shortcut icon" href="<?= base_url('public/assets/images/logonew.jpg'); ?>" />
   <link rel="apple-touch-icon" href="<?= base_url('public/assets/images/logonew.jpg'); ?>">
   <link rel="stylesheet" href="<?= base_url('public/assets/css/login_schede.css'); ?>">
   <link rel="stylesheet" href="<?= base_url('public/assets/fontawesome/css/all.min.css'); ?>">
   <script src="<?= base_url('public/assets/js/jquery.min.js'); ?>"></script>
-  <script>document.title = <?= json_encode('AmbulatoriCLOUD' . ' - Menu') ?>;</script>
+  <script>document.title = <?= json_encode('AmbulatorioFacile' . ' - Menu') ?>;</script>
 
   <?php
     // badge da sessione (Home::refreshHeaderSession li salva sempre)
@@ -159,7 +159,7 @@
   <div class="container" style="margin-top:0px">
     <div class="wrapper">
       <div class="topbar">
-  <div class="title" aria-label="<?= esc('AmbulatoriCLOUD') ?>"><?= esc('AmbulatoriCLOUD') ?></div>
+  <div class="title" aria-label="<?= esc('AmbulatorioFacile') ?>"><?= esc('AmbulatorioFacile') ?></div>
 <a class="btn-profilo" href="<?= site_url('profilo') ?>" aria-label="Vai al profilo">
     <i class="fa fa-sign-out-alt"></i>
     Profilo
@@ -211,7 +211,7 @@
 
     <div id="access-not-configured-copy" style="font-size:14.5px;line-height:1.5;">
       Il tuo account Ã¨ attualmente attivo, ma non risulta abilitato ad alcuna funzionalitÃ  operative della piattaforma.<br><br>
-      Per poter accedere ai servizi di <strong>AmbulatoriCLOUD</strong>, Ã¨ necessario che un amministratore assegni
+      Per poter accedere ai servizi di <strong>AmbulatorioFacile</strong>, Ã¨ necessario che un amministratore assegni
       le autorizzazioni appropriate al tuo profilo.
     </div>
 
@@ -238,7 +238,7 @@
     if (accessCopy) {
       accessCopy.innerHTML =
         'Il tuo account e attualmente attivo, ma non risulta abilitato ad alcuna funzionalita operative della piattaforma.<br><br>' +
-        'Per poter accedere ai servizi di <strong><?= esc('AmbulatoriCLOUD') ?></strong>, e necessario che un amministratore assegni le autorizzazioni appropriate al tuo profilo.';
+        'Per poter accedere ai servizi di <strong><?= esc('AmbulatorioFacile') ?></strong>, e necessario che un amministratore assegni le autorizzazioni appropriate al tuo profilo.';
     }
 
     var accessSupport = document.getElementById('access-not-configured-support');

@@ -19,7 +19,7 @@ $idMedicoHidden = (int)($id_medico ?: $id_dot);
 <html>
 <head>
   <meta charset="UTF-8">
-  <title><?= esc('AmbulatoriCLOUD') ?> | Slot specialista</title>
+  <title><?= esc('AmbulatorioFacile') ?> | Slot specialista</title>
   <meta content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" name="viewport">
   <link rel="icon" href="<?= base_url('public/assets/images/logonew.jpg') ?>" type="image/x-icon" sizes="any">
 
@@ -206,7 +206,7 @@ $giorniIt = [
 
   <footer class="main-footer">
     <div class="pull-right hidden-xs"><b>Version</b> 2.0</div>
-    <strong>&copy; <?= esc('AmbulatoriCLOUD') ?></strong>
+    <strong>&copy; <?= esc('AmbulatorioFacile') ?></strong>
   </footer>
 
 </div>

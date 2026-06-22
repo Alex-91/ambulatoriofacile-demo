@@ -5,7 +5,7 @@ $menu_items = $menu_items ?? ($result['result'] ?? []);
 <html>
   <head>
     <meta charset="UTF-8">
-    <title><?= esc('AmbulatoriCLOUD') ?> | Prenotazione MMG</title>
+    <title><?= esc('AmbulatorioFacile') ?> | Prenotazione MMG</title>
     <link rel="icon" href="<?= base_url('public/assets/images/logonew.jpg') ?>" type="image/x-icon" sizes="any">
     <meta content='width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no' name='viewport'>
 
@@ -70,7 +70,7 @@ $menu_items = $menu_items ?? ($result['result'] ?? []);
 
       <footer class="main-footer">
         <div class="pull-right hidden-xs"><b>Version</b> 2.0</div>
-        <strong>&copy; <?= esc('AmbulatoriCLOUD') ?></strong>
+        <strong>&copy; <?= esc('AmbulatorioFacile') ?></strong>
       </footer>
       <aside class="control-sidebar control-sidebar-dark"></aside>
       <div class='control-sidebar-bg'></div>

@@ -39,6 +39,8 @@ class TenantAppSessionBootstrapService
      */
     public function bootstrap(int $platformUserId, int $tenantId): array
     {
+        helper('portal');
+
         $membership = $this->catalog->getTenantMembership($platformUserId, $tenantId);
         if (!$membership) {
             throw new \RuntimeException('Accesso al tenant non autorizzato.');
@@ -118,13 +120,11 @@ class TenantAppSessionBootstrapService
             'loginSource' => 'platform_tenant',
         ]);
 
-        $redirectUrl = ((int) ($user['tipo_user'] ?? 0) === 1) ? 'admin' : '/';
-        if ((string) ($membership['tenant_role'] ?? '') === 'tenant_master') {
-            $onboardingStatus = strtolower(trim((string) ($membership['onboarding_status'] ?? 'draft')));
-            if (in_array($onboardingStatus, ['draft', 'setup'], true)) {
-                $redirectUrl = 'spazio/onboarding';
-            }
-        }
+        $redirectUrl = $this->resolvePlatformTenantRedirectUrl(
+            $context,
+            $membership,
+            (int) ($user['tipo_user'] ?? 0)
+        );
 
         return [
             'redirectUrl' => $redirectUrl,
@@ -133,6 +133,29 @@ class TenantAppSessionBootstrapService
             'app_user_id' => $appUserId,
             'tipoUser' => (int) ($user['tipo_user'] ?? 0),
         ];
+    }
+
+    /**
+     * @param array<string, mixed> $membership
+     */
+    private function resolvePlatformTenantRedirectUrl(
+        \App\Libraries\TenantContext $context,
+        array $membership,
+        int $tipoUser
+    ): string
+    {
+        $tenantRole = strtolower(trim((string) ($membership['tenant_role'] ?? $context->tenantRole)));
+        $onboardingStatus = strtolower(trim((string) ($membership['onboarding_status'] ?? $context->onboardingStatus)));
+
+        if ($tenantRole === 'tenant_master' && in_array($onboardingStatus, ['draft', 'setup'], true)) {
+            return portal_tenant_space_url('onboarding');
+        }
+
+        if ($tipoUser === 1) {
+            return site_url('admin');
+        }
+
+        return site_url('/');
     }
 
     private function resetSessionState(): void

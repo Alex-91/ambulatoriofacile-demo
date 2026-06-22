@@ -406,7 +406,9 @@ class LoginController extends BaseController
         // Mostra la pagina di login
         helper('portal');
 
-        if ((bool) (session()->get('isLoggedInConfirmed') ?? false) === true) {
+        // Mostra sempre il form di login: se c'e' una sessione residua, l'utente deve
+        // poter rientrare o cambiare account senza essere rimandato alla home.
+        if (false && (bool) (session()->get('isLoggedInConfirmed') ?? false) === true) {
             if ((bool) (session()->get('platform_is_admin') ?? false) === true || $this->isLegacyPlatformBootstrapSession()) {
                 return redirect()->to(portal_platform_url('spazi-clienti'));
             }

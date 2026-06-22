@@ -3,6 +3,7 @@
 .env.production
 .agents/
 .codex/
+.ops-secrets/
 
 node_modules/
 vendor/
@@ -34,3 +35,9 @@ repo_friend_main/
 .vscode/
 Thumbs.db
 desktop.ini
+
+# Local release/support artifacts
+.main-release-worktree/
+outputs/
+AGENTS.md
+CODEX_TASK_TEMPLATE.md

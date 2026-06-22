@@ -448,7 +448,7 @@ class MessageService
         }
 
         $payload = [
-            'title'  => 'AmbulatoriCLOUD',
+            'title'  => 'AmbulatorioFacile',
             'body'   => $body,
             'sticky' => true,
             'data'   => [

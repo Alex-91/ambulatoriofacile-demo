@@ -501,7 +501,7 @@ if ($summaryLines === []) {
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>AmbulatoriCLOUD | Stato reminder WhatsApp</title>
+  <title>AmbulatorioFacile | Stato reminder WhatsApp</title>
   <meta content="width=device-width, initial-scale=1" name="viewport">
   <link href="<?= base_url('public/bootstrap/css/bootstrap.min.css') ?>" rel="stylesheet">
   <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css" rel="stylesheet">

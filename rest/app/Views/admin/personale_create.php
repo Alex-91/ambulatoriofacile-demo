@@ -18,7 +18,7 @@ $oldShowInChat   = array_key_exists('show_in_chat', $old) ? !empty($old['show_in
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>AmbulatoriCLOUD | Inserisci Personale</title>
+  <title>AmbulatorioFacile | Inserisci Personale</title>
   <link rel="icon" href="<?= base_url('public/assets/images/logonew.jpg') ?>" type="image/x-icon" sizes="any">
   <meta content='width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no' name='viewport'>
 
@@ -264,7 +264,7 @@ $oldShowInChat   = array_key_exists('show_in_chat', $old) ? !empty($old['show_in
 
   <footer class="main-footer">
     <div class="pull-right hidden-xs"><b>Version</b> 2.0</div>
-    <strong>&copy; AmbulatoriCLOUD</strong>
+    <strong>&copy; AmbulatorioFacile</strong>
   </footer>
 
   <aside class="control-sidebar control-sidebar-dark"></aside>

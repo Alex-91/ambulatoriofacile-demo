@@ -126,7 +126,7 @@ class PlatformAccessController extends BaseController
                 $platformUserId = (int) (($platformUser['id_platform_user'] ?? 0));
                 if ($platformUserId > 0 && $tenantId > 0) {
                     $bootstrap = (new TenantAppSessionBootstrapService())->bootstrap($platformUserId, $tenantId);
-                    return redirect()->to(site_url((string) ($bootstrap['redirectUrl'] ?? '/')));
+                    return redirect()->to(portal_resolve_redirect_url((string) ($bootstrap['redirectUrl'] ?? '/')));
                 }
             }
 

@@ -16,13 +16,13 @@ self.addEventListener('push', event => {
     data = {};
   }
 
-  const title = data.title || 'Ambulatorio Facile';
+  const title = data.title || 'AmbulatorioFacile';
 
   const options = {
     body: 'Hai una nuova notifica',
     icon: data.icon || new URL('public/assets/images/icon-192x192.png', scopeBase).href,
     badge: data.badge || new URL('public/assets/images/icon-192x192.png', scopeBase).href,
-    tag: data.tag || ('ambulatoricloud-' + Math.random().toString(36)),
+    tag: data.tag || ('ambulatoriofacile-' + Math.random().toString(36)),
     requireInteraction: true,
     renotify: true,
     data: data.data || {},

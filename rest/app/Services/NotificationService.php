@@ -183,7 +183,7 @@ class NotificationService
 
         $payload = [
             'type'  => 'mail',
-            'title' => 'AmbulatoriCLOUD',
+            'title' => 'AmbulatorioFacile',
             'body'  => 'Hai ricevuto un nuovo messaggio.',
             'tag'   => 'mail-' . ((int)$threadId > 0 ? (int)$threadId : time()),
             'icon'  => self::notificationIconUrl(),
@@ -209,7 +209,7 @@ class NotificationService
 
         $payload = [
             'type'      => 'chat',
-            'title'     => 'AmbulatoriCLOUD',
+            'title'     => 'AmbulatorioFacile',
             'body'      => $body,
             'messageId' => (int)($messageId ?? 0),
             'tag'       => 'chat-' . ((int)$messageId > 0 ? (int)$messageId : time()),

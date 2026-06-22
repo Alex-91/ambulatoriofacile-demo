@@ -487,7 +487,7 @@ private function sendPushToService(int $userId, string $body, ?int $threadId = n
 
     $payload = [
         'type'      => 'chat',
-        'title'     => 'AmbulatoriCLOUD',
+        'title'     => 'AmbulatorioFacile',
         'body'      => $body,
         'icon'      => base_url('notifications/icon.svg'),
         'badge'     => base_url('notifications/badge.svg'),
@@ -542,7 +542,7 @@ private function sendPushToService(int $userId, string $body, ?int $threadId = n
         }
 
         $payload = [
-            'title'  => 'AmbulatoriCLOUD',
+            'title'  => 'AmbulatorioFacile',
             'body'   => $body,
             'sticky' => true,
             'data'   => [

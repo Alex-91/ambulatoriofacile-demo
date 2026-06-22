@@ -17,7 +17,7 @@ function esc2($s) { return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); } 
 <html lang="it">
 <head>
   <meta charset="UTF-8">
-  <title><?= esc('AmbulatoriCLOUD') ?> | Chat</title>
+  <title><?= esc('AmbulatorioFacile') ?> | Chat</title>
   <meta content='width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no' name='viewport'>
   <link rel="icon" href="<?= base_url('public/assets/images/logonew.jpg') ?>" type="image/x-icon" sizes="any">
 
@@ -755,7 +755,7 @@ function ensureThreadsFromServer(serverThreads){
 /* ===== Conversazioni con nuovi messaggi ===== */
 
 .chat-thread-item.unread{
-  background: #00a65a;           /* verde AmbulatoriCLOUD */
+  background: #00a65a;           /* verde AmbulatorioFacile */
   border-color: #008d4c;
   color: #fff;
 }

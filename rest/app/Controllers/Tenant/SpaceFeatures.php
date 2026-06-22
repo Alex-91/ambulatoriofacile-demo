@@ -23,7 +23,7 @@ class SpaceFeatures extends BaseController
             return $guard;
         }
 
-        if (trim(service('uri')->getPath(), '/') !== 'login/spazio/funzioni') {
+        if (!portal_current_path_matches('login/spazio/funzioni')) {
             return redirect()->to(portal_tenant_space_url('funzioni'));
         }
 
@@ -31,6 +31,8 @@ class SpaceFeatures extends BaseController
         if ($context === null) {
             return redirect()->to(site_url('/'));
         }
+
+        (new SessionNavigationService())->refreshCurrentSession();
 
         return view('tenant/space_features', [
             'tenantContext' => $context,

@@ -76,6 +76,7 @@
     $selectedDot = (int)($selectedDot ?? 0);
     $lockToCurrentDoctor = !empty($lockToCurrentDoctor);
     $searchTerm = trim((string)($searchTerm ?? ''));
+    $sharedMemoManagementEnabled = !empty($sharedMemoManagementEnabled);
 
     $from = $total > 0 ? (($page - 1) * $perPage) + 1 : 0;
     $to   = $total > 0 ? min($page * $perPage, $total) : 0;
@@ -182,6 +183,11 @@
                                     <div class="col-md-4 form-group">
                                         <label for="id_dot">Dottore / Infermiere</label>
                                         <select id="id_dot" <?= $lockToCurrentDoctor ? '' : 'name="id_dot"' ?> class="form-control" <?= $lockToCurrentDoctor ? 'disabled' : '' ?>>
+                                            <?php if ($sharedMemoManagementEnabled && !$lockToCurrentDoctor): ?>
+                                                <option value="0" <?= $selectedDot === 0 ? 'selected' : '' ?>>
+                                                    Tutti i dottori dello spazio
+                                                </option>
+                                            <?php endif; ?>
                                             <?php foreach (($medici ?? []) as $m): ?>
                                                 <?php
                                                     $idDot = is_object($m)
@@ -199,6 +205,8 @@
                                         </select>
                                         <?php if ($lockToCurrentDoctor): ?>
                                             <small class="text-muted">Per i dottori lo storico memo mostra solo il proprio profilo.</small>
+                                        <?php elseif ($sharedMemoManagementEnabled): ?>
+                                            <small class="text-muted">Con memo condivise attive puoi consultare lo storico di tutto lo spazio o filtrarlo per dottore.</small>
                                         <?php endif; ?>
                                     </div>
 
@@ -237,7 +245,9 @@
                                 <div class="alert alert-info" style="margin-bottom: 0;">
                                     <?= $searchTerm !== ''
                                         ? 'Nessuna memo trovata per il nome/cognome cercato.'
-                                        : 'Nessuna memo gia fatta per il dottore selezionato.' ?>
+                                        : ($sharedMemoManagementEnabled && $selectedDot === 0
+                                            ? 'Nessuna memo gia fatta nello spazio.'
+                                            : 'Nessuna memo gia fatta per il dottore selezionato.') ?>
                                 </div>
                             <?php else: ?>
                                 <?php foreach ($rows as $row): ?>
@@ -250,6 +260,11 @@
                                         <div class="meta">
                                             Valida dal:
                                             <strong><?= esc($formatMemoDate($row['data_inizio_validita'] ?? '')) ?></strong>
+
+                                            <?php if (!empty($row['doctor_label'])): ?>
+                                                | Dottore:
+                                                <strong><?= esc($row['doctor_label']) ?></strong>
+                                            <?php endif; ?>
 
                                             <?php if (!empty($row['created_at'])): ?>
                                                 | Inserita il:

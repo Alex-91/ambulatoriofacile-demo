@@ -6,6 +6,8 @@ use CodeIgniter\Database\Migration;
 
 class RepairTenantFeaturePreferencesSchema extends Migration
 {
+    protected $DBGroup = 'platform';
+
     public function up()
     {
         $this->ensureFeatureCatalogColumns();
@@ -141,11 +143,7 @@ class RepairTenantFeaturePreferencesSchema extends Migration
 
     private function ensurePreferenceConfigColumn(): void
     {
-        if (!$this->db->tableExists('platform_tenant_feature_preferences')) {
-            return;
-        }
-
-        if ($this->db->fieldExists('config_json', 'platform_tenant_feature_preferences')) {
+        if ($this->hasColumn('platform_tenant_feature_preferences', 'config_json')) {
             return;
         }
 
@@ -156,6 +154,19 @@ class RepairTenantFeaturePreferencesSchema extends Migration
                 'after' => 'source',
             ],
         ]);
+    }
+
+    private function hasColumn(string $table, string $column): bool
+    {
+        if (!$this->db->tableExists($table)) {
+            return false;
+        }
+
+        $tableSql = $this->db->protectIdentifiers($table);
+        $columnSql = $this->db->escape($column);
+        $query = $this->db->query("SHOW COLUMNS FROM {$tableSql} LIKE {$columnSql}");
+
+        return $query->getNumRows() > 0;
     }
 
     private function backfillSeedFeatureMetadata(): void

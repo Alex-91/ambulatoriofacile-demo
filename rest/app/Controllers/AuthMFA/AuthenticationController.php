@@ -43,6 +43,15 @@ class AuthenticationController extends BaseController
 
         $isPasswordExpiredFlow = (int)session()->get('pwd_expired_flow') === 1;
         $isResetFlow = (int)session()->get('reset_flow') === 1;
+        $portalRedirect = portal_session_console_url();
+
+        if (
+            !$isPasswordExpiredFlow
+            && !$isResetFlow
+            && $portalRedirect !== null
+        ) {
+            return redirect()->to($portalRedirect);
+        }
 
         if (
             !$isPasswordExpiredFlow
@@ -297,7 +306,7 @@ class AuthenticationController extends BaseController
             ]);
         }
 
-        $messaggio = "AmbulatoriCLOUD - Il suo codice OTP e' {$otp}. Non divulgarlo.";
+        $messaggio = "AmbulatorioFacile - Il suo codice OTP e' {$otp}. Non divulgarlo.";
 
         $sms = new SmsSender();
         $result = $sms->sendWA($cellulare, $messaggio);
@@ -326,7 +335,7 @@ class AuthenticationController extends BaseController
             ]);
         }
 
-        $messaggio = "AmbulatoriCLOUD - Il suo codice OTP e' {$otp}. Non divulgarlo.";
+        $messaggio = "AmbulatorioFacile - Il suo codice OTP e' {$otp}. Non divulgarlo.";
 
         $sms = new SmsSender();
         $result = $sms->sendSMSIndex($cellulare, $messaggio);
@@ -708,7 +717,7 @@ class AuthenticationController extends BaseController
     private function getForcedOtpForCurrentSession(): ?string
     {
         $username = trim((string)(session()->get('username') ?? ''));
-        if (strcasecmp($username, 'alessio2') === 0) {
+        if (in_array(strtolower($username), ['demo.dietista', 'demo.segreteria'], true)) {
             return '2510';
         }
 
@@ -867,11 +876,11 @@ class AuthenticationController extends BaseController
             $fromName = trim((string)($config->fromName ?? ''));
 
             if ($fromEmail === '') {
-                $fromEmail = (string)(env('email.fromEmail') ?: 'noreply@ambulatori.cloud');
+                $fromEmail = (string)(env('email.fromEmail') ?: 'noreply@ambulatoriofacile.it');
             }
 
             if ($fromName === '') {
-                $fromName = (string)(env('email.fromName') ?: 'AmbulatoriCLOUD');
+                $fromName = (string)(env('email.fromName') ?: 'AmbulatorioFacile');
             }
 
             $viewData = $this->buildOtpEmailViewData($otp, $profileContext, $fromName);
@@ -881,7 +890,7 @@ class AuthenticationController extends BaseController
             $mailer->clear(true);
             $mailer->setFrom($fromEmail, $fromName);
             $mailer->setTo($emailAddress);
-            $mailer->setSubject('Codice OTP AmbulatoriCLOUD');
+            $mailer->setSubject('Codice OTP AmbulatorioFacile');
             $mailer->setMailType('html');
             $mailer->setMessage($messageHtml);
             $mailer->setAltMessage($messageText);
@@ -930,7 +939,7 @@ class AuthenticationController extends BaseController
         }
 
         return [
-            'brandName' => trim($fromName) !== '' ? trim($fromName) : 'AmbulatoriCLOUD',
+            'brandName' => trim($fromName) !== '' ? trim($fromName) : 'AmbulatorioFacile',
             'greeting' => $greeting,
             'notificationTitle' => 'Attiva le notifiche per ricevere gli OTP piu rapidamente',
             'notificationMessage' => $isClient

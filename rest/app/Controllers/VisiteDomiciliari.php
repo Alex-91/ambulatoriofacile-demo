@@ -67,7 +67,7 @@ class VisiteDomiciliari extends BaseController
                 'cellulare'   => $payload['cellulare'] ?? '',
                 'indirizzo'   => $payload['indirizzo'] ?? '',
                 'citta'       => $payload['citta'] ?? '',
-            ], $idDot);
+            ], $idDot, $this->getCurrentUserId());
 
             $payload['id_paziente'] = $idPaziente;
 
@@ -108,7 +108,7 @@ class VisiteDomiciliari extends BaseController
                 'cellulare'   => $payload['cellulare'] ?? '',
                 'indirizzo'   => $payload['indirizzo'] ?? '',
                 'citta'       => $payload['citta'] ?? '',
-            ], $idDot);
+            ], $idDot, $this->getCurrentUserId());
 
             $payload['id_paziente'] = $idPaziente;
 

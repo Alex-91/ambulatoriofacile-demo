@@ -41,6 +41,7 @@ Prima di creare i tenant da pannello devono essere presenti le migration piattaf
 
 - `2026-06-19-000001_CreatePlatformMultiTenantFoundation.php`
 - `2026-06-19-000002_CreatePlatformUserAccessTokens.php`
+- `2026-06-20-000002_AddPlatformAdminFlagToPlatformUsers.php`
 
 In ambiente deploy normale basta mantenere `RUN_MIGRATIONS=1`.
 
@@ -59,13 +60,13 @@ Variabili minime:
 - `email.SMTPPort`
 - `email.SMTPCrypto`
 
-## 4. Provisioning tenant dal pannello
+## 4. Account master piattaforma
 
-Prima di usare la console master, configura anche:
+Per la gestione ordinaria puoi creare e governare gli account master direttamente dal pannello `login/piattaforma/spazi-clienti`.
 
-- `PLATFORM_MASTER_EMAILS`
+`PLATFORM_MASTER_EMAILS` diventa opzionale e serve solo come seed/bootstrap tecnico iniziale se vuoi importare automaticamente una o piu email master da Coolify.
 
-Esempio:
+Esempio facoltativo:
 
 - `PLATFORM_MASTER_EMAILS=tuamail@dominio.it,amico@dominio.it`
 
@@ -108,7 +109,7 @@ Importante:
 Ordine consigliato:
 
 1. apri `https://ambulatoriofacile.it/login/piattaforma/spazi-clienti`
-2. nella sezione `Account master piattaforma`, prepara o invita gli account master configurati in `PLATFORM_MASTER_EMAILS`
+2. nella sezione `Account master piattaforma`, crea dal pannello almeno un master persistente oppure importa quelli seed da `PLATFORM_MASTER_EMAILS`
 3. crea dal pannello admin un nuovo spazio cliente
 4. se serve, definisci o aggiorna la funzione globale da `login/piattaforma/funzioni`
 5. spunta `Invia accesso al tenant master dopo il salvataggio`

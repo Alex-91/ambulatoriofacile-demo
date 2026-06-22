@@ -8,7 +8,7 @@ $success = $success ?? null;
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>AmbulatoriCLOUD | Modifica Personale</title>
+  <title>AmbulatorioFacile | Modifica Personale</title>
   <meta content='width=device-width, initial-scale=1' name='viewport'>
   <link href="<?= base_url('public/bootstrap/css/bootstrap.min.css') ?>" rel="stylesheet" />
   <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css" rel="stylesheet" />

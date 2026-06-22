@@ -12,7 +12,7 @@ class DemoController extends Controller
     /**
      * @var list<string>
      */
-    protected $helpers = ['url'];
+    protected $helpers = ['url', 'portal'];
 
     public function index()
     {
@@ -1090,6 +1090,11 @@ class DemoController extends Controller
 
     private function officialLoginUrl(): string
     {
+        $configuredBaseUrl = trim((string) env('APP_PUBLIC_ACCESS_BASE_URL', ''));
+        if ($configuredBaseUrl !== '') {
+            return portal_public_access_url('login');
+        }
+
         $scheme = strtolower((string) ($this->request->getServer('HTTP_X_FORWARDED_PROTO') ?: $this->request->getUri()->getScheme() ?: 'https'));
         $host = (string) ($this->request->getServer('HTTP_X_FORWARDED_HOST') ?: $this->request->getServer('HTTP_HOST') ?: $this->request->getUri()->getHost());
         $host = trim((string) explode(',', $host)[0]);

@@ -285,11 +285,11 @@ class LegacyWhatsappAppointmentController extends BaseController
             $recipient = 'info@ambulatoridirimaggio.it';
 
             if ($fromEmail === '') {
-                $fromEmail = (string)(env('email.fromEmail') ?: 'noreply@ambulatori.cloud');
+                $fromEmail = (string)(env('email.fromEmail') ?: 'noreply@ambulatoriofacile.it');
             }
 
             if ($fromName === '') {
-                $fromName = (string)(env('email.fromName') ?: 'AMBULATORI.Cloud');
+                $fromName = (string)(env('email.fromName') ?: 'AmbulatorioFacile');
             }
 
             $doctorLabel = trim(implode(' ', array_filter([

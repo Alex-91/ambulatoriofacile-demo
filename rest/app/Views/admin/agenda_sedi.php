@@ -20,7 +20,7 @@ $baseUrl = site_url($baseRoute);
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>AmbulatoriCLOUD | Gestione sedi agenda</title>
+  <title>AmbulatorioFacile | Gestione sedi agenda</title>
   <meta content="width=device-width, initial-scale=1" name="viewport">
   <link href="<?= base_url('public/css/agenda-menu.css') ?>" rel="stylesheet" />
   <link href="<?= base_url('public/bootstrap/css/bootstrap.min.css') ?>" rel="stylesheet" />
