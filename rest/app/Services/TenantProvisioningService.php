@@ -148,6 +148,7 @@ class TenantProvisioningService
      */
     public function buildRuntimeBlueprint(array $tenant): array
     {
+        $resolvedTenant = array_merge($tenant, (new TenantDatabaseConnector())->resolveDatabaseSettings($tenant));
         $tenantKey = trim((string) ($tenant['tenant_key'] ?? ''));
         $storageKey = trim((string) ($tenant['storage_key'] ?? '')) !== ''
             ? trim((string) ($tenant['storage_key'] ?? ''))
@@ -160,16 +161,16 @@ class TenantProvisioningService
         return [
             'tenant_key' => $tenantKey,
             'storage_key' => $storageKey,
-            'db_host' => (string) ($tenant['db_host'] ?? ''),
-            'db_port' => (int) ($tenant['db_port'] ?? 3306),
-            'db_name' => (string) ($tenant['db_name'] ?? ''),
-            'db_username' => (string) ($tenant['db_username'] ?? ''),
-            'db_password_ref' => (string) ($tenant['db_password_ref'] ?? ''),
-            'db_driver' => (string) ($tenant['db_driver'] ?? 'MySQLi'),
-            'db_prefix' => (string) ($tenant['db_prefix'] ?? ''),
+            'db_host' => (string) ($resolvedTenant['db_host'] ?? ''),
+            'db_port' => (int) ($resolvedTenant['db_port'] ?? 3306),
+            'db_name' => (string) ($resolvedTenant['db_name'] ?? ''),
+            'db_username' => (string) ($resolvedTenant['db_username'] ?? ''),
+            'db_password_ref' => (string) ($resolvedTenant['db_password_ref'] ?? ''),
+            'db_driver' => (string) ($resolvedTenant['db_driver'] ?? 'MySQLi'),
+            'db_prefix' => (string) ($resolvedTenant['db_prefix'] ?? ''),
             'upload_path' => $uploadPath,
             'writable_path' => $writablePath,
-            'env_password_key' => (string) ($tenant['db_password_ref'] ?? ''),
+            'env_password_key' => (string) ($resolvedTenant['db_password_ref'] ?? ''),
         ];
     }
 

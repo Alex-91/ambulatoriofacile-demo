@@ -53,12 +53,14 @@ class TenantAppUserProvisioningService
             throw new \RuntimeException('Platform user della membership non trovato.');
         }
 
-        if (!$this->tenantConfigLooksReady($tenant)) {
+        $resolvedTenant = array_merge($tenant, $this->tenantDbConnector->resolveDatabaseSettings($tenant));
+
+        if (!$this->tenantConfigLooksReady($resolvedTenant)) {
             return $this->skipResult($membershipId, 'Configurazione database tenant non ancora completa.', $strict);
         }
 
         try {
-            $tenantDb = $this->tenantDbConnector->connect($tenant);
+            $tenantDb = $this->tenantDbConnector->connect($resolvedTenant);
         } catch (\Throwable $e) {
             return $this->skipResult(
                 $membershipId,
