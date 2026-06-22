@@ -49,7 +49,7 @@ $tenantName = trim((string) ($tenantContext->tenantName ?? ($tenant['tenant_name
 
   <div class="content-wrapper">
     <section class="content-header">
-      <h1>Onboarding iniziale</h1>
+      <h1>Onboarding iniziale2</h1>
       <p class="text-muted" style="margin:8px 0 0 0;">Completa i passaggi essenziali del tuo spazio prima di iniziare a lavorare con il team.</p>
     </section>
 
