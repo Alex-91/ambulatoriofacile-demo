@@ -16,6 +16,7 @@ class LoginController extends BaseController
 {
     private const PLATFORM_TENANT_SELECTION_SESSION_KEY = 'platform_pending_tenant_login';
     private const PLATFORM_TENANT_SELECTION_TTL_SECONDS = 600;
+    private ?bool $legacyUsersTableAvailableCache = null;
 
     private function ensureLegacyCryptoSession(\CodeIgniter\Database\BaseConnection $db, string $charset = 'latin1'): void
     {
@@ -186,23 +187,54 @@ class LoginController extends BaseController
             return false;
         }
 
-        $query = $db->table('dap01_users')
-            ->select('id_user')
-            ->where('username', $username)
-            ->get(1);
+        if (!$this->legacyUsersTableAvailable($db)) {
+            return false;
+        }
 
-        if ($query === false) {
-            $dbError = $db->error();
+        try {
+            $query = $db->table('dap01_users')
+                ->select('id_user')
+                ->where('username', $username)
+                ->get(1);
+
+            if ($query === false) {
+                $dbError = $db->error();
+                $this->logErrorLogin('Lookup utente legacy fallito durante il pre-check login.', [
+                    'username' => $username,
+                    'db_error_code' => (string) ($dbError['code'] ?? ''),
+                    'db_error_message' => (string) ($dbError['message'] ?? ''),
+                ]);
+
+                return false;
+            }
+
+            return $query->getRowArray() !== null;
+        } catch (\Throwable $e) {
             $this->logErrorLogin('Lookup utente legacy fallito durante il pre-check login.', [
                 'username' => $username,
-                'db_error_code' => (string) ($dbError['code'] ?? ''),
-                'db_error_message' => (string) ($dbError['message'] ?? ''),
+                'exception' => $e->getMessage(),
             ]);
 
             return false;
         }
+    }
 
-        return $query->getRowArray() !== null;
+    private function legacyUsersTableAvailable(\CodeIgniter\Database\BaseConnection $db): bool
+    {
+        if ($this->legacyUsersTableAvailableCache !== null) {
+            return $this->legacyUsersTableAvailableCache;
+        }
+
+        try {
+            $this->legacyUsersTableAvailableCache = $db->tableExists('dap01_users');
+        } catch (\Throwable $e) {
+            $this->logErrorLogin('Verifica tabella utenti legacy non riuscita.', [
+                'exception' => $e->getMessage(),
+            ]);
+            $this->legacyUsersTableAvailableCache = false;
+        }
+
+        return $this->legacyUsersTableAvailableCache;
     }
 
     private function clearPendingPlatformLogin(): void
