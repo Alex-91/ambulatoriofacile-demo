@@ -60,14 +60,21 @@ body.platform-console-body .main-header .navbar {
   min-height: 58px;
   border: 0;
   background: transparent;
-  padding: 0 14px;
+  padding: 0 18px;
 }
 
 body.platform-console-body .platform-navbar-shell {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(220px, max-content) minmax(0, 1fr) auto;
   align-items: center;
-  gap: 12px;
-  min-height: 58px;
+  column-gap: 16px;
+  row-gap: 12px;
+  min-height: 88px;
+  padding: 14px 0 12px;
+}
+
+body.platform-console-body .platform-navbar-shell .navbar-custom-menu {
+  float: none !important;
 }
 
 body.platform-console-body .platform-navbar-tenant {
@@ -77,11 +84,13 @@ body.platform-console-body .platform-navbar-tenant {
   flex: 0 0 auto;
   max-width: 320px;
   padding: 0 14px;
-  height: 40px;
+  min-height: 42px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.16);
   color: #f4fdff;
   white-space: nowrap;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 body.platform-console-body .platform-navbar-tenant-label {
@@ -98,25 +107,20 @@ body.platform-console-body .platform-navbar-tenant-name {
 }
 
 body.platform-console-body .platform-navbar-primary {
-  flex: 1 1 auto;
+  grid-column: 1 / -1;
   min-width: 0;
-  overflow: hidden;
+  overflow: visible;
 }
 
 body.platform-console-body .platform-navbar-primary .platform-navbar-links {
   display: flex;
   align-items: center;
-  gap: 4px;
+  flex-wrap: wrap;
+  gap: 10px;
   float: none;
   margin: 0;
-  overflow-x: auto;
-  overflow-y: hidden;
-  scrollbar-width: none;
-  white-space: nowrap;
-}
-
-body.platform-console-body .platform-navbar-primary .platform-navbar-links::-webkit-scrollbar {
-  display: none;
+  overflow: visible;
+  white-space: normal;
 }
 
 body.platform-console-body .platform-navbar-primary .navbar-nav > li,
@@ -125,8 +129,9 @@ body.platform-console-body .platform-navbar-secondary .navbar-nav > li {
 }
 
 body.platform-console-body .platform-navbar-secondary {
-  flex: 0 0 auto;
-  margin-left: auto;
+  grid-column: 3;
+  justify-self: end;
+  margin-left: 0;
 }
 
 body.platform-console-body .platform-navbar-secondary .navbar-nav {
@@ -140,7 +145,17 @@ body.platform-console-body .platform-nav-link {
   display: flex !important;
   align-items: center;
   gap: 8px;
-  border-radius: 12px;
+  min-height: auto !important;
+  padding: 11px 14px !important;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.09);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 10px 20px rgba(18, 55, 60, 0.08);
+}
+
+body.platform-console-body .platform-nav-link .fa {
+  width: 16px;
+  text-align: center;
 }
 
 body.platform-console-body .platform-nav-link .nav-label {
@@ -153,15 +168,25 @@ body.platform-console-body .platform-nav-link .nav-label {
 body.platform-console-body .main-header .navbar-nav > li > a,
 body.platform-console-body .main-header .navbar-text {
   color: #e9f9fb !important;
-  min-height: 58px;
-  padding-top: 19px;
-  padding-bottom: 19px;
+  min-height: auto;
+  padding-top: 10px;
+  padding-bottom: 10px;
 }
 
 body.platform-console-body .main-header .navbar-nav > li > a:hover,
 body.platform-console-body .main-header .navbar-nav > li > a:focus {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.16);
   color: #ffffff !important;
+}
+
+body.platform-console-body .platform-navbar-secondary .user-menu > a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px !important;
+  padding: 6px 12px !important;
+  border-radius: 999px;
+  background: rgba(11, 41, 45, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 body.platform-console-body .main-header .dropdown-menu {
@@ -412,6 +437,34 @@ body.platform-console-body .table-responsive {
     margin-left: 0;
     padding-left: 10px;
     padding-right: 10px;
+  }
+
+  body.platform-console-body .platform-navbar-shell {
+    grid-template-columns: 1fr auto;
+    row-gap: 10px;
+    min-height: 76px;
+    padding: 10px 0 12px;
+  }
+
+  body.platform-console-body .platform-navbar-tenant {
+    max-width: none;
+  }
+
+  body.platform-console-body .platform-navbar-primary,
+  body.platform-console-body .platform-navbar-secondary {
+    grid-column: 1 / -1;
+  }
+
+  body.platform-console-body .platform-navbar-secondary {
+    justify-self: start;
+  }
+
+  body.platform-console-body .platform-navbar-secondary .navbar-nav {
+    justify-content: flex-start;
+  }
+
+  body.platform-console-body .platform-navbar-primary .platform-navbar-links {
+    gap: 8px;
   }
 
   body.platform-console-body .content-header,
