@@ -60,7 +60,30 @@ if (!function_exists('portal_current_path_matches')) {
             return true;
         }
 
-        return $currentPath !== '' && str_ends_with($currentPath, '/' . $targetPath);
+        if ($currentPath !== '' && str_ends_with($currentPath, '/' . $targetPath)) {
+            return true;
+        }
+
+        $appConfig = config('App');
+        $baseUrl = is_object($appConfig) && isset($appConfig->baseURL)
+            ? (string) $appConfig->baseURL
+            : '';
+        $basePath = trim((string) parse_url($baseUrl, PHP_URL_PATH), '/');
+
+        if ($basePath === '' || !str_starts_with($targetPath, $basePath . '/')) {
+            return false;
+        }
+
+        $relativeTargetPath = substr($targetPath, strlen($basePath) + 1);
+        if (!is_string($relativeTargetPath) || $relativeTargetPath === '') {
+            return false;
+        }
+
+        if ($currentPath === $relativeTargetPath) {
+            return true;
+        }
+
+        return $currentPath !== '' && str_ends_with($currentPath, '/' . $relativeTargetPath);
     }
 }
 
