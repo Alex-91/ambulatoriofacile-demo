@@ -77,7 +77,135 @@ $headerLogoUrl = str_starts_with($currentPath, 'login')
     ? portal_public_access_url('login')
     : site_url('/');
 $isPortalConsoleHeader = str_starts_with($currentPath, 'login');
+$useStructuredHeader = $tenantName !== '' || $isPortalConsoleHeader;
 ?>
+
+<?php if ($useStructuredHeader): ?>
+<style>
+  .main-header .navbar.platform-console-navbar {
+    min-height: 78px;
+    padding: 0 14px;
+  }
+
+  .main-header .platform-navbar-shell {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "tenant user"
+      "menu menu";
+    gap: 10px 14px;
+    align-items: center;
+    min-height: 78px;
+    padding: 10px 0 8px;
+  }
+
+  .main-header .platform-navbar-tenant {
+    grid-area: tenant;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    max-width: 420px;
+    min-width: 0;
+    padding: 7px 14px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.12);
+    color: #f4fdff;
+  }
+
+  .main-header .platform-navbar-tenant-label {
+    flex: 0 0 auto;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    opacity: 0.78;
+  }
+
+  .main-header .platform-navbar-tenant-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .main-header .platform-navbar-primary {
+    grid-area: menu;
+    float: none !important;
+    overflow: hidden;
+  }
+
+  .main-header .platform-navbar-primary .navbar-nav {
+    float: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    white-space: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+  }
+
+  .main-header .platform-navbar-primary .navbar-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .main-header .platform-navbar-primary .navbar-nav > li {
+    float: none;
+  }
+
+  .main-header .platform-navbar-primary .navbar-nav > li > a {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: auto;
+    padding: 10px 14px;
+    border-radius: 12px;
+  }
+
+  .main-header .platform-navbar-secondary {
+    grid-area: user;
+    float: none !important;
+    justify-self: end;
+  }
+
+  .main-header .platform-navbar-secondary .navbar-nav {
+    float: none;
+    display: flex;
+    align-items: center;
+    margin: 0;
+  }
+
+  .main-header .platform-nav-link .nav-label {
+    display: inline-flex;
+    align-items: center;
+    min-height: 18px;
+    padding-right: 14px;
+  }
+
+  @media (max-width: 991px) {
+    .main-header .navbar.platform-console-navbar {
+      padding: 0 10px;
+    }
+
+    .main-header .platform-navbar-shell {
+      grid-template-columns: 1fr;
+      grid-template-areas:
+        "tenant"
+        "user"
+        "menu";
+      gap: 10px;
+    }
+
+    .main-header .platform-navbar-tenant {
+      max-width: none;
+    }
+
+    .main-header .platform-navbar-secondary {
+      justify-self: start;
+    }
+  }
+</style>
+<?php endif; ?>
 
 <header class="main-header" style="background:#2c8895">
   <!-- Logo -->
@@ -86,7 +214,7 @@ $isPortalConsoleHeader = str_starts_with($currentPath, 'login');
     <span class="logo-lg"><b>Ambulatorio</b>Facile</span>
   </a>
 
-  <nav class="navbar navbar-static-top<?= $isPortalConsoleHeader ? ' platform-console-navbar' : '' ?>" role="navigation">
+  <nav class="navbar navbar-static-top<?= $useStructuredHeader ? ' platform-console-navbar' : '' ?>" role="navigation">
     <a href="#" class="sidebar-toggle" data-toggle="offcanvas" role="button" style="display:none">
       <span class="sr-only">Toggle navigation</span>
       <span class="icon-bar"></span>
@@ -94,12 +222,12 @@ $isPortalConsoleHeader = str_starts_with($currentPath, 'login');
       <span class="icon-bar"></span>
     </a>
 
-    <?php if ($isPortalConsoleHeader): ?>
+    <?php if ($useStructuredHeader): ?>
     <div class="platform-navbar-shell">
     <?php endif; ?>
 
     <?php if ($tenantName !== ''): ?>
-      <?php if ($isPortalConsoleHeader): ?>
+      <?php if ($useStructuredHeader): ?>
       <div class="platform-navbar-tenant hidden-xs">
         <span class="platform-navbar-tenant-label">Spazio</span>
         <strong class="platform-navbar-tenant-name"><?= esc($tenantName) ?></strong>
@@ -112,8 +240,8 @@ $isPortalConsoleHeader = str_starts_with($currentPath, 'login');
     <?php endif; ?>
 
     <?php if (!$hideHeaderMenu): ?>
-    <div class="navbar-custom-menu<?= $isPortalConsoleHeader ? ' platform-navbar-primary' : '' ?>"<?= $isPortalConsoleHeader ? '' : ' style="float:left !important"' ?>>
-      <ul class="nav navbar-nav<?= $isPortalConsoleHeader ? ' platform-navbar-links' : '' ?>">
+    <div class="navbar-custom-menu<?= $useStructuredHeader ? ' platform-navbar-primary' : '' ?>"<?= $useStructuredHeader ? '' : ' style="float:left !important"' ?>>
+      <ul class="nav navbar-nav<?= $useStructuredHeader ? ' platform-navbar-links' : '' ?>">
 
 <?php
 $disableMenuFallback = !empty($disable_menu_fallback);
@@ -181,7 +309,7 @@ if ($disableMenuFallback) {
     $itemIcon = admin_menu_resolve_icon((string)($item['fa_icon'] ?? ''), $itemTitle, $itemLink);
   ?>
   <li class="hidden-xs">
-    <a href="<?= site_url($itemLink) ?>" title="<?= esc($itemTitle) ?>"<?= $isPortalConsoleHeader ? ' class="platform-nav-link"' : '' ?>>
+    <a href="<?= site_url($itemLink) ?>" title="<?= esc($itemTitle) ?>"<?= $useStructuredHeader ? ' class="platform-nav-link"' : '' ?>>
       <i class="fa <?= esc($itemIcon) ?>"></i>
       <span class="nav-label" style="position:relative; display:inline-block;">
         <?= esc($itemTitle) ?>
@@ -235,7 +363,7 @@ if ($disableMenuFallback) {
     </div>
     <?php endif; ?>
 
-    <div class="navbar-custom-menu<?= $isPortalConsoleHeader ? ' platform-navbar-secondary' : '' ?>">
+    <div class="navbar-custom-menu<?= $useStructuredHeader ? ' platform-navbar-secondary' : '' ?>">
       <ul class="nav navbar-nav">
         <li class="dropdown user user-menu">
           <a href="#" class="dropdown-toggle" data-toggle="dropdown">
@@ -342,7 +470,7 @@ if ($disableMenuFallback) {
       </ul>
     </div>
 
-    <?php if ($isPortalConsoleHeader): ?>
+    <?php if ($useStructuredHeader): ?>
     </div>
     <?php endif; ?>
 
