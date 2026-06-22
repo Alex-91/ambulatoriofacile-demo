@@ -24,9 +24,9 @@
                 Il sito vetrina resta commerciale, la demo serve a provare il prodotto con account di test, mentre clienti e master entrano sempre dal login ufficiale.
             </p>
             <div class="hero-actions">
-                <a class="btn btn-primary" href="<?= site_url('demo/access') ?>">Apri la demo</a>
+                <a class="btn btn-primary" href="<?= esc((string) ($demoCredentials['demo_access_url'] ?? site_url('access'))) ?>">Apri la demo</a>
                 <a class="btn btn-secondary" href="<?= esc((string) ($demoCredentials['official_login_url'] ?? site_url('login'))) ?>">Login ufficiale</a>
-                <a class="btn btn-secondary" href="<?= site_url('demo/richiesta') ?>">Richiedi demo guidata</a>
+                <a class="btn btn-secondary" href="<?= esc((string) ($demoCredentials['demo_request_url'] ?? site_url('richiesta'))) ?>">Richiedi demo guidata</a>
             </div>
         </section>
 

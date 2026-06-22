@@ -5,6 +5,14 @@ use CodeIgniter\Router\RouteCollection;
 /**
  * @var RouteCollection $routes
  */
+$routes->get('/', 'DemoController::index');
+$routes->get('access', 'DemoController::access');
+$routes->get('vertical/(:segment)', 'DemoController::vertical/$1');
+$routes->get('access/(:segment)', 'DemoController::access/$1');
+$routes->get('richiesta', 'DemoController::requestDemo');
+$routes->post('richiesta/invia', 'DemoController::submitDemoRequest');
+$routes->get('richieste-locali', 'DemoController::requestInbox');
+$routes->get('richieste-locali/export', 'DemoController::exportRequestInbox');
 $routes->get('demo', 'DemoController::index');
 $routes->get('demo/access', 'DemoController::access');
 $routes->get('demo/vertical/(:segment)', 'DemoController::vertical/$1');
@@ -15,7 +23,6 @@ $routes->get('demo/richieste-locali', 'DemoController::requestInbox');
 $routes->get('demo/richieste-locali/export', 'DemoController::exportRequestInbox');
 $routes->get('app', 'Home::index');
 $routes->head('app', 'Home::index');
-$routes->get('/', 'Home::index');
 $routes->set404Override('App\Controllers\Errors::redirectHome');
 
 //LOGIN

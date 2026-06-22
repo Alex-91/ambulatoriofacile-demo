@@ -39,7 +39,7 @@ class DemoController extends Controller
 
     public function vertical(string $profileId)
     {
-        return redirect()->to(site_url('demo'));
+        return redirect()->to(site_url('/'));
     }
 
     public function access(?string $profileId = null)
@@ -75,6 +75,7 @@ class DemoController extends Controller
             'showLocalAccess' => $isLocal,
             'showTechnicalStatus' => $isLocal,
             'demoRequestContext' => $this->unifiedDemoRequestContext(),
+            'demoCredentials' => $this->demoCredentialsSummary($this->loadLatestReport('demo_seed_*.json')),
             'requestFeedback' => is_array($feedback) ? $feedback : null,
             'requestErrors' => is_array($errors) ? $errors : [],
             'requestOld' => is_array($old) ? $old : [],
@@ -444,7 +445,10 @@ class DemoController extends Controller
             'password' => (string) ($seedReport['password'] ?? 'Demo2026'),
             'otp' => '2510',
             'login_url' => site_url('login') . '?demo=1',
-            'official_login_url' => site_url('login'),
+            'official_login_url' => $this->officialLoginUrl(),
+            'demo_home_url' => site_url('/'),
+            'demo_access_url' => site_url('access'),
+            'demo_request_url' => site_url('richiesta'),
         ];
     }
 
@@ -601,7 +605,7 @@ class DemoController extends Controller
 
     private function demoRequestReturnUrl(string $profileId): string
     {
-        return site_url('demo/richiesta');
+        return site_url('richiesta');
     }
 
     /**
@@ -903,7 +907,7 @@ class DemoController extends Controller
     private function requestInboxExportUrl(array $filters): string
     {
         $query = array_filter($filters, static fn(string $value): bool => $value !== '');
-        $url = site_url('demo/richieste-locali/export');
+        $url = site_url('richieste-locali/export');
 
         return $query === [] ? $url : $url . '?' . http_build_query($query);
     }
@@ -1082,6 +1086,18 @@ class DemoController extends Controller
         }
 
         return site_url('login') . '?' . http_build_query($query);
+    }
+
+    private function officialLoginUrl(): string
+    {
+        $scheme = strtolower((string) ($this->request->getServer('HTTP_X_FORWARDED_PROTO') ?: $this->request->getUri()->getScheme() ?: 'https'));
+        $host = (string) ($this->request->getServer('HTTP_X_FORWARDED_HOST') ?: $this->request->getServer('HTTP_HOST') ?: $this->request->getUri()->getHost());
+        $host = trim((string) explode(',', $host)[0]);
+        if ($host === '') {
+            return '/login';
+        }
+
+        return $scheme . '://' . preg_replace('/:\d+$/', '', $host) . '/login';
     }
 
     /**

@@ -23,7 +23,7 @@ $demoRequestContext = is_array($demoRequestContext ?? null) ? $demoRequestContex
         <section class="hero-card hero-card-vertical">
             <div class="hero-stack">
                 <div class="hero-main">
-                    <a class="back-link" href="<?= site_url('demo') ?>">Torna alla demo overview</a>
+                    <a class="back-link" href="<?= esc((string) (($demoCredentials['demo_home_url'] ?? site_url('/')))) ?>">Torna alla demo overview</a>
                     <p class="eyebrow">Richiedi demo guidata</p>
                     <h1><?= esc((string) ($demoRequestContext['label'] ?? 'Demo AmbulatorioFacile')) ?></h1>
                     <p class="hero-copy">
@@ -33,10 +33,10 @@ $demoRequestContext = is_array($demoRequestContext ?? null) ? $demoRequestContex
                         Il lead resta nella linea demo/commerciale e non tocca dati o database della produzione reale.
                     </p>
                     <div class="hero-actions">
-                        <a class="btn btn-primary" href="<?= site_url('demo/access') ?>">Apri account demo</a>
-                        <a class="btn btn-secondary" href="<?= esc(site_url('login')) ?>">Vai al login ufficiale</a>
+                        <a class="btn btn-primary" href="<?= esc((string) (($demoCredentials['demo_access_url'] ?? site_url('access')))) ?>">Apri account demo</a>
+                        <a class="btn btn-secondary" href="<?= esc((string) (($demoCredentials['official_login_url'] ?? '/login'))) ?>">Vai al login ufficiale</a>
                         <?php if ($showLocalAccess): ?>
-                            <a class="btn btn-secondary" href="<?= site_url('demo/richieste-locali') ?>">Apri archivio lead</a>
+                            <a class="btn btn-secondary" href="<?= esc((string) site_url('richieste-locali')) ?>">Apri archivio lead</a>
                         <?php endif; ?>
                     </div>
                 </div>
@@ -81,7 +81,7 @@ $demoRequestContext = is_array($demoRequestContext ?? null) ? $demoRequestContex
                 <h2>Prepariamo una demo guidata piu precisa</h2>
             </div>
 
-            <form method="post" action="<?= site_url('demo/richiesta/invia') ?>" class="demo-form-card">
+            <form method="post" action="<?= site_url('richiesta/invia') ?>" class="demo-form-card">
                 <?php if (function_exists('csrf_field')): ?>
                     <?= csrf_field() ?>
                 <?php endif; ?>
@@ -158,7 +158,7 @@ $demoRequestContext = is_array($demoRequestContext ?? null) ? $demoRequestContex
 
                 <div class="hero-actions">
                     <button type="submit" class="btn btn-primary btn-button">Registra richiesta demo</button>
-                    <a class="btn btn-secondary" href="<?= site_url('demo') ?>">Torna alla panoramica</a>
+                    <a class="btn btn-secondary" href="<?= esc((string) (($demoCredentials['demo_home_url'] ?? site_url('/')))) ?>">Torna alla panoramica</a>
                 </div>
             </form>
         </section>

@@ -16,7 +16,7 @@
         <section class="hero-card hero-card-vertical">
             <div class="hero-stack">
                 <div class="hero-main">
-                    <a class="back-link" href="<?= site_url('demo') ?>">Torna alla demo overview</a>
+                    <a class="back-link" href="<?= esc((string) ($demoCredentials['demo_home_url'] ?? site_url('/'))) ?>">Torna alla demo overview</a>
                     <p class="eyebrow">Accesso demo guidato</p>
                     <h1><?= esc((string) ($demoLabel ?? 'Demo AmbulatorioFacile')) ?></h1>
                     <p class="hero-copy">
@@ -28,7 +28,7 @@
                     <div class="hero-actions">
                         <a class="btn btn-primary" href="<?= esc((string) ($demoCredentials['login_url'] ?? site_url('login?demo=1'))) ?>">Apri login demo</a>
                         <a class="btn btn-secondary" href="<?= esc((string) ($demoCredentials['official_login_url'] ?? site_url('login'))) ?>">Apri login ufficiale</a>
-                        <a class="btn btn-secondary" href="<?= site_url('demo/richiesta') ?>">Richiedi demo guidata</a>
+                        <a class="btn btn-secondary" href="<?= esc((string) ($demoCredentials['demo_request_url'] ?? site_url('richiesta'))) ?>">Richiedi demo guidata</a>
                     </div>
                 </div>
 
