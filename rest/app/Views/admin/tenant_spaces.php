@@ -134,7 +134,7 @@ $oldValue = static function (string $key, $fallback = '') {
 
 <body class="platform-console-body">
 <div class="wrapper">
-  <?= view('partials/header', ['menu_items' => $menu_items, 'portal_console_header' => true]) ?>
+  <?= view('partials/header', ['menu_items' => $menu_items]) ?>
 
   <div class="content-wrapper">
     <section class="content-header">

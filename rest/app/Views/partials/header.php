@@ -73,15 +73,221 @@ $canManageTenantUsers = $tenantId > 0
 $showTenantOnboardingLink = $tenantId > 0
     && $tenantRole === 'tenant_master'
     && in_array(strtolower(trim((string)($tenantContext['onboarding_status'] ?? 'draft'))), ['draft', 'setup'], true);
-$portalConsoleHeaderOverride = isset($portal_console_header) ? (bool) $portal_console_header : null;
 $isPortalConsoleHeader = preg_match('#^(login|piattaforma|spazio|spazi)(/|$)#', $currentPath) === 1;
 $headerLogoUrl = $isPortalConsoleHeader
     ? portal_public_access_url('login')
     : site_url('/');
-$profileImageFallbackUrl = base_url('public/dist/img/user.png');
-$useStructuredHeader = $portalConsoleHeaderOverride ?? ($tenantName !== '' || $isPortalConsoleHeader);
+$useStructuredHeader = $tenantName !== '' || $isPortalConsoleHeader;
 ?>
 
+<style>
+  body.platform-console-body .main-header .logo {
+    height: 78px;
+    line-height: 78px;
+  }
+
+  body.platform-console-body .main-header .navbar {
+    min-height: 78px;
+    padding: 10px 16px 12px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 16px;
+  }
+
+  body.platform-console-body .main-header .navbar > .navbar-custom-menu {
+    float: none !important;
+  }
+
+  body.platform-console-body .main-header .navbar > .navbar-custom-menu:first-of-type {
+    order: 2;
+    flex: 1 1 100%;
+    overflow: hidden;
+  }
+
+  body.platform-console-body .main-header .navbar > .navbar-custom-menu:first-of-type .navbar-nav {
+    float: none;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+  }
+
+  body.platform-console-body .main-header .navbar > .navbar-custom-menu:first-of-type .navbar-nav > li {
+    float: none;
+  }
+
+  body.platform-console-body .main-header .navbar > .navbar-custom-menu:first-of-type .navbar-nav > li > a {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: auto;
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.12);
+  }
+
+  body.platform-console-body .main-header .navbar > .navbar-custom-menu:last-of-type {
+    order: 1;
+    margin-left: auto;
+  }
+
+  body.platform-console-body .main-header .navbar > .navbar-custom-menu:last-of-type .navbar-nav {
+    float: none;
+    display: flex;
+    align-items: center;
+    margin: 0;
+  }
+
+  body.platform-console-body .main-header .navbar > .navbar-text {
+    order: 0;
+    float: none !important;
+    margin: 0 !important;
+    padding: 8px 14px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.12);
+    color: #f4fdff !important;
+    font-weight: 600;
+  }
+
+  @media (max-width: 991px) {
+    body.platform-console-body .main-header .navbar {
+      padding: 10px 12px 12px;
+    }
+
+    body.platform-console-body .main-header .navbar > .navbar-custom-menu:last-of-type {
+      margin-left: 0;
+    }
+  }
+</style>
+
+<?php if ($useStructuredHeader): ?>
+<style>
+  .main-header .navbar.platform-console-navbar {
+    min-height: 78px;
+    padding: 0 14px;
+  }
+
+  .main-header .platform-navbar-shell {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "tenant user"
+      "menu menu";
+    gap: 10px 14px;
+    align-items: center;
+    min-height: 78px;
+    padding: 10px 0 8px;
+  }
+
+  .main-header .platform-navbar-tenant {
+    grid-area: tenant;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    max-width: 420px;
+    min-width: 0;
+    padding: 7px 14px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.12);
+    color: #f4fdff;
+  }
+
+  .main-header .platform-navbar-tenant-label {
+    flex: 0 0 auto;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    opacity: 0.78;
+  }
+
+  .main-header .platform-navbar-tenant-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .main-header .platform-navbar-primary {
+    grid-area: menu;
+    float: none !important;
+    overflow: hidden;
+  }
+
+  .main-header .platform-navbar-primary .navbar-nav {
+    float: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    white-space: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+  }
+
+  .main-header .platform-navbar-primary .navbar-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .main-header .platform-navbar-primary .navbar-nav > li {
+    float: none;
+  }
+
+  .main-header .platform-navbar-primary .navbar-nav > li > a {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: auto;
+    padding: 10px 14px;
+    border-radius: 12px;
+  }
+
+  .main-header .platform-navbar-secondary {
+    grid-area: user;
+    float: none !important;
+    justify-self: end;
+  }
+
+  .main-header .platform-navbar-secondary .navbar-nav {
+    float: none;
+    display: flex;
+    align-items: center;
+    margin: 0;
+  }
+
+  .main-header .platform-nav-link .nav-label {
+    display: inline-flex;
+    align-items: center;
+    min-height: 18px;
+    padding-right: 14px;
+  }
+
+  @media (max-width: 991px) {
+    .main-header .navbar.platform-console-navbar {
+      padding: 0 10px;
+    }
+
+    .main-header .platform-navbar-shell {
+      grid-template-columns: 1fr;
+      grid-template-areas:
+        "tenant"
+        "user"
+        "menu";
+      gap: 10px;
+    }
+
+    .main-header .platform-navbar-tenant {
+      max-width: none;
+    }
+
+    .main-header .platform-navbar-secondary {
+      justify-self: start;
+    }
+  }
+</style>
+<?php endif; ?>
 
 <header class="main-header" style="background:#2c8895">
   <!-- Logo -->
@@ -250,7 +456,6 @@ if ($disableMenuFallback) {
               }
             ?>
             <img src="<?= base_url('public/dist/img/' . $immagineProfilo) ?>"
-                 onerror="this.onerror=null;this.src='<?= esc($profileImageFallbackUrl, 'attr') ?>';"
                  class="user-image"
                  alt="User Image" />
             <span class="hidden-xs"><?= session()->get('nome_visualizzato') ?></span>
@@ -259,7 +464,6 @@ if ($disableMenuFallback) {
           <ul class="dropdown-menu">
             <li class="user-header">
               <img src="<?= base_url('public/dist/img/' . $immagineProfilo) ?>"
-                   onerror="this.onerror=null;this.src='<?= esc($profileImageFallbackUrl, 'attr') ?>';"
                    class="user-image"
                    alt="User Image" />
               <p>
