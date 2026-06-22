@@ -212,17 +212,8 @@ class TenantAppSessionBootstrapService
             return 0;
         }
 
-        $personaleRows = $db->query("
-            SELECT p.id_user
-            FROM dap03_personale p
-            WHERE LOWER(" . $this->crypto->decryptSenzaAlias('p.email') . ") = ?
-        ", [$email])->getResultArray();
-
-        $clientRows = $db->query("
-            SELECT c.id_user
-            FROM dap02_clients c
-            WHERE LOWER(" . $this->crypto->decryptSenzaAlias('c.email') . ") = ?
-        ", [$email])->getResultArray();
+        $personaleRows = $this->queryUserIdsByEncryptedEmail($db, 'dap03_personale', 'p', $email);
+        $clientRows = $this->queryUserIdsByEncryptedEmail($db, 'dap02_clients', 'c', $email);
 
         $matches = [];
         foreach (array_merge($personaleRows, $clientRows) as $row) {
@@ -233,6 +224,45 @@ class TenantAppSessionBootstrapService
         }
 
         return count($matches) === 1 ? $matches[0] : 0;
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function queryUserIdsByEncryptedEmail(
+        \CodeIgniter\Database\BaseConnection $db,
+        string $table,
+        string $alias,
+        string $email
+    ): array {
+        if (!$db->tableExists($table) || !$db->fieldExists('email', $table)) {
+            return [];
+        }
+
+        try {
+            $query = $db->query("
+                SELECT {$alias}.id_user
+                FROM {$table} {$alias}
+                WHERE LOWER(" . $this->crypto->decryptSenzaAlias($alias . '.email') . ") = ?
+            ", [$email]);
+        } catch (\Throwable $e) {
+            log_message('warning', 'Tenant app session lookup by email failed: ' . $e->getMessage(), [
+                'table' => $table,
+                'email' => $email,
+            ]);
+            return [];
+        }
+
+        if (!$query) {
+            log_message('warning', 'Tenant app session lookup by email returned no result object.', [
+                'table' => $table,
+                'email' => $email,
+                'db_error' => $db->error(),
+            ]);
+            return [];
+        }
+
+        return $query->getResultArray();
     }
 
     /**
