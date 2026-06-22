@@ -8,11 +8,13 @@ class PlatformAdminAccessService
 {
     private PlatformUsersModel $usersModel;
     private PlatformAuthService $platformAuth;
+    private \CodeIgniter\Database\BaseConnection $platformDb;
 
     public function __construct(?PlatformUsersModel $usersModel = null, ?PlatformAuthService $platformAuth = null)
     {
         $this->usersModel = $usersModel ?? new PlatformUsersModel();
         $this->platformAuth = $platformAuth ?? new PlatformAuthService();
+        $this->platformDb = \Config\Database::connect('platform');
     }
 
     /**
@@ -25,8 +27,12 @@ class PlatformAdminAccessService
             return false;
         }
 
-        if ((int) ($platformUser['is_platform_admin'] ?? 0) === 1) {
+        if ($this->platformAdminFlagAvailable() && (int) ($platformUser['is_platform_admin'] ?? 0) === 1) {
             return true;
+        }
+
+        if ($this->hasPersistentPlatformAdmins()) {
+            return false;
         }
 
         return in_array($email, $this->configuredMasterEmails(), true);
@@ -158,5 +164,59 @@ class PlatformAdminAccessService
         }
 
         return $normalized;
+    }
+
+    public function hasPersistentPlatformAdmins(): bool
+    {
+        return $this->persistentPlatformAdminCount() > 0;
+    }
+
+    public function persistentPlatformAdminCount(): int
+    {
+        if (!$this->platformAdminFlagAvailable()) {
+            return 0;
+        }
+
+        try {
+            return (int) $this->platformDb
+                ->table('platform_users')
+                ->where('is_platform_admin', 1)
+                ->countAllResults();
+        } catch (\Throwable $e) {
+            log_message('error', 'PlatformAdminAccessService::persistentPlatformAdminCount failed: ' . $e->getMessage());
+            return 0;
+        }
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public function listPersistentPlatformAdmins(): array
+    {
+        if (!$this->platformAdminFlagAvailable()) {
+            return [];
+        }
+
+        try {
+            return $this->platformDb
+                ->table('platform_users')
+                ->where('is_platform_admin', 1)
+                ->orderBy('email', 'ASC')
+                ->get()
+                ->getResultArray();
+        } catch (\Throwable $e) {
+            log_message('error', 'PlatformAdminAccessService::listPersistentPlatformAdmins failed: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    public function platformAdminFlagAvailable(): bool
+    {
+        try {
+            return $this->platformDb->fieldExists('is_platform_admin', 'platform_users');
+        } catch (\Throwable $e) {
+            log_message('error', 'PlatformAdminAccessService::platformAdminFlagAvailable failed: ' . $e->getMessage());
+            return false;
+        }
     }
 }
