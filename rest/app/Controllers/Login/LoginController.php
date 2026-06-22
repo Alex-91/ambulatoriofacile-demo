@@ -186,11 +186,23 @@ class LoginController extends BaseController
             return false;
         }
 
-        return $db->table('dap01_users')
+        $query = $db->table('dap01_users')
             ->select('id_user')
             ->where('username', $username)
-            ->get(1)
-            ->getRowArray() !== null;
+            ->get(1);
+
+        if ($query === false) {
+            $dbError = $db->error();
+            $this->logErrorLogin('Lookup utente legacy fallito durante il pre-check login.', [
+                'username' => $username,
+                'db_error_code' => (string) ($dbError['code'] ?? ''),
+                'db_error_message' => (string) ($dbError['message'] ?? ''),
+            ]);
+
+            return false;
+        }
+
+        return $query->getRowArray() !== null;
     }
 
     private function clearPendingPlatformLogin(): void
