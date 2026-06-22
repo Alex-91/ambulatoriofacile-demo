@@ -97,6 +97,13 @@ public function __construct()
                 'except' => [
                     '',
                     '/',
+                    'access',
+                    'access/*',
+                    'vertical/*',
+                    'richiesta',
+                    'richiesta/*',
+                    'richieste-locali',
+                    'richieste-locali/*',
                     'demo',
                     'demo/*',
                     'login',
