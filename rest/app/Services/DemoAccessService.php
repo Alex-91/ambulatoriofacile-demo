@@ -54,7 +54,7 @@ class DemoAccessService
                 'label' => 'Segreteria Colombo Sara',
                 'note' => 'Perfetta per agenda del giorno, conferme, spostamenti, promemoria e presa appuntamenti per altri professionisti.',
                 'otp' => '2510',
-                'redirect_route' => '',
+                'redirect_route' => 'agenda',
                 'scenarios' => ['agenda operativa', 'cross booking', 'reminder'],
             ],
             [
@@ -93,7 +93,7 @@ class DemoAccessService
                 'label' => 'Bianchi Laura',
                 'note' => 'Chiude la demo dal lato paziente e fa vedere il percorso esterno controllato con dati fittizi.',
                 'otp' => '',
-                'redirect_route' => '',
+                'redirect_route' => 'app',
                 'scenarios' => ['area paziente', 'continuita', 'visione esterna'],
             ],
             [
@@ -132,7 +132,7 @@ class DemoAccessService
                 'label' => 'Coordinamento Sala Irene',
                 'note' => 'Mostra coordinamento operativo, assegnazione slot e gestione delle richieste del centro.',
                 'otp' => '',
-                'redirect_route' => '',
+                'redirect_route' => 'agenda',
                 'scenarios' => ['front desk', 'coordinamento', 'agenda centro'],
             ],
             [
@@ -145,7 +145,7 @@ class DemoAccessService
                 'label' => 'Marini Chiara',
                 'note' => 'Vista paziente del percorso sportivo, utile per chiudere la prova anche sul secondo scenario.',
                 'otp' => '',
-                'redirect_route' => '',
+                'redirect_route' => 'app',
                 'scenarios' => ['area paziente sport', 'visione esterna', 'percorso completo'],
             ],
         ];
@@ -248,7 +248,7 @@ class DemoAccessService
             return site_url($fallback);
         }
 
-        return site_url('/');
+        return site_url('app');
     }
 
     /**
