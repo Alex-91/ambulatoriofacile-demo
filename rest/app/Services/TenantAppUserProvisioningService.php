@@ -53,12 +53,14 @@ class TenantAppUserProvisioningService
             throw new \RuntimeException('Platform user della membership non trovato.');
         }
 
-        if (!$this->tenantConfigLooksReady($tenant)) {
+        $resolvedTenant = array_merge($tenant, $this->tenantDbConnector->resolveDatabaseSettings($tenant));
+
+        if (!$this->tenantConfigLooksReady($resolvedTenant)) {
             return $this->skipResult($membershipId, 'Configurazione database tenant non ancora completa.', $strict);
         }
 
         try {
-            $tenantDb = $this->tenantDbConnector->connect($tenant);
+            $tenantDb = $this->tenantDbConnector->connect($resolvedTenant);
         } catch (\Throwable $e) {
             return $this->skipResult(
                 $membershipId,
@@ -77,7 +79,7 @@ class TenantAppUserProvisioningService
             );
         }
 
-        $defaultGroupId = $this->ensureDefaultGroup($tenantDb);
+        $defaultLocationId = $this->resolveDefaultLocationId($tenantDb);
         $profile = $this->resolveRoleProfile((string) ($membership['tenant_role'] ?? 'tenant_staff'));
         $appUserId = (int) ($membership['app_user_id'] ?? 0);
         $linkedByEmail = false;
@@ -95,16 +97,18 @@ class TenantAppUserProvisioningService
 
         try {
             if ($appUserId > 0) {
-                $this->updateTenantAppUser($tenantDb, $appUserId, $platformUser, $profile, $defaultGroupId);
+                $this->updateTenantAppUser($tenantDb, $appUserId, $platformUser, $profile, $defaultLocationId);
                 $mode = $linkedByEmail ? 'linked_existing' : 'updated_existing';
             } else {
-                $appUserId = $this->createTenantAppUser($tenantDb, $platformUser, $profile, $defaultGroupId);
+                $appUserId = $this->createTenantAppUser($tenantDb, $platformUser, $profile, $defaultLocationId);
                 $mode = 'created';
             }
 
             if ($appUserId <= 0) {
                 throw new \RuntimeException('Impossibile determinare l app user del tenant.');
             }
+
+            $this->ensureDefaultSchedeAccess($tenantDb, $appUserId, $profile);
 
             if ((int) ($membership['app_user_id'] ?? 0) !== $appUserId) {
                 $this->membershipsModel->update($membershipId, [
@@ -205,27 +209,9 @@ class TenantAppUserProvisioningService
         ];
     }
 
-    private function ensureDefaultGroup(\CodeIgniter\Database\BaseConnection $db): int
+    private function resolveDefaultLocationId(\CodeIgniter\Database\BaseConnection $db): int
     {
-        if (!$db->tableExists('dap21_gruppo')) {
-            return 1;
-        }
-
-        $row = $db->table('dap21_gruppo')
-            ->select('id_gruppo')
-            ->orderBy('id_gruppo', 'ASC')
-            ->get(1)
-            ->getRowArray();
-
-        if ($row) {
-            return (int) ($row['id_gruppo'] ?? 1);
-        }
-
-        $db->table('dap21_gruppo')->insert([
-            'nome' => 'Generale',
-        ]);
-
-        return max(1, (int) $db->insertID());
+        return (new StaffLocationCatalogService($db))->firstSelectableLocationId();
     }
 
     private function tenantUserExists(\CodeIgniter\Database\BaseConnection $db, int $appUserId): bool
@@ -299,7 +285,7 @@ class TenantAppUserProvisioningService
         \CodeIgniter\Database\BaseConnection $db,
         array $platformUser,
         array $profile,
-        int $defaultGroupId
+        int $defaultLocationId
     ): int {
         $db->query('SET @init_vector = RANDOM_BYTES(16)');
 
@@ -326,7 +312,7 @@ class TenantAppUserProvisioningService
             throw new \RuntimeException('Creazione dap01_users tenant non riuscita.');
         }
 
-        $this->insertOrUpdatePersonale($db, $appUserId, $platformUser, $profile, $defaultGroupId, false);
+        $this->insertOrUpdatePersonale($db, $appUserId, $platformUser, $profile, $defaultLocationId, false);
 
         return $appUserId;
     }
@@ -340,7 +326,7 @@ class TenantAppUserProvisioningService
         int $appUserId,
         array $platformUser,
         array $profile,
-        int $defaultGroupId
+        int $defaultLocationId
     ): void {
         $userRow = $db->table('dap01_users')
             ->select('id_user, tipo_user')
@@ -367,7 +353,7 @@ class TenantAppUserProvisioningService
                 'is_active' => 1,
             ]);
 
-        $this->insertOrUpdatePersonale($db, $appUserId, $platformUser, $profile, $defaultGroupId, true);
+        $this->insertOrUpdatePersonale($db, $appUserId, $platformUser, $profile, $defaultLocationId, true);
     }
 
     /**
@@ -379,7 +365,7 @@ class TenantAppUserProvisioningService
         int $appUserId,
         array $platformUser,
         array $profile,
-        int $defaultGroupId,
+        int $defaultLocationId,
         bool $preferUpdate
     ): void {
         $existing = $db->table('dap03_personale')
@@ -393,7 +379,8 @@ class TenantAppUserProvisioningService
         $email = strtolower(trim((string) ($platformUser['email'] ?? '')));
         $qualifica = (string) ($profile['qualifica'] ?? 'Operatore');
         $personaleTipo = (int) ($profile['personale_tipo'] ?? 3);
-        $luogo = $existing ? max(1, (int) ($existing['luogo'] ?? 0)) : max(1, $defaultGroupId);
+        $existingLocationId = $existing ? (int) ($existing['luogo'] ?? 0) : 0;
+        $luogo = $existingLocationId > 0 ? $existingLocationId : max(0, $defaultLocationId);
         $cellulare = $existing ? '' : '';
 
         if ($existing && $preferUpdate) {
@@ -558,6 +545,61 @@ class TenantAppUserProvisioningService
     {
         $value = trim($value);
         return $value !== '' ? $value : $fallback;
+    }
+
+    /**
+     * @param array<string, mixed> $profile
+     */
+    private function ensureDefaultSchedeAccess(
+        \CodeIgniter\Database\BaseConnection $db,
+        int $appUserId,
+        array $profile
+    ): void {
+        if ($appUserId <= 0 || !$db->tableExists('dap_menu_schede') || !$db->tableExists('dap_user_schede')) {
+            return;
+        }
+
+        $codes = $this->defaultSchedaCodesForProfile($profile);
+        if ($codes === []) {
+            return;
+        }
+
+        $placeholders = implode(',', array_fill(0, count($codes), '?'));
+        $query = $db->query("
+            SELECT id_scheda
+            FROM dap_menu_schede
+            WHERE attiva = 1
+              AND codice IN ({$placeholders})
+            ORDER BY ordine ASC, id_scheda ASC
+        ", $codes);
+
+        foreach ($query->getResultArray() as $row) {
+            $schedaId = (int) ($row['id_scheda'] ?? 0);
+            if ($schedaId <= 0) {
+                continue;
+            }
+
+            $db->query("
+                INSERT INTO dap_user_schede (id_user, id_scheda, can_view, can_access)
+                VALUES (?, ?, 1, 1)
+                ON DUPLICATE KEY UPDATE can_view = 1, can_access = 1
+            ", [$appUserId, $schedaId]);
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $profile
+     * @return list<string>
+     */
+    private function defaultSchedaCodesForProfile(array $profile): array
+    {
+        $roleKey = strtolower(trim((string) ($profile['role_key'] ?? 'tenant_staff')));
+
+        if (in_array($roleKey, ['tenant_master', 'tenant_admin', 'tenant_staff'], true)) {
+            return ['agenda', 'posta', 'chat'];
+        }
+
+        return ['posta', 'chat'];
     }
 
     private function randomPassword(): string

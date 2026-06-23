@@ -23,9 +23,11 @@ if (!function_exists('admin_menu_pretty_title')) {
             str_contains($key, 'otp-statistiche') => 'Statistiche OTP',
             str_contains($key, 'visibilita-moduli') => 'Visibilita moduli',
             str_contains($key, 'spazi-clienti') || str_contains($key, 'tenant') => 'Spazi cliente',
-            str_contains($key, 'agenda/sedi') => 'Sedi agenda',
+            str_contains($key, 'agenda/gestione-sedi') || str_contains($key, 'agenda/sedi') || str_contains($key, 'anagrafica/sedi') => 'Gestione sedi',
             str_contains($key, 'schede-utenti') => 'Schede utente',
             str_contains($key, 'sostituti') => 'Gestione sostituti',
+            str_contains($key, 'personale/nuovo-cliente') || str_contains($key, 'personale/nuovo_cliente') || str_contains($key, 'clienti/nuovo') || str_contains($key, 'nuovo cliente') => 'Nuovo cliente',
+            str_contains($key, 'personale/modifica-cliente') || str_contains($key, 'personale/modifica_cliente') || str_contains($key, 'modifica cliente') => 'Modifica cliente',
             str_contains($key, 'personale/nuovo') || str_contains($key, 'inserisci personale') => 'Nuovo personale',
             str_contains($key, 'personale/modifica') || str_contains($key, 'modifica personale') => 'Modifica personale',
             str_contains($key, 'clienti') => 'Clienti',
@@ -49,11 +51,13 @@ if (!function_exists('admin_menu_fallback_icon')) {
             str_contains($key, 'spazi-clienti') || str_contains($key, 'tenant') => 'fa-sitemap',
             str_contains($key, 'dap14') || str_contains($key, 'segret') => 'fa-users',
             str_contains($key, 'dap15') || str_contains($key, 'inferm') => 'fa-heartbeat',
+            str_contains($key, 'personale/nuovo-cliente') || str_contains($key, 'personale/nuovo_cliente') || str_contains($key, 'clienti/nuovo') || str_contains($key, 'nuovo cliente') => 'fa-user-plus',
+            str_contains($key, 'personale/modifica-cliente') || str_contains($key, 'personale/modifica_cliente') || str_contains($key, 'modifica cliente') => 'fa-building-o',
             str_contains($key, 'personale/nuovo') || str_contains($key, 'inserisci personale') || str_contains($key, 'nuovo personale') => 'fa-user-plus',
             str_contains($key, 'personale/modifica') || str_contains($key, 'modifica personale') => 'fa-pencil',
             str_contains($key, 'clienti') => 'fa-building-o',
             str_contains($key, 'logs') => 'fa-file-text-o',
-            str_contains($key, 'agenda/sedi') => 'fa-map-marker',
+            str_contains($key, 'agenda/gestione-sedi') || str_contains($key, 'agenda/sedi') || str_contains($key, 'anagrafica/sedi') => 'fa-map-marker',
             str_contains($key, 'sostituti') => 'fa-exchange',
             str_contains($key, 'schede-utenti') => 'fa-th-large',
             str_contains($key, 'personale') => 'fa-users',
@@ -95,5 +99,89 @@ if (!function_exists('admin_menu_resolve_icon')) {
         }
 
         return $fallback;
+    }
+}
+
+if (!function_exists('admin_menu_resolve_href')) {
+    function admin_menu_resolve_href(?string $link = ''): string
+    {
+        $link = trim((string)$link);
+        if ($link === '') {
+            return site_url('admin');
+        }
+
+        if (preg_match('#^https?://#i', $link) === 1) {
+            return $link;
+        }
+
+        $normalized = trim(str_replace('\\', '/', $link), '/');
+        if ($normalized === '') {
+            return site_url('admin');
+        }
+
+        if (str_starts_with($normalized, 'admin/')) {
+            return site_url($normalized);
+        }
+
+        if (str_starts_with($normalized, 'login/piattaforma/')) {
+            return function_exists('portal_platform_url')
+                ? portal_platform_url(substr($normalized, strlen('login/piattaforma/')))
+                : site_url($normalized);
+        }
+
+        if ($normalized === 'piattaforma' || str_starts_with($normalized, 'piattaforma/')) {
+            return function_exists('portal_platform_url')
+                ? portal_platform_url($normalized === 'piattaforma' ? '' : substr($normalized, strlen('piattaforma/')))
+                : site_url($normalized);
+        }
+
+        if ($normalized === 'spazi-clienti' || str_starts_with($normalized, 'spazi-clienti/')) {
+            return function_exists('portal_platform_url')
+                ? portal_platform_url($normalized)
+                : site_url($normalized);
+        }
+
+        if (in_array($normalized, ['agenda/gestione-sedi', 'agenda/sedi', 'anagrafica/sedi'], true)) {
+            return site_url('agenda/gestione-sedi');
+        }
+
+        $adminScopedPrefixes = [
+            'personale/',
+            'clienti/',
+            'logs/',
+            'sostituti/',
+            'anagrafica/',
+            'whatsapp-reminders',
+            'otp-statistiche',
+        ];
+
+        foreach ($adminScopedPrefixes as $prefix) {
+            if ($normalized === rtrim($prefix, '/') || str_starts_with($normalized, $prefix)) {
+                return site_url('admin/' . $normalized);
+            }
+        }
+
+        if (str_contains($normalized, '/')) {
+            return site_url('admin/' . $normalized);
+        }
+
+        $personaleScopedLinks = [
+            'nuovo',
+            'nuovo_cliente',
+            'salva',
+            'modifica_personale',
+            'modifica_cliente',
+            'visibilita-moduli',
+            'dap14',
+            'dap15',
+            'schede-utenti',
+            'logout',
+        ];
+
+        if (in_array($normalized, $personaleScopedLinks, true)) {
+            return site_url('admin/personale/' . $normalized);
+        }
+
+        return site_url('admin/' . $normalized);
     }
 }

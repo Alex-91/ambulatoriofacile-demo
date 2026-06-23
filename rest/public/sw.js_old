@@ -40,7 +40,7 @@ self.addEventListener('push', (event) => {
     payload = {};
   }
 
-  const title = payload.title || 'AMBULATORI.Cloud';
+  const title = payload.title || 'AmbulatorioFacile';
   const type = typeof payload.type === 'string' ? payload.type.toLowerCase() : 'generic';
   const tag = typeof payload.tag === 'string' && payload.tag.trim() !== '' ? payload.tag.trim() : undefined;
   const badgeLegacyPaths = [DEFAULT_ICON_PATH];

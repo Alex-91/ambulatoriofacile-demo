@@ -2,28 +2,38 @@
 $result = session()->get('menuDataAdmin');
 $menu_items = $menu_items ?? ($result['result'] ?? []);
 
-$errors  = $errors ?? [];
+$errors = $errors ?? [];
 $success = $success ?? null;
-
-function hasErr($k, $errors) { return !empty($errors[$k]); }
+$createMode = (bool) ($create_mode ?? false);
+$doctorOptions = is_array($doctor_options ?? null) ? $doctor_options : [];
+$pageTitle = $createMode ? 'Nuovo cliente' : 'Modifica cliente';
+$submitLabel = $createMode ? 'Crea cliente' : 'Salva modifiche';
+$openEditBox = $createMode
+    || trim((string) old('id_client')) !== ''
+    || trim((string) old('id_user')) !== ''
+    || trim((string) old('username')) !== '';
+$selectedDoctorOld = trim((string) old('id_personale'));
 ?>
+<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>AmbulatorioFacile | Modifica Cliente</title>
+  <title>AmbulatorioFacile | <?= esc($pageTitle) ?></title>
   <link rel="icon" href="<?= base_url('public/assets/images/logonew.jpg') ?>" type="image/x-icon" sizes="any">
-  <meta content='width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no' name='viewport'>
+  <meta content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" name="viewport">
 
-  <link href="<?= base_url('public/bootstrap/css/bootstrap.min.css') ?>" rel="stylesheet" type="text/css" />
-  <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css" rel="stylesheet" type="text/css" />
-  <link href="https://code.ionicframework.com/ionicons/2.0.1/css/ionicons.min.css" rel="stylesheet" type="text/css" />
-  <link href="<?= base_url('public/dist/css/AdminLTE.css') ?>" rel="stylesheet" type="text/css" />
-  <link href="<?= base_url('public/dist/css/skins/_all-skins.min.css') ?>" rel="stylesheet" type="text/css" />
+  <link href="<?= base_url('public/bootstrap/css/bootstrap.min.css') ?>" rel="stylesheet" type="text/css">
+  <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css" rel="stylesheet" type="text/css">
+  <link href="https://code.ionicframework.com/ionicons/2.0.1/css/ionicons.min.css" rel="stylesheet" type="text/css">
+  <link href="<?= base_url('public/dist/css/AdminLTE.css') ?>" rel="stylesheet" type="text/css">
+  <link href="<?= base_url('public/dist/css/skins/_all-skins.min.css') ?>" rel="stylesheet" type="text/css">
 
   <style>
     .nav-pills.nav-stacked > li.active > a { background-color:#2c8895; color:#fff; }
     .res-item { cursor:pointer; }
     .res-item:hover { background:#f5f5f5; }
+    .page-tools { margin-top: 12px; }
+    .page-tools .btn { margin-right: 8px; margin-bottom: 8px; }
   </style>
 </head>
 
@@ -34,22 +44,31 @@ function hasErr($k, $errors) { return !empty($errors[$k]); }
 
   <div class="content-wrapper">
     <section class="content-header">
-      <h1>Modifica Cliente</h1>
+      <h1><?= esc($pageTitle) ?></h1>
       <ol class="breadcrumb">
         <li><a href="<?= site_url('admin') ?>"><i class="fa fa-dashboard"></i> Home</a></li>
-        <li class="active">Modifica Cliente</li>
+        <li class="active"><?= esc($pageTitle) ?></li>
       </ol>
+      <div class="page-tools">
+        <?php if ($createMode): ?>
+          <a href="<?= site_url('admin/personale/modifica_cliente') ?>" class="btn btn-default">
+            <i class="fa fa-search"></i> Vai a Modifica cliente
+          </a>
+        <?php else: ?>
+          <a href="<?= site_url('admin/personale/nuovo_cliente') ?>" class="btn btn-primary">
+            <i class="fa fa-user-plus"></i> Nuovo cliente
+          </a>
+        <?php endif; ?>
+      </div>
     </section>
 
     <section class="content">
       <div class="row">
-
         <div class="col-md-3">
           <?= view('partials/sidebar_admin', ['menu_items' => $menu_items ?? []]) ?>
         </div>
 
         <div class="col-md-9">
-
           <?php if ($success): ?>
             <div class="alert alert-success"><?= esc($success) ?></div>
           <?php endif; ?>
@@ -57,72 +76,74 @@ function hasErr($k, $errors) { return !empty($errors[$k]); }
             <div class="alert alert-danger"><?= esc($errors['generic']) ?></div>
           <?php endif; ?>
 
-          <!-- BOX RICERCA -->
-         <div class="box box-primary">
-  <div class="box-header with-border">
-    <h3 class="box-title">Cerca Cliente</h3>
-  </div>
+          <?php if ($createMode): ?>
+            <div class="alert alert-info">
+              Qui crei una nuova anagrafica cliente con account gia pronto. Se invece devi cercarne uno esistente usa la voce
+              <strong>Modifica cliente</strong>.
+            </div>
+          <?php else: ?>
+            <div class="box box-primary">
+              <div class="box-header with-border">
+                <h3 class="box-title">Cerca cliente</h3>
+              </div>
 
-  <div class="box-body">
+              <div class="box-body">
+                <form id="searchForm" action="javascript:void(0);">
+                  <div class="row">
+                    <div class="col-md-4">
+                      <label>Nome</label>
+                      <input class="form-control" id="s_nome" placeholder="es. mar">
+                    </div>
+                    <div class="col-md-4">
+                      <label>Cognome</label>
+                      <input class="form-control" id="s_cognome" placeholder="es. ros">
+                    </div>
+                    <div class="col-md-4">
+                      <label>Codice fiscale</label>
+                      <input class="form-control" id="s_cf" placeholder="es. RSSM">
+                    </div>
+                  </div>
 
-    <form id="searchForm" action="javascript:void(0);">
-      <div class="row">
-        <div class="col-md-4">
-          <label>Nome</label>
-          <input class="form-control" id="s_nome" placeholder="es. mar">
-        </div>
-        <div class="col-md-4">
-          <label>Cognome</label>
-          <input class="form-control" id="s_cognome" placeholder="es. ros">
-        </div>
-        <div class="col-md-4">
-          <label>Codice Fiscale</label>
-          <input class="form-control" id="s_cf" placeholder="es. RSSM">
-        </div>
-      </div>
+                  <div style="margin-top:10px;">
+                    <button class="btn btn-primary" id="btnSearch" type="submit">
+                      <i class="fa fa-search"></i> Cerca
+                    </button>
+                  </div>
+                </form>
 
-      <div style="margin-top:10px;">
-        <button class="btn btn-primary" id="btnSearch" type="submit">
-          <i class="fa fa-search"></i> Cerca
-        </button>
-      </div>
-    </form>
+                <hr>
 
-    <hr>
+                <div id="resultsWrap" style="display:none;">
+                  <label>Risultati</label>
+                  <ul class="list-group" id="resultsList"></ul>
+                </div>
+              </div>
+            </div>
+          <?php endif; ?>
 
-    <div id="resultsWrap" style="display:none;">
-      <label>Risultati</label>
-      <ul class="list-group" id="resultsList"></ul>
-    </div>
-
-  </div>
-</div>
-
-          <!-- BOX MODIFICA -->
-          <div class="box box-success" id="editBox" style="display:none;">
+          <div class="box box-success" id="editBox" style="display:<?= $openEditBox ? 'block' : 'none' ?>;">
             <div class="box-header with-border">
-              <h3 class="box-title">Dati Cliente</h3>
+              <h3 class="box-title"><?= esc($pageTitle) ?></h3>
             </div>
 
             <form method="post" action="<?= site_url('admin/clienti/update') ?>">
               <?= csrf_field() ?>
 
-              <input type="hidden" name="id_client" id="id_client">
-              <input type="hidden" name="id_user" id="id_user">
+              <input type="hidden" name="id_client" id="id_client" value="<?= esc((string) old('id_client')) ?>">
+              <input type="hidden" name="id_user" id="id_user" value="<?= esc((string) old('id_user')) ?>">
 
               <div class="box-body">
-
                 <div class="row">
                   <div class="col-md-6">
                     <div class="form-group">
                       <label>Nome *</label>
-                      <input class="form-control" name="nome" id="nome" required>
+                      <input class="form-control" name="nome" id="nome" value="<?= esc((string) old('nome')) ?>" required>
                     </div>
                   </div>
                   <div class="col-md-6">
                     <div class="form-group">
                       <label>Cognome *</label>
-                      <input class="form-control" name="cognome" id="cognome" required>
+                      <input class="form-control" name="cognome" id="cognome" value="<?= esc((string) old('cognome')) ?>" required>
                     </div>
                   </div>
                 </div>
@@ -131,13 +152,13 @@ function hasErr($k, $errors) { return !empty($errors[$k]); }
                   <div class="col-md-6">
                     <div class="form-group">
                       <label>Cellulare *</label>
-                      <input class="form-control" name="cellulare" id="cellulare" required>
+                      <input class="form-control" name="cellulare" id="cellulare" value="<?= esc((string) old('cellulare')) ?>" required>
                     </div>
                   </div>
                   <div class="col-md-6">
                     <div class="form-group">
-                      <label>Email (opzionale)</label>
-                      <input type="email" class="form-control" name="email" id="email">
+                      <label>Email</label>
+                      <input type="email" class="form-control" name="email" id="email" value="<?= esc((string) old('email')) ?>">
                     </div>
                   </div>
                 </div>
@@ -146,19 +167,19 @@ function hasErr($k, $errors) { return !empty($errors[$k]); }
                   <div class="col-md-6">
                     <div class="form-group">
                       <label>Indirizzo</label>
-                      <input class="form-control" name="indirizzo" id="indirizzo">
+                      <input class="form-control" name="indirizzo" id="indirizzo" value="<?= esc((string) old('indirizzo')) ?>">
                     </div>
                   </div>
                   <div class="col-md-3">
                     <div class="form-group">
-                      <label>CittÃ </label>
-                      <input class="form-control" name="citta" id="citta">
+                      <label>Citta</label>
+                      <input class="form-control" name="citta" id="citta" value="<?= esc((string) old('citta')) ?>">
                     </div>
                   </div>
                   <div class="col-md-3">
                     <div class="form-group">
                       <label>Provincia</label>
-                      <input class="form-control" name="provincia" id="provincia">
+                      <input class="form-control" name="provincia" id="provincia" value="<?= esc((string) old('provincia')) ?>">
                     </div>
                   </div>
                 </div>
@@ -166,10 +187,10 @@ function hasErr($k, $errors) { return !empty($errors[$k]); }
                 <div class="row">
                   <div class="col-md-6">
                     <div class="form-group">
-                      <label>Codice Fiscale</label>
-                      <input class="form-control" name="codice_fiscale" id="codice_fiscale" readonly>
+                      <label>Codice fiscale</label>
+                      <input class="form-control" name="codice_fiscale" id="codice_fiscale" value="<?= esc(strtoupper((string) old('username'))) ?>" readonly>
                       <p class="text-muted" style="margin:6px 0 0 0;">
-                        Il CF viene letto da <b>username</b>.
+                        Il CF viene letto dallo username.
                       </p>
                     </div>
                   </div>
@@ -179,8 +200,17 @@ function hasErr($k, $errors) { return !empty($errors[$k]); }
                       <label>Dottore</label>
                       <select class="form-control" name="id_personale" id="id_personale">
                         <option value="">Seleziona...</option>
+                        <?php foreach ($doctorOptions as $doctorOption): ?>
+                          <?php
+                            $doctorId = (int) ($doctorOption['id_personale'] ?? 0);
+                            $doctorLabel = trim((string) ($doctorOption['label'] ?? ''));
+                            $isSelected = $selectedDoctorOld !== '' && $selectedDoctorOld === (string) $doctorId;
+                          ?>
+                          <option value="<?= $doctorId ?>" <?= $isSelected ? 'selected' : '' ?>>
+                            <?= esc($doctorLabel) ?>
+                          </option>
+                        <?php endforeach; ?>
                       </select>
-                      
                     </div>
                   </div>
                 </div>
@@ -191,13 +221,19 @@ function hasErr($k, $errors) { return !empty($errors[$k]); }
                       <label>Dispositivo collegato</label>
                       <div id="deviceFeedback" style="display:none;"></div>
                       <div id="deviceStatus" class="alert alert-warning" style="margin-bottom:10px;">
-                        Nessun cliente selezionato.
+                        <?php if ($createMode): ?>
+                          Nessun account ancora creato.
+                        <?php elseif ($openEditBox): ?>
+                          Riapri il cliente per controllare il dispositivo collegato.
+                        <?php else: ?>
+                          Nessun cliente selezionato.
+                        <?php endif; ?>
                       </div>
                       <button type="button" class="btn btn-danger" id="btnDisconnectDevice" style="display:none;">
                         <i class="fa fa-unlink"></i> Disassocia dispositivo
                       </button>
                       <p class="text-muted" style="margin:8px 0 0 0;">
-                        L'amministratore puo disassociare autonomamente il telefono push del paziente.
+                        L amministratore puo disassociare il telefono push del paziente quando serve.
                       </p>
                     </div>
                   </div>
@@ -211,45 +247,43 @@ function hasErr($k, $errors) { return !empty($errors[$k]); }
                   <div class="col-md-6">
                     <div class="form-group">
                       <label>Username (CF) *</label>
-                      <input class="form-control" name="username" id="username" required>
-                      <p class="text-muted" style="margin:6px 0 0 0;">Username NON cifrato (coincide col CF).</p>
+                      <input class="form-control" name="username" id="username" value="<?= esc((string) old('username')) ?>" required>
+                      <p class="text-muted" style="margin:6px 0 0 0;">Lo username non e cifrato e coincide con il codice fiscale.</p>
                     </div>
                   </div>
 
                   <div class="col-md-6">
                     <div class="form-group">
-                      <label>Nuova Password</label>
-                      <input type="password" class="form-control" name="password" id="password" autocomplete="new-password">
-                      <p class="text-muted" style="margin:6px 0 0 0;">Se lasci vuoto, la password non cambia.</p>
+                      <label><?= $createMode ? 'Password iniziale *' : 'Nuova password' ?></label>
+                      <input type="password" class="form-control" name="password" id="password" autocomplete="new-password" <?= $createMode ? 'required' : '' ?>>
+                      <p class="text-muted" style="margin:6px 0 0 0;">
+                        <?= $createMode ? 'Serve per creare subito l account cliente.' : 'Se lasci vuoto, la password non cambia.' ?>
+                      </p>
                     </div>
                   </div>
                 </div>
 
                 <div class="row">
-  <div class="col-md-6">
-    <div class="form-group">
-      <label>Scadenza account</label>
-      <input type="date" class="form-control" name="datascadenza" id="datascadenza">
-      <p class="text-muted" style="margin:6px 0 0 0;">Seleziona la nuova data per prorogare.</p>
-    </div>
-  </div>
-</div>
-
-
+                  <div class="col-md-6">
+                    <div class="form-group">
+                      <label>Scadenza account</label>
+                      <input type="date" class="form-control" name="datascadenza" id="datascadenza" value="<?= esc((string) old('datascadenza')) ?>">
+                      <p class="text-muted" style="margin:6px 0 0 0;">Lascia vuoto se non vuoi impostare una scadenza.</p>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <div class="box-footer">
                 <button class="btn btn-success" type="submit">
-                  <i class="fa fa-save"></i> Salva Modifiche
+                  <i class="fa fa-save"></i> <?= esc($submitLabel) ?>
                 </button>
                 <button class="btn btn-default" type="button" id="btnReset">
                   Reset form
                 </button>
               </div>
-
             </form>
           </div>
-
         </div>
       </div>
     </section>
@@ -261,7 +295,7 @@ function hasErr($k, $errors) { return !empty($errors[$k]); }
   </footer>
 
   <aside class="control-sidebar control-sidebar-dark"></aside>
-  <div class='control-sidebar-bg'></div>
+  <div class="control-sidebar-bg"></div>
 </div>
 
 <script src="<?= base_url('public/plugins/jQuery/jQuery-2.1.4.min.js') ?>"></script>
@@ -271,27 +305,34 @@ function hasErr($k, $errors) { return !empty($errors[$k]); }
 <script src="<?= base_url('public/dist/js/app.min.js') ?>"></script>
 
 <script>
-(function(){
+(function () {
+  var createMode = <?= $createMode ? 'true' : 'false' ?>;
+  var initialDoctors = <?= json_encode($doctorOptions, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE) ?>;
+  var initialSelectedDoctorId = <?= json_encode($selectedDoctorOld !== '' ? $selectedDoctorOld : null) ?>;
   var csrfName = <?= json_encode(csrf_token()) ?>;
   var csrfHash = <?= json_encode(csrf_hash()) ?>;
   var disconnectUrl = <?= json_encode(site_url('admin/clienti/device/disconnect')) ?>;
 
-  function escHtml(s){
-    return String(s||'').replace(/[&<>"']/g, function(m){
-      return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]);
+  function escHtml(value) {
+    return String(value || '').replace(/[&<>\"']/g, function (match) {
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#039;'}[match];
     });
   }
 
-  function updateCsrf(name, hash){
-    if(name){ csrfName = name; }
-    if(hash){ csrfHash = hash; }
+  function updateCsrf(name, hash) {
+    if (name) {
+      csrfName = name;
+    }
+    if (hash) {
+      csrfHash = hash;
+    }
 
     $('input[name="' + csrfName + '"]').val(csrfHash);
   }
 
-  function showDeviceFeedback(type, message){
+  function showDeviceFeedback(type, message) {
     var $box = $('#deviceFeedback');
-    if(!message){
+    if (!message) {
       $box.hide().empty();
       return;
     }
@@ -303,31 +344,40 @@ function hasErr($k, $errors) { return !empty($errors[$k]); }
       .show();
   }
 
-  function renderDeviceStatus(activeDevice, hasUser){
+  function renderDeviceStatus(activeDevice, hasUser, hasClientSelection) {
     var $status = $('#deviceStatus');
     var $btn = $('#btnDisconnectDevice');
 
-    if(!hasUser){
+    if (!hasClientSelection) {
       $status
         .removeClass()
         .addClass('alert alert-warning')
-        .text('Il paziente non ha un account utente collegato, quindi non puo avere un dispositivo push associato.');
+        .text('Nessun cliente selezionato.');
       $btn.hide();
       return;
     }
 
-    if(activeDevice){
+    if (!hasUser) {
+      $status
+        .removeClass()
+        .addClass('alert alert-warning')
+        .text(createMode ? 'Nessun account ancora creato per questo cliente.' : 'Il cliente non ha un account utente collegato.');
+      $btn.hide();
+      return;
+    }
+
+    if (activeDevice) {
       var meta = [activeDevice.device_os || '', activeDevice.device_type || '']
-        .filter(function(part){ return String(part).trim() !== ''; })
+        .filter(function (part) { return String(part).trim() !== ''; })
         .join(' - ');
       var lastSeen = String(activeDevice.last_seen || '').trim();
       var html = '<b>Attivo:</b> ' + escHtml(activeDevice.device_label || activeDevice.device_name || 'Dispositivo');
 
-      if(meta){
+      if (meta) {
         html += '<br><small class="text-muted">' + escHtml(meta) + '</small>';
       }
 
-      if(lastSeen){
+      if (lastSeen) {
         html += '<br><small class="text-muted">Ultima attivita: ' + escHtml(lastSeen) + '</small>';
       }
 
@@ -342,148 +392,141 @@ function hasErr($k, $errors) { return !empty($errors[$k]); }
     $status
       .removeClass()
       .addClass('alert alert-warning')
-      .text('Nessun dispositivo mobile attivo collegato a questo paziente.');
+      .text('Nessun dispositivo mobile attivo collegato a questo cliente.');
     $btn.hide();
   }
 
-  function resetEdit(){
-    $('#editBox').hide();
-    $('#id_client,#id_user,#nome,#cognome,#cellulare,#email,#indirizzo,#citta,#provincia,#codice_fiscale,#username,#password').val('');
-    $('#id_personale').html('<option value="">Seleziona...</option>');
-    $('#datascadenza').val('');
-    showDeviceFeedback(null, '');
-    renderDeviceStatus(null, false);
-  }
-
-  function buildDoctorsSelect(doctors, selectedId){
+  function buildDoctorsSelect(doctors, selectedId) {
     var html = '<option value="">Seleziona...</option>';
-    (doctors||[]).forEach(function(d){
-      var sel = (selectedId && String(selectedId)===String(d.id_personale)) ? ' selected' : '';
-      html += '<option value="'+escHtml(d.id_personale)+'"'+sel+'>'+escHtml(d.label)+'</option>';
+    (doctors || []).forEach(function (doctor) {
+      var selected = selectedId && String(selectedId) === String(doctor.id_personale) ? ' selected' : '';
+      html += '<option value="' + escHtml(doctor.id_personale) + '"' + selected + '>' + escHtml(doctor.label) + '</option>';
     });
     $('#id_personale').html(html);
   }
 
-  function loadClient(idClient){
+  function resetEdit() {
+    $('#id_client,#id_user,#nome,#cognome,#cellulare,#email,#indirizzo,#citta,#provincia,#codice_fiscale,#username,#password,#datascadenza').val('');
+    buildDoctorsSelect(initialDoctors, null);
+    showDeviceFeedback(null, '');
+
+    if (createMode) {
+      $('#editBox').show();
+      renderDeviceStatus(null, false, true);
+      return;
+    }
+
+    $('#editBox').hide();
+    renderDeviceStatus(null, false, false);
+  }
+
+  function loadClient(idClient) {
     $.get('<?= site_url('admin/clienti/get') ?>/' + idClient)
-      .done(function(res){
-        if(!res || !res.ok){ alert((res && res.error) ? res.error : 'Errore'); return; }
+      .done(function (res) {
+        if (!res || !res.ok) {
+          alert((res && res.error) ? res.error : 'Errore');
+          return;
+        }
 
-        var c = res.client || {};
-        var u = res.user || null;
+        var client = res.client || {};
+        var user = res.user || null;
 
-        $('#id_client').val(c.id_client||'');
-        $('#id_user').val(c.id_user||'');
+        $('#id_client').val(client.id_client || '');
+        $('#id_user').val(client.id_user || '');
+        $('#nome').val(client.nome || '');
+        $('#cognome').val(client.cognome || '');
+        $('#cellulare').val(client.cellulare || '');
+        $('#email').val(client.email || '');
+        $('#indirizzo').val(client.indirizzo || '');
+        $('#citta').val(client.citta || '');
+        $('#provincia').val(client.provincia || '');
 
-        $('#nome').val(c.nome||'');
-        $('#cognome').val(c.cognome||'');
-        $('#cellulare').val(c.cellulare||'');
-        $('#email').val(c.email||'');
-        $('#indirizzo').val(c.indirizzo||'');
-        $('#citta').val(c.citta||'');
-        $('#provincia').val(c.provincia||'');
-
-        // username = CF
-        if(u){
-          $('#username').val(u.username||'');
-          $('#codice_fiscale').val((u.username||'').toUpperCase());
+        if (user) {
+          $('#username').val(user.username || '');
+          $('#codice_fiscale').val(String(user.username || '').toUpperCase());
+          $('#datascadenza').val(String(user.datascadenza || '').split(' ')[0] || '');
         } else {
           $('#username').val('');
-          $('#codice_fiscale').val('');
+          $('#codice_fiscale').val(client.codice_fiscale || '');
+          $('#datascadenza').val('');
         }
-       function toITDate(datetimeStr){
-   if(!datetimeStr) return '';
-  // prende solo la parte data YYYY-MM-DD
-  var d = String(datetimeStr).split(' ')[0]; 
-  var p = d.split('-');
-  if(p.length !== 3) return '';
-  return p[2] + '-' + p[1] + '-' + p[0];
-}
-
-function toISODate(datetimeStr){
-  if(!datetimeStr) return '';
-  return String(datetimeStr).split(' ')[0]; // YYYY-MM-DD
-}
-
-// ...
-if (u) {
-  $('#datascadenza').val(toISODate(u.datascadenza));     // per submit
-} else {
-  $('#datascadenza').val('');
-}
-
 
         $('#password').val('');
-
-        buildDoctorsSelect(res.doctors||[], res.selectedDoctorId || null);
-        renderDeviceStatus(res.activeDevice || null, !!(u && u.id_user));
+        buildDoctorsSelect(res.doctors || [], res.selectedDoctorId || null);
+        renderDeviceStatus(res.activeDevice || null, !!(user && user.id_user), !!(client && client.id_client));
         showDeviceFeedback(null, '');
 
         $('#editBox').show();
         $('html, body').animate({scrollTop: $('#editBox').offset().top - 20}, 200);
       })
-      .fail(function(){ alert('Errore chiamata dettaglio.'); });
+      .fail(function () {
+        alert('Errore chiamata dettaglio.');
+      });
   }
 
-  function doSearch(){
+  function doSearch() {
     var nome = $('#s_nome').val();
     var cognome = $('#s_cognome').val();
     var cf = $('#s_cf').val();
 
-    $.get('<?= site_url('admin/clienti/search') ?>', { nome:nome, cognome:cognome, cf:cf })
-      .done(function(res){
-        if(!res || !res.ok){
-          alert((res && res.error) ? res.error : 'Errore durante l\'elaborazione della ricerca.');
+    $.get('<?= site_url('admin/clienti/search') ?>', {nome: nome, cognome: cognome, cf: cf})
+      .done(function (res) {
+        if (!res || !res.ok) {
+          alert((res && res.error) ? res.error : 'Errore durante la ricerca.');
           return;
         }
+
         var list = res.results || [];
         var $ul = $('#resultsList').empty();
 
-        if(!list.length){
+        if (!list.length) {
           $('#resultsWrap').show();
           $ul.append('<li class="list-group-item">Nessun risultato</li>');
           return;
         }
 
-        list.forEach(function(r){
+        list.forEach(function (row) {
           var li = $('<li class="list-group-item res-item"></li>');
-          li.text(r.label);
-          li.attr('data-id', r.id_client);
+          li.text(row.label);
+          li.attr('data-id', row.id_client);
           $ul.append(li);
         });
 
         $('#resultsWrap').show();
       })
-      .fail(function(xhr){
+      .fail(function (xhr) {
         var res = xhr && xhr.responseJSON ? xhr.responseJSON : null;
-        alert((res && res.error) ? res.error : 'Errore durante l\'elaborazione della ricerca.');
+        alert((res && res.error) ? res.error : 'Errore durante la ricerca.');
       });
   }
 
-  $('#searchForm').on('submit', function(e){
-  e.preventDefault();
-  resetEdit();
-  doSearch();
-});
-
-
-  $('#resultsList').on('click', '.res-item', function(){
-    var id = $(this).data('id');
-    if(id) loadClient(id);
+  $('#searchForm').on('submit', function (event) {
+    event.preventDefault();
+    resetEdit();
+    doSearch();
   });
 
-  $('#btnReset').on('click', function(){ resetEdit(); });
+  $('#resultsList').on('click', '.res-item', function () {
+    var id = $(this).data('id');
+    if (id) {
+      loadClient(id);
+    }
+  });
 
-  $('#btnDisconnectDevice').on('click', function(){
+  $('#btnReset').on('click', function () {
+    resetEdit();
+  });
+
+  $('#btnDisconnectDevice').on('click', function () {
     var idClient = parseInt($('#id_client').val(), 10) || 0;
     var idUser = parseInt($('#id_user').val(), 10) || 0;
 
-    if(idClient <= 0 && idUser <= 0){
-      showDeviceFeedback('warning', 'Seleziona prima un paziente valido.');
+    if (idClient <= 0 && idUser <= 0) {
+      showDeviceFeedback('warning', 'Seleziona prima un cliente valido.');
       return;
     }
 
-    if(!window.confirm('Vuoi disassociare il dispositivo collegato a questo paziente?')){
+    if (!window.confirm('Vuoi disassociare il dispositivo collegato a questo cliente?')) {
       return;
     }
 
@@ -499,37 +542,43 @@ if (u) {
     showDeviceFeedback(null, '');
 
     $.post(disconnectUrl, postData)
-      .done(function(res){
-        if(res && res.csrfName && res.csrfHash){
+      .done(function (res) {
+        if (res && res.csrfName && res.csrfHash) {
           updateCsrf(res.csrfName, res.csrfHash);
         }
 
-        if(!res || !res.ok){
+        if (!res || !res.ok) {
           showDeviceFeedback('danger', (res && res.error) ? res.error : 'Errore durante la disassociazione del dispositivo.');
           return;
         }
 
-        renderDeviceStatus(res.activeDevice || null, true);
+        renderDeviceStatus(res.activeDevice || null, true, true);
         showDeviceFeedback('success', res.message || 'Dispositivo disassociato con successo.');
       })
-      .fail(function(xhr){
+      .fail(function (xhr) {
         var res = xhr && xhr.responseJSON ? xhr.responseJSON : null;
-        if(res && res.csrfName && res.csrfHash){
+        if (res && res.csrfName && res.csrfHash) {
           updateCsrf(res.csrfName, res.csrfHash);
         }
 
         showDeviceFeedback('danger', (res && res.error) ? res.error : 'Errore durante la disassociazione del dispositivo.');
       })
-      .always(function(){
+      .always(function () {
         $btn.prop('disabled', false).html(originalHtml);
       });
   });
 
-  // UI: quando cambi username aggiorno CF (readonly)
-  $('#username').on('input', function(){
-    $('#codice_fiscale').val(String($(this).val() || '').toUpperCase());
+  $('#username').on('input', function () {
+    var value = String($(this).val() || '').toUpperCase();
+    $(this).val(value);
+    $('#codice_fiscale').val(value);
   });
 
+  buildDoctorsSelect(initialDoctors, initialSelectedDoctorId);
+
+  if (createMode) {
+    renderDeviceStatus(null, false, true);
+  }
 })();
 </script>
 

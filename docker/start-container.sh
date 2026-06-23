@@ -5,6 +5,8 @@ APP_ROOT="/var/www/html"
 UPLOAD_ROOT="${LEGACY_UPLOAD_PATH:-$APP_ROOT/upload}"
 BOOTSTRAP_SQL_PATH="${BOOTSTRAP_SQL_PATH:-$APP_ROOT/docker/demo/ambulatoriofacile_demo.sql}"
 BOOTSTRAP_DEMO_DB="${BOOTSTRAP_DEMO_DB:-1}"
+RUN_DEMO_SEED="${RUN_DEMO_SEED:-0}"
+DEMO_SEED_PASSWORD="${DEMO_SEED_PASSWORD:-Demo2026}"
 
 cd "$APP_ROOT"
 
@@ -89,6 +91,57 @@ bootstrap_demo_database() {
   echo "Import demo completato."
 }
 
+seed_demo_runtime() {
+  if [ "$RUN_DEMO_SEED" != "1" ]; then
+    echo "Seed demo runtime disabilitato."
+    return 0
+  fi
+
+  if [ ! -f "$APP_ROOT/rest/tools/SeedDemoData.php" ]; then
+    echo "Script SeedDemoData.php non trovato, salto seed demo."
+    return 0
+  fi
+
+  db_host="$(get_config_value 'database.default.hostname' "${DB_HOST:-}")"
+  db_port="$(get_config_value 'database.default.port' "${DB_PORT:-3306}")"
+  db_name="$(get_config_value 'database.default.database' "${DB_DATABASE:-}")"
+  db_user="$(get_config_value 'database.default.username' "${DB_USERNAME:-}")"
+  db_pass="$(get_config_value 'database.default.password' "${DB_PASSWORD:-}")"
+  db_key="$(get_config_value 'DB_ENCRYPTION_KEY' "$(get_config_value 'database.default.DB_ENCRYPTION_KEY' '')")"
+  db_mode="$(get_config_value 'DB_ENCRYPTION_MODE' 'aes-256-cbc')"
+  brand_name="$(get_config_value 'PRODUCT_BRAND_NAME' 'AmbulatorioFacile')"
+
+  if [ -z "$db_host" ] || [ -z "$db_name" ] || [ -z "$db_user" ] || [ -z "$db_key" ]; then
+    echo "Configurazione demo incompleta, salto seed demo."
+    return 0
+  fi
+
+  seed_env_path="$APP_ROOT/rest/writable/demo_setup/.demo-seed.env"
+  cat > "$seed_env_path" <<EOF
+database.default.hostname=$db_host
+database.default.port=$db_port
+database.default.database=$db_name
+database.default.username=$db_user
+database.default.password=$db_pass
+database.default.DB_ENCRYPTION_KEY=$db_key
+DB_ENCRYPTION_KEY=$db_key
+DB_ENCRYPTION_MODE=$db_mode
+PRODUCT_BRAND_NAME=$brand_name
+EOF
+
+  echo "Eseguo il seed demo applicativo corrente..."
+  php "$APP_ROOT/rest/tools/SeedDemoData.php" \
+    --env-file="$seed_env_path" \
+    --host="$db_host" \
+    --port="$db_port" \
+    --user="$db_user" \
+    --pass="$db_pass" \
+    --database="$db_name" \
+    --demo-password="$DEMO_SEED_PASSWORD"
+
+  echo "Seed demo completato."
+}
+
 mkdir -p \
   "$UPLOAD_ROOT" \
   "$APP_ROOT/rest/writable/cache" \
@@ -126,5 +179,7 @@ bootstrap_demo_database
 if [ "${RUN_MIGRATIONS:-1}" = "1" ] && [ -f "$APP_ROOT/rest/spark" ]; then
   php "$APP_ROOT/rest/spark" migrate --all --no-header
 fi
+
+seed_demo_runtime
 
 exec apache2-foreground

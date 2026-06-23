@@ -7,6 +7,7 @@ use App\Controllers\BaseController;
 use App\Libraries\Crypto_helper; // Importa la libreria
 use App\Libraries\SystemUserMask;
 use App\Models\ClientDoctorModel;
+use App\Services\DemoAccessService;
 use App\Services\PlatformAccessService;
 use App\Services\PlatformAdminAccessService;
 use App\Services\PlatformAuthService;
@@ -16,6 +17,7 @@ class LoginController extends BaseController
 {
     private const PLATFORM_TENANT_SELECTION_SESSION_KEY = 'platform_pending_tenant_login';
     private const PLATFORM_TENANT_SELECTION_TTL_SECONDS = 600;
+    private ?bool $legacyUsersTableAvailableCache = null;
 
     private function ensureLegacyCryptoSession(\CodeIgniter\Database\BaseConnection $db, string $charset = 'latin1'): void
     {
@@ -165,6 +167,11 @@ class LoginController extends BaseController
         $profileSlug = array_key_exists($requestedProfile, $profileLabels) ? $requestedProfile : '';
         $prefillUsername = $this->sanitizeDemoUsername((string) $this->request->getGet('u'));
         $demoMode = $this->request->getGet('demo') === '1' || $prefillUsername !== '' || $profileSlug !== '';
+
+        if ($demoMode && $prefillUsername !== '') {
+            $this->preparePrefilledDemoAccount($prefillUsername);
+        }
+
         $demoOtpHint = in_array($prefillUsername, ['demo.dietista', 'demo.segreteria'], true)
             || str_contains($prefillUsername, '->');
 
@@ -179,6 +186,18 @@ class LoginController extends BaseController
         ];
     }
 
+    private function preparePrefilledDemoAccount(string $requestedUsername): void
+    {
+        try {
+            (new DemoAccessService())->preparePresentationAccount($requestedUsername);
+        } catch (\Throwable $e) {
+            log_message('warning', '[LoginController] Preparazione account demo fallita: {message}', [
+                'message' => $e->getMessage(),
+                'username' => $requestedUsername,
+            ]);
+        }
+    }
+
     private function legacyUserExistsByUsername(\CodeIgniter\Database\BaseConnection $db, string $username): bool
     {
         $username = trim($username);
@@ -186,11 +205,54 @@ class LoginController extends BaseController
             return false;
         }
 
-        return $db->table('dap01_users')
-            ->select('id_user')
-            ->where('username', $username)
-            ->get(1)
-            ->getRowArray() !== null;
+        if (!$this->legacyUsersTableAvailable($db)) {
+            return false;
+        }
+
+        try {
+            $query = $db->table('dap01_users')
+                ->select('id_user')
+                ->where('username', $username)
+                ->get(1);
+
+            if ($query === false) {
+                $error = $db->error();
+                $this->logErrorLogin('Lookup utente legacy fallito durante il pre-check login.', [
+                    'username' => $username,
+                    'db_error_code' => (string) ($error['code'] ?? ''),
+                    'db_error_message' => (string) ($error['message'] ?? ''),
+                ]);
+
+                return false;
+            }
+
+            return $query->getRowArray() !== null;
+        } catch (\Throwable $e) {
+            $this->logErrorLogin('Lookup utente legacy fallito durante il pre-check login.', [
+                'username' => $username,
+                'exception' => $e->getMessage(),
+            ]);
+
+            return false;
+        }
+    }
+
+    private function legacyUsersTableAvailable(\CodeIgniter\Database\BaseConnection $db): bool
+    {
+        if ($this->legacyUsersTableAvailableCache !== null) {
+            return $this->legacyUsersTableAvailableCache;
+        }
+
+        try {
+            $this->legacyUsersTableAvailableCache = $db->tableExists('dap01_users');
+        } catch (\Throwable $e) {
+            $this->logErrorLogin('Verifica tabella utenti legacy non riuscita.', [
+                'exception' => $e->getMessage(),
+            ]);
+            $this->legacyUsersTableAvailableCache = false;
+        }
+
+        return $this->legacyUsersTableAvailableCache;
     }
 
     private function clearPendingPlatformLogin(): void
@@ -394,15 +456,8 @@ class LoginController extends BaseController
         // Mostra la pagina di login
         helper('portal');
 
-        // Mostra sempre il form di login: se c'e' una sessione residua, l'utente deve
-        // poter rientrare o cambiare account senza essere rimandato alla home.
-        if (false && (bool) (session()->get('isLoggedInConfirmed') ?? false) === true) {
-            if ((bool) (session()->get('platform_is_admin') ?? false) === true || $this->isLegacyPlatformBootstrapSession()) {
-                return redirect()->to(portal_platform_url('spazi-clienti'));
-            }
-
-            return redirect()->to(site_url('/'));
-        }
+        // /login deve restare sempre raggiungibile anche con sessione attiva:
+        // serve per cambiare account e per evitare rimbalzi fuorvianti verso la home.
 
         return view('login/login', $this->buildLoginViewData());
     }

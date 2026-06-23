@@ -59,6 +59,10 @@ class TenantRuntimeFilter implements FilterInterface
             return false;
         }
 
+        if ($path === 'login/spazio' || str_starts_with($path, 'login/spazio/')) {
+            return false;
+        }
+
         $prefixes = [
             'login',
             'logout',

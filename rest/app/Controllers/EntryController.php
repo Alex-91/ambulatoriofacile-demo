@@ -28,6 +28,20 @@ class EntryController extends BaseController
         return $this->delegate(DemoController::class);
     }
 
+    public function submit()
+    {
+        $originalPath = $this->resolveOriginalPath();
+        $entryMode = strtolower(trim((string) env('APP_ROOT_ENTRY', '')));
+
+        if ($originalPath === 'login' || $entryMode === 'login') {
+            return $this->delegate(\App\Controllers\Login\LoginController::class, 'login');
+        }
+
+        return $this->response
+            ->setStatusCode(404)
+            ->setBody('Not Found');
+    }
+
     private function resolveOriginalPath(): string
     {
         $requestUri = (string) ($_SERVER['AF_ORIGINAL_REQUEST_URI'] ?? $_SERVER['REQUEST_URI'] ?? '');
@@ -38,11 +52,11 @@ class EntryController extends BaseController
     /**
      * @param class-string<BaseController|\CodeIgniter\Controller> $controllerClass
      */
-    private function delegate(string $controllerClass)
+    private function delegate(string $controllerClass, string $method = 'index')
     {
         $controller = new $controllerClass();
         $controller->initController($this->request, $this->response, service('logger'));
 
-        return $controller->index();
+        return $controller->{$method}();
     }
 }

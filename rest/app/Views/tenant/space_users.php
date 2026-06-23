@@ -1,6 +1,10 @@
 <?php
 helper('portal');
 
+$menuDataAdmin = session()->get('menuDataAdmin');
+$sidebarMenuItems = is_array($menuDataAdmin['result'] ?? null) ? $menuDataAdmin['result'] : [];
+$headerMenuItems = $sidebarMenuItems !== [] ? $sidebarMenuItems : (session()->get('header_menu_items') ?? []);
+
 $tenantMembers = is_array($tenantMembers ?? null) ? $tenantMembers : [];
 $tenantCapacity = is_array($tenantCapacity ?? null) ? $tenantCapacity : [];
 $memberErrors = is_array($memberErrors ?? null) ? $memberErrors : [];
@@ -23,10 +27,16 @@ $oldValue = static function (string $key, $fallback = '') {
   <meta charset="UTF-8">
   <title>AmbulatorioFacile | Utenti Spazio</title>
   <meta content="width=device-width, initial-scale=1" name="viewport">
+  <link rel="icon" href="<?= base_url('public/assets/images/logonew.jpg') ?>" type="image/x-icon" sizes="any">
   <link href="<?= base_url('public/bootstrap/css/bootstrap.min.css') ?>" rel="stylesheet" />
   <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css" rel="stylesheet" />
-  <link href="<?= base_url('public/assets/css/platform-console.css') ?>" rel="stylesheet" />
+  <link href="<?= base_url('public/dist/css/AdminLTE.css') ?>" rel="stylesheet" />
+  <link href="<?= base_url('public/dist/css/skins/_all-skins.min.css') ?>" rel="stylesheet" />
   <style>
+    .nav-pills.nav-stacked > li.active > a {
+      background-color:#2c8895;
+      color:#fff;
+    }
     .workspace-hero {
       border: 1px solid #dbe8eb;
       border-radius: 16px;
@@ -50,9 +60,9 @@ $oldValue = static function (string $key, $fallback = '') {
     }
   </style>
 </head>
-<body class="platform-console-body">
+<body class="skin-blue sidebar-mini">
 <div class="wrapper">
-  <?= view('partials/header', ['menu_items' => session()->get('header_menu_items') ?? [], 'portal_console_header' => true]) ?>
+  <?= view('partials/header', ['menu_items' => $headerMenuItems, 'portal_console_header' => false]) ?>
 
   <div class="content-wrapper">
     <section class="content-header">
@@ -64,7 +74,11 @@ $oldValue = static function (string $key, $fallback = '') {
 
     <section class="content">
       <div class="row">
-        <div class="col-md-10 col-md-offset-1">
+        <div class="col-md-3">
+          <?= view('partials/sidebar_admin', ['menu_items' => $sidebarMenuItems]) ?>
+        </div>
+
+        <div class="col-md-9">
           <?php if ($memberSuccess): ?>
             <div class="alert alert-success"><?= esc((string)$memberSuccess) ?></div>
           <?php endif; ?>
@@ -268,6 +282,11 @@ $oldValue = static function (string $key, $fallback = '') {
       </div>
     </section>
   </div>
+
+  <footer class="main-footer">
+    <div class="pull-right hidden-xs"><b>Version</b> 2.0</div>
+    <strong>&copy; AmbulatorioFacile</strong>
+  </footer>
 </div>
 
 <script src="<?= base_url('public/plugins/jQuery/jQuery-2.1.4.min.js') ?>"></script>

@@ -12,6 +12,11 @@ class AppointmentNotificationSettingsService
     public const FEATURE_SMS = 'appointment_notifications_sms';
     public const FEATURE_WHATSAPP = 'appointment_notifications_whatsapp';
 
+    public const CHANNEL_SMS = 'sms';
+    public const CHANNEL_WHATSAPP = 'wa';
+    public const CHANNEL_EMAIL = 'email';
+    public const CHANNEL_OTP = 'otp';
+
     public const TYPE_PATIENT_BOOKING = 'patient_booking';
     public const TYPE_DOCTOR_CROSS_BOOKING = 'doctor_cross_booking';
     public const TYPE_REMINDER = 'appointment_reminder';
@@ -43,8 +48,10 @@ class AppointmentNotificationSettingsService
         $moduleFeatureId = (int) ($moduleState['id_feature'] ?? 0);
         $moduleAvailable = (bool) ($moduleState['effective_enabled'] ?? false);
         $availableChannels = [
-            'sms' => (bool) ($smsState['effective_enabled'] ?? false),
-            'wa' => (bool) ($waState['effective_enabled'] ?? false),
+            self::CHANNEL_SMS => $moduleAvailable && (bool) ($smsState['effective_enabled'] ?? false),
+            self::CHANNEL_WHATSAPP => $moduleAvailable && (bool) ($waState['effective_enabled'] ?? false),
+            self::CHANNEL_EMAIL => $moduleAvailable,
+            self::CHANNEL_OTP => $moduleAvailable,
         ];
 
         $preferenceRow = $moduleFeatureId > 0
@@ -74,8 +81,10 @@ class AppointmentNotificationSettingsService
                 'enabled' => $moduleAvailable ? (bool) ($messageConfig['enabled'] ?? false) : false,
                 'configured_channels' => $configuredChannels,
                 'effective_channels' => $effectiveChannels,
-                'sms_selected' => in_array('sms', $configuredChannels, true),
-                'wa_selected' => in_array('wa', $configuredChannels, true),
+                'sms_selected' => in_array(self::CHANNEL_SMS, $configuredChannels, true),
+                'wa_selected' => in_array(self::CHANNEL_WHATSAPP, $configuredChannels, true),
+                'email_selected' => in_array(self::CHANNEL_EMAIL, $configuredChannels, true),
+                'otp_selected' => in_array(self::CHANNEL_OTP, $configuredChannels, true),
             ];
 
             if ($messageType === self::TYPE_REMINDER) {
@@ -164,16 +173,49 @@ class AppointmentNotificationSettingsService
     {
         return [
             self::TYPE_PATIENT_BOOKING => [
-                'label' => 'Messaggio immediato al paziente',
-                'description' => 'Parte appena l appuntamento viene salvato.',
+                'label' => 'Conferma appuntamento',
+                'description' => 'Parte appena l appuntamento viene salvato per il paziente.',
             ],
             self::TYPE_DOCTOR_CROSS_BOOKING => [
-                'label' => 'Avviso all altro dottore',
-                'description' => 'Parte quando un dottore prenota per un altro dottore dello stesso spazio.',
+                'label' => 'Presa appuntamento da un professionista all altro',
+                'description' => 'Parte quando un professionista prenota per un altro professionista dello stesso spazio.',
             ],
             self::TYPE_REMINDER => [
-                'label' => 'Reminder prima dell appuntamento',
+                'label' => 'Reminder appuntamento',
                 'description' => 'Parte alcuni giorni prima della visita secondo la regola decisa dal tenant master.',
+            ],
+        ];
+    }
+
+    /**
+     * @return array<string, array<string, mixed>>
+     */
+    public function channelDefinitions(): array
+    {
+        return [
+            self::CHANNEL_SMS => [
+                'label' => 'SMS',
+                'icon' => 'fa-comment',
+                'description' => 'Disponibilita commerciale e tecnica del canale SMS per questo spazio.',
+                'platform_managed' => true,
+            ],
+            self::CHANNEL_WHATSAPP => [
+                'label' => 'WhatsApp',
+                'icon' => 'fa-whatsapp',
+                'description' => 'Disponibilita commerciale e tecnica del canale WhatsApp per questo spazio.',
+                'platform_managed' => true,
+            ],
+            self::CHANNEL_EMAIL => [
+                'label' => 'Email',
+                'icon' => 'fa-envelope',
+                'description' => 'Canale nativo dell applicazione basato sui recapiti email presenti in agenda e anagrafica.',
+                'platform_managed' => false,
+            ],
+            self::CHANNEL_OTP => [
+                'label' => 'OTP',
+                'icon' => 'fa-key',
+                'description' => 'Genera un codice OTP e lo recapita usando il contatto disponibile del destinatario.',
+                'platform_managed' => false,
             ],
         ];
     }
@@ -273,10 +315,11 @@ class AppointmentNotificationSettingsService
     private function normalizeChannels(array $channels): array
     {
         $normalized = [];
+        $supportedChannels = array_keys($this->channelDefinitions());
 
         foreach ($channels as $channel) {
             $channel = strtolower(trim((string) $channel));
-            if (!in_array($channel, ['sms', 'wa'], true)) {
+            if (!in_array($channel, $supportedChannels, true)) {
                 continue;
             }
 

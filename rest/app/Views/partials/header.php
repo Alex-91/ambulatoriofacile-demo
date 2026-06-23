@@ -53,12 +53,14 @@ if ($pushMobileUserId <= 0) {
 }
 
 $currentPath = trim(service('uri')->getPath(), '/');
-$hideHeaderMenu = str_starts_with($currentPath, 'admin');
 $tenantContext = $sess->get('tenant_context');
 $tenantName = is_array($tenantContext) ? trim((string)($tenantContext['tenant_name'] ?? '')) : '';
 $tenantId = is_array($tenantContext) ? (int)($tenantContext['tenant_id'] ?? 0) : 0;
 $tenantRole = is_array($tenantContext) ? trim((string)($tenantContext['tenant_role'] ?? '')) : '';
+$isTenantOperationalConsoleSession = $tenantId > 0 && in_array($tenantRole, ['tenant_master', 'tenant_admin'], true);
+$hideHeaderMenu = str_starts_with($currentPath, 'admin') || $isTenantOperationalConsoleSession;
 $tenantFeatureFlags = is_array($tenantContext) ? (array)($tenantContext['feature_flags'] ?? []) : [];
+$chatFeatureEnabled = $tenantId <= 0 || !empty($tenantFeatureFlags['chat']);
 $platformTenants = $sess->get('platform_selectable_tenants');
 $platformTenants = is_array($platformTenants) ? $platformTenants : [];
 $platformTenantCount = count($platformTenants);
@@ -85,7 +87,9 @@ $useMinimalTenantOnboardingHeader = $isTenantOnboardingRoute
     && $tenantRole === 'tenant_master'
     && $showTenantOnboardingLink;
 $hideHeaderMenu = $hideHeaderMenu || $useMinimalTenantOnboardingHeader;
-$tenantOperationalHomeUrl = $tenantId > 0 ? site_url('/') : null;
+$tenantOperationalHomeUrl = $tenantId > 0 ? portal_operational_home_url() : null;
+$moveHeaderActionsToSidebar = $isTenantOperationalConsoleSession && !$useMinimalTenantOnboardingHeader;
+$showHeaderProfileAction = !$isPlatformConsoleSession && !$moveHeaderActionsToSidebar;
 $portalConsoleHeaderOverride = isset($portal_console_header) ? (bool) $portal_console_header : null;
 $portalConsolePrefixes = ['login', 'spazio', 'piattaforma'];
 $isPortalConsoleRoute = false;
@@ -96,10 +100,37 @@ foreach ($portalConsolePrefixes as $portalConsolePrefix) {
     }
 }
 $isPortalConsoleHeader = $portalConsoleHeaderOverride ?? $isPortalConsoleRoute;
-$headerLogoUrl = $isPortalConsoleHeader
-    ? portal_public_access_url('login')
-    : site_url('/');
 $profileImageFallbackUrl = base_url('public/dist/img/user.png');
+$demoSessionActive = (bool) ($sess->get(\App\Services\DemoAccessService::SESSION_KEY_ACTIVE) ?? false);
+$demoCurrentAccount = $sess->get(\App\Services\DemoAccessService::SESSION_KEY_CURRENT);
+$demoSwitchAccounts = $sess->get(\App\Services\DemoAccessService::SESSION_KEY_SWITCH_ACCOUNTS);
+$currentSessionUsername = trim((string) ($sess->get('username') ?? ''));
+$demoCurrentSessionUsername = is_array($demoCurrentAccount)
+    ? trim((string) ($demoCurrentAccount['session_username'] ?? $demoCurrentAccount['username'] ?? ''))
+    : '';
+$showDemoRoleSwitch = $demoSessionActive
+    && is_array($demoCurrentAccount)
+    && is_array($demoSwitchAccounts)
+    && $currentSessionUsername !== ''
+    && $demoCurrentSessionUsername !== ''
+    && strcasecmp($currentSessionUsername, $demoCurrentSessionUsername) === 0;
+$demoAccessUrl = $showDemoRoleSwitch
+    ? trim((string) ($demoCurrentAccount['access_url'] ?? site_url('access')))
+    : '';
+$headerLogoUrl = $isPortalConsoleHeader
+    ? (($isTenantOperationalConsoleSession && $tenantOperationalHomeUrl !== null)
+        ? $tenantOperationalHomeUrl
+        : ($demoSessionActive ? site_url('access') : portal_public_access_url('login')))
+    : (($hideHeaderMenu || (bool) ($sess->get('is_admin') ?? false) === true)
+        ? portal_operational_home_url()
+        : site_url('/'));
+
+if (!$chatFeatureEnabled) {
+    $badgeChat = 0;
+    if ((int)($sess->get('badge_chat_unread') ?? 0) !== 0) {
+        $sess->set('badge_chat_unread', 0);
+    }
+}
 ?>
 
 <header class="main-header" style="background:#2c8895">
@@ -140,6 +171,7 @@ $profileImageFallbackUrl = base_url('public/dist/img/user.png');
 
 <?php
 $disableMenuFallback = !empty($disable_menu_fallback);
+$navItemsUseAdminResolver = false;
 
 if ($disableMenuFallback) {
     $fallbackItems = is_array($menu_items ?? null) ? $menu_items : [];
@@ -173,6 +205,7 @@ if ($disableMenuFallback) {
             $menuDataAdmin = session()->get('menuDataAdmin');
             if (is_array($menuDataAdmin) && !empty($menuDataAdmin['result']) && is_array($menuDataAdmin['result'])) {
                 $fallbackItems = $menuDataAdmin['result'];
+                $navItemsUseAdminResolver = true;
             }
         }
         $navItems = [];
@@ -195,6 +228,19 @@ if ($disableMenuFallback) {
         }
     }
 }
+
+if (!$chatFeatureEnabled && !empty($navItems) && is_array($navItems)) {
+    $navItems = array_values(array_filter($navItems, static function ($item): bool {
+        if (!is_array($item)) {
+            return false;
+        }
+
+        $link = strtolower(trim((string)($item['link'] ?? '')));
+        $title = strtolower(trim((string)($item['titolo'] ?? '')));
+
+        return !str_contains($link, 'chat') && !str_contains($title, 'chat');
+    }));
+}
 ?>
 
 <?php foreach ($navItems as $item): ?>
@@ -202,9 +248,10 @@ if ($disableMenuFallback) {
     $itemLink = (string)($item['link'] ?? '');
     $itemTitle = admin_menu_pretty_title((string)($item['titolo'] ?? ''), $itemLink);
     $itemIcon = admin_menu_resolve_icon((string)($item['fa_icon'] ?? ''), $itemTitle, $itemLink);
+    $itemHref = $navItemsUseAdminResolver ? admin_menu_resolve_href($itemLink) : site_url($itemLink);
   ?>
   <li class="hidden-xs">
-    <a href="<?= site_url($itemLink) ?>" title="<?= esc($itemTitle) ?>"<?= $isPortalConsoleHeader ? ' class="platform-nav-link"' : '' ?>>
+    <a href="<?= esc($itemHref) ?>" title="<?= esc($itemTitle) ?>"<?= $isPortalConsoleHeader ? ' class="platform-nav-link"' : '' ?>>
       <i class="fa <?= esc($itemIcon) ?>"></i>
       <span class="nav-label" style="position:relative; display:inline-block;">
         <?= esc($itemTitle) ?>
@@ -234,10 +281,11 @@ if ($disableMenuFallback) {
         $itemLink = (string)($item['link'] ?? '');
         $itemTitle = admin_menu_pretty_title((string)($item['titolo'] ?? ''), $itemLink);
         $itemIcon = admin_menu_resolve_icon((string)($item['fa_icon'] ?? ''), $itemTitle, $itemLink);
+        $itemHref = $navItemsUseAdminResolver ? admin_menu_resolve_href($itemLink) : site_url($itemLink);
         $isChat = str_contains(strtolower($itemLink), 'chat') || str_contains(strtolower($itemTitle), 'chat');
       ?>
       <li style="position:relative;">
-        <a href="<?= site_url($itemLink) ?>">
+        <a href="<?= esc($itemHref) ?>">
           <i class="fa <?= esc($itemIcon) ?>"></i> <?= esc($itemTitle) ?>
 
           <?php if (!empty($item['badge']) && (int)$item['badge'] > 0): ?>
@@ -290,6 +338,8 @@ if ($disableMenuFallback) {
               </p>
             </li>
             <li class="user-footer platform-user-footer">
+              <?php if (!$moveHeaderActionsToSidebar): ?>
+              <div class="platform-user-sections">
               <?php if (!$useMinimalTenantOnboardingHeader && $tenantOperationalHomeUrl !== null): ?>
               <div class="platform-user-section">
                 <a href="<?= esc($tenantOperationalHomeUrl) ?>" class="btn btn-default btn-flat platform-user-action">
@@ -315,6 +365,40 @@ if ($disableMenuFallback) {
                     <?php else: ?>
                       <a href="<?= esc($tenantSwitchUrl) ?>" class="btn btn-default btn-flat platform-user-action">
                         <?= esc($tenantLabel) ?>
+                      </a>
+                    <?php endif; ?>
+                  </div>
+                <?php endforeach; ?>
+              </div>
+              <?php endif; ?>
+              <?php if (!$useMinimalTenantOnboardingHeader && $showDemoRoleSwitch): ?>
+              <div class="platform-user-section">
+                <div class="platform-user-section-title">Cambia ruolo demo</div>
+                <?php if ($demoAccessUrl !== ''): ?>
+                  <div class="platform-user-option">
+                    <a href="<?= esc($demoAccessUrl) ?>" class="btn btn-default btn-flat platform-user-action">
+                      <i class="fa fa-random"></i> Apri selettore ruoli demo
+                    </a>
+                  </div>
+                <?php endif; ?>
+                <?php foreach ($demoSwitchAccounts as $demoSwitchAccount): ?>
+                  <?php
+                    if (!is_array($demoSwitchAccount)) {
+                        continue;
+                    }
+                    $demoSwitchLabel = trim((string) ($demoSwitchAccount['role'] ?? $demoSwitchAccount['label'] ?? 'Ruolo demo'));
+                    $demoSwitchDetail = trim((string) ($demoSwitchAccount['label'] ?? ''));
+                    $demoSwitchUrl = trim((string) ($demoSwitchAccount['entry_url'] ?? ''));
+                    $demoSwitchCurrent = (bool) ($demoSwitchAccount['is_current'] ?? false);
+                  ?>
+                  <div class="platform-user-option">
+                    <?php if ($demoSwitchCurrent || $demoSwitchUrl === ''): ?>
+                      <span class="btn btn-default btn-flat platform-user-action platform-user-action-current">
+                        <?= esc($demoSwitchLabel) ?><?= $demoSwitchDetail !== '' ? ' · ' . esc($demoSwitchDetail) : '' ?><?= $demoSwitchCurrent ? ' (attivo)' : '' ?>
+                      </span>
+                    <?php else: ?>
+                      <a href="<?= esc($demoSwitchUrl) ?>" class="btn btn-default btn-flat platform-user-action">
+                        <?= esc($demoSwitchLabel) ?><?= $demoSwitchDetail !== '' ? ' · ' . esc($demoSwitchDetail) : '' ?>
                       </a>
                     <?php endif; ?>
                   </div>
@@ -349,14 +433,7 @@ if ($disableMenuFallback) {
                 </a>
               </div>
               <?php endif; ?>
-              <?php if (!$useMinimalTenantOnboardingHeader && $showTenantOnboardingLink): ?>
-              <div class="platform-user-section">
-                <a href="<?= portal_tenant_space_url('onboarding') ?>" class="btn btn-default btn-flat platform-user-action">
-                  <i class="fa fa-check-square-o"></i> Completa onboarding spazio
-                </a>
-              </div>
-              <?php endif; ?>
-              <?php if (!$useMinimalTenantOnboardingHeader && !$isPlatformConsoleSession): ?>
+              <?php if (!$useMinimalTenantOnboardingHeader && !$isPlatformConsoleSession && $chatFeatureEnabled): ?>
               <div class="platform-user-section">
                 <label for="chatBrowserNotifyToggle" class="platform-user-toggle-label">
                   <input type="checkbox" id="chatBrowserNotifyToggle" style="vertical-align:middle; margin-right:6px;">
@@ -367,8 +444,10 @@ if ($disableMenuFallback) {
                 </div>
               </div>
               <?php endif; ?>
-              <div class="platform-user-footer-actions<?= $isPlatformConsoleSession ? ' platform-user-footer-actions-logout-only' : '' ?>">
-                <?php if (!$isPlatformConsoleSession): ?>
+              </div>
+              <?php endif; ?>
+              <div class="platform-user-footer-actions<?= $showHeaderProfileAction ? '' : ' platform-user-footer-actions-logout-only' ?>">
+                <?php if ($showHeaderProfileAction): ?>
                 <a href="<?= base_url('profilo') ?>" class="btn btn-default btn-flat">Profilo</a>
                 <?php endif; ?>
                 <a href="<?= base_url('logout') ?>" class="btn btn-default btn-flat">Logout</a>
@@ -388,6 +467,7 @@ if ($disableMenuFallback) {
 
 <script src="<?= base_url('public/plugins/jQuery/jQuery-2.1.4.min.js') ?>"></script>
 <script src="<?= base_url('public/bootstrap/js/bootstrap.min.js') ?>"></script>
+<?php if ($chatFeatureEnabled): ?>
 <script>
   window.CHAT_NOTIFY_CFG = {
     pollUrl: "<?= site_url('chat/poll') ?>",
@@ -399,6 +479,7 @@ if ($disableMenuFallback) {
 <script>
   window.CHAT_SOUND_URL = "<?= base_url('public/sounds/chat.mp3') ?>";
 </script>
+<?php endif; ?>
 <script>
   window.PUSH_MOBILE_CFG = {
     vapidKey: "<?= esc(env('VAPID_PUBLIC_KEY', '')) ?>",
@@ -610,6 +691,7 @@ if ($disableMenuFallback) {
     }
   });
 
+  <?php if ($chatFeatureEnabled): ?>
   var KEY = 'chat_browser_notify_enabled';
 
   function getEnabled() {
@@ -674,6 +756,9 @@ if ($disableMenuFallback) {
       }
     });
   });
+  <?php endif; ?>
 })();
 </script>
+<?php if ($chatFeatureEnabled): ?>
 <script src="<?= base_url('js/chat-notify.js') ?>"></script>
+<?php endif; ?>

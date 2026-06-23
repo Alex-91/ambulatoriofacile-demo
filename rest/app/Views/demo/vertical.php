@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= esc($brandName) ?> | <?= esc((string) ($profile['label'] ?? 'Verticale demo')) ?></title>
     <meta name="description" content="<?= esc((string) (($playbook['subheadline'] ?? '') ?: $brandDescription)) ?>">
-    <link rel="stylesheet" href="<?= base_url('rest/public/assets/css/demo-showcase.css') ?>">
+    <link rel="stylesheet" href="<?= base_url('public/assets/css/demo-showcase.css') ?>">
 </head>
 <body>
 <div class="demo-shell">

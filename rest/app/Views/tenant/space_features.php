@@ -1,8 +1,11 @@
 <?php
 helper('portal');
 
+$menuDataAdmin = session()->get('menuDataAdmin');
+$sidebarMenuItems = is_array($menuDataAdmin['result'] ?? null) ? $menuDataAdmin['result'] : [];
+
 if (empty($menu_items) || !is_array($menu_items)) {
-    $menu_items = session()->get('header_menu_items') ?? [];
+    $menu_items = $sidebarMenuItems !== [] ? $sidebarMenuItems : (session()->get('header_menu_items') ?? []);
 }
 
 $errors = is_array($errors ?? null) ? $errors : [];
@@ -10,6 +13,7 @@ $success = $success ?? null;
 $featureStates = is_array($featureStates ?? null) ? $featureStates : [];
 $tenantContext = $tenantContext ?? null;
 $appointmentNotificationsAvailable = false;
+$appointmentNotificationsEntitled = false;
 
 $manageableRows = [];
 $lockedRows = [];
@@ -20,8 +24,9 @@ foreach ($featureStates as $row) {
     $tenantManaged = (bool) ($row['is_tenant_managed'] ?? false);
     $featureKey = trim((string) ($row['feature_key'] ?? ''));
 
-    if ($featureKey === 'appointment_notifications' && (bool) ($row['effective_enabled'] ?? false)) {
-        $appointmentNotificationsAvailable = true;
+    if ($featureKey === 'appointment_notifications') {
+        $appointmentNotificationsEntitled = (bool) ($row['entitlement_enabled'] ?? false);
+        $appointmentNotificationsAvailable = (bool) ($row['effective_enabled'] ?? false);
     }
 
     if (!$entitled) {
@@ -43,10 +48,16 @@ foreach ($featureStates as $row) {
   <meta charset="UTF-8">
   <title>AmbulatorioFacile | Funzioni Spazio</title>
   <meta content="width=device-width, initial-scale=1" name="viewport">
+  <link rel="icon" href="<?= base_url('public/assets/images/logonew.jpg') ?>" type="image/x-icon" sizes="any">
   <link href="<?= base_url('public/bootstrap/css/bootstrap.min.css') ?>" rel="stylesheet" />
   <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css" rel="stylesheet" />
-  <link href="<?= base_url('public/assets/css/platform-console.css') ?>" rel="stylesheet" />
+  <link href="<?= base_url('public/dist/css/AdminLTE.css') ?>" rel="stylesheet" />
+  <link href="<?= base_url('public/dist/css/skins/_all-skins.min.css') ?>" rel="stylesheet" />
   <style>
+    .nav-pills.nav-stacked > li.active > a {
+      background-color:#2c8895;
+      color:#fff;
+    }
     .intro-box {
       border: 1px solid #dbe8eb;
       border-radius: 12px;
@@ -85,9 +96,9 @@ foreach ($featureStates as $row) {
   </style>
 </head>
 
-<body class="platform-console-body">
+<body class="skin-blue sidebar-mini">
 <div class="wrapper">
-  <?= view('partials/header', ['menu_items' => $menu_items, 'portal_console_header' => true]) ?>
+  <?= view('partials/header', ['menu_items' => $menu_items, 'portal_console_header' => false]) ?>
 
   <div class="content-wrapper">
     <section class="content-header">
@@ -98,127 +109,148 @@ foreach ($featureStates as $row) {
     </section>
 
     <section class="content">
-      <?php if ($success): ?>
-        <div class="alert alert-success"><?= esc((string) $success) ?></div>
-      <?php endif; ?>
-      <?php if (!empty($errors['generic'])): ?>
-        <div class="alert alert-danger"><?= esc((string) $errors['generic']) ?></div>
-      <?php endif; ?>
-
-      <div class="intro-box">
-        <h3 style="margin-top:0; margin-bottom:8px;">
-          Spazio attivo: <?= esc((string) ($tenantContext->tenantName ?? '')) ?>
-        </h3>
-        <p style="margin:0 0 12px 0; color:#52676c;">
-          Le funzioni che vedi qui sono gia state concesse dal pacchetto o dalla configurazione centrale. Tu puoi solo governare quelle marcate come self service.
-        </p>
-        <span class="status-chip">Gestibili da te: <?= count($manageableRows) ?></span>
-        <span class="status-chip">Centrali: <?= count($lockedRows) ?></span>
-        <span class="status-chip">Non incluse: <?= count($unavailableRows) ?></span>
-        <?php if ($appointmentNotificationsAvailable): ?>
-          <div style="margin-top:12px;">
-            <a class="btn btn-default" href="<?= portal_tenant_space_url('notifiche-appuntamenti') ?>">
-              <i class="fa fa-commenting"></i> Apri centro notifiche appuntamenti
-            </a>
-          </div>
-        <?php endif; ?>
-      </div>
-
-      <div class="box box-success">
-        <div class="box-header with-border">
-          <h3 class="box-title">Funzioni governabili dal tenant master</h3>
+      <div class="row">
+        <div class="col-md-3">
+          <?= view('partials/sidebar_admin', ['menu_items' => $sidebarMenuItems]) ?>
         </div>
-        <form method="post" action="<?= portal_tenant_space_url('funzioni/save') ?>">
-          <?= csrf_field() ?>
-          <div class="box-body">
-            <?php if ($manageableRows === []): ?>
-              <div class="alert alert-info" style="margin-bottom:0;">
-                In questo momento non ci sono funzioni self service da governare per il tuo spazio.
+
+        <div class="col-md-9">
+          <?php if ($success): ?>
+            <div class="alert alert-success"><?= esc((string) $success) ?></div>
+          <?php endif; ?>
+          <?php if (!empty($errors['generic'])): ?>
+            <div class="alert alert-danger"><?= esc((string) $errors['generic']) ?></div>
+          <?php endif; ?>
+
+          <div class="intro-box">
+            <h3 style="margin-top:0; margin-bottom:8px;">
+              Spazio attivo: <?= esc((string) ($tenantContext->tenantName ?? '')) ?>
+            </h3>
+            <p style="margin:0 0 12px 0; color:#52676c;">
+              Le funzioni che vedi qui sono gia state concesse dal pacchetto o dalla configurazione centrale. Tu puoi solo governare quelle marcate come self service.
+            </p>
+            <span class="status-chip">Gestibili da te: <?= count($manageableRows) ?></span>
+            <span class="status-chip">Centrali: <?= count($lockedRows) ?></span>
+            <span class="status-chip">Non incluse: <?= count($unavailableRows) ?></span>
+            <div style="margin-top:12px;">
+              <?php if ($appointmentNotificationsAvailable): ?>
+                <a class="btn btn-default" href="<?= portal_tenant_space_url('notifiche-appuntamenti') ?>">
+                  <i class="fa fa-commenting"></i> Apri centro notifiche appuntamenti
+                </a>
+              <?php elseif ($appointmentNotificationsEntitled): ?>
+                <span class="label label-warning" style="display:inline-block; padding:8px 12px;">
+                  Centro notifiche disponibile ma non ancora attivo per questo spazio
+                </span>
+              <?php else: ?>
+                <span class="label label-default" style="display:inline-block; padding:8px 12px;">
+                  Centro notifiche non incluso nel pacchetto attuale
+                </span>
+              <?php endif; ?>
+            </div>
+          </div>
+
+          <div class="box box-success">
+            <div class="box-header with-border">
+              <h3 class="box-title">Funzioni governabili dal tenant master</h3>
+            </div>
+            <form method="post" action="<?= portal_tenant_space_url('funzioni/save') ?>">
+              <?= csrf_field() ?>
+              <div class="box-body">
+                <?php if ($manageableRows === []): ?>
+                  <div class="alert alert-info" style="margin-bottom:0;">
+                    In questo momento non ci sono funzioni self service da governare per il tuo spazio.
+                  </div>
+                <?php else: ?>
+                  <div class="row">
+                    <?php foreach ($manageableRows as $row): ?>
+                      <?php
+                        $featureKey = (string) ($row['feature_key'] ?? '');
+                        $enabled = (bool) ($row['effective_enabled'] ?? false);
+                        $sourceLabel = ($row['tenant_preference_enabled'] ?? null) === null ? 'default spazio' : 'personalizzata';
+                      ?>
+                      <div class="col-md-4">
+                        <div class="feature-card">
+                          <h4><i class="fa <?= esc((string) ($row['icon_class'] ?? 'fa-toggle-on')) ?>"></i> <?= esc((string) ($row['feature_name'] ?? $featureKey)) ?></h4>
+                          <p><?= esc((string) ($row['description'] ?? '')) ?></p>
+                          <div class="checkbox" style="margin:0 0 10px 0;">
+                            <label>
+                              <input type="checkbox" name="enabled_features[]" value="<?= esc($featureKey) ?>" <?= $enabled ? 'checked' : '' ?>>
+                              Funzione attiva per questo spazio
+                            </label>
+                          </div>
+                          <span class="label label-<?= $enabled ? 'success' : 'default' ?>">
+                            <?= $enabled ? 'attiva' : 'spenta' ?>
+                          </span>
+                          <span class="label label-info"><?= esc($sourceLabel) ?></span>
+                        </div>
+                      </div>
+                    <?php endforeach; ?>
+                  </div>
+                <?php endif; ?>
               </div>
-            <?php else: ?>
+              <?php if ($manageableRows !== []): ?>
+              <div class="box-footer">
+                <button class="btn btn-success" type="submit">
+                  <i class="fa fa-save"></i> Salva funzioni dello spazio
+                </button>
+              </div>
+              <?php endif; ?>
+            </form>
+          </div>
+
+          <?php if ($lockedRows !== []): ?>
+          <div class="box box-default">
+            <div class="box-header with-border">
+              <h3 class="box-title">Funzioni gestite centralmente</h3>
+            </div>
+            <div class="box-body">
               <div class="row">
-                <?php foreach ($manageableRows as $row): ?>
-                  <?php
-                    $featureKey = (string) ($row['feature_key'] ?? '');
-                    $enabled = (bool) ($row['effective_enabled'] ?? false);
-                    $sourceLabel = ($row['tenant_preference_enabled'] ?? null) === null ? 'default spazio' : 'personalizzata';
-                  ?>
+                <?php foreach ($lockedRows as $row): ?>
                   <div class="col-md-4">
                     <div class="feature-card">
-                      <h4><i class="fa <?= esc((string) ($row['icon_class'] ?? 'fa-toggle-on')) ?>"></i> <?= esc((string) ($row['feature_name'] ?? $featureKey)) ?></h4>
+                      <h4><i class="fa <?= esc((string) ($row['icon_class'] ?? 'fa-lock')) ?>"></i> <?= esc((string) ($row['feature_name'] ?? '')) ?></h4>
                       <p><?= esc((string) ($row['description'] ?? '')) ?></p>
-                      <div class="checkbox" style="margin:0 0 10px 0;">
-                        <label>
-                          <input type="checkbox" name="enabled_features[]" value="<?= esc($featureKey) ?>" <?= $enabled ? 'checked' : '' ?>>
-                          Funzione attiva per questo spazio
-                        </label>
-                      </div>
-                      <span class="label label-<?= $enabled ? 'success' : 'default' ?>">
-                        <?= $enabled ? 'attiva' : 'spenta' ?>
+                      <span class="label label-default">gestita dalla piattaforma</span>
+                      <span class="label label-<?= ((bool) ($row['effective_enabled'] ?? false)) ? 'success' : 'default' ?>">
+                        <?= ((bool) ($row['effective_enabled'] ?? false)) ? 'attiva' : 'spenta' ?>
                       </span>
-                      <span class="label label-info"><?= esc($sourceLabel) ?></span>
                     </div>
                   </div>
                 <?php endforeach; ?>
               </div>
-            <?php endif; ?>
-          </div>
-          <?php if ($manageableRows !== []): ?>
-          <div class="box-footer">
-            <button class="btn btn-success" type="submit">
-              <i class="fa fa-save"></i> Salva funzioni dello spazio
-            </button>
+            </div>
           </div>
           <?php endif; ?>
-        </form>
-      </div>
 
-      <?php if ($lockedRows !== []): ?>
-      <div class="box box-default">
-        <div class="box-header with-border">
-          <h3 class="box-title">Funzioni gestite centralmente</h3>
-        </div>
-        <div class="box-body">
-          <div class="row">
-            <?php foreach ($lockedRows as $row): ?>
-              <div class="col-md-4">
-                <div class="feature-card">
-                  <h4><i class="fa <?= esc((string) ($row['icon_class'] ?? 'fa-lock')) ?>"></i> <?= esc((string) ($row['feature_name'] ?? '')) ?></h4>
-                  <p><?= esc((string) ($row['description'] ?? '')) ?></p>
-                  <span class="label label-default">gestita dalla piattaforma</span>
-                  <span class="label label-<?= ((bool) ($row['effective_enabled'] ?? false)) ? 'success' : 'default' ?>">
-                    <?= ((bool) ($row['effective_enabled'] ?? false)) ? 'attiva' : 'spenta' ?>
-                  </span>
-                </div>
+          <?php if ($unavailableRows !== []): ?>
+          <div class="box box-warning">
+            <div class="box-header with-border">
+              <h3 class="box-title">Funzioni non incluse nel tuo spazio</h3>
+            </div>
+            <div class="box-body">
+              <div class="row">
+                <?php foreach ($unavailableRows as $row): ?>
+                  <div class="col-md-4">
+                    <div class="feature-card">
+                      <h4><i class="fa <?= esc((string) ($row['icon_class'] ?? 'fa-ban')) ?>"></i> <?= esc((string) ($row['feature_name'] ?? '')) ?></h4>
+                      <p><?= esc((string) ($row['description'] ?? '')) ?></p>
+                      <span class="label label-warning">non disponibile</span>
+                    </div>
+                  </div>
+                <?php endforeach; ?>
               </div>
-            <?php endforeach; ?>
+            </div>
           </div>
+          <?php endif; ?>
         </div>
       </div>
-      <?php endif; ?>
-
-      <?php if ($unavailableRows !== []): ?>
-      <div class="box box-warning">
-        <div class="box-header with-border">
-          <h3 class="box-title">Funzioni non incluse nel tuo spazio</h3>
-        </div>
-        <div class="box-body">
-          <div class="row">
-            <?php foreach ($unavailableRows as $row): ?>
-              <div class="col-md-4">
-                <div class="feature-card">
-                  <h4><i class="fa <?= esc((string) ($row['icon_class'] ?? 'fa-ban')) ?>"></i> <?= esc((string) ($row['feature_name'] ?? '')) ?></h4>
-                  <p><?= esc((string) ($row['description'] ?? '')) ?></p>
-                  <span class="label label-warning">non disponibile</span>
-                </div>
-              </div>
-            <?php endforeach; ?>
-          </div>
-        </div>
-      </div>
-      <?php endif; ?>
     </section>
   </div>
+
+  <footer class="main-footer">
+    <div class="pull-right hidden-xs"><b>Version</b> 2.0</div>
+    <strong>&copy; AmbulatorioFacile</strong>
+  </footer>
 </div>
 
 <script src="<?= base_url('public/plugins/jQuery/jQuery-2.1.4.min.js') ?>"></script>

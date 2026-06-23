@@ -4,10 +4,7 @@ namespace App\Controllers\Tenant;
 
 use App\Controllers\BaseController;
 use App\Models\PlatformTenantsModel;
-use App\Services\SessionNavigationService;
-use App\Services\TenantCatalogService;
 use App\Services\TenantContextService;
-use App\Services\TenantProvisioningService;
 
 class Onboarding extends BaseController
 {
@@ -25,27 +22,7 @@ class Onboarding extends BaseController
             return $guard;
         }
 
-        if (!portal_current_path_matches('login/spazio/onboarding')) {
-            return redirect()->to(portal_tenant_space_url('onboarding'));
-        }
-
-        $context = $this->tenantContext->getCurrentTenant();
-        if ($context === null) {
-            return redirect()->to(site_url('/'));
-        }
-
-        (new SessionNavigationService())->refreshCurrentSession();
-
-        $tenant = (new TenantCatalogService())->getTenantById($context->tenantId);
-        $capacity = (new TenantProvisioningService())->getTenantUserCapacity($context->tenantId);
-
-        return view('tenant/onboarding', [
-            'tenantContext' => $context,
-            'tenant' => $tenant,
-            'capacity' => $capacity,
-            'success' => session()->getFlashdata('success'),
-            'errors' => session()->getFlashdata('errors') ?? [],
-        ]);
+        return redirect()->to(site_url('admin'));
     }
 
     public function complete()
@@ -71,7 +48,7 @@ class Onboarding extends BaseController
         ]);
 
         return redirect()
-            ->to(site_url('/'))
+            ->to(site_url('admin'))
             ->with('success', 'Onboarding iniziale completato. Da ora puoi gestire lo spazio in autonomia.');
     }
 

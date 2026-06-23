@@ -356,10 +356,10 @@
 
           <div class="col-md-6">
             <div class="form-group">
-              <label>Gruppo</label>
+              <label>Luogo</label>
               <?php $selG = (int)old('id_gruppo', (int)($p['luogo'] ?? 0)); ?>
               <select name="id_gruppo" class="form-control" required>
-                <option value="">-- Seleziona un gruppo --</option>
+                <option value="">-- Seleziona un luogo --</option>
                 <?php foreach (($gruppi ?? []) as $g): ?>
                   <option value="<?= (int)$g['id_gruppo'] ?>"
                     <?= ((int)$g['id_gruppo'] === $selG) ? 'selected' : '' ?>>

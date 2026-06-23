@@ -12,7 +12,7 @@ $demoRequestContext = is_array($demoRequestContext ?? null) ? $demoRequestContex
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= esc($brandName) ?> | Richiedi demo guidata</title>
     <meta name="description" content="Richiedi una demo guidata di AmbulatorioFacile">
-    <link rel="stylesheet" href="<?= base_url('rest/public/assets/css/demo-showcase.css') ?>">
+    <link rel="stylesheet" href="<?= base_url('public/assets/css/demo-showcase.css') ?>">
 </head>
 <body>
 <div class="demo-shell">

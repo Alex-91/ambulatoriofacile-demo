@@ -27,17 +27,19 @@ class AppointmentNotificationDashboardService
         $settings = $settings ?? $this->settingsService->resolveTenantSettings((int) ($tenant['id_tenant'] ?? 0));
         $entriesAll = $this->logService->listEntriesForTenant($tenant, 3650, 5000);
         $entriesRecent = $this->filterByDays($entriesAll, $days);
+        $summary = [
+            'total_sent' => $this->countSent($entriesAll),
+            'recent_sent' => $this->countSent($entriesRecent),
+            'last_sent_at' => $this->lastSentAt($entriesAll),
+        ];
+
+        foreach (array_keys($this->settingsService->channelDefinitions()) as $channel) {
+            $summary[$channel . '_total'] = $this->countSent($entriesAll, $channel);
+            $summary[$channel . '_recent'] = $this->countSent($entriesRecent, $channel);
+        }
 
         return [
-            'summary' => [
-                'total_sent' => $this->countSent($entriesAll),
-                'recent_sent' => $this->countSent($entriesRecent),
-                'sms_total' => $this->countSent($entriesAll, 'sms'),
-                'wa_total' => $this->countSent($entriesAll, 'wa'),
-                'sms_recent' => $this->countSent($entriesRecent, 'sms'),
-                'wa_recent' => $this->countSent($entriesRecent, 'wa'),
-                'last_sent_at' => $this->lastSentAt($entriesAll),
-            ],
+            'summary' => $summary,
             'by_type' => $this->buildCountsByType($entriesRecent),
             'recent_rows' => array_slice($entriesRecent, 0, max(1, $recentLimit)),
             'settings' => $settings,
@@ -65,9 +67,13 @@ class AppointmentNotificationDashboardService
             'module_enabled_count' => 0,
             'sms_enabled_count' => 0,
             'wa_enabled_count' => 0,
+            'email_enabled_count' => 0,
+            'otp_enabled_count' => 0,
             'recent_sent' => 0,
             'recent_sms_sent' => 0,
             'recent_wa_sent' => 0,
+            'recent_email_sent' => 0,
+            'recent_otp_sent' => 0,
         ];
 
         foreach ($tenantRows as $tenant) {
@@ -82,6 +88,8 @@ class AppointmentNotificationDashboardService
             $moduleEnabled = (bool) ($settings['module']['available'] ?? false);
             $smsEnabled = (bool) (($settings['available_channels']['sms'] ?? false) === true);
             $waEnabled = (bool) (($settings['available_channels']['wa'] ?? false) === true);
+            $emailEnabled = (bool) (($settings['available_channels']['email'] ?? false) === true);
+            $otpEnabled = (bool) (($settings['available_channels']['otp'] ?? false) === true);
 
             if ($moduleEnabled) {
                 $summary['module_enabled_count']++;
@@ -92,10 +100,18 @@ class AppointmentNotificationDashboardService
             if ($waEnabled) {
                 $summary['wa_enabled_count']++;
             }
+            if ($emailEnabled) {
+                $summary['email_enabled_count']++;
+            }
+            if ($otpEnabled) {
+                $summary['otp_enabled_count']++;
+            }
 
             $summary['recent_sent'] += (int) ($dashboard['summary']['recent_sent'] ?? 0);
             $summary['recent_sms_sent'] += (int) ($dashboard['summary']['sms_recent'] ?? 0);
             $summary['recent_wa_sent'] += (int) ($dashboard['summary']['wa_recent'] ?? 0);
+            $summary['recent_email_sent'] += (int) ($dashboard['summary']['email_recent'] ?? 0);
+            $summary['recent_otp_sent'] += (int) ($dashboard['summary']['otp_recent'] ?? 0);
 
             $rows[] = [
                 'tenant' => $tenant,
@@ -166,6 +182,7 @@ class AppointmentNotificationDashboardService
     private function buildCountsByType(array $entries): array
     {
         $counts = [];
+        $channelKeys = array_keys($this->settingsService->channelDefinitions());
 
         foreach ($entries as $entry) {
             if (($entry['status'] ?? '') !== 'sent') {
@@ -176,7 +193,10 @@ class AppointmentNotificationDashboardService
             $channel = (string) ($entry['channel'] ?? 'unknown');
 
             if (!isset($counts[$type])) {
-                $counts[$type] = ['total' => 0, 'sms' => 0, 'wa' => 0];
+                $counts[$type] = ['total' => 0];
+                foreach ($channelKeys as $channelKey) {
+                    $counts[$type][$channelKey] = 0;
+                }
             }
 
             $counts[$type]['total']++;

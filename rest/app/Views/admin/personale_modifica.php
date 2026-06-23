@@ -299,6 +299,14 @@ function buildSelect($sel, items, idKey, labelKey, selected){
 function buildMultiSelect($sel, items, idKey, labelKey, selected){
   var selectedList = Array.isArray(selected) ? selected : [selected];
   selectedList = selectedList.map(function(v){ return String(v ?? '').trim(); }).filter(Boolean);
+  if (!Array.isArray(items) || items.length === 0) {
+    $sel.prop('disabled', true);
+    $sel.html('<option value="">Prima configura almeno un luogo</option>');
+    syncLuoghi();
+    return;
+  }
+
+  $sel.prop('disabled', false);
   var html = '<option value="__all__">Tutti i luoghi</option>';
 
   (items||[]).forEach(function(it){

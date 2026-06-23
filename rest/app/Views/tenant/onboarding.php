@@ -6,6 +6,8 @@ $capacity = is_array($capacity ?? null) ? $capacity : [];
 $errors = is_array($errors ?? null) ? $errors : [];
 $success = $success ?? null;
 $tenantName = trim((string) ($tenantContext->tenantName ?? ($tenant['tenant_name'] ?? 'Spazio cliente')));
+$locationCount = (int) ($locationCount ?? 0);
+$hasLocations = $locationCount > 0;
 ?>
 <!DOCTYPE html>
 <html>
@@ -50,7 +52,7 @@ $tenantName = trim((string) ($tenantContext->tenantName ?? ($tenant['tenant_name
   <div class="content-wrapper">
     <section class="content-header">
       <h1>Onboarding iniziale</h1>
-      <p class="text-muted" style="margin:8px 0 0 0;">Completa i passaggi essenziali del tuo spazio prima di iniziare a lavorare con il team.</p>
+      <p class="text-muted" style="margin:8px 0 0 0;">Completa i passaggi essenziali del tuo spazio: prima configura i luoghi, poi inserisci il personale e il team.</p>
     </section>
 
     <section class="content">
@@ -66,10 +68,11 @@ $tenantName = trim((string) ($tenantContext->tenantName ?? ($tenant['tenant_name
           <div class="hero-box">
             <h3 style="margin-top:0; margin-bottom:8px;"><?= esc($tenantName) ?></h3>
             <p style="margin:0 0 12px 0; color:#52676c;">
-              Hai gia il login unico attivo. Ora puoi configurare il tuo team e verificare i moduli del pacchetto prima di andare a regime.
+              Hai gia il login unico attivo. Prima di inserire il personale configura i luoghi reali del tenant: qui non devono comparire sedi demo o dati di test.
             </p>
             <span class="summary-badge">Pacchetto: <?= esc((string) ($tenantContext->packageName ?? $tenantContext->packageCode ?? '')) ?></span>
             <span class="summary-badge">Utenti attuali: <?= esc((string) ($capacity['current_users'] ?? 0)) ?></span>
+            <span class="summary-badge">Luoghi configurati: <?= $locationCount ?></span>
             <span class="summary-badge">Onboarding: <?= esc((string) ($tenantContext->onboardingStatus ?? 'setup')) ?></span>
           </div>
 
@@ -79,20 +82,33 @@ $tenantName = trim((string) ($tenantContext->tenantName ?? ($tenant['tenant_name
           </div>
 
           <div class="check-card">
-            <h4 style="margin-top:0;">2. Invita il team del cliente</h4>
-            <p class="text-muted">Aggiungi collaboratori e segreteria del tuo spazio, nel limite del pacchetto assegnato.</p>
+            <h4 style="margin-top:0;">2. Configura i luoghi prima del personale</h4>
+            <p class="text-muted">Inserisci le sedi reali del tenant e lascia vuoto il catalogo finche non hai definito i luoghi corretti. Solo dopo conviene creare personale, segreteria e infermieri.</p>
+            <?php if (!$hasLocations): ?>
+              <div class="alert alert-warning" style="margin-bottom:12px;">
+                Al momento non risulta configurato nessun luogo. Prima di aggiungere personale entra in gestione sedi e crea almeno una sede reale del tenant.
+              </div>
+            <?php endif; ?>
+            <a href="<?= site_url('agenda/gestione-sedi') ?>" class="btn btn-primary">
+              <i class="fa fa-map-marker"></i> Configura luoghi e sedi
+            </a>
+          </div>
+
+          <div class="check-card">
+            <h4 style="margin-top:0;">3. Invita il team del cliente</h4>
+            <p class="text-muted">Aggiungi collaboratori e segreteria del tuo spazio, nel limite del pacchetto assegnato, solo dopo aver configurato i luoghi.</p>
             <a href="<?= portal_tenant_space_url('utenti') ?>" class="btn btn-default btn-flat">
               <i class="fa fa-users"></i> Gestisci utenti dello spazio
             </a>
           </div>
 
           <div class="check-card">
-            <h4 style="margin-top:0;">3. Controlla moduli e verticalizzazioni</h4>
+            <h4 style="margin-top:0;">4. Controlla moduli e verticalizzazioni</h4>
             <p class="text-muted" style="margin-bottom:0;">Agenda, posta, chat e le eventuali verticalizzazioni abilitate per il tuo pacchetto saranno visibili solo nel tuo spazio.</p>
           </div>
 
           <div class="check-card">
-            <h4 style="margin-top:0;">4. Chiudi onboarding</h4>
+            <h4 style="margin-top:0;">5. Chiudi onboarding</h4>
             <p class="text-muted">Quando hai verificato che il team puo entrare e che il pacchetto e corretto, chiudi l onboarding iniziale.</p>
             <form action="<?= portal_tenant_space_url('onboarding/completa') ?>" method="post" style="display:inline-block;">
               <?= csrf_field() ?>
@@ -100,7 +116,7 @@ $tenantName = trim((string) ($tenantContext->tenantName ?? ($tenant['tenant_name
                 <i class="fa fa-check"></i> Conferma onboarding completato
               </button>
             </form>
-            <a href="<?= site_url('/') ?>" class="btn btn-default">
+            <a href="<?= portal_operational_home_url() ?>" class="btn btn-default">
               Vai alla home dello spazio
             </a>
           </div>

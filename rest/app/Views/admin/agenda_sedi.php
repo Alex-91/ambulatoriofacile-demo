@@ -75,14 +75,7 @@ $baseUrl = site_url($baseRoute);
     <section class="content">
       <div class="row">
         <div class="col-md-3">
-          <div class="box box-solid">
-            <div class="box-header with-border">
-              <h3 class="box-title">Menu</h3>
-            </div>
-            <div class="box-body no-padding">
-              <?= view('agenda/partials/menu_laterale', ['menuAgenda' => $menuAgenda ?? []]) ?>
-            </div>
-          </div>
+          <?= view('partials/sidebar_admin', ['menu_items' => $menu_items ?? []]) ?>
         </div>
 
         <div class="col-md-9">

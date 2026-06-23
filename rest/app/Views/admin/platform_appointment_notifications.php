@@ -23,9 +23,15 @@ $formatDateTime = static function (?string $value): string {
 };
 
 $typeLabels = [
-    \App\Services\AppointmentNotificationSettingsService::TYPE_PATIENT_BOOKING => 'Paziente',
-    \App\Services\AppointmentNotificationSettingsService::TYPE_DOCTOR_CROSS_BOOKING => 'Altro dottore',
-    \App\Services\AppointmentNotificationSettingsService::TYPE_REMINDER => 'Reminder',
+    \App\Services\AppointmentNotificationSettingsService::TYPE_PATIENT_BOOKING => 'Conferma appuntamento',
+    \App\Services\AppointmentNotificationSettingsService::TYPE_DOCTOR_CROSS_BOOKING => 'Da professionista a professionista',
+    \App\Services\AppointmentNotificationSettingsService::TYPE_REMINDER => 'Reminder appuntamento',
+];
+$channelMeta = [
+    'sms' => ['label' => 'SMS'],
+    'wa' => ['label' => 'WhatsApp'],
+    'email' => ['label' => 'Email'],
+    'otp' => ['label' => 'OTP'],
 ];
 ?>
 <!DOCTYPE html>
@@ -55,7 +61,7 @@ $typeLabels = [
     <section class="content-header">
       <h1>Notifiche Appuntamenti</h1>
       <p class="text-muted" style="margin:8px 0 0 0;">
-        Qui controlli in modo centralizzato canali acquistati, configurazioni dei tenant master e storico invii SMS / WhatsApp.
+        Qui controlli in modo centralizzato i canali acquistati, le configurazioni dei tenant master e lo storico invii di conferme, reminder e avvisi tra professionisti.
       </p>
     </section>
 
@@ -81,12 +87,14 @@ $typeLabels = [
           <div class="intro-box">
             <h3 style="margin-top:0; margin-bottom:8px;">Regia unica dei canali</h3>
             <p style="margin:0 0 12px 0; color:#52676c;">
-              Il master piattaforma decide quali tenant hanno acquistato `SMS` e/o `WhatsApp`. Il tenant master, dentro il suo spazio, sceglie invece per quali flussi usarli: conferma paziente, avviso cross-dottore, reminder.
+              Il master piattaforma decide quali tenant hanno acquistato SMS e/o WhatsApp. Il tenant master, dentro il suo spazio, sceglie invece per quali flussi usare SMS, WhatsApp, Email e OTP.
             </p>
             <span class="status-chip">Tenant attivi: <?= (int) ($summary['tenant_count'] ?? 0) ?></span>
             <span class="status-chip">Modulo attivo: <?= (int) ($summary['module_enabled_count'] ?? 0) ?></span>
             <span class="status-chip">Canale SMS: <?= (int) ($summary['sms_enabled_count'] ?? 0) ?></span>
             <span class="status-chip">Canale WhatsApp: <?= (int) ($summary['wa_enabled_count'] ?? 0) ?></span>
+            <span class="status-chip">Canale Email: <?= (int) ($summary['email_enabled_count'] ?? 0) ?></span>
+            <span class="status-chip">Canale OTP: <?= (int) ($summary['otp_enabled_count'] ?? 0) ?></span>
           </div>
 
           <div class="row">
@@ -159,11 +167,13 @@ $typeLabels = [
                       <option value="auto">Auto da tenant</option>
                       <option value="sms">Solo SMS</option>
                       <option value="wa">Solo WA</option>
+                      <option value="email">Solo Email</option>
+                      <option value="otp">Solo OTP</option>
                     </select>
                   </div>
                   <div class="col-md-3">
                     <label>Destinatario forzato</label>
-                    <input class="form-control" type="text" name="force_recipient" placeholder="+39333...">
+                    <input class="form-control" type="text" name="force_recipient" placeholder="+39333... oppure demo@email.it">
                   </div>
                 </div>
                 <div class="row" style="margin-top:12px;">
@@ -238,6 +248,8 @@ $typeLabels = [
                           </span><br>
                           <span class="label label-<?= !empty($availableChannels['sms']) ? 'success' : 'default' ?>">SMS</span>
                           <span class="label label-<?= !empty($availableChannels['wa']) ? 'success' : 'default' ?>">WhatsApp</span>
+                          <span class="label label-<?= !empty($availableChannels['email']) ? 'success' : 'default' ?>">Email</span>
+                          <span class="label label-<?= !empty($availableChannels['otp']) ? 'success' : 'default' ?>">OTP</span>
                         </td>
                         <td>
                           <ul class="tenant-config-list">
@@ -245,10 +257,14 @@ $typeLabels = [
                               <?php
                                 $channels = (array) ($typeRow['effective_channels'] ?? []);
                                 $label = $typeLabels[$key] ?? $key;
+                                $channelLabels = [];
+                                foreach ($channels as $channelKey) {
+                                    $channelLabels[] = $channelMeta[$channelKey]['label'] ?? strtoupper((string) $channelKey);
+                                }
                               ?>
                               <li>
                                 <?= esc($label) ?>:
-                                <?= !empty($typeRow['enabled']) ? esc(implode(' + ', $channels !== [] ? $channels : ['nessun canale'])) : 'off' ?>
+                                <?= !empty($typeRow['enabled']) ? esc(implode(' + ', $channelLabels !== [] ? $channelLabels : ['nessun canale'])) : 'off' ?>
                                 <?php if ($key === \App\Services\AppointmentNotificationSettingsService::TYPE_REMINDER): ?>
                                   (<?= (int) ($typeRow['lead_days'] ?? 0) ?> gg)
                                 <?php endif; ?>
@@ -258,7 +274,12 @@ $typeLabels = [
                         </td>
                         <td>
                           <strong><?= (int) ($tenantSummary['recent_sent'] ?? 0) ?></strong><br>
-                          <span class="text-muted">SMS <?= (int) ($tenantSummary['sms_recent'] ?? 0) ?> | WA <?= (int) ($tenantSummary['wa_recent'] ?? 0) ?></span>
+                          <span class="text-muted">
+                            SMS <?= (int) ($tenantSummary['sms_recent'] ?? 0) ?> |
+                            WA <?= (int) ($tenantSummary['wa_recent'] ?? 0) ?> |
+                            Email <?= (int) ($tenantSummary['email_recent'] ?? 0) ?> |
+                            OTP <?= (int) ($tenantSummary['otp_recent'] ?? 0) ?>
+                          </span>
                         </td>
                         <td><?= esc($formatDateTime((string) ($tenantSummary['last_sent_at'] ?? ''))) ?></td>
                         <td>
@@ -300,7 +321,7 @@ $typeLabels = [
                         <td><?= esc($formatDateTime((string) ($entry['created_at'] ?? ''))) ?></td>
                         <td><?= esc((string) ($entry['tenant_name'] ?? '')) ?></td>
                         <td><?= esc((string) ($typeLabels[$entry['message_type'] ?? ''] ?? ($entry['message_type'] ?? ''))) ?></td>
-                        <td><?= esc(strtoupper((string) ($entry['channel'] ?? ''))) ?></td>
+                        <td><?= esc((string) ($channelMeta[$entry['channel'] ?? '']['label'] ?? strtoupper((string) ($entry['channel'] ?? '')))) ?></td>
                         <td><?= esc((string) ($entry['recipient'] ?? '')) ?></td>
                         <td><?= esc((string) ($entry['patient_label'] ?? '')) ?></td>
                         <td>

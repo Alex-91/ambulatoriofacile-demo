@@ -252,8 +252,12 @@ public function storicoMemo()
         $sharedMemoManagementEnabled = $this->isSharedAgendaMemosFeatureEnabled();
 
         if ($sharedMemoManagementEnabled) {
-            $medici = $this->agendaModel->getAllAgendaProfessionals();
+            $medici = $this->getMemoDoctorOptions($this->agendaModel->getMediciVisibili($currentUserId));
             $selectedDot = max(0, (int)($this->request->getGet('id_dot') ?? 0));
+
+            if ($selectedDot > 0 && !$this->agendaModel->canUserAccessDoctor($currentUserId, $selectedDot)) {
+                $selectedDot = $this->getFirstVisibleDoctorId($medici);
+            }
         } else {
             $medici = $this->agendaModel->getMediciVisibili($currentUserId);
             $selectedDot = (int)($this->request->getGet('id_dot') ?: $this->getFirstVisibleDoctorId($medici));
@@ -609,7 +613,7 @@ public function eseguiRepairRecurringExtraSlots()
     {
         $ids = [];
 
-        foreach ($this->agendaModel->getAllAgendaProfessionals() as $doctor) {
+        foreach ($this->getSharedAgendaMemoDoctors() as $doctor) {
             $idDot = (int) ($doctor['id_dot'] ?? 0);
             if ($idDot > 0) {
                 $ids[] = $idDot;
@@ -625,10 +629,40 @@ public function eseguiRepairRecurringExtraSlots()
     /**
      * @return array<int, array<string, mixed>>
      */
+    protected function getSharedAgendaMemoDoctors(array $visibleDoctors = []): array
+    {
+        $allDoctors = $this->agendaModel->getAllAgendaProfessionals();
+        $currentUserId = $this->getCurrentUserId();
+
+        if ($currentUserId <= 0) {
+            return $allDoctors;
+        }
+
+        $filtered = [];
+        foreach ($allDoctors as $doctor) {
+            $doctorRow = is_object($doctor) ? get_object_vars($doctor) : (array) $doctor;
+            $idDot = (int) ($doctorRow['id_dot'] ?? 0);
+            if ($idDot <= 0 || !$this->agendaModel->canUserAccessDoctor($currentUserId, $idDot)) {
+                continue;
+            }
+
+            $filtered[] = $doctorRow;
+        }
+
+        if ($filtered !== []) {
+            return $filtered;
+        }
+
+        return $visibleDoctors;
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
     protected function getMemoDoctorOptions(array $visibleDoctors): array
     {
         if ($this->isSharedAgendaMemosFeatureEnabled()) {
-            return $this->agendaModel->getAllAgendaProfessionals();
+            return $this->getSharedAgendaMemoDoctors($visibleDoctors);
         }
 
         return $visibleDoctors;
@@ -645,7 +679,7 @@ public function eseguiRepairRecurringExtraSlots()
             return;
         }
 
-        if ($this->agendaModel->getAgendaProfessionalByLegacyId($idDot) === null) {
+        if (!$this->agendaModel->canUserAccessDoctor($this->getCurrentUserId(), $idDot)) {
             throw new \Exception('Medico non valido.');
         }
     }

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= esc($brandName) ?> Demo</title>
     <meta name="description" content="<?= esc($brandDescription) ?>">
-    <link rel="stylesheet" href="<?= base_url('rest/public/assets/css/demo-showcase.css') ?>">
+    <link rel="stylesheet" href="<?= base_url('public/assets/css/demo-showcase.css') ?>">
 </head>
 <body>
 <div class="demo-shell">
@@ -18,7 +18,7 @@
             <h1><?= esc($brandName) ?></h1>
             <p class="hero-copy">
                 <?= esc($brandDescription) ?>
-                La demo e una sola, usa dati separati dalla produzione e porta sempre allo stesso login operativo del prodotto.
+                La demo e una sola, usa dati separati dalla produzione e permette di entrare subito scegliendo il ruolo da vedere.
             </p>
             <p class="hero-copy hero-copy-secondary">
                 Il sito vetrina resta commerciale, la demo serve a provare il prodotto con account di test, mentre clienti e master entrano sempre dal login ufficiale.
@@ -44,7 +44,7 @@
                 <article class="detail-card feature-card">
                     <p class="status-label">Demo</p>
                     <h3>Un solo percorso prova</h3>
-                    <p class="access-note">Da qui si entra nella demo con account test gia pronti, password comune e dati finti separati dalla produzione.</p>
+                    <p class="access-note">Da qui si entra nella demo con ruoli gia pronti, accesso diretto e dati finti separati dalla produzione.</p>
                 </article>
                 <article class="detail-card feature-card">
                     <p class="status-label">Produzione</p>
@@ -135,12 +135,18 @@
         <section class="panel panel-access">
             <div class="panel-head">
                 <p class="eyebrow">Account demo</p>
-                <h2>Lista pronta per provare tutto</h2>
+                <h2>Ruoli pronti per provare tutto</h2>
             </div>
             <div class="note-box">
-                <p>Password demo comune: <strong><?= esc((string) ($demoCredentials['password'] ?? 'Demo2026')) ?></strong></p>
-                <p>Quando un account o un alias richiede OTP, usa sempre <strong><?= esc((string) ($demoCredentials['otp'] ?? '2510')) ?></strong>.</p>
-                <p>Tutti gli account qui sotto aprono lo stesso form di accesso sotto <strong>/login</strong>.</p>
+                <?php if (!empty($demoPublicAccessEnabled)): ?>
+                    <p>Ogni card qui sotto apre subito la vista del ruolo selezionato.</p>
+                    <p>Dentro la demo puoi poi cambiare ruolo dal menu utente senza ripartire dal form di login.</p>
+                    <p>La base dati resta sempre separata dalla produzione.</p>
+                <?php else: ?>
+                    <p>Password demo comune: <strong><?= esc((string) ($demoCredentials['password'] ?? 'Demo2026')) ?></strong></p>
+                    <p>Quando un account o un alias richiede OTP, usa sempre <strong><?= esc((string) ($demoCredentials['otp'] ?? '2510')) ?></strong>.</p>
+                    <p>Tutti gli account qui sotto aprono lo stesso form di accesso sotto <strong>/login</strong>.</p>
+                <?php endif; ?>
             </div>
 
             <?php foreach ((array) ($demoAccountGroups ?? []) as $group): ?>
@@ -154,14 +160,18 @@
                             <article class="access-card">
                                 <div class="access-card-topline">
                                     <p class="status-label"><?= esc((string) ($account['role'] ?? 'Account demo')) ?></p>
-                                    <?php if ((string) ($account['otp'] ?? '') !== ''): ?>
+                                    <?php if (empty($demoPublicAccessEnabled) && (string) ($account['otp'] ?? '') !== ''): ?>
                                         <span class="status-pill status-pill-warning">OTP <?= esc((string) $account['otp']) ?></span>
                                     <?php endif; ?>
                                 </div>
-                                <h3><?= esc((string) ($account['username'] ?? '')) ?></h3>
-                                <p class="access-note"><?= esc((string) ($account['label'] ?? '')) ?></p>
+                                <h3><?= esc((string) ($account['label'] ?? ($account['username'] ?? ''))) ?></h3>
+                                <?php if (empty($demoPublicAccessEnabled)): ?>
+                                    <p class="access-note"><?= esc((string) ($account['username'] ?? '')) ?></p>
+                                <?php endif; ?>
                                 <p class="access-note"><?= esc((string) ($account['note'] ?? '')) ?></p>
-                                <p class="access-secret">Password: <strong><?= esc((string) ($account['password'] ?? '')) ?></strong></p>
+                                <?php if (empty($demoPublicAccessEnabled)): ?>
+                                    <p class="access-secret">Password: <strong><?= esc((string) ($account['password'] ?? '')) ?></strong></p>
+                                <?php endif; ?>
                                 <?php if (!empty($account['scenarios']) && is_array($account['scenarios'])): ?>
                                     <div class="chip-row">
                                         <?php foreach ($account['scenarios'] as $scenario): ?>
@@ -170,7 +180,11 @@
                                     </div>
                                 <?php endif; ?>
                                 <div class="card-actions">
-                                    <a class="btn btn-secondary btn-inline" href="<?= esc((string) ($account['login_url'] ?? ($demoCredentials['login_url'] ?? site_url('login')))) ?>">Apri /login precompilato</a>
+                                    <?php if (!empty($demoPublicAccessEnabled)): ?>
+                                        <a class="btn btn-primary btn-inline" href="<?= esc((string) ($account['entry_url'] ?? ($demoCredentials['direct_access_url'] ?? site_url('access')))) ?>">Entra come questo ruolo</a>
+                                    <?php else: ?>
+                                        <a class="btn btn-secondary btn-inline" href="<?= esc((string) ($account['login_url'] ?? ($demoCredentials['login_url'] ?? site_url('login')))) ?>">Apri /login precompilato</a>
+                                    <?php endif; ?>
                                 </div>
                             </article>
                         <?php endforeach; ?>

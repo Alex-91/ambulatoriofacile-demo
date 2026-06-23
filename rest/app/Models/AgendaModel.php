@@ -5,6 +5,7 @@ namespace App\Models;
 use CodeIgniter\Model;
 use App\Libraries\Crypto_helper;
 use App\Libraries\DatabaseConfig;
+use App\Services\DemoAccessService;
 
 class AgendaModel extends Model
 {
@@ -273,8 +274,18 @@ private function getAgendaProfessionalsBuilder(): \CodeIgniter\Database\BaseBuil
 {
     $nomeExpr = $this->decryptCharExpr('p.nome');
     $cognomeExpr = $this->decryptCharExpr('p.cognome');
+    $usernameExpr = "LOWER(COALESCE(u.username, ''))";
+    $labelExpr = "
+        CASE {$usernameExpr}
+            WHEN 'demo.dietista' THEN 'Professionista1'
+            WHEN 'demo.nutrizionista' THEN 'Professionista2'
+            WHEN 'demo.nutrizionista2' THEN 'Professionista3'
+            ELSE TRIM(CONCAT(TRIM(COALESCE({$cognomeExpr}, '')), ' ', TRIM(COALESCE({$nomeExpr}, ''))))
+        END
+    ";
 
     $builder = $this->db->table('dap03_personale p')
+        ->join('dap01_users u', 'u.id_user = p.id_user', 'left')
         ->select("
             p.id_personale,
             p.id_user,
@@ -284,6 +295,7 @@ private function getAgendaProfessionalsBuilder(): \CodeIgniter\Database\BaseBuil
             COALESCE(p.f_dom, 0) AS f_dom,
             {$nomeExpr} AS nome,
             {$cognomeExpr} AS cognome,
+            COALESCE(u.username, '') AS username,
             CASE p.tipo
                 WHEN 4 THEN 1
                 WHEN 3 THEN 2
@@ -291,7 +303,7 @@ private function getAgendaProfessionalsBuilder(): \CodeIgniter\Database\BaseBuil
                 WHEN 2 THEN 5
                 ELSE 0
             END AS id_ruo,
-            CONCAT(TRIM({$cognomeExpr}), ' ', TRIM({$nomeExpr})) AS label
+            {$labelExpr} AS label
         ", false)
         ->whereIn('p.tipo', [1, 2])
         ->where('p.legacy_id_dot IS NOT NULL', null, false)
@@ -1318,7 +1330,27 @@ public function hasFullAgendaVisibility(int $idUser): bool
 
 private function hasFullAgendaDoctorVisibility(int $idUser): bool
 {
+    if ($this->shouldUseScopedDemoDoctorVisibility()) {
+        return false;
+    }
+
     return $this->hasFullAgendaVisibility($idUser);
+}
+
+private function shouldUseScopedDemoDoctorVisibility(): bool
+{
+    $current = session()->get(DemoAccessService::SESSION_KEY_CURRENT);
+    if (!is_array($current)) {
+        return false;
+    }
+
+    $username = strtolower(trim((string) ($current['username'] ?? '')));
+
+    return in_array($username, [
+        'demo.segreteria',
+        'demo.tenant.agenda',
+        'demo.tenant.user',
+    ], true);
 }
 
 private function getFarDoctorIdsFromLegacyVisibility(int $idUser): array

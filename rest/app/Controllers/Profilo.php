@@ -5,7 +5,6 @@ namespace App\Controllers;
 use App\Models\ClientsModel;
 use App\Models\ClientDoctorModel;
 use App\Models\PersonaleModel;
-use App\Models\GruppoModel;
 use App\Models\SchedeModel;
 use App\Models\PushSubscriptionModel;
 use App\Models\AuthCodeModel;
@@ -13,6 +12,7 @@ use App\Libraries\Crypto_helper;
 use App\Libraries\SmsSender;
 use App\Services\NotificationService;
 use App\Services\OtpDeliveryLogService;
+use App\Services\StaffLocationCatalogService;
 class Profilo extends BaseController
 {
     public function index()
@@ -25,7 +25,7 @@ class Profilo extends BaseController
     $clients   = new ClientsModel();
     $personale = new PersonaleModel();
     $cd        = new ClientDoctorModel();
-    $gruppoM   = new GruppoModel();
+    $locationCatalog = new StaffLocationCatalogService();
 
     // =========================
     // 1) PROVO CLIENTE (PAZIENTE)
@@ -56,8 +56,7 @@ class Profilo extends BaseController
             return redirect()->back()->with('error', 'Profilo non trovato.');
         }
 
-        // gruppi per select da dap21_gruppo
-        $gruppi = $gruppoM->orderBy('nome', 'ASC')->findAll();
+        $gruppi = $locationCatalog->listSelectableLocations();
     }
 
     // =========================

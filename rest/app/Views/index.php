@@ -22,7 +22,18 @@
     // badge da sessione (Home::refreshHeaderSession li salva sempre)
     $badgePosta = (int) (session()->get('badge_posta_unread') ?? 0);
     $badgeChat  = (int) (session()->get('badge_chat_unread')  ?? 0);
-    //echo session()->get('badge_posta_unread');
+    $demoCurrentAccount = session()->get(\App\Services\DemoAccessService::SESSION_KEY_CURRENT);
+    $currentSessionUsername = trim((string) (session()->get('username') ?? ''));
+    $demoSessionUsername = is_array($demoCurrentAccount)
+      ? trim((string) ($demoCurrentAccount['session_username'] ?? $demoCurrentAccount['username'] ?? ''))
+      : '';
+    $showDemoRoleButton = is_array($demoCurrentAccount)
+      && $currentSessionUsername !== ''
+      && $demoSessionUsername !== ''
+      && strcasecmp($currentSessionUsername, $demoSessionUsername) === 0;
+    $demoAccessUrl = $showDemoRoleButton
+      ? trim((string) ($demoCurrentAccount['access_url'] ?? site_url('access')))
+      : '';
   ?>
 
   <style>
@@ -123,7 +134,7 @@
   }
 }
 
-  .btn-profilo{
+.btn-profilo{
   display:inline-flex;
   align-items:center;
   gap:6px;
@@ -144,9 +155,35 @@
   outline-offset: 2px;
 }
 
+  .btn-demo-switch{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:8px 12px;
+  border-radius:10px;
+  font-size:13px;
+  font-weight:700;
+  text-decoration:none;
+  color:#fff;
+  background:#2c8895;
+  white-space:nowrap;
+  user-select:none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.btn-demo-switch:focus{
+  outline: 2px solid #2c889555;
+  outline-offset: 2px;
+}
+
 @media (max-width: 420px){
   .btn-profilo{
     width:100%;              /* su mobile bottone full width */
+    justify-content:center;
+  }
+
+  .btn-demo-switch{
+    width:100%;
     justify-content:center;
   }
 }
@@ -158,8 +195,14 @@
 <body>
   <div class="container" style="margin-top:0px">
     <div class="wrapper">
-      <div class="topbar">
+<div class="topbar">
   <div class="title" aria-label="<?= esc('AmbulatorioFacile') ?>"><?= esc('AmbulatorioFacile') ?></div>
+<?php if ($showDemoRoleButton && $demoAccessUrl !== ''): ?>
+  <a class="btn-demo-switch" href="<?= esc($demoAccessUrl) ?>" aria-label="Cambia ruolo demo">
+    <i class="fa fa-random"></i>
+    Cambia ruolo demo
+  </a>
+<?php endif; ?>
 <a class="btn-profilo" href="<?= site_url('profilo') ?>" aria-label="Vai al profilo">
     <i class="fa fa-sign-out-alt"></i>
     Profilo

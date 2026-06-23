@@ -2,6 +2,7 @@
 
 namespace App\Controllers;
 
+use App\Services\DemoAccessService;
 use CodeIgniter\Controller;
 
 class DemoController extends Controller
@@ -16,25 +17,7 @@ class DemoController extends Controller
 
     public function index()
     {
-        $runtimeReport = $this->loadLatestReport('demo_runtime_*.json');
-        $seedReport = $this->loadLatestReport('demo_seed_*.json');
-        $isLocal = $this->isLocalHost();
-        $demoAccounts = $this->demoAccounts($seedReport);
-
-        return view('demo/showcase', [
-            'brandName' => 'AmbulatorioFacile',
-            'brandDescription' => 'Piattaforma operativa per prenotazioni, comunicazione e notifiche.',
-            'runtimeStatus' => $this->buildRuntimeStatus($runtimeReport),
-            'seedStatus' => $this->buildSeedStatus($seedReport),
-            'demoAccounts' => $demoAccounts,
-            'demoAccountGroups' => $this->demoAccountGroups($demoAccounts),
-            'demoCredentials' => $this->demoCredentialsSummary($seedReport),
-            'demoChecklist' => $this->demoChecklist(),
-            'showLocalAccess' => $isLocal,
-            'showTechnicalStatus' => $isLocal,
-            'commercialHighlights' => $this->commercialHighlights(),
-            'commercialPackages' => $this->commercialPackages(),
-        ]);
+        return $this->access();
     }
 
     public function vertical(string $profileId)
@@ -46,7 +29,9 @@ class DemoController extends Controller
     {
         $seedReport = $this->loadLatestReport('demo_seed_*.json');
         $isLocal = $this->isLocalHost();
+        $demoAccess = new DemoAccessService();
         $demoAccounts = $this->demoAccounts($seedReport);
+        $feedback = session()->getFlashdata('demo_access_feedback');
 
         return view('demo/access', [
             'brandName' => 'AmbulatorioFacile',
@@ -59,6 +44,8 @@ class DemoController extends Controller
             'seedStatus' => $this->buildSeedStatus($seedReport),
             'demoCredentials' => $this->demoCredentialsSummary($seedReport),
             'demoChecklist' => $this->demoChecklist(),
+            'demoAccessFeedback' => is_array($feedback) ? $feedback : null,
+            'demoPublicAccessEnabled' => $demoAccess->isPublicAccessEnabled(),
         ]);
     }
 
@@ -325,80 +312,16 @@ class DemoController extends Controller
     {
         $password = (string) ($seedReport['password'] ?? 'Demo2026');
         $seedLabels = $this->demoAccountLabels($seedReport);
-
-        $accounts = [
-            [
-                'group_key' => 'main',
-                'group_title' => 'Accessi principali',
-                'group_note' => 'Questi sono gli account da usare per provare il flusso demo standard di AmbulatorioFacile.',
-                'role' => 'Admin demo',
-                'username' => 'demo.admin',
-                'label' => 'Admin demo Conti Giulia',
-                'note' => 'Ideale per aprire la demo, spiegare moduli, ruoli e verificare le funzioni di base dello spazio.',
-                'otp' => '',
-                'scenarios' => ['ruoli e moduli', 'configurazione studio', 'verifiche finali'],
-            ],
-            [
-                'group_key' => 'main',
-                'group_title' => 'Accessi principali',
-                'group_note' => 'Questi sono gli account da usare per provare il flusso demo standard di AmbulatorioFacile.',
-                'role' => 'Segreteria',
-                'username' => 'demo.segreteria',
-                'label' => 'Segreteria Colombo Sara',
-                'note' => 'Perfetto per mostrare agenda del giorno, conferme, spostamenti, memo e presa appuntamenti per altri dottori.',
-                'otp' => '2510',
-                'scenarios' => ['agenda operativa', 'cross booking', 'reminder'],
-            ],
-            [
-                'group_key' => 'main',
-                'group_title' => 'Accessi principali',
-                'group_note' => 'Questi sono gli account da usare per provare il flusso demo standard di AmbulatorioFacile.',
-                'role' => 'Dietista con OTP',
-                'username' => 'demo.dietista',
-                'label' => 'Dietista Rossi Elena',
-                'note' => 'Mostra il lato professionista con MFA, agenda personale, messaggi e continuita del percorso paziente.',
-                'otp' => '2510',
-                'scenarios' => ['accesso MFA', 'agenda dottore', 'messaggi e follow-up'],
-            ],
-            [
-                'group_key' => 'main',
-                'group_title' => 'Accessi principali',
-                'group_note' => 'Questi sono gli account da usare per provare il flusso demo standard di AmbulatorioFacile.',
-                'role' => 'Collaboratrice',
-                'username' => 'demo.nutrizionista',
-                'label' => 'Biologa nutrizionista Riva Marta',
-                'note' => 'Utile per provare visibilita differenziate, presa appuntamenti interna e convivenza tra piu professionisti.',
-                'otp' => '',
-                'scenarios' => ['secondo professionista', 'permessi differenziati', 'agenda condivisa'],
-            ],
-            [
-                'group_key' => 'main',
-                'group_title' => 'Accessi principali',
-                'group_note' => 'Questi sono gli account da usare per provare il flusso demo standard di AmbulatorioFacile.',
-                'role' => 'Portale paziente',
-                'username' => 'demo.portal.nutri',
-                'label' => 'Bianchi Laura',
-                'note' => 'Serve per far vedere il lato paziente e completare la demo con accesso esterno controllato.',
-                'otp' => '',
-                'scenarios' => ['portale paziente', 'continuita', 'accesso esterno'],
-            ],
-            [
-                'group_key' => 'quick',
-                'group_title' => 'Accessi rapidi demo',
-                'group_note' => 'Alias pronti per entrare al volo nelle viste operative senza perdere tempo in presentazione.',
-                'role' => 'Accesso rapido',
-                'username' => 'demo.admin->demo.segreteria',
-                'label' => 'Accesso rapido segreteria',
-                'note' => 'La scorciatoia piu utile per passare subito alla vista segreteria durante la demo commerciale.',
-                'otp' => '2510',
-                'scenarios' => ['demo veloce', 'vista segreteria', 'agenda e conferme'],
-            ],
-        ];
+        $demoAccess = new DemoAccessService();
+        $accounts = $demoAccess->presentationAccounts();
 
         foreach ($accounts as $index => $account) {
             $username = (string) ($account['username'] ?? '');
-            $accounts[$index]['password'] = $password;
-            $accounts[$index]['login_url'] = $this->demoLoginUrl($username, self::UNIFIED_DEMO_KEY);
+            $loginUsername = trim((string) ($account['login_username'] ?? $username));
+            $accounts[$index]['password'] = (string) ($account['login_password'] ?? $password);
+            $accounts[$index]['login_url'] = $this->demoLoginUrl($loginUsername, self::UNIFIED_DEMO_KEY);
+            $accounts[$index]['entry_url'] = $demoAccess->buildEntryUrl($username);
+            $accounts[$index]['direct_access_enabled'] = $demoAccess->isPublicAccessEnabled();
             if ($username !== '' && array_key_exists($username, $seedLabels)) {
                 $accounts[$index]['label'] = $seedLabels[$username];
             }
@@ -441,6 +364,8 @@ class DemoController extends Controller
      */
     private function demoCredentialsSummary(?array $seedReport): array
     {
+        $demoAccess = new DemoAccessService();
+
         return [
             'password' => (string) ($seedReport['password'] ?? 'Demo2026'),
             'otp' => '2510',
@@ -449,6 +374,8 @@ class DemoController extends Controller
             'demo_home_url' => site_url('/'),
             'demo_access_url' => site_url('access'),
             'demo_request_url' => site_url('richiesta'),
+            'direct_access_enabled' => $demoAccess->isPublicAccessEnabled(),
+            'direct_access_url' => $demoAccess->accessLandingUrl(),
         ];
     }
 
@@ -1341,29 +1268,39 @@ class DemoController extends Controller
     {
         return [
             [
-                'title' => 'Ingresso generale',
-                'username' => 'demo.admin',
-                'goal' => 'Apri moduli, ruoli, configurazioni e controlla che la base comune della piattaforma sia completa.',
+                'title' => 'Tenant master',
+                'username' => 'demo.tenant.master',
+                'goal' => 'Apri lo spazio cliente demo senza login, verifica funzioni attivabili e gestione utenti del tenant.',
             ],
             [
-                'title' => 'Vista segreteria veloce',
-                'username' => 'demo.admin->demo.segreteria',
-                'goal' => 'Mostra agenda del giorno, ricerca disponibilita, inserimento appuntamento per un altro dottore e note operative.',
+                'title' => 'Agenda condivisa',
+                'username' => 'demo.tenant.agenda',
+                'goal' => 'Apri direttamente la nuova vista Giorno Team e fai vedere subito l agenda condivisa con 3 professionisti nello stesso studio.',
             ],
             [
-                'title' => 'Vista segreteria diretta',
+                'title' => 'Segreteria',
                 'username' => 'demo.segreteria',
-                'goal' => 'Controlla conferme, reminder, blocchi giornata e comportamento delle funzioni condivise.',
+                'goal' => 'Mostra agenda del giorno, presa appuntamenti, posta segreteria e chat operativa interna.',
             ],
             [
-                'title' => 'Vista professionista con OTP',
+                'title' => 'Dottore',
                 'username' => 'demo.dietista',
-                'goal' => 'Verifica MFA, agenda per singolo dottore, memo, posta e notifiche ricevute quando altri prenotano per lui.',
+                'goal' => 'Verifica agenda professionista, posta dottore, chat interna e continuita del percorso paziente.',
             ],
             [
-                'title' => 'Secondo professionista',
-                'username' => 'demo.nutrizionista',
-                'goal' => 'Prova visibilita differenziate, presa appuntamenti interna e convivenza tra piu professionisti.',
+                'title' => 'Paziente',
+                'username' => 'demo.portal.nutri',
+                'goal' => 'Chiudi il giro dal lato paziente per provare area personale e posta lato utente finale.',
+            ],
+            [
+                'title' => 'Admin demo',
+                'username' => 'demo.admin',
+                'goal' => 'Controlla la vista generale moduli, configurazioni e base comune del prodotto.',
+            ],
+            [
+                'title' => 'Percorso sport e rehab',
+                'username' => 'demo.frontdesk.sport',
+                'goal' => 'Apri il secondo scenario demo per mostrare che la stessa base regge un centro con front desk e operatori dedicati.',
             ],
             [
                 'title' => 'Portale paziente',

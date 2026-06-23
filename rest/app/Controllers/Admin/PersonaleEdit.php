@@ -6,6 +6,7 @@ use App\Controllers\BaseController;
 use App\Models\PersonaleModel;
 use App\Models\UsersModel;
 use App\Services\DoctorDeletionService;
+use App\Services\StaffLocationCatalogService;
 use App\Services\StaffDoctorLinkService;
 
 class PersonaleEdit extends BaseController
@@ -111,11 +112,7 @@ class PersonaleEdit extends BaseController
             ];
         }, $tipi);
 
-        // options LUOGO (dap21_gruppo)
-        $gruppi = $db->table('dap21_gruppo')
-            ->select('id_gruppo, nome')
-            ->orderBy('nome', 'ASC')
-            ->get()->getResultArray();
+        $gruppi = (new StaffLocationCatalogService($db))->listSelectableLocations();
 
         $gruppiOut = array_map(static function($g){
             return [
