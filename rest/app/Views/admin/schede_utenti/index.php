@@ -40,7 +40,7 @@ function hasErr($k, $errors) { return !empty($errors[$k]); }
 
   <div class="content-wrapper">
     <section class="content-header">
-      <h1>Gestione Schede Utenti</h1>
+      <h1>Gestione Menu Utenti</h1>
       <ol class="breadcrumb">
         <li><a href="<?= site_url('admin') ?>"><i class="fa fa-dashboard"></i> Home</a></li>
         <li class="active">Schede Utenti</li>
@@ -95,7 +95,7 @@ function hasErr($k, $errors) { return !empty($errors[$k]); }
           <!-- BOX GESTIONE SCHEDE -->
           <div class="box box-success" id="schedeBox" style="display:none;">
             <div class="box-header with-border">
-              <h3 class="box-title"><i class="fa fa-th-large"></i> Schede abilitate / disabilitate</h3>
+              <h3 class="box-title"><i class="fa fa-th-large"></i> Schede home utente</h3>
             </div>
 
             <div class="box-body">
@@ -135,6 +135,41 @@ function hasErr($k, $errors) { return !empty($errors[$k]); }
                 </table>
               </div>
 
+            </div>
+          </div>
+
+          <div class="box box-warning" id="adminMenuBox" style="display:none;">
+            <div class="box-header with-border">
+              <h3 class="box-title"><i class="fa fa-sitemap"></i> Menu admin e console</h3>
+            </div>
+
+            <div class="box-body">
+              <div class="actions-bar" id="adminMenuActionsBar">
+                <button class="btn btn-success btn-sm" id="mostraTuttoMenuAdmin">
+                  <i class="fa fa-eye"></i> Mostra tutte
+                </button>
+                <button class="btn btn-warning btn-sm" id="nascondiTuttoMenuAdmin">
+                  <i class="fa fa-eye-slash"></i> Nascondi tutte
+                </button>
+                <span class="mini-muted" style="margin-left:10px;">
+                  Qui controlli le voci del menu operativo/admin visibili all utente selezionato.
+                </span>
+              </div>
+
+              <div class="table-responsive">
+                <table class="table table-bordered table-hover" id="tblAdminMenu">
+                  <thead>
+                    <tr>
+                      <th style="width:180px;">Gruppo</th>
+                      <th>Titolo</th>
+                      <th>Link logico</th>
+                      <th>Descrizione</th>
+                      <th style="width:140px;" class="text-center">Mostra</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
             </div>
           </div>
 
@@ -186,6 +221,9 @@ function hasErr($k, $errors) { return !empty($errors[$k]); }
     $('#schedeBox').hide();
     $('#actionsBar').hide();
     $('#tblSchede tbody').empty();
+    $('#adminMenuBox').hide();
+    $('#adminMenuActionsBar').hide();
+    $('#tblAdminMenu tbody').empty();
   }
 
   function renderTable(list){
@@ -221,6 +259,32 @@ function hasErr($k, $errors) { return !empty($errors[$k]); }
     });
   }
 
+  function renderAdminMenuTable(list){
+    var $tb = $('#tblAdminMenu tbody').empty();
+
+    (list || []).forEach(function(item){
+      var checked = (parseInt(item.can_view, 10) === 1) ? 'checked' : '';
+      var pill = (parseInt(item.can_view, 10) === 1)
+        ? '<span class="pill pill-ok">SI</span>'
+        : '<span class="pill pill-no">NO</span>';
+
+      $tb.append(
+        '<tr class="admin-menu-row" data-menu-key="' + escHtml(item.menu_key) + '">' +
+          '<td>' + escHtml(item.gruppo || '') + '</td>' +
+          '<td><strong>' + escHtml(item.titolo || '') + '</strong></td>' +
+          '<td><code>' + escHtml(item.menu_link || '') + '</code></td>' +
+          '<td><small>' + escHtml(item.descrizione || '') + '</small></td>' +
+          '<td class="text-center">' +
+            '<div style="display:flex;justify-content:center;gap:10px;align-items:center;">' +
+              '<input type="checkbox" class="toggle-admin-menu" ' + checked + '>' +
+              pill +
+            '</div>' +
+          '</td>' +
+        '</tr>'
+      );
+    });
+  }
+
   function loadSchede(id_user){
     clearAlert();
     $.get("<?= site_url('admin/schede-utenti/lista'); ?>", { id_user: id_user })
@@ -235,6 +299,23 @@ function hasErr($k, $errors) { return !empty($errors[$k]); }
       })
       .fail(function(){
         showAlert('danger', 'Errore di rete nel caricamento schede');
+      });
+  }
+
+  function loadAdminMenu(id_user){
+    clearAlert();
+    $.get("<?= site_url('admin/schede-utenti/menu-admin'); ?>", { id_user: id_user })
+      .done(function(res){
+        if(!res || !res.ok){
+          return showAlert('danger', (res && res.error) ? res.error : 'Errore caricamento menu admin');
+        }
+
+        renderAdminMenuTable(res.menu_admin || []);
+        $('#adminMenuBox').show();
+        $('#adminMenuActionsBar').show();
+      })
+      .fail(function(){
+        showAlert('danger', 'Errore di rete nel caricamento menu admin');
       });
   }
 
@@ -291,6 +372,56 @@ function hasErr($k, $errors) { return !empty($errors[$k]); }
     next();
   }
 
+  function toggleAdminMenu(menuKey, value){
+    $.post("<?= site_url('admin/schede-utenti/menu-admin/toggle'); ?>", {
+      id_user: CURRENT_USER.id_user,
+      menu_key: menuKey,
+      value: value
+    })
+    .done(function(res){
+      if(!res || !res.ok){
+        showAlert('danger', (res && res.error) ? res.error : 'Errore salvataggio menu admin');
+        if(CURRENT_USER) loadAdminMenu(CURRENT_USER.id_user);
+        return;
+      }
+
+      if(res.updated){
+        var u = res.updated;
+        var $tr = $('#tblAdminMenu tr[data-menu-key="' + menuKey.replace(/"/g, '&quot;') + '"]');
+        $tr.find('.toggle-admin-menu').prop('checked', parseInt(u.can_view, 10) === 1);
+
+        var pill = (parseInt(u.can_view, 10) === 1)
+          ? '<span class="pill pill-ok">SI</span>'
+          : '<span class="pill pill-no">NO</span>';
+
+        $tr.find('td:eq(4) .pill').last().replaceWith(pill);
+      }
+    })
+    .fail(function(){
+      showAlert('danger', 'Errore di rete nel salvataggio menu admin');
+      if(CURRENT_USER) loadAdminMenu(CURRENT_USER.id_user);
+    });
+  }
+
+  function bulkSetAdminMenu(value){
+    if(!CURRENT_USER) return showAlert('warning', 'Prima seleziona un utente');
+
+    var rows = $('#tblAdminMenu tbody tr').toArray();
+    var i = 0;
+
+    function next(){
+      if(i >= rows.length) return;
+      var menuKey = String($(rows[i]).data('menu-key') || '');
+      i++;
+      if(menuKey !== ''){
+        toggleAdminMenu(menuKey, value);
+      }
+      setTimeout(next, 30);
+    }
+
+    next();
+  }
+
   // submit ricerca utente
   $('#searchForm').on('submit', function(e){
     e.preventDefault();
@@ -311,11 +442,12 @@ function hasErr($k, $errors) { return !empty($errors[$k]); }
         CURRENT_USER = res.user;
 
         $('#utenteSelezionato').html(
-          'Utente2: <b>'+escHtml(CURRENT_USER.username)+'</b> '+
+          'Utente: <b>'+escHtml(CURRENT_USER.username)+'</b> '+
           '<span class="label label-info">ID '+escHtml(CURRENT_USER.id_user)+'</span>'
         );
 
         loadSchede(CURRENT_USER.id_user);
+        loadAdminMenu(CURRENT_USER.id_user);
       })
       .fail(function(){
         showAlert('danger', 'Errore di rete nella ricerca utente');
@@ -340,6 +472,20 @@ function hasErr($k, $errors) { return !empty($errors[$k]); }
   $('#disabilitaTutteView').on('click', function(){ bulkSet('can_view', 0); });
   $('#abilitaTutteAccess').on('click', function(){ bulkSet('can_access', 1); });
   $('#disabilitaTutteAccess').on('click', function(){ bulkSet('can_access', 0); });
+  $('#mostraTuttoMenuAdmin').on('click', function(){ bulkSetAdminMenu(1); });
+  $('#nascondiTuttoMenuAdmin').on('click', function(){ bulkSetAdminMenu(0); });
+
+  $('#tblAdminMenu').on('change', '.toggle-admin-menu', function(){
+    if(!CURRENT_USER){
+      $(this).prop('checked', !$(this).prop('checked'));
+      return showAlert('warning', 'Prima cerca e seleziona un utente');
+    }
+
+    var $tr = $(this).closest('tr');
+    var menuKey = String($tr.data('menu-key') || '');
+    var value = $(this).is(':checked') ? 1 : 0;
+    toggleAdminMenu(menuKey, value);
+  });
 
 })();
 </script>

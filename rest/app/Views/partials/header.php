@@ -3,6 +3,14 @@ helper('admin_menu');
 helper('portal');
 
 $sess = session();
+$headerMenuUserId = (int) ($sess->get('id_user') ?? 0);
+if ($headerMenuUserId <= 0) {
+    $headerSessionUser = $sess->get('utente_sess');
+    if (is_object($headerSessionUser) && !empty($headerSessionUser->id_user)) {
+        $headerMenuUserId = (int) $headerSessionUser->id_user;
+    }
+}
+$headerMenuVisibility = new \App\Services\AdminMenuVisibilityService();
 
 /* fallback da sessione */
 $badgePosta = (int) ($sess->get('badge_posta_unread') ?? 0);
@@ -61,6 +69,8 @@ $isTenantOperationalConsoleSession = $tenantId > 0 && in_array($tenantRole, ['te
 $hideHeaderMenu = str_starts_with($currentPath, 'admin') || $isTenantOperationalConsoleSession;
 $tenantFeatureFlags = is_array($tenantContext) ? (array)($tenantContext['feature_flags'] ?? []) : [];
 $chatFeatureEnabled = $tenantId <= 0 || !empty($tenantFeatureFlags['chat']);
+$isChatRoute = $currentPath === 'chat' || str_starts_with($currentPath, 'chat/');
+$chatUiActive = $chatFeatureEnabled && $isChatRoute;
 $platformTenants = $sess->get('platform_selectable_tenants');
 $platformTenants = is_array($platformTenants) ? $platformTenants : [];
 $platformTenantCount = count($platformTenants);
@@ -241,6 +251,10 @@ if (!$chatFeatureEnabled && !empty($navItems) && is_array($navItems)) {
         return !str_contains($link, 'chat') && !str_contains($title, 'chat');
     }));
 }
+
+if ($headerMenuUserId > 0) {
+    $navItems = $headerMenuVisibility->filterMenuRowsForUser($navItems, $headerMenuUserId);
+}
 ?>
 
 <?php foreach ($navItems as $item): ?>
@@ -257,7 +271,8 @@ if (!$chatFeatureEnabled && !empty($navItems) && is_array($navItems)) {
         <?= esc($itemTitle) ?>
 
         <?php $isChat = str_contains(strtolower($itemLink), 'chat') || str_contains(strtolower($itemTitle), 'chat'); ?>
-<?php if (!empty($item['badge']) && (int)$item['badge'] > 0): ?>
+        <?php $showItemBadge = !$isChat || $chatUiActive; ?>
+<?php if ($showItemBadge && !empty($item['badge']) && (int)$item['badge'] > 0): ?>
   <span class="label label-success"
         <?= $isChat ? 'id="chatBadge"' : '' ?>
         style="position:absolute; top:-10px; right:-18px; font-size:9px; padding:2px 3px; line-height:.9;">
@@ -283,12 +298,13 @@ if (!$chatFeatureEnabled && !empty($navItems) && is_array($navItems)) {
         $itemIcon = admin_menu_resolve_icon((string)($item['fa_icon'] ?? ''), $itemTitle, $itemLink);
         $itemHref = $navItemsUseAdminResolver ? admin_menu_resolve_href($itemLink) : site_url($itemLink);
         $isChat = str_contains(strtolower($itemLink), 'chat') || str_contains(strtolower($itemTitle), 'chat');
+        $showItemBadge = !$isChat || $chatUiActive;
       ?>
       <li style="position:relative;">
         <a href="<?= esc($itemHref) ?>">
           <i class="fa <?= esc($itemIcon) ?>"></i> <?= esc($itemTitle) ?>
 
-          <?php if (!empty($item['badge']) && (int)$item['badge'] > 0): ?>
+          <?php if ($showItemBadge && !empty($item['badge']) && (int)$item['badge'] > 0): ?>
             <span class="label label-success"
                   <?= $isChat ? 'id="chatBadgeMobile"' : '' ?>
                   style="position:absolute; right:12px; top:10px; font-size:9px; padding:2px 3px; line-height:.9;">
@@ -412,28 +428,40 @@ if (!$chatFeatureEnabled && !empty($navItems) && is_array($navItems)) {
                 </a>
               </div>
               <?php endif; ?>
-              <?php if (!$useMinimalTenantOnboardingHeader && $canManageTenantUsers): ?>
+              <?php if (
+                  !$useMinimalTenantOnboardingHeader
+                  && $canManageTenantUsers
+                  && ($headerMenuUserId <= 0 || $headerMenuVisibility->canUserSeeMenuLink($headerMenuUserId, 'spazio/utenti'))
+              ): ?>
               <div class="platform-user-section">
                 <a href="<?= portal_tenant_space_url('utenti') ?>" class="btn btn-default btn-flat platform-user-action">
                   <i class="fa fa-users"></i> Gestisci utenti dello spazio
                 </a>
               </div>
               <?php endif; ?>
-              <?php if (!$useMinimalTenantOnboardingHeader && $canManageTenantFeatures): ?>
+              <?php if (
+                  !$useMinimalTenantOnboardingHeader
+                  && $canManageTenantFeatures
+                  && ($headerMenuUserId <= 0 || $headerMenuVisibility->canUserSeeMenuLink($headerMenuUserId, 'spazio/funzioni'))
+              ): ?>
               <div class="platform-user-section">
                 <a href="<?= portal_tenant_space_url('funzioni') ?>" class="btn btn-default btn-flat platform-user-action">
                   <i class="fa fa-toggle-on"></i> Gestisci funzioni dello spazio
                 </a>
               </div>
               <?php endif; ?>
-              <?php if (!$useMinimalTenantOnboardingHeader && $canManageAppointmentNotifications): ?>
+              <?php if (
+                  !$useMinimalTenantOnboardingHeader
+                  && $canManageAppointmentNotifications
+                  && ($headerMenuUserId <= 0 || $headerMenuVisibility->canUserSeeMenuLink($headerMenuUserId, 'spazio/notifiche-appuntamenti'))
+              ): ?>
               <div class="platform-user-section">
                 <a href="<?= portal_tenant_space_url('notifiche-appuntamenti') ?>" class="btn btn-default btn-flat platform-user-action">
                   <i class="fa fa-commenting"></i> Gestisci notifiche appuntamenti
                 </a>
               </div>
               <?php endif; ?>
-              <?php if (!$useMinimalTenantOnboardingHeader && !$isPlatformConsoleSession && $chatFeatureEnabled): ?>
+              <?php if (!$useMinimalTenantOnboardingHeader && !$isPlatformConsoleSession && $chatUiActive): ?>
               <div class="platform-user-section">
                 <label for="chatBrowserNotifyToggle" class="platform-user-toggle-label">
                   <input type="checkbox" id="chatBrowserNotifyToggle" style="vertical-align:middle; margin-right:6px;">
@@ -467,19 +495,6 @@ if (!$chatFeatureEnabled && !empty($navItems) && is_array($navItems)) {
 
 <script src="<?= base_url('public/plugins/jQuery/jQuery-2.1.4.min.js') ?>"></script>
 <script src="<?= base_url('public/bootstrap/js/bootstrap.min.js') ?>"></script>
-<?php if ($chatFeatureEnabled): ?>
-<script>
-  window.CHAT_NOTIFY_CFG = {
-    pollUrl: "<?= site_url('chat/poll') ?>",
-    chatUrl: "<?= site_url('chat') ?>",
-    chatThreadBase: "<?= rtrim(site_url('chat/thread'), '/') ?>",
-    chatSoundUrl: "<?= base_url('public/sounds/chat.mp3') ?>"
-  };
-</script>
-<script>
-  window.CHAT_SOUND_URL = "<?= base_url('public/sounds/chat.mp3') ?>";
-</script>
-<?php endif; ?>
 <script>
   window.PUSH_MOBILE_CFG = {
     vapidKey: "<?= esc(env('VAPID_PUBLIC_KEY', '')) ?>",
@@ -691,7 +706,7 @@ if (!$chatFeatureEnabled && !empty($navItems) && is_array($navItems)) {
     }
   });
 
-  <?php if ($chatFeatureEnabled): ?>
+  <?php if ($chatUiActive): ?>
   var KEY = 'chat_browser_notify_enabled';
 
   function getEnabled() {
@@ -759,6 +774,3 @@ if (!$chatFeatureEnabled && !empty($navItems) && is_array($navItems)) {
   <?php endif; ?>
 })();
 </script>
-<?php if ($chatFeatureEnabled): ?>
-<script src="<?= base_url('js/chat-notify.js') ?>"></script>
-<?php endif; ?>

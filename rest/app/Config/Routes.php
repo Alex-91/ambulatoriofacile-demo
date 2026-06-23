@@ -267,6 +267,8 @@ $routes->group('admin', ['filter' => 'auth'], function($routes) {
     $routes->post('schede-utenti/cerca', 'Admin\SchedeUtenti::cercaUtente');
     $routes->get('schede-utenti/lista', 'Admin\SchedeUtenti::schedeUtente');
     $routes->post('schede-utenti/toggle', 'Admin\SchedeUtenti::toggle');
+    $routes->get('schede-utenti/menu-admin', 'Admin\SchedeUtenti::menuAdminUtente');
+    $routes->post('schede-utenti/menu-admin/toggle', 'Admin\SchedeUtenti::toggleMenuAdmin');
 });
 $routes->group('', ['filter' => 'auth'], static function($routes) {
 
