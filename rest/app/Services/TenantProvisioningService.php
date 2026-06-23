@@ -552,15 +552,16 @@ class TenantProvisioningService
         $temporaryPassword = null;
 
         if (!$platformUser) {
-            $temporaryPassword = $plainPassword !== '' ? $plainPassword : $this->generateTemporaryPassword();
+            $hasExplicitPassword = $plainPassword !== '';
+            $temporaryPassword = $hasExplicitPassword ? $plainPassword : $this->generateTemporaryPassword();
             $platformUserId = (int) $this->usersModel->insert([
                 'email' => $email,
                 'password_hash' => password_hash($temporaryPassword, PASSWORD_DEFAULT),
                 'first_name' => $firstName !== '' ? $firstName : null,
                 'last_name' => $lastName !== '' ? $lastName : null,
-                'status' => 'invited',
-                'must_reset_password' => 1,
-                'email_verified_at' => null,
+                'status' => $hasExplicitPassword ? 'active' : 'invited',
+                'must_reset_password' => $hasExplicitPassword ? 0 : 1,
+                'email_verified_at' => $hasExplicitPassword ? date('Y-m-d H:i:s') : null,
                 'last_login_at' => null,
             ]);
 
@@ -580,7 +581,15 @@ class TenantProvisioningService
             }
             if ($plainPassword !== '') {
                 $updateData['password_hash'] = password_hash($plainPassword, PASSWORD_DEFAULT);
-                $updateData['must_reset_password'] = 1;
+                $updateData['must_reset_password'] = 0;
+                if (trim((string) ($platformUser['email_verified_at'] ?? '')) === '') {
+                    $updateData['email_verified_at'] = date('Y-m-d H:i:s');
+                }
+
+                $currentStatus = strtolower(trim((string) ($platformUser['status'] ?? 'active')));
+                if (!in_array($currentStatus, ['suspended', 'blocked'], true)) {
+                    $updateData['status'] = 'active';
+                }
             }
 
             if ($updateData !== []) {
