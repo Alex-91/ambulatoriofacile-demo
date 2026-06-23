@@ -108,6 +108,8 @@ class TenantAppUserProvisioningService
                 throw new \RuntimeException('Impossibile determinare l app user del tenant.');
             }
 
+            $this->ensureDefaultSchedeAccess($tenantDb, $appUserId, $profile);
+
             if ((int) ($membership['app_user_id'] ?? 0) !== $appUserId) {
                 $this->membershipsModel->update($membershipId, [
                     'app_user_id' => $appUserId,
@@ -560,6 +562,61 @@ class TenantAppUserProvisioningService
     {
         $value = trim($value);
         return $value !== '' ? $value : $fallback;
+    }
+
+    /**
+     * @param array<string, mixed> $profile
+     */
+    private function ensureDefaultSchedeAccess(
+        \CodeIgniter\Database\BaseConnection $db,
+        int $appUserId,
+        array $profile
+    ): void {
+        if ($appUserId <= 0 || !$db->tableExists('dap_menu_schede') || !$db->tableExists('dap_user_schede')) {
+            return;
+        }
+
+        $codes = $this->defaultSchedaCodesForProfile($profile);
+        if ($codes === []) {
+            return;
+        }
+
+        $placeholders = implode(',', array_fill(0, count($codes), '?'));
+        $query = $db->query("
+            SELECT id_scheda
+            FROM dap_menu_schede
+            WHERE attiva = 1
+              AND codice IN ({$placeholders})
+            ORDER BY ordine ASC, id_scheda ASC
+        ", $codes);
+
+        foreach ($query->getResultArray() as $row) {
+            $schedaId = (int) ($row['id_scheda'] ?? 0);
+            if ($schedaId <= 0) {
+                continue;
+            }
+
+            $db->query("
+                INSERT INTO dap_user_schede (id_user, id_scheda, can_view, can_access)
+                VALUES (?, ?, 1, 1)
+                ON DUPLICATE KEY UPDATE can_view = 1, can_access = 1
+            ", [$appUserId, $schedaId]);
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $profile
+     * @return list<string>
+     */
+    private function defaultSchedaCodesForProfile(array $profile): array
+    {
+        $roleKey = strtolower(trim((string) ($profile['role_key'] ?? 'tenant_staff')));
+
+        if (in_array($roleKey, ['tenant_master', 'tenant_admin', 'tenant_staff'], true)) {
+            return ['agenda', 'posta', 'chat'];
+        }
+
+        return ['posta', 'chat'];
     }
 
     private function randomPassword(): string

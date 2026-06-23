@@ -147,7 +147,7 @@ class TenantAppSessionBootstrapService
             return portal_tenant_space_url('funzioni');
         }
 
-        return site_url('/');
+        return site_url('app');
     }
 
     private function resetSessionState(): void
