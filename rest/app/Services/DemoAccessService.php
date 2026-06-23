@@ -155,7 +155,7 @@ class DemoAccessService
     {
         helper('url');
 
-        return site_url('demo/entra') . '?' . http_build_query([
+        return site_url('access/entra') . '?' . http_build_query([
             'u' => trim($username),
         ]);
     }
