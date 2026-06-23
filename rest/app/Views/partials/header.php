@@ -306,6 +306,7 @@ if ($disableMenuFallback) {
               </p>
             </li>
             <li class="user-footer platform-user-footer">
+              <div class="platform-user-sections">
               <?php if (!$useMinimalTenantOnboardingHeader && $tenantOperationalHomeUrl !== null): ?>
               <div class="platform-user-section">
                 <a href="<?= esc($tenantOperationalHomeUrl) ?>" class="btn btn-default btn-flat platform-user-action">
@@ -417,6 +418,7 @@ if ($disableMenuFallback) {
                 </div>
               </div>
               <?php endif; ?>
+              </div>
               <div class="platform-user-footer-actions<?= $isPlatformConsoleSession ? ' platform-user-footer-actions-logout-only' : '' ?>">
                 <?php if (!$isPlatformConsoleSession): ?>
                 <a href="<?= base_url('profilo') ?>" class="btn btn-default btn-flat">Profilo</a>
