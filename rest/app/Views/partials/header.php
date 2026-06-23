@@ -90,6 +90,22 @@ $headerLogoUrl = $isPortalConsoleHeader
     : site_url('/');
 $useStructuredHeader = $tenantName !== '' || $isPortalConsoleHeader;
 $profileImageFallbackUrl = base_url('public/dist/img/user.png');
+$demoSessionActive = (bool) ($sess->get(\App\Services\DemoAccessService::SESSION_KEY_ACTIVE) ?? false);
+$demoCurrentAccount = $sess->get(\App\Services\DemoAccessService::SESSION_KEY_CURRENT);
+$demoSwitchAccounts = $sess->get(\App\Services\DemoAccessService::SESSION_KEY_SWITCH_ACCOUNTS);
+$currentSessionUsername = trim((string) ($sess->get('username') ?? ''));
+$demoCurrentSessionUsername = is_array($demoCurrentAccount)
+    ? trim((string) ($demoCurrentAccount['session_username'] ?? $demoCurrentAccount['username'] ?? ''))
+    : '';
+$showDemoRoleSwitch = $demoSessionActive
+    && is_array($demoCurrentAccount)
+    && is_array($demoSwitchAccounts)
+    && $currentSessionUsername !== ''
+    && $demoCurrentSessionUsername !== ''
+    && strcasecmp($currentSessionUsername, $demoCurrentSessionUsername) === 0;
+$demoAccessUrl = $showDemoRoleSwitch
+    ? trim((string) ($demoCurrentAccount['access_url'] ?? site_url('access')))
+    : '';
 ?>
 
 <style>
@@ -527,6 +543,40 @@ if ($disableMenuFallback) {
                     <?php else: ?>
                       <a href="<?= esc($tenantSwitchUrl) ?>" class="btn btn-default btn-flat">
                         <?= esc($tenantLabel) ?>
+                      </a>
+                    <?php endif; ?>
+                  </div>
+                <?php endforeach; ?>
+              </div>
+              <?php endif; ?>
+              <?php if (!$useMinimalTenantOnboardingHeader && $showDemoRoleSwitch): ?>
+              <div class="platform-console-dropdown-block">
+                <div class="platform-console-dropdown-title">Cambia ruolo demo</div>
+                <?php if ($demoAccessUrl !== ''): ?>
+                <div class="platform-console-dropdown-action">
+                  <a href="<?= esc($demoAccessUrl) ?>" class="btn btn-default btn-flat">
+                    <i class="fa fa-random"></i> Apri selettore ruoli demo
+                  </a>
+                </div>
+                <?php endif; ?>
+                <?php foreach ($demoSwitchAccounts as $demoSwitchAccount): ?>
+                  <?php
+                    if (!is_array($demoSwitchAccount)) {
+                        continue;
+                    }
+                    $demoSwitchLabel = trim((string) ($demoSwitchAccount['role'] ?? $demoSwitchAccount['label'] ?? 'Ruolo demo'));
+                    $demoSwitchDetail = trim((string) ($demoSwitchAccount['label'] ?? ''));
+                    $demoSwitchUrl = trim((string) ($demoSwitchAccount['entry_url'] ?? ''));
+                    $demoSwitchCurrent = (bool) ($demoSwitchAccount['is_current'] ?? false);
+                  ?>
+                  <div class="platform-console-dropdown-action">
+                    <?php if ($demoSwitchCurrent || $demoSwitchUrl === ''): ?>
+                      <span class="btn btn-default btn-flat platform-console-dropdown-current">
+                        <?= esc($demoSwitchLabel) ?><?= $demoSwitchDetail !== '' ? ' · ' . esc($demoSwitchDetail) : '' ?><?= $demoSwitchCurrent ? ' (attivo)' : '' ?>
+                      </span>
+                    <?php else: ?>
+                      <a href="<?= esc($demoSwitchUrl) ?>" class="btn btn-default btn-flat">
+                        <?= esc($demoSwitchLabel) ?><?= $demoSwitchDetail !== '' ? ' · ' . esc($demoSwitchDetail) : '' ?>
                       </a>
                     <?php endif; ?>
                   </div>

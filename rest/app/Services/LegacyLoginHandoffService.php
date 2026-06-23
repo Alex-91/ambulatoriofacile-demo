@@ -27,6 +27,24 @@ class LegacyLoginHandoffService
         return $this->bootstrapSessionForUser($claims);
     }
 
+    public function bootstrapDemoSessionByUserId(int $userId, string $expectedUsername = ''): array
+    {
+        $result = $this->bootstrapSessionForUser([
+            'userId' => $userId,
+            'username' => $expectedUsername,
+        ]);
+
+        if (($result['resp'] ?? 'KO') !== 'OK' || !(bool) ($result['requiresOtp'] ?? false)) {
+            return $result;
+        }
+
+        $userType = (int) ($result['userType'] ?? 0);
+        $result['redirectUrl'] = $this->confirmBootstrappedSession($userType);
+        $result['requiresOtp'] = false;
+
+        return $result;
+    }
+
     private function validateSignedPayload(string $payloadEncoded, string $signatureEncoded): array
     {
         $payloadEncoded = trim($payloadEncoded);
@@ -531,6 +549,37 @@ class LegacyLoginHandoffService
                 $session->set('nome_visualizzato', $displayName);
             }
         }
+    }
+
+    private function confirmBootstrappedSession(int $userType): string
+    {
+        if ((bool) session()->get('isLoggedIn') !== true) {
+            return '';
+        }
+
+        $menuAgenda = (new \App\Models\MenuModel())->getMenuAgenda();
+        session()->set('menuAgenda', $menuAgenda);
+        session()->set('isLoggedInConfirmed', true);
+
+        (new SessionNavigationService())->refreshCurrentSession(true);
+
+        if ($userType === 2) {
+            $utente = session()->get('utente_sess');
+            if ($utente && isset($utente->id_personale)) {
+                $row = $this->db->query("
+                    SELECT COUNT(*) AS totale
+                    FROM dap18_sostituto
+                    WHERE id_personale = ?
+                      AND CURDATE() BETWEEN data_inizio AND data_fine
+                ", [(int) $utente->id_personale])->getRowArray();
+
+                if ((int) ($row['totale'] ?? 0) > 0) {
+                    return 'sostituzioni';
+                }
+            }
+        }
+
+        return '';
     }
 
     private function resolveCellulareByUserType(int $userId, int $userType): string
