@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= esc($brandName) ?> Demo</title>
     <meta name="description" content="<?= esc($brandDescription) ?>">
-    <link rel="stylesheet" href="<?= base_url('rest/public/assets/css/demo-showcase.css') ?>">
+    <link rel="stylesheet" href="<?= base_url('public/assets/css/demo-showcase.css') ?>">
 </head>
 <body>
 <div class="demo-shell">
