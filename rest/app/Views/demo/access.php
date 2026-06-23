@@ -26,7 +26,6 @@
                     </p>
                     <div class="hero-actions">
                         <a class="btn btn-primary" href="#ruoli-demo">Scegli un ruolo</a>
-                        <a class="btn btn-secondary" href="<?= esc((string) ($demoCredentials['official_login_url'] ?? site_url('login'))) ?>">Apri login ufficiale</a>
                     </div>
                 </div>
 
