@@ -6,6 +6,7 @@ use CodeIgniter\Router\RouteCollection;
  * @var RouteCollection $routes
  */
 $routes->get('/', 'EntryController::index');
+$routes->post('/', 'EntryController::submit');
 $routes->get('access', 'DemoController::access');
 $routes->get('access/entra', 'DemoAccessController::enter');
 $routes->get('vertical/(:segment)', 'DemoController::vertical/$1');
@@ -36,6 +37,7 @@ $routes->get('login', 'Login\LoginController::index');
 $routes->head('login', 'Login\LoginController::index');
 $routes->post('login', 'Login\LoginController::login');
 $routes->post('login/tenant-select', 'Login\LoginController::selectTenant');
+$routes->post('tenant-select', 'Login\LoginController::selectTenant');
 $routes->get('login/recupero', 'Login\PlatformAccessController::recovery');
 $routes->post('login/recupero/invia', 'Login\PlatformAccessController::sendRecovery');
 $routes->get('login/password-imposta', 'Login\PlatformAccessController::passwordSetup');
