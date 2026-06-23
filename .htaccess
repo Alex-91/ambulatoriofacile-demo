@@ -12,8 +12,6 @@
     RewriteRule ^$ index.php [L,QSA]
     RewriteRule ^app/?$ index.php [L,QSA]
     RewriteRule ^(?:index\.php(?:/.*)?|manifest\.json|sw\.js|favicon\.ico)$ - [L,NC]
-    RewriteRule ^public/assets/css/demo-showcase\.css$ rest/public/assets/css/demo-showcase.css [L,NC]
-    RewriteRule ^(?:app|demo)/public/assets/css/demo-showcase\.css$ rest/public/assets/css/demo-showcase.css [L,NC]
     RewriteRule ^(?:public|icons|js)/.+$ - [L,NC]
     RewriteRule ^(?:app|demo)/(manifest\.json|sw\.js|favicon\.ico)$ $1 [L,NC]
     RewriteRule ^(?:app|demo)/(public|icons|js)/(.+)$ $1/$2 [L,NC]
