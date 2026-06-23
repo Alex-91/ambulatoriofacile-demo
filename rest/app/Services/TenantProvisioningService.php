@@ -406,9 +406,9 @@ class TenantProvisioningService
             throw new \RuntimeException('Tenant non trovato.');
         }
 
-        $tenantKey = $this->normalizeTenantKey((string) ($payload['tenant_key'] ?? ($existingTenant['tenant_key'] ?? '')));
         $tenantName = trim((string) ($payload['tenant_name'] ?? ($existingTenant['tenant_name'] ?? '')));
-        $packageCode = trim(strtolower((string) ($payload['package_code'] ?? '')));
+        $legalName = $this->nullableString($payload['legal_name'] ?? ($existingTenant['legal_name'] ?? null));
+        $tenantKey = $this->resolveTenantKey($tenantId, $payload, $existingTenant, $tenantName, $legalName);
         $masterEmail = $this->normalizeEmail((string) ($payload['master_email'] ?? ''));
 
         if ($tenantKey === '') {
@@ -416,9 +416,6 @@ class TenantProvisioningService
         }
         if ($tenantName === '') {
             throw new \InvalidArgumentException('tenant_name obbligatorio.');
-        }
-        if ($packageCode === '') {
-            throw new \InvalidArgumentException('package_code obbligatorio.');
         }
         if ($masterEmail === '') {
             throw new \InvalidArgumentException('master_email non valida.');
@@ -429,9 +426,18 @@ class TenantProvisioningService
             throw new \RuntimeException('Esiste gia un tenant con chiave ' . $tenantKey . '.');
         }
 
-        $package = $this->packagesModel->findByCode($packageCode);
+        $packageCode = trim(strtolower((string) ($payload['package_code'] ?? '')));
+        if ($packageCode !== '') {
+            $package = $this->packagesModel->findByCode($packageCode);
+        } elseif ($existingTenant && (int) ($existingTenant['id_package'] ?? 0) > 0) {
+            $package = $this->packagesModel->find((int) ($existingTenant['id_package'] ?? 0));
+        } else {
+            $packageCode = 'base';
+            $package = $this->packagesModel->findByCode($packageCode);
+        }
+
         if (!$package) {
-            throw new \RuntimeException('Pacchetto non trovato: ' . $packageCode);
+            throw new \RuntimeException('Pacchetto non trovato: ' . ($packageCode !== '' ? $packageCode : 'base'));
         }
 
         $masterFirstName = trim((string) ($payload['master_first_name'] ?? ''));
@@ -446,7 +452,7 @@ class TenantProvisioningService
         $tenantData = [
             'tenant_key' => $tenantKey,
             'tenant_name' => $tenantName,
-            'legal_name' => $this->nullableString($payload['legal_name'] ?? ($existingTenant['legal_name'] ?? null)),
+            'legal_name' => $legalName,
             'status' => $status,
             'id_package' => (int) $package['id_package'],
             'onboarding_status' => $onboardingStatus,
@@ -751,6 +757,56 @@ class TenantProvisioningService
         $tenantKey = preg_replace('/[^a-z0-9\-]/', '-', $tenantKey) ?? '';
         $tenantKey = preg_replace('/\-+/', '-', $tenantKey) ?? '';
         return trim($tenantKey, '-');
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     * @param array<string, mixed>|null $existingTenant
+     */
+    private function resolveTenantKey(
+        ?int $tenantId,
+        array $payload,
+        ?array $existingTenant,
+        string $tenantName,
+        ?string $legalName
+    ): string {
+        $requestedTenantKey = $this->normalizeTenantKey((string) ($payload['tenant_key'] ?? ''));
+        if ($requestedTenantKey !== '') {
+            return $requestedTenantKey;
+        }
+
+        $currentTenantKey = $this->normalizeTenantKey((string) ($existingTenant['tenant_key'] ?? ''));
+        if ($currentTenantKey !== '') {
+            return $currentTenantKey;
+        }
+
+        $candidate = $this->normalizeTenantKey($tenantName !== '' ? $tenantName : (string) ($legalName ?? ''));
+        if ($candidate === '') {
+            return '';
+        }
+
+        return $this->ensureUniqueTenantKey($candidate, $tenantId);
+    }
+
+    private function ensureUniqueTenantKey(string $candidate, ?int $tenantId = null): string
+    {
+        $candidate = $this->normalizeTenantKey($candidate);
+        if ($candidate === '') {
+            return '';
+        }
+
+        $suffix = 1;
+        $tenantKey = $candidate;
+
+        while (true) {
+            $tenant = $this->tenantsModel->findByTenantKey($tenantKey);
+            if (!$tenant || (int) ($tenant['id_tenant'] ?? 0) === (int) ($tenantId ?? 0)) {
+                return $tenantKey;
+            }
+
+            $suffix++;
+            $tenantKey = $candidate . '-' . $suffix;
+        }
     }
 
     private function normalizeStorageKey(string $storageKey, string $tenantKey): string

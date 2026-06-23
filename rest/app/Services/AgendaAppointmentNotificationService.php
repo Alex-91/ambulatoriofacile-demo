@@ -76,7 +76,7 @@ class AgendaAppointmentNotificationService
             'doctor_cross_booking' => [],
         ];
 
-        $patientRecipient = $this->selectAppointmentRecipient($appointment);
+        $patientRecipient = $this->buildPatientRecipient($appointment, $patientLabel);
         $patientPlan = $this->settingsService->resolveDispatchPlan((int) ($tenant['id_tenant'] ?? 0), AppointmentNotificationSettingsService::TYPE_PATIENT_BOOKING);
         if (!empty($patientPlan['enabled']) && !empty($patientPlan['channels'])) {
             $message = $this->buildPatientBookingMessage($patientLabel, $doctorLabel, $scheduledFor, $notes);
@@ -85,6 +85,10 @@ class AgendaAppointmentNotificationService
                 (array) $patientPlan,
                 $patientRecipient,
                 $message,
+                [
+                    'subject' => 'Conferma appuntamento AmbulatorioFacile',
+                    'otp_subject' => 'Codice OTP e conferma appuntamento',
+                ],
                 [
                     'message_type' => AppointmentNotificationSettingsService::TYPE_PATIENT_BOOKING,
                     'recipient_role' => 'patient',
@@ -109,7 +113,7 @@ class AgendaAppointmentNotificationService
                     ? ($this->personaleModel->getPersonaleDecryptedById((int) ($actorDoctor['id_personale'] ?? 0)) ?? [])
                     : [];
                 $actorLabel = $actorDoctor !== null ? $this->buildDoctorLabel($actorDoctor, $actorContact) : 'Un collega';
-                $doctorRecipient = $this->channelService->normalizeRecipient((string) ($targetContact['cellulare'] ?? ''));
+                $doctorRecipient = $this->buildDoctorRecipient($targetDoctor, $targetContact, $doctorLabel);
                 $message = $this->buildCrossDoctorMessage($actorLabel, $patientLabel, $scheduledFor, $notes);
 
                 $result['doctor_cross_booking'] = $this->dispatchPlan(
@@ -117,6 +121,10 @@ class AgendaAppointmentNotificationService
                     (array) $crossPlan,
                     $doctorRecipient,
                     $message,
+                    [
+                        'subject' => 'Nuovo appuntamento inserito da un professionista',
+                        'otp_subject' => 'Codice OTP e nuovo appuntamento inserito da un professionista',
+                    ],
                     [
                         'message_type' => AppointmentNotificationSettingsService::TYPE_DOCTOR_CROSS_BOOKING,
                         'recipient_role' => 'doctor',
@@ -163,6 +171,7 @@ class AgendaAppointmentNotificationService
                 a.nome,
                 a.cellulare,
                 a.telefono,
+                a.email,
                 a.note,
                 a.motivo_visita,
                 s.data_slot,
@@ -180,14 +189,30 @@ class AgendaAppointmentNotificationService
     /**
      * @param array<string, mixed> $appointment
      */
-    private function selectAppointmentRecipient(array $appointment): ?string
+    private function buildPatientRecipient(array $appointment, string $patientLabel): array
     {
-        $mobile = $this->channelService->normalizeRecipient((string) ($appointment['cellulare'] ?? ''));
-        if ($mobile !== null) {
-            return $mobile;
-        }
+        return [
+            'mobile' => (string) ($appointment['cellulare'] ?? ''),
+            'phone' => (string) ($appointment['telefono'] ?? ''),
+            'email' => (string) ($appointment['email'] ?? ''),
+            'label' => $patientLabel,
+        ];
+    }
 
-        return $this->channelService->normalizeRecipient((string) ($appointment['telefono'] ?? ''));
+    /**
+     * @param array<string, mixed> $doctor
+     * @param array<string, mixed> $contact
+     * @return array<string, mixed>
+     */
+    private function buildDoctorRecipient(array $doctor, array $contact, string $doctorLabel): array
+    {
+        return [
+            'mobile' => (string) ($contact['cellulare'] ?? ''),
+            'email' => (string) ($contact['email'] ?? ''),
+            'label' => $doctorLabel,
+            'user_id' => (int) ($doctor['id_user'] ?? 0),
+            'otp_identity' => (string) (($contact['email'] ?? '') ?: ($contact['cellulare'] ?? '') ?: ((int) ($doctor['id_user'] ?? 0) > 0 ? ('uid:' . (int) ($doctor['id_user'] ?? 0)) : '')),
+        ];
     }
 
     /**
@@ -270,10 +295,11 @@ class AgendaAppointmentNotificationService
     /**
      * @param array<string, mixed> $tenant
      * @param array<string, mixed> $plan
+     * @param array<string, mixed> $options
      * @param array<string, mixed> $baseLog
      * @return array<string, mixed>
      */
-    private function dispatchPlan(array $tenant, array $plan, ?string $recipient, string $message, array $baseLog): array
+    private function dispatchPlan(array $tenant, array $plan, array $recipient, string $message, array $options, array $baseLog): array
     {
         $channels = array_values((array) ($plan['channels'] ?? []));
         $result = [
@@ -288,18 +314,37 @@ class AgendaAppointmentNotificationService
             return $result;
         }
 
-        if ($recipient === null || trim($recipient) === '') {
-            $result['reason'] = 'invalid_recipient';
-            return $result;
-        }
-
         foreach ($channels as $channel) {
-            $sendResult = $this->channelService->send($channel, $recipient, $message);
+            $recipientLabel = $this->channelService->describeRecipientForChannel($channel, $recipient);
+            if ($recipientLabel === '') {
+                $sendResult = [
+                    'ok' => false,
+                    'channel' => $channel,
+                    'recipient' => '',
+                    'provider' => $this->channelService->providerLabel($channel),
+                    'error' => 'Destinatario non valido.',
+                ];
+                $logEntry = $baseLog;
+                $logEntry['channel'] = $channel;
+                $logEntry['provider'] = (string) ($sendResult['provider'] ?? $this->channelService->providerLabel($channel));
+                $logEntry['provider_id'] = '';
+                $logEntry['recipient'] = '';
+                $logEntry['status'] = 'failed';
+                $logEntry['error'] = (string) ($sendResult['error'] ?? '');
+                $logEntry['response'] = null;
+                $logEntry['created_at'] = date('c');
+
+                $this->logService->append($tenant, $logEntry);
+                $result['results'][] = $sendResult;
+                continue;
+            }
+
+            $sendResult = $this->channelService->send($channel, $recipient, $message, ['db' => $this->db] + $options);
             $logEntry = $baseLog;
             $logEntry['channel'] = $channel;
             $logEntry['provider'] = (string) ($sendResult['provider'] ?? $this->channelService->providerLabel($channel));
             $logEntry['provider_id'] = (string) ($sendResult['provider_id'] ?? '');
-            $logEntry['recipient'] = $recipient;
+            $logEntry['recipient'] = (string) ($sendResult['recipient'] ?? $recipientLabel);
             $logEntry['status'] = !empty($sendResult['ok']) ? 'sent' : 'failed';
             $logEntry['error'] = (string) ($sendResult['error'] ?? '');
             $logEntry['response'] = $sendResult['response'] ?? null;

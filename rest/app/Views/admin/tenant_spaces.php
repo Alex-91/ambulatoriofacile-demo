@@ -23,6 +23,10 @@ $memberTempPassword = trim((string)($memberTempPassword ?? ''));
 $tenantData = is_array($selectedTenant['tenant'] ?? null) ? $selectedTenant['tenant'] : [];
 $ownerData = is_array($selectedTenant['owner'] ?? null) ? $selectedTenant['owner'] : [];
 $featureMap = is_array($selectedTenant['feature_map'] ?? null) ? $selectedTenant['feature_map'] : [];
+$adminMenuState = is_array($selectedTenant['admin_menu'] ?? null) ? $selectedTenant['admin_menu'] : [];
+$adminMenuCatalog = is_array($adminMenuState['items'] ?? null) ? $adminMenuState['items'] : [];
+$adminMenuWarning = trim((string)($adminMenuState['warning'] ?? ''));
+$adminMenuAvailable = (bool)($adminMenuState['available'] ?? false);
 $runtime = is_array($selectedTenant['runtime'] ?? null) ? $selectedTenant['runtime'] : [];
 $metadata = is_array($selectedTenant['metadata'] ?? null) ? $selectedTenant['metadata'] : [];
 $provisioningMeta = is_array($metadata['provisioning'] ?? null) ? $metadata['provisioning'] : [];
@@ -129,6 +133,27 @@ $oldValue = static function (string $key, $fallback = '') {
       margin: 0;
       padding-left: 18px;
     }
+    .advanced-panel {
+      border: 1px solid #dbe8eb;
+      border-radius: 12px;
+      background: #fbfdfd;
+      padding: 14px 16px;
+      margin-top: 16px;
+    }
+    .advanced-panel summary {
+      cursor: pointer;
+      font-size: 15px;
+      font-weight: 600;
+      color: #1a6670;
+      outline: none;
+    }
+    .advanced-panel[open] summary {
+      margin-bottom: 14px;
+    }
+    .auto-note {
+      margin: 0 0 16px 0;
+      color: #52676c;
+    }
   </style>
 </head>
 
@@ -140,7 +165,7 @@ $oldValue = static function (string $key, $fallback = '') {
     <section class="content-header">
       <h1>Spazi Cliente</h1>
       <p class="text-muted" style="margin:8px 0 0 0;">
-        Qui gestisci i tenant applicativi: anagrafica spazio, pacchetto, master email, database dedicato e feature disponibili.
+        Qui gestisci i tenant applicativi: crei lo spazio, assegni pacchetto e tenant master, mentre chiavi tecniche, database e storage possono nascere in automatico.
       </p>
     </section>
 
@@ -199,9 +224,17 @@ $oldValue = static function (string $key, $fallback = '') {
             <ul class="start-steps">
               <li>1. Prepara gli account master che devono governare la piattaforma.</li>
               <li>2. Definisci o aggiorna il catalogo funzioni comune a tutti.</li>
-              <li>3. Crea lo spazio cliente, assegna pacchetto e master email.</li>
-              <li>4. Salva e provisiona lo spazio quando il database cliente e pronto.</li>
+              <li>3. Crea lo spazio cliente indicando solo i dati davvero fondamentali.</li>
+              <li>4. Alla creazione il sistema prepara chiave tenant, database, cartelle e provisioning tecnico.</li>
             </ul>
+            <div style="margin-top:14px;">
+              <a class="btn btn-primary" href="<?= portal_platform_url('notifiche-appuntamenti') ?>">
+                <i class="fa fa-commenting"></i> Apri gestione notifiche appuntamenti
+              </a>
+              <a class="btn btn-default" href="<?= portal_platform_url('funzioni') ?>">
+                <i class="fa fa-toggle-on"></i> Apri catalogo funzioni
+              </a>
+            </div>
           </div>
 
           <div class="box box-info">
@@ -468,104 +501,62 @@ $oldValue = static function (string $key, $fallback = '') {
             <form method="post" action="<?= portal_platform_url('spazi-clienti/save') ?>">
               <?= csrf_field() ?>
               <input type="hidden" name="id_tenant" value="<?= (int)$selectedTenantId ?>">
-              <input type="hidden" name="is_active" value="0">
+              <?php if ($isEdit): ?>
+                <input type="hidden" name="is_active" value="0">
+              <?php else: ?>
+                <input type="hidden" name="package_code" value="base">
+                <input type="hidden" name="status" value="active">
+                <input type="hidden" name="onboarding_status" value="draft">
+                <input type="hidden" name="is_active" value="1">
+              <?php endif; ?>
 
               <div class="box-body">
                 <div class="row">
-                  <div class="col-md-6">
+                  <div class="col-md-5">
                     <div class="form-group">
                       <label>Nome spazio *</label>
                       <input class="form-control" name="tenant_name" required value="<?= esc((string)$oldValue('tenant_name', $tenantData['tenant_name'] ?? '')) ?>">
                     </div>
                   </div>
-                  <div class="col-md-3">
-                    <div class="form-group">
-                      <label>Chiave tenant *</label>
-                      <input class="form-control" name="tenant_key" required value="<?= esc((string)$oldValue('tenant_key', $tenantData['tenant_key'] ?? '')) ?>">
-                    </div>
-                  </div>
-                  <div class="col-md-3">
-                    <div class="form-group">
-                      <label>Storage key</label>
-                      <input class="form-control" name="storage_key" value="<?= esc((string)$oldValue('storage_key', $tenantData['storage_key'] ?? '')) ?>">
-                    </div>
-                  </div>
-                </div>
-
-                <div class="row">
-                  <div class="col-md-5">
+                  <div class="col-md-4">
                     <div class="form-group">
                       <label>Ragione sociale</label>
                       <input class="form-control" name="legal_name" value="<?= esc((string)$oldValue('legal_name', $tenantData['legal_name'] ?? '')) ?>">
                     </div>
                   </div>
-                  <div class="col-md-3">
-                    <div class="form-group">
-                      <label>Pacchetto *</label>
-                      <select class="form-control" name="package_code" required>
-                        <option value="">Seleziona...</option>
-                        <?php foreach ($packages as $package): ?>
-                          <?php
-                            $packageCode = (string)($package['package_code'] ?? '');
-                            $selectedPackageCode = (string)$oldValue('package_code', $selectedTenant['package']['package_code'] ?? $tenantData['package_code'] ?? '');
-                          ?>
-                          <option value="<?= esc($packageCode) ?>" <?= $selectedPackageCode === $packageCode ? 'selected' : '' ?>>
-                            <?= esc((string)($package['package_name'] ?? $packageCode)) ?>
-                          </option>
-                        <?php endforeach; ?>
-                      </select>
+                  <?php if ($isEdit): ?>
+                    <div class="col-md-3">
+                      <div class="form-group">
+                        <label>Pacchetto *</label>
+                        <select class="form-control" name="package_code" required>
+                          <option value="">Seleziona...</option>
+                          <?php foreach ($packages as $package): ?>
+                            <?php
+                              $packageCode = (string)($package['package_code'] ?? '');
+                              $selectedPackageCode = (string)$oldValue('package_code', $selectedTenant['package']['package_code'] ?? $tenantData['package_code'] ?? '');
+                            ?>
+                            <option value="<?= esc($packageCode) ?>" <?= $selectedPackageCode === $packageCode ? 'selected' : '' ?>>
+                              <?= esc((string)($package['package_name'] ?? $packageCode)) ?>
+                            </option>
+                          <?php endforeach; ?>
+                        </select>
+                      </div>
                     </div>
-                  </div>
-                  <div class="col-md-2">
-                    <div class="form-group">
-                      <label>Stato</label>
-                      <?php $currentStatus = (string)$oldValue('status', $tenantData['status'] ?? 'draft'); ?>
-                      <select class="form-control" name="status">
-                        <?php foreach (['draft', 'active', 'suspended', 'archived'] as $status): ?>
-                          <option value="<?= esc($status) ?>" <?= $currentStatus === $status ? 'selected' : '' ?>><?= esc($status) ?></option>
-                        <?php endforeach; ?>
-                      </select>
+                  <?php else: ?>
+                    <div class="col-md-3">
+                      <div class="form-group">
+                        <label>Pacchetto iniziale</label>
+                        <input class="form-control" value="Base" readonly>
+                      </div>
                     </div>
-                  </div>
-                  <div class="col-md-2">
-                    <div class="form-group">
-                      <label>Onboarding</label>
-                      <?php $currentOnboarding = (string)$oldValue('onboarding_status', $tenantData['onboarding_status'] ?? 'draft'); ?>
-                      <select class="form-control" name="onboarding_status">
-                        <?php foreach (['draft', 'setup', 'ready', 'live'] as $status): ?>
-                          <option value="<?= esc($status) ?>" <?= $currentOnboarding === $status ? 'selected' : '' ?>><?= esc($status) ?></option>
-                        <?php endforeach; ?>
-                      </select>
-                    </div>
-                  </div>
+                  <?php endif; ?>
                 </div>
 
-                <div class="row">
-                  <div class="col-md-4">
-                    <div class="form-group">
-                      <label>Profilo verticale</label>
-                      <input class="form-control" name="feature_profile" value="<?= esc((string)$oldValue('feature_profile', $tenantData['feature_profile'] ?? '')) ?>" placeholder="es. medical">
-                    </div>
-                  </div>
-                  <div class="col-md-5">
-                    <div class="form-group">
-                      <label>Login hint</label>
-                      <input class="form-control" name="login_hint" value="<?= esc((string)$oldValue('login_hint', $tenantData['login_hint'] ?? '')) ?>" placeholder="testo di aiuto lato login">
-                    </div>
-                  </div>
-                  <div class="col-md-3">
-                    <div class="checkbox" style="margin-top:32px;">
-                      <?php $activeValue = (string)$oldValue('is_active', (string)($tenantData['is_active'] ?? '1')); ?>
-                      <label><input type="checkbox" name="is_active" value="1" <?= $activeValue !== '0' ? 'checked' : '' ?>> Tenant attivo</label>
-                    </div>
-                    <div class="checkbox">
-                      <label><input type="checkbox" name="prepare_local_dirs" value="1"> Prepara cartelle locali</label>
-                    </div>
-                    <div class="checkbox">
-                      <label><input type="checkbox" name="send_master_access_email" value="1"> Invia accesso al tenant master dopo il salvataggio</label>
-                    </div>
-                  </div>
-                </div>
+                <p class="auto-note">
+                  <?= $isEdit
+                      ? 'Le impostazioni tecniche restano disponibili piu sotto, ma il flusso standard continua a usare i valori generati automaticamente.'
+                      : 'Alla creazione usiamo il pacchetto base, generiamo automaticamente chiave tenant, storage, database dedicato e cartelle locali. Dopo il primo salvataggio potrai rifinire solo gli override davvero necessari.' ?>
+                </p>
 
                 <hr>
                 <h4 style="margin-top:0;">Tenant master</h4>
@@ -596,107 +587,232 @@ $oldValue = static function (string $key, $fallback = '') {
                   </div>
                 </div>
                 <div class="row">
-                  <div class="col-md-3">
-                    <div class="form-group">
-                      <label>App user ID master</label>
-                      <input type="number" class="form-control" name="master_app_user_id" value="<?= esc((string)$oldValue('master_app_user_id', $ownerData['app_user_id'] ?? '')) ?>">
+                  <div class="col-md-12">
+                    <div class="checkbox" style="margin-top:8px;">
+                      <label><input type="checkbox" name="send_master_access_email" value="1"> Invia accesso al tenant master dopo il salvataggio</label>
                     </div>
                   </div>
-                  <div class="col-md-9">
-                    <p class="text-muted" style="margin-top:32px;">
-                      Se lasci vuoto questo campo, il login unico prova a collegare automaticamente il master tramite la stessa email presente nel DB del tenant.
+                </div>
+
+                <?php if ($isEdit): ?>
+                  <details class="advanced-panel" <?= old('status') !== null || old('db_name') !== null ? 'open' : '' ?>>
+                    <summary>Impostazioni avanzate e tecniche</summary>
+                    <p class="text-muted" style="margin-top:0;">
+                      Qui trovi i valori derivati automaticamente e gli override per i casi speciali. Per il flusso ordinario di produzione puoi lasciare tutto com e.
                     </p>
-                  </div>
-                </div>
 
-                <hr>
-                <h4 style="margin-top:0;">Database tenant</h4>
-                <div class="row">
-                  <div class="col-md-4">
-                    <div class="form-group">
-                      <label>DB host</label>
-                      <input class="form-control" name="db_host" value="<?= esc((string)$oldValue('db_host', $tenantData['db_host'] ?? '')) ?>">
-                    </div>
-                  </div>
-                  <div class="col-md-2">
-                    <div class="form-group">
-                      <label>DB port</label>
-                      <input type="number" class="form-control" name="db_port" value="<?= esc((string)$oldValue('db_port', $tenantData['db_port'] ?? 3306)) ?>">
-                    </div>
-                  </div>
-                  <div class="col-md-3">
-                    <div class="form-group">
-                      <label>DB name</label>
-                      <input class="form-control" name="db_name" value="<?= esc((string)$oldValue('db_name', $tenantData['db_name'] ?? '')) ?>">
-                    </div>
-                  </div>
-                  <div class="col-md-3">
-                    <div class="form-group">
-                      <label>DB user</label>
-                      <input class="form-control" name="db_username" value="<?= esc((string)$oldValue('db_username', $tenantData['db_username'] ?? '')) ?>">
-                    </div>
-                  </div>
-                </div>
-
-                <div class="row">
-                  <div class="col-md-4">
-                    <div class="form-group">
-                      <label>Env var password DB</label>
-                      <input class="form-control" name="db_password_ref" value="<?= esc((string)$oldValue('db_password_ref', $tenantData['db_password_ref'] ?? '')) ?>" placeholder="es. TENANT_STUDIO_VERDE_DB_PASSWORD">
-                      <p class="text-muted" style="margin:6px 0 0 0;">Se lasci vuoti host, user o password ref, il provisioning usera i default configurati per la piattaforma.</p>
-                    </div>
-                  </div>
-                  <div class="col-md-4">
-                    <div class="form-group">
-                      <label>DB driver</label>
-                      <input class="form-control" name="db_driver" value="<?= esc((string)$oldValue('db_driver', $tenantData['db_driver'] ?? 'MySQLi')) ?>">
-                    </div>
-                  </div>
-                  <div class="col-md-4">
-                    <div class="form-group">
-                      <label>Prefisso tabelle</label>
-                      <input class="form-control" name="db_prefix" value="<?= esc((string)$oldValue('db_prefix', $tenantData['db_prefix'] ?? '')) ?>">
-                    </div>
-                  </div>
-                </div>
-
-                <hr>
-                <h4 style="margin-top:0;">Feature override tenant</h4>
-                <p class="text-muted">
-                  Qui decidi quali funzioni sono concesse a questo cliente. Se una funzione e marcata come governabile dal tenant master, il cliente potra poi accenderla o spegnerla dal suo pannello sotto `/login/spazio/funzioni`.
-                </p>
-                <div class="row">
-                  <?php foreach ($features as $feature): ?>
-                    <?php
-                      $featureKey = (string)($feature['feature_key'] ?? '');
-                      $checked = (bool)($featureMap[$featureKey] ?? false);
-                      $oldEnabled = old('enabled_features');
-                      if (is_array($oldEnabled)) {
-                          $checked = in_array($featureKey, array_map('strval', $oldEnabled), true);
-                      }
-                    ?>
-                    <div class="col-md-4">
-                      <div class="feature-card">
-                        <h4><?= esc((string)($feature['feature_name'] ?? $featureKey)) ?></h4>
-                        <p><?= esc((string)($feature['description'] ?? '')) ?></p>
-                        <div class="checkbox" style="margin:0;">
-                          <label>
-                            <input type="checkbox" name="enabled_features[]" value="<?= esc($featureKey) ?>" <?= $checked ? 'checked' : '' ?>>
-                            Abilitata
-                          </label>
+                    <div class="row">
+                      <div class="col-md-3">
+                        <div class="form-group">
+                          <label>Chiave tenant</label>
+                          <input class="form-control" value="<?= esc((string)($tenantData['tenant_key'] ?? '')) ?>" readonly>
                         </div>
-                        <div class="text-muted" style="font-size:12px; margin-top:6px;">
-                          Scope: <?= esc((string)($feature['feature_scope'] ?? 'module')) ?>
+                      </div>
+                      <div class="col-md-3">
+                        <div class="form-group">
+                          <label>Storage key</label>
+                          <input class="form-control" value="<?= esc((string)($tenantData['storage_key'] ?? ($runtime['storage_key'] ?? ''))) ?>" readonly>
                         </div>
-                        <div style="margin-top:6px;">
-                          <span class="label label-<?= ((int)($feature['is_tenant_managed'] ?? 0) === 1) ? 'info' : 'default' ?>">
-                            <?= ((int)($feature['is_tenant_managed'] ?? 0) === 1) ? 'Governabile dal master cliente' : 'Gestita centralmente' ?>
-                          </span>
+                      </div>
+                      <div class="col-md-3">
+                        <div class="form-group">
+                          <label>Stato</label>
+                          <?php $currentStatus = (string)$oldValue('status', $tenantData['status'] ?? 'active'); ?>
+                          <select class="form-control" name="status">
+                            <?php foreach (['draft', 'active', 'suspended', 'archived'] as $status): ?>
+                              <option value="<?= esc($status) ?>" <?= $currentStatus === $status ? 'selected' : '' ?>><?= esc($status) ?></option>
+                            <?php endforeach; ?>
+                          </select>
+                        </div>
+                      </div>
+                      <div class="col-md-3">
+                        <div class="form-group">
+                          <label>Onboarding</label>
+                          <?php $currentOnboarding = (string)$oldValue('onboarding_status', $tenantData['onboarding_status'] ?? 'draft'); ?>
+                          <select class="form-control" name="onboarding_status">
+                            <?php foreach (['draft', 'setup', 'ready', 'live'] as $status): ?>
+                              <option value="<?= esc($status) ?>" <?= $currentOnboarding === $status ? 'selected' : '' ?>><?= esc($status) ?></option>
+                            <?php endforeach; ?>
+                          </select>
                         </div>
                       </div>
                     </div>
-                  <?php endforeach; ?>
-                </div>
+
+                    <div class="row">
+                      <div class="col-md-4">
+                        <div class="form-group">
+                          <label>Profilo verticale</label>
+                          <input class="form-control" name="feature_profile" value="<?= esc((string)$oldValue('feature_profile', $tenantData['feature_profile'] ?? '')) ?>" placeholder="es. medical">
+                        </div>
+                      </div>
+                      <div class="col-md-5">
+                        <div class="form-group">
+                          <label>Login hint</label>
+                          <input class="form-control" name="login_hint" value="<?= esc((string)$oldValue('login_hint', $tenantData['login_hint'] ?? '')) ?>" placeholder="testo di aiuto lato login">
+                        </div>
+                      </div>
+                      <div class="col-md-3">
+                        <div class="checkbox" style="margin-top:32px;">
+                          <?php $activeValue = (string)$oldValue('is_active', (string)($tenantData['is_active'] ?? '1')); ?>
+                          <label><input type="checkbox" name="is_active" value="1" <?= $activeValue !== '0' ? 'checked' : '' ?>> Tenant attivo</label>
+                        </div>
+                        <div class="checkbox">
+                          <label><input type="checkbox" name="prepare_local_dirs" value="1"> Prepara cartelle locali</label>
+                        </div>
+                      </div>
+                    </div>
+
+                    <hr>
+                    <h4 style="margin-top:0;">Override database tenant</h4>
+                    <div class="row">
+                      <div class="col-md-4">
+                        <div class="form-group">
+                          <label>DB host</label>
+                          <input class="form-control" name="db_host" value="<?= esc((string)$oldValue('db_host', $tenantData['db_host'] ?? '')) ?>">
+                        </div>
+                      </div>
+                      <div class="col-md-2">
+                        <div class="form-group">
+                          <label>DB port</label>
+                          <input type="number" class="form-control" name="db_port" value="<?= esc((string)$oldValue('db_port', $tenantData['db_port'] ?? 3306)) ?>">
+                        </div>
+                      </div>
+                      <div class="col-md-3">
+                        <div class="form-group">
+                          <label>DB name</label>
+                          <input class="form-control" name="db_name" value="<?= esc((string)$oldValue('db_name', $tenantData['db_name'] ?? '')) ?>">
+                        </div>
+                      </div>
+                      <div class="col-md-3">
+                        <div class="form-group">
+                          <label>DB user</label>
+                          <input class="form-control" name="db_username" value="<?= esc((string)$oldValue('db_username', $tenantData['db_username'] ?? '')) ?>">
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="row">
+                      <div class="col-md-4">
+                        <div class="form-group">
+                          <label>Env var password DB</label>
+                          <input class="form-control" name="db_password_ref" value="<?= esc((string)$oldValue('db_password_ref', $tenantData['db_password_ref'] ?? '')) ?>" placeholder="es. TENANT_STUDIO_VERDE_DB_PASSWORD">
+                          <p class="text-muted" style="margin:6px 0 0 0;">Se lasci vuoti host, user o password ref, il provisioning usera i default configurati per la piattaforma.</p>
+                        </div>
+                      </div>
+                      <div class="col-md-4">
+                        <div class="form-group">
+                          <label>DB driver</label>
+                          <input class="form-control" name="db_driver" value="<?= esc((string)$oldValue('db_driver', $tenantData['db_driver'] ?? 'MySQLi')) ?>">
+                        </div>
+                      </div>
+                      <div class="col-md-4">
+                        <div class="form-group">
+                          <label>Prefisso tabelle</label>
+                          <input class="form-control" name="db_prefix" value="<?= esc((string)$oldValue('db_prefix', $tenantData['db_prefix'] ?? '')) ?>">
+                        </div>
+                      </div>
+                    </div>
+                  </details>
+
+                  <hr>
+                  <h4 style="margin-top:0;">Feature override tenant</h4>
+                  <p class="text-muted">
+                    Qui decidi quali funzioni sono concesse a questo cliente. Se una funzione e marcata come governabile dal tenant master, il cliente potra poi accenderla o spegnerla dal suo pannello sotto `/login/spazio/funzioni`.
+                  </p>
+                  <input type="hidden" name="feature_override_form" value="1">
+                  <div class="row">
+                    <?php foreach ($features as $feature): ?>
+                      <?php
+                        $featureKey = (string)($feature['feature_key'] ?? '');
+                        $checked = (bool)($featureMap[$featureKey] ?? false);
+                        $oldEnabled = old('enabled_features');
+                        if (is_array($oldEnabled)) {
+                            $checked = in_array($featureKey, array_map('strval', $oldEnabled), true);
+                        }
+                      ?>
+                      <div class="col-md-4">
+                        <div class="feature-card">
+                          <h4><?= esc((string)($feature['feature_name'] ?? $featureKey)) ?></h4>
+                          <p><?= esc((string)($feature['description'] ?? '')) ?></p>
+                          <div class="checkbox" style="margin:0;">
+                            <label>
+                              <input type="checkbox" name="enabled_features[]" value="<?= esc($featureKey) ?>" <?= $checked ? 'checked' : '' ?>>
+                              Abilitata
+                            </label>
+                          </div>
+                          <div class="text-muted" style="font-size:12px; margin-top:6px;">
+                            Scope: <?= esc((string)($feature['feature_scope'] ?? 'module')) ?>
+                          </div>
+                          <div style="margin-top:6px;">
+                            <span class="label label-<?= ((int)($feature['is_tenant_managed'] ?? 0) === 1) ? 'info' : 'default' ?>">
+                              <?= ((int)($feature['is_tenant_managed'] ?? 0) === 1) ? 'Governabile dal master cliente' : 'Gestita centralmente' ?>
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    <?php endforeach; ?>
+                  </div>
+                <?php else: ?>
+                  <hr>
+                  <h4 style="margin-top:0;">Funzioni del tenant</h4>
+                  <p class="text-muted">
+                    Alla creazione usiamo i default del pacchetto e del catalogo globale. Dopo il primo salvataggio potrai rifinire gli override funzione per funzione.
+                  </p>
+                <?php endif; ?>
+
+                <hr>
+                <h4 style="margin-top:0;">Menu laterale del tenant</h4>
+                <?php if ($isEdit): ?>
+                  <p class="text-muted">
+                    Questo e il menu operativo che il tenant master vedra sempre nel sidebar admin. Di default prepariamo Nuovo personale, Nuovo cliente, Modifica personale e Modifica cliente. La voce primaria Vai al portale operativo compare sempre sopra il menu.
+                  </p>
+                  <input type="hidden" name="admin_menu_form" value="1">
+
+                  <?php if ($adminMenuWarning !== ''): ?>
+                    <div class="alert alert-warning">
+                      Non sono riuscito a leggere il menu attuale del tenant. Mostro i default consigliati e li applichero al prossimo salvataggio.
+                      <br>
+                      <small><?= esc($adminMenuWarning) ?></small>
+                    </div>
+                  <?php endif; ?>
+
+                  <div class="row">
+                    <?php foreach ($adminMenuCatalog as $menuOption): ?>
+                      <?php
+                        $menuLink = (string)($menuOption['link'] ?? '');
+                        $checked = (bool)($menuOption['selected'] ?? false);
+                        $oldAdminMenu = old('enabled_admin_menu');
+                        if (is_array($oldAdminMenu)) {
+                            $checked = in_array($menuLink, array_map('strval', $oldAdminMenu), true);
+                        }
+                      ?>
+                      <div class="col-md-4">
+                        <div class="feature-card">
+                          <h4><i class="fa <?= esc((string)($menuOption['icon'] ?? 'fa-circle-o')) ?>"></i> <?= esc((string)($menuOption['title'] ?? $menuLink)) ?></h4>
+                          <p><?= esc((string)($menuOption['description'] ?? '')) ?></p>
+                          <div class="checkbox" style="margin:0;">
+                            <label>
+                              <input type="checkbox" name="enabled_admin_menu[]" value="<?= esc($menuLink) ?>" <?= $checked ? 'checked' : '' ?>>
+                              Visibile nel menu laterale
+                            </label>
+                          </div>
+                          <div style="margin-top:6px;">
+                            <span class="label label-<?= !empty($menuOption['default']) ? 'success' : 'default' ?>">
+                              <?= !empty($menuOption['default']) ? 'default operativo' : 'opzionale' ?>
+                            </span>
+                            <?php if ($adminMenuAvailable): ?>
+                              <span class="label label-info">tenant raggiungibile</span>
+                            <?php endif; ?>
+                          </div>
+                        </div>
+                      </div>
+                    <?php endforeach; ?>
+                  </div>
+                <?php else: ?>
+                  <p class="text-muted">
+                    Alla creazione il nuovo spazio parte con il menu laterale essenziale: Nuovo personale, Nuovo cliente, Modifica personale e Modifica cliente. La voce primaria Vai al portale operativo compare sempre sopra il menu. Dopo il primo salvataggio potrai aggiungere o togliere le altre voci da qui.
+                  </p>
+                <?php endif; ?>
 
                 <?php if ($isEdit && $runtime !== []): ?>
                   <hr>
@@ -726,11 +842,13 @@ $oldValue = static function (string $key, $fallback = '') {
 
               <div class="box-footer">
                 <button class="btn btn-success" type="submit">
-                  <i class="fa fa-save"></i> <?= $isEdit ? 'Salva aggiornamenti' : 'Crea spazio cliente' ?>
+                  <i class="fa fa-save"></i> <?= $isEdit ? 'Salva aggiornamenti' : 'Crea spazio e avvia setup' ?>
                 </button>
-                <button class="btn btn-primary" type="submit" name="provision_after_save" value="1">
-                  <i class="fa fa-database"></i> <?= $isEdit ? 'Salva e provisiona' : 'Crea e provisiona' ?>
-                </button>
+                <?php if ($isEdit): ?>
+                  <button class="btn btn-primary" type="submit" name="provision_after_save" value="1">
+                    <i class="fa fa-database"></i> Salva e provisiona
+                  </button>
+                <?php endif; ?>
                 <a class="btn btn-default" href="<?= portal_platform_url('spazi-clienti') ?>">
                   <i class="fa fa-plus"></i> Nuovo spazio
                 </a>

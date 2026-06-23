@@ -1152,7 +1152,7 @@
 
         .agenda-team-shell {
             display: none;
-            min-height: 620px;
+            min-height: 720px;
         }
 
         .agenda-team-summary {
@@ -1168,8 +1168,8 @@
 
         .agenda-team-board-wrap {
             overflow: auto;
-            max-height: 78vh;
-            min-height: 560px;
+            max-height: 84vh;
+            min-height: 680px;
             border: 1px solid #dde7ef;
             border-radius: 12px;
             background: #f8fafc;
@@ -1265,7 +1265,7 @@
 
         .agenda-team-column-body {
             border-left: 1px solid #eef2f7;
-            --agenda-team-step-height: 18px;
+            --agenda-team-step-height: 52px;
         }
 
         .agenda-team-column-body::before {
@@ -1313,27 +1313,46 @@
             left: 8px;
             right: 8px;
             z-index: 2;
-            padding: 8px 10px;
-            border-radius: 10px;
+            padding: 10px 12px;
+            border-radius: 12px;
             box-shadow: 0 10px 22px rgba(31, 45, 61, 0.14);
             overflow: hidden;
             cursor: pointer;
         }
 
         .agenda-team-entry-title {
+            display: flex;
+            align-items: center;
+            gap: 6px;
             color: inherit;
-            font-size: 12px;
+            font-size: 13px;
             font-weight: 700;
-            line-height: 1.35;
-            white-space: pre-line;
+            line-height: 1.4;
+            white-space: nowrap;
+            overflow: hidden;
+        }
+
+        .agenda-team-entry-time {
+            flex: 0 0 auto;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .agenda-team-entry-patient {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .agenda-team-entry-note {
             margin-top: 4px;
+            display: block;
             color: inherit;
             font-size: 12px;
             line-height: 1.35;
             opacity: 0.92;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .agenda-team-entry-free-slot {
@@ -1355,7 +1374,7 @@
         }
 
         .agenda-team-free-label {
-            font-size: 11px;
+            font-size: 12px;
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.03em;
@@ -1407,7 +1426,7 @@
             }
 
             .agenda-team-board-wrap {
-                min-height: 460px;
+                min-height: 560px;
             }
         }
     </style>
@@ -4606,16 +4625,17 @@ function getAgendaTeamDayBounds(minTime, maxTime) {
     };
 }
 
-function getAgendaTeamDayPixelsPerMinute(totalMinutes) {
+function getAgendaTeamDayPixelsPerMinute(totalMinutes, stepMinutes) {
+    var normalizedStep = Math.max(5, parseInt(stepMinutes, 10) || agendaCalendarBaseStep);
+    var basePixelsPerMinute = 2.35;
+
     if (totalMinutes <= 360) {
-        return 1.45;
+        basePixelsPerMinute = 2.8;
+    } else if (totalMinutes <= 540) {
+        basePixelsPerMinute = 2.55;
     }
 
-    if (totalMinutes <= 540) {
-        return 1.2;
-    }
-
-    return 1.05;
+    return Math.max(basePixelsPerMinute, 52 / normalizedStep);
 }
 
 function renderAgendaTeamDayTimeMarkers(bounds, pixelsPerMinute) {
@@ -4656,7 +4676,7 @@ function renderAgendaTeamDayHeader(column) {
         + '</div>';
 }
 
-function buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute) {
+function buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute, entryHeight) {
     var slots = $.isArray(column.slots) ? column.slots : [];
 
     if (!slots.length) {
@@ -4681,8 +4701,7 @@ function buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute) {
         var startMinutes = (startMoment.hours() * 60) + startMoment.minutes();
         var endMinutes = (endMoment.hours() * 60) + endMoment.minutes();
         var top = Math.max(0, (startMinutes - bounds.startMinutes) * pixelsPerMinute);
-        var baseHeight = Math.max((endMinutes - startMinutes) * pixelsPerMinute, 16);
-        var height = Math.max(baseHeight - 2, 16);
+        var height = Math.max(parseInt(entryHeight, 10) || 0, 44);
         var orario = startMoment.format('HH:mm');
         var stato = $.trim(String(slot.stato || '')).toUpperCase();
         var pazSpec = $.trim(slot.paz_spec || '');
@@ -4691,6 +4710,13 @@ function buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute) {
         var nominativo = $.trim((slot.cognome || '') + ' ' + (slot.nome || ''));
         var noteEvento = buildAppointmentNoteDisplay(slot);
         var title = orario + (nominativo !== '' ? (' ' + nominativo) : '');
+        var titleHtml = ''
+            + '<div class="agenda-team-entry-title">'
+            + '  <span class="agenda-team-entry-time">' + escapeHtml(orario) + '</span>'
+            + (nominativo !== ''
+                ? '<span class="agenda-team-entry-patient">' + escapeHtml(nominativo) + '</span>'
+                : '')
+            + '</div>';
 
         if ((stato === 'LIBERO' || stato === 'BLOCCATO') && !hasAppointment && !column.giorno_bloccato) {
             html += ''
@@ -4707,7 +4733,7 @@ function buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute) {
         if (stato === 'CHIUSO' || (column.giorno_bloccato && !hasAppointment)) {
             html += ''
                 + '<div class="agenda-team-entry agenda-team-entry-closed"'
-                + ' style="top:' + top + 'px;height:' + Math.max(height, 22) + 'px;"'
+                + ' style="top:' + top + 'px;height:' + height + 'px;"'
                 + ' title="Giornata bloccata">'
                 + '  <div class="agenda-team-entry-title">Bloccato</div>'
                 + '</div>';
@@ -4715,18 +4741,13 @@ function buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute) {
         }
 
         var color = column.giorno_bloccato ? '#d9534f' : (isSpecialPatient ? '#2e8b57' : '#3c8dbc');
-        var fullTitle = orario;
-
-        if (nominativo !== '') {
-            fullTitle += '\n' + nominativo;
-        }
 
         if (column.giorno_bloccato) {
             html += ''
                 + '<div class="agenda-team-entry"'
-                + ' style="top:' + top + 'px;height:' + Math.max(height, 40) + 'px;background:' + color + ';border:1px solid ' + color + ';color:#fff;"'
+                + ' style="top:' + top + 'px;height:' + height + 'px;background:' + color + ';border:1px solid ' + color + ';color:#fff;"'
                 + ' title="' + escapeHtml(title || 'Appuntamento') + '">'
-                + '  <div class="agenda-team-entry-title">' + nl2br(escapeHtml(fullTitle)) + '</div>'
+                + titleHtml
                 + (noteEvento !== ''
                     ? '<div class="agenda-team-entry-note">' + escapeHtml(noteEvento) + '</div>'
                     : '')
@@ -4737,10 +4758,10 @@ function buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute) {
         html += ''
             + '<button type="button"'
             + ' class="agenda-team-entry js-agenda-team-booked-slot"'
-            + ' style="top:' + top + 'px;height:' + Math.max(height, 40) + 'px;background:' + color + ';border:1px solid ' + color + ';color:#fff;"'
+            + ' style="top:' + top + 'px;height:' + height + 'px;background:' + color + ';border:1px solid ' + color + ';color:#fff;"'
             + ' data-slot-id="' + slotId + '"'
             + ' title="' + escapeHtml(title || 'Appuntamento') + '">'
-            + '  <div class="agenda-team-entry-title">' + nl2br(escapeHtml(fullTitle)) + '</div>'
+            + titleHtml
             + (noteEvento !== ''
                 ? '<div class="agenda-team-entry-note">' + escapeHtml(noteEvento) + '</div>'
                 : '')
@@ -4761,11 +4782,12 @@ function renderAgendaTeamDay(res) {
         return;
     }
 
-    var bounds = getAgendaTeamDayBounds(res.min_time, res.max_time);
-    var pixelsPerMinute = getAgendaTeamDayPixelsPerMinute(bounds.totalMinutes);
-    var totalHeight = Math.max(Math.round(bounds.totalMinutes * pixelsPerMinute), 360);
     var stepMinutes = Math.max(5, parseInt(res.grid_duration, 10) || agendaCalendarBaseStep);
-    var stepHeight = Math.max(Math.round(stepMinutes * pixelsPerMinute), 8);
+    var bounds = getAgendaTeamDayBounds(res.min_time, res.max_time);
+    var pixelsPerMinute = getAgendaTeamDayPixelsPerMinute(bounds.totalMinutes, stepMinutes);
+    var totalHeight = Math.max(Math.round(bounds.totalMinutes * pixelsPerMinute), 640);
+    var stepHeight = Math.max(Math.round(stepMinutes * pixelsPerMinute), 68);
+    var entryHeight = Math.max(stepHeight - 8, 60);
     var templateColumns = '82px';
     var html = '';
 
@@ -4787,7 +4809,7 @@ function renderAgendaTeamDay(res) {
     $.each(columns, function(_, column) {
         html += '<div class="agenda-team-column-body' + (column.giorno_bloccato ? ' is-day-locked' : '') + '"'
             + ' style="height:' + totalHeight + 'px;--agenda-team-step-height:' + stepHeight + 'px;">'
-            + buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute)
+            + buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute, entryHeight)
             + '</div>';
     });
 

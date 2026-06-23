@@ -9,6 +9,7 @@ use App\Models\PlatformTenantsModel;
 use App\Services\PlatformAccessService;
 use App\Services\PlatformAdminAccessService;
 use App\Services\PlatformMasterAccountService;
+use App\Services\TenantAdminMenuService;
 use App\Services\TenantCatalogService;
 use App\Services\TenantFeatureService;
 use App\Services\TenantInfrastructureProvisioningService;
@@ -250,24 +251,30 @@ class PlatformTenantSpacesController extends BaseController
         }
 
         $tenantId = (int) ($this->request->getPost('id_tenant') ?? 0);
+        $isCreate = $tenantId <= 0;
+        $isEdit = !$isCreate;
         $featureKeys = $this->allFeatureKeys();
-        $enabledFeatures = array_values(array_filter(array_map(
-            static fn($value): string => trim(strtolower((string) $value)),
-            (array) $this->request->getPost('enabled_features')
-        )));
-        $enabledFeatures = array_values(array_unique(array_intersect($enabledFeatures, $featureKeys)));
-        $disabledFeatures = array_values(array_diff($featureKeys, $enabledFeatures));
+        $hasFeatureOverrideForm = (int) ($this->request->getPost('feature_override_form') ?? 0) === 1;
+        $enabledFeatures = [];
+        $disabledFeatures = [];
+
+        if ($hasFeatureOverrideForm) {
+            $enabledFeatures = array_values(array_filter(array_map(
+                static fn($value): string => trim(strtolower((string) $value)),
+                (array) $this->request->getPost('enabled_features')
+            )));
+            $enabledFeatures = array_values(array_unique(array_intersect($enabledFeatures, $featureKeys)));
+            $disabledFeatures = array_values(array_diff($featureKeys, $enabledFeatures));
+        }
 
         $payload = [
-            'tenant_key' => (string) $this->request->getPost('tenant_key'),
             'tenant_name' => (string) $this->request->getPost('tenant_name'),
             'legal_name' => (string) $this->request->getPost('legal_name'),
-            'package_code' => (string) $this->request->getPost('package_code'),
-            'status' => (string) $this->request->getPost('status'),
-            'onboarding_status' => (string) $this->request->getPost('onboarding_status'),
+            'package_code' => (string) ($this->request->getPost('package_code') ?? ($isCreate ? 'base' : '')),
+            'status' => (string) ($this->request->getPost('status') ?? ($isCreate ? 'active' : '')),
+            'onboarding_status' => (string) ($this->request->getPost('onboarding_status') ?? 'draft'),
             'login_hint' => (string) $this->request->getPost('login_hint'),
             'feature_profile' => (string) $this->request->getPost('feature_profile'),
-            'storage_key' => (string) $this->request->getPost('storage_key'),
             'db_host' => (string) $this->request->getPost('db_host'),
             'db_port' => (int) ($this->request->getPost('db_port') ?? 3306),
             'db_name' => (string) $this->request->getPost('db_name'),
@@ -279,11 +286,17 @@ class PlatformTenantSpacesController extends BaseController
             'master_first_name' => (string) $this->request->getPost('master_first_name'),
             'master_last_name' => (string) $this->request->getPost('master_last_name'),
             'master_password' => (string) $this->request->getPost('master_password'),
-            'app_user_id' => (int) ($this->request->getPost('master_app_user_id') ?? 0),
             'enabled_features' => $enabledFeatures,
             'disabled_features' => $disabledFeatures,
-            'is_active' => (int) ($this->request->getPost('is_active') ?? 0) === 1 ? 1 : 0,
+            'is_active' => $this->request->getPost('is_active') !== null
+                ? ((int) ($this->request->getPost('is_active') ?? 0) === 1 ? 1 : 0)
+                : ($isCreate ? 1 : 0),
         ];
+
+        $postedAppUserId = $this->request->getPost('master_app_user_id');
+        if ($postedAppUserId !== null && trim((string) $postedAppUserId) !== '') {
+            $payload['app_user_id'] = (int) $postedAppUserId;
+        }
 
         $service = new TenantProvisioningService();
 
@@ -295,7 +308,11 @@ class PlatformTenantSpacesController extends BaseController
             $savedTenant = (array) ($result['tenant'] ?? []);
             $savedTenantId = (int) ($savedTenant['id_tenant'] ?? 0);
 
-            if ((int) ($this->request->getPost('prepare_local_dirs') ?? 0) === 1 && $savedTenantId > 0) {
+            $shouldProvision = $savedTenantId > 0
+                && ($isCreate || (int) ($this->request->getPost('provision_after_save') ?? 0) === 1);
+            $provisionSucceeded = false;
+
+            if (!$shouldProvision && (int) ($this->request->getPost('prepare_local_dirs') ?? 0) === 1 && $savedTenantId > 0) {
                 $service->prepareLocalDirectories(
                     (string) ($savedTenant['tenant_key'] ?? ''),
                     (string) ($savedTenant['storage_key'] ?? '')
@@ -313,25 +330,47 @@ class PlatformTenantSpacesController extends BaseController
                 session()->setFlashdata('tenant_master_temp_password', $tempPassword);
             }
 
-            if (in_array((string) ($tenantAppSync['status'] ?? ''), ['skipped', 'error'], true)) {
+            if ($shouldProvision) {
+                try {
+                    $provision = (new TenantInfrastructureProvisioningService())->provisionTenantInfrastructure($savedTenantId);
+                    $provisionSucceeded = true;
+                    $messages[] = 'Provisioning tecnico completato (' . (string) ($provision['template_mode'] ?? 'ok') . ').';
+                } catch (\Throwable $e) {
+                    $warnings[] = 'Salvataggio completato, ma il provisioning tecnico non e riuscito: ' . $e->getMessage();
+                }
+            }
+
+            if (in_array((string) ($tenantAppSync['status'] ?? ''), ['skipped', 'error'], true) && !$provisionSucceeded) {
                 $warnings[] = 'Spazio cliente salvato, ma il profilo applicativo del tenant master non e ancora pronto: ' . (string) ($tenantAppSync['message'] ?? 'sincronizzazione rimandata');
             }
 
             if ((int) ($this->request->getPost('send_master_access_email') ?? 0) === 1) {
                 try {
+                    if ($shouldProvision && !$provisionSucceeded) {
+                        throw new \RuntimeException('provisioning tecnico non pronto');
+                    }
+
                     (new PlatformAccessService())->sendMembershipAccessEmail((int) ($result['membership']['id_platform_user_tenant'] ?? 0), 'platform_console_master_save');
                     $messages[] = 'Email di accesso inviata al tenant master.';
                 } catch (\Throwable $e) {
-                    $warnings[] = 'Salvataggio completato, ma l invio accesso master non e riuscito: ' . $e->getMessage();
+                    if ($shouldProvision && !$provisionSucceeded) {
+                        $warnings[] = 'Salvataggio completato, ma l invio accesso master e stato saltato perche il provisioning tecnico non e ancora pronto.';
+                    } else {
+                        $warnings[] = 'Salvataggio completato, ma l invio accesso master non e riuscito: ' . $e->getMessage();
+                    }
                 }
             }
 
-            if ((int) ($this->request->getPost('provision_after_save') ?? 0) === 1 && $savedTenantId > 0) {
+            if ($isEdit && (int) ($this->request->getPost('admin_menu_form') ?? 0) === 1) {
                 try {
-                    $provision = (new TenantInfrastructureProvisioningService())->provisionTenantInfrastructure($savedTenantId);
-                    $messages[] = 'Provisioning tecnico completato (' . (string) ($provision['template_mode'] ?? 'ok') . ').';
+                    $menuLinks = $this->requestedAdminMenuLinks();
+                    (new TenantAdminMenuService())->syncForTenant(
+                        $this->catalogTenantForMenuSync($savedTenantId, $savedTenant),
+                        $menuLinks
+                    );
+                    $messages[] = 'Menu laterale tenant aggiornato.';
                 } catch (\Throwable $e) {
-                    $warnings[] = 'Salvataggio completato, ma il provisioning tecnico non e riuscito: ' . $e->getMessage();
+                    $warnings[] = 'Spazio salvato, ma il menu laterale del tenant non e stato aggiornato: ' . $e->getMessage();
                 }
             }
 
@@ -683,6 +722,7 @@ class PlatformTenantSpacesController extends BaseController
             'owner' => $owner ?: null,
             'feature_map' => $featureMap,
             'override_map' => $overrideMap,
+            'admin_menu' => (new TenantAdminMenuService())->loadCatalogStateForTenant($tenant),
             'runtime' => (new TenantProvisioningService())->buildRuntimeBlueprint($tenant),
             'metadata' => $this->decodeMetadata((string) ($tenant['metadata_json'] ?? '')),
         ];
@@ -718,6 +758,34 @@ class PlatformTenantSpacesController extends BaseController
 
         $decoded = json_decode($json, true);
         return is_array($decoded) ? $decoded : [];
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function requestedAdminMenuLinks(): array
+    {
+        $values = (array) $this->request->getPost('enabled_admin_menu');
+        $service = new TenantAdminMenuService();
+        $links = [];
+
+        foreach ($values as $value) {
+            $normalized = $service->normalizeLink((string) $value);
+            if ($normalized !== '' && !in_array($normalized, $links, true)) {
+                $links[] = $normalized;
+            }
+        }
+
+        return $links;
+    }
+
+    /**
+     * @param array<string, mixed> $fallbackTenant
+     * @return array<string, mixed>
+     */
+    private function catalogTenantForMenuSync(int $tenantId, array $fallbackTenant): array
+    {
+        return (new TenantCatalogService())->getTenantById($tenantId) ?? $fallbackTenant;
     }
 
     private function tenantSpacesUrl(int $tenantId = 0, string $suffix = ''): string

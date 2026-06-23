@@ -100,7 +100,9 @@ form {
   gap: 10px;
 }
 
-.row.button input[type="button"] {
+.row.button input[type="button"],
+.row.button input[type="submit"],
+.row.button button {
   width: 100%;
   padding: 12px;
   border-radius: 10px;
@@ -128,6 +130,17 @@ form {
 }
 
 #register:hover {
+  background: #12806a;
+}
+
+.row.button input[type="submit"],
+.row.button button[type="submit"] {
+  background: #2c8895;
+  color: #fff;
+}
+
+.row.button input[type="submit"]:hover,
+.row.button button[type="submit"]:hover {
   background: #12806a;
 }
 

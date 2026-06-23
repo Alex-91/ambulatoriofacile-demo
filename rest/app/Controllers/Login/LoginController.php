@@ -7,6 +7,7 @@ use App\Controllers\BaseController;
 use App\Libraries\Crypto_helper; // Importa la libreria
 use App\Libraries\SystemUserMask;
 use App\Models\ClientDoctorModel;
+use App\Services\DemoAccessService;
 use App\Services\PlatformAccessService;
 use App\Services\PlatformAdminAccessService;
 use App\Services\PlatformAuthService;
@@ -166,6 +167,11 @@ class LoginController extends BaseController
         $profileSlug = array_key_exists($requestedProfile, $profileLabels) ? $requestedProfile : '';
         $prefillUsername = $this->sanitizeDemoUsername((string) $this->request->getGet('u'));
         $demoMode = $this->request->getGet('demo') === '1' || $prefillUsername !== '' || $profileSlug !== '';
+
+        if ($demoMode && $prefillUsername !== '') {
+            $this->preparePrefilledDemoAccount($prefillUsername);
+        }
+
         $demoOtpHint = in_array($prefillUsername, ['demo.dietista', 'demo.segreteria'], true)
             || str_contains($prefillUsername, '->');
 
@@ -178,6 +184,18 @@ class LoginController extends BaseController
             'loginSuccess' => session()->getFlashdata('login_success'),
             'loginError' => session()->getFlashdata('login_error'),
         ];
+    }
+
+    private function preparePrefilledDemoAccount(string $requestedUsername): void
+    {
+        try {
+            (new DemoAccessService())->preparePresentationAccount($requestedUsername);
+        } catch (\Throwable $e) {
+            log_message('warning', '[LoginController] Preparazione account demo fallita: {message}', [
+                'message' => $e->getMessage(),
+                'username' => $requestedUsername,
+            ]);
+        }
     }
 
     private function legacyUserExistsByUsername(\CodeIgniter\Database\BaseConnection $db, string $username): bool

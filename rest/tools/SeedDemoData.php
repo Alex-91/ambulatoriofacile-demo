@@ -18,6 +18,16 @@ const DEMO_SEED_REPORT_DIR = __DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SE
 const DEMO_SEED_LOCAL_DOCTOR_ID_BASE = 1000000000;
 const DEMO_SEED_AGENDA_START_DATE = '2026-06-01';
 const DEMO_SEED_AGENDA_END_DATE = '2026-06-30';
+const DEMO_PLATFORM_BOOTSTRAP_MIGRATIONS = [
+    '2026-06-19-000001_CreatePlatformMultiTenantFoundation.php' => 'App\\Database\\Migrations\\CreatePlatformMultiTenantFoundation',
+    '2026-06-19-000002_CreatePlatformUserAccessTokens.php' => 'App\\Database\\Migrations\\CreatePlatformUserAccessTokens',
+    '2026-06-20-000001_AddTenantManagedFeatureControls.php' => 'App\\Database\\Migrations\\AddTenantManagedFeatureControls',
+    '2026-06-20-000002_AddPlatformAdminFlagToPlatformUsers.php' => 'App\\Database\\Migrations\\AddPlatformAdminFlagToPlatformUsers',
+    '2026-06-21-000001_AddSharedAgendaPatientsFeature.php' => 'App\\Database\\Migrations\\AddSharedAgendaPatientsFeature',
+    '2026-06-21-000002_AddAgendaTeamDayViewFeature.php' => 'App\\Database\\Migrations\\AddAgendaTeamDayViewFeature',
+    '2026-06-22-000001_AddSharedAgendaMemosFeature.php' => 'App\\Database\\Migrations\\AddSharedAgendaMemosFeature',
+    '2026-06-22-000003_RepairTenantFeaturePreferencesSchema.php' => 'App\\Database\\Migrations\\RepairTenantFeaturePreferencesSchema',
+];
 
 main($argv ?? []);
 
@@ -28,8 +38,10 @@ function main(array $argv): void
     $options = parseOptions($argv);
     $envPath = resolveEnvFilePath($options['env_file']);
     $env = loadSimpleEnvFile($envPath);
+    applyRuntimeEnvironment($env);
 
     $config = buildRuntimeConfig($options, $env, $envPath);
+    applyRuntimeConfigOverrides($config);
     assertTargetDatabaseIsSafe($config['database']);
 
     $db = new mysqli(
@@ -56,6 +68,7 @@ function main(array $argv): void
         assertDatabaseExists($db, $config['database']);
         selectDatabase($db, $config['database']);
         configureCryptoSession($db, $config['db_key'], $config['db_mode']);
+        bootstrapPlatformCatalog($report);
 
         $state = [
             'groups' => [],
@@ -202,6 +215,46 @@ function loadSimpleEnvFile(string $path): array
     return $env;
 }
 
+function applyRuntimeEnvironment(array $env): void
+{
+    foreach ($env as $key => $value) {
+        if (!is_string($key) || trim($key) === '') {
+            continue;
+        }
+
+        putenv($key . '=' . $value);
+        $_ENV[$key] = $value;
+        $_SERVER[$key] = $value;
+    }
+
+    if (!isset($env['CI_ENVIRONMENT']) || trim((string)$env['CI_ENVIRONMENT']) === '') {
+        putenv('CI_ENVIRONMENT=development');
+        $_ENV['CI_ENVIRONMENT'] = 'development';
+        $_SERVER['CI_ENVIRONMENT'] = 'development';
+    }
+}
+
+function applyRuntimeConfigOverrides(array $config): void
+{
+    $overrides = [
+        'database.default.hostname' => (string)$config['host'],
+        'database.default.port' => (string)$config['port'],
+        'database.default.database' => (string)$config['database'],
+        'database.default.username' => (string)$config['user'],
+        'database.default.password' => (string)$config['pass'],
+        'database.default.DB_ENCRYPTION_KEY' => (string)$config['db_key'],
+        'DB_ENCRYPTION_KEY' => (string)$config['db_key'],
+        'DB_ENCRYPTION_MODE' => (string)$config['db_mode'],
+        'PRODUCT_BRAND_NAME' => (string)$config['brand'],
+    ];
+
+    foreach ($overrides as $key => $value) {
+        putenv($key . '=' . $value);
+        $_ENV[$key] = $value;
+        $_SERVER[$key] = $value;
+    }
+}
+
 function buildRuntimeConfig(array $options, array $env, string $envPath): array
 {
     $config = [
@@ -268,6 +321,134 @@ function configureCryptoSession(mysqli $db, string $dbKey, string $dbMode): void
     $db->query('SET @init_vector = RANDOM_BYTES(16)');
 }
 
+function bootstrapPlatformCatalog(array &$report): void
+{
+    static $bootstrapped = false;
+
+    if ($bootstrapped) {
+        return;
+    }
+
+    bootstrapCodeIgniterRuntimeForDemoTools();
+
+    foreach (DEMO_PLATFORM_BOOTSTRAP_MIGRATIONS as $file => $className) {
+        $migrationPath = APPPATH . 'Database' . DIRECTORY_SEPARATOR . 'Migrations' . DIRECTORY_SEPARATOR . $file;
+        if (!is_file($migrationPath)) {
+            throw new RuntimeException("Migration platform demo non trovata: {$migrationPath}");
+        }
+
+        require_once $migrationPath;
+        if (!class_exists($className)) {
+            throw new RuntimeException("Classe migration non caricata: {$className}");
+        }
+
+        /** @var object $migration */
+        $migration = new $className();
+        if (!method_exists($migration, 'up')) {
+            throw new RuntimeException("Migration piattaforma non valida: {$className}");
+        }
+
+        $migration->up();
+    }
+
+    $platformDb = \Config\Database::connect('platform');
+    $platformTables = [
+        'platform_packages',
+        'platform_features',
+        'platform_package_features',
+        'platform_tenants',
+        'platform_tenant_features',
+        'platform_tenant_feature_preferences',
+        'platform_users',
+        'platform_user_tenants',
+        'platform_user_access_tokens',
+    ];
+
+    foreach ($platformTables as $table) {
+        if (!$platformDb->tableExists($table)) {
+            throw new RuntimeException("Tabella platform mancante dopo bootstrap demo: {$table}");
+        }
+    }
+
+    $report['summary']['platform_tables'] = count($platformTables);
+    $report['summary']['platform_packages'] = countTableRows($platformDb, 'platform_packages');
+    $report['summary']['platform_features'] = countTableRows($platformDb, 'platform_features');
+
+    $bootstrapped = true;
+}
+
+function bootstrapCodeIgniterRuntimeForDemoTools(): void
+{
+    static $loaded = false;
+
+    if ($loaded) {
+        return;
+    }
+
+    $repoRoot = dirname(dirname(__DIR__));
+    require_once $repoRoot . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'autoload.php';
+    require_once __DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . 'app' . DIRECTORY_SEPARATOR . 'Config' . DIRECTORY_SEPARATOR . 'Paths.php';
+
+    $paths = new \Config\Paths();
+
+    if (!defined('APPPATH')) {
+        define('APPPATH', realpath(rtrim($paths->appDirectory, '\\/ ')) . DIRECTORY_SEPARATOR);
+    }
+
+    if (!defined('ROOTPATH')) {
+        define('ROOTPATH', realpath(APPPATH . '..') . DIRECTORY_SEPARATOR);
+    }
+
+    if (!defined('SYSTEMPATH')) {
+        define('SYSTEMPATH', realpath(rtrim($paths->systemDirectory, '\\/ ')) . DIRECTORY_SEPARATOR);
+    }
+
+    if (!defined('WRITEPATH')) {
+        $writePath = realpath(rtrim($paths->writableDirectory, '\\/ '));
+        if ($writePath === false) {
+            throw new RuntimeException('WRITEPATH non disponibile per il bootstrap demo.');
+        }
+
+        define('WRITEPATH', $writePath . DIRECTORY_SEPARATOR);
+    }
+
+    if (!defined('TESTPATH')) {
+        define('TESTPATH', realpath(rtrim($paths->testsDirectory, '\\/ ')) . DIRECTORY_SEPARATOR);
+    }
+
+    if (!defined('ENVIRONMENT')) {
+        define('ENVIRONMENT', (string)(getenv('CI_ENVIRONMENT') ?: 'development'));
+    }
+
+    if (!defined('CI_DEBUG')) {
+        define('CI_DEBUG', ENVIRONMENT !== 'production');
+    }
+
+    require_once APPPATH . 'Config' . DIRECTORY_SEPARATOR . 'Constants.php';
+    require_once SYSTEMPATH . 'Config' . DIRECTORY_SEPARATOR . 'AutoloadConfig.php';
+    require_once APPPATH . 'Config' . DIRECTORY_SEPARATOR . 'Autoload.php';
+    require_once SYSTEMPATH . 'Modules' . DIRECTORY_SEPARATOR . 'Modules.php';
+    require_once APPPATH . 'Config' . DIRECTORY_SEPARATOR . 'Modules.php';
+    require_once SYSTEMPATH . 'Autoloader' . DIRECTORY_SEPARATOR . 'Autoloader.php';
+    require_once SYSTEMPATH . 'Config' . DIRECTORY_SEPARATOR . 'BaseService.php';
+    require_once SYSTEMPATH . 'Config' . DIRECTORY_SEPARATOR . 'Services.php';
+    require_once APPPATH . 'Config' . DIRECTORY_SEPARATOR . 'Services.php';
+
+    if (is_file(APPPATH . 'Common.php')) {
+        require_once APPPATH . 'Common.php';
+    }
+    require_once SYSTEMPATH . 'Common.php';
+
+    \Config\Services::autoloader()->initialize(new \Config\Autoload(), new \Config\Modules())->register();
+
+    $loaded = true;
+}
+
+function countTableRows(\CodeIgniter\Database\BaseConnection $db, string $table): int
+{
+    return (int)$db->table($table)->countAllResults();
+}
+
 function resetDemoTables(mysqli $db): void
 {
     $tables = [
@@ -287,6 +468,7 @@ function resetDemoTables(mysqli $db): void
         'dap39_sms_dot',
         'dap15_inf_dot',
         'dap14_seg_dot',
+        'dap24_agenda_visibilita',
         'dap09_client_doctor',
         'dap_user_schede',
         'dap16_auth_code',
@@ -659,6 +841,8 @@ function seedStaffLinks(mysqli $db, array $links, array &$state, array &$report)
 {
     $segCount = 0;
     $infCount = 0;
+    $agendaVisibilityCount = 0;
+    $agendaVisibilityExists = tableExists($db, 'dap24_agenda_visibilita');
 
     foreach ($links as $link) {
         $staff = $state['staff'][$link['staff_key']] ?? null;
@@ -674,12 +858,30 @@ function seedStaffLinks(mysqli $db, array $links, array &$state, array &$report)
 
             if ($link['type'] === 'segreteria') {
                 $db->query("INSERT INTO dap14_seg_dot (id_seg, id_dot) VALUES ({$staff['id_personale']}, {$doctor['id_personale']})");
+                if ($agendaVisibilityExists) {
+                    foreach (staffAgendaVisibilityOperatorIds($staff) as $operatorId) {
+                        $db->query("
+                            INSERT INTO dap24_agenda_visibilita (id_ope, id_dot, created_by, created_at)
+                            VALUES ({$operatorId}, {$doctor['legacy_id_dot']}, {$staff['id_user']}, NOW())
+                        ");
+                        $agendaVisibilityCount++;
+                    }
+                }
                 $segCount++;
                 continue;
             }
 
             if ($link['type'] === 'infermiere') {
                 $db->query("INSERT INTO dap15_inf_dot (id_inf, id_dot) VALUES ({$staff['id_personale']}, {$doctor['id_personale']})");
+                if ($agendaVisibilityExists) {
+                    foreach (staffAgendaVisibilityOperatorIds($staff) as $operatorId) {
+                        $db->query("
+                            INSERT INTO dap24_agenda_visibilita (id_ope, id_dot, created_by, created_at)
+                            VALUES ({$operatorId}, {$doctor['legacy_id_dot']}, {$staff['id_user']}, NOW())
+                        ");
+                        $agendaVisibilityCount++;
+                    }
+                }
                 $infCount++;
             }
         }
@@ -687,6 +889,27 @@ function seedStaffLinks(mysqli $db, array $links, array &$state, array &$report)
 
     $report['summary']['link_segreterie'] = $segCount;
     $report['summary']['link_infermieri'] = $infCount;
+    $report['summary']['agenda_visibility_links'] = $agendaVisibilityCount;
+}
+
+function staffAgendaVisibilityOperatorIds(array $staff): array
+{
+    $ids = [];
+
+    $idPersonale = (int)($staff['id_personale'] ?? 0);
+    if ($idPersonale > 0) {
+        $ids[] = $idPersonale;
+    }
+
+    $legacyIdOpe = (int)($staff['legacy_id_ope'] ?? 0);
+    if ($legacyIdOpe > 0) {
+        $ids[] = $legacyIdOpe;
+    }
+
+    $ids = array_values(array_unique(array_filter($ids, static fn(int $id): bool => $id > 0)));
+    sort($ids);
+
+    return $ids;
 }
 
 function seedDoctorReminderFlags(mysqli $db, array &$state, array &$report): void
@@ -1375,6 +1598,10 @@ function buildFixtures(string $demoPassword): array
         clientFixture('nutrition_08', 'Davide', 'Greco', 'nutrition_collab', 61008, 'Revisione diario alimentare', 'davide.greco@example.test', '3477001008', '0217001008', 'Via Ampere 72', 'Milano', 'MI', 'GRCDVD77H18F205H'),
         clientFixture('nutrition_09', 'Marta', 'Leone', 'nutrition_collab', 61009, 'Nutrizione vegetariana e integrazione', 'marta.leone@example.test', '3477001009', '0217001009', 'Via Vallazze 15', 'Milano', 'MI', 'LNEMRT81I59F205I'),
         clientFixture('nutrition_10', 'Stefano', 'Pini', 'nutrition_collab', 61010, 'Aumento massa muscolare', 'stefano.pini@example.test', '3477001010', '0217001010', 'Via Bassini 19', 'Milano', 'MI', 'PNISFN75L20F205L'),
+        clientFixture('nutrition_11', 'Riccardo', 'De Luca', 'nutrition_team_3', 61011, 'Percorso nutrizione clinica per turni di lavoro', 'riccardo.deluca@example.test', '3477001011', '0217001011', 'Via Cadorna 9', 'Milano', 'MI', 'DLCRCR82A15F205R'),
+        clientFixture('nutrition_12', 'Ilaria', 'Monti', 'nutrition_team_3', 61012, 'Follow up sindrome del colon irritabile', 'ilaria.monti@example.test', '3477001012', '0217001012', 'Via Washington 31', 'Milano', 'MI', 'MNTLRI87B56F205S'),
+        clientFixture('nutrition_13', 'Tommaso', 'Riva', 'nutrition_team_3', 61013, 'Educazione alimentare pre gara podistica', 'tommaso.riva@example.test', '3477001013', '0217001013', 'Via San Vittore 14', 'Milano', 'MI', 'RVITMS90C17F205T'),
+        clientFixture('nutrition_14', 'Beatrice', 'Sala', 'nutrition_team_3', 61014, 'Riorganizzazione pasti per lavoro su turni', 'beatrice.sala@example.test', '3477001014', '0217001014', 'Via Solferino 28', 'Milano', 'MI', 'SLABRC85D58F205U'),
         clientFixture('sport_01', 'Chiara', 'Marini', 'sport_physio_1', 62001, 'Recupero caviglia post distorsione', 'chiara.marini@example.test', '3477002001', '0288002001', 'Via Arena 5', 'Milano', 'MI', 'MRNCHR93A41F205M', 'demo.portal.sport', $demoPassword),
         clientFixture('sport_02', 'Luca', 'Serra', 'sport_physio_1', 62002, 'Valutazione ritorno alla corsa', 'luca.serra@example.test', '3477002002', '0288002002', 'Via Procaccini 22', 'Milano', 'MI', 'SRRLCU91B12F205N'),
         clientFixture('sport_03', 'Federica', 'Longhi', 'sport_physio_1', 62003, 'Trattamento cervicale sportivo', 'federica.longhi@example.test', '3477002003', '0288002003', 'Via Piero della Francesca 47', 'Milano', 'MI', 'LNGFRC90C53F205O'),
@@ -1409,9 +1636,9 @@ function buildFixtures(string $demoPassword): array
             'password' => $demoPassword,
             'tipo_user' => 2,
             'tipo_personale' => 1,
-            'first_name' => 'Elena',
-            'last_name' => 'Rossi',
-            'qualifica' => 'Dietista',
+            'first_name' => 'Professionista1',
+            'last_name' => '',
+            'qualifica' => '',
             'email' => 'elena.rossi@example.test',
             'phone' => '3477100001',
             'group_key' => 'nutrition_studio',
@@ -1425,11 +1652,27 @@ function buildFixtures(string $demoPassword): array
             'password' => $demoPassword,
             'tipo_user' => 2,
             'tipo_personale' => 1,
-            'first_name' => 'Marta',
-            'last_name' => 'Riva',
-            'qualifica' => 'Biologa nutrizionista',
+            'first_name' => 'Professionista2',
+            'last_name' => '',
+            'qualifica' => '',
             'email' => 'marta.riva@example.test',
             'phone' => '3477100002',
+            'group_key' => 'nutrition_studio',
+            'legacy_dot_tipo_id' => 2,
+            'f_dom' => 0,
+            'titolare' => 1,
+        ],
+        [
+            'key' => 'nutrition_team_3',
+            'username' => 'demo.nutrizionista2',
+            'password' => $demoPassword,
+            'tipo_user' => 2,
+            'tipo_personale' => 1,
+            'first_name' => 'Professionista3',
+            'last_name' => '',
+            'qualifica' => '',
+            'email' => 'valentina.greco@example.test',
+            'phone' => '3477100007',
             'group_key' => 'nutrition_studio',
             'legacy_dot_tipo_id' => 2,
             'f_dom' => 0,
@@ -1538,7 +1781,7 @@ function buildFixtures(string $demoPassword): array
             [
                 'type' => 'segreteria',
                 'staff_key' => 'frontdesk_nutri',
-                'doctor_keys' => ['nutrition_lead', 'nutrition_collab'],
+                'doctor_keys' => ['nutrition_lead', 'nutrition_collab', 'nutrition_team_3'],
             ],
             [
                 'type' => 'segreteria',
@@ -1568,6 +1811,17 @@ function buildFixtures(string $demoPassword): array
                 'blocked_slot_index' => [-1, -1, -1],
                 'recurring_booked_per_weekday' => [1 => 3, 2 => 3, 3 => 2, 4 => 3, 5 => 1],
                 'visit_reasons' => ['Bioimpedenziometria', 'Educazione alimentare', 'Controllo sportivo', 'Revisione diario alimentare'],
+            ],
+            [
+                'doctor_key' => 'nutrition_team_3',
+                'room_key' => 'nutri_visita_2',
+                'slots_per_day' => 8,
+                'slot_minutes' => 30,
+                'start_times' => ['10:30:00', '10:30:00', '10:30:00'],
+                'booked_per_day' => [5, 4, 1],
+                'blocked_slot_index' => [-1, -1, -1],
+                'recurring_booked_per_weekday' => [1 => 4, 2 => 4, 3 => 3, 4 => 3, 5 => 2],
+                'visit_reasons' => ['Follow up nutrizione clinica', 'Rieducazione alimentare', 'Controllo intestino irritabile', 'Piano alimentare per turnisti'],
             ],
             [
                 'doctor_key' => 'sport_physio_1',
@@ -1637,6 +1891,20 @@ function buildFixtures(string $demoPassword): array
                 'thread_type' => 'group',
                 'group_key_prefix' => 'segreteria',
                 'title' => 'Segreteria',
+                'member_staff_keys' => ['nutrition_team_3', 'frontdesk_nutri'],
+                'messages' => [
+                    ['sender_key' => 'frontdesk_nutri', 'body' => 'Ho spostato Ilaria Monti alle 11:00 cosi la visita di follow up resta allineata con i nuovi slot condivisi.', 'created_at' => $futureDays[0] . ' 08:55:00'],
+                    ['sender_key' => 'nutrition_team_3', 'body' => 'Perfetto, cosi nella vista team si vede subito anche il blocco di mezza mattina e il riordino degli appuntamenti.', 'created_at' => $futureDays[0] . ' 09:02:00'],
+                ],
+                'read_state' => [
+                    'nutrition_team_3' => $futureDays[0] . ' 09:05:00',
+                    'frontdesk_nutri' => $futureDays[0] . ' 09:05:00',
+                ],
+            ],
+            [
+                'thread_type' => 'group',
+                'group_key_prefix' => 'segreteria',
+                'title' => 'Segreteria',
                 'member_staff_keys' => ['sport_physio_1', 'frontdesk_sport'],
                 'messages' => [
                     ['sender_key' => 'frontdesk_sport', 'body' => 'Il nuovo atleta vuole concentrare le sedute tra le 17 e le 19.', 'created_at' => $futureDays[0] . ' 09:05:00'],
@@ -1680,6 +1948,24 @@ function buildFixtures(string $demoPassword): array
                         'sender' => 'doctor',
                         'body' => 'Si, lo inserisco nello stesso appuntamento cosi facciamo la revisione completa.',
                         'created_at' => $futureDays[0] . ' 10:19:00',
+                    ],
+                ],
+                'mark_patient_read' => false,
+                'mark_doctor_read' => true,
+            ],
+            [
+                'client_key' => 'nutrition_12',
+                'doctor_key' => 'nutrition_team_3',
+                'messages' => [
+                    [
+                        'sender' => 'patient',
+                        'body' => 'Ho visto che l appuntamento e stato spostato alle 11:00, confermo che per me va bene.',
+                        'created_at' => $futureDays[0] . ' 10:32:00',
+                    ],
+                    [
+                        'sender' => 'doctor',
+                        'body' => 'Perfetto, ti aspetto alle 11:00 e rivediamo insieme anche il diario della settimana.',
+                        'created_at' => $futureDays[0] . ' 10:46:00',
                     ],
                 ],
                 'mark_patient_read' => false,

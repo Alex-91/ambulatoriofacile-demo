@@ -26,6 +26,7 @@ $routes->get('demo/richieste-locali', 'DemoController::requestInbox');
 $routes->get('demo/richieste-locali/export', 'DemoController::exportRequestInbox');
 $routes->get('app', 'Home::index');
 $routes->head('app', 'Home::index');
+$routes->get('nuovo', 'Admin\Personale::create');
 $routes->set404Override('App\Controllers\Errors::redirectHome');
 
 //LOGIN
@@ -225,6 +226,7 @@ $routes->group('admin', ['namespace' => 'App\Controllers\Admin'], function($rout
     $routes->post('anagrafica/sedi/stanza/save', 'AgendaSediController::saveStanza');
     $routes->post('anagrafica/sedi/stanza/toggle', 'AgendaSediController::toggleStanza');
        $routes->get('personale/nuovo', 'Personale::create');
+$routes->get('personale/nuovo_cliente', 'Clienti::create');
 $routes->post('personale/salva', 'Personale::store');
 $routes->get('personale/modifica_cliente', 'Clienti::index');
 $routes->get('personale/visibilita-moduli', 'PersonaleModuleVisibility::index');

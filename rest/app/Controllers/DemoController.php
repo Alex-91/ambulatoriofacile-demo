@@ -317,8 +317,9 @@ class DemoController extends Controller
 
         foreach ($accounts as $index => $account) {
             $username = (string) ($account['username'] ?? '');
-            $accounts[$index]['password'] = $password;
-            $accounts[$index]['login_url'] = $this->demoLoginUrl($username, self::UNIFIED_DEMO_KEY);
+            $loginUsername = trim((string) ($account['login_username'] ?? $username));
+            $accounts[$index]['password'] = (string) ($account['login_password'] ?? $password);
+            $accounts[$index]['login_url'] = $this->demoLoginUrl($loginUsername, self::UNIFIED_DEMO_KEY);
             $accounts[$index]['entry_url'] = $demoAccess->buildEntryUrl($username);
             $accounts[$index]['direct_access_enabled'] = $demoAccess->isPublicAccessEnabled();
             if ($username !== '' && array_key_exists($username, $seedLabels)) {
@@ -1272,9 +1273,9 @@ class DemoController extends Controller
                 'goal' => 'Apri lo spazio cliente demo senza login, verifica funzioni attivabili e gestione utenti del tenant.',
             ],
             [
-                'title' => 'Utente tenant',
-                'username' => 'demo.tenant.user',
-                'goal' => 'Prova l accesso normale dello spazio per capire cosa vede un utente standard senza permessi master.',
+                'title' => 'Agenda condivisa',
+                'username' => 'demo.tenant.agenda',
+                'goal' => 'Apri direttamente la nuova vista Giorno Team e fai vedere subito l agenda condivisa con 3 professionisti nello stesso studio.',
             ],
             [
                 'title' => 'Segreteria',

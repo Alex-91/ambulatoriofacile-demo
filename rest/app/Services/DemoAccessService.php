@@ -2,7 +2,11 @@
 
 namespace App\Services;
 
+use App\Models\PlatformFeaturesModel;
+use App\Models\PlatformPackageFeaturesModel;
+use App\Models\PlatformPackagesModel;
 use App\Models\PlatformTenantsModel;
+use App\Models\PlatformTenantFeaturesModel;
 use App\Models\PlatformUserTenantsModel;
 use App\Models\PlatformUsersModel;
 use Config\Database;
@@ -16,9 +20,22 @@ class DemoAccessService
     private const DEMO_TENANT_KEY = 'demo_ambulatoriofacile';
     private const DEMO_TENANT_STORAGE_KEY = 'demo-ambulatoriofacile';
     private const DEMO_TENANT_NAME = 'Demo AmbulatorioFacile';
+    private const DEMO_PLATFORM_MASTER_EMAIL = 'demo.platform.master@ambulatoriofacile.demo';
     private const DEMO_TENANT_MASTER_EMAIL = 'demo.tenant.master@ambulatoriofacile.demo';
     private const DEMO_TENANT_USER_EMAIL = 'demo.tenant.user@ambulatoriofacile.demo';
+    private const DEMO_TENANT_AGENDA_EMAIL = 'demo.tenant.agenda@ambulatoriofacile.demo';
     private const DEMO_PLATFORM_PASSWORD = 'DemoTenantNoLogin2026!';
+    private const DEMO_TENANT_REQUIRED_FEATURES = [
+        'shared_agenda_patients',
+        'agenda_team_day_view',
+        'shared_agenda_memos',
+    ];
+    private const DEMO_TENANT_REQUIRED_PLATFORM_FEATURES = [
+        'appointment_notifications',
+        'appointment_notifications_sms',
+        'appointment_notifications_whatsapp',
+    ];
+    private const DEMO_NOTIFICATION_PACKAGE_CODES = ['base', 'team', 'enterprise'];
 
     private \CodeIgniter\Database\BaseConnection $db;
     private \CodeIgniter\Database\BaseConnection $platformDb;
@@ -48,13 +65,34 @@ class DemoAccessService
     {
         return [
             [
+                'group_key' => 'platform',
+                'group_title' => 'Console piattaforma',
+                'group_note' => 'Qui provi il super master vero della piattaforma, separato dal tenant master dello spazio cliente.',
+                'account_type' => 'platform_admin',
+                'role' => 'Super master',
+                'username' => 'demo.platform.master',
+                'candidate_usernames' => ['demo.platform.master', self::DEMO_PLATFORM_MASTER_EMAIL],
+                'login_username' => self::DEMO_PLATFORM_MASTER_EMAIL,
+                'login_password' => self::DEMO_PLATFORM_PASSWORD,
+                'platform_email' => self::DEMO_PLATFORM_MASTER_EMAIL,
+                'platform_first_name' => 'Giulia',
+                'platform_last_name' => 'Conti',
+                'label' => 'Super master piattaforma demo',
+                'note' => 'Apre la console centrale piattaforma per vedere spazi clienti, funzioni globali e regia master.',
+                'redirect_route' => 'piattaforma/spazi-clienti',
+                'prefer_account_redirect' => true,
+                'scenarios' => ['console piattaforma', 'super master', 'spazi clienti'],
+            ],
+            [
                 'group_key' => 'tenant',
                 'group_title' => 'Spazio cliente senza login',
                 'group_note' => 'Qui provi la nuova area tenant direttamente dalla demo, senza password e senza uscire dal percorso pubblico.',
                 'account_type' => 'platform_tenant',
                 'role' => 'Tenant master',
                 'username' => 'demo.tenant.master',
-                'candidate_usernames' => ['demo.tenant.master'],
+                'candidate_usernames' => ['demo.tenant.master', self::DEMO_TENANT_MASTER_EMAIL],
+                'login_username' => self::DEMO_TENANT_MASTER_EMAIL,
+                'login_password' => self::DEMO_PLATFORM_PASSWORD,
                 'linked_legacy_candidates' => ['demo.admin'],
                 'platform_email' => self::DEMO_TENANT_MASTER_EMAIL,
                 'platform_first_name' => 'Giulia',
@@ -71,9 +109,32 @@ class DemoAccessService
                 'group_title' => 'Spazio cliente senza login',
                 'group_note' => 'Qui provi la nuova area tenant direttamente dalla demo, senza password e senza uscire dal percorso pubblico.',
                 'account_type' => 'platform_tenant',
+                'role' => 'Utente agenda condivisa',
+                'username' => 'demo.tenant.agenda',
+                'candidate_usernames' => ['demo.tenant.agenda', self::DEMO_TENANT_AGENDA_EMAIL],
+                'login_username' => self::DEMO_TENANT_AGENDA_EMAIL,
+                'login_password' => self::DEMO_PLATFORM_PASSWORD,
+                'linked_legacy_candidates' => ['demo.segreteria', 'demo.frontdesk.med'],
+                'platform_email' => self::DEMO_TENANT_AGENDA_EMAIL,
+                'platform_first_name' => 'Sara',
+                'platform_last_name' => 'Colombo',
+                'tenant_role' => 'tenant_staff',
+                'label' => 'Utente prova agenda condivisa',
+                'note' => 'Apre direttamente l agenda con 3 professionisti visibili e Giorno Team gia selezionato per mostrare la nuova vista condivisa.',
+                'redirect_route' => 'agenda?view=team_day',
+                'prefer_account_redirect' => true,
+                'scenarios' => ['agenda condivisa', '3 professionisti', 'giorno team'],
+            ],
+            [
+                'group_key' => 'tenant',
+                'group_title' => 'Spazio cliente senza login',
+                'group_note' => 'Qui provi la nuova area tenant direttamente dalla demo, senza password e senza uscire dal percorso pubblico.',
+                'account_type' => 'platform_tenant',
                 'role' => 'Utente tenant',
                 'username' => 'demo.tenant.user',
-                'candidate_usernames' => ['demo.tenant.user'],
+                'candidate_usernames' => ['demo.tenant.user', self::DEMO_TENANT_USER_EMAIL],
+                'login_username' => self::DEMO_TENANT_USER_EMAIL,
+                'login_password' => self::DEMO_PLATFORM_PASSWORD,
                 'linked_legacy_candidates' => ['demo.segreteria', 'demo.frontdesk.med'],
                 'platform_email' => self::DEMO_TENANT_USER_EMAIL,
                 'platform_first_name' => 'Sara',
@@ -94,10 +155,10 @@ class DemoAccessService
                 'username' => 'demo.segreteria',
                 'candidate_usernames' => ['demo.segreteria', 'demo.frontdesk.med'],
                 'label' => 'Segreteria Colombo Sara',
-                'note' => 'Ideale per agenda segreteria, conferme, spostamenti, posta segreteria e chat con i professionisti.',
+                'note' => 'Ideale per agenda segreteria su 3 professionisti, conferme, spostamenti, posta segreteria e chat con il team.',
                 'otp' => '2510',
                 'redirect_route' => 'agenda',
-                'scenarios' => ['agenda segreteria', 'posta segreteria', 'chat segreteria'],
+                'scenarios' => ['agenda segreteria', '3 professionisti', 'chat segreteria'],
             ],
             [
                 'group_key' => 'main',
@@ -107,7 +168,7 @@ class DemoAccessService
                 'role' => 'Dottore',
                 'username' => 'demo.dietista',
                 'candidate_usernames' => ['demo.dietista', 'demo.cardiologia'],
-                'label' => 'Dietista Rossi Elena',
+                'label' => 'Professionista1',
                 'note' => 'Mostra la vista professionista per agenda dottore, posta dottore, chat interna e follow-up sul paziente.',
                 'otp' => '2510',
                 'redirect_route' => 'agenda',
@@ -147,36 +208,23 @@ class DemoAccessService
                 'role' => 'Collaboratrice',
                 'username' => 'demo.nutrizionista',
                 'candidate_usernames' => ['demo.nutrizionista'],
-                'label' => 'Biologa nutrizionista Riva Marta',
+                'label' => 'Professionista2',
                 'note' => 'Utile per provare permessi differenziati e convivenza tra piu professionisti nello stesso studio demo.',
                 'redirect_route' => 'agenda',
                 'scenarios' => ['permessi differenziati', 'secondo professionista', 'agenda condivisa'],
             ],
             [
-                'group_key' => 'sport',
-                'group_title' => 'Ruoli sport e rehab',
-                'group_note' => 'Percorso parallelo utile per far vedere che la stessa base regge un secondo scenario demo gia popolato.',
+                'group_key' => 'main',
+                'group_title' => 'Ruoli operativi principali',
+                'group_note' => 'Ruoli immediati per far provare agenda, posta, chat e portale paziente con dati fittizi.',
                 'account_type' => 'legacy',
-                'role' => 'Fisioterapista',
-                'username' => 'demo.fisio1',
-                'candidate_usernames' => ['demo.fisio1'],
-                'label' => 'Fisioterapista Riva Marco',
-                'note' => 'Percorso sport rehab con agenda dedicata, visite e pazienti del centro.',
+                'role' => 'Terzo professionista',
+                'username' => 'demo.nutrizionista2',
+                'candidate_usernames' => ['demo.nutrizionista2'],
+                'label' => 'Professionista3',
+                'note' => 'Terzo professionista dello studio nutrizione per far vedere davvero il team a 3 dentro agenda condivisa e nuova vista.',
                 'redirect_route' => 'agenda',
-                'scenarios' => ['sport rehab', 'agenda fisioterapia', 'presa in carico'],
-            ],
-            [
-                'group_key' => 'sport',
-                'group_title' => 'Ruoli sport e rehab',
-                'group_note' => 'Percorso parallelo utile per far vedere che la stessa base regge un secondo scenario demo gia popolato.',
-                'account_type' => 'legacy',
-                'role' => 'Osteopata',
-                'username' => 'demo.osteopata',
-                'candidate_usernames' => ['demo.osteopata'],
-                'label' => 'Osteopata Pace Lorenzo',
-                'note' => 'Secondo professionista del centro sport per verificare convivenza e distribuzione operativa tra operatori.',
-                'redirect_route' => 'agenda',
-                'scenarios' => ['secondo operatore', 'team sport', 'pazienti condivisi'],
+                'scenarios' => ['terzo professionista', 'team a 3', 'giorno team'],
             ],
             [
                 'group_key' => 'sport',
@@ -252,9 +300,28 @@ class DemoAccessService
             throw new \RuntimeException('Ruolo demo non disponibile.');
         }
 
-        return strtolower((string) ($account['account_type'] ?? 'legacy')) === 'platform_tenant'
-            ? $this->loginPlatformTenantAccount($account)
-            : $this->loginLegacyAccount($account);
+        $accountType = strtolower((string) ($account['account_type'] ?? 'legacy'));
+
+        return match ($accountType) {
+            'platform_admin' => $this->loginPlatformAdminAccount($account),
+            'platform_tenant' => $this->loginPlatformTenantAccount($account),
+            default => $this->loginLegacyAccount($account),
+        };
+    }
+
+    public function preparePresentationAccount(string $requestedUsername): void
+    {
+        $account = $this->findPresentationAccount($requestedUsername);
+        if ($account === null) {
+            return;
+        }
+
+        if (strtolower((string) ($account['account_type'] ?? 'legacy')) !== 'platform_tenant') {
+            return;
+        }
+
+        $setup = $this->ensurePlatformDemoAccount($account);
+        $this->ensurePlatformDemoTenantFeatures((int) $setup['tenant_id'], (int) $setup['platform_user_id']);
     }
 
     private function loginLegacyAccount(array $account): array
@@ -294,6 +361,7 @@ class DemoAccessService
     private function loginPlatformTenantAccount(array $account): array
     {
         $setup = $this->ensurePlatformDemoAccount($account);
+        $this->ensurePlatformDemoTenantFeatures((int) $setup['tenant_id'], (int) $setup['platform_user_id']);
         $result = (new TenantAppSessionBootstrapService())->bootstrap($setup['platform_user_id'], $setup['tenant_id']);
         $this->decorateCurrentSession($account, $setup['resolved_username']);
 
@@ -302,6 +370,181 @@ class DemoAccessService
             'redirectUrl' => $this->resolveRedirectUrl($account, $result),
             'resolved_username' => $setup['resolved_username'],
         ];
+    }
+
+    private function loginPlatformAdminAccount(array $account): array
+    {
+        helper('url');
+        $platformUser = $this->ensurePlatformDemoUser($account);
+        (new PlatformAdminAccessService())->bootstrapSession($platformUser, []);
+        $this->decorateCurrentSession($account, (string) ($account['username'] ?? ''));
+
+        return [
+            'account' => $account,
+            'redirectUrl' => site_url(trim((string) ($account['redirect_route'] ?? 'piattaforma/spazi-clienti'), '/')),
+            'resolved_username' => (string) ($account['username'] ?? ''),
+        ];
+    }
+
+    private function ensurePlatformDemoTenantFeatures(int $tenantId, int $platformUserId): void
+    {
+        if ($tenantId <= 0) {
+            return;
+        }
+
+        $service = new TenantFeatureService();
+        $enabledFeatureKeys = [];
+
+        foreach ($service->listFeatureStatesForTenant($tenantId) as $state) {
+            if (empty($state['is_tenant_managed'])) {
+                continue;
+            }
+
+            $featureKey = trim((string) ($state['feature_key'] ?? ''));
+            if ($featureKey === '') {
+                continue;
+            }
+
+            if (!empty($state['effective_enabled'])) {
+                $enabledFeatureKeys[] = $featureKey;
+            }
+        }
+
+        $enabledFeatureKeys = array_values(array_unique(array_merge(
+            $enabledFeatureKeys,
+            self::DEMO_TENANT_REQUIRED_FEATURES
+        )));
+
+        $enabledFeatureKeys = array_values(array_filter(
+            $enabledFeatureKeys,
+            static fn(string $featureKey): bool => $featureKey !== 'chat'
+        ));
+
+        $service->saveTenantManagedFeatures($tenantId, $enabledFeatureKeys, $platformUserId);
+        $this->ensurePlatformDemoCentralFeatures($tenantId);
+    }
+
+    private function ensurePlatformDemoCentralFeatures(int $tenantId): void
+    {
+        if ($tenantId <= 0) {
+            return;
+        }
+
+        $featuresModel = new PlatformFeaturesModel();
+        $tenantFeaturesModel = new PlatformTenantFeaturesModel();
+        $featureIdsByKey = $this->ensureNotificationPlatformFeatures($featuresModel);
+        $this->ensureNotificationPackageEntitlements($featureIdsByKey);
+
+        foreach (self::DEMO_TENANT_REQUIRED_PLATFORM_FEATURES as $featureKey) {
+            $featureId = (int) ($featureIdsByKey[$featureKey] ?? 0);
+            if ($featureId <= 0) {
+                continue;
+            }
+
+            $tenantFeaturesModel->setOverride(
+                $tenantId,
+                $featureId,
+                true,
+                null,
+                'demo_access'
+            );
+        }
+    }
+
+    /**
+     * @return array<string, int>
+     */
+    private function ensureNotificationPlatformFeatures(PlatformFeaturesModel $featuresModel): array
+    {
+        $definitions = [
+            'appointment_notifications' => [
+                'feature_name' => 'Centro notifiche appuntamenti',
+                'feature_scope' => 'workflow',
+                'description' => 'Configura i tre flussi appuntamenti dello spazio: messaggio immediato al paziente, avviso ad altro dottore e reminder prima della visita.',
+                'default_enabled' => 0,
+                'icon_class' => 'fa-commenting',
+                'is_tenant_managed' => 1,
+                'tenant_default_enabled' => 1,
+                'sort_order' => 68,
+            ],
+            'appointment_notifications_sms' => [
+                'feature_name' => 'Canale notifiche SMS',
+                'feature_scope' => 'channel',
+                'description' => 'Abilita il canale SMS per le notifiche appuntamenti di uno specifico tenant. L attivazione commerciale resta centrale.',
+                'default_enabled' => 0,
+                'icon_class' => 'fa-comment',
+                'is_tenant_managed' => 0,
+                'tenant_default_enabled' => 0,
+                'sort_order' => 69,
+            ],
+            'appointment_notifications_whatsapp' => [
+                'feature_name' => 'Canale notifiche WhatsApp',
+                'feature_scope' => 'channel',
+                'description' => 'Abilita il canale WhatsApp per le notifiche appuntamenti di uno specifico tenant. L attivazione commerciale resta centrale.',
+                'default_enabled' => 0,
+                'icon_class' => 'fa-whatsapp',
+                'is_tenant_managed' => 0,
+                'tenant_default_enabled' => 0,
+                'sort_order' => 70,
+            ],
+        ];
+
+        $featureIdsByKey = [];
+        foreach ($definitions as $featureKey => $payload) {
+            $existing = $featuresModel->findByKey($featureKey);
+            $data = array_merge(['feature_key' => $featureKey], $payload);
+
+            if ($existing) {
+                $featuresModel->update((int) ($existing['id_feature'] ?? 0), $data);
+                $featureIdsByKey[$featureKey] = (int) ($existing['id_feature'] ?? 0);
+                continue;
+            }
+
+            $featureIdsByKey[$featureKey] = (int) $featuresModel->insert($data, true);
+        }
+
+        return $featureIdsByKey;
+    }
+
+    /**
+     * @param array<string, int> $featureIdsByKey
+     */
+    private function ensureNotificationPackageEntitlements(array $featureIdsByKey): void
+    {
+        $notificationsFeatureId = (int) ($featureIdsByKey['appointment_notifications'] ?? 0);
+        if ($notificationsFeatureId <= 0) {
+            return;
+        }
+
+        $packagesModel = new PlatformPackagesModel();
+        $packageFeaturesModel = new PlatformPackageFeaturesModel();
+
+        foreach (self::DEMO_NOTIFICATION_PACKAGE_CODES as $packageCode) {
+            $package = $packagesModel->findByCode($packageCode);
+            $packageId = (int) ($package['id_package'] ?? 0);
+            if ($packageId <= 0) {
+                continue;
+            }
+
+            $existing = $packageFeaturesModel
+                ->where('id_package', $packageId)
+                ->where('id_feature', $notificationsFeatureId)
+                ->first();
+
+            $payload = [
+                'id_package' => $packageId,
+                'id_feature' => $notificationsFeatureId,
+                'is_enabled' => 1,
+                'config_json' => null,
+            ];
+
+            if ($existing) {
+                $packageFeaturesModel->update((int) ($existing['id_package_feature'] ?? 0), $payload);
+                continue;
+            }
+
+            $packageFeaturesModel->insert($payload);
+        }
     }
 
     private function resolveRedirectUrl(array $account, array $result): string
@@ -472,6 +715,9 @@ class DemoAccessService
             'must_reset_password' => 0,
             'email_verified_at' => date('Y-m-d H:i:s'),
         ];
+        if (!empty($account['platform_is_admin']) || strtolower((string) ($account['account_type'] ?? '')) === 'platform_admin') {
+            $payload['is_platform_admin'] = 1;
+        }
 
         if ($user === null) {
             $payload['email'] = $email;

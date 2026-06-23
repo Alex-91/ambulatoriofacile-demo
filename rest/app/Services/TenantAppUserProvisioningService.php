@@ -79,7 +79,7 @@ class TenantAppUserProvisioningService
             );
         }
 
-        $defaultGroupId = $this->ensureDefaultGroup($tenantDb);
+        $defaultLocationId = $this->resolveDefaultLocationId($tenantDb);
         $profile = $this->resolveRoleProfile((string) ($membership['tenant_role'] ?? 'tenant_staff'));
         $appUserId = (int) ($membership['app_user_id'] ?? 0);
         $linkedByEmail = false;
@@ -97,10 +97,10 @@ class TenantAppUserProvisioningService
 
         try {
             if ($appUserId > 0) {
-                $this->updateTenantAppUser($tenantDb, $appUserId, $platformUser, $profile, $defaultGroupId);
+                $this->updateTenantAppUser($tenantDb, $appUserId, $platformUser, $profile, $defaultLocationId);
                 $mode = $linkedByEmail ? 'linked_existing' : 'updated_existing';
             } else {
-                $appUserId = $this->createTenantAppUser($tenantDb, $platformUser, $profile, $defaultGroupId);
+                $appUserId = $this->createTenantAppUser($tenantDb, $platformUser, $profile, $defaultLocationId);
                 $mode = 'created';
             }
 
@@ -209,27 +209,9 @@ class TenantAppUserProvisioningService
         ];
     }
 
-    private function ensureDefaultGroup(\CodeIgniter\Database\BaseConnection $db): int
+    private function resolveDefaultLocationId(\CodeIgniter\Database\BaseConnection $db): int
     {
-        if (!$db->tableExists('dap21_gruppo')) {
-            return 1;
-        }
-
-        $row = $db->table('dap21_gruppo')
-            ->select('id_gruppo')
-            ->orderBy('id_gruppo', 'ASC')
-            ->get(1)
-            ->getRowArray();
-
-        if ($row) {
-            return (int) ($row['id_gruppo'] ?? 1);
-        }
-
-        $db->table('dap21_gruppo')->insert([
-            'nome' => 'Generale',
-        ]);
-
-        return max(1, (int) $db->insertID());
+        return (new StaffLocationCatalogService($db))->firstSelectableLocationId();
     }
 
     private function tenantUserExists(\CodeIgniter\Database\BaseConnection $db, int $appUserId): bool
@@ -303,7 +285,7 @@ class TenantAppUserProvisioningService
         \CodeIgniter\Database\BaseConnection $db,
         array $platformUser,
         array $profile,
-        int $defaultGroupId
+        int $defaultLocationId
     ): int {
         $db->query('SET @init_vector = RANDOM_BYTES(16)');
 
@@ -330,7 +312,7 @@ class TenantAppUserProvisioningService
             throw new \RuntimeException('Creazione dap01_users tenant non riuscita.');
         }
 
-        $this->insertOrUpdatePersonale($db, $appUserId, $platformUser, $profile, $defaultGroupId, false);
+        $this->insertOrUpdatePersonale($db, $appUserId, $platformUser, $profile, $defaultLocationId, false);
 
         return $appUserId;
     }
@@ -344,7 +326,7 @@ class TenantAppUserProvisioningService
         int $appUserId,
         array $platformUser,
         array $profile,
-        int $defaultGroupId
+        int $defaultLocationId
     ): void {
         $userRow = $db->table('dap01_users')
             ->select('id_user, tipo_user')
@@ -371,7 +353,7 @@ class TenantAppUserProvisioningService
                 'is_active' => 1,
             ]);
 
-        $this->insertOrUpdatePersonale($db, $appUserId, $platformUser, $profile, $defaultGroupId, true);
+        $this->insertOrUpdatePersonale($db, $appUserId, $platformUser, $profile, $defaultLocationId, true);
     }
 
     /**
@@ -383,7 +365,7 @@ class TenantAppUserProvisioningService
         int $appUserId,
         array $platformUser,
         array $profile,
-        int $defaultGroupId,
+        int $defaultLocationId,
         bool $preferUpdate
     ): void {
         $existing = $db->table('dap03_personale')
@@ -397,7 +379,8 @@ class TenantAppUserProvisioningService
         $email = strtolower(trim((string) ($platformUser['email'] ?? '')));
         $qualifica = (string) ($profile['qualifica'] ?? 'Operatore');
         $personaleTipo = (int) ($profile['personale_tipo'] ?? 3);
-        $luogo = $existing ? max(1, (int) ($existing['luogo'] ?? 0)) : max(1, $defaultGroupId);
+        $existingLocationId = $existing ? (int) ($existing['luogo'] ?? 0) : 0;
+        $luogo = $existingLocationId > 0 ? $existingLocationId : max(0, $defaultLocationId);
         $cellulare = $existing ? '' : '';
 
         if ($existing && $preferUpdate) {

@@ -38,6 +38,7 @@ desktop.ini
 
 # Local release/support artifacts
 .main-release-worktree/
+.demo-freeze-8085/
 outputs/
 AGENTS.md
 CODEX_TASK_TEMPLATE.md

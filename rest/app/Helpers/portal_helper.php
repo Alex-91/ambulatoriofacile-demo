@@ -147,6 +147,29 @@ if (!function_exists('portal_resolve_redirect_url')) {
     }
 }
 
+if (!function_exists('portal_operational_home_url')) {
+    function portal_operational_home_url(): string
+    {
+        $session = session();
+        $user = $session->get('utente_sess');
+
+        $isLegacyAdmin = $session->get('is_admin') === true
+            || (int) ($session->get('admin') ?? 0) === 1
+            || (int) ($session->get('tipoUser') ?? 0) === 1
+            || (is_object($user) && (int) ($user->tipo ?? 0) === 1);
+
+        if ($isLegacyAdmin) {
+            return site_url('admin');
+        }
+
+        if ((bool) ($session->get('isLoggedInConfirmed') ?? false) === true) {
+            return site_url('app');
+        }
+
+        return site_url('/');
+    }
+}
+
 if (!function_exists('portal_session_console_url')) {
     function portal_session_console_url(): ?string
     {
@@ -155,25 +178,16 @@ if (!function_exists('portal_session_console_url')) {
             $tenantContext = \App\Libraries\TenantContext::fromArray($tenantContextRaw);
             if ($tenantContext->isValid()) {
                 $tenantRole = strtolower(trim($tenantContext->tenantRole));
-                $onboardingStatus = strtolower(trim($tenantContext->onboardingStatus));
 
                 if ($tenantRole === 'tenant_master') {
-                    if (in_array($onboardingStatus, ['draft', 'setup'], true)) {
-                        return portal_tenant_space_url('onboarding');
-                    }
-
-                    if ($tenantContext->allows('staff_management')) {
-                        return portal_tenant_space_url('utenti');
-                    }
-
-                    return portal_tenant_space_url('funzioni');
+                    return site_url('admin');
                 }
 
-                if ($tenantRole === 'tenant_admin' && $tenantContext->allows('staff_management')) {
-                    return portal_tenant_space_url('utenti');
+                if ($tenantRole === 'tenant_admin') {
+                    return site_url('admin');
                 }
 
-                return site_url('/');
+                return portal_operational_home_url();
             }
         }
 

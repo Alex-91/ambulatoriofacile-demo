@@ -460,6 +460,10 @@ class SessionNavigationService
             return 0;
         }
 
+        if ($this->tenantContext->hasCurrentTenant() && !$this->tenantContext->currentTenantAllows('chat')) {
+            return 0;
+        }
+
         return (new \App\Models\ChatModel())->getTotalUnreadForUser($idUser);
     }
 }

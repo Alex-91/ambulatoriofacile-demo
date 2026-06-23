@@ -280,7 +280,7 @@ class AuthenticationController extends BaseController
             ]);
         }
 
-        $messaggio = "Ambulatori.Cloud - Il suo codice OTP e' {$otp}. Non divulgarlo.";
+        $messaggio = "AmbulatorioFacile - Il suo codice OTP e' {$otp}. Non divulgarlo.";
 
         $sms = new SmsSender();
         $result = $sms->sendWA($cellulare, $messaggio);
@@ -309,7 +309,7 @@ class AuthenticationController extends BaseController
             ]);
         }
 
-        $messaggio = "Ambulatori.Cloud - Il suo codice OTP e' {$otp}. Non divulgarlo.";
+        $messaggio = "AmbulatorioFacile - Il suo codice OTP e' {$otp}. Non divulgarlo.";
 
         $sms = new SmsSender();
         $result = $sms->sendSMSIndex($cellulare, $messaggio);
@@ -763,11 +763,11 @@ class AuthenticationController extends BaseController
             $fromName = trim((string)($config->fromName ?? ''));
 
             if ($fromEmail === '') {
-                $fromEmail = (string)(env('email.fromEmail') ?: 'noreply@ambulatori.cloud');
+                $fromEmail = (string)(env('email.fromEmail') ?: 'noreply@ambulatoriofacile.it');
             }
 
             if ($fromName === '') {
-                $fromName = (string)(env('email.fromName') ?: 'AMBULATORI.Cloud');
+                $fromName = (string)(env('email.fromName') ?: 'AmbulatorioFacile');
             }
 
             $message = "Il tuo codice OTP e' {$otp}.\n"
@@ -777,7 +777,7 @@ class AuthenticationController extends BaseController
             $mailer->clear(true);
             $mailer->setFrom($fromEmail, $fromName);
             $mailer->setTo($emailAddress);
-            $mailer->setSubject('Codice OTP AMBULATORI.Cloud');
+            $mailer->setSubject('Codice OTP AmbulatorioFacile');
             $mailer->setMessage($message);
 
             if (!$mailer->send()) {

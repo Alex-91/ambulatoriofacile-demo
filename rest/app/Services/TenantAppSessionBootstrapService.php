@@ -19,6 +19,7 @@ class TenantAppSessionBootstrapService
     private PlatformAuthService $platformAuth;
     private PlatformAdminAccessService $platformAdminAccess;
     private TenantAppUserProvisioningService $tenantAppUserProvisioning;
+    private TenantAdminMenuService $tenantAdminMenu;
     private Crypto_helper $crypto;
 
     public function __construct()
@@ -31,6 +32,7 @@ class TenantAppSessionBootstrapService
         $this->platformAuth = new PlatformAuthService();
         $this->platformAdminAccess = new PlatformAdminAccessService($this->platformUsersModel, $this->platformAuth);
         $this->tenantAppUserProvisioning = new TenantAppUserProvisioningService();
+        $this->tenantAdminMenu = new TenantAdminMenuService();
         $this->crypto = new Crypto_helper();
     }
 
@@ -137,14 +139,9 @@ class TenantAppSessionBootstrapService
     private function resolvePlatformTenantRedirectUrl(\App\Libraries\TenantContext $context, array $membership): string
     {
         $tenantRole = strtolower(trim((string) ($membership['tenant_role'] ?? $context->tenantRole)));
-        $onboardingStatus = strtolower(trim((string) ($membership['onboarding_status'] ?? $context->onboardingStatus)));
 
-        if ($tenantRole === 'tenant_master' && in_array($onboardingStatus, ['draft', 'setup'], true)) {
-            return portal_tenant_space_url('onboarding');
-        }
-
-        if ($tenantRole === 'tenant_master') {
-            return portal_tenant_space_url('funzioni');
+        if (in_array($tenantRole, ['tenant_master', 'tenant_admin'], true)) {
+            return site_url('admin');
         }
 
         return site_url('app');
@@ -401,6 +398,8 @@ class TenantAppSessionBootstrapService
         $obj->da_dottore = 0;
         $obj->tabella = 'dap10_message';
         $obj->tabella_reply = 'dap10_message_reply';
+
+        $this->tenantAdminMenu->ensureDefaultMenuIfEmpty($db);
 
         $menuAdmin = $db->query("
             SELECT titolo_menu, class, class_icon, admin, link2 AS link

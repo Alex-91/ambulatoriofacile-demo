@@ -32,7 +32,8 @@ class AppointmentReminderDispatchService
         $sendMode = !empty($options['send']);
         $tenantFilterId = max(0, (int) ($options['tenant_id'] ?? 0));
         $forcedChannel = strtolower(trim((string) ($options['channel'] ?? 'auto')));
-        $forceRecipient = $this->channelService->normalizeRecipient((string) ($options['force_recipient'] ?? ''));
+        $forceRecipient = $this->channelService->normalizeRecipientContext((string) ($options['force_recipient'] ?? ''));
+        $hasForcedRecipient = $this->hasAnyRecipientTarget($forceRecipient);
         $delayMs = max(0, (int) ($options['delay_ms'] ?? (int) (env('SMS_BATCH_DELAY_MS') ?: 0)));
         $limit = max(0, (int) ($options['limit'] ?? 0));
         $doctorFilter = $this->normalizeDoctorFilter((string) ($options['doctor'] ?? ''));
@@ -110,21 +111,23 @@ class AppointmentReminderDispatchService
                 foreach ($rows as $row) {
                     $appointmentId = (int) ($row['id_appuntamento'] ?? 0);
                     $patientLabel = trim((string) ($row['patient_cognome'] ?? '') . ' ' . (string) ($row['patient_nome'] ?? ''));
-                    $recipient = $forceRecipient ?: $this->selectRecipient($row);
+                    $recipient = $hasForcedRecipient ? $forceRecipient : $this->buildRecipientContext($row, $patientLabel);
 
-                    if ($recipient === null) {
+                    if (!$this->hasAnyRecipientTarget($recipient)) {
                         $tenantSummary['invalid_recipient']++;
                         $summary['invalid_recipient']++;
                         continue;
                     }
 
                     $message = $this->buildReminderMessage($row, $targetDate);
+                    $subject = 'Reminder appuntamento AmbulatorioFacile';
+                    $otpSubject = 'Codice OTP e reminder appuntamento';
 
                     if (!$sendMode) {
                         $tenantSummary['preview'][] = [
                             'appointment_id' => $appointmentId,
                             'patient_label' => $patientLabel,
-                            'recipient' => $recipient,
+                            'recipient' => $this->describeRecipients($recipient, $channels),
                             'channels' => $channels,
                             'scheduled_for' => $targetDate . ' ' . (string) ($row['ora_label'] ?? ''),
                         ];
@@ -138,7 +141,18 @@ class AppointmentReminderDispatchService
                             continue;
                         }
 
-                        $sendResult = $this->channelService->send($channel, $recipient, $message);
+                        $resolvedRecipient = $this->channelService->describeRecipientForChannel($channel, $recipient);
+                        if ($resolvedRecipient === '') {
+                            $tenantSummary['invalid_recipient']++;
+                            $summary['invalid_recipient']++;
+                            continue;
+                        }
+
+                        $sendResult = $this->channelService->send($channel, $recipient, $message, [
+                            'db' => $tenantDb,
+                            'subject' => $subject,
+                            'otp_subject' => $otpSubject,
+                        ]);
                         $logEntry = [
                             'tenant_id' => $tenantId,
                             'tenant_key' => (string) ($tenant['tenant_key'] ?? ''),
@@ -147,7 +161,7 @@ class AppointmentReminderDispatchService
                             'channel' => $channel,
                             'provider' => (string) ($sendResult['provider'] ?? $this->channelService->providerLabel($channel)),
                             'provider_id' => (string) ($sendResult['provider_id'] ?? ''),
-                            'recipient' => $recipient,
+                            'recipient' => (string) ($sendResult['recipient'] ?? $resolvedRecipient),
                             'recipient_role' => 'patient',
                             'appointment_id' => $appointmentId,
                             'patient_label' => $patientLabel,
@@ -164,7 +178,7 @@ class AppointmentReminderDispatchService
 
                         if (!empty($sendResult['ok'])) {
                             $states[$channel]['sent'][(string) $appointmentId] = [
-                                'recipient' => $recipient,
+                                'recipient' => (string) ($sendResult['recipient'] ?? $resolvedRecipient),
                                 'sent_at' => date('c'),
                                 'channel' => $channel,
                                 'provider_id' => (string) ($sendResult['provider_id'] ?? ''),
@@ -203,13 +217,14 @@ class AppointmentReminderDispatchService
      */
     private function resolveChannels(array $channels, string $forcedChannel): array
     {
+        $supported = array_keys($this->settingsService->channelDefinitions());
         $channels = array_values(array_unique(array_filter(array_map(
             static fn($channel): string => strtolower(trim((string) $channel)),
             $channels
         ))));
 
-        if (!in_array($forcedChannel, ['sms', 'wa'], true)) {
-            return array_values(array_intersect($channels, ['sms', 'wa']));
+        if (!in_array($forcedChannel, $supported, true)) {
+            return array_values(array_intersect($channels, $supported));
         }
 
         return in_array($forcedChannel, $channels, true) ? [$forcedChannel] : [];
@@ -249,6 +264,11 @@ class AppointmentReminderDispatchService
         $joinConfirm = $hasConfirmTable
             ? "LEFT JOIN dap39_sms_dot conf ON conf.id_dot = s.id_dot"
             : "LEFT JOIN (SELECT NULL AS id_dot, 0 AS conferma) conf ON 1 = 0";
+        $hasIdClientColumn = $db->fieldExists('id_client', 'dap12_agenda_appuntamenti');
+        $clientJoinOn = $hasIdClientColumn
+            ? 'c.id_client = COALESCE(NULLIF(a.id_client, 0), NULLIF(a.id_paziente, 0))'
+            : 'c.id_client = NULLIF(a.id_paziente, 0)';
+        $patientEmailExpr = $this->decryptExpr('c.email', 'c.vector_id');
 
         $sql = "
             SELECT
@@ -261,6 +281,7 @@ class AppointmentReminderDispatchService
                 a.nome AS patient_nome,
                 a.cellulare,
                 a.telefono,
+                a.email AS appointment_email,
                 a.stato,
                 s.data_slot,
                 DATE_FORMAT(s.ora_inizio, '%H:%i') AS ora_label,
@@ -272,6 +293,7 @@ class AppointmentReminderDispatchService
                 COALESCE(amb.indirizzo, '') AS indirizzo,
                 COALESCE(amb.citta, '') AS citta,
                 COALESCE(amb.telefono, '') AS amb_tel,
+                COALESCE(NULLIF(TRIM(a.email), ''), NULLIF(TRIM(" . $patientEmailExpr . "), ''), '') AS patient_email,
                 " . $this->decryptExpr('p.qualifica', 'p.vector_id') . " AS doc_qualifica,
                 " . $this->decryptExpr('p.nome', 'p.vector_id') . " AS doc_nome,
                 " . $this->decryptExpr('p.cognome', 'p.vector_id') . " AS doc_cognome
@@ -282,6 +304,8 @@ class AppointmentReminderDispatchService
             LEFT JOIN dap03_personale p
                 ON p.legacy_id_dot = s.id_dot
                AND p.tipo IN (1, 2)
+            LEFT JOIN dap02_clients c
+                ON {$clientJoinOn}
             LEFT JOIN dap42_ambulatori amb
                 ON amb.id_amb_legacy = s.id_amb_legacy
             WHERE s.data_slot = ?
@@ -302,14 +326,14 @@ class AppointmentReminderDispatchService
     /**
      * @param array<string, mixed> $row
      */
-    private function selectRecipient(array $row): ?string
+    private function buildRecipientContext(array $row, string $patientLabel): array
     {
-        $mobile = $this->channelService->normalizeRecipient((string) ($row['cellulare'] ?? ''));
-        if ($mobile !== null) {
-            return $mobile;
-        }
-
-        return $this->channelService->normalizeRecipient((string) ($row['telefono'] ?? ''));
+        return [
+            'mobile' => (string) ($row['cellulare'] ?? ''),
+            'phone' => (string) ($row['telefono'] ?? ''),
+            'email' => (string) (($row['patient_email'] ?? '') ?: ($row['appointment_email'] ?? '')),
+            'label' => $patientLabel,
+        ];
     }
 
     /**
@@ -340,6 +364,34 @@ class AppointmentReminderDispatchService
         }
 
         return implode("\n", $lines);
+    }
+
+    /**
+     * @param array<string, mixed> $recipient
+     * @param array<int, string> $channels
+     */
+    private function describeRecipients(array $recipient, array $channels): string
+    {
+        $labels = [];
+
+        foreach ($channels as $channel) {
+            $resolved = $this->channelService->describeRecipientForChannel($channel, $recipient);
+            if ($resolved === '') {
+                continue;
+            }
+
+            $labels[] = $this->channelService->channelLabel($channel) . ': ' . $resolved;
+        }
+
+        return $labels !== [] ? implode(' | ', $labels) : '';
+    }
+
+    /**
+     * @param array<string, mixed> $recipient
+     */
+    private function hasAnyRecipientTarget(array $recipient): bool
+    {
+        return trim((string) (($recipient['mobile'] ?? '') ?: ($recipient['phone'] ?? '') ?: ($recipient['email'] ?? ''))) !== '';
     }
 
     /**

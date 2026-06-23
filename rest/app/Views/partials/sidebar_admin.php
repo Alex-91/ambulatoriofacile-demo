@@ -1,103 +1,299 @@
 <?php
-helper('admin_menu');
-helper('portal');
+helper(['admin_menu', 'portal']);
 
-// fallback: se $menu_items e` vuoto o non definito, prendo dalla sessione
 if (empty($menu_items) || !is_array($menu_items)) {
-    $menu_items = session()->get('header_menu_items') ?? [];
+    $menuDataAdmin = session()->get('menuDataAdmin');
+    $menu_items = is_array($menuDataAdmin['result'] ?? null) ? $menuDataAdmin['result'] : [];
 }
 
-$currentPath = trim(service('uri')->getPath(), '/');
-$otpStatsActive = str_starts_with($currentPath, 'admin/otp-statistiche') ? 'active' : '';
-$whatsappRemindersActive = str_starts_with($currentPath, 'admin/whatsapp-reminders') ? 'active' : '';
-$moduleVisibilityActive = str_starts_with($currentPath, 'admin/personale/visibilita-moduli') ? 'active' : '';
-$tenantSpacesActive = str_starts_with($currentPath, 'login/piattaforma') ? 'active' : '';
-$dap14Active = str_starts_with($currentPath, 'admin/personale/dap14') ? 'active' : '';
-$dap15Active = str_starts_with($currentPath, 'admin/personale/dap15') ? 'active' : '';
-?>
-              <!-- Cartelle -->
-              <div class="box box-solid" style="margin-bottom: 0px !important">
-                <div class="box-header with-border">
-                  <h3 class="box-title">Menu</h3>
-                  <div class='box-tools'>
-                    <button class='btn btn-box-tool' data-widget='collapse'><i class='fa fa-minus'></i></button>
-                  </div>
-                </div>
-                <div class="box-body no-padding">
-                  <ul class="nav nav-pills nav-stacked">
-                    <?php if (!empty($menu_items)): ?>
-                      <?php foreach ($menu_items as $menu): ?>
-                        <?php
-                          $menuLink = trim((string)($menu['link'] ?? ''));
-                          $menuTitle = strtolower(trim((string)($menu['titolo_menu'] ?? '')));
-                          $normalizedMenuLink = strtolower(str_replace('\\', '/', $menuLink));
-                          $isLogoutEntry = $normalizedMenuLink === 'logout'
-                              || $normalizedMenuLink === 'admin/personale/logout'
-                              || $menuTitle === 'logout';
-                          if ($isLogoutEntry) {
-                              continue;
-                          }
+$sess = session();
 
-                          $menuLabel = admin_menu_pretty_title((string)($menu['titolo_menu'] ?? ''), $menuLink);
-                          $icon = admin_menu_resolve_icon(
-                              (string)($menu['icon'] ?? $menu['class_icon'] ?? ''),
-                              $menuLabel,
-                              $menuLink
-                          );
-                        ?>
-                        <li class="<?= esc((string)($menu['class'] ?? '')) ?>">
-                          <a href="<?= base_url('admin/personale/' . $menuLink) ?>">
-                            <i class="fa <?= esc($icon) ?>"></i>
-                            <?= esc($menuLabel) ?>
-                            <?php if (!empty($menu['conteggio'])): ?>
-                              <span class="label label-primary pull-right"><?= esc($menu['conteggio']) ?></span>
-                            <?php endif; ?>
-                          </a>
-                        </li>
-                      <?php endforeach; ?>
-                    <?php endif; ?>
-                    <li class="<?= esc($otpStatsActive) ?>">
-                      <a href="<?= site_url('admin/otp-statistiche') ?>">
-                        <i class="fa fa-line-chart"></i>
-                        Statistiche OTP
-                      </a>
-                    </li>
-                    <li class="<?= esc($whatsappRemindersActive) ?>">
-                      <a href="<?= site_url('admin/whatsapp-reminders') ?>">
-                        <i class="fa fa-whatsapp"></i>
-                        Stato reminder WhatsApp
-                      </a>
-                    </li>
-                    <li class="<?= esc($moduleVisibilityActive) ?>">
-                      <a href="<?= site_url('admin/personale/visibilita-moduli') ?>">
-                        <i class="fa fa-toggle-on"></i>
-                        Visibilita moduli
-                      </a>
-                    </li>
-                    <li class="<?= esc($tenantSpacesActive) ?>">
-                      <a href="<?= portal_platform_url('spazi-clienti') ?>">
-                        <i class="fa fa-sitemap"></i>
-                        Console piattaforma
-                      </a>
-                    </li>
-                    <li class="<?= esc($dap14Active) ?>">
-                      <a href="<?= site_url('admin/personale/dap14') ?>">
-                        <i class="fa fa-users"></i>
-                        Segretarie e medici
-                      </a>
-                    </li>
-                    <li class="<?= esc($dap15Active) ?>">
-                      <a href="<?= site_url('admin/personale/dap15') ?>">
-                        <i class="fa fa-heartbeat"></i>
-                        Infermieri e medici
-                      </a>
-                    </li>
-                    <li>
-                      <a href="<?= site_url('admin/personale/logout') ?>">
-                        <i class="fa fa-sign-out"></i>
-                        Logout
-                      </a>
-                    </li>
-                  </ul>
-                </div>
-              </div><!-- /.box -->
+$normalizePath = static function (?string $path): string {
+    $path = trim((string) $path);
+    if ($path === '') {
+        return '';
+    }
+
+    $parsedPath = parse_url($path, PHP_URL_PATH);
+    if (is_string($parsedPath) && $parsedPath !== '') {
+        $path = $parsedPath;
+    }
+
+    return trim(str_replace('\\', '/', $path), '/');
+};
+
+$currentPath = strtolower($normalizePath(service('uri')->getPath()));
+$tenantContext = $sess->get('tenant_context');
+$tenantName = is_array($tenantContext) ? trim((string) ($tenantContext['tenant_name'] ?? '')) : '';
+$tenantId = is_array($tenantContext) ? (int) ($tenantContext['tenant_id'] ?? 0) : 0;
+$tenantRole = is_array($tenantContext) ? trim((string) ($tenantContext['tenant_role'] ?? '')) : '';
+$tenantFeatureFlags = is_array($tenantContext) ? (array) ($tenantContext['feature_flags'] ?? []) : [];
+$isTenantOperationalConsoleSession = $tenantId > 0 && in_array($tenantRole, ['tenant_master', 'tenant_admin'], true);
+$isTenantMasterOperational = $tenantId > 0 && $tenantRole === 'tenant_master';
+$canAccessPlatformConsole = (bool) ($sess->get('platform_is_admin') ?? false) === true;
+$isPlatformConsoleSession = $canAccessPlatformConsole
+    && (string) ($sess->get('loginSource') ?? '') === 'platform_console';
+$canManageTenantFeatures = $tenantId > 0
+    && $tenantRole === 'tenant_master'
+    && (int) ($sess->get('platform_user_id') ?? 0) > 0;
+$canManageAppointmentNotifications = $tenantId > 0
+    && $tenantRole === 'tenant_master'
+    && (int) ($sess->get('platform_user_id') ?? 0) > 0
+    && !empty($tenantFeatureFlags['appointment_notifications']);
+$canManageTenantUsers = $tenantId > 0
+    && in_array($tenantRole, ['tenant_master', 'tenant_admin'], true)
+    && !empty($tenantFeatureFlags['staff_management']);
+$tenantOperationalHomeUrl = $tenantId > 0 ? portal_operational_home_url() : null;
+$platformTenants = $sess->get('platform_selectable_tenants');
+$platformTenants = is_array($platformTenants) ? $platformTenants : [];
+$demoSessionActive = (bool) ($sess->get(\App\Services\DemoAccessService::SESSION_KEY_ACTIVE) ?? false);
+$demoCurrentAccount = $sess->get(\App\Services\DemoAccessService::SESSION_KEY_CURRENT);
+$demoSwitchAccounts = $sess->get(\App\Services\DemoAccessService::SESSION_KEY_SWITCH_ACCOUNTS);
+$currentSessionUsername = trim((string) ($sess->get('username') ?? ''));
+$demoCurrentSessionUsername = is_array($demoCurrentAccount)
+    ? trim((string) ($demoCurrentAccount['session_username'] ?? $demoCurrentAccount['username'] ?? ''))
+    : '';
+$showDemoRoleSwitch = $demoSessionActive
+    && is_array($demoCurrentAccount)
+    && is_array($demoSwitchAccounts)
+    && $currentSessionUsername !== ''
+    && $demoCurrentSessionUsername !== ''
+    && strcasecmp($currentSessionUsername, $demoCurrentSessionUsername) === 0;
+$demoAccessUrl = $showDemoRoleSwitch
+    ? trim((string) ($demoCurrentAccount['access_url'] ?? site_url('access')))
+    : '';
+
+$isLinkActive = static function (string $href) use ($normalizePath, $currentPath): bool {
+    $itemPath = strtolower($normalizePath($href));
+    if ($itemPath === '') {
+        return false;
+    }
+
+    return $currentPath === $itemPath || str_starts_with($currentPath, $itemPath . '/');
+};
+
+$primaryAction = null;
+$contextActions = [];
+$accountActions = [];
+
+if ($isTenantOperationalConsoleSession) {
+    if ($tenantOperationalHomeUrl !== null) {
+        $primaryAction = [
+            'href' => $tenantOperationalHomeUrl,
+            'label' => 'Vai al portale operativo',
+            'icon' => 'fa-home',
+            'active' => $isLinkActive($tenantOperationalHomeUrl),
+        ];
+    }
+
+    if ($platformTenants !== []) {
+        foreach ($platformTenants as $availableTenant) {
+            $availableTenantId = (int) ($availableTenant['id_tenant'] ?? 0);
+            if ($availableTenantId <= 0) {
+                continue;
+            }
+
+            $tenantLabel = trim((string) ($availableTenant['tenant_name'] ?? $availableTenant['tenant_key'] ?? 'Spazio cliente'));
+            $isCurrentTenant = $availableTenantId === $tenantId;
+            $contextActions[] = [
+                'href' => $isCurrentTenant && $tenantOperationalHomeUrl !== null
+                    ? $tenantOperationalHomeUrl
+                    : portal_tenant_switch_url($availableTenantId),
+                'label' => $isCurrentTenant ? $tenantLabel . ' (attivo)' : 'Apri spazio: ' . $tenantLabel,
+                'icon' => 'fa-exchange',
+                'active' => $isCurrentTenant,
+            ];
+        }
+    }
+
+    if ($showDemoRoleSwitch) {
+        if ($demoAccessUrl !== '') {
+            $contextActions[] = [
+                'href' => $demoAccessUrl,
+                'label' => 'Apri selettore ruoli demo',
+                'icon' => 'fa-random',
+                'active' => false,
+            ];
+        }
+
+        foreach ($demoSwitchAccounts as $demoSwitchAccount) {
+            if (!is_array($demoSwitchAccount)) {
+                continue;
+            }
+
+            $demoSwitchLabel = trim((string) ($demoSwitchAccount['role'] ?? $demoSwitchAccount['label'] ?? 'Ruolo demo'));
+            $demoSwitchDetail = trim((string) ($demoSwitchAccount['label'] ?? ''));
+            $demoSwitchUrl = trim((string) ($demoSwitchAccount['entry_url'] ?? ''));
+            $demoSwitchCurrent = (bool) ($demoSwitchAccount['is_current'] ?? false);
+
+            $contextActions[] = [
+                'href' => $demoSwitchCurrent || $demoSwitchUrl === '' ? '#' : $demoSwitchUrl,
+                'label' => $demoSwitchLabel . ($demoSwitchDetail !== '' ? ' - ' . $demoSwitchDetail : '') . ($demoSwitchCurrent ? ' (attivo)' : ''),
+                'icon' => 'fa-user-secret',
+                'active' => $demoSwitchCurrent,
+                'disabled' => $demoSwitchCurrent || $demoSwitchUrl === '',
+            ];
+        }
+    }
+
+    if ($canAccessPlatformConsole) {
+        $contextActions[] = [
+            'href' => portal_platform_url('spazi-clienti'),
+            'label' => 'Console piattaforma',
+            'icon' => 'fa-sitemap',
+            'active' => $isLinkActive(portal_platform_url('spazi-clienti')),
+        ];
+    }
+
+    if ($canManageTenantUsers) {
+        $contextActions[] = [
+            'href' => portal_tenant_space_url('utenti'),
+            'label' => 'Gestisci utenti dello spazio',
+            'icon' => 'fa-users',
+            'active' => $isLinkActive(portal_tenant_space_url('utenti')),
+        ];
+    }
+
+    if ($canManageTenantFeatures) {
+        $contextActions[] = [
+            'href' => portal_tenant_space_url('funzioni'),
+            'label' => 'Gestisci funzioni dello spazio',
+            'icon' => 'fa-toggle-on',
+            'active' => $isLinkActive(portal_tenant_space_url('funzioni')),
+        ];
+    }
+
+    if ($canManageAppointmentNotifications) {
+        $contextActions[] = [
+            'href' => portal_tenant_space_url('notifiche-appuntamenti'),
+            'label' => 'Gestisci notifiche appuntamenti',
+            'icon' => 'fa-commenting',
+            'active' => $isLinkActive(portal_tenant_space_url('notifiche-appuntamenti')),
+        ];
+    }
+
+    if (!$isPlatformConsoleSession && !$isTenantMasterOperational) {
+        $accountActions[] = [
+            'href' => base_url('profilo'),
+            'label' => 'Profilo',
+            'icon' => 'fa-user',
+            'active' => $isLinkActive(base_url('profilo')),
+        ];
+    }
+
+    $accountActions[] = [
+        'href' => base_url('logout'),
+        'label' => 'Logout',
+        'icon' => 'fa-sign-out',
+        'active' => false,
+    ];
+}
+?>
+<div class="box box-solid" style="margin-bottom:0 !important">
+  <div class="box-header with-border">
+    <h3 class="box-title">Menu</h3>
+    <?php if ($tenantName !== ''): ?>
+      <div class="text-muted" style="margin-top:6px; font-size:12px;">
+        Spazio attivo: <?= esc($tenantName) ?>
+      </div>
+    <?php endif; ?>
+    <div class="box-tools">
+      <button class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-minus"></i></button>
+    </div>
+  </div>
+  <div class="box-body no-padding">
+    <?php if ($primaryAction !== null): ?>
+      <div style="padding:15px 15px 0;">
+        <a href="<?= esc((string) $primaryAction['href']) ?>"
+           class="btn btn-primary btn-block"
+           style="background:#2c8895; border-color:#24747f; font-weight:700;">
+          <i class="fa <?= esc((string) $primaryAction['icon']) ?>"></i>
+          <?= esc((string) $primaryAction['label']) ?>
+        </a>
+      </div>
+    <?php endif; ?>
+
+    <ul class="nav nav-pills nav-stacked" style="margin-top:<?= $primaryAction !== null ? '12px' : '0' ?>;">
+      <?php if ($menu_items === []): ?>
+        <li class="disabled">
+          <a href="#">
+            <i class="fa fa-circle-o"></i>
+            Nessuna voce menu configurata
+          </a>
+        </li>
+      <?php endif; ?>
+
+      <?php foreach ($menu_items as $menu): ?>
+        <?php
+          $menuLink = trim((string) ($menu['link'] ?? ''));
+          $normalizedMenuLink = strtolower($normalizePath($menuLink));
+          if ($normalizedMenuLink === '' || $normalizedMenuLink === 'logout' || $normalizedMenuLink === 'admin/personale/logout') {
+              continue;
+          }
+
+          $menuLabel = admin_menu_pretty_title((string) ($menu['titolo_menu'] ?? ''), $menuLink);
+          $icon = admin_menu_resolve_icon(
+              (string) ($menu['icon'] ?? $menu['class_icon'] ?? ''),
+              $menuLabel,
+              $menuLink
+          );
+          $itemHref = admin_menu_resolve_href($menuLink);
+          $isActive = $isLinkActive($itemHref);
+        ?>
+        <li class="<?= $isActive ? 'active' : '' ?>">
+          <a href="<?= esc($itemHref) ?>">
+            <i class="fa <?= esc($icon) ?>"></i>
+            <?= esc($menuLabel) ?>
+            <?php if (!empty($menu['conteggio'])): ?>
+              <span class="label label-primary pull-right"><?= esc($menu['conteggio']) ?></span>
+            <?php endif; ?>
+          </a>
+        </li>
+      <?php endforeach; ?>
+    </ul>
+
+    <?php if ($contextActions !== []): ?>
+      <div style="padding:14px 15px 6px; color:#7d8b8f; font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase;">
+        Spazio e accessi
+      </div>
+      <ul class="nav nav-pills nav-stacked">
+        <?php foreach ($contextActions as $action): ?>
+          <?php
+            $actionHref = (string) ($action['href'] ?? '#');
+            $actionActive = !empty($action['active']) || $isLinkActive($actionHref);
+            $actionDisabled = !empty($action['disabled']);
+          ?>
+          <li class="<?= $actionActive ? 'active' : ($actionDisabled ? 'disabled' : '') ?>">
+            <?php if ($actionDisabled): ?>
+              <a href="#">
+                <i class="fa <?= esc((string) ($action['icon'] ?? 'fa-circle-o')) ?>"></i>
+                <?= esc((string) ($action['label'] ?? 'Voce')) ?>
+              </a>
+            <?php else: ?>
+              <a href="<?= esc($actionHref) ?>">
+                <i class="fa <?= esc((string) ($action['icon'] ?? 'fa-circle-o')) ?>"></i>
+                <?= esc((string) ($action['label'] ?? 'Voce')) ?>
+              </a>
+            <?php endif; ?>
+          </li>
+        <?php endforeach; ?>
+      </ul>
+    <?php endif; ?>
+
+    <?php if ($accountActions !== []): ?>
+      <div style="padding:14px 15px 6px; color:#7d8b8f; font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase;">
+        Account
+      </div>
+      <ul class="nav nav-pills nav-stacked">
+        <?php foreach ($accountActions as $action): ?>
+          <li class="<?= !empty($action['active']) ? 'active' : '' ?>">
+            <a href="<?= esc((string) ($action['href'] ?? '#')) ?>">
+              <i class="fa <?= esc((string) ($action['icon'] ?? 'fa-circle-o')) ?>"></i>
+              <?= esc((string) ($action['label'] ?? 'Voce')) ?>
+            </a>
+          </li>
+        <?php endforeach; ?>
+      </ul>
+    <?php endif; ?>
+  </div>
+</div>

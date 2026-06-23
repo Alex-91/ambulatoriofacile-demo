@@ -24,6 +24,8 @@ class TenantInfrastructureProvisioningService
     private TenantProvisioningService $tenantProvisioning;
     private TenantCatalogService $catalog;
     private TenantAppUserProvisioningService $tenantAppUsers;
+    private TenantDatabaseConnector $tenantDbConnector;
+    private TenantAdminMenuService $tenantAdminMenu;
 
     public function __construct()
     {
@@ -31,6 +33,8 @@ class TenantInfrastructureProvisioningService
         $this->tenantProvisioning = new TenantProvisioningService();
         $this->catalog = new TenantCatalogService();
         $this->tenantAppUsers = new TenantAppUserProvisioningService();
+        $this->tenantDbConnector = new TenantDatabaseConnector();
+        $this->tenantAdminMenu = new TenantAdminMenuService();
     }
 
     /**
@@ -53,6 +57,7 @@ class TenantInfrastructureProvisioningService
             $templateMode = 'skipped';
             if ($tableCountBefore === 0) {
                 $templateMode = $this->provisionTemplate($adminConnection, $resolvedTenant);
+                $this->resetProvisioningLocationCatalogs($adminConnection, (string) ($resolvedTenant['db_name'] ?? ''));
             }
 
             try {
@@ -60,6 +65,21 @@ class TenantInfrastructureProvisioningService
             } catch (\Throwable $e) {
                 throw new \RuntimeException(
                     'Migrazioni tenant fallite in ' . basename((string) $e->getFile()) . ':' . (int) $e->getLine() . ' - ' . $e->getMessage(),
+                    0,
+                    $e
+                );
+            }
+
+            try {
+                $tenantDb = $this->tenantDbConnector->connect($resolvedTenant);
+                if ($tableCountBefore === 0) {
+                    $this->tenantAdminMenu->syncConfiguredLinks($tenantDb, $this->tenantAdminMenu->defaultLinks());
+                } else {
+                    $this->tenantAdminMenu->ensureDefaultMenuIfEmpty($tenantDb);
+                }
+            } catch (\Throwable $e) {
+                throw new \RuntimeException(
+                    'Inizializzazione menu admin tenant fallita in ' . basename((string) $e->getFile()) . ':' . (int) $e->getLine() . ' - ' . $e->getMessage(),
                     0,
                     $e
                 );
@@ -320,6 +340,29 @@ class TenantInfrastructureProvisioningService
         throw new \RuntimeException('Nessun template DB configurato. Imposta TENANT_PROVISIONING_TEMPLATE_DATABASE oppure TENANT_PROVISIONING_TEMPLATE_SQL_PATH.');
     }
 
+    private function resetProvisioningLocationCatalogs(mysqli $mysqli, string $databaseName): void
+    {
+        $databaseName = trim($databaseName);
+        if ($databaseName === '') {
+            return;
+        }
+
+        foreach (['dap43_ambulatori_stanze', 'dap42_ambulatori', 'dap21_gruppo'] as $tableName) {
+            if (!$this->databaseTableExists($mysqli, $databaseName, $tableName)) {
+                continue;
+            }
+
+            $sql = 'DELETE FROM '
+                . $this->escapeIdentifier($databaseName)
+                . '.'
+                . $this->escapeIdentifier($tableName);
+
+            if (!$mysqli->query($sql)) {
+                throw new \RuntimeException('Pulizia catalogo luoghi tenant non riuscita per ' . $tableName . ': ' . $mysqli->error);
+            }
+        }
+    }
+
     private function cloneDatabase(mysqli $mysqli, string $sourceDatabase, string $targetDatabase): void
     {
         $sourceDatabase = trim($sourceDatabase);
@@ -372,6 +415,19 @@ class TenantInfrastructureProvisioningService
         } finally {
             $mysqli->query('SET FOREIGN_KEY_CHECKS=1');
         }
+    }
+
+    private function databaseTableExists(mysqli $mysqli, string $databaseName, string $tableName): bool
+    {
+        $result = $this->queryValue($mysqli, "
+            SELECT TABLE_NAME
+            FROM information_schema.TABLES
+            WHERE TABLE_SCHEMA = '" . $mysqli->real_escape_string($databaseName) . "'
+              AND TABLE_NAME = '" . $mysqli->real_escape_string($tableName) . "'
+            LIMIT 1
+        ");
+
+        return $result !== null;
     }
 
     private function importSqlTemplate(mysqli $mysqli, string $databaseName, string $sqlPath): void

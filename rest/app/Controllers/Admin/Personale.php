@@ -3,11 +3,11 @@
 namespace App\Controllers\Admin;
 
 use App\Controllers\BaseController;
-use App\Models\GruppoModel;
 use App\Models\TypeDoctorsModel;
 use App\Libraries\Crypto_helper;
 use App\Libraries\DatabaseConfig;
 use App\Services\AgendaDoctorIdService;
+use App\Services\StaffLocationCatalogService;
 use App\Services\StaffDoctorLinkService;
 
 class Personale extends BaseController
@@ -33,8 +33,8 @@ class Personale extends BaseController
             return redirect()->to('/');
         }
 
-        $gM = new GruppoModel();
         $tM = new TypeDoctorsModel();
+        $locationCatalog = new StaffLocationCatalogService($this->db);
 
         // menu admin in sessione
         $menuData = session()->get('menuDataAdmin');
@@ -43,7 +43,7 @@ class Personale extends BaseController
         return view('admin/personale_create', [
             'menu_items' => $menu_items,
             'pageTitle'  => 'Inserisci Personale',
-            'gruppi'     => $gM->orderBy('nome', 'ASC')->findAll(),
+            'gruppi'     => $locationCatalog->listSelectableLocations(),
             'tipi'       => $tM->orderBy('des_tipo', 'ASC')->findAll(),
             'errors'     => session()->getFlashdata('errors') ?? [],
             'old'        => session()->getFlashdata('old') ?? [],

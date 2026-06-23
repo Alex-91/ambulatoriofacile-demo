@@ -14,11 +14,13 @@ class StaffDoctorLinkService
 
     private BaseConnection $db;
     private Crypto_helper $crypto;
+    private StaffLocationCatalogService $locationCatalog;
 
     public function __construct(?BaseConnection $db = null)
     {
         $this->db = $db ?? Database::connect();
         $this->crypto = new Crypto_helper();
+        $this->locationCatalog = new StaffLocationCatalogService($this->db);
     }
 
     public function isManagedRole(int $tipo): bool
@@ -28,13 +30,7 @@ class StaffDoctorLinkService
 
     public function allGroupIds(): array
     {
-        $rows = $this->db->table('dap21_gruppo')
-            ->select('id_gruppo')
-            ->orderBy('id_gruppo', 'ASC')
-            ->get()
-            ->getResultArray();
-
-        return array_map(static fn(array $row): int => (int)$row['id_gruppo'], $rows);
+        return $this->locationCatalog->selectableLocationIds();
     }
 
     public function normalizeGroupIds($raw, int $fallbackGroupId = 0): array
@@ -326,6 +322,7 @@ class StaffDoctorLinkService
     private function buildDoctorsGrid(array $selectedIds, string $methodName): array
     {
         $selectedMap = array_fill_keys($selectedIds, true);
+        $locationNameMap = $this->locationCatalog->selectableLocationNameMap();
 
         $decNome = $this->crypto->decryptSenzaAlias('p.nome');
         $decCognome = $this->crypto->decryptSenzaAlias('p.cognome');
@@ -340,19 +337,9 @@ class StaffDoctorLinkService
                 p.luogo,
                 p.sostituto,
                 p.titolare,
-                p.is_active,
-                g.nome AS sede_nome
+                p.is_active
             FROM dap03_personale p
-            LEFT JOIN dap21_gruppo g ON g.id_gruppo = p.luogo
             WHERE p.tipo = 1
-            ORDER BY
-                CASE
-                    WHEN p.luogo IS NULL OR p.luogo = 0 OR g.id_gruppo IS NULL THEN 1
-                    ELSE 0
-                END ASC,
-                g.nome ASC,
-                cognome ASC,
-                nome ASC
         ");
 
         if ($query === false) {
@@ -360,15 +347,13 @@ class StaffDoctorLinkService
             return [];
         }
 
-        $rows = $query->getResultArray();
-
-        return array_map(static function (array $row) use ($selectedMap): array {
+        $rows = array_map(static function (array $row) use ($selectedMap, $locationNameMap): array {
             $doctorId = (int)($row['id_personale'] ?? 0);
             $nome = trim((string)($row['nome'] ?? ''));
             $cognome = trim((string)($row['cognome'] ?? ''));
             $qualifica = trim((string)($row['qualifica'] ?? ''));
             $luogo = (int)($row['luogo'] ?? 0);
-            $sedeNome = trim((string)($row['sede_nome'] ?? ''));
+            $sedeNome = trim((string)($locationNameMap[$luogo] ?? ''));
             $missingLocation = $luogo <= 0 || $sedeNome === '';
 
             return [
@@ -385,7 +370,28 @@ class StaffDoctorLinkService
                 'titolare' => (int)($row['titolare'] ?? 0),
                 'is_active' => (int)($row['is_active'] ?? 0),
             ];
-        }, $rows);
+        }, $query->getResultArray());
+
+        usort($rows, static function (array $left, array $right): int {
+            $byMissing = ((int) $left['missing_location']) <=> ((int) $right['missing_location']);
+            if ($byMissing !== 0) {
+                return $byMissing;
+            }
+
+            $byLocation = strcasecmp((string) ($left['sede_nome'] ?? ''), (string) ($right['sede_nome'] ?? ''));
+            if ($byLocation !== 0) {
+                return $byLocation;
+            }
+
+            $bySurname = strcasecmp((string) ($left['cognome'] ?? ''), (string) ($right['cognome'] ?? ''));
+            if ($bySurname !== 0) {
+                return $bySurname;
+            }
+
+            return strcasecmp((string) ($left['nome'] ?? ''), (string) ($right['nome'] ?? ''));
+        });
+
+        return $rows;
     }
 
     private function replaceStaffDoctorLinksByTable(

@@ -14,6 +14,7 @@ $oldAllLuoghi = in_array('__all__', $oldLuoghi, true);
 $oldShowInAgenda = array_key_exists('show_in_agenda', $old) ? !empty($old['show_in_agenda']) : true;
 $oldShowInPosta  = array_key_exists('show_in_posta', $old) ? !empty($old['show_in_posta']) : true;
 $oldShowInChat   = array_key_exists('show_in_chat', $old) ? !empty($old['show_in_chat']) : true;
+$hasLuoghi = !empty($gruppi);
 ?>
 <html>
 <head>
@@ -168,18 +169,28 @@ $oldShowInChat   = array_key_exists('show_in_chat', $old) ? !empty($old['show_in
                     <div class="form-group <?= (hasErr('luoghi',$errors) || hasErr('luogo',$errors))?'has-error':'' ?>">
                       <label>Luogo *</label>
                       <input type="hidden" name="luogo" id="luogo_primary" value="<?= esc($oldLuoghi[0] ?? '') ?>">
-                      <select class="form-control" name="luoghi[]" id="luoghi" multiple size="4" required>
-                        <option value="__all__" <?= $oldAllLuoghi ? 'selected' : '' ?>>Tutti i luoghi</option>
-                        <?php foreach (($gruppi ?? []) as $g): ?>
-                          <option value="<?= (int)$g['id_gruppo'] ?>"
-                            <?= ($oldAllLuoghi || in_array((string)$g['id_gruppo'], $oldLuoghi, true)) ? 'selected' : '' ?>>
-                            <?= esc($g['nome']) ?>
-                          </option>
-                        <?php endforeach; ?>
+                      <select class="form-control" name="luoghi[]" id="luoghi" multiple size="4" <?= $hasLuoghi ? 'required' : 'disabled' ?>>
+                        <?php if (!$hasLuoghi): ?>
+                          <option value="">Prima configura almeno un luogo</option>
+                        <?php else: ?>
+                          <option value="__all__" <?= $oldAllLuoghi ? 'selected' : '' ?>>Tutti i luoghi</option>
+                          <?php foreach (($gruppi ?? []) as $g): ?>
+                            <option value="<?= (int)$g['id_gruppo'] ?>"
+                              <?= ($oldAllLuoghi || in_array((string)$g['id_gruppo'], $oldLuoghi, true)) ? 'selected' : '' ?>>
+                              <?= esc($g['nome']) ?>
+                            </option>
+                          <?php endforeach; ?>
+                        <?php endif; ?>
                       </select>
-                      <p class="text-muted" style="margin:6px 0 0 0;">
-                        Per segretaria e infermiera puoi selezionare piu luoghi o "Tutti i luoghi".
-                      </p>
+                      <?php if ($hasLuoghi): ?>
+                        <p class="text-muted" style="margin:6px 0 0 0;">
+                          Per segretaria e infermiera puoi selezionare piu luoghi o "Tutti i luoghi".
+                        </p>
+                      <?php else: ?>
+                        <p class="text-warning" style="margin:6px 0 0 0;">
+                          Prima crea almeno una sede in <a href="<?= site_url('agenda/gestione-sedi') ?>">Gestione sedi</a>, poi potrai inserire il personale.
+                        </p>
+                      <?php endif; ?>
                       <?php if (hasErr('luoghi',$errors)): ?><span class="help-block"><?= esc($errors['luoghi']) ?></span><?php endif; ?>
                       <?php if (hasErr('luogo',$errors)): ?><span class="help-block"><?= esc($errors['luogo']) ?></span><?php endif; ?>
                     </div>
@@ -248,7 +259,7 @@ $oldShowInChat   = array_key_exists('show_in_chat', $old) ? !empty($old['show_in
               </div>
 
               <div class="box-footer">
-                <button class="btn btn-primary" type="submit">
+                <button class="btn btn-primary" type="submit" <?= $hasLuoghi ? '' : 'disabled' ?>>
                   <i class="fa fa-save"></i> Salva
                 </button>
                 <a class="btn btn-default" href="<?= site_url('admin') ?>">Annulla</a>
