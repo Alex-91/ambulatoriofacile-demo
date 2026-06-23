@@ -4,6 +4,18 @@ if (!function_exists('portal_public_access_url')) {
     function portal_public_access_url(string $path = ''): string
     {
         $path = ltrim($path, '/');
+        $demoSessionActive = false;
+
+        try {
+            $demoSessionActive = (bool) (session()->get(\App\Services\DemoAccessService::SESSION_KEY_ACTIVE) ?? false);
+        } catch (\Throwable) {
+            $demoSessionActive = false;
+        }
+
+        if ($demoSessionActive) {
+            return site_url($path);
+        }
+
         $configuredBaseUrl = trim((string) env('APP_PUBLIC_ACCESS_BASE_URL', ''));
 
         if ($configuredBaseUrl === '') {
@@ -23,6 +35,18 @@ if (!function_exists('portal_login_area_url')) {
     function portal_login_area_url(string $path = ''): string
     {
         $path = trim($path, '/');
+        $demoSessionActive = false;
+
+        try {
+            $demoSessionActive = (bool) (session()->get(\App\Services\DemoAccessService::SESSION_KEY_ACTIVE) ?? false);
+        } catch (\Throwable) {
+            $demoSessionActive = false;
+        }
+
+        if ($demoSessionActive) {
+            return site_url($path);
+        }
+
         return portal_public_access_url($path === '' ? 'login' : 'login/' . $path);
     }
 }

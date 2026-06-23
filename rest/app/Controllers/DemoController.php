@@ -17,27 +17,7 @@ class DemoController extends Controller
 
     public function index()
     {
-        $runtimeReport = $this->loadLatestReport('demo_runtime_*.json');
-        $seedReport = $this->loadLatestReport('demo_seed_*.json');
-        $isLocal = $this->isLocalHost();
-        $demoAccess = new DemoAccessService();
-        $demoAccounts = $this->demoAccounts($seedReport);
-
-        return view('demo/showcase', [
-            'brandName' => 'AmbulatorioFacile',
-            'brandDescription' => 'Piattaforma operativa per prenotazioni, comunicazione e notifiche.',
-            'runtimeStatus' => $this->buildRuntimeStatus($runtimeReport),
-            'seedStatus' => $this->buildSeedStatus($seedReport),
-            'demoAccounts' => $demoAccounts,
-            'demoAccountGroups' => $this->demoAccountGroups($demoAccounts),
-            'demoCredentials' => $this->demoCredentialsSummary($seedReport),
-            'demoChecklist' => $this->demoChecklist(),
-            'demoPublicAccessEnabled' => $demoAccess->isPublicAccessEnabled(),
-            'showLocalAccess' => $isLocal,
-            'showTechnicalStatus' => $isLocal,
-            'commercialHighlights' => $this->commercialHighlights(),
-            'commercialPackages' => $this->commercialPackages(),
-        ]);
+        return $this->access();
     }
 
     public function vertical(string $profileId)
@@ -379,7 +359,7 @@ class DemoController extends Controller
 
     /**
      * @param array<string, mixed>|null $seedReport
-     * @return array<string, mixed>
+     * @return array<string, string>
      */
     private function demoCredentialsSummary(?array $seedReport): array
     {
@@ -1036,19 +1016,7 @@ class DemoController extends Controller
 
     private function officialLoginUrl(): string
     {
-        $configuredBaseUrl = trim((string) env('APP_PUBLIC_ACCESS_BASE_URL', ''));
-        if ($configuredBaseUrl !== '') {
-            return portal_public_access_url('login');
-        }
-
-        $scheme = strtolower((string) ($this->request->getServer('HTTP_X_FORWARDED_PROTO') ?: $this->request->getUri()->getScheme() ?: 'https'));
-        $host = (string) ($this->request->getServer('HTTP_X_FORWARDED_HOST') ?: $this->request->getServer('HTTP_HOST') ?: $this->request->getUri()->getHost());
-        $host = trim((string) explode(',', $host)[0]);
-        if ($host === '') {
-            return '/login';
-        }
-
-        return $scheme . '://' . preg_replace('/:\d+$/', '', $host) . '/login';
+        return portal_public_access_url('login');
     }
 
     /**
@@ -1299,24 +1267,34 @@ class DemoController extends Controller
     {
         return [
             [
-                'title' => 'Ingresso generale',
-                'username' => 'demo.admin',
-                'goal' => 'Apri moduli, ruoli, configurazioni e controlla che la base comune della piattaforma sia completa.',
+                'title' => 'Tenant master',
+                'username' => 'demo.tenant.master',
+                'goal' => 'Apri lo spazio cliente demo senza login, verifica funzioni attivabili e gestione utenti del tenant.',
             ],
             [
-                'title' => 'Vista segreteria',
+                'title' => 'Utente tenant',
+                'username' => 'demo.tenant.user',
+                'goal' => 'Prova l accesso normale dello spazio per capire cosa vede un utente standard senza permessi master.',
+            ],
+            [
+                'title' => 'Segreteria',
                 'username' => 'demo.segreteria',
-                'goal' => 'Mostra agenda del giorno, ricerca disponibilita, inserimento appuntamento per un altro professionista e note operative.',
+                'goal' => 'Mostra agenda del giorno, presa appuntamenti, posta segreteria e chat operativa interna.',
             ],
             [
-                'title' => 'Vista professionista',
+                'title' => 'Dottore',
                 'username' => 'demo.dietista',
-                'goal' => 'Verifica agenda del singolo professionista, schede, posta, chat e continuita del percorso paziente.',
+                'goal' => 'Verifica agenda professionista, posta dottore, chat interna e continuita del percorso paziente.',
             ],
             [
-                'title' => 'Secondo professionista',
-                'username' => 'demo.nutrizionista',
-                'goal' => 'Prova visibilita differenziate, presa appuntamenti interna e convivenza tra piu professionisti.',
+                'title' => 'Paziente',
+                'username' => 'demo.portal.nutri',
+                'goal' => 'Chiudi il giro dal lato paziente per provare area personale e posta lato utente finale.',
+            ],
+            [
+                'title' => 'Admin demo',
+                'username' => 'demo.admin',
+                'goal' => 'Controlla la vista generale moduli, configurazioni e base comune del prodotto.',
             ],
             [
                 'title' => 'Percorso sport e rehab',

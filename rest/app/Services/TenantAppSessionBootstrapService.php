@@ -120,11 +120,7 @@ class TenantAppSessionBootstrapService
             'loginSource' => 'platform_tenant',
         ]);
 
-        $redirectUrl = $this->resolvePlatformTenantRedirectUrl(
-            $context,
-            $membership,
-            (int) ($user['tipo_user'] ?? 0)
-        );
+        $redirectUrl = $this->resolvePlatformTenantRedirectUrl($context, $membership);
 
         return [
             'redirectUrl' => $redirectUrl,
@@ -138,11 +134,7 @@ class TenantAppSessionBootstrapService
     /**
      * @param array<string, mixed> $membership
      */
-    private function resolvePlatformTenantRedirectUrl(
-        \App\Libraries\TenantContext $context,
-        array $membership,
-        int $tipoUser
-    ): string
+    private function resolvePlatformTenantRedirectUrl(\App\Libraries\TenantContext $context, array $membership): string
     {
         $tenantRole = strtolower(trim((string) ($membership['tenant_role'] ?? $context->tenantRole)));
         $onboardingStatus = strtolower(trim((string) ($membership['onboarding_status'] ?? $context->onboardingStatus)));
@@ -151,8 +143,8 @@ class TenantAppSessionBootstrapService
             return portal_tenant_space_url('onboarding');
         }
 
-        if ($tipoUser === 1) {
-            return site_url('admin');
+        if ($tenantRole === 'tenant_master') {
+            return portal_tenant_space_url('funzioni');
         }
 
         return site_url('/');

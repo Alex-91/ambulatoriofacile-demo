@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= esc($brandName) ?> | Accesso demo</title>
     <meta name="description" content="Accesso guidato alla demo unica di AmbulatorioFacile">
-    <link rel="stylesheet" href="<?= base_url('public/assets/css/demo-showcase.css') ?>">
+    <link rel="stylesheet" href="<?= base_url('rest/public/assets/css/demo-showcase.css') ?>">
 </head>
 <body>
 <div class="demo-shell">
@@ -16,30 +16,28 @@
         <section class="hero-card hero-card-vertical">
             <div class="hero-stack">
                 <div class="hero-main">
-                    <a class="back-link" href="<?= esc((string) ($demoCredentials['demo_home_url'] ?? site_url('/'))) ?>">Torna alla demo overview</a>
-                    <p class="eyebrow">Accesso demo guidato</p>
-                    <h1><?= esc((string) ($demoLabel ?? 'Demo AmbulatorioFacile')) ?></h1>
+                    <p class="eyebrow">Accesso demo pubblico</p>
+                    <h1>Scegli subito il ruolo da provare</h1>
                     <p class="hero-copy">
-                        Qui scegli direttamente il ruolo da provare nella demo unica, senza login manuale e senza cambiare percorso.
+                        La demo parte da qui: scegli il ruolo, entri subito e puoi passare da tenant master a utente normale, segreteria, dottore o paziente senza usare il login iniziale.
                     </p>
                     <p class="hero-copy hero-copy-secondary">
-                        La demo usa dati separati dalla produzione e, una volta entrato, puoi cambiare ruolo in qualsiasi momento dal menu utente.
+                        Tutto gira su dati fittizi separati dalla produzione e il cambio ruolo resta sempre disponibile dal menu utente dentro la demo.
                     </p>
                     <div class="hero-actions">
                         <a class="btn btn-primary" href="#ruoli-demo">Scegli un ruolo</a>
                         <a class="btn btn-secondary" href="<?= esc((string) ($demoCredentials['official_login_url'] ?? site_url('login'))) ?>">Apri login ufficiale</a>
-                        <a class="btn btn-secondary" href="<?= esc((string) ($demoCredentials['demo_request_url'] ?? site_url('richiesta'))) ?>">Richiedi demo guidata</a>
                     </div>
                 </div>
 
                 <aside class="hero-side">
                     <div class="hero-side-card">
                         <?php if (!empty($demoPublicAccessEnabled)): ?>
-                            <p class="status-label">Accesso diretto</p>
-                            <h3>Demo senza credenziali</h3>
+                            <p class="status-label">Nessun login iniziale</p>
+                            <h3>Ruoli demo gia pronti</h3>
                             <div class="note-box">
-                                <p>Ogni card qui sotto apre subito la vista del ruolo scelto.</p>
-                                <p>Il cambio ruolo resta disponibile dentro la demo, cosi chi prova il prodotto non deve fare logout o ricordare password.</p>
+                                <p>Le card tenant aprono la nuova area spazio cliente senza passare dal form di accesso.</p>
+                                <p>Le card operative coprono agenda come dottore e segreteria, posta come dottore, paziente e segreteria, chat come dottore e segreteria.</p>
                             </div>
                         <?php else: ?>
                             <p class="status-label">Credenziali rapide</p>
@@ -66,7 +64,7 @@
         <section class="panel">
             <div class="panel-head">
                 <p class="eyebrow">Checklist prova</p>
-                <h2>Ordine consigliato per controllare tutto</h2>
+                <h2>Ordine consigliato per provare tutto</h2>
             </div>
             <div class="flow-grid">
                 <?php foreach ((array) ($demoChecklist ?? []) as $index => $item): ?>
@@ -139,7 +137,7 @@
             <div class="dual-grid">
                 <article class="detail-card">
                     <h3>Switch ruolo</h3>
-                    <p class="access-note">Durante la demo puoi cambiare vista da admin a segreteria, professionista o paziente senza uscire dal percorso pubblico.</p>
+                    <p class="access-note">Durante la demo puoi cambiare vista da tenant master a utente normale, segreteria, dottore o paziente senza rifare il login.</p>
                 </article>
                 <article class="detail-card">
                     <h3>Dati separati</h3>

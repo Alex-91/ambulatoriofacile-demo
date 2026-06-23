@@ -3,7 +3,6 @@
 namespace App\Controllers\Tenant;
 
 use App\Controllers\BaseController;
-use App\Services\SessionNavigationService;
 use App\Services\TenantContextService;
 use App\Services\TenantFeatureService;
 
@@ -31,8 +30,6 @@ class SpaceFeatures extends BaseController
         if ($context === null) {
             return redirect()->to(site_url('/'));
         }
-
-        (new SessionNavigationService())->refreshCurrentSession();
 
         return view('tenant/space_features', [
             'tenantContext' => $context,
@@ -62,8 +59,6 @@ class SpaceFeatures extends BaseController
             $platformUserId = (int) (session()->get('platform_user_id') ?? 0);
             (new TenantFeatureService())->saveTenantManagedFeatures($context->tenantId, $enabledFeatures, $platformUserId);
             $this->tenantContext->activateTenantForPlatformUser($platformUserId, $context->tenantId);
-            (new SessionNavigationService())->refreshCurrentSession(true);
-
             return redirect()
                 ->to(portal_tenant_space_url('funzioni'))
                 ->with('success', 'Funzioni dello spazio aggiornate con successo.');

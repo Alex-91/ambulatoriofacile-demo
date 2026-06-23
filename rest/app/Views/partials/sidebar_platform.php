@@ -10,9 +10,6 @@ $platformMasterEmails = is_array($platformMasterEmails ?? null) ? $platformMaste
 <div class="box box-solid" style="margin-bottom: 0 !important">
   <div class="box-header with-border">
     <h3 class="box-title">Console piattaforma</h3>
-    <div class="box-tools">
-      <button class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-minus"></i></button>
-    </div>
   </div>
   <div class="box-body no-padding">
     <ul class="nav nav-pills nav-stacked">

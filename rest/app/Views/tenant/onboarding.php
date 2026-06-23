@@ -45,7 +45,7 @@ $tenantName = trim((string) ($tenantContext->tenantName ?? ($tenant['tenant_name
 </head>
 <body class="platform-console-body">
 <div class="wrapper">
-  <?= view('partials/header_portal_console', ['menu_items' => session()->get('header_menu_items') ?? []]) ?>
+  <?= view('partials/header', ['menu_items' => session()->get('header_menu_items') ?? [], 'portal_console_header' => true]) ?>
 
   <div class="content-wrapper">
     <section class="content-header">

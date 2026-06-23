@@ -62,7 +62,8 @@ $tenantFeatureFlags = is_array($tenantContext) ? (array)($tenantContext['feature
 $platformTenants = $sess->get('platform_selectable_tenants');
 $platformTenants = is_array($platformTenants) ? $platformTenants : [];
 $platformTenantCount = count($platformTenants);
-$showTenantSwitchSection = $platformTenantCount > 1;
+$showTenantSwitchSection = $platformTenantCount > 0;
+$tenantSwitchSectionTitle = $platformTenantCount > 1 ? 'Cambia spazio' : 'Apri spazio';
 $canAccessPlatformConsole = (bool) ($sess->get('platform_is_admin') ?? false) === true;
 $isPlatformConsoleSession = $canAccessPlatformConsole
     && (string) ($sess->get('loginSource') ?? '') === 'platform_console';
@@ -84,11 +85,17 @@ $useMinimalTenantOnboardingHeader = $isTenantOnboardingRoute
     && $tenantRole === 'tenant_master'
     && $showTenantOnboardingLink;
 $hideHeaderMenu = $hideHeaderMenu || $useMinimalTenantOnboardingHeader;
-$isPortalConsoleHeader = preg_match('#^(login|piattaforma|spazio|spazi)(/|$)#', $currentPath) === 1;
-$headerLogoUrl = $isPortalConsoleHeader
-    ? portal_public_access_url('login')
-    : site_url('/');
-$useStructuredHeader = $tenantName !== '' || $isPortalConsoleHeader;
+$tenantOperationalHomeUrl = $tenantId > 0 ? site_url('/') : null;
+$portalConsoleHeaderOverride = isset($portal_console_header) ? (bool) $portal_console_header : null;
+$portalConsolePrefixes = ['login', 'spazio', 'piattaforma'];
+$isPortalConsoleRoute = false;
+foreach ($portalConsolePrefixes as $portalConsolePrefix) {
+    if ($currentPath === $portalConsolePrefix || str_starts_with($currentPath, $portalConsolePrefix . '/')) {
+        $isPortalConsoleRoute = true;
+        break;
+    }
+}
+$isPortalConsoleHeader = $portalConsoleHeaderOverride ?? $isPortalConsoleRoute;
 $profileImageFallbackUrl = base_url('public/dist/img/user.png');
 $demoSessionActive = (bool) ($sess->get(\App\Services\DemoAccessService::SESSION_KEY_ACTIVE) ?? false);
 $demoCurrentAccount = $sess->get(\App\Services\DemoAccessService::SESSION_KEY_CURRENT);
@@ -106,236 +113,10 @@ $showDemoRoleSwitch = $demoSessionActive
 $demoAccessUrl = $showDemoRoleSwitch
     ? trim((string) ($demoCurrentAccount['access_url'] ?? site_url('access')))
     : '';
+$headerLogoUrl = $isPortalConsoleHeader
+    ? ($demoSessionActive ? site_url('access') : portal_public_access_url('login'))
+    : site_url('/');
 ?>
-
-<style>
-  body.platform-console-body .main-header .logo {
-    height: 78px;
-    line-height: 78px;
-  }
-
-  body.platform-console-body .main-header .navbar {
-    min-height: 78px;
-    padding: 10px 16px 12px;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 10px 16px;
-  }
-
-  body.platform-console-body .main-header .navbar > .navbar-custom-menu {
-    float: none !important;
-  }
-
-  body.platform-console-body .main-header .navbar > .navbar-custom-menu:first-of-type {
-    order: 2;
-    flex: 1 1 100%;
-    overflow: hidden;
-  }
-
-  body.platform-console-body .main-header .navbar > .navbar-custom-menu:first-of-type .navbar-nav {
-    float: none;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 8px;
-    margin: 0;
-  }
-
-  body.platform-console-body .main-header .navbar > .navbar-custom-menu:first-of-type .navbar-nav > li {
-    float: none;
-  }
-
-  body.platform-console-body .main-header .navbar > .navbar-custom-menu:first-of-type .navbar-nav > li > a {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    min-height: auto;
-    padding: 10px 14px;
-    border-radius: 12px;
-    background: rgba(255, 255, 255, 0.12);
-  }
-
-  body.platform-console-body .main-header .navbar > .navbar-custom-menu:last-of-type {
-    order: 1;
-    margin-left: auto;
-  }
-
-  body.platform-console-body .main-header .navbar > .navbar-custom-menu:last-of-type .navbar-nav {
-    float: none;
-    display: flex;
-    align-items: center;
-    margin: 0;
-  }
-
-  body.platform-console-body .main-header .navbar > .navbar-text {
-    order: 0;
-    float: none !important;
-    margin: 0 !important;
-    padding: 8px 14px;
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.12);
-    color: #f4fdff !important;
-    font-weight: 600;
-  }
-
-  @media (max-width: 991px) {
-    body.platform-console-body .main-header .navbar {
-      padding: 10px 12px 12px;
-    }
-
-    body.platform-console-body .main-header .navbar > .navbar-custom-menu:last-of-type {
-      margin-left: 0;
-    }
-  }
-</style>
-
-<?php if ($useStructuredHeader): ?>
-<style>
-  .main-header .navbar.platform-console-navbar {
-    min-height: 78px;
-    padding: 0 14px;
-  }
-
-  .main-header .platform-navbar-shell {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-areas:
-      "tenant user"
-      "menu menu";
-    gap: 10px 14px;
-    align-items: center;
-    min-height: 78px;
-    padding: 10px 0 8px;
-  }
-
-  .main-header .platform-navbar-tenant {
-    grid-area: tenant;
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-    max-width: 420px;
-    min-width: 0;
-    padding: 7px 14px;
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.12);
-    color: #f4fdff;
-  }
-
-  .main-header .platform-navbar-tenant-label {
-    flex: 0 0 auto;
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    opacity: 0.78;
-  }
-
-  .main-header .platform-navbar-tenant-name {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .main-header .platform-navbar-primary {
-    grid-area: menu;
-    float: none !important;
-    overflow: hidden;
-  }
-
-  .main-header .platform-navbar-primary .navbar-nav {
-    float: none;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    margin: 0;
-    white-space: nowrap;
-    overflow-x: auto;
-    overflow-y: hidden;
-    scrollbar-width: none;
-  }
-
-  .main-header .platform-navbar-primary .navbar-nav::-webkit-scrollbar {
-    display: none;
-  }
-
-  .main-header .platform-navbar-primary .navbar-nav > li {
-    float: none;
-  }
-
-  .main-header .platform-navbar-primary .navbar-nav > li > a {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    min-height: auto;
-    padding: 10px 14px;
-    border-radius: 12px;
-  }
-
-  .main-header .platform-navbar-secondary {
-    grid-area: user;
-    float: none !important;
-    justify-self: end;
-  }
-
-  .main-header .platform-navbar-secondary .navbar-nav {
-    float: none;
-    display: flex;
-    align-items: center;
-    margin: 0;
-  }
-
-  .main-header .platform-navbar-shell.platform-navbar-shell-minimal {
-    grid-template-columns: 1fr auto;
-    grid-template-areas: "empty user";
-    min-height: 58px;
-    padding: 10px 0;
-  }
-
-  .main-header .platform-navbar-shell.platform-navbar-shell-minimal .platform-navbar-secondary {
-    justify-self: end;
-  }
-
-  .main-header .platform-nav-link .nav-label {
-    display: inline-flex;
-    align-items: center;
-    min-height: 18px;
-    padding-right: 14px;
-  }
-
-  @media (max-width: 991px) {
-    .main-header .navbar.platform-console-navbar {
-      padding: 0 10px;
-    }
-
-    .main-header .platform-navbar-shell {
-      grid-template-columns: 1fr;
-      grid-template-areas:
-        "tenant"
-        "user"
-        "menu";
-      gap: 10px;
-    }
-
-    .main-header .platform-navbar-tenant {
-      max-width: none;
-    }
-
-    .main-header .platform-navbar-secondary {
-      justify-self: start;
-    }
-
-    .main-header .platform-navbar-shell.platform-navbar-shell-minimal {
-      grid-template-columns: 1fr auto;
-      grid-template-areas: "empty user";
-    }
-
-    .main-header .platform-navbar-shell.platform-navbar-shell-minimal .platform-navbar-secondary {
-      justify-self: end;
-    }
-  }
-</style>
-<?php endif; ?>
 
 <header class="main-header" style="background:#2c8895">
   <!-- Logo -->
@@ -344,7 +125,7 @@ $demoAccessUrl = $showDemoRoleSwitch
     <span class="logo-lg"><b>Ambulatorio</b>Facile</span>
   </a>
 
-  <nav class="navbar navbar-static-top<?= $useStructuredHeader ? ' platform-console-navbar' : '' ?>" role="navigation">
+  <nav class="navbar navbar-static-top<?= $isPortalConsoleHeader ? ' platform-console-navbar' : '' ?>" role="navigation">
     <a href="#" class="sidebar-toggle" data-toggle="offcanvas" role="button" style="display:none">
       <span class="sr-only">Toggle navigation</span>
       <span class="icon-bar"></span>
@@ -352,12 +133,12 @@ $demoAccessUrl = $showDemoRoleSwitch
       <span class="icon-bar"></span>
     </a>
 
-    <?php if ($useStructuredHeader): ?>
+    <?php if ($isPortalConsoleHeader): ?>
     <div class="platform-navbar-shell<?= $useMinimalTenantOnboardingHeader ? ' platform-navbar-shell-minimal' : '' ?>">
     <?php endif; ?>
 
     <?php if ($tenantName !== '' && !$useMinimalTenantOnboardingHeader): ?>
-      <?php if ($useStructuredHeader): ?>
+      <?php if ($isPortalConsoleHeader): ?>
       <div class="platform-navbar-tenant hidden-xs">
         <span class="platform-navbar-tenant-label">Spazio</span>
         <strong class="platform-navbar-tenant-name"><?= esc($tenantName) ?></strong>
@@ -370,8 +151,8 @@ $demoAccessUrl = $showDemoRoleSwitch
     <?php endif; ?>
 
     <?php if (!$hideHeaderMenu): ?>
-    <div class="navbar-custom-menu<?= $useStructuredHeader ? ' platform-navbar-primary' : '' ?>"<?= $useStructuredHeader ? '' : ' style="float:left !important"' ?>>
-      <ul class="nav navbar-nav<?= $useStructuredHeader ? ' platform-navbar-links' : '' ?>">
+    <div class="navbar-custom-menu<?= $isPortalConsoleHeader ? ' platform-navbar-primary' : '' ?>"<?= $isPortalConsoleHeader ? '' : ' style="float:left !important"' ?>>
+      <ul class="nav navbar-nav<?= $isPortalConsoleHeader ? ' platform-navbar-links' : '' ?>">
 
 <?php
 $disableMenuFallback = !empty($disable_menu_fallback);
@@ -439,7 +220,7 @@ if ($disableMenuFallback) {
     $itemIcon = admin_menu_resolve_icon((string)($item['fa_icon'] ?? ''), $itemTitle, $itemLink);
   ?>
   <li class="hidden-xs">
-    <a href="<?= site_url($itemLink) ?>" title="<?= esc($itemTitle) ?>"<?= $useStructuredHeader ? ' class="platform-nav-link"' : '' ?>>
+    <a href="<?= site_url($itemLink) ?>" title="<?= esc($itemTitle) ?>"<?= $isPortalConsoleHeader ? ' class="platform-nav-link"' : '' ?>>
       <i class="fa <?= esc($itemIcon) ?>"></i>
       <span class="nav-label" style="position:relative; display:inline-block;">
         <?= esc($itemTitle) ?>
@@ -463,7 +244,7 @@ if ($disableMenuFallback) {
     <i class="fa fa-bars"></i>
   </a>
 
-  <ul class="dropdown-menu platform-console-mobile-menu" style="left:0; right:auto;background:#2c8895">
+  <ul class="dropdown-menu" style="left:0; right:auto;background:#2c8895">
     <?php foreach ($navItems as $i => $item): ?>
       <?php
         $itemLink = (string)($item['link'] ?? '');
@@ -493,10 +274,10 @@ if ($disableMenuFallback) {
     </div>
     <?php endif; ?>
 
-    <div class="navbar-custom-menu<?= $useStructuredHeader ? ' platform-navbar-secondary' : '' ?>">
+    <div class="navbar-custom-menu<?= $isPortalConsoleHeader ? ' platform-navbar-secondary' : '' ?>">
       <ul class="nav navbar-nav">
-        <li class="dropdown user user-menu platform-console-user-menu<?= $useMinimalTenantOnboardingHeader ? ' platform-console-user-menu-minimal' : '' ?>">
-          <a href="#" class="dropdown-toggle platform-console-user-trigger" data-toggle="dropdown">
+        <li class="dropdown user user-menu platform-user-menu<?= $useMinimalTenantOnboardingHeader ? ' platform-user-menu-minimal' : '' ?>">
+          <a href="#" class="dropdown-toggle platform-user-toggle" data-toggle="dropdown">
             <?php
               $immagineProfilo = session()->get('immagine_profilo');
               if (empty($immagineProfilo)) {
@@ -507,16 +288,16 @@ if ($disableMenuFallback) {
                  onerror="this.onerror=null;this.src='<?= esc($profileImageFallbackUrl, 'attr') ?>';"
                  class="user-image"
                  alt="User Image" />
-            <span class="hidden-xs platform-console-user-name"><?= session()->get('nome_visualizzato') ?></span>
+            <span class="hidden-xs platform-user-name"><?= session()->get('nome_visualizzato') ?></span>
           </a>
 
-          <ul class="dropdown-menu platform-console-user-dropdown">
-            <li class="user-header platform-console-user-summary">
+          <ul class="dropdown-menu platform-user-dropdown<?= $useMinimalTenantOnboardingHeader ? ' platform-user-dropdown-minimal' : '' ?>">
+            <li class="user-header platform-user-summary">
               <img src="<?= base_url('public/dist/img/' . $immagineProfilo) ?>"
                    onerror="this.onerror=null;this.src='<?= esc($profileImageFallbackUrl, 'attr') ?>';"
                    class="user-image"
                    alt="User Image" />
-              <p class="platform-console-user-summary-text">
+              <p class="platform-user-summary-text">
                 <small>Sei autenticato come:</small>
                 <?= session()->get('nome_visualizzato') ?>
                 <?php if ($tenantName !== ''): ?>
@@ -524,10 +305,17 @@ if ($disableMenuFallback) {
                 <?php endif; ?>
               </p>
             </li>
-            <li class="user-footer platform-console-user-footer">
+            <li class="user-footer platform-user-footer">
+              <?php if (!$useMinimalTenantOnboardingHeader && $tenantOperationalHomeUrl !== null): ?>
+              <div class="platform-user-section">
+                <a href="<?= esc($tenantOperationalHomeUrl) ?>" class="btn btn-default btn-flat platform-user-action">
+                  <i class="fa fa-home"></i> Vai al portale operativo
+                </a>
+              </div>
+              <?php endif; ?>
               <?php if (!$useMinimalTenantOnboardingHeader && $showTenantSwitchSection): ?>
-              <div class="platform-console-dropdown-block">
-                <div class="platform-console-dropdown-title">Cambia spazio</div>
+              <div class="platform-user-section">
+                <div class="platform-user-section-title"><?= esc($tenantSwitchSectionTitle) ?></div>
                 <?php foreach ($platformTenants as $availableTenant): ?>
                   <?php
                     $availableTenantId = (int)($availableTenant['id_tenant'] ?? 0);
@@ -535,13 +323,13 @@ if ($disableMenuFallback) {
                     $tenantLabel = trim((string)($availableTenant['tenant_name'] ?? $availableTenant['tenant_key'] ?? 'Spazio cliente'));
                     $tenantSwitchUrl = portal_tenant_switch_url($availableTenantId);
                   ?>
-                  <div class="platform-console-dropdown-action">
+                  <div class="platform-user-option">
                     <?php if ($isCurrentTenant): ?>
-                      <span class="btn btn-default btn-flat platform-console-dropdown-current">
+                      <span class="btn btn-default btn-flat platform-user-action platform-user-action-current">
                         <?= esc($tenantLabel) ?> (attivo)
                       </span>
                     <?php else: ?>
-                      <a href="<?= esc($tenantSwitchUrl) ?>" class="btn btn-default btn-flat">
+                      <a href="<?= esc($tenantSwitchUrl) ?>" class="btn btn-default btn-flat platform-user-action">
                         <?= esc($tenantLabel) ?>
                       </a>
                     <?php endif; ?>
@@ -550,14 +338,14 @@ if ($disableMenuFallback) {
               </div>
               <?php endif; ?>
               <?php if (!$useMinimalTenantOnboardingHeader && $showDemoRoleSwitch): ?>
-              <div class="platform-console-dropdown-block">
-                <div class="platform-console-dropdown-title">Cambia ruolo demo</div>
+              <div class="platform-user-section">
+                <div class="platform-user-section-title">Cambia ruolo demo</div>
                 <?php if ($demoAccessUrl !== ''): ?>
-                <div class="platform-console-dropdown-action">
-                  <a href="<?= esc($demoAccessUrl) ?>" class="btn btn-default btn-flat">
-                    <i class="fa fa-random"></i> Apri selettore ruoli demo
-                  </a>
-                </div>
+                  <div class="platform-user-option">
+                    <a href="<?= esc($demoAccessUrl) ?>" class="btn btn-default btn-flat platform-user-action">
+                      <i class="fa fa-random"></i> Apri selettore ruoli demo
+                    </a>
+                  </div>
                 <?php endif; ?>
                 <?php foreach ($demoSwitchAccounts as $demoSwitchAccount): ?>
                   <?php
@@ -569,13 +357,13 @@ if ($disableMenuFallback) {
                     $demoSwitchUrl = trim((string) ($demoSwitchAccount['entry_url'] ?? ''));
                     $demoSwitchCurrent = (bool) ($demoSwitchAccount['is_current'] ?? false);
                   ?>
-                  <div class="platform-console-dropdown-action">
+                  <div class="platform-user-option">
                     <?php if ($demoSwitchCurrent || $demoSwitchUrl === ''): ?>
-                      <span class="btn btn-default btn-flat platform-console-dropdown-current">
+                      <span class="btn btn-default btn-flat platform-user-action platform-user-action-current">
                         <?= esc($demoSwitchLabel) ?><?= $demoSwitchDetail !== '' ? ' · ' . esc($demoSwitchDetail) : '' ?><?= $demoSwitchCurrent ? ' (attivo)' : '' ?>
                       </span>
                     <?php else: ?>
-                      <a href="<?= esc($demoSwitchUrl) ?>" class="btn btn-default btn-flat">
+                      <a href="<?= esc($demoSwitchUrl) ?>" class="btn btn-default btn-flat platform-user-action">
                         <?= esc($demoSwitchLabel) ?><?= $demoSwitchDetail !== '' ? ' · ' . esc($demoSwitchDetail) : '' ?>
                       </a>
                     <?php endif; ?>
@@ -584,52 +372,52 @@ if ($disableMenuFallback) {
               </div>
               <?php endif; ?>
               <?php if (!$useMinimalTenantOnboardingHeader && $canAccessPlatformConsole): ?>
-              <div class="platform-console-dropdown-block">
-                <a href="<?= portal_platform_url('spazi-clienti') ?>" class="btn btn-default btn-flat">
+              <div class="platform-user-section">
+                <a href="<?= portal_platform_url('spazi-clienti') ?>" class="btn btn-default btn-flat platform-user-action">
                   <i class="fa fa-sitemap"></i> Console piattaforma
                 </a>
               </div>
               <?php endif; ?>
               <?php if (!$useMinimalTenantOnboardingHeader && $canManageTenantUsers): ?>
-              <div class="platform-console-dropdown-block">
-                <a href="<?= portal_tenant_space_url('utenti') ?>" class="btn btn-default btn-flat">
+              <div class="platform-user-section">
+                <a href="<?= portal_tenant_space_url('utenti') ?>" class="btn btn-default btn-flat platform-user-action">
                   <i class="fa fa-users"></i> Gestisci utenti dello spazio
                 </a>
               </div>
               <?php endif; ?>
               <?php if (!$useMinimalTenantOnboardingHeader && $canManageTenantFeatures): ?>
-              <div class="platform-console-dropdown-block">
-                <a href="<?= portal_tenant_space_url('funzioni') ?>" class="btn btn-default btn-flat">
+              <div class="platform-user-section">
+                <a href="<?= portal_tenant_space_url('funzioni') ?>" class="btn btn-default btn-flat platform-user-action">
                   <i class="fa fa-toggle-on"></i> Gestisci funzioni dello spazio
                 </a>
               </div>
               <?php endif; ?>
               <?php if (!$useMinimalTenantOnboardingHeader && $canManageAppointmentNotifications): ?>
-              <div class="platform-console-dropdown-block">
-                <a href="<?= portal_tenant_space_url('notifiche-appuntamenti') ?>" class="btn btn-default btn-flat">
-                  <i class="fa fa-commenting"></i> Centro notifiche appuntamenti
+              <div class="platform-user-section">
+                <a href="<?= portal_tenant_space_url('notifiche-appuntamenti') ?>" class="btn btn-default btn-flat platform-user-action">
+                  <i class="fa fa-commenting"></i> Gestisci notifiche appuntamenti
                 </a>
               </div>
               <?php endif; ?>
               <?php if (!$useMinimalTenantOnboardingHeader && $showTenantOnboardingLink): ?>
-              <div class="platform-console-dropdown-block">
-                <a href="<?= portal_tenant_space_url('onboarding') ?>" class="btn btn-default btn-flat">
+              <div class="platform-user-section">
+                <a href="<?= portal_tenant_space_url('onboarding') ?>" class="btn btn-default btn-flat platform-user-action">
                   <i class="fa fa-check-square-o"></i> Completa onboarding spazio
                 </a>
               </div>
               <?php endif; ?>
               <?php if (!$useMinimalTenantOnboardingHeader && !$isPlatformConsoleSession): ?>
-              <div class="platform-console-dropdown-block">
-                <label for="chatBrowserNotifyToggle" class="platform-console-toggle-label">
+              <div class="platform-user-section">
+                <label for="chatBrowserNotifyToggle" class="platform-user-toggle-label">
                   <input type="checkbox" id="chatBrowserNotifyToggle" style="vertical-align:middle; margin-right:6px;">
                   Notifiche browser chat
                 </label>
-                <div class="platform-console-help-text">
+                <div class="platform-user-help">
                   Popup nel browser quando arrivano nuovi messaggi.
                 </div>
               </div>
               <?php endif; ?>
-              <div class="platform-console-user-actions<?= $isPlatformConsoleSession ? ' platform-console-user-actions-logout-only' : '' ?>">
+              <div class="platform-user-footer-actions<?= $isPlatformConsoleSession ? ' platform-user-footer-actions-logout-only' : '' ?>">
                 <?php if (!$isPlatformConsoleSession): ?>
                 <a href="<?= base_url('profilo') ?>" class="btn btn-default btn-flat">Profilo</a>
                 <?php endif; ?>
@@ -641,7 +429,7 @@ if ($disableMenuFallback) {
       </ul>
     </div>
 
-    <?php if ($useStructuredHeader): ?>
+    <?php if ($isPortalConsoleHeader): ?>
     </div>
     <?php endif; ?>
 

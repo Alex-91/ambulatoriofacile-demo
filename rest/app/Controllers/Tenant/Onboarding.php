@@ -4,7 +4,6 @@ namespace App\Controllers\Tenant;
 
 use App\Controllers\BaseController;
 use App\Models\PlatformTenantsModel;
-use App\Services\SessionNavigationService;
 use App\Services\TenantCatalogService;
 use App\Services\TenantContextService;
 use App\Services\TenantProvisioningService;
@@ -33,8 +32,6 @@ class Onboarding extends BaseController
         if ($context === null) {
             return redirect()->to(site_url('/'));
         }
-
-        (new SessionNavigationService())->refreshCurrentSession();
 
         $tenant = (new TenantCatalogService())->getTenantById($context->tenantId);
         $capacity = (new TenantProvisioningService())->getTenantUserCapacity($context->tenantId);

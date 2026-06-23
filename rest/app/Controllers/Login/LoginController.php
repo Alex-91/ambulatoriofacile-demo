@@ -198,11 +198,11 @@ class LoginController extends BaseController
                 ->get(1);
 
             if ($query === false) {
-                $dbError = $db->error();
+                $error = $db->error();
                 $this->logErrorLogin('Lookup utente legacy fallito durante il pre-check login.', [
                     'username' => $username,
-                    'db_error_code' => (string) ($dbError['code'] ?? ''),
-                    'db_error_message' => (string) ($dbError['message'] ?? ''),
+                    'db_error_code' => (string) ($error['code'] ?? ''),
+                    'db_error_message' => (string) ($error['message'] ?? ''),
                 ]);
 
                 return false;
@@ -438,15 +438,8 @@ class LoginController extends BaseController
         // Mostra la pagina di login
         helper('portal');
 
-        // Mostra sempre il form di login: se c'e' una sessione residua, l'utente deve
-        // poter rientrare o cambiare account senza essere rimandato alla home.
-        if (false && (bool) (session()->get('isLoggedInConfirmed') ?? false) === true) {
-            if ((bool) (session()->get('platform_is_admin') ?? false) === true || $this->isLegacyPlatformBootstrapSession()) {
-                return redirect()->to(portal_platform_url('spazi-clienti'));
-            }
-
-            return redirect()->to(site_url('/'));
-        }
+        // /login deve restare sempre raggiungibile anche con sessione attiva:
+        // serve per cambiare account e per evitare rimbalzi fuorvianti verso la home.
 
         return view('login/login', $this->buildLoginViewData());
     }
