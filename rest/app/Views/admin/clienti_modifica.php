@@ -32,8 +32,6 @@ $selectedDoctorOld = trim((string) old('id_personale'));
     .nav-pills.nav-stacked > li.active > a { background-color:#2c8895; color:#fff; }
     .res-item { cursor:pointer; }
     .res-item:hover { background:#f5f5f5; }
-    .page-tools { margin-top: 12px; }
-    .page-tools .btn { margin-right: 8px; margin-bottom: 8px; }
   </style>
 </head>
 
@@ -49,17 +47,6 @@ $selectedDoctorOld = trim((string) old('id_personale'));
         <li><a href="<?= site_url('admin') ?>"><i class="fa fa-dashboard"></i> Home</a></li>
         <li class="active"><?= esc($pageTitle) ?></li>
       </ol>
-      <div class="page-tools">
-        <?php if ($createMode): ?>
-          <a href="<?= site_url('admin/personale/modifica_cliente') ?>" class="btn btn-default">
-            <i class="fa fa-search"></i> Vai a Modifica cliente
-          </a>
-        <?php else: ?>
-          <a href="<?= site_url('admin/personale/nuovo_cliente') ?>" class="btn btn-primary">
-            <i class="fa fa-user-plus"></i> Nuovo cliente
-          </a>
-        <?php endif; ?>
-      </div>
     </section>
 
     <section class="content">

@@ -692,9 +692,6 @@ function ensureThreadsFromServer(serverThreads){
   });
 }
 </script>
-
-<!-- Notifiche globali (se lo usi davvero) -->
-<script src="<?= base_url('js/chat-notify.js') ?>"></script>
 </body>
 </html>
 <style>

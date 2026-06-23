@@ -7,6 +7,18 @@ if (empty($menu_items) || !is_array($menu_items)) {
 }
 
 $sess = session();
+$currentMenuUserId = (int) ($sess->get('id_user') ?? 0);
+if ($currentMenuUserId <= 0) {
+    $sessionUser = $sess->get('utente_sess');
+    if (is_object($sessionUser) && !empty($sessionUser->id_user)) {
+        $currentMenuUserId = (int) $sessionUser->id_user;
+    }
+}
+
+$adminMenuVisibility = new \App\Services\AdminMenuVisibilityService();
+if ($currentMenuUserId > 0) {
+    $menu_items = $adminMenuVisibility->filterMenuRowsForUser($menu_items, $currentMenuUserId);
+}
 
 $normalizePath = static function (?string $path): string {
     $path = trim((string) $path);
@@ -187,6 +199,10 @@ if ($isTenantOperationalConsoleSession) {
         'icon' => 'fa-sign-out',
         'active' => false,
     ];
+}
+
+if ($currentMenuUserId > 0) {
+    $contextActions = $adminMenuVisibility->filterContextActionsForUser($contextActions, $currentMenuUserId);
 }
 ?>
 <div class="box box-solid" style="margin-bottom:0 !important">

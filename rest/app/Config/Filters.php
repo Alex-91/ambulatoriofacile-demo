@@ -51,6 +51,7 @@ public function __construct()
         'auth'          => \App\Filters\AuthFilter::class,
         'tenantruntime' => \App\Filters\TenantRuntimeFilter::class,
         'tenantfeatures' => \App\Filters\TenantFeatureAccessFilter::class,
+        'adminmenuaccess' => \App\Filters\AdminMenuAccessFilter::class,
         'cryptodb'      => \App\Filters\CryptoDbVarsFilter::class,
                 'maintenance'   => \App\Filters\MaintenanceFilter::class,
 
@@ -135,6 +136,7 @@ public function __construct()
                 ],
             ],
             'tenantfeatures',
+            'adminmenuaccess',
         ],
       
     ];

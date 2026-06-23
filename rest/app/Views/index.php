@@ -218,6 +218,7 @@
             <?php
               $href = site_url($s['url'] ?? '');
               $disabled = ((int)($s['can_access'] ?? 0) !== 1);
+              $showCardBadge = (string)($s['codice'] ?? '') !== 'chat';
             ?>
 
             <a class="nav-card"
@@ -226,7 +227,7 @@
               aria-label="<?= esc($s['aria_label'] ?? ('Vai a ' . ($s['titolo'] ?? ''))) ?>"
               <?= $disabled ? 'aria-disabled="true" tabindex="-1" style="opacity:.55; pointer-events:none"' : '' ?>
             >
-              <?php if (!empty($s['badge']) && (int)$s['badge'] > 0): ?>
+              <?php if ($showCardBadge && !empty($s['badge']) && (int)$s['badge'] > 0): ?>
                 <span class="badge-count" aria-label="<?= (int)$s['badge'] ?> non letti"><?= (int)$s['badge'] ?></span>
               <?php endif; ?>
 

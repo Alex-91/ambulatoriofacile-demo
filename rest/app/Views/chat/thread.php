@@ -206,6 +206,12 @@ echo esc($title);
   function poll(){
     $.getJSON("<?= site_url('chat/poll') ?>", { thread: ID_THREAD, after: lastId })
       .done(function(resp){
+        if (resp && resp.ok && typeof resp.total_unread !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('chat-unread-changed', {
+            detail: { unread: parseInt(resp.total_unread, 10) || 0 }
+          }));
+        }
+
         if(resp && resp.ok && resp.messages && resp.messages.length){
           resp.messages.forEach(appendMsg);
           scrollBottom();
@@ -236,9 +242,6 @@ echo esc($title);
 
   $(function(){ scrollBottom(); poll(); });
 </script>
-
-<!-- Notifiche globali -->
-<script src="<?= base_url('js/chat-notify.js') ?>"></script>
 </body>
 </html>
 <style>
