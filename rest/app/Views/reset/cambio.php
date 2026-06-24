@@ -24,7 +24,7 @@
         <!-- Top content -->
         		<div class="container">
       <div class="wrapper">
-      <div class="title" style="background-image: url('<?= base_url('public/assets/images/logonew.jpg'); ?>'); background-size: contain; background-repeat: no-repeat; background-position-x: center;"></div>
+      <div class="title" style="background-image: url('<?= base_url('public/assets/images/logo-symbol.svg'); ?>'); background-size: contain; background-repeat: no-repeat; background-position-x: center;"></div>
       <form id="userForm" action="#">
 		<span id="titolo" style="text-align: center;width: 100%;justify-content: center;display: block;font-weight: bold;">Modifica Password</span>
     <div class="row" style="margin-top: 58px;">

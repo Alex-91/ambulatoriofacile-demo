@@ -136,6 +136,7 @@ $headerLogoUrl = $isPortalConsoleHeader
     : (($hideHeaderMenu || (bool) ($sess->get('is_admin') ?? false) === true)
         ? portal_operational_home_url()
         : site_url('/'));
+$headerLogoImageUrl = base_url('public/assets/images/logo-symbol.svg');
 
 if (!$chatFeatureEnabled) {
     $badgeChat = 0;
@@ -147,9 +148,9 @@ if (!$chatFeatureEnabled) {
 
 <header class="main-header" style="background:#2c8895">
   <!-- Logo -->
-  <a href="<?= esc($headerLogoUrl) ?>" class="logo">
-    <span class="logo-mini"><b>Ambulatorio</b>Facile</span>
-    <span class="logo-lg"><b>Ambulatorio</b>Facile</span>
+  <a href="<?= esc($headerLogoUrl) ?>" class="logo" aria-label="AmbulatorioFacile">
+    <span class="logo-mini"><img src="<?= esc($headerLogoImageUrl) ?>" alt="AmbulatorioFacile" style="width:30px;height:30px;vertical-align:middle;"></span>
+    <span class="logo-lg"><img src="<?= esc($headerLogoImageUrl) ?>" alt="AmbulatorioFacile" style="width:44px;height:44px;vertical-align:middle;"></span>
   </a>
 
   <nav class="navbar navbar-static-top<?= $isPortalConsoleHeader ? ' platform-console-navbar' : '' ?>" role="navigation">
