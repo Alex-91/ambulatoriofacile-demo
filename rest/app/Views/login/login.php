@@ -196,7 +196,7 @@ $loginError = trim((string) ($loginError ?? ''));
     line-height:1.4;
   ">
     <span style="display:block;">
-      Dopo l'installazione è necessario effettuare un primo accesso dall'app
+      Dopo l'installazione &egrave; necessario effettuare un primo accesso dall'app
       per abilitare le notifiche e ricevere l'OTP.
     </span>
   </div>
@@ -268,7 +268,7 @@ $loginError = trim((string) ($loginError ?? ''));
       }
 
       hideTenantPicker();
-      showError((payload && (payload.message || payload.error)) || 'Selezione spazio non riuscita.');
+      showError((payload && (payload.message || payload.error)) || 'Selezione studio non riuscita.');
     } catch (error) {
       hideTenantPicker();
       showError('Errore di comunicazione con il server.');
@@ -285,10 +285,10 @@ $loginError = trim((string) ($loginError ?? ''));
       var button = document.createElement('button');
       button.type = 'button';
       button.innerHTML =
-        String(tenant.tenant_name || tenant.tenant_key || 'Spazio cliente') +
+        String(tenant.tenant_name || tenant.tenant_key || 'Studio') +
         '<span>' +
         String(tenant.package_name || tenant.package_code || '') +
-        (tenant.login_hint ? ' · ' + String(tenant.login_hint) : '') +
+        (tenant.login_hint ? ((tenant.package_name || tenant.package_code) ? ' - ' : '') + String(tenant.login_hint) : '') +
         '</span>';
       button.addEventListener('click', function () {
         submitTenantSelection(Number(tenant.id_tenant || 0));

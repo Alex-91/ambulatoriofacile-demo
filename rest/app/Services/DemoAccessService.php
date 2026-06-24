@@ -67,7 +67,7 @@ class DemoAccessService
             [
                 'group_key' => 'platform',
                 'group_title' => 'Console piattaforma',
-                'group_note' => 'Qui provi il super master vero della piattaforma, separato dal tenant master dello spazio cliente.',
+                'group_note' => 'Qui provi il super master vero della piattaforma, separato dal responsabile dello studio demo.',
                 'account_type' => 'platform_admin',
                 'role' => 'Super master',
                 'username' => 'demo.platform.master',
@@ -78,17 +78,17 @@ class DemoAccessService
                 'platform_first_name' => 'Giulia',
                 'platform_last_name' => 'Conti',
                 'label' => 'Super master piattaforma demo',
-                'note' => 'Apre la console centrale piattaforma per vedere spazi clienti, funzioni globali e regia master.',
+                'note' => 'Apre la console centrale piattaforma per vedere studi attivi, funzioni globali e regia master.',
                 'redirect_route' => 'piattaforma/spazi-clienti',
                 'prefer_account_redirect' => true,
                 'scenarios' => ['console piattaforma', 'super master', 'spazi clienti'],
             ],
             [
                 'group_key' => 'tenant',
-                'group_title' => 'Spazio cliente senza login',
-                'group_note' => 'Qui provi la nuova area tenant direttamente dalla demo, senza password e senza uscire dal percorso pubblico.',
+                'group_title' => 'Studio demo senza login',
+                'group_note' => 'Qui provi la nuova area studio direttamente dalla demo, senza password e senza uscire dal percorso pubblico.',
                 'account_type' => 'platform_tenant',
-                'role' => 'Tenant master',
+                'role' => 'Responsabile dello studio',
                 'username' => 'demo.tenant.master',
                 'candidate_usernames' => ['demo.tenant.master', self::DEMO_TENANT_MASTER_EMAIL],
                 'login_username' => self::DEMO_TENANT_MASTER_EMAIL,
@@ -98,16 +98,16 @@ class DemoAccessService
                 'platform_first_name' => 'Giulia',
                 'platform_last_name' => 'Conti',
                 'tenant_role' => 'tenant_master',
-                'label' => 'Tenant master Demo Studio',
-                'note' => 'Apre lo spazio cliente per gestire funzioni attive, utenti del tenant e console operativa del cliente.',
+                'label' => 'Responsabile dello studio demo',
+                'note' => 'Apre lo studio demo per gestire funzioni attive, utenti dello studio e console operativa del team.',
                 'redirect_route' => 'spazio/funzioni',
                 'prefer_account_redirect' => true,
-                'scenarios' => ['funzioni spazio', 'gestione utenti', 'tenant master'],
+                'scenarios' => ['funzioni studio', 'gestione utenti', 'responsabile studio'],
             ],
             [
                 'group_key' => 'tenant',
-                'group_title' => 'Spazio cliente senza login',
-                'group_note' => 'Qui provi la nuova area tenant direttamente dalla demo, senza password e senza uscire dal percorso pubblico.',
+                'group_title' => 'Studio demo senza login',
+                'group_note' => 'Qui provi la nuova area studio direttamente dalla demo, senza password e senza uscire dal percorso pubblico.',
                 'account_type' => 'platform_tenant',
                 'role' => 'Utente agenda condivisa',
                 'username' => 'demo.tenant.agenda',
@@ -120,17 +120,17 @@ class DemoAccessService
                 'platform_last_name' => 'Colombo',
                 'tenant_role' => 'tenant_staff',
                 'label' => 'Utente prova agenda condivisa',
-                'note' => 'Apre direttamente l agenda con 3 professionisti visibili e Giorno Team gia selezionato per mostrare la nuova vista condivisa.',
+                'note' => 'Apre direttamente l\'agenda con 3 professionisti visibili e Giorno Team gia selezionato per mostrare la nuova vista condivisa.',
                 'redirect_route' => 'agenda?view=team_day',
                 'prefer_account_redirect' => true,
                 'scenarios' => ['agenda condivisa', '3 professionisti', 'giorno team'],
             ],
             [
                 'group_key' => 'tenant',
-                'group_title' => 'Spazio cliente senza login',
-                'group_note' => 'Qui provi la nuova area tenant direttamente dalla demo, senza password e senza uscire dal percorso pubblico.',
+                'group_title' => 'Studio demo senza login',
+                'group_note' => 'Qui provi la nuova area studio direttamente dalla demo, senza password e senza uscire dal percorso pubblico.',
                 'account_type' => 'platform_tenant',
-                'role' => 'Utente tenant',
+                'role' => 'Collaboratore dello studio',
                 'username' => 'demo.tenant.user',
                 'candidate_usernames' => ['demo.tenant.user', self::DEMO_TENANT_USER_EMAIL],
                 'login_username' => self::DEMO_TENANT_USER_EMAIL,
@@ -140,11 +140,11 @@ class DemoAccessService
                 'platform_first_name' => 'Sara',
                 'platform_last_name' => 'Colombo',
                 'tenant_role' => 'tenant_staff',
-                'label' => 'Utente normale dello spazio',
-                'note' => 'Simula un accesso tenant standard: entra nell operativita dello spazio senza permessi master e poi puoi cambiare ruolo dalla demo.',
+                'label' => 'Utente normale dello studio',
+                'note' => 'Simula un accesso standard dello studio: entra nell\'operativita dello spazio senza permessi da responsabile e poi puoi cambiare ruolo dalla demo.',
                 'redirect_route' => 'agenda',
                 'prefer_account_redirect' => true,
-                'scenarios' => ['utente normale', 'operativita spazio', 'agenda tenant'],
+                'scenarios' => ['utente normale', 'operativita studio', 'agenda studio'],
             ],
             [
                 'group_key' => 'main',
@@ -460,7 +460,7 @@ class DemoAccessService
             'appointment_notifications' => [
                 'feature_name' => 'Centro notifiche appuntamenti',
                 'feature_scope' => 'workflow',
-                'description' => 'Configura i tre flussi appuntamenti dello spazio: messaggio immediato al paziente, avviso ad altro dottore e reminder prima della visita.',
+                'description' => 'Configura i tre flussi appuntamenti dello studio: messaggio immediato al paziente, avviso ad altro dottore e reminder prima della visita.',
                 'default_enabled' => 0,
                 'icon_class' => 'fa-commenting',
                 'is_tenant_managed' => 1,
@@ -470,7 +470,7 @@ class DemoAccessService
             'appointment_notifications_sms' => [
                 'feature_name' => 'Canale notifiche SMS',
                 'feature_scope' => 'channel',
-                'description' => 'Abilita il canale SMS per le notifiche appuntamenti di uno specifico tenant. L attivazione commerciale resta centrale.',
+                'description' => 'Abilita il canale SMS per le notifiche appuntamenti di uno specifico studio. L attivazione commerciale resta centrale.',
                 'default_enabled' => 0,
                 'icon_class' => 'fa-comment',
                 'is_tenant_managed' => 0,
@@ -480,7 +480,7 @@ class DemoAccessService
             'appointment_notifications_whatsapp' => [
                 'feature_name' => 'Canale notifiche WhatsApp',
                 'feature_scope' => 'channel',
-                'description' => 'Abilita il canale WhatsApp per le notifiche appuntamenti di uno specifico tenant. L attivazione commerciale resta centrale.',
+                'description' => 'Abilita il canale WhatsApp per le notifiche appuntamenti di uno specifico studio. L attivazione commerciale resta centrale.',
                 'default_enabled' => 0,
                 'icon_class' => 'fa-whatsapp',
                 'is_tenant_managed' => 0,
@@ -606,14 +606,14 @@ class DemoAccessService
     {
         foreach (['platform_packages', 'platform_tenants', 'platform_users', 'platform_user_tenants'] as $table) {
             if (!$this->platformDb->tableExists($table)) {
-                throw new \RuntimeException('Catalogo platform non pronto per la demo tenant.');
+                throw new \RuntimeException('Catalogo piattaforma non pronto per la demo studio.');
             }
         }
 
         $resolvedUsername = $this->resolveLinkedLegacyUsername($account);
         $legacyUser = $resolvedUsername !== null ? $this->findLegacyUserByUsername($resolvedUsername) : null;
         if ($legacyUser === null) {
-            throw new \RuntimeException('Utente operativo demo non trovato per il ruolo tenant richiesto.');
+            throw new \RuntimeException('Utente operativo demo non trovato per il ruolo studio richiesto.');
         }
 
         $tenant = $this->ensurePlatformDemoTenant();
@@ -651,7 +651,7 @@ class DemoAccessService
         }
 
         if ($passwordRef === '') {
-            throw new \RuntimeException('Riferimento password DB tenant non configurato per la demo.');
+            throw new \RuntimeException('Riferimento password DB studio non configurato per la demo.');
         }
 
         $packageRow = $this->platformDb->table('platform_packages')
@@ -662,7 +662,7 @@ class DemoAccessService
             ->getRowArray();
 
         if (!is_array($packageRow) || (int) ($packageRow['id_package'] ?? 0) <= 0) {
-            throw new \RuntimeException('Nessun pacchetto platform disponibile per la demo tenant.');
+            throw new \RuntimeException('Nessun pacchetto piattaforma disponibile per la demo studio.');
         }
 
         $payload = [
@@ -672,7 +672,7 @@ class DemoAccessService
             'status' => 'active',
             'id_package' => (int) $packageRow['id_package'],
             'onboarding_status' => 'ready',
-            'login_hint' => 'Spazio demo pubblico senza login iniziale',
+            'login_hint' => 'Studio demo pubblico senza login iniziale',
             'db_host' => trim((string) ($default['hostname'] ?? env('database.default.hostname', 'localhost'))),
             'db_port' => (int) ($default['port'] ?? env('database.default.port', 3306)),
             'db_name' => trim((string) ($default['database'] ?? env('database.default.database', ''))),
@@ -687,7 +687,7 @@ class DemoAccessService
         ];
 
         if ($payload['db_host'] === '' || $payload['db_name'] === '' || $payload['db_username'] === '') {
-            throw new \RuntimeException('Configurazione DB tenant demo incompleta.');
+            throw new \RuntimeException('Configurazione DB studio demo incompleta.');
         }
 
         if ($tenant === null) {
