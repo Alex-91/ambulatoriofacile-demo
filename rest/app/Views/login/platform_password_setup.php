@@ -48,7 +48,7 @@ $isPlatformAdmin = (bool) ($isPlatformAdmin ?? false);
 <body>
   <div class="container">
     <div class="wrapper">
-      <div class="title" style="background-image:url('<?= base_url('public/assets/images/logonew.jpg'); ?>'); background-size:contain; background-repeat:no-repeat; background-position:center;"></div>
+      <div class="title" style="background-image:url('<?= base_url('public/assets/images/logo-symbol.svg'); ?>'); background-size:contain; background-repeat:no-repeat; background-position:center;"></div>
 
       <?php if (!empty($errors['generic'])): ?>
         <div class="flash-error"><?= esc((string) $errors['generic']) ?></div>
