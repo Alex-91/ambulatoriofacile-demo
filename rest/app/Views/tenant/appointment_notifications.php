@@ -70,7 +70,7 @@ $formatDateTime = static function (?string $value): string {
     <section class="content-header">
       <h1>Notifiche Appuntamenti</h1>
       <p class="text-muted" style="margin:8px 0 0 0;">
-        Qui il tenant master decide se inviare i tre messaggi appuntamento e con quali canali tra quelli attivati centralmente.
+        Qui il responsabile dello studio decide se inviare i tre messaggi appuntamento e con quali canali tra quelli attivati centralmente.
       </p>
     </section>
 
@@ -90,10 +90,10 @@ $formatDateTime = static function (?string $value): string {
 
           <div class="intro-box">
             <h3 style="margin-top:0; margin-bottom:8px;">
-              Spazio attivo: <?= esc((string) ($tenantContext->tenantName ?? '')) ?>
+              Studio attivo: <?= esc((string) ($tenantContext->tenantName ?? '')) ?>
             </h3>
             <p style="margin:0 0 12px 0; color:#52676c;">
-              Qui il tenant master decide quali notifiche inviare tra conferma appuntamento, reminder e presa appuntamento da un professionista all altro. SMS e WhatsApp dipendono dal pacchetto, mentre Email e OTP sono disponibili direttamente dentro l applicazione.
+              Qui il responsabile dello studio decide quali notifiche inviare tra conferma appuntamento, reminder e presa appuntamento da un professionista all'altro. SMS e WhatsApp dipendono dal pacchetto, mentre Email e OTP sono disponibili direttamente dentro l'applicazione.
             </p>
             <a class="btn btn-default" href="<?= portal_tenant_space_url('funzioni') ?>">
               <i class="fa fa-arrow-left"></i> Torna alle funzioni dello spazio
@@ -102,7 +102,7 @@ $formatDateTime = static function (?string $value): string {
 
           <?php if (empty($settings['module']['available'])): ?>
             <div class="alert alert-warning">
-              Il centro notifiche appuntamenti non e disponibile nel pacchetto attuale del tuo spazio. Chiedi al master piattaforma di abilitarlo.
+              Il centro notifiche appuntamenti non è disponibile nel pacchetto attuale del tuo studio. Chiedi al responsabile della piattaforma di abilitarlo.
             </div>
           <?php else: ?>
             <div class="row">
@@ -112,7 +112,7 @@ $formatDateTime = static function (?string $value): string {
                     <h4><i class="fa <?= esc((string) $meta['icon']) ?>"></i> Canale <?= esc((string) $meta['label']) ?></h4>
                     <p class="text-muted">
                       <?php if (in_array($channelKey, ['sms', 'wa'], true)): ?>
-                        Disponibilita commerciale e tecnica del canale <?= esc((string) $meta['label']) ?> per questo spazio.
+                        Disponibilità commerciale e tecnica del canale <?= esc((string) $meta['label']) ?> per questo studio.
                       <?php elseif ($channelKey === 'email'): ?>
                         Invio email usando i recapiti salvati in agenda e in anagrafica paziente o professionista.
                       <?php else: ?>

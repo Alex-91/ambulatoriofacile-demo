@@ -15,6 +15,14 @@ $oldShowInAgenda = array_key_exists('show_in_agenda', $old) ? !empty($old['show_
 $oldShowInPosta  = array_key_exists('show_in_posta', $old) ? !empty($old['show_in_posta']) : true;
 $oldShowInChat   = array_key_exists('show_in_chat', $old) ? !empty($old['show_in_chat']) : true;
 $hasLuoghi = !empty($gruppi);
+$generalTypeId = 1;
+foreach (($tipi ?? []) as $tipoOption) {
+    if (mb_strtolower(trim((string)($tipoOption['des_tipo'] ?? ''))) === 'generale') {
+        $generalTypeId = (int)($tipoOption['id_type_doctors'] ?? 1);
+        break;
+    }
+}
+$oldIsGeneralAdmin = (int)($old['is_general_admin'] ?? 0) === 1;
 ?>
 <html>
 <head>
@@ -152,7 +160,7 @@ $hasLuoghi = !empty($gruppi);
                   <div class="col-md-6">
                     <div class="form-group <?= hasErr('tipo',$errors)?'has-error':'' ?>">
                       <label>Tipo *</label>
-                      <select class="form-control" name="tipo" required>
+                      <select class="form-control" name="tipo" id="tipo_personale" required>
                         <option value="">Seleziona...</option>
                         <?php foreach (($tipi ?? []) as $t): ?>
                           <option value="<?= (int)$t['id_type_doctors'] ?>"
@@ -165,6 +173,22 @@ $hasLuoghi = !empty($gruppi);
                     </div>
                   </div>
 
+                  <div class="col-md-6" id="general_admin_wrap" data-general-type-id="<?= (int)$generalTypeId ?>" style="display:none;">
+                    <div class="form-group">
+                      <label>Rendi amministratore?</label>
+                      <select class="form-control" name="is_general_admin" id="is_general_admin">
+                        <option value="0" <?= !$oldIsGeneralAdmin ? 'selected' : '' ?>>No</option>
+                        <option value="1" <?= $oldIsGeneralAdmin ? 'selected' : '' ?>>Si</option>
+                      </select>
+                      <p class="text-muted" style="margin:6px 0 0 0;">
+                        Disponibile solo per il tipo Generale.
+                        Se scegli "Si", questo medico potra entrare anche nel profilo admin.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="row">
                   <div class="col-md-6">
                     <div class="form-group <?= (hasErr('luoghi',$errors) || hasErr('luogo',$errors))?'has-error':'' ?>">
                       <label>Luogo *</label>
@@ -364,6 +388,28 @@ $hasLuoghi = !empty($gruppi);
 
   sel.addEventListener('change', syncLuoghi);
   syncLuoghi();
+})();
+</script>
+<script>
+(function(){
+  var typeSelect = document.getElementById('tipo_personale');
+  var wrap = document.getElementById('general_admin_wrap');
+  var adminSelect = document.getElementById('is_general_admin');
+  if (!typeSelect || !wrap || !adminSelect) return;
+
+  var generalTypeId = String(wrap.getAttribute('data-general-type-id') || '1');
+
+  function syncGeneralAdminChoice(){
+    var isGeneral = String(typeSelect.value || '') === generalTypeId;
+    wrap.style.display = isGeneral ? '' : 'none';
+
+    if (!isGeneral) {
+      adminSelect.value = '0';
+    }
+  }
+
+  typeSelect.addEventListener('change', syncGeneralAdminChoice);
+  syncGeneralAdminChoice();
 })();
 </script>
 

@@ -22,7 +22,7 @@ class Chat extends BaseController
         $me = session()->get('utente_sess');
 
         if (!$me || empty($me->id_user)) {
-            return redirect()->to(base_url('/'))->with('error', 'Sessione scaduta. Effettua di nuovo il login.');
+            return $this->sessionExpiredRedirect();
         }
 
         $meUserId   = (int)$me->id_user;
@@ -86,7 +86,7 @@ class Chat extends BaseController
 
          $me = session()->get('utente_sess');
         if (!$me || empty($me->id_user)) {
-            return redirect()->to(base_url('/'))->with('error', 'Sessione scaduta.');
+            return $this->sessionExpiredRedirect();
         }
 
         $meUserId   = (int)$me->id_user;
@@ -129,7 +129,7 @@ class Chat extends BaseController
      $me = session()->get('utente_sess');
      
     if (!$me || empty($me->id_user)) {
-        return redirect()->to(base_url('/'));
+        return $this->sessionExpiredRedirect();
     }
     $meTipoPers = $this->resolveChatRole($chat, $me);
     $threadId = (int)$idThread;
@@ -168,7 +168,7 @@ public function clear()
 
     $me = session()->get('utente_sess');
     if (!$me || empty($me->id_user)) {
-        return redirect()->to(base_url('/'))->with('error', 'Sessione scaduta.');
+        return $this->sessionExpiredRedirect();
     }
 
     $meUserId = (int)$me->id_user;
@@ -195,7 +195,7 @@ public function clearAll()
 
     $me = session()->get('utente_sess');
     if (!$me || empty($me->id_user)) {
-        return redirect()->to(base_url('/'))->with('error', 'Sessione scaduta.');
+        return $this->sessionExpiredRedirect();
     }
 
     $meUserId  = (int)$me->id_user;
@@ -220,7 +220,7 @@ public function clearAll()
         if ($this->request->isAJAX()) {
             return $this->response->setJSON(['ok' => false, 'msg' => 'Unauthorized']);
         }
-        return redirect()->to(base_url('/'));
+        return $this->sessionExpiredRedirect();
     }
 
     $threadId = (int)($this->request->getPost('thread_id') ?? $this->request->getPost('id_thread') ?? 0);
@@ -319,7 +319,7 @@ public function attachment(int $idMessage)
     $me = session()->get('utente_sess');
 
     if (!$me || empty($me->id_user)) {
-        return redirect()->to(base_url('/'));
+        return $this->sessionExpiredRedirect();
     }
 
     $row = $db->query("

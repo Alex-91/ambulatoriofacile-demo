@@ -112,6 +112,7 @@ private function getAgendaUserContext(int $idUser): array
             COALESCE(p.legacy_id_ope, 0) AS legacy_id_ope,
             COALESCE(p.legacy_id_dot, 0) AS legacy_id_dot,
             COALESCE(p.f_dom, 0) AS f_dom,
+            COALESCE(u.tipo_user, 0) AS tipo_user,
             u.username
         ", false)
         ->join('dap01_users u', 'u.id_user = p.id_user', 'left')
@@ -135,6 +136,7 @@ private function getAgendaUserContext(int $idUser): array
     $row['legacy_id_ope'] = (int)($row['legacy_id_ope'] ?? 0);
     $row['legacy_id_dot'] = (int)($row['legacy_id_dot'] ?? 0);
     $row['f_dom'] = (int)($row['f_dom'] ?? 0);
+    $row['tipo_user'] = (int)($row['tipo_user'] ?? 0);
     $row['agenda_ruolo'] = $this->mapDapTipoToAgendaRole((int)$row['tipo']);
 
     $this->agendaUserContextCache[$idUser] = $row;
@@ -148,8 +150,16 @@ private function getEffectiveAgendaRoleFromContext(array $context): int
         $idRuo = $this->mapDapTipoToAgendaRole((int)($context['tipo'] ?? 0));
     }
 
+    if ((bool) (session()->get('tenant_app_admin') ?? false) === true) {
+        return self::RUOLO_ADMIN;
+    }
+
     $username = strtolower(trim((string)($context['username'] ?? '')));
     if ($username === 'demo.segreteria') {
+        return self::RUOLO_ADMIN;
+    }
+
+    if ((int)($context['tipo_user'] ?? 0) === 1 && (int)($context['tipo'] ?? 0) === 1) {
         return self::RUOLO_ADMIN;
     }
 
@@ -1340,16 +1350,23 @@ private function hasFullAgendaDoctorVisibility(int $idUser): bool
 private function shouldUseScopedDemoDoctorVisibility(): bool
 {
     $current = session()->get(DemoAccessService::SESSION_KEY_CURRENT);
-    if (!is_array($current)) {
-        return false;
+    if (is_array($current)) {
+        $username = strtolower(trim((string) ($current['username'] ?? '')));
+
+        if (in_array($username, [
+            'demo.segreteria',
+            'demo.tenant.agenda',
+            'demo.tenant.user',
+        ], true)) {
+            return true;
+        }
     }
 
-    $username = strtolower(trim((string) ($current['username'] ?? '')));
+    $platformEmail = strtolower(trim((string) (session()->get('platform_user_email') ?? '')));
 
-    return in_array($username, [
-        'demo.segreteria',
-        'demo.tenant.agenda',
-        'demo.tenant.user',
+    return in_array($platformEmail, [
+        'demo.tenant.agenda@ambulatoriofacile.demo',
+        'demo.tenant.user@ambulatoriofacile.demo',
     ], true);
 }
 

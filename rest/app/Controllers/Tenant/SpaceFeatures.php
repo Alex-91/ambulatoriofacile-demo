@@ -28,7 +28,7 @@ class SpaceFeatures extends BaseController
 
         $context = $this->tenantContext->getCurrentTenant();
         if ($context === null) {
-            return redirect()->to(site_url('/'));
+            return $this->sessionExpiredRedirect();
         }
 
         return view('tenant/space_features', [
@@ -47,7 +47,7 @@ class SpaceFeatures extends BaseController
 
         $context = $this->tenantContext->getCurrentTenant();
         if ($context === null) {
-            return redirect()->to(site_url('/'));
+            return $this->sessionExpiredRedirect();
         }
 
         try {
@@ -75,20 +75,20 @@ class SpaceFeatures extends BaseController
     private function ensureAllowed()
     {
         if ((bool) (session()->get('isLoggedInConfirmed') ?? false) !== true) {
-            return redirect()->to(portal_public_access_url('login'));
+            return $this->redirectToLogin();
         }
 
         $context = $this->tenantContext->getCurrentTenant();
         if ($context === null) {
-            return redirect()->to(site_url('/'));
+            return $this->sessionExpiredRedirect();
         }
 
         if ($context->tenantRole !== 'tenant_master') {
-            return redirect()->to(site_url('/'))->with('error', 'Solo il tenant master puo gestire le funzioni dello spazio.');
+            return redirect()->to(site_url('/'))->with('error', 'Solo il responsabile dello studio può gestire le funzioni dello studio.');
         }
 
         if ((int) (session()->get('platform_user_id') ?? 0) <= 0) {
-            return redirect()->to(site_url('/'))->with('error', 'Funzione disponibile solo per accessi piattaforma.');
+            return $this->sessionExpiredRedirect();
         }
 
         return null;

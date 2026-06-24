@@ -163,7 +163,7 @@ $loginError = trim((string) ($loginError ?? ''));
 			</div>
           <?php if ($demoMode): ?>
             <div class="demo-login-note">
-              <?= $demoOtpHint ? 'Per questo account demo, se richiesto, puoi completare il passaggio OTP con il codice fisso 2510.' : 'Se l account selezionato richiede MFA, il passaggio OTP arriva nello step successivo senza cambiare il login standard.' ?>
+              <?= $demoOtpHint ? 'Per questo account demo, se richiesto, puoi completare il passaggio OTP con il codice fisso 2510.' : 'Se l\'account selezionato richiede MFA, il passaggio OTP arriva nello step successivo senza cambiare il login standard.' ?>
             </div>
           <?php endif; ?>
 
@@ -173,8 +173,8 @@ $loginError = trim((string) ($loginError ?? ''));
             
           </div>
           <div id="tenantPicker" class="tenant-picker">
-            <h4>Seleziona il tuo spazio</h4>
-            <p>Scegli lo spazio cliente in cui vuoi entrare.</p>
+            <h4>Seleziona il tuo studio</h4>
+            <p>Scegli lo studio in cui vuoi entrare.</p>
             <div id="tenantPickerOptions"></div>
           </div>
 <div class="row button">
@@ -196,8 +196,8 @@ $loginError = trim((string) ($loginError ?? ''));
     line-height:1.4;
   ">
     <span style="display:block;">
-      Dopo lâ€™installazione Ã¨ necessario effettuare un primo accesso dallâ€™app
-      per abilitare le notifiche e ricevere lâ€™OTP.
+      Dopo l'installazione è necessario effettuare un primo accesso dall'app
+      per abilitare le notifiche e ricevere l'OTP.
     </span>
   </div>
 </div>
@@ -403,12 +403,12 @@ $loginError = trim((string) ($loginError ?? ''));
 <script>
 let deferredPrompt = null;
 
-// Ãˆ un dispositivo mobile?
+// È un dispositivo mobile?
 function isMobile() {
     return /android|iphone|ipad|ipod/i.test(navigator.userAgent);
 }
 
-// La PWA Ã¨ giÃ  in modalitÃ  standalone (quindi installata)?
+// La PWA è già in modalità standalone (quindi installata)?
 function isInStandaloneMode() {
     return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
            || (window.navigator.standalone === true);
@@ -419,8 +419,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!btn) return;
 
     // Mostra il bottone SOLO se:
-    // - Ã¨ un dispositivo mobile
-    // - NON Ã¨ giÃ  installata
+    // - è un dispositivo mobile
+    // - NON è già installata
     const note = document.getElementById('installNote');
     if (isMobile() && !isInStandaloneMode()) {
         btn.style.display = 'inline-block'; // o 'block' se preferisci
@@ -441,14 +441,14 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Caso 2: iOS non installata â†’ istruzioni
+        // Caso 2: iOS non installata -> istruzioni
         if (/iphone|ipad|ipod/i.test(navigator.userAgent) && !isInStandaloneMode()) {
-            alert("Per installare lâ€™app su iPhone: premi il pulsante Condividi e scegli 'Aggiungi alla schermata Home'.");
+            alert("Per installare l'app su iPhone: premi il pulsante Condividi e scegli 'Aggiungi alla schermata Home'.");
             return;
         }
 
         // Caso 3: altri browser
-        alert("Per installare lâ€™app usa 'Aggiungi alla schermata Home' del browser oppure se giÃ  installata controlla fra le tue app.");
+        alert("Per installare l'app usa 'Aggiungi alla schermata Home' del browser oppure, se è già installata, controlla fra le tue app.");
     });
 });
 
@@ -459,7 +459,7 @@ window.addEventListener('beforeinstallprompt', (e) => {
     console.log('beforeinstallprompt catturato');
 });
 
-// Quando l'app viene installata â†’ nascondo il bottone
+// Quando l'app viene installata -> nascondo il bottone
 window.addEventListener('appinstalled', () => {
     const btn = document.getElementById('installPWA');
         const note = document.getElementById('installNote');

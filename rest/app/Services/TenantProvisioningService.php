@@ -288,6 +288,9 @@ class TenantProvisioningService
         $appUserId = array_key_exists('app_user_id', $payload) && (int) $payload['app_user_id'] > 0
             ? (int) $payload['app_user_id']
             : null;
+        $isAppAdmin = array_key_exists('is_app_admin', $payload)
+            ? ((int) $payload['is_app_admin'] === 1 ? 1 : 0)
+            : null;
         $setDefault = !empty($payload['is_default']);
 
         if ($email === '') {
@@ -345,6 +348,7 @@ class TenantProvisioningService
                 'id_tenant' => $tenantId,
                 'tenant_role' => $role,
                 'app_user_id' => $appUserId,
+                'is_app_admin' => $isAppAdmin ?? (int) ($membership['is_app_admin'] ?? 0),
                 'is_default' => $isDefault ? 1 : (int) ($membership['is_default'] ?? 0),
                 'is_owner' => 0,
             ];

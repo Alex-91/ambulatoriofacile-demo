@@ -19,7 +19,7 @@
                     <p class="eyebrow">Accesso demo pubblico</p>
                     <h1>Scegli subito il ruolo da provare</h1>
                     <p class="hero-copy">
-                        La demo parte da qui: scegli il ruolo, entri subito e puoi passare da tenant master a utente normale, segreteria, dottore o paziente senza usare il login iniziale.
+                        La demo parte da qui: scegli il ruolo, entri subito e puoi passare da responsabile dello studio a utente normale, segreteria, dottore o paziente senza usare il login iniziale.
                     </p>
                     <p class="hero-copy hero-copy-secondary">
                         Tutto gira su dati fittizi separati dalla produzione e il cambio ruolo resta sempre disponibile dal menu utente dentro la demo.
@@ -33,9 +33,9 @@
                     <div class="hero-side-card">
                         <?php if (!empty($demoPublicAccessEnabled)): ?>
                             <p class="status-label">Nessun login iniziale</p>
-                            <h3>Ruoli demo gia pronti</h3>
+                            <h3>Ruoli demo già pronti</h3>
                             <div class="note-box">
-                                <p>Le card tenant aprono la nuova area spazio cliente senza passare dal form di accesso.</p>
+                                <p>Le schede studio aprono la nuova area operativa senza passare dal form di accesso.</p>
                                 <p>Le card operative coprono agenda come dottore e segreteria, posta come dottore, paziente e segreteria, chat come dottore e segreteria.</p>
                             </div>
                         <?php else: ?>
@@ -67,11 +67,12 @@
             </div>
             <div class="flow-grid">
                 <?php foreach ((array) ($demoChecklist ?? []) as $index => $item): ?>
+                    <?php $checklistLoginLabel = (string) ($item['display_username'] ?? ($item['username'] ?? '')); ?>
                     <article class="flow-card">
                         <div class="flow-index"><?= esc((string) ($index + 1)) ?></div>
                         <div class="flow-body">
                             <h3><?= esc((string) ($item['title'] ?? 'Passo demo')) ?></h3>
-                            <p class="access-note">Utente: <strong><?= esc((string) ($item['username'] ?? '')) ?></strong></p>
+                            <p class="access-note">Accesso consigliato: <strong><?= esc($checklistLoginLabel) ?></strong></p>
                             <p class="access-note"><?= esc((string) ($item['goal'] ?? '')) ?></p>
                         </div>
                     </article>
@@ -136,7 +137,7 @@
             <div class="dual-grid">
                 <article class="detail-card">
                     <h3>Switch ruolo</h3>
-                    <p class="access-note">Durante la demo puoi cambiare vista da tenant master a utente normale, segreteria, dottore o paziente senza rifare il login.</p>
+                    <p class="access-note">Durante la demo puoi cambiare vista da responsabile dello studio a utente normale, segreteria, dottore o paziente senza rifare il login.</p>
                 </article>
                 <article class="detail-card">
                     <h3>Dati separati</h3>

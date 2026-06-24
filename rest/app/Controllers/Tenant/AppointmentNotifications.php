@@ -32,12 +32,12 @@ class AppointmentNotifications extends BaseController
 
         $context = $this->tenantContext->getCurrentTenant();
         if ($context === null) {
-            return redirect()->to(site_url('/'));
+            return $this->sessionExpiredRedirect();
         }
 
         $tenant = $this->tenantCatalog->getTenantById($context->tenantId);
         if (!$tenant) {
-            return redirect()->to(site_url('/'))->with('error', 'Spazio cliente non trovato.');
+            return $this->redirectToLogin('Spazio cliente non trovato. Effettua di nuovo il login.');
         }
 
         $settings = (new AppointmentNotificationSettingsService())->resolveTenantSettings($context->tenantId);
@@ -61,7 +61,7 @@ class AppointmentNotifications extends BaseController
 
         $context = $this->tenantContext->getCurrentTenant();
         if ($context === null) {
-            return redirect()->to(site_url('/'));
+            return $this->sessionExpiredRedirect();
         }
 
         try {
@@ -105,20 +105,20 @@ class AppointmentNotifications extends BaseController
     private function ensureAllowed()
     {
         if ((bool) (session()->get('isLoggedInConfirmed') ?? false) !== true) {
-            return redirect()->to(portal_public_access_url('login'));
+            return $this->redirectToLogin();
         }
 
         $context = $this->tenantContext->getCurrentTenant();
         if ($context === null) {
-            return redirect()->to(site_url('/'));
+            return $this->sessionExpiredRedirect();
         }
 
         if ($context->tenantRole !== 'tenant_master') {
-            return redirect()->to(site_url('/'))->with('error', 'Solo il tenant master puo gestire le notifiche appuntamenti.');
+            return redirect()->to(site_url('/'))->with('error', 'Solo il responsabile dello studio può gestire le notifiche appuntamenti.');
         }
 
         if ((int) (session()->get('platform_user_id') ?? 0) <= 0) {
-            return redirect()->to(site_url('/'))->with('error', 'Funzione disponibile solo per accessi piattaforma.');
+            return $this->sessionExpiredRedirect();
         }
 
         return null;

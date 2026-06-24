@@ -13,14 +13,15 @@ use App\Libraries\SmsSender;
 use App\Services\NotificationService;
 use App\Services\OtpDeliveryLogService;
 use App\Services\StaffLocationCatalogService;
+
 class Profilo extends BaseController
 {
     public function index()
-{
-    $me = session()->get('utente_sess');
-    if (!$me || empty($me->id_user)) {
-        return redirect()->to(base_url('/'));
-    }
+    {
+        $me = session()->get('utente_sess');
+        if (!$me || empty($me->id_user)) {
+            return $this->sessionExpiredRedirect();
+        }
 
     $clients   = new ClientsModel();
     $personale = new PersonaleModel();
@@ -76,7 +77,7 @@ class Profilo extends BaseController
     }
     session()->set('userId', (int)$me->id_user);
 
-    return view('profilo/index', [
+        return view('profilo/index', [
         // paziente
         'cliente'          => $cliente ?: null,
         'doctors'          => $doctors,
@@ -94,8 +95,8 @@ class Profilo extends BaseController
         'activeDevice'     => $activeMobile ?: null,
 
         'vapidPublicKey'   => env('VAPID_PUBLIC_KEY',''),
-    ]);
-}
+        ]);
+    }
 
 private function buildHeaderMenuItemsForCurrentUser(): array
 {

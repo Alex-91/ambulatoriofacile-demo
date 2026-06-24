@@ -74,6 +74,32 @@ if (!function_exists('portal_tenant_switch_url')) {
     }
 }
 
+if (!function_exists('portal_space_label')) {
+    function portal_space_label(bool $capitalized = false): string
+    {
+        return $capitalized ? 'Studio' : 'studio';
+    }
+}
+
+if (!function_exists('portal_space_manager_label')) {
+    function portal_space_manager_label(bool $capitalized = false): string
+    {
+        return $capitalized ? 'Responsabile dello studio' : 'responsabile dello studio';
+    }
+}
+
+if (!function_exists('portal_space_role_label')) {
+    function portal_space_role_label(string $role): string
+    {
+        return match (strtolower(trim($role))) {
+            'tenant_master' => 'Responsabile dello studio',
+            'tenant_admin' => 'Amministratore dello studio',
+            'tenant_staff' => 'Collaboratore dello studio',
+            default => trim($role) !== '' ? $role : 'Collaboratore dello studio',
+        };
+    }
+}
+
 if (!function_exists('portal_current_path_matches')) {
     function portal_current_path_matches(string $path): bool
     {

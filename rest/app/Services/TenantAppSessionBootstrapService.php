@@ -10,6 +10,7 @@ use App\Models\PlatformUserTenantsModel;
 class TenantAppSessionBootstrapService
 {
     public const PLATFORM_SELECTABLE_TENANTS_SESSION_KEY = 'platform_selectable_tenants';
+    private const SESSION_KEY_TENANT_APP_ADMIN = 'tenant_app_admin';
 
     private TenantCatalogService $catalog;
     private TenantContextService $tenantContext;
@@ -103,7 +104,7 @@ class TenantAppSessionBootstrapService
         }
 
         $this->resetSessionState();
-        $this->hydrateTenantSession($tenantDb, $user);
+        $this->hydrateTenantSession($tenantDb, $user, $membership);
 
         $context = $this->tenantContext->activateTenantForPlatformUser($platformUserId, $tenantId);
         if ($context === null) {
@@ -188,6 +189,7 @@ class TenantAppSessionBootstrapService
             'platform_user_id',
             'platform_user_email',
             'platform_is_admin',
+            self::SESSION_KEY_TENANT_APP_ADMIN,
             self::PLATFORM_SELECTABLE_TENANTS_SESSION_KEY,
             PlatformAccessService::SESSION_KEY_PENDING_PASSWORD_SETUP,
             TenantContextService::SESSION_KEY,
@@ -324,7 +326,7 @@ class TenantAppSessionBootstrapService
     /**
      * @param array<string, mixed> $user
      */
-    private function hydrateTenantSession(\CodeIgniter\Database\BaseConnection $db, array $user): void
+    private function hydrateTenantSession(\CodeIgniter\Database\BaseConnection $db, array $user, array $membership): void
     {
         $userType = (int) ($user['tipo_user'] ?? 0);
         $userId = (int) ($user['id_user'] ?? 0);
@@ -344,6 +346,9 @@ class TenantAppSessionBootstrapService
 
         if ($userType === 2) {
             $this->hydratePersonaleSession($db, $userId, $userType);
+            if ($this->membershipHasAppAdminFlag($membership)) {
+                $this->applyPersonaleAdminOverlay($db);
+            }
             return;
         }
 
@@ -471,6 +476,51 @@ class TenantAppSessionBootstrapService
             'cellulare' => $obj->cellulare,
             'utente_sess' => $obj,
         ]);
+    }
+
+    /**
+     * @param array<string, mixed> $membership
+     */
+    private function membershipHasAppAdminFlag(array $membership): bool
+    {
+        return (int) ($membership['is_app_admin'] ?? 0) === 1;
+    }
+
+    private function applyPersonaleAdminOverlay(\CodeIgniter\Database\BaseConnection $db): void
+    {
+        $currentUser = session()->get('utente_sess');
+        if (!$this->canReceiveAppAdminOverlay($currentUser)) {
+            session()->remove(self::SESSION_KEY_TENANT_APP_ADMIN);
+            return;
+        }
+
+        $this->tenantAdminMenu->ensureDefaultMenuIfEmpty($db);
+
+        $menuAdmin = $db->query("
+            SELECT titolo_menu, class, class_icon, admin, link2 AS link
+            FROM dap06_mnu
+            WHERE admin = 1
+            ORDER BY ordinamento ASC, id_mnu ASC
+        ")->getResultArray();
+
+        session()->set([
+            'admin' => 1,
+            'is_admin' => true,
+            'menuDataAdmin' => ['result' => $menuAdmin],
+            self::SESSION_KEY_TENANT_APP_ADMIN => true,
+        ]);
+    }
+
+    /**
+     * @param mixed $currentUser
+     */
+    private function canReceiveAppAdminOverlay($currentUser): bool
+    {
+        if (!is_object($currentUser)) {
+            return false;
+        }
+
+        return in_array((int) ($currentUser->tipo_pers ?? 0), [1, 2, 3], true);
     }
 
     private function hydrateClientSession(\CodeIgniter\Database\BaseConnection $db, int $userId): void

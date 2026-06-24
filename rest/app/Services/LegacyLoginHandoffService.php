@@ -247,6 +247,7 @@ class LegacyLoginHandoffService
             'menuData',
             'menuAgenda',
             'menuDataAdmin',
+            'tenant_app_admin',
             'requireDoctorSelection',
             'selectedDoctorId',
             'forcePwdChange',

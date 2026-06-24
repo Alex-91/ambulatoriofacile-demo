@@ -107,7 +107,7 @@ class PlatformTenantSpacesController extends BaseController
             if ((int) ($result['created_count'] ?? 0) > 0) {
                 $messages[] = 'Account master creati: ' . (int) ($result['created_count'] ?? 0) . '.';
             } else {
-                $messages[] = 'Gli account master configurati erano gia pronti.';
+                $messages[] = 'Gli account master configurati erano già pronti.';
             }
 
             if ($sendAccess) {
@@ -336,12 +336,12 @@ class PlatformTenantSpacesController extends BaseController
                     $provisionSucceeded = true;
                     $messages[] = 'Provisioning tecnico completato (' . (string) ($provision['template_mode'] ?? 'ok') . ').';
                 } catch (\Throwable $e) {
-                    $warnings[] = 'Salvataggio completato, ma il provisioning tecnico non e riuscito: ' . $e->getMessage();
+                    $warnings[] = 'Salvataggio completato, ma il provisioning tecnico non è riuscito: ' . $e->getMessage();
                 }
             }
 
             if (in_array((string) ($tenantAppSync['status'] ?? ''), ['skipped', 'error'], true) && !$provisionSucceeded) {
-                $warnings[] = 'Spazio cliente salvato, ma il profilo applicativo del tenant master non e ancora pronto: ' . (string) ($tenantAppSync['message'] ?? 'sincronizzazione rimandata');
+                $warnings[] = 'Spazio cliente salvato, ma il profilo applicativo del responsabile dello studio non è ancora pronto: ' . (string) ($tenantAppSync['message'] ?? 'sincronizzazione rimandata');
             }
 
             if ((int) ($this->request->getPost('send_master_access_email') ?? 0) === 1) {
@@ -351,12 +351,12 @@ class PlatformTenantSpacesController extends BaseController
                     }
 
                     (new PlatformAccessService())->sendMembershipAccessEmail((int) ($result['membership']['id_platform_user_tenant'] ?? 0), 'platform_console_master_save');
-                    $messages[] = 'Email di accesso inviata al tenant master.';
+                    $messages[] = 'Email di accesso inviata al responsabile dello studio.';
                 } catch (\Throwable $e) {
                     if ($shouldProvision && !$provisionSucceeded) {
-                        $warnings[] = 'Salvataggio completato, ma l invio accesso master e stato saltato perche il provisioning tecnico non e ancora pronto.';
+                        $warnings[] = 'Salvataggio completato, ma l\'invio dell\'accesso al responsabile è stato saltato perché il provisioning tecnico non è ancora pronto.';
                     } else {
-                        $warnings[] = 'Salvataggio completato, ma l invio accesso master non e riuscito: ' . $e->getMessage();
+                        $warnings[] = 'Salvataggio completato, ma l\'invio dell\'accesso al responsabile non è riuscito: ' . $e->getMessage();
                     }
                 }
             }
@@ -368,9 +368,9 @@ class PlatformTenantSpacesController extends BaseController
                         $this->catalogTenantForMenuSync($savedTenantId, $savedTenant),
                         $menuLinks
                     );
-                    $messages[] = 'Menu laterale tenant aggiornato.';
+                    $messages[] = 'Menu laterale dello studio aggiornato.';
                 } catch (\Throwable $e) {
-                    $warnings[] = 'Spazio salvato, ma il menu laterale del tenant non e stato aggiornato: ' . $e->getMessage();
+                    $warnings[] = 'Spazio salvato, ma il menu laterale dello studio non è stato aggiornato: ' . $e->getMessage();
                 }
             }
 
@@ -423,18 +423,18 @@ class PlatformTenantSpacesController extends BaseController
 
             if ($options['drop_database']) {
                 if (!empty($cleanup['database_dropped'])) {
-                    $messages[] = 'Database tenant eliminato.';
+                    $messages[] = 'Database dello studio eliminato.';
                 } else {
-                    $warnings[] = 'Nessun database tenant da eliminare oppure database gia assente.';
+                    $warnings[] = 'Nessun database dello studio da eliminare oppure database già assente.';
                 }
             }
 
             if ($options['delete_directories']) {
                 $deletedPaths = array_values(array_filter(array_map('strval', (array) ($cleanup['deleted_paths'] ?? []))));
                 if ($deletedPaths !== []) {
-                    $messages[] = 'Cartelle tenant eliminate.';
+                    $messages[] = 'Cartelle dello studio eliminate.';
                 } else {
-                    $warnings[] = 'Nessuna cartella tenant trovata da eliminare.';
+                    $warnings[] = 'Nessuna cartella dello studio trovata da eliminare.';
                 }
             }
 
@@ -474,6 +474,7 @@ class PlatformTenantSpacesController extends BaseController
             'last_name' => (string) $this->request->getPost('member_last_name'),
             'tenant_role' => (string) $this->request->getPost('member_tenant_role'),
             'app_user_id' => (int) ($this->request->getPost('member_app_user_id') ?? 0),
+            'is_app_admin' => (int) ($this->request->getPost('member_is_app_admin') ?? 0) === 1 ? 1 : 0,
             'password' => (string) $this->request->getPost('member_password'),
             'is_default' => (int) ($this->request->getPost('member_is_default') ?? 0) === 1 ? 1 : 0,
         ];
@@ -495,7 +496,7 @@ class PlatformTenantSpacesController extends BaseController
                 : 'Utente dello spazio aggiunto con successo.';
 
             if (in_array((string) ($tenantAppSync['status'] ?? ''), ['skipped', 'error'], true)) {
-                $warnings[] = 'Utente salvato, ma il profilo applicativo del tenant non e ancora pronto: ' . (string) ($tenantAppSync['message'] ?? 'sincronizzazione rimandata');
+                $warnings[] = 'Utente salvato, ma il profilo applicativo dello studio non è ancora pronto: ' . (string) ($tenantAppSync['message'] ?? 'sincronizzazione rimandata');
             }
 
             if ((int) ($this->request->getPost('member_send_access_email') ?? 0) === 1) {
@@ -503,7 +504,7 @@ class PlatformTenantSpacesController extends BaseController
                     (new PlatformAccessService())->sendMembershipAccessEmail((int) ($result['membership']['id_platform_user_tenant'] ?? 0), 'platform_console_member_save');
                     $messages[] = 'Email di accesso inviata all utente dello spazio.';
                 } catch (\Throwable $e) {
-                    $warnings[] = 'Utente salvato, ma l invio accesso non e riuscito: ' . $e->getMessage();
+                    $warnings[] = 'Utente salvato, ma l\'invio dell\'accesso non è riuscito: ' . $e->getMessage();
                 }
             }
 
@@ -620,11 +621,11 @@ class PlatformTenantSpacesController extends BaseController
         ];
 
         if (!$this->platformAdminAccess->hasPersistentPlatformAdmins()) {
-            $warnings[] = 'Non esiste ancora un account master piattaforma persistente. Creane almeno uno dal pannello qui sotto prima di uscire dalla modalita bootstrap.';
+            $warnings[] = 'Non esiste ancora un account master piattaforma persistente. Creane almeno uno dal pannello qui sotto prima di uscire dalla modalità bootstrap.';
         }
 
         if ($this->platformAdminAccess->configuredMasterEmails() === []) {
-            $warnings[] = 'PLATFORM_MASTER_EMAILS non e configurata in Coolify. Va bene: da ora i master possono essere gestiti dal pannello. Usa la env solo se vuoi tenere una scorciatoia bootstrap tecnica.';
+            $warnings[] = 'PLATFORM_MASTER_EMAILS non è configurata in Coolify. Va bene: da ora i master possono essere gestiti dal pannello. Usa la variabile env solo se vuoi tenere una scorciatoia bootstrap tecnica.';
         }
 
         return $warnings;

@@ -63,7 +63,7 @@ $oldValue = static function (string $key, $fallback = '') {
     <section class="content-header">
       <h1>Catalogo Funzioni</h1>
       <p class="text-muted" style="margin:8px 0 0 0;">
-        Qui definisci le funzioni globali del prodotto e decidi se il tenant master puo gestirle in autonomia.
+        Qui definisci le funzioni globali del prodotto e decidi se il responsabile dello studio può gestirle in autonomia.
       </p>
     </section>
 
@@ -90,11 +90,11 @@ $oldValue = static function (string $key, $fallback = '') {
           <div class="intro-box">
             <h3 style="margin-top:0; margin-bottom:8px;">Doppio controllo delle feature</h3>
             <p style="margin:0 0 12px 0; color:#52676c;">
-              La piattaforma decide se una funzione esiste nel catalogo e se puo essere delegata. Il tenant master puo attivare o disattivare solo le funzioni che hai marcato come governabili dal suo pannello sotto `/login/spazio/funzioni`.
+              La piattaforma decide se una funzione esiste nel catalogo e se può essere delegata. Il responsabile dello studio può attivare o disattivare solo le funzioni che hai marcato come gestibili dal suo pannello sotto `/login/spazio/funzioni`.
             </p>
             <span class="summary-badge">Catalogo globale</span>
             <span class="summary-badge">Delega controllata al cliente</span>
-            <span class="summary-badge">Toggle self service per tenant master</span>
+            <span class="summary-badge">Attivazione autonoma per il responsabile</span>
           </div>
 
           <div class="box box-default">
@@ -224,21 +224,21 @@ $oldValue = static function (string $key, $fallback = '') {
                     <div class="checkbox">
                       <label><input type="checkbox" name="default_enabled" value="1" <?= $defaultEnabled === '1' ? 'checked' : '' ?>> Attiva di default a livello globale</label>
                     </div>
-                    <p class="catalog-note">Se il pacchetto o il tenant non hanno override espliciti, questa e la base iniziale.</p>
+                    <p class="catalog-note">Se il pacchetto o lo studio non hanno override espliciti, questa è la base iniziale.</p>
                   </div>
                   <div class="col-md-4">
                     <?php $tenantManaged = (string) $oldValue('is_tenant_managed', (string) ($featureData['is_tenant_managed'] ?? '0')); ?>
                     <div class="checkbox">
-                      <label><input type="checkbox" name="is_tenant_managed" value="1" <?= $tenantManaged === '1' ? 'checked' : '' ?>> Il tenant master puo governarla</label>
+                      <label><input type="checkbox" name="is_tenant_managed" value="1" <?= $tenantManaged === '1' ? 'checked' : '' ?>> Il responsabile dello studio può gestirla</label>
                     </div>
-                    <p class="catalog-note">Se attivo, il master cliente la vedra nel pannello funzioni del suo spazio.</p>
+                    <p class="catalog-note">Se attivo, il responsabile dello studio la vedrà nel pannello funzioni del suo studio.</p>
                   </div>
                   <div class="col-md-4">
                     <?php $tenantDefaultEnabled = (string) $oldValue('tenant_default_enabled', (string) ($featureData['tenant_default_enabled'] ?? '1')); ?>
                     <div class="checkbox">
-                      <label><input type="checkbox" name="tenant_default_enabled" value="1" <?= $tenantDefaultEnabled === '1' ? 'checked' : '' ?>> Attiva di default per il tenant master</label>
+                      <label><input type="checkbox" name="tenant_default_enabled" value="1" <?= $tenantDefaultEnabled === '1' ? 'checked' : '' ?>> Attiva di default per il responsabile dello studio</label>
                     </div>
-                    <p class="catalog-note">Conta solo quando la funzione e delegabile al cliente.</p>
+                    <p class="catalog-note">Conta solo quando la funzione è delegabile al cliente.</p>
                   </div>
                 </div>
               </div>

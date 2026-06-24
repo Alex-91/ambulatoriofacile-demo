@@ -108,6 +108,7 @@ class TenantRuntimeFilter implements FilterInterface
             'menuData',
             'menuAgenda',
             'menuDataAdmin',
+            'tenant_app_admin',
             'header_nav_items',
             'header_menu_items',
             'schede_access_map',

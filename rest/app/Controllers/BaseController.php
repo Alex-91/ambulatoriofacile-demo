@@ -6,6 +6,7 @@ use CodeIgniter\Controller;
 use CodeIgniter\HTTP\Files\UploadedFile;
 use CodeIgniter\HTTP\CLIRequest;
 use CodeIgniter\HTTP\IncomingRequest;
+use CodeIgniter\HTTP\RedirectResponse;
 use CodeIgniter\HTTP\RequestInterface;
 use CodeIgniter\HTTP\ResponseInterface;
 use Psr\Log\LoggerInterface;
@@ -102,6 +103,29 @@ abstract class BaseController extends Controller
                 throw new \RuntimeException($this->buildUploadedFileInvalidMessage($file));
             }
         }
+    }
+
+    protected function loginUrl(): string
+    {
+        helper('portal');
+        return portal_public_access_url('login');
+    }
+
+    protected function redirectToLogin(?string $message = null): RedirectResponse
+    {
+        $redirect = redirect()->to($this->loginUrl());
+
+        $message = trim((string) $message);
+        if ($message !== '') {
+            return $redirect->with('error', $message);
+        }
+
+        return $redirect;
+    }
+
+    protected function sessionExpiredRedirect(string $message = 'Sessione scaduta. Effettua di nuovo il login.'): RedirectResponse
+    {
+        return $this->redirectToLogin($message);
     }
 
     /**

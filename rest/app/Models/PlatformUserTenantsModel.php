@@ -15,6 +15,7 @@ class PlatformUserTenantsModel extends Model
         'id_tenant',
         'tenant_role',
         'app_user_id',
+        'is_app_admin',
         'is_default',
         'is_owner',
         'invitation_status',

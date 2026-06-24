@@ -46,7 +46,7 @@ foreach ($featureStates as $row) {
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>AmbulatorioFacile | Funzioni Spazio</title>
+  <title>AmbulatorioFacile | Funzioni Studio</title>
   <meta content="width=device-width, initial-scale=1" name="viewport">
   <link rel="icon" href="<?= base_url('public/assets/images/logonew.jpg') ?>" type="image/x-icon" sizes="any">
   <link href="<?= base_url('public/bootstrap/css/bootstrap.min.css') ?>" rel="stylesheet" />
@@ -102,9 +102,9 @@ foreach ($featureStates as $row) {
 
   <div class="content-wrapper">
     <section class="content-header">
-      <h1>Funzioni dello Spazio</h1>
+      <h1>Funzioni dello studio</h1>
       <p class="text-muted" style="margin:8px 0 0 0;">
-        Qui il tenant master decide quali funzioni attivare per il proprio spazio, entro i limiti concessi dalla piattaforma.
+        Qui il responsabile dello studio decide quali funzioni attivare per il proprio studio, entro i limiti concessi dalla piattaforma.
       </p>
     </section>
 
@@ -124,10 +124,10 @@ foreach ($featureStates as $row) {
 
           <div class="intro-box">
             <h3 style="margin-top:0; margin-bottom:8px;">
-              Spazio attivo: <?= esc((string) ($tenantContext->tenantName ?? '')) ?>
+              Studio attivo: <?= esc((string) ($tenantContext->tenantName ?? '')) ?>
             </h3>
             <p style="margin:0 0 12px 0; color:#52676c;">
-              Le funzioni che vedi qui sono gia state concesse dal pacchetto o dalla configurazione centrale. Tu puoi solo governare quelle marcate come self service.
+              Le funzioni che vedi qui sono già state concesse dal pacchetto o dalla configurazione centrale. Tu puoi gestire solo quelle segnate come autonome.
             </p>
             <span class="status-chip">Gestibili da te: <?= count($manageableRows) ?></span>
             <span class="status-chip">Centrali: <?= count($lockedRows) ?></span>
@@ -139,7 +139,7 @@ foreach ($featureStates as $row) {
                 </a>
               <?php elseif ($appointmentNotificationsEntitled): ?>
                 <span class="label label-warning" style="display:inline-block; padding:8px 12px;">
-                  Centro notifiche disponibile ma non ancora attivo per questo spazio
+                  Centro notifiche disponibile ma non ancora attivo per questo studio
                 </span>
               <?php else: ?>
                 <span class="label label-default" style="display:inline-block; padding:8px 12px;">
@@ -151,14 +151,14 @@ foreach ($featureStates as $row) {
 
           <div class="box box-success">
             <div class="box-header with-border">
-              <h3 class="box-title">Funzioni governabili dal tenant master</h3>
+              <h3 class="box-title">Funzioni gestibili dal responsabile dello studio</h3>
             </div>
             <form method="post" action="<?= portal_tenant_space_url('funzioni/save') ?>">
               <?= csrf_field() ?>
               <div class="box-body">
                 <?php if ($manageableRows === []): ?>
                   <div class="alert alert-info" style="margin-bottom:0;">
-                    In questo momento non ci sono funzioni self service da governare per il tuo spazio.
+                    In questo momento non ci sono funzioni gestibili in autonomia per il tuo studio.
                   </div>
                 <?php else: ?>
                   <div class="row">
@@ -175,7 +175,7 @@ foreach ($featureStates as $row) {
                           <div class="checkbox" style="margin:0 0 10px 0;">
                             <label>
                               <input type="checkbox" name="enabled_features[]" value="<?= esc($featureKey) ?>" <?= $enabled ? 'checked' : '' ?>>
-                              Funzione attiva per questo spazio
+                              Funzione attiva per questo studio
                             </label>
                           </div>
                           <span class="label label-<?= $enabled ? 'success' : 'default' ?>">
@@ -191,7 +191,7 @@ foreach ($featureStates as $row) {
               <?php if ($manageableRows !== []): ?>
               <div class="box-footer">
                 <button class="btn btn-success" type="submit">
-                  <i class="fa fa-save"></i> Salva funzioni dello spazio
+                  <i class="fa fa-save"></i> Salva funzioni dello studio
                 </button>
               </div>
               <?php endif; ?>
@@ -225,7 +225,7 @@ foreach ($featureStates as $row) {
           <?php if ($unavailableRows !== []): ?>
           <div class="box box-warning">
             <div class="box-header with-border">
-              <h3 class="box-title">Funzioni non incluse nel tuo spazio</h3>
+              <h3 class="box-title">Funzioni non incluse nel tuo studio</h3>
             </div>
             <div class="box-body">
               <div class="row">

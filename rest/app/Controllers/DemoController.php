@@ -146,7 +146,7 @@ class DemoController extends Controller
             session()->setFlashdata('demo_request_old', $payload);
             session()->setFlashdata('demo_request_feedback', [
                 'ok' => false,
-                'message' => 'La richiesta non e stata salvata correttamente. Riprova tra poco.',
+                'message' => 'La richiesta non è stata salvata correttamente. Riprova tra poco.',
             ]);
 
             return redirect()->to($this->demoRequestReturnUrl($payload['vertical']));
@@ -456,18 +456,18 @@ class DemoController extends Controller
         return [
             [
                 'eyebrow' => 'Agenda operativa',
-                'title' => 'Calendario, sale e piu operatori nello stesso flusso',
-                'body' => 'La parte piu forte del prodotto e gia pronta: disponibilita, appuntamenti, sedi e coordinamento operativo senza uscire dal gestionale.',
+                'title' => 'Calendario, sale e più operatori nello stesso flusso',
+                'body' => 'La parte più forte del prodotto è già pronta: disponibilità, appuntamenti, sedi e coordinamento operativo senza uscire dal gestionale.',
             ],
             [
                 'eyebrow' => 'Riduzione no-show',
-                'title' => 'Reminder e conferme con canali gia pensati per l uso reale',
-                'body' => 'WhatsApp, SMS, email e tracciabilita del promemoria permettono di raccontare subito un ritorno operativo concreto.',
+                'title' => 'Reminder e conferme con canali già pensati per l\'uso reale',
+                'body' => 'WhatsApp, SMS, email e tracciabilità del promemoria permettono di raccontare subito un ritorno operativo concreto.',
             ],
             [
                 'eyebrow' => 'Team e sicurezza',
                 'title' => 'Ruoli, comunicazione interna e accessi protetti',
-                'body' => 'Posta, chat, visibilita moduli e OTP aiutano a posizionare il prodotto come piattaforma di lavoro, non come semplice agenda.',
+                'body' => 'Posta, chat, visibilità moduli e OTP aiutano a posizionare il prodotto come piattaforma di lavoro, non come semplice agenda.',
             ],
         ];
     }
@@ -490,10 +490,10 @@ class DemoController extends Controller
             ],
             [
                 'tag' => 'Team',
-                'title' => 'Pacchetto piu naturale',
-                'fit' => 'La proposta ideale per chi lavora con piu operatori, reception o coordinamento team.',
+                'title' => 'Pacchetto più naturale',
+                'fit' => 'La proposta ideale per chi lavora con più operatori, reception o coordinamento team.',
                 'items' => [
-                    'Piu operatori con ruoli distinti',
+                    'Più operatori con ruoli distinti',
                     'Chat e posta interna',
                     'Booking e reminder WhatsApp o SMS',
                 ],
@@ -501,7 +501,7 @@ class DemoController extends Controller
             [
                 'tag' => 'Pro',
                 'title' => 'Crescita e multi-sede',
-                'fit' => 'Per strutture che hanno piu sedi, piu sale o piu visibilita operativa da governare.',
+                'fit' => 'Per strutture che hanno più sedi, più sale o più visibilità operativa da governare.',
                 'items' => [
                     'Multi-sede e ruoli avanzati',
                     'Log operativi e controllo processi',
@@ -1158,16 +1158,16 @@ class DemoController extends Controller
                     [
                         'title' => 'Segreteria operativa',
                         'steps' => [
-                            'Apro la dashboard moduli e mostro l agenda del giorno dello studio nutrizionale.',
-                            'Cerco disponibilita, scelgo professionista e stanza e inserisco una prima visita o un controllo.',
-                            'Chiudo con reminder, conferma e promemoria organizzativo.',
+                    'Apro la dashboard moduli e mostro l\'agenda del giorno dello studio nutrizionale.',
+                    'Cerco disponibilità, scelgo professionista e stanza e inserisco una prima visita o un controllo.',
+                    'Chiudo con reminder, conferma e promemoria organizzativo.',
                         ],
                     ],
                     [
                         'title' => 'Professionisti e coordinamento',
                         'steps' => [
-                            'Entro come dietista e faccio vedere agenda, posta e continuita dei follow-up.',
-                            'Mostro i collegamenti tra segreteria e professionisti, con chat interna e visibilita per ruolo.',
+                            'Entro come dietista e faccio vedere agenda, posta e continuità dei follow-up.',
+                            'Mostro i collegamenti tra segreteria e professionisti, con chat interna e visibilità per ruolo.',
                             'Faccio vedere come titolare e collaboratrice restano allineate senza uscire dal gestionale.',
                         ],
                     ],
@@ -1176,34 +1176,34 @@ class DemoController extends Controller
                         'steps' => [
                             'Mostro il flusso OTP con account operativo dedicato.',
                             'Se serve, apro il portale paziente per raccontare accesso sicuro e messaggistica.',
-                            'Chiudo collegando il tutto a riduzione no-show e continuita del percorso alimentare.',
+                            'Chiudo collegando il tutto a riduzione no-show e continuità del percorso alimentare.',
                         ],
                     ],
                 ],
                 'pricing_hint' => 'Ingresso ideale come pacchetto Team per studio nutrizionale con 2 professionisti e segreteria dedicata.',
                 'next_moves' => [
                     'Preparare una mini landing dedicata a dietistica e nutrizione.',
-                    'Rendere sempre piu esplicito il linguaggio di prima visita, controllo e follow-up alimentare.',
+                    'Rendere sempre più esplicito il linguaggio di prima visita, controllo e follow-up alimentare.',
                     'Valutare in un secondo step moduli aggiuntivi come piani o pacchetti, senza toccare il core adesso.',
                 ],
             ],
             'sport_rehab' => [
                 'headline' => 'Percorso demo per fisioterapia, riabilitazione e sport medical',
-                'subheadline' => 'Posizionamento piu orientato a sedute, sale, coordinamento team e continuita con il cliente, senza cambiare il cuore operativo della piattaforma.',
+                'subheadline' => 'Posizionamento più orientato a sedute, sale, coordinamento team e continuità con il cliente, senza cambiare il cuore operativo della piattaforma.',
                 'outcomes' => [
                     'Gestione fluida di sale, terapisti, professionisti e coordinamento front desk.',
                     'Riduzione dei no-show con reminder e accesso OTP controllato.',
                     'Maggiore continuita tra presa appuntamento, follow-up e comunicazione con il cliente.',
                 ],
                 'buyer_signals' => [
-                    'Centro con piu terapisti o piu sale da coordinare.',
-                    'Percorsi di recupero con piu appuntamenti distribuiti nel tempo.',
+                    'Centro con più terapisti o più sale da coordinare.',
+                    'Percorsi di recupero con più appuntamenti distribuiti nel tempo.',
                     'Team che lavora tra reception, coordinamento e professionisti diversi.',
                 ],
                 'pain_points' => [
-                    'Sedute spostate spesso e difficili da riallineare tra piu operatori.',
+                    'Sedute spostate spesso e difficili da riallineare tra più operatori.',
                     'Comunicazione dispersa tra chiamate, chat esterne e note manuali.',
-                    'Scarso controllo su disponibilita reali di sale e professionisti.',
+                    'Scarso controllo su disponibilità reali di sale e professionisti.',
                 ],
                 'demo_flow' => [
                     [
@@ -1218,7 +1218,7 @@ class DemoController extends Controller
                         'title' => 'Team e continuita',
                         'steps' => [
                             'Evidenzio chat e posta interna per seguire il caso senza uscire dalla piattaforma.',
-                            'Mostro ruoli e visibilita per coordinatore, professionista e assistente.',
+                            'Mostro ruoli e visibilità per coordinatore, professionista e assistente.',
                             'Chiudo con reminder e follow-up cliente.',
                         ],
                     ],
@@ -1231,9 +1231,9 @@ class DemoController extends Controller
                         ],
                     ],
                 ],
-                'pricing_hint' => 'Ingresso ideale come pacchetto Team per centro single-site o Pro per piu sale e piu professionisti.',
+                'pricing_hint' => 'Ingresso ideale come pacchetto Team per centro single-site o Pro per più sale e più professionisti.',
                 'next_moves' => [
-                    'Preparare copy meno clinico e piu orientato a percorso e recupero.',
+                    'Preparare copy meno clinico e più orientato a percorso e recupero.',
                     'Aggiungere una terminologia esposta per centro, sala, professionista e cliente.',
                     'Valutare in un secondo tempo funzioni commerciali come pacchetti o cicli, senza toccare il core ora.',
                 ],
@@ -1268,24 +1268,28 @@ class DemoController extends Controller
     {
         return [
             [
-                'title' => 'Tenant master',
+                'title' => 'Responsabile studio',
                 'username' => 'demo.tenant.master',
-                'goal' => 'Apri lo spazio cliente demo senza login, verifica funzioni attivabili e gestione utenti del tenant.',
+                'display_username' => 'Responsabile dello studio',
+                'goal' => 'Apri lo spazio cliente demo senza login, verifica funzioni attivabili e gestione utenti dello studio.',
             ],
             [
                 'title' => 'Agenda condivisa',
                 'username' => 'demo.tenant.agenda',
-                'goal' => 'Apri direttamente la nuova vista Giorno Team e fai vedere subito l agenda condivisa con 3 professionisti nello stesso studio.',
+                'display_username' => 'Agenda condivisa studio',
+                'goal' => 'Apri direttamente la nuova vista Giorno Team e fai vedere subito l\'agenda condivisa con 3 professionisti nello stesso studio.',
             ],
             [
                 'title' => 'Segreteria',
                 'username' => 'demo.segreteria',
+                'display_username' => 'Segreteria',
                 'goal' => 'Mostra agenda del giorno, presa appuntamenti, posta segreteria e chat operativa interna.',
             ],
             [
                 'title' => 'Dottore',
                 'username' => 'demo.dietista',
-                'goal' => 'Verifica agenda professionista, posta dottore, chat interna e continuita del percorso paziente.',
+                'display_username' => 'Professionista',
+                'goal' => 'Verifica agenda professionista, posta dottore, chat interna e continuità del percorso paziente.',
             ],
             [
                 'title' => 'Paziente',

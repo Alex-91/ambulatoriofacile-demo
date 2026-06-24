@@ -33,13 +33,13 @@ class Onboarding extends BaseController
 
         $context = $this->tenantContext->getCurrentTenant();
         if ($context === null) {
-            return redirect()->to(site_url('/'));
+            return $this->sessionExpiredRedirect();
         }
 
         $tenantModel = new PlatformTenantsModel();
         $tenant = $tenantModel->find($context->tenantId);
         if (!$tenant) {
-            return redirect()->to(site_url('/'))->with('error', 'Spazio cliente non trovato.');
+            return $this->redirectToLogin('Spazio cliente non trovato. Effettua di nuovo il login.');
         }
 
         $currentStatus = trim((string) ($tenant['onboarding_status'] ?? 'draft'));
@@ -49,18 +49,18 @@ class Onboarding extends BaseController
 
         return redirect()
             ->to(site_url('admin'))
-            ->with('success', 'Onboarding iniziale completato. Da ora puoi gestire lo spazio in autonomia.');
+            ->with('success', 'Onboarding iniziale completato. Da ora puoi gestire lo studio in autonomia.');
     }
 
     private function ensureAllowed()
     {
         if ((bool) (session()->get('isLoggedInConfirmed') ?? false) !== true) {
-            return redirect()->to(portal_public_access_url('login'));
+            return $this->redirectToLogin();
         }
 
         $context = $this->tenantContext->getCurrentTenant();
         if ($context === null) {
-            return redirect()->to(site_url('/'));
+            return $this->sessionExpiredRedirect();
         }
 
         if ($context->tenantRole !== 'tenant_master') {
@@ -68,7 +68,7 @@ class Onboarding extends BaseController
         }
 
         if ((int) (session()->get('platform_user_id') ?? 0) <= 0) {
-            return redirect()->to(site_url('/'));
+            return $this->sessionExpiredRedirect();
         }
 
         return null;

@@ -88,7 +88,7 @@ class Dashboard extends BaseController
             [
                 'title' => 'Imposta le sedi',
                 'description' => $locationCount > 0
-                    ? 'Le sedi sono gia pronte e il personale puo essere assegnato ai luoghi corretti.'
+                    ? 'Le sedi sono già pronte e il personale può essere assegnato ai luoghi corretti.'
                     : 'Prima di inserire il personale configura almeno una sede e le sue stanze operative.',
                 'complete' => $locationCount > 0,
                 'cta_label' => $locationCount > 0 ? 'Gestisci sedi' : 'Configura sedi',
@@ -100,7 +100,7 @@ class Dashboard extends BaseController
             [
                 'title' => 'Crea il personale',
                 'description' => $personnelCount > 0
-                    ? 'Hai gia persone attive nello spazio. Da qui puoi aggiungerne altre o aggiornarle.'
+                    ? 'Hai già persone attive nello studio. Da qui puoi aggiungerne altre o aggiornarle.'
                     : 'Appena le sedi sono pronte puoi inserire il primo medico, operatore o segreteria.',
                 'complete' => $personnelCount > 0,
                 'cta_label' => $personnelCount > 0 ? 'Nuovo personale' : 'Inserisci il primo personale',
@@ -112,8 +112,8 @@ class Dashboard extends BaseController
             [
                 'title' => 'Carica i clienti',
                 'description' => $clientCount > 0
-                    ? 'L anagrafica clienti e gia avviata e puoi continuare a lavorarci subito.'
-                    : 'Dopo il team, popola i primi clienti cosi i flussi agenda e comunicazione partono puliti.',
+                    ? 'L\'anagrafica clienti è già avviata e puoi continuare a lavorarci subito.'
+                    : 'Dopo il team, popola i primi clienti così i flussi agenda e comunicazione partono puliti.',
                 'complete' => $clientCount > 0,
                 'cta_label' => $clientCount > 0 ? 'Apri clienti' : 'Aggiungi clienti',
                 'cta_url' => site_url('admin/personale/modifica_cliente'),
@@ -233,18 +233,18 @@ class Dashboard extends BaseController
             'focus' => [
                 'Agenda condivisa per prime visite, controlli e follow-up ricorrenti.',
                 'Segreteria con visione operativa chiara su conferme, spostamenti e reminder.',
-                'Continuita tra professionisti, chat interna e comunicazione strutturata col paziente.',
+                'Continuità tra professionisti, chat interna e comunicazione strutturata col paziente.',
             ],
             'roles' => [
                 [
                     'title' => 'Admin',
                     'account' => 'demo.admin',
-                    'goal' => 'Apri la demo spiegando struttura, ruoli, visibilita moduli e relazione tra segreteria e professionisti.',
+                    'goal' => 'Apri la demo spiegando struttura, ruoli, visibilità moduli e relazione tra segreteria e professionisti.',
                 ],
                 [
                     'title' => 'Segreteria',
                     'account' => 'demo.admin->demo.segreteria',
-                    'goal' => 'Mostra agenda del giorno, ricerca disponibilita, inserimento visita e gestione conferme.',
+                    'goal' => 'Mostra agenda del giorno, ricerca disponibilità, inserimento visita e gestione conferme.',
                 ],
                 [
                     'title' => 'Dietista',
@@ -254,20 +254,20 @@ class Dashboard extends BaseController
                 [
                     'title' => 'Collaboratrice',
                     'account' => 'demo.nutrizionista',
-                    'goal' => 'Chiudi facendo vedere come piu professionisti convivono senza perdere ordine o responsabilita.',
+                    'goal' => 'Chiudi facendo vedere come più professionisti convivono senza perdere ordine o responsabilità.',
                 ],
             ],
             'timeline' => [
-                '1. Parti dall admin e spiega in 60 secondi che la demo usa database separato e dati anonimi.',
+                '1. Parti dall\'admin e spiega in 60 secondi che la demo usa database separato e dati anonimi.',
                 '2. Passa alla segreteria e fai vedere come si riempie o si sposta un appuntamento.',
-                '3. Entra come dietista e collega agenda, follow-up, messaggi e continuita col paziente.',
-                '4. Se serve, fai il passaggio OTP per far vedere che l accesso e protetto ma semplice.',
-                '5. Chiudi tornando sul valore: meno caos operativo, meno no-show, piu controllo del team.',
+                '3. Entra come dietista e collega agenda, follow-up, messaggi e continuità col paziente.',
+                '4. Se serve, fai il passaggio OTP per far vedere che l\'accesso è protetto ma semplice.',
+                '5. Chiudi tornando sul valore: meno caos operativo, meno no-show, più controllo del team.',
             ],
             'talkingPoints' => [
-                'Non vi sto facendo vedere una semplice agenda: vi sto facendo vedere come lavora lo studio quando ci sono piu persone coinvolte.',
-                'La segreteria guadagna velocita, ma ogni professionista mantiene il proprio contesto clinico e operativo.',
-                'Il vantaggio vero non e solo prenotare: e tenere insieme conferme, spostamenti, comunicazione e sicurezza di accesso.',
+                'Non vi sto facendo vedere una semplice agenda: vi sto facendo vedere come lavora lo studio quando ci sono più persone coinvolte.',
+                'La segreteria guadagna velocità, ma ogni professionista mantiene il proprio contesto clinico e operativo.',
+                'Il vantaggio vero non è solo prenotare: è tenere insieme conferme, spostamenti, comunicazione e sicurezza di accesso.',
             ],
         ];
     }

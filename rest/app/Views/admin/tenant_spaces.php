@@ -165,7 +165,7 @@ $oldValue = static function (string $key, $fallback = '') {
     <section class="content-header">
       <h1>Spazi Cliente</h1>
       <p class="text-muted" style="margin:8px 0 0 0;">
-        Qui gestisci i tenant applicativi: crei lo spazio, assegni pacchetto e tenant master, mentre chiavi tecniche, database e storage possono nascere in automatico.
+        Qui gestisci gli studi attivi: crei lo spazio, assegni pacchetto e responsabile dello studio, mentre chiavi tecniche, database e storage possono nascere in automatico.
       </p>
     </section>
 
@@ -193,7 +193,7 @@ $oldValue = static function (string $key, $fallback = '') {
           <?php endforeach; ?>
           <?php if ($tempPassword !== ''): ?>
             <div class="alert alert-warning">
-              <strong>Password temporanea tenant master:</strong> <code><?= esc($tempPassword) ?></code>
+              <strong>Password temporanea responsabile dello studio:</strong> <code><?= esc($tempPassword) ?></code>
             </div>
           <?php endif; ?>
           <?php if ($masterTempPasswords !== []): ?>
@@ -210,22 +210,22 @@ $oldValue = static function (string $key, $fallback = '') {
           <div class="intro-box">
             <h3 style="margin-top:0; margin-bottom:8px;">Console master sotto /login</h3>
             <p style="margin:0 0 12px 0; color:#52676c;">
-              Questo pannello e disponibile solo agli account master del login unico. Qui gestisci onboarding commerciale, tenant, pacchetti e accessi senza usare `/admin`.
+              Questo pannello è disponibile solo agli account master del login unico. Qui gestisci onboarding commerciale, studi, pacchetti e accessi senza usare `/admin`.
             </p>
             <?php if ($legacyBootstrapMode): ?>
               <p style="margin:0 0 12px 0; color:#2b5d67;">
-                Modalita bootstrap attiva: puoi completare l avvio iniziale dalla console nuova, ma il passaggio definitivo agli account master del login unico richiede la configurazione finale delle email master.
+                Modalità bootstrap attiva: puoi completare l'avvio iniziale dalla console nuova, ma il passaggio definitivo agli account master del login unico richiede la configurazione finale delle email master.
               </p>
             <?php endif; ?>
             <span class="summary-badge">Login unico via email</span>
             <span class="summary-badge">DB separato per cliente</span>
             <span class="summary-badge">Feature flag per verticalizzazioni</span>
-            <span class="summary-badge">Storage per tenant</span>
+            <span class="summary-badge">Storage per studio</span>
             <ul class="start-steps">
               <li>1. Prepara gli account master che devono governare la piattaforma.</li>
               <li>2. Definisci o aggiorna il catalogo funzioni comune a tutti.</li>
               <li>3. Crea lo spazio cliente indicando solo i dati davvero fondamentali.</li>
-              <li>4. Alla creazione il sistema prepara chiave tenant, database, cartelle e provisioning tecnico.</li>
+              <li>4. Alla creazione il sistema prepara chiave studio, database, cartelle e provisioning tecnico.</li>
             </ul>
             <div style="margin-top:14px;">
               <a class="btn btn-primary" href="<?= portal_platform_url('notifiche-appuntamenti') ?>">
@@ -389,7 +389,7 @@ $oldValue = static function (string $key, $fallback = '') {
               </div>
 
               <p class="text-muted" style="margin:10px 0 0 0;">
-                Gli account con origine <code>Pannello</code> sono quelli gestiti stabilmente dal database centrale. <code>Bootstrap Coolify</code> resta solo come scorciatoia iniziale e non serve piu per la gestione ordinaria.
+                Gli account con origine <code>Pannello</code> sono quelli gestiti stabilmente dal database centrale. <code>Bootstrap Coolify</code> resta solo come scorciatoia iniziale e non serve più per la gestione ordinaria.
               </p>
             </div>
           </div>
@@ -403,7 +403,7 @@ $oldValue = static function (string $key, $fallback = '') {
                 <div class="row">
                   <div class="col-md-4">
                     <label>Ricerca</label>
-                    <input class="form-control" type="text" name="q" value="<?= esc((string)($filters['q'] ?? '')) ?>" placeholder="tenant, chiave, email master">
+                    <input class="form-control" type="text" name="q" value="<?= esc((string)($filters['q'] ?? '')) ?>" placeholder="studio, chiave, email master">
                   </div>
                   <div class="col-md-4">
                     <label>Stato</label>
@@ -443,7 +443,7 @@ $oldValue = static function (string $key, $fallback = '') {
               <table class="table table-bordered table-hover">
                 <thead>
                   <tr>
-                    <th>Tenant</th>
+                    <th>Studio</th>
                     <th>Pacchetto</th>
                     <th>Master</th>
                     <th>Stato</th>
@@ -453,7 +453,7 @@ $oldValue = static function (string $key, $fallback = '') {
                 </thead>
                 <tbody>
                   <?php if ($tenantRows === []): ?>
-                    <tr><td colspan="6" class="text-muted">Nessun tenant trovato.</td></tr>
+                    <tr><td colspan="6" class="text-muted">Nessuno studio trovato.</td></tr>
                   <?php else: ?>
                     <?php foreach ($tenantRows as $row): ?>
                       <?php $tenantLink = portal_platform_url('spazi-clienti') . '?id_tenant=' . (int)$row['id_tenant']; ?>
@@ -554,12 +554,12 @@ $oldValue = static function (string $key, $fallback = '') {
 
                 <p class="auto-note">
                   <?= $isEdit
-                      ? 'Le impostazioni tecniche restano disponibili piu sotto, ma il flusso standard continua a usare i valori generati automaticamente.'
-                      : 'Alla creazione usiamo il pacchetto base, generiamo automaticamente chiave tenant, storage, database dedicato e cartelle locali. Dopo il primo salvataggio potrai rifinire solo gli override davvero necessari.' ?>
+                      ? 'Le impostazioni tecniche restano disponibili più sotto, ma il flusso standard continua a usare i valori generati automaticamente.'
+                      : 'Alla creazione usiamo il pacchetto base, generiamo automaticamente chiave studio, storage, database dedicato e cartelle locali. Dopo il primo salvataggio potrai rifinire solo gli override davvero necessari.' ?>
                 </p>
 
                 <hr>
-                <h4 style="margin-top:0;">Tenant master</h4>
+                <h4 style="margin-top:0;">Responsabile dello studio</h4>
                 <div class="row">
                   <div class="col-md-5">
                     <div class="form-group">
@@ -589,7 +589,7 @@ $oldValue = static function (string $key, $fallback = '') {
                 <div class="row">
                   <div class="col-md-12">
                     <div class="checkbox" style="margin-top:8px;">
-                      <label><input type="checkbox" name="send_master_access_email" value="1"> Invia accesso al tenant master dopo il salvataggio</label>
+                      <label><input type="checkbox" name="send_master_access_email" value="1"> Invia accesso al responsabile dello studio dopo il salvataggio</label>
                     </div>
                   </div>
                 </div>
@@ -598,13 +598,13 @@ $oldValue = static function (string $key, $fallback = '') {
                   <details class="advanced-panel" <?= old('status') !== null || old('db_name') !== null ? 'open' : '' ?>>
                     <summary>Impostazioni avanzate e tecniche</summary>
                     <p class="text-muted" style="margin-top:0;">
-                      Qui trovi i valori derivati automaticamente e gli override per i casi speciali. Per il flusso ordinario di produzione puoi lasciare tutto com e.
+                      Qui trovi i valori derivati automaticamente e gli override per i casi speciali. Per il flusso ordinario di produzione puoi lasciare tutto com'è.
                     </p>
 
                     <div class="row">
                       <div class="col-md-3">
                         <div class="form-group">
-                          <label>Chiave tenant</label>
+                          <label>Chiave studio</label>
                           <input class="form-control" value="<?= esc((string)($tenantData['tenant_key'] ?? '')) ?>" readonly>
                         </div>
                       </div>
@@ -654,7 +654,7 @@ $oldValue = static function (string $key, $fallback = '') {
                       <div class="col-md-3">
                         <div class="checkbox" style="margin-top:32px;">
                           <?php $activeValue = (string)$oldValue('is_active', (string)($tenantData['is_active'] ?? '1')); ?>
-                          <label><input type="checkbox" name="is_active" value="1" <?= $activeValue !== '0' ? 'checked' : '' ?>> Tenant attivo</label>
+                          <label><input type="checkbox" name="is_active" value="1" <?= $activeValue !== '0' ? 'checked' : '' ?>> Studio attivo</label>
                         </div>
                         <div class="checkbox">
                           <label><input type="checkbox" name="prepare_local_dirs" value="1"> Prepara cartelle locali</label>
@@ -663,7 +663,7 @@ $oldValue = static function (string $key, $fallback = '') {
                     </div>
 
                     <hr>
-                    <h4 style="margin-top:0;">Override database tenant</h4>
+                    <h4 style="margin-top:0;">Override database studio</h4>
                     <div class="row">
                       <div class="col-md-4">
                         <div class="form-group">
@@ -715,9 +715,9 @@ $oldValue = static function (string $key, $fallback = '') {
                   </details>
 
                   <hr>
-                  <h4 style="margin-top:0;">Feature override tenant</h4>
+                  <h4 style="margin-top:0;">Override funzioni studio</h4>
                   <p class="text-muted">
-                    Qui decidi quali funzioni sono concesse a questo cliente. Se una funzione e marcata come governabile dal tenant master, il cliente potra poi accenderla o spegnerla dal suo pannello sotto `/login/spazio/funzioni`.
+                    Qui decidi quali funzioni sono concesse a questo cliente. Se una funzione è marcata come gestibile dal responsabile dello studio, il cliente potrà poi accenderla o spegnerla dal suo pannello sotto `/login/spazio/funzioni`.
                   </p>
                   <input type="hidden" name="feature_override_form" value="1">
                   <div class="row">
@@ -754,23 +754,23 @@ $oldValue = static function (string $key, $fallback = '') {
                   </div>
                 <?php else: ?>
                   <hr>
-                  <h4 style="margin-top:0;">Funzioni del tenant</h4>
+                  <h4 style="margin-top:0;">Funzioni dello studio</h4>
                   <p class="text-muted">
                     Alla creazione usiamo i default del pacchetto e del catalogo globale. Dopo il primo salvataggio potrai rifinire gli override funzione per funzione.
                   </p>
                 <?php endif; ?>
 
                 <hr>
-                <h4 style="margin-top:0;">Menu laterale del tenant</h4>
+                <h4 style="margin-top:0;">Menu laterale dello studio</h4>
                 <?php if ($isEdit): ?>
                   <p class="text-muted">
-                    Questo e il menu operativo che il tenant master vedra sempre nel sidebar admin. Di default prepariamo Nuovo personale, Nuovo cliente, Modifica personale e Modifica cliente. La voce primaria Vai al portale operativo compare sempre sopra il menu.
+                    Questo è il menu operativo che il responsabile dello studio vedrà sempre nel sidebar admin. Di default prepariamo Nuovo personale, Nuovo cliente, Modifica personale e Modifica cliente. La voce primaria Vai al portale operativo compare sempre sopra il menu.
                   </p>
                   <input type="hidden" name="admin_menu_form" value="1">
 
                   <?php if ($adminMenuWarning !== ''): ?>
                     <div class="alert alert-warning">
-                      Non sono riuscito a leggere il menu attuale del tenant. Mostro i default consigliati e li applichero al prossimo salvataggio.
+                      Non sono riuscito a leggere il menu attuale dello studio. Mostro i default consigliati e li applicherò al prossimo salvataggio.
                       <br>
                       <small><?= esc($adminMenuWarning) ?></small>
                     </div>
@@ -801,7 +801,7 @@ $oldValue = static function (string $key, $fallback = '') {
                               <?= !empty($menuOption['default']) ? 'default operativo' : 'opzionale' ?>
                             </span>
                             <?php if ($adminMenuAvailable): ?>
-                              <span class="label label-info">tenant raggiungibile</span>
+                              <span class="label label-info">studio raggiungibile</span>
                             <?php endif; ?>
                           </div>
                         </div>
@@ -863,19 +863,19 @@ $oldValue = static function (string $key, $fallback = '') {
               </div>
               <div class="box-body">
                 <p class="text-muted" style="margin-top:0;">
-                  Usa questa azione solo per tenant di test o provisioning da rifare da zero. La cancellazione rimuove lo spazio dal catalogo centrale e, se selezionato, elimina anche database, cartelle locali e token di accesso collegati.
+                  Usa questa azione solo per studi di test o provisioning da rifare da zero. La cancellazione rimuove lo spazio dal catalogo centrale e, se selezionato, elimina anche database, cartelle locali e token di accesso collegati.
                 </p>
                 <form method="post" action="<?= portal_platform_url('spazi-clienti/delete') ?>" onsubmit="return confirm('Eliminare definitivamente questo spazio cliente e gli elementi tecnici selezionati?');">
                   <?= csrf_field() ?>
                   <input type="hidden" name="id_tenant" value="<?= (int)$selectedTenantId ?>">
                   <div class="checkbox">
-                    <label><input type="checkbox" name="drop_database" value="1" checked> Elimina anche il database tenant</label>
+                    <label><input type="checkbox" name="drop_database" value="1" checked> Elimina anche il database dello studio</label>
                   </div>
                   <div class="checkbox">
                     <label><input type="checkbox" name="delete_directories" value="1" checked> Elimina anche cartelle `upload/tenants` e `rest/writable/tenants`</label>
                   </div>
                   <div class="checkbox">
-                    <label><input type="checkbox" name="delete_tokens" value="1" checked> Elimina anche i token di accesso tenant</label>
+                    <label><input type="checkbox" name="delete_tokens" value="1" checked> Elimina anche i token di accesso dello studio</label>
                   </div>
                   <button class="btn btn-danger" type="submit">
                     <i class="fa fa-trash"></i> Elimina spazio cliente
@@ -915,7 +915,7 @@ $oldValue = static function (string $key, $fallback = '') {
                 <div class="intro-box" style="margin-bottom:18px;">
                   <h3 style="margin-top:0; margin-bottom:8px;">Capienza pacchetto</h3>
                   <p style="margin:0 0 12px 0; color:#52676c;">
-                    Gli utenti aggiunti qui preparano lo spazio del cliente per il login unico. Il tenant master si modifica dal blocco principale qui sopra.
+                    Gli utenti aggiunti qui preparano lo spazio del cliente per il login unico. Il responsabile dello studio si modifica dal blocco principale qui sopra.
                   </p>
                   <span class="summary-badge">Utenti attuali: <?= esc((string)$capacityCurrent) ?></span>
                   <span class="summary-badge">Limite pacchetto: <?= esc($capacityLabel) ?></span>
@@ -944,18 +944,22 @@ $oldValue = static function (string $key, $fallback = '') {
                           <?php
                             $memberId = (int)($member['id_platform_user_tenant'] ?? 0);
                             $isOwnerMember = (int)($member['is_owner'] ?? 0) === 1;
+                            $memberRoleLabel = portal_space_role_label((string)($member['tenant_role'] ?? 'tenant_staff'));
                           ?>
                           <tr>
                             <td><?= esc((string)($member['email'] ?? '')) ?></td>
                             <td><?= esc(trim((string)($member['first_name'] ?? '') . ' ' . (string)($member['last_name'] ?? ''))) ?: '<span class="text-muted">-</span>' ?></td>
-                            <td><?= esc((string)($member['tenant_role'] ?? 'tenant_staff')) ?></td>
+                            <td><?= esc($memberRoleLabel) ?></td>
                             <td><?= esc((string)($member['app_user_id'] ?? '-')) ?></td>
                             <td class="member-meta">
                               <?php if ($isOwnerMember): ?>
-                                <span class="label label-primary">owner</span>
+                                <span class="label label-primary">responsabile</span>
                               <?php endif; ?>
                               <?php if ((int)($member['is_default'] ?? 0) === 1): ?>
-                                <span class="label label-info">default</span>
+                                <span class="label label-info">predefinito</span>
+                              <?php endif; ?>
+                              <?php if ((int)($member['is_app_admin'] ?? 0) === 1): ?>
+                                <span class="label label-primary">medico amministratore</span>
                               <?php endif; ?>
                               <span class="label label-default"><?= esc((string)($member['invitation_status'] ?? 'pending')) ?></span>
                               <span class="label label-<?= ((string)($member['platform_user_status'] ?? '') === 'active') ? 'success' : 'warning' ?>">
@@ -964,7 +968,7 @@ $oldValue = static function (string $key, $fallback = '') {
                             </td>
                             <td>
                               <?php if ($isOwnerMember): ?>
-                                <span class="text-muted">Master</span>
+                                <span class="text-muted">Responsabile</span>
                               <?php else: ?>
                                 <button
                                   class="btn btn-xs btn-primary js-member-edit"
@@ -975,6 +979,7 @@ $oldValue = static function (string $key, $fallback = '') {
                                   data-last-name="<?= esc((string)($member['last_name'] ?? ''), 'attr') ?>"
                                   data-role="<?= esc((string)($member['tenant_role'] ?? 'tenant_staff'), 'attr') ?>"
                                   data-app-user-id="<?= esc((string)($member['app_user_id'] ?? ''), 'attr') ?>"
+                                  data-is-app-admin="<?= esc((string)($member['is_app_admin'] ?? 0), 'attr') ?>"
                                   data-is-default="<?= esc((string)($member['is_default'] ?? 0), 'attr') ?>"
                                 >
                                   <i class="fa fa-pencil"></i> Modifica
@@ -1024,11 +1029,11 @@ $oldValue = static function (string $key, $fallback = '') {
                     </div>
                     <div class="col-md-2">
                       <div class="form-group">
-                        <label>Ruolo tenant</label>
+                        <label>Ruolo nello studio</label>
                         <?php $memberRole = (string)$oldValue('member_tenant_role', 'tenant_staff'); ?>
                         <select class="form-control" name="member_tenant_role" id="member_tenant_role">
-                          <option value="tenant_staff" <?= $memberRole === 'tenant_staff' ? 'selected' : '' ?>>tenant_staff</option>
-                          <option value="tenant_admin" <?= $memberRole === 'tenant_admin' ? 'selected' : '' ?>>tenant_admin</option>
+                          <option value="tenant_staff" <?= $memberRole === 'tenant_staff' ? 'selected' : '' ?>><?= esc(portal_space_role_label('tenant_staff')) ?></option>
+                          <option value="tenant_admin" <?= $memberRole === 'tenant_admin' ? 'selected' : '' ?>><?= esc(portal_space_role_label('tenant_admin')) ?></option>
                         </select>
                       </div>
                     </div>
@@ -1049,6 +1054,13 @@ $oldValue = static function (string $key, $fallback = '') {
                     </div>
                     <div class="col-md-4">
                       <div class="checkbox" style="margin-top:32px;">
+                        <?php $memberIsAppAdmin = (string)$oldValue('member_is_app_admin', '0'); ?>
+                        <label>
+                          <input type="checkbox" name="member_is_app_admin" id="member_is_app_admin" value="1" <?= $memberIsAppAdmin === '1' ? 'checked' : '' ?>>
+                          Medico amministratore
+                        </label>
+                      </div>
+                      <div class="checkbox">
                         <?php $memberIsDefault = (string)$oldValue('member_is_default', '0'); ?>
                         <label>
                           <input type="checkbox" name="member_is_default" id="member_is_default" value="1" <?= $memberIsDefault === '1' ? 'checked' : '' ?>>
@@ -1097,6 +1109,7 @@ $oldValue = static function (string $key, $fallback = '') {
   var memberLastName = document.getElementById('member_last_name');
   var memberRole = document.getElementById('member_tenant_role');
   var memberAppUserId = document.getElementById('member_app_user_id');
+  var memberIsAppAdmin = document.getElementById('member_is_app_admin');
   var memberPassword = document.getElementById('member_password');
   var memberIsDefault = document.getElementById('member_is_default');
   var memberTitle = document.getElementById('member-form-title');
@@ -1110,6 +1123,7 @@ $oldValue = static function (string $key, $fallback = '') {
     if (memberLastName) memberLastName.value = '';
     if (memberRole) memberRole.value = 'tenant_staff';
     if (memberAppUserId) memberAppUserId.value = '';
+    if (memberIsAppAdmin) memberIsAppAdmin.checked = false;
     if (memberPassword) memberPassword.value = '';
     if (memberIsDefault) memberIsDefault.checked = false;
     if (memberTitle) memberTitle.textContent = 'Aggiungi utente allo spazio';
@@ -1124,6 +1138,7 @@ $oldValue = static function (string $key, $fallback = '') {
       if (memberLastName) memberLastName.value = button.getAttribute('data-last-name') || '';
       if (memberRole) memberRole.value = button.getAttribute('data-role') || 'tenant_staff';
       if (memberAppUserId) memberAppUserId.value = button.getAttribute('data-app-user-id') || '';
+      if (memberIsAppAdmin) memberIsAppAdmin.checked = (button.getAttribute('data-is-app-admin') || '0') === '1';
       if (memberPassword) memberPassword.value = '';
       if (memberIsDefault) memberIsDefault.checked = (button.getAttribute('data-is-default') || '0') === '1';
       if (memberTitle) memberTitle.textContent = 'Modifica utente dello spazio';

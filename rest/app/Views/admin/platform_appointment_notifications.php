@@ -61,7 +61,7 @@ $channelMeta = [
     <section class="content-header">
       <h1>Notifiche Appuntamenti</h1>
       <p class="text-muted" style="margin:8px 0 0 0;">
-        Qui controlli in modo centralizzato i canali acquistati, le configurazioni dei tenant master e lo storico invii di conferme, reminder e avvisi tra professionisti.
+        Qui controlli in modo centralizzato i canali acquistati, le configurazioni dei responsabili di studio e lo storico invii di conferme, reminder e avvisi tra professionisti.
       </p>
     </section>
 
@@ -87,9 +87,9 @@ $channelMeta = [
           <div class="intro-box">
             <h3 style="margin-top:0; margin-bottom:8px;">Regia unica dei canali</h3>
             <p style="margin:0 0 12px 0; color:#52676c;">
-              Il master piattaforma decide quali tenant hanno acquistato SMS e/o WhatsApp. Il tenant master, dentro il suo spazio, sceglie invece per quali flussi usare SMS, WhatsApp, Email e OTP.
+              Il responsabile della piattaforma decide quali studi hanno acquistato SMS e/o WhatsApp. Il responsabile dello studio, dentro il suo spazio, sceglie invece per quali flussi usare SMS, WhatsApp, Email e OTP.
             </p>
-            <span class="status-chip">Tenant attivi: <?= (int) ($summary['tenant_count'] ?? 0) ?></span>
+            <span class="status-chip">Studi attivi: <?= (int) ($summary['tenant_count'] ?? 0) ?></span>
             <span class="status-chip">Modulo attivo: <?= (int) ($summary['module_enabled_count'] ?? 0) ?></span>
             <span class="status-chip">Canale SMS: <?= (int) ($summary['sms_enabled_count'] ?? 0) ?></span>
             <span class="status-chip">Canale WhatsApp: <?= (int) ($summary['wa_enabled_count'] ?? 0) ?></span>
@@ -102,7 +102,7 @@ $channelMeta = [
               <div class="metric-card">
                 <div class="metric-label">Invii ultimi <?= $days ?> giorni</div>
                 <div class="metric-value"><?= (int) ($summary['recent_sent'] ?? 0) ?></div>
-                <div class="metric-helper">Totale inviato da tutti i tenant attivi.</div>
+                <div class="metric-helper">Totale inviato da tutti gli studi attivi.</div>
               </div>
             </div>
             <div class="col-md-3 col-sm-6">
@@ -141,16 +141,16 @@ $channelMeta = [
                 <?= csrf_field() ?>
                 <div class="row">
                   <div class="col-md-2">
-                    <label>Modalita</label>
+                    <label>Modalità</label>
                     <select class="form-control" name="mode">
                       <option value="dry-run">Dry-run</option>
                       <option value="send">Invio reale</option>
                     </select>
                   </div>
                   <div class="col-md-3">
-                    <label>Tenant</label>
+                    <label>Studio</label>
                     <select class="form-control" name="tenant_id">
-                      <option value="0">Tutti i tenant attivi</option>
+                      <option value="0">Tutti gli studi attivi</option>
                       <?php foreach ($tenantRows as $tenantRow): ?>
                         <?php $tenant = (array) ($tenantRow['tenant'] ?? []); ?>
                         <option value="<?= (int) ($tenant['id_tenant'] ?? 0) ?>"><?= esc((string) ($tenant['tenant_name'] ?? '')) ?></option>
@@ -164,7 +164,7 @@ $channelMeta = [
                   <div class="col-md-2">
                     <label>Canale</label>
                     <select class="form-control" name="channel">
-                      <option value="auto">Auto da tenant</option>
+                      <option value="auto">Automatico dallo studio</option>
                       <option value="sms">Solo SMS</option>
                       <option value="wa">Solo WA</option>
                       <option value="email">Solo Email</option>
@@ -201,7 +201,7 @@ $channelMeta = [
               <div class="box-footer">
                 <strong>Ultimo lancio:</strong>
                 modalità `<?= esc((string) ($launchFeedback['mode'] ?? 'n/d')) ?>`,
-                tenant processati `<?= (int) ($launchFeedback['processed_tenants'] ?? 0) ?>`,
+                studi processati `<?= (int) ($launchFeedback['processed_tenants'] ?? 0) ?>`,
                 candidati `<?= (int) ($launchFeedback['candidates'] ?? 0) ?>`,
                 inviati `<?= (int) ($launchFeedback['sent'] ?? 0) ?>`,
                 errori `<?= (int) ($launchFeedback['failed'] ?? 0) ?>`.
@@ -211,15 +211,15 @@ $channelMeta = [
 
           <div class="box box-default">
             <div class="box-header with-border">
-              <h3 class="box-title">Stato tenant e configurazioni attive</h3>
+              <h3 class="box-title">Stato studi e configurazioni attive</h3>
             </div>
             <div class="box-body table-responsive">
               <table class="table table-bordered table-hover">
                 <thead>
                   <tr>
-                    <th>Tenant</th>
+                    <th>Studio</th>
                     <th>Canali disponibili</th>
-                    <th>Configurazione tenant master</th>
+                    <th>Configurazione responsabile dello studio</th>
                     <th>Invii ultimi <?= (int) $days ?> giorni</th>
                     <th>Ultimo invio</th>
                     <th style="width:130px;">Azioni</th>
@@ -227,7 +227,7 @@ $channelMeta = [
                 </thead>
                 <tbody>
                   <?php if ($tenantRows === []): ?>
-                    <tr><td colspan="6" class="text-muted">Nessun tenant attivo trovato.</td></tr>
+                    <tr><td colspan="6" class="text-muted">Nessuno studio attivo trovato.</td></tr>
                   <?php else: ?>
                     <?php foreach ($tenantRows as $row): ?>
                       <?php
@@ -304,7 +304,7 @@ $channelMeta = [
                 <thead>
                   <tr>
                     <th>Quando</th>
-                    <th>Tenant</th>
+                    <th>Studio</th>
                     <th>Flusso</th>
                     <th>Canale</th>
                     <th>Destinatario</th>

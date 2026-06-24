@@ -385,7 +385,7 @@ class LoginController extends BaseController
             return $this->response->setJSON([
                 'resp' => 'KO',
                 'success' => false,
-                'message' => 'Selezione tenant non valida.',
+                'message' => 'Selezione studio non valida.',
             ])->setStatusCode(400);
         }
 
@@ -488,6 +488,7 @@ session()->remove('cellulare');
 session()->remove('menuData');
 session()->remove('menuAgenda');
 session()->remove('menuDataAdmin');
+session()->remove('tenant_app_admin');
 session()->remove('header_nav_items');
 session()->remove('header_menu_items');
 session()->remove('badge_posta_unread');

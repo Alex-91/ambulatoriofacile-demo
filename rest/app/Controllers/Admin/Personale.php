@@ -12,6 +12,7 @@ use App\Services\StaffDoctorLinkService;
 
 class Personale extends BaseController
 {
+    private const GENERAL_TYPE_ID = 1;
 
       protected $db;
     protected $dbConfig;
@@ -21,6 +22,15 @@ class Personale extends BaseController
         $this->db = \Config\Database::connect();
         $this->dbConfig = new DatabaseConfig();
         $this->dbConfig->setEncryptionConfig($this->db);
+    }
+
+    private function currentDatabaseName(): string
+    {
+        if (method_exists($this->db, 'getDatabase')) {
+            return (string) $this->db->getDatabase();
+        }
+
+        return (string) ($this->db->database ?? '');
     }
 
     public function create()
@@ -141,8 +151,12 @@ class Personale extends BaseController
         $showInPosta  = !empty($post['show_in_posta']) ? 1 : 0;
         $showInChat   = !empty($post['show_in_chat']) ? 1 : 0;
 
-        // tipo utente sempre 2 (personale)
-        $tipoUser  = 2;
+        $isGeneralDoctor = $tipoDoc === self::GENERAL_TYPE_ID;
+        $isGeneralAdmin = $isGeneralDoctor && (int)($post['is_general_admin'] ?? 0) === 1;
+
+        // Se il medico generale viene segnato come amministratore,
+        // usa il login admin mantenendo il profilo personale come dottore.
+        $tipoUser  = $isGeneralAdmin ? 1 : 2;
 
         // scadenza: se vuota => +1 anno
         $datascadenza = date('Y-m-d H:i:s', strtotime('+1 year'));
@@ -261,15 +275,35 @@ class Personale extends BaseController
                 throw new \RuntimeException('Transazione fallita');
             }
 
+            log_message('info', 'Personale inserito correttamente: username={username}, idUser={idUser}, idPersonale={idPersonale}, tipoDoc={tipoDoc}, tipoUser={tipoUser}, db={db}', [
+                'username' => $username,
+                'idUser' => $idUser,
+                'idPersonale' => $idPersonale,
+                'tipoDoc' => $tipoDoc,
+                'tipoUser' => $tipoUser,
+                'db' => $this->currentDatabaseName(),
+            ]);
+
             return redirect()->to(site_url('admin/personale/nuovo'))
-                ->with('success', 'Personale inserito correttamente!');
+                ->with('success', 'Personale inserito correttamente. Username salvato: ' . $username);
 
         } catch (\Throwable $e) {
             $this->db->transRollback();
-            log_message('error', 'Errore inserimento personale: ' . $e->getMessage());
+            log_message('error', 'Errore inserimento personale: {message}', [
+                'message' => $e->getMessage(),
+                'username' => $username ?? '',
+                'tipoDoc' => $tipoDoc ?? 0,
+                'tipoUser' => $tipoUser ?? 0,
+                'db' => $this->currentDatabaseName(),
+            ]);
+
+            $genericError = 'Errore durante il salvataggio (vedi log).';
+            if ((string) env('CI_ENVIRONMENT', '') === 'development') {
+                $genericError = 'Errore durante il salvataggio: ' . $e->getMessage();
+            }
 
             return redirect()->to(site_url('admin/personale/nuovo'))
-                ->with('errors', ['generic' => 'Errore durante il salvataggio (vedi log).'])
+                ->with('errors', ['generic' => $genericError])
                 ->with('old', $post);
         }
     }

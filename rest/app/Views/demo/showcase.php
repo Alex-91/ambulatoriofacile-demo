@@ -18,10 +18,10 @@
             <h1><?= esc($brandName) ?></h1>
             <p class="hero-copy">
                 <?= esc($brandDescription) ?>
-                La demo e una sola, usa dati separati dalla produzione e permette di entrare subito scegliendo il ruolo da vedere.
+                La demo è una sola, usa dati separati dalla produzione e permette di entrare subito scegliendo il ruolo da vedere.
             </p>
             <p class="hero-copy hero-copy-secondary">
-                Il sito vetrina resta commerciale, la demo serve a provare il prodotto con account di test, mentre clienti e master entrano sempre dal login ufficiale.
+                Il sito vetrina resta commerciale, la demo serve a provare il prodotto con account di test, mentre clienti e responsabili entrano sempre dal login ufficiale.
             </p>
             <div class="hero-actions">
                 <a class="btn btn-primary" href="<?= esc((string) ($demoCredentials['demo_access_url'] ?? site_url('access'))) ?>">Apri la demo</a>
@@ -44,12 +44,12 @@
                 <article class="detail-card feature-card">
                     <p class="status-label">Demo</p>
                     <h3>Un solo percorso prova</h3>
-                    <p class="access-note">Da qui si entra nella demo con ruoli gia pronti, accesso diretto e dati finti separati dalla produzione.</p>
+                    <p class="access-note">Da qui si entra nella demo con ruoli già pronti, accesso diretto e dati finti separati dalla produzione.</p>
                 </article>
                 <article class="detail-card feature-card">
                     <p class="status-label">Produzione</p>
                     <h3>Login unico sotto /login</h3>
-                    <p class="access-note">Master piattaforma, tenant master e clienti reali usano sempre lo stesso ingresso ufficiale.</p>
+                    <p class="access-note">Responsabili piattaforma, responsabili di studio e clienti reali usano sempre lo stesso ingresso ufficiale.</p>
                 </article>
             </div>
         </section>
@@ -61,11 +61,12 @@
             </div>
             <div class="flow-grid">
                 <?php foreach ((array) ($demoChecklist ?? []) as $index => $item): ?>
+                    <?php $checklistLoginLabel = (string) ($item['display_username'] ?? ($item['username'] ?? '')); ?>
                     <article class="flow-card">
                         <div class="flow-index"><?= esc((string) ($index + 1)) ?></div>
                         <div class="flow-body">
                             <h3><?= esc((string) ($item['title'] ?? 'Passo demo')) ?></h3>
-                            <p class="access-note">Entra con <strong><?= esc((string) ($item['username'] ?? '')) ?></strong></p>
+                            <p class="access-note">Entra come <strong><?= esc($checklistLoginLabel) ?></strong></p>
                             <p class="access-note"><?= esc((string) ($item['goal'] ?? '')) ?></p>
                         </div>
                     </article>
@@ -120,7 +121,7 @@
                 <article class="status-card">
                     <p class="status-label">Database demo</p>
                     <h3><?= esc((string) ($seedStatus['database'] ?? 'dottorapp_demo')) ?></h3>
-                    <p class="status-note">Seed piu recente: <?= esc((string) ($seedStatus['finished_at'] ?: 'non disponibile')) ?></p>
+                    <p class="status-note">Seed più recente: <?= esc((string) ($seedStatus['finished_at'] ?: 'non disponibile')) ?></p>
                 </article>
                 <article class="status-card">
                     <p class="status-label">Runtime separata</p>

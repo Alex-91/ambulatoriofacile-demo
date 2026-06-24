@@ -42,22 +42,22 @@ class SostituzioniController extends BaseController
     {
         // Deve essere passato OTP
         if (!session()->get('isLoggedInConfirmed')) {
-            return redirect()->to(base_url('login'));
+            return $this->redirectToLogin();
         }
 
         // Solo medico/personale (tipoUser=2)
         if ((int)session()->get('tipoUser') !== 2) {
-            return redirect()->to(base_url('/'));
+            return $this->sessionExpiredRedirect('Sessione non valida. Effettua di nuovo il login.');
         }
 
         $me = session()->get('utente_sess');
         if (!$me || !isset($me->id_personale)) {
-            return redirect()->to(base_url('/'));
+            return $this->sessionExpiredRedirect();
         }
 
         $idPersonaleMe = (int)$me->id_personale;
         if ($idPersonaleMe <= 0) {
-            return redirect()->to(base_url('/'));
+            return $this->sessionExpiredRedirect();
         }
 
         // Lista sostituzioni attive OGGI

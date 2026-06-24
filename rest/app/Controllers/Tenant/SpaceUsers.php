@@ -30,7 +30,7 @@ class SpaceUsers extends BaseController
 
         $context = $this->tenantContext->getCurrentTenant();
         if ($context === null) {
-            return redirect()->to(site_url('/'));
+            return $this->sessionExpiredRedirect();
         }
 
         $tenantId = $context->tenantId;
@@ -57,7 +57,7 @@ class SpaceUsers extends BaseController
 
         $context = $this->tenantContext->getCurrentTenant();
         if ($context === null) {
-            return redirect()->to(site_url('/'));
+            return $this->sessionExpiredRedirect();
         }
 
         $tenantId = $context->tenantId;
@@ -68,6 +68,7 @@ class SpaceUsers extends BaseController
             'last_name' => (string)$this->request->getPost('member_last_name'),
             'tenant_role' => (string)$this->request->getPost('member_tenant_role'),
             'app_user_id' => (int)($this->request->getPost('member_app_user_id') ?? 0),
+            'is_app_admin' => (int)($this->request->getPost('member_is_app_admin') ?? 0) === 1 ? 1 : 0,
             'password' => (string)$this->request->getPost('member_password'),
             'is_default' => (int)($this->request->getPost('member_is_default') ?? 0) === 1 ? 1 : 0,
         ];
@@ -89,15 +90,15 @@ class SpaceUsers extends BaseController
                 : 'Utente dello spazio aggiunto con successo.';
 
             if (in_array((string) ($tenantAppSync['status'] ?? ''), ['skipped', 'error'], true)) {
-                $warnings[] = 'Utente salvato, ma il profilo applicativo del tenant non e ancora pronto: ' . (string) ($tenantAppSync['message'] ?? 'sincronizzazione rimandata');
+                $warnings[] = 'Utente salvato, ma il profilo applicativo dello studio non è ancora pronto: ' . (string) ($tenantAppSync['message'] ?? 'sincronizzazione rimandata');
             }
 
             if ((int) ($this->request->getPost('member_send_access_email') ?? 0) === 1) {
                 try {
                     (new PlatformAccessService())->sendMembershipAccessEmail((int) ($result['membership']['id_platform_user_tenant'] ?? 0), 'tenant_member_save');
-                    $messages[] = 'Email di accesso inviata all utente.';
+                    $messages[] = 'Email di accesso inviata all\'utente.';
                 } catch (\Throwable $e) {
-                    $warnings[] = 'Utente salvato, ma l invio accesso non e riuscito: ' . $e->getMessage();
+                    $warnings[] = 'Utente salvato, ma l\'invio dell\'accesso non è riuscito: ' . $e->getMessage();
                 }
             }
 
@@ -128,7 +129,7 @@ class SpaceUsers extends BaseController
 
         $context = $this->tenantContext->getCurrentTenant();
         if ($context === null) {
-            return redirect()->to(site_url('/'));
+            return $this->sessionExpiredRedirect();
         }
 
         $membershipId = (int) ($this->request->getPost('member_id_platform_user_tenant') ?? 0);
@@ -162,12 +163,12 @@ class SpaceUsers extends BaseController
     private function ensureAllowed()
     {
         if ((bool)(session()->get('isLoggedInConfirmed') ?? false) !== true) {
-            return redirect()->to(portal_public_access_url('login'));
+            return $this->redirectToLogin();
         }
 
         $context = $this->tenantContext->getCurrentTenant();
         if ($context === null) {
-            return redirect()->to(site_url('/'));
+            return $this->sessionExpiredRedirect();
         }
 
         if (!$context->allows('staff_management')) {
@@ -175,11 +176,11 @@ class SpaceUsers extends BaseController
         }
 
         if (!in_array($context->tenantRole, ['tenant_master', 'tenant_admin'], true)) {
-            return redirect()->to(site_url('/'))->with('error', 'Non sei autorizzato a gestire gli utenti di questo spazio.');
+            return redirect()->to(site_url('/'))->with('error', 'Non sei autorizzato a gestire gli utenti di questo studio.');
         }
 
         if ((int)(session()->get('platform_user_id') ?? 0) <= 0) {
-            return redirect()->to(site_url('/'))->with('error', 'Funzione disponibile solo per accessi piattaforma.');
+            return $this->sessionExpiredRedirect();
         }
 
         return null;

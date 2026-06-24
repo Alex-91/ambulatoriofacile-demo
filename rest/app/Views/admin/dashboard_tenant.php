@@ -194,7 +194,7 @@ $completion = is_array($completion ?? null) ? $completion : ['completed' => 0, '
     <section class="content-header">
       <h1>Dashboard spazio</h1>
       <p class="text-muted" style="margin:8px 0 0 0;">
-        Qui trovi i prossimi passi del tuo spazio e le scorciatoie per arrivarci senza passaggi inutili.
+        Qui trovi i prossimi passi del tuo studio e le scorciatoie per arrivarci senza passaggi inutili.
       </p>
     </section>
 
@@ -208,7 +208,7 @@ $completion = is_array($completion ?? null) ? $completion : ['completed' => 0, '
           <div class="tenant-hero">
             <h3><?= esc((string)($tenant['tenant_name'] ?? ($tenantContext->tenantName ?? 'Spazio cliente'))) ?></h3>
             <p>
-              La home del tenant master ora parte direttamente dall area operativa. Prima mettiamo ordine su sedi, personale e clienti, poi tutto il resto del team entra in uno spazio gia pulito.
+              La home del responsabile dello studio ora parte direttamente dall'area operativa. Prima mettiamo ordine su sedi, personale e clienti, poi tutto il resto del team entra in uno spazio già pulito.
             </p>
             <div>
               <span class="tenant-badge">Pacchetto: <?= esc((string)($dashboardStats['package_name'] ?? 'Base')) ?></span>
@@ -249,14 +249,14 @@ $completion = is_array($completion ?? null) ? $completion : ['completed' => 0, '
               <div class="summary-card">
                 <span class="label-top">Personale</span>
                 <span class="value"><?= (int)($dashboardStats['personnel_count'] ?? 0) ?></span>
-                <div class="hint">Profili operativi gia presenti nello spazio.</div>
+                <div class="hint">Profili operativi già presenti nello studio.</div>
               </div>
             </div>
             <div class="col-sm-6 col-lg-3">
               <div class="summary-card">
                 <span class="label-top">Clienti</span>
                 <span class="value"><?= (int)($dashboardStats['client_count'] ?? 0) ?></span>
-                <div class="hint">Anagrafiche clienti gia caricate nel tenant.</div>
+                <div class="hint">Anagrafiche clienti già caricate nello studio.</div>
               </div>
             </div>
             <div class="col-sm-6 col-lg-3">

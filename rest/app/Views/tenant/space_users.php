@@ -12,7 +12,7 @@ $memberSuccess = $memberSuccess ?? null;
 $memberTempPassword = trim((string)($memberTempPassword ?? ''));
 $memberWarnings = is_array($memberWarnings ?? null) ? $memberWarnings : [];
 $tenant = is_array($tenant ?? null) ? $tenant : [];
-$tenantName = trim((string)($tenantContext->tenantName ?? ($tenant['tenant_name'] ?? 'Spazio cliente')));
+$tenantName = trim((string)($tenantContext->tenantName ?? ($tenant['tenant_name'] ?? 'Studio cliente')));
 $editingMemberId = (int) old('member_id_platform_user_tenant');
 $isEditingMember = $editingMemberId > 0;
 
@@ -25,7 +25,7 @@ $oldValue = static function (string $key, $fallback = '') {
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>AmbulatorioFacile | Utenti Spazio</title>
+  <title>AmbulatorioFacile | Utenti Studio</title>
   <meta content="width=device-width, initial-scale=1" name="viewport">
   <link rel="icon" href="<?= base_url('public/assets/images/logonew.jpg') ?>" type="image/x-icon" sizes="any">
   <link href="<?= base_url('public/bootstrap/css/bootstrap.min.css') ?>" rel="stylesheet" />
@@ -66,9 +66,9 @@ $oldValue = static function (string $key, $fallback = '') {
 
   <div class="content-wrapper">
     <section class="content-header">
-      <h1>Utenti dello spazio</h1>
+      <h1>Utenti dello studio</h1>
       <p class="text-muted" style="margin:8px 0 0 0;">
-        Gestisci gli accessi del tuo spazio senza intervenire sulla configurazione tecnica del database.
+        Gestisci gli accessi del tuo studio senza intervenire sulla configurazione tecnica del database.
       </p>
     </section>
 
@@ -104,7 +104,7 @@ $oldValue = static function (string $key, $fallback = '') {
           <div class="workspace-hero">
             <h3 style="margin-top:0; margin-bottom:8px;"><?= esc($tenantName) ?></h3>
             <p style="margin:0 0 12px 0; color:#52676c;">
-              Qui puoi invitare o aggiornare gli utenti del tuo spazio. La configurazione del database resta gestita dall amministrazione centrale.
+              Qui puoi invitare o aggiornare gli utenti del tuo studio. La configurazione del database resta gestita dall'amministrazione centrale.
             </p>
             <span class="summary-badge">Pacchetto: <?= esc((string)($tenantContext->packageName ?? $tenantContext->packageCode ?? '')) ?></span>
             <span class="summary-badge">Utenti attuali: <?= esc((string)$capacityCurrent) ?></span>
@@ -139,18 +139,22 @@ $oldValue = static function (string $key, $fallback = '') {
                         $memberId = (int)($member['id_platform_user_tenant'] ?? 0);
                         $isOwnerMember = (int)($member['is_owner'] ?? 0) === 1;
                         $fullName = trim((string)($member['first_name'] ?? '') . ' ' . (string)($member['last_name'] ?? ''));
+                        $memberRole = (string)($member['tenant_role'] ?? 'tenant_staff');
                       ?>
                       <tr>
                         <td><?= esc((string)($member['email'] ?? '')) ?></td>
                         <td><?= $fullName !== '' ? esc($fullName) : '<span class="text-muted">-</span>' ?></td>
-                        <td><?= esc((string)($member['tenant_role'] ?? 'tenant_staff')) ?></td>
+                        <td><?= esc(portal_space_role_label($memberRole)) ?></td>
                         <td><?= esc((string)($member['app_user_id'] ?? '-')) ?></td>
                         <td class="member-meta">
                           <?php if ($isOwnerMember): ?>
-                            <span class="label label-primary">owner</span>
+                            <span class="label label-primary">responsabile</span>
                           <?php endif; ?>
                           <?php if ((int)($member['is_default'] ?? 0) === 1): ?>
-                            <span class="label label-info">default</span>
+                            <span class="label label-info">predefinito</span>
+                          <?php endif; ?>
+                          <?php if ((int)($member['is_app_admin'] ?? 0) === 1): ?>
+                            <span class="label label-primary">medico amministratore</span>
                           <?php endif; ?>
                           <span class="label label-default"><?= esc((string)($member['invitation_status'] ?? 'pending')) ?></span>
                           <span class="label label-<?= ((string)($member['platform_user_status'] ?? '') === 'active') ? 'success' : 'warning' ?>">
@@ -159,7 +163,7 @@ $oldValue = static function (string $key, $fallback = '') {
                         </td>
                         <td>
                           <?php if ($isOwnerMember): ?>
-                            <span class="text-muted">Master</span>
+                            <span class="text-muted">Responsabile</span>
                           <?php else: ?>
                             <button
                               class="btn btn-xs btn-primary js-member-edit"
@@ -170,6 +174,7 @@ $oldValue = static function (string $key, $fallback = '') {
                               data-last-name="<?= esc((string)($member['last_name'] ?? ''), 'attr') ?>"
                               data-role="<?= esc((string)($member['tenant_role'] ?? 'tenant_staff'), 'attr') ?>"
                               data-app-user-id="<?= esc((string)($member['app_user_id'] ?? ''), 'attr') ?>"
+                              data-is-app-admin="<?= esc((string)($member['is_app_admin'] ?? 0), 'attr') ?>"
                               data-is-default="<?= esc((string)($member['is_default'] ?? 0), 'attr') ?>"
                             >
                               <i class="fa fa-pencil"></i> Modifica
@@ -222,17 +227,17 @@ $oldValue = static function (string $key, $fallback = '') {
                   </div>
                   <div class="col-md-2">
                     <div class="form-group">
-                      <label>Ruolo tenant</label>
+                      <label>Ruolo nello studio</label>
                       <?php $memberRole = (string)$oldValue('member_tenant_role', 'tenant_staff'); ?>
                       <select class="form-control" name="member_tenant_role" id="member_tenant_role">
-                        <option value="tenant_staff" <?= $memberRole === 'tenant_staff' ? 'selected' : '' ?>>tenant_staff</option>
-                        <option value="tenant_admin" <?= $memberRole === 'tenant_admin' ? 'selected' : '' ?>>tenant_admin</option>
+                        <option value="tenant_staff" <?= $memberRole === 'tenant_staff' ? 'selected' : '' ?>><?= esc(portal_space_role_label('tenant_staff')) ?></option>
+                        <option value="tenant_admin" <?= $memberRole === 'tenant_admin' ? 'selected' : '' ?>><?= esc(portal_space_role_label('tenant_admin')) ?></option>
                       </select>
                     </div>
                   </div>
                   <div class="col-md-2">
                     <div class="form-group">
-                      <label>App user ID</label>
+                      <label>ID utente agenda</label>
                       <input type="number" class="form-control" name="member_app_user_id" id="member_app_user_id" value="<?= esc((string)$oldValue('member_app_user_id', '')) ?>">
                     </div>
                   </div>
@@ -247,8 +252,18 @@ $oldValue = static function (string $key, $fallback = '') {
                   </div>
                   <div class="col-md-5">
                     <p class="text-muted" style="margin-top:32px;">
-                      Se lasci vuoto App user ID, il sistema proverà a collegare automaticamente l utente tramite la stessa email presente nel DB del tuo spazio.
+                      Se lasci vuoto l'ID utente agenda, il sistema proverà a collegare automaticamente l'utente tramite la stessa email presente nel database del tuo studio.
                     </p>
+                    <div class="checkbox" style="margin-top:12px;">
+                      <?php $memberIsAppAdmin = (string)$oldValue('member_is_app_admin', '0'); ?>
+                      <label>
+                        <input type="checkbox" name="member_is_app_admin" id="member_is_app_admin" value="1" <?= $memberIsAppAdmin === '1' ? 'checked' : '' ?>>
+                        Medico amministratore
+                      </label>
+                      <p class="text-muted" style="margin:6px 0 0 24px;">
+                        Attivalo solo se l'ID utente agenda punta a un medico che deve vedere anche il menu amministrativo dell'agenda.
+                      </p>
+                    </div>
                   </div>
                   <div class="col-md-3">
                     <div class="checkbox" style="margin-top:32px;">
@@ -304,6 +319,7 @@ $oldValue = static function (string $key, $fallback = '') {
   var memberLastName = document.getElementById('member_last_name');
   var memberRole = document.getElementById('member_tenant_role');
   var memberAppUserId = document.getElementById('member_app_user_id');
+  var memberIsAppAdmin = document.getElementById('member_is_app_admin');
   var memberPassword = document.getElementById('member_password');
   var memberIsDefault = document.getElementById('member_is_default');
   var memberSubmit = document.getElementById('member-submit-button');
@@ -315,6 +331,7 @@ $oldValue = static function (string $key, $fallback = '') {
     if (memberLastName) memberLastName.value = '';
     if (memberRole) memberRole.value = 'tenant_staff';
     if (memberAppUserId) memberAppUserId.value = '';
+    if (memberIsAppAdmin) memberIsAppAdmin.checked = false;
     if (memberPassword) memberPassword.value = '';
     if (memberIsDefault) memberIsDefault.checked = false;
     if (memberSubmit) memberSubmit.innerHTML = '<i class="fa fa-user-plus"></i> Aggiungi utente';
@@ -328,6 +345,7 @@ $oldValue = static function (string $key, $fallback = '') {
       if (memberLastName) memberLastName.value = button.getAttribute('data-last-name') || '';
       if (memberRole) memberRole.value = button.getAttribute('data-role') || 'tenant_staff';
       if (memberAppUserId) memberAppUserId.value = button.getAttribute('data-app-user-id') || '';
+      if (memberIsAppAdmin) memberIsAppAdmin.checked = (button.getAttribute('data-is-app-admin') || '0') === '1';
       if (memberPassword) memberPassword.value = '';
       if (memberIsDefault) memberIsDefault.checked = (button.getAttribute('data-is-default') || '0') === '1';
       if (memberSubmit) memberSubmit.innerHTML = '<i class="fa fa-save"></i> Salva utente';

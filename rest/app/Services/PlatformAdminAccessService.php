@@ -74,6 +74,7 @@ class PlatformAdminAccessService
             'menuData',
             'menuAgenda',
             'menuDataAdmin',
+            'tenant_app_admin',
             'header_nav_items',
             'header_menu_items',
             'badge_posta_unread',

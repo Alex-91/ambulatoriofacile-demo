@@ -98,6 +98,8 @@ $useMinimalTenantOnboardingHeader = $isTenantOnboardingRoute
     && $showTenantOnboardingLink;
 $hideHeaderMenu = $hideHeaderMenu || $useMinimalTenantOnboardingHeader;
 $tenantOperationalHomeUrl = $tenantId > 0 ? portal_operational_home_url() : null;
+$canOpenTenantAdminMenu = $tenantId > 0
+    && (bool) ($sess->get('tenant_app_admin') ?? false) === true;
 $moveHeaderActionsToSidebar = $isTenantOperationalConsoleSession && !$useMinimalTenantOnboardingHeader;
 $showHeaderProfileAction = !$isPlatformConsoleSession && !$moveHeaderActionsToSidebar;
 $portalConsoleHeaderOverride = isset($portal_console_header) ? (bool) $portal_console_header : null;
@@ -361,6 +363,16 @@ if ($headerMenuUserId > 0) {
                 <a href="<?= esc($tenantOperationalHomeUrl) ?>" class="btn btn-default btn-flat platform-user-action">
                   <i class="fa fa-home"></i> Vai al portale operativo
                 </a>
+              </div>
+              <?php endif; ?>
+              <?php if (!$useMinimalTenantOnboardingHeader && $canOpenTenantAdminMenu && !$isTenantOperationalConsoleSession): ?>
+              <div class="platform-user-section">
+                <a href="<?= site_url('admin') ?>" class="btn btn-default btn-flat platform-user-action">
+                  <i class="fa fa-briefcase"></i> Apri menu amministrativo
+                </a>
+                <div class="platform-user-help">
+                  Qui trovi il profilo admin e le voci agenda riservate al medico amministratore.
+                </div>
               </div>
               <?php endif; ?>
               <?php if (!$useMinimalTenantOnboardingHeader && $showTenantSwitchSection): ?>
