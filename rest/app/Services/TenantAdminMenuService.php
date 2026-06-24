@@ -60,8 +60,8 @@ class TenantAdminMenuService
                 'title' => 'Gestione sedi',
                 'link' => 'agenda/gestione-sedi',
                 'icon' => 'fa-map-marker',
-                'order' => 500,
-                'default' => false,
+                'order' => 450,
+                'default' => true,
                 'description' => 'Configura sedi e stanze prima di inserire il personale.',
             ],
             [
