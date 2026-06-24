@@ -6,6 +6,19 @@ use CodeIgniter\Database\BaseConnection;
 
 class TenantAdminMenuService
 {
+    /**
+     * Link da retro-inserire negli studi gia esistenti quando mancavano
+     * nei menu creati prima dell'introduzione della nuova voce.
+     *
+     * @return list<string>
+     */
+    private function requiredBackfillLinks(): array
+    {
+        return [
+            'agenda/gestione-sedi',
+        ];
+    }
+
     private TenantDatabaseConnector $tenantDbConnector;
 
     public function __construct()
@@ -224,10 +237,85 @@ class TenantAdminMenuService
     {
         $current = $this->listConfiguredMenu($db);
         if ($current !== []) {
-            return $current;
+            return $this->ensureRequiredLinksPresent($db, $this->requiredBackfillLinks());
         }
 
         return $this->syncConfiguredLinks($db, $this->defaultLinks());
+    }
+
+    /**
+     * @param list<string> $requiredLinks
+     * @return list<array<string, mixed>>
+     */
+    public function ensureRequiredLinksPresent(BaseConnection $db, array $requiredLinks): array
+    {
+        if (!$db->tableExists('dap06_mnu')) {
+            return [];
+        }
+
+        $catalogByLink = [];
+        foreach ($this->catalog() as $item) {
+            $catalogByLink[(string) ($item['link'] ?? '')] = $item;
+        }
+
+        $rows = $db->table('dap06_mnu')
+            ->select('id_mnu, titolo_menu, link, link2, class_icon, admin, ordinamento')
+            ->where('admin', 1)
+            ->orderBy('ordinamento', 'ASC')
+            ->orderBy('id_mnu', 'ASC')
+            ->get()
+            ->getResultArray();
+
+        if ($rows === []) {
+            return $this->syncConfiguredLinks($db, $this->defaultLinks());
+        }
+
+        $normalizedRows = [];
+        foreach ($rows as $row) {
+            $normalized = $this->normalizeLink($this->menuLinkFromRow($row));
+            if ($normalized !== '' && !isset($normalizedRows[$normalized])) {
+                $normalizedRows[$normalized] = $row;
+            }
+        }
+
+        foreach ($requiredLinks as $link) {
+            $normalized = $this->normalizeLink((string) $link);
+            if ($normalized === '' || !isset($catalogByLink[$normalized])) {
+                continue;
+            }
+
+            $item = $catalogByLink[$normalized];
+            $payload = [
+                'titolo_menu' => (string) ($item['title'] ?? $normalized),
+                'link' => $normalized,
+                'link2' => $normalized,
+                'class' => '',
+                'class_icon' => (string) ($item['icon'] ?? 'fa-circle-o'),
+                'admin' => 1,
+                'ordinamento' => (int) ($item['order'] ?? 0),
+            ];
+
+            if (isset($normalizedRows[$normalized])) {
+                $existing = $normalizedRows[$normalized];
+                $needsUpdate =
+                    trim((string) ($existing['titolo_menu'] ?? '')) !== $payload['titolo_menu']
+                    || $this->menuLinkFromRow($existing) !== $normalized
+                    || trim((string) ($existing['class_icon'] ?? '')) !== $payload['class_icon']
+                    || (int) ($existing['ordinamento'] ?? 0) !== $payload['ordinamento'];
+
+                if ($needsUpdate) {
+                    $db->table('dap06_mnu')
+                        ->where('id_mnu', (int) ($existing['id_mnu'] ?? 0))
+                        ->update($payload);
+                }
+
+                continue;
+            }
+
+            $db->table('dap06_mnu')->insert($payload);
+        }
+
+        return $this->listConfiguredMenu($db);
     }
 
     /**
@@ -300,6 +388,7 @@ class TenantAdminMenuService
 
         try {
             $tenantDb = $this->tenantDbConnector->connect($tenant);
+            $this->ensureRequiredLinksPresent($tenantDb, $this->requiredBackfillLinks());
             $selectedLinks = $this->currentLinks($tenantDb);
             if ($selectedLinks === []) {
                 $selectedLinks = $this->defaultLinks();
@@ -349,5 +438,15 @@ class TenantAdminMenuService
     {
         $tenantDb = $this->tenantDbConnector->connect($tenant);
         return $this->syncConfiguredLinks($tenantDb, $selectedLinks);
+    }
+
+    private function menuLinkFromRow(array $row): string
+    {
+        $link2 = trim((string) ($row['link2'] ?? ''));
+        if ($link2 !== '' && $link2 !== '#') {
+            return $link2;
+        }
+
+        return trim((string) ($row['link'] ?? ''));
     }
 }
