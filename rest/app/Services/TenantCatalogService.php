@@ -74,6 +74,24 @@ class TenantCatalogService
             ->getResultArray();
     }
 
+    public function findTenantMembershipByAppUser(int $platformUserId, int $appUserId): ?array
+    {
+        if ($platformUserId <= 0 || $appUserId <= 0) {
+            return null;
+        }
+
+        return $this->db->table('platform_user_tenants put')
+            ->select('put.*, t.tenant_key, t.tenant_name, t.status AS tenant_status, t.onboarding_status, t.storage_key, t.feature_profile, t.login_hint, t.is_active AS tenant_is_active, p.package_code, p.package_name')
+            ->join('platform_tenants t', 't.id_tenant = put.id_tenant')
+            ->join('platform_packages p', 'p.id_package = t.id_package', 'left')
+            ->where('put.id_platform_user', $platformUserId)
+            ->where('put.app_user_id', $appUserId)
+            ->orderBy('put.is_default', 'DESC')
+            ->orderBy('put.id_platform_user_tenant', 'ASC')
+            ->get(1)
+            ->getRowArray() ?: null;
+    }
+
     /**
      * @return array<string, bool>
      */

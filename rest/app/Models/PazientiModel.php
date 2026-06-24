@@ -1032,9 +1032,15 @@ class PazientiModel extends Model
 
         $hasAppointmentClientColumn = $this->db->fieldExists('id_client', self::APPOINTMENTS_TABLE);
         $hasAppointmentCreatedByColumn = $this->db->fieldExists('created_by', self::APPOINTMENTS_TABLE);
+        $hasAppointmentEndColumn = $this->db->fieldExists('ora_fine_appuntamento', self::APPOINTMENTS_TABLE);
+        $hasAppointmentVisitTypeLabelColumn = $this->db->fieldExists('tipo_visita_label', self::APPOINTMENTS_TABLE);
+        $hasAppointmentDurationColumn = $this->db->fieldExists('durata_minuti', self::APPOINTMENTS_TABLE);
         $limit = max(1, min(200, $limit));
         $queries = [];
         $params = [];
+        $appointmentEndExpr = $hasAppointmentEndColumn ? 'a.ora_fine_appuntamento' : 'NULL';
+        $appointmentVisitTypeLabelExpr = $hasAppointmentVisitTypeLabelColumn ? 'a.tipo_visita_label' : "''";
+        $appointmentDurationExpr = $hasAppointmentDurationColumn ? 'a.durata_minuti' : 'NULL';
         $createdBySelect = $hasAppointmentCreatedByColumn
             ? "COALESCE(u_created.username, '') AS created_by_username,"
             : "'' AS created_by_username,";
@@ -1051,12 +1057,17 @@ class PazientiModel extends Model
                 a.id_dot,
                 s.data_slot,
                 s.ora_inizio,
-                s.ora_fine,
+                COALESCE({$appointmentEndExpr}, s.ora_fine) AS ora_fine,
                 TIME_FORMAT(s.ora_inizio, '%H:%i') AS ora_inizio_label,
-                TIME_FORMAT(s.ora_fine, '%H:%i') AS ora_fine_label,
+                TIME_FORMAT(COALESCE({$appointmentEndExpr}, s.ora_fine), '%H:%i') AS ora_fine_label,
                 COALESCE(a.stato, '') AS stato,
                 COALESCE(s.stato, '') AS stato_slot,
                 COALESCE(a.motivo_visita, '') AS motivo_visita,
+                COALESCE({$appointmentVisitTypeLabelExpr}, '') AS tipo_visita_label,
+                COALESCE(
+                    {$appointmentDurationExpr},
+                    TIMESTAMPDIFF(MINUTE, s.ora_inizio, COALESCE({$appointmentEndExpr}, s.ora_fine))
+                ) AS durata_minuti,
                 COALESCE(a.note, '') AS note,
                 {$createdBySelect}
                 COALESCE(a.indirizzo_visita, '') AS indirizzo_visita,

@@ -35,9 +35,12 @@ class AgendaSlotModel extends Model
     protected $db;
     private ?bool $hasAppointmentClientColumn = null;
     private ?bool $hasAppointmentCreatedByColumn = null;
+    private ?bool $hasAppointmentSlotLinkTable = null;
     private ?bool $hasFasceTable = null;
     private ?bool $hasAmbulatoriTable = null;
     private ?bool $hasSlotRoomColumn = null;
+    /** @var array<string, bool> */
+    private array $appointmentFieldExistsCache = [];
 
     public function __construct()
     {
@@ -99,15 +102,26 @@ public function getSlotsCalendario(int $idDot, string $date, string $view = 'day
     a.note,
     {$createdByUsernameSelect}
     a.motivo_visita,
+    COALESCE(a.id_tipo_visita, 0) AS id_tipo_visita,
+    COALESCE(a.tipo_visita_label, '') AS tipo_visita_label,
+    COALESCE(
+        a.durata_minuti,
+        TIMESTAMPDIFF(MINUTE, s.ora_inizio, COALESCE(a.ora_fine_appuntamento, s.ora_fine))
+    ) AS appointment_durata_minuti,
+    COALESCE(a.ora_fine_appuntamento, s.ora_fine) AS appointment_ora_fine,
+    COALESCE(a.appointment_is_primary_slot, 0) AS appointment_is_primary_slot,
+    COALESCE(a.appointment_slot_position, 0) AS appointment_slot_position,
     a.indirizzo_visita,
     a.comune_visita,
     a.stato AS stato_appuntamento
 ", false);
 
     $builder->join(
-        'dap12_agenda_appuntamenti a',
-        'a.id_slot = s.id_slot AND a.stato <> "ANNULLATO"',
+        '(' . $this->buildAppointmentCoverageSubquery() . ') a',
+        'a.id_slot = s.id_slot',
         'left'
+        ,
+        false
     );
 
     if ($hasAppointmentClientColumn) {
@@ -227,6 +241,89 @@ public function getAvailabilityDaysForRange(int $idDot, string $fromDate, string
         }
 
         return $this->hasAppointmentCreatedByColumn;
+    }
+
+    private function appointmentSlotLinkTableExists(): bool
+    {
+        if ($this->hasAppointmentSlotLinkTable === null) {
+            $this->hasAppointmentSlotLinkTable = $this->db->tableExists('dap45_agenda_appuntamenti_slot');
+        }
+
+        return $this->hasAppointmentSlotLinkTable;
+    }
+
+    private function appointmentTableHasField(string $field): bool
+    {
+        if (!array_key_exists($field, $this->appointmentFieldExistsCache)) {
+            $this->appointmentFieldExistsCache[$field] = $this->db->fieldExists($field, 'dap12_agenda_appuntamenti');
+        }
+
+        return $this->appointmentFieldExistsCache[$field];
+    }
+
+    private function buildAppointmentCoverageSubquery(): string
+    {
+        $columns = [
+            'a.id_appuntamento AS id_appuntamento',
+            'a.id_dot AS id_dot',
+            'a.id_paziente AS id_paziente',
+            ($this->appointmentTableHasClientColumn() ? 'a.id_client' : 'NULL') . ' AS id_client',
+            'a.cognome AS cognome',
+            'a.nome AS nome',
+            'a.telefono AS telefono',
+            'a.cellulare AS cellulare',
+            'a.email AS email',
+            'a.note AS note',
+            ($this->appointmentTableHasCreatedByColumn() ? 'a.created_by' : 'NULL') . ' AS created_by',
+            'a.motivo_visita AS motivo_visita',
+            'a.indirizzo_visita AS indirizzo_visita',
+            'a.comune_visita AS comune_visita',
+            ($this->appointmentTableHasField('id_tipo_visita') ? 'a.id_tipo_visita' : 'NULL') . ' AS id_tipo_visita',
+            ($this->appointmentTableHasField('tipo_visita_label') ? 'a.tipo_visita_label' : 'NULL') . ' AS tipo_visita_label',
+            ($this->appointmentTableHasField('durata_minuti') ? 'a.durata_minuti' : 'NULL') . ' AS durata_minuti',
+            ($this->appointmentTableHasField('ora_fine_appuntamento') ? 'a.ora_fine_appuntamento' : 'NULL') . ' AS ora_fine_appuntamento',
+            'a.stato AS stato',
+        ];
+        $columnSql = implode(",\n            ", $columns);
+
+        if ($this->appointmentSlotLinkTableExists()) {
+            return "
+                SELECT
+                    rel.id_slot AS id_slot,
+                    {$columnSql},
+                    rel.is_primario AS appointment_is_primary_slot,
+                    rel.posizione AS appointment_slot_position
+                FROM dap12_agenda_appuntamenti a
+                INNER JOIN dap45_agenda_appuntamenti_slot rel
+                    ON rel.id_appuntamento = a.id_appuntamento
+                WHERE a.stato <> 'ANNULLATO'
+
+                UNION ALL
+
+                SELECT
+                    a.id_slot AS id_slot,
+                    {$columnSql},
+                    1 AS appointment_is_primary_slot,
+                    1 AS appointment_slot_position
+                FROM dap12_agenda_appuntamenti a
+                WHERE a.stato <> 'ANNULLATO'
+                  AND NOT EXISTS (
+                        SELECT 1
+                        FROM dap45_agenda_appuntamenti_slot rel
+                        WHERE rel.id_appuntamento = a.id_appuntamento
+                  )
+            ";
+        }
+
+        return "
+            SELECT
+                a.id_slot AS id_slot,
+                {$columnSql},
+                1 AS appointment_is_primary_slot,
+                1 AS appointment_slot_position
+            FROM dap12_agenda_appuntamenti a
+            WHERE a.stato <> 'ANNULLATO'
+        ";
     }
 
     private function configFasceTableExists(): bool

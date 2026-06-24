@@ -9,6 +9,7 @@ class AgendaLockModel extends Model
     private const LOCK_TTL_SECONDS = 120;
 
     protected $db;
+    private ?bool $hasAppointmentSlotLinkTable = null;
 
     public function __construct()
     {
@@ -260,6 +261,27 @@ class AgendaLockModel extends Model
             return false;
         }
 
+        if ($this->appointmentSlotLinkTableExists()) {
+            return $this->db->query(
+                "
+                SELECT a.id_appuntamento
+                FROM dap12_agenda_appuntamenti a
+                WHERE a.stato <> 'ANNULLATO'
+                  AND (
+                        a.id_slot = ?
+                        OR EXISTS (
+                            SELECT 1
+                            FROM dap45_agenda_appuntamenti_slot rel
+                            WHERE rel.id_appuntamento = a.id_appuntamento
+                              AND rel.id_slot = ?
+                        )
+                  )
+                LIMIT 1
+                ",
+                [$idSlot, $idSlot]
+            )->getRowArray() !== null;
+        }
+
         return $this->db->table('dap12_agenda_appuntamenti')
             ->select('id_appuntamento')
             ->where('id_slot', $idSlot)
@@ -464,6 +486,27 @@ class AgendaLockModel extends Model
             ->where('stato <>', 'ANNULLATO')
             ->countAllResults() > 0;
 
+        if ($this->appointmentSlotLinkTableExists()) {
+            $hasAppointment = $this->db->query(
+                "
+                SELECT a.id_appuntamento
+                FROM dap12_agenda_appuntamenti a
+                WHERE a.stato <> 'ANNULLATO'
+                  AND (
+                        a.id_slot = ?
+                        OR EXISTS (
+                            SELECT 1
+                            FROM dap45_agenda_appuntamenti_slot rel
+                            WHERE rel.id_appuntamento = a.id_appuntamento
+                              AND rel.id_slot = ?
+                        )
+                  )
+                LIMIT 1
+                ",
+                [$idSlot, $idSlot]
+            )->getRowArray() !== null;
+        }
+
         $isDayBlocked = $this->db->table('dap21_agenda_giorni_bloccati')
             ->where('id_dot', (int)($slot['id_dot'] ?? 0))
             ->where('data_agenda', (string)($slot['data_slot'] ?? ''))
@@ -485,5 +528,14 @@ class AgendaLockModel extends Model
         }
 
         return $targetState;
+    }
+
+    private function appointmentSlotLinkTableExists(): bool
+    {
+        if ($this->hasAppointmentSlotLinkTable === null) {
+            $this->hasAppointmentSlotLinkTable = $this->db->tableExists('dap45_agenda_appuntamenti_slot');
+        }
+
+        return $this->hasAppointmentSlotLinkTable;
     }
 }

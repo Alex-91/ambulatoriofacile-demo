@@ -13,11 +13,13 @@ use App\Models\AgendaModel;
 use App\Models\AgendaLockModel;
 use App\Models\AgendaNoteModel;
 use App\Models\AgendaSlotModel;
+use App\Models\AgendaVisitTypeModel;
 use App\Models\PazientiModel;
 use App\Services\AgendaAppointmentNotificationService;
 use App\Services\NotificationService;
 use App\Services\SmsReminderDashboardService;
 use App\Services\StaffDoctorAccessService;
+use App\Services\TenantFeatureService;
 use App\Services\TenantContextService;
 use Exception;
 
@@ -27,6 +29,7 @@ class Agenda extends BaseController
     private const DEMO_DEFAULT_DATE = '2026-06-01';
     private const TEAM_DAY_VIEW_FEATURE = 'agenda_team_day_view';
     private const SHARED_AGENDA_MEMOS_FEATURE = 'shared_agenda_memos';
+    private const VISIT_TYPES_FEATURE = 'agenda_visit_types';
 
     protected AgendaModel $agendaModel;
     protected AgendaSlotModel $slotModel;
@@ -38,9 +41,12 @@ class Agenda extends BaseController
     protected AgendaBackupModel $agendaBackupModel;
     protected AgendaJobModel $agendaJobModel;
     protected AgendaLocationModel $locationModel;
+    protected AgendaVisitTypeModel $visitTypeModel;
     protected NotificationService $notificationService;
     protected TenantContextService $tenantContextService;
+    protected TenantFeatureService $tenantFeatureService;
     protected $db;
+    protected ?array $tenantFeatureMap = null;
 
     public function __construct()
     {
@@ -54,8 +60,10 @@ class Agenda extends BaseController
         $this->agendaBackupModel = new AgendaBackupModel();
         $this->agendaJobModel    = new AgendaJobModel();
         $this->locationModel     = new AgendaLocationModel();
+        $this->visitTypeModel    = new AgendaVisitTypeModel();
         $this->notificationService = new NotificationService();
         $this->tenantContextService = new TenantContextService();
+        $this->tenantFeatureService = new TenantFeatureService();
 
         $this->db = \Config\Database::connect();
 
@@ -589,9 +597,7 @@ public function eseguiRepairRecurringExtraSlots()
 
     protected function isTeamDayViewFeatureEnabled(): bool
     {
-        $context = $this->tenantContextService->getCurrentTenant();
-
-        return $context !== null && $context->allows(self::TEAM_DAY_VIEW_FEATURE);
+        return $this->tenantFeatureEnabled(self::TEAM_DAY_VIEW_FEATURE);
     }
 
     protected function canUseTeamDayView(array $medici): bool
@@ -601,9 +607,55 @@ public function eseguiRepairRecurringExtraSlots()
 
     protected function isSharedAgendaMemosFeatureEnabled(): bool
     {
-        $context = $this->tenantContextService->getCurrentTenant();
+        return $this->tenantFeatureEnabled(self::SHARED_AGENDA_MEMOS_FEATURE);
+    }
 
-        return $context !== null && $context->allows(self::SHARED_AGENDA_MEMOS_FEATURE);
+    protected function isVisitTypesFeatureEnabled(): bool
+    {
+        return $this->tenantFeatureEnabled(self::VISIT_TYPES_FEATURE);
+    }
+
+    protected function assertVisitTypesFeatureEnabled(): void
+    {
+        if (!$this->isVisitTypesFeatureEnabled()) {
+            throw new \Exception('La gestione dei tipi visita non e attiva per questo studio.');
+        }
+    }
+
+    protected function tenantFeatureEnabled(string $featureKey): bool
+    {
+        $featureKey = trim($featureKey);
+        if ($featureKey === '') {
+            return false;
+        }
+
+        $context = $this->tenantContextService->getCurrentTenant();
+        if ($context === null) {
+            return false;
+        }
+
+        $featureMap = $this->getTenantFeatureMap($context->tenantId);
+        if (array_key_exists($featureKey, $featureMap)) {
+            return (bool) $featureMap[$featureKey];
+        }
+
+        return $context->allows($featureKey);
+    }
+
+    /**
+     * @return array<string, bool>
+     */
+    protected function getTenantFeatureMap(int $tenantId): array
+    {
+        if ($tenantId <= 0) {
+            return [];
+        }
+
+        if ($this->tenantFeatureMap === null) {
+            $this->tenantFeatureMap = $this->tenantFeatureService->resolveEffectiveFeatureMapForTenant($tenantId);
+        }
+
+        return $this->tenantFeatureMap;
     }
 
     /**
@@ -1262,6 +1314,7 @@ public function eseguiRepairRecurringExtraSlots()
     {
         $medici = $this->agendaModel->getMediciVisibili($this->getCurrentUserId());
         $teamDayViewEnabled = $this->canUseTeamDayView($medici);
+        $visitTypesFeatureEnabled = $this->isVisitTypesFeatureEnabled();
 
         $selectedDot = (int)($this->request->getGet('id_dot') ?: $this->getFirstVisibleDoctorId($medici));
 
@@ -1281,6 +1334,8 @@ public function eseguiRepairRecurringExtraSlots()
             'selectedDot'          => $selectedDot,
             'teamDayViewEnabled'   => $teamDayViewEnabled,
             'sharedMemoManagementEnabled' => $this->isSharedAgendaMemosFeatureEnabled(),
+            'visitTypesFeatureEnabled' => $visitTypesFeatureEnabled,
+            'visitTypes'           => $visitTypesFeatureEnabled ? $this->visitTypeModel->listForAgenda() : [],
             'domiciliariAbilitati' => $domiciliariAbilitati,
             'locationCatalog'      => $this->locationModel->getCatalog(true),
             'menuAgenda'           => method_exists($this->agendaModel, 'getMenuVisibleByUser')
@@ -1290,6 +1345,25 @@ public function eseguiRepairRecurringExtraSlots()
         ];
 
         return view('agenda/index', $data);
+    }
+
+    public function gestioneTipiVisita()
+    {
+        try {
+            $this->assertVisitTypesFeatureEnabled();
+
+            return view('agenda/tipi_visita', [
+                'pageTitle' => 'Tipi visita',
+                'visitTypesFeatureEnabled' => true,
+                'visitTypes' => $this->visitTypeModel->listForAgenda(),
+                'menuAgenda' => method_exists($this->agendaModel, 'getMenuVisibleByUser')
+                    ? $this->agendaModel->getMenuVisibleByUser($this->getCurrentUserId())
+                    : $this->agendaModel->getMenuVisible(),
+                'menu_items' => [],
+            ]);
+        } catch (\Throwable $e) {
+            return redirect()->to(base_url('agenda'))->with('error', $e->getMessage());
+        }
     }
 
     public function configSlot()
@@ -2744,6 +2818,81 @@ public function eseguiRepairRecurringExtraSlots()
         }
     }
 
+    public function listaTipiVisita()
+    {
+        try {
+            $this->assertVisitTypesFeatureEnabled();
+
+            return $this->respondJsonSafe([
+                'status' => true,
+                'rows' => $this->visitTypeModel->listForAgenda(),
+            ]);
+        } catch (\Throwable $e) {
+            return $this->respondJsonSafe([
+                'status' => false,
+                'message' => $e->getMessage(),
+                'rows' => [],
+            ], 403);
+        }
+    }
+
+    public function salvaTipoVisita()
+    {
+        try {
+            $this->assertVisitTypesFeatureEnabled();
+
+            $id = $this->visitTypeModel->saveType([
+                'id_tipo_visita' => (int) ($this->request->getPost('id_tipo_visita') ?? 0),
+                'nome' => (string) ($this->request->getPost('nome') ?? ''),
+                'durata_minuti' => (int) ($this->request->getPost('durata_minuti') ?? 0),
+                'attivo' => (int) ($this->request->getPost('attivo') ?? 1),
+            ], $this->getCurrentUserId());
+
+            return $this->respondJsonSafe([
+                'status' => true,
+                'id_tipo_visita' => $id,
+                'message' => 'Tipo visita salvato correttamente.',
+                'rows' => $this->visitTypeModel->listForAgenda(),
+            ]);
+        } catch (\Throwable $e) {
+            return $this->respondJsonSafe([
+                'status' => false,
+                'message' => $e->getMessage(),
+                'rows' => [],
+            ], 400);
+        }
+    }
+
+    public function toggleTipoVisita()
+    {
+        try {
+            $this->assertVisitTypesFeatureEnabled();
+
+            $idTipoVisita = (int) ($this->request->getPost('id_tipo_visita') ?? 0);
+            $attivo = (int) ($this->request->getPost('attivo') ?? -1);
+
+            if ($idTipoVisita <= 0 || ($attivo !== 0 && $attivo !== 1)) {
+                throw new \Exception('Parametri del tipo visita non validi.');
+            }
+
+            $this->visitTypeModel->toggleActive($idTipoVisita, $attivo === 1, $this->getCurrentUserId());
+
+            return $this->respondJsonSafe([
+                'status' => true,
+                'message' => $attivo === 1
+                    ? 'Tipo visita riattivato correttamente.'
+                    : 'Tipo visita disattivato correttamente.',
+                'rows' => $this->visitTypeModel->listForAgenda(),
+            ]);
+        } catch (\Throwable $e) {
+            return $this->respondJsonSafe([
+                'status' => false,
+                'message' => $e->getMessage(),
+                'rows' => [],
+            ], 400);
+        }
+    }
+
     public function appuntamentiPaziente()
     {
         try {
@@ -2823,6 +2972,7 @@ public function eseguiRepairRecurringExtraSlots()
         try {
             $payload = $this->normalizeAppointmentPatientPayload($this->request->getPost());
             $payload['created_by'] = $this->getCurrentUserId();
+            $payload['visit_types_feature_enabled'] = $this->isVisitTypesFeatureEnabled();
 
             $idSlot = (int)($payload['id_slot'] ?? 0);
 
@@ -2872,6 +3022,7 @@ public function eseguiRepairRecurringExtraSlots()
     {
         try {
             $payload = $this->normalizeAppointmentPatientPayload($this->request->getPost());
+            $payload['visit_types_feature_enabled'] = $this->isVisitTypesFeatureEnabled();
 
             $idAppuntamento = (int)($payload['id_appuntamento'] ?? 0);
             if ($idAppuntamento > 0) {

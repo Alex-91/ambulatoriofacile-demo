@@ -55,6 +55,7 @@ $canManageAppointmentNotifications = $tenantId > 0
 $canManageTenantUsers = $tenantId > 0
     && in_array($tenantRole, ['tenant_master', 'tenant_admin'], true)
     && !empty($tenantFeatureFlags['staff_management']);
+$canOpenAgenda = $tenantId > 0 || session()->get('is_admin') === true || (int) (session()->get('admin') ?? 0) === 1;
 $tenantOperationalHomeUrl = $tenantId > 0 ? portal_operational_home_url() : null;
 $platformTenants = $sess->get('platform_selectable_tenants');
 $platformTenants = is_array($platformTenants) ? $platformTenants : [];
@@ -85,19 +86,29 @@ $isLinkActive = static function (string $href) use ($normalizePath, $currentPath
 };
 
 $primaryAction = null;
+$secondaryPrimaryAction = null;
 $contextActions = [];
 $accountActions = [];
 
-if ($isTenantOperationalConsoleSession) {
-    if ($tenantOperationalHomeUrl !== null) {
-        $primaryAction = [
-            'href' => $tenantOperationalHomeUrl,
-            'label' => 'Vai al portale operativo',
-            'icon' => 'fa-home',
-            'active' => $isLinkActive($tenantOperationalHomeUrl),
-        ];
-    }
+if ($isTenantOperationalConsoleSession && $tenantOperationalHomeUrl !== null) {
+    $primaryAction = [
+        'href' => $tenantOperationalHomeUrl,
+        'label' => 'Vai al portale operativo',
+        'icon' => 'fa-home',
+        'active' => $isLinkActive($tenantOperationalHomeUrl),
+    ];
+}
 
+if ($canOpenAgenda) {
+    $secondaryPrimaryAction = [
+        'href' => site_url('agenda'),
+        'label' => 'Vai in agenda',
+        'icon' => 'fa-calendar',
+        'active' => $isLinkActive(site_url('agenda')),
+    ];
+}
+
+if ($isTenantOperationalConsoleSession) {
     if ($platformTenants !== []) {
         foreach ($platformTenants as $availableTenant) {
             $availableTenantId = (int) ($availableTenant['id_tenant'] ?? 0);
@@ -204,6 +215,35 @@ if ($isTenantOperationalConsoleSession) {
 if ($currentMenuUserId > 0) {
     $contextActions = $adminMenuVisibility->filterContextActionsForUser($contextActions, $currentMenuUserId);
 }
+
+$adminVisitTypesFeatureEnabled = false;
+if ($tenantId > 0) {
+    try {
+        $adminFeatureMap = (new \App\Services\TenantFeatureService())->resolveEffectiveFeatureMapForTenant($tenantId);
+        $adminVisitTypesFeatureEnabled = !empty($adminFeatureMap['agenda_visit_types']);
+    } catch (\Throwable $e) {
+        $adminVisitTypesFeatureEnabled = false;
+    }
+}
+
+if ($adminVisitTypesFeatureEnabled) {
+    $hasVisitTypesMenu = false;
+    foreach ($menu_items as $menuRow) {
+        $menuLink = trim((string) ($menuRow['link'] ?? ''));
+        if (strtolower($normalizePath($menuLink)) === 'agenda/gestione-tipi-visita') {
+            $hasVisitTypesMenu = true;
+            break;
+        }
+    }
+
+    if (!$hasVisitTypesMenu) {
+        $menu_items[] = [
+            'titolo_menu' => 'Tipi visita',
+            'link' => 'agenda/gestione-tipi-visita',
+            'class_icon' => 'fa-list-alt',
+        ];
+    }
+}
 ?>
 <div class="box box-solid" style="margin-bottom:0 !important">
   <div class="box-header with-border">
@@ -229,7 +269,18 @@ if ($currentMenuUserId > 0) {
       </div>
     <?php endif; ?>
 
-    <ul class="nav nav-pills nav-stacked" style="margin-top:<?= $primaryAction !== null ? '12px' : '0' ?>;">
+    <?php if ($secondaryPrimaryAction !== null): ?>
+      <div style="padding:12px 15px 0;">
+        <a href="<?= esc((string) $secondaryPrimaryAction['href']) ?>"
+           class="btn btn-info btn-block"
+           style="font-weight:700;">
+          <i class="fa <?= esc((string) $secondaryPrimaryAction['icon']) ?>"></i>
+          <?= esc((string) $secondaryPrimaryAction['label']) ?>
+        </a>
+      </div>
+    <?php endif; ?>
+
+    <ul class="nav nav-pills nav-stacked" style="margin-top:<?= ($primaryAction !== null || $secondaryPrimaryAction !== null) ? '12px' : '0' ?>;">
       <?php if ($menu_items === []): ?>
         <li class="disabled">
           <a href="#">

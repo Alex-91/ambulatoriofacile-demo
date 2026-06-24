@@ -1,7 +1,34 @@
 <?php
+helper(['portal']);
+
 $menuTree = $menuAgenda ?? ($menu ?? []);
 $uri = service('uri');
 $currentPath = trim($uri->getPath(), '/');
+$session = session();
+$tenantContextRaw = $session->get(\App\Services\TenantContextService::SESSION_KEY);
+$tenantRole = is_array($tenantContextRaw) ? strtolower(trim((string) ($tenantContextRaw['tenant_role'] ?? ''))) : '';
+$tenantId = is_array($tenantContextRaw) ? (int) ($tenantContextRaw['tenant_id'] ?? 0) : 0;
+$canOpenOperationalConsole = ($tenantId > 0 && in_array($tenantRole, ['tenant_master', 'tenant_admin'], true))
+    || $session->get('is_admin') === true
+    || (int) ($session->get('admin') ?? 0) === 1;
+$agendaConsoleUrl = null;
+if ($tenantId > 0 && in_array($tenantRole, ['tenant_master', 'tenant_admin'], true)) {
+    $agendaConsoleUrl = portal_session_console_url();
+} elseif ($session->get('is_admin') === true || (int) ($session->get('admin') ?? 0) === 1) {
+    $agendaConsoleUrl = portal_operational_home_url();
+}
+$visitTypesFeatureEnabledResolved = isset($visitTypesFeatureEnabled)
+    ? !empty($visitTypesFeatureEnabled)
+    : false;
+
+if (!$visitTypesFeatureEnabledResolved && $tenantId > 0) {
+    try {
+        $featureMap = (new \App\Services\TenantFeatureService())->resolveEffectiveFeatureMapForTenant($tenantId);
+        $visitTypesFeatureEnabledResolved = !empty($featureMap['agenda_visit_types']);
+    } catch (\Throwable $e) {
+        $visitTypesFeatureEnabledResolved = false;
+    }
+}
 
 if (!function_exists('agenda_menu_norm_icon_shared')) {
     function agenda_menu_norm_icon_shared($icon, $isExternal = false) {
@@ -33,6 +60,23 @@ if (!function_exists('agenda_menu_norm_icon_shared')) {
     function agenda_menu_children_from_node_shared($node) {
         $children = agenda_menu_get_value_shared($node, 'children', []);
         return is_array($children) ? $children : [];
+    }
+
+    function agenda_menu_has_route_shared(array $nodes, string $route): bool {
+        $route = trim($route, '/');
+        foreach ($nodes as $node) {
+            $nodeRoute = trim((string) agenda_menu_get_value_shared($node, 'rotta', ''), '/');
+            if ($nodeRoute === $route) {
+                return true;
+            }
+
+            $children = agenda_menu_children_from_node_shared($node);
+            if ($children !== [] && agenda_menu_has_route_shared($children, $route)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     function agenda_menu_has_active_child_shared(array $children, string $currentPath): bool {
@@ -101,8 +145,28 @@ if (!function_exists('agenda_menu_norm_icon_shared')) {
         return $html;
     }
 }
+
+if ($visitTypesFeatureEnabledResolved && !agenda_menu_has_route_shared($menuTree, 'agenda/gestione-tipi-visita')) {
+    $menuTree[] = [
+        'id_menu' => 'codex_tipi_visita',
+        'id_menu_padre' => 0,
+        'tipo_voce' => 'ITEM',
+        'label_menu' => 'Tipi visita',
+        'icona' => 'fa fa-list-alt',
+        'rotta' => 'agenda/gestione-tipi-visita',
+        'children' => [],
+    ];
+}
 ?>
 
-<ul class="nav nav-pills nav-stacked" id="agendaMenuLaterale">
+<?php if ($agendaConsoleUrl !== null): ?>
+    <div style="padding:15px 15px 0;">
+        <a href="<?= esc($agendaConsoleUrl) ?>" class="btn btn-default btn-block" style="font-weight:700;">
+            <i class="fa fa-briefcase"></i> Vai al centro operativo
+        </a>
+    </div>
+<?php endif; ?>
+
+<ul class="nav nav-pills nav-stacked" id="agendaMenuLaterale" style="margin-top:<?= $agendaConsoleUrl !== null ? '12px' : '0' ?>;">
     <?= agenda_menu_render_tree_shared($menuTree, $currentPath) ?>
 </ul>

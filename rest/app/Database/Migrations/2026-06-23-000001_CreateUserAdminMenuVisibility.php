@@ -13,11 +13,7 @@ class CreateUserAdminMenuVisibility extends Migration
         }
 
         $this->forge->addField([
-            'id_user' => [
-                'type' => 'INT',
-                'constraint' => 11,
-                'unsigned' => true,
-            ],
+            'id_user' => $this->resolveUserIdFieldDefinition(),
             'menu_key' => [
                 'type' => 'VARCHAR',
                 'constraint' => 120,
@@ -49,5 +45,39 @@ class CreateUserAdminMenuVisibility extends Migration
         if ($this->db->tableExists('dap_user_admin_menu')) {
             $this->forge->dropTable('dap_user_admin_menu', true);
         }
+    }
+
+    /**
+     * Match the existing dap01_users.id_user column definition so the FK stays compatible
+     * across local databases that were created from older dumps.
+     *
+     * @return array<string, mixed>
+     */
+    private function resolveUserIdFieldDefinition(): array
+    {
+        $definition = [
+            'type' => 'INT',
+            'constraint' => 11,
+        ];
+
+        $row = $this->db
+            ->query("SHOW COLUMNS FROM `dap01_users` LIKE 'id_user'")
+            ->getFirstRow('array');
+
+        $type = strtolower((string) ($row['Type'] ?? ''));
+
+        if ($type !== '' && preg_match('/^([a-z]+)(?:\((\d+)\))?/', $type, $matches)) {
+            $definition['type'] = strtoupper((string) ($matches[1] ?? 'INT'));
+
+            if (!empty($matches[2])) {
+                $definition['constraint'] = (int) $matches[2];
+            }
+        }
+
+        if (str_contains($type, 'unsigned')) {
+            $definition['unsigned'] = true;
+        }
+
+        return $definition;
     }
 }

@@ -4,7 +4,21 @@
     <meta charset="UTF-8">
     <?php $agendaTitle = (string)($pageTitle ?? 'Agenda'); ?>
     <?php
+        helper(['portal']);
         $sharedMemoManagementEnabled = !empty($sharedMemoManagementEnabled);
+        $tenantContextRaw = session()->get(\App\Services\TenantContextService::SESSION_KEY);
+        $tenantRole = is_array($tenantContextRaw) ? strtolower(trim((string) ($tenantContextRaw['tenant_role'] ?? ''))) : '';
+        $canOpenAgendaConsole = (is_array($tenantContextRaw)
+            && in_array($tenantRole, ['tenant_master', 'tenant_admin'], true))
+            || session()->get('is_admin') === true
+            || (int) (session()->get('admin') ?? 0) === 1;
+        $agendaConsoleUrl = null;
+        if (is_array($tenantContextRaw) && in_array($tenantRole, ['tenant_master', 'tenant_admin'], true)) {
+            $agendaConsoleUrl = portal_session_console_url();
+        } elseif (session()->get('is_admin') === true || (int) (session()->get('admin') ?? 0) === 1) {
+            $agendaConsoleUrl = portal_operational_home_url();
+        }
+        $visitTypesPageUrl = base_url('agenda/gestione-tipi-visita');
         $memoDoctorOptions = is_array($memoDoctorOptions ?? null) ? $memoDoctorOptions : [];
         $memoDoctorSelectOptions = [];
 
@@ -408,6 +422,59 @@
             border: 1px solid #dbe6ef;
             border-radius: 10px;
             background: linear-gradient(180deg, #fbfdff 0%, #f5f9fc 100%);
+        }
+
+        .agenda-visit-types-box .help-block {
+            margin-bottom: 12px;
+        }
+
+        .agenda-visit-type-row {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 10px 0;
+            border-bottom: 1px solid #eef3f7;
+        }
+
+        .agenda-visit-type-row:last-child {
+            border-bottom: 0;
+        }
+
+        .agenda-visit-type-title {
+            font-weight: 700;
+            color: #1f2d3d;
+        }
+
+        .agenda-visit-type-meta {
+            margin-top: 4px;
+            font-size: 12px;
+            color: #6b7785;
+        }
+
+        .agenda-visit-type-actions .btn {
+            margin-left: 4px;
+        }
+
+        .agenda-visit-type-empty {
+            padding: 10px 0;
+            color: #7b8a97;
+            font-size: 13px;
+        }
+
+        .agenda-appointment-coverage {
+            min-height: 18px;
+            font-size: 12px;
+            color: #5f6b77;
+        }
+
+        .agenda-appointment-coverage.is-error {
+            color: #c0392b;
+            font-weight: 600;
+        }
+
+        .agenda-appointment-coverage.is-ok {
+            color: #247149;
         }
 
         .agenda-patient-history-header {
@@ -1205,7 +1272,7 @@
         }
 
         .agenda-team-header {
-            min-width: 240px;
+            min-width: 220px;
             border-left: 1px solid #dde7ef;
         }
 
@@ -1308,16 +1375,54 @@
             white-space: nowrap;
         }
 
+        .agenda-team-slot-guide {
+            position: absolute;
+            left: 8px;
+            right: 8px;
+            z-index: 1;
+            display: flex;
+            align-items: flex-start;
+            padding: 8px 10px;
+            border: 1px solid rgba(216, 227, 236, 0.9);
+            border-radius: 12px;
+            background: linear-gradient(180deg, rgba(248, 251, 254, 0.96) 0%, rgba(255, 255, 255, 0.98) 100%);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+            pointer-events: none;
+        }
+
+        .agenda-team-slot-guide-time {
+            display: inline-flex;
+            align-items: center;
+            padding: 3px 8px;
+            border-radius: 999px;
+            background: rgba(88, 113, 132, 0.09);
+            color: #5b7284;
+            font-size: 11px;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+            white-space: nowrap;
+        }
+
         .agenda-team-entry {
             position: absolute;
             left: 8px;
             right: 8px;
             z-index: 2;
             padding: 10px 12px;
-            border-radius: 12px;
-            box-shadow: 0 10px 22px rgba(31, 45, 61, 0.14);
+            border-radius: 14px;
+            box-shadow: 0 12px 24px rgba(31, 45, 61, 0.12);
             overflow: hidden;
             cursor: pointer;
+        }
+
+        .agenda-team-entry-content {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            justify-content: center;
+            gap: 4px;
+            min-height: 100%;
+            text-align: left;
         }
 
         .agenda-team-entry-title {
@@ -1334,6 +1439,11 @@
 
         .agenda-team-entry-time {
             flex: 0 0 auto;
+            display: inline-flex;
+            align-items: center;
+            padding: 3px 8px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.18);
             font-variant-numeric: tabular-nums;
         }
 
@@ -1344,7 +1454,6 @@
         }
 
         .agenda-team-entry-note {
-            margin-top: 4px;
             display: block;
             color: inherit;
             font-size: 12px;
@@ -1356,25 +1465,23 @@
         }
 
         .agenda-team-entry-free-slot {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 6px;
-            border: 1px dashed rgba(60, 141, 188, 0.36);
-            background: rgba(60, 141, 188, 0.05);
+            display: block;
+            padding: 10px 12px;
+            border: 1px dashed rgba(60, 141, 188, 0.4);
+            background: linear-gradient(180deg, rgba(235, 244, 251, 0.98) 0%, rgba(246, 250, 254, 0.98) 100%);
             box-shadow: none;
-            color: #3c8dbc;
+            color: #2e7eb0;
         }
 
         .agenda-team-entry-free-slot:hover,
         .agenda-team-entry-free-slot:focus {
-            background: rgba(60, 141, 188, 0.12);
+            background: linear-gradient(180deg, rgba(223, 237, 248, 1) 0%, rgba(240, 247, 253, 1) 100%);
             border-color: rgba(60, 141, 188, 0.65);
             outline: none;
         }
 
         .agenda-team-free-label {
-            font-size: 12px;
+            font-size: 13px;
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.03em;
@@ -1382,10 +1489,20 @@
 
         .agenda-team-entry-closed {
             border: 1px solid rgba(217, 83, 79, 0.3);
-            background: rgba(217, 83, 79, 0.12);
+            background: linear-gradient(180deg, rgba(253, 241, 240, 0.98) 0%, rgba(255, 247, 247, 0.98) 100%);
             box-shadow: none;
             color: #b03a34;
             cursor: default;
+        }
+
+        .agenda-team-entry-free-slot .agenda-team-entry-time {
+            background: rgba(60, 141, 188, 0.12);
+            color: #2a6f99;
+        }
+
+        .agenda-team-entry-closed .agenda-team-entry-time {
+            background: rgba(192, 57, 43, 0.12);
+            color: #b03a34;
         }
 
         .agenda-team-empty-column {
@@ -1422,11 +1539,33 @@
             }
 
             .agenda-team-header {
-                min-width: 210px;
+                min-width: 180px;
             }
 
             .agenda-team-board-wrap {
                 min-height: 560px;
+            }
+
+            .agenda-team-time-axis {
+                min-width: 68px;
+            }
+
+            .agenda-team-entry,
+            .agenda-team-slot-guide {
+                left: 6px;
+                right: 6px;
+            }
+
+            .agenda-team-entry {
+                padding: 8px 10px;
+            }
+
+            .agenda-team-entry-title {
+                font-size: 12px;
+            }
+
+            .agenda-team-entry-note {
+                font-size: 11px;
             }
         }
     </style>
@@ -1608,8 +1747,53 @@
                                     <i class="fa fa-sticky-note"></i> Nuova nota
                                 </button>
                             </div>
+
+                            <?php if ($agendaConsoleUrl !== null): ?>
+                            <div class="form-group" style="margin-top:10px; margin-bottom:0;">
+                                <a href="<?= esc($agendaConsoleUrl) ?>" class="btn btn-default btn-block" id="btnOpenOperationalCenter">
+                                    <i class="fa fa-briefcase"></i> Vai al centro operativo
+                                </a>
+                            </div>
+                            <?php endif; ?>
                         </div>
                     </div>
+
+                    <?php if (!empty($visitTypesFeatureEnabled)): ?>
+                    <div class="box box-success agenda-visit-types-box" style="margin-top:15px;">
+                        <div class="box-header with-border">
+                            <h3 class="box-title"><i class="fa fa-list-alt"></i> Tipi visita</h3>
+                            <div class="box-tools">
+                                <a href="<?= esc($visitTypesPageUrl) ?>" class="btn btn-success btn-xs">
+                                    <i class="fa fa-external-link"></i> Pagina dedicata
+                                </a>
+                            </div>
+                        </div>
+                        <div class="box-body">
+                            <p class="help-block">
+                                Crea e aggiorna i tipi visita con la loro durata. Quando prenoti un appuntamento il sistema usera questi dati per occupare automaticamente gli slot consecutivi necessari.
+                            </p>
+                            <div id="agendaVisitTypesList"></div>
+                            <hr style="margin:14px 0;">
+                            <input type="hidden" id="visitTypeId" value="">
+                            <div class="form-group">
+                                <label for="visitTypeName">Nome tipo visita</label>
+                                <input type="text" id="visitTypeName" class="form-control" placeholder="Es. Controllo 45 minuti">
+                            </div>
+                            <div class="form-group">
+                                <label for="visitTypeDuration">Durata in minuti</label>
+                                <input type="number" id="visitTypeDuration" class="form-control" min="5" step="5" placeholder="45">
+                            </div>
+                            <div class="form-group" style="margin-bottom:0;">
+                                <button type="button" class="btn btn-success btn-block" id="btnSaveVisitType">
+                                    <i class="fa fa-save"></i> Salva tipo visita
+                                </button>
+                                <button type="button" class="btn btn-default btn-block" id="btnCancelVisitTypeEdit" style="display:none; margin-top:8px;">
+                                    <i class="fa fa-times"></i> Annulla modifica
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <?php endif; ?>
                 </div>
 
                 <div class="col-md-10">
@@ -1876,6 +2060,21 @@
                         <label for="app_ora_fine">Ora fine</label>
                         <input type="text" id="app_ora_fine" class="form-control" readonly>
                     </div>
+
+                    <?php if (!empty($visitTypesFeatureEnabled)): ?>
+                    <div class="col-md-8 form-group">
+                        <label for="app_id_tipo_visita">Tipo visita</label>
+                        <select id="app_id_tipo_visita" class="form-control">
+                            <option value="">Seleziona tipo visita</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-4 form-group">
+                        <label for="app_durata_visita">Durata</label>
+                        <input type="text" id="app_durata_visita" class="form-control" readonly>
+                        <div id="app_slot_copertura_info" class="agenda-appointment-coverage"></div>
+                    </div>
+                    <?php endif; ?>
 
                     <div class="col-md-12 form-group" style="position:relative;">
                         <label for="searchPatient">Cerca o cambia paziente</label>
@@ -2175,7 +2374,8 @@ window.AGENDA_CONFIG = {
     viewMode: "<?= esc($viewMode ?? 'day') ?>",
     domiciliariAbilitati: <?= !empty($domiciliariAbilitati) ? 'true' : 'false' ?>,
     teamDayViewEnabled: <?= !empty($teamDayViewEnabled) ? 'true' : 'false' ?>,
-    sharedMemoManagementEnabled: <?= $sharedMemoManagementEnabled ? 'true' : 'false' ?>
+    sharedMemoManagementEnabled: <?= $sharedMemoManagementEnabled ? 'true' : 'false' ?>,
+    visitTypesFeatureEnabled: <?= !empty($visitTypesFeatureEnabled) ? 'true' : 'false' ?>
 };
 </script>
 
@@ -2209,11 +2409,18 @@ var agendaCalendarRequestSeq = 0;
 var agendaTeamDayXhr = null;
 var agendaTeamDayRequestSeq = 0;
 var agendaTeamSlotIndex = {};
+var agendaTeamAllSlots = [];
 var agendaMiniCalendarMonth = null;
 var agendaMiniCalendarAvailabilityMap = {};
 var agendaMiniCalendarAvailabilityCounts = {};
 var agendaMiniCalendarXhr = null;
 var agendaMiniCalendarRequestSeq = 0;
+var agendaVisitTypes = <?= json_encode(array_values(is_array($visitTypes ?? null) ? $visitTypes : []), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+var appointmentModalSlot = null;
+
+function supportsAgendaVisitTypes() {
+    return !!window.AGENDA_CONFIG.visitTypesFeatureEnabled;
+}
 
 function supportsTeamDayView() {
     return !!window.AGENDA_CONFIG.teamDayViewEnabled;
@@ -2221,6 +2428,381 @@ function supportsTeamDayView() {
 
 function isSharedMemoManagementEnabled() {
     return !!window.AGENDA_CONFIG.sharedMemoManagementEnabled;
+}
+
+function normalizeAgendaVisitTypesRows(rows) {
+    var normalized = [];
+
+    $.each(rows || [], function(_, row) {
+        var id = parseInt((row && row.id_tipo_visita) || 0, 10) || 0;
+        if (id <= 0) {
+            return true;
+        }
+
+        normalized.push({
+            id_tipo_visita: id,
+            nome: $.trim((row && row.nome) || ''),
+            durata_minuti: parseInt((row && row.durata_minuti) || 0, 10) || 0,
+            attivo: parseInt((row && row.attivo) || 0, 10) === 1 ? 1 : 0,
+            ordinamento: parseInt((row && row.ordinamento) || 0, 10) || 0
+        });
+
+        return true;
+    });
+
+    normalized.sort(function(leftRow, rightRow) {
+        if (leftRow.attivo !== rightRow.attivo) {
+            return rightRow.attivo - leftRow.attivo;
+        }
+        if (leftRow.ordinamento !== rightRow.ordinamento) {
+            return leftRow.ordinamento - rightRow.ordinamento;
+        }
+        return String(leftRow.nome || '').localeCompare(String(rightRow.nome || ''), 'it');
+    });
+
+    return normalized;
+}
+
+function getAgendaVisitTypeById(idTipoVisita) {
+    var lookupId = parseInt(idTipoVisita || 0, 10) || 0;
+    var found = null;
+
+    $.each(agendaVisitTypes || [], function(_, row) {
+        if ((parseInt((row && row.id_tipo_visita) || 0, 10) || 0) === lookupId) {
+            found = row;
+            return false;
+        }
+        return true;
+    });
+
+    return found;
+}
+
+function getActiveAgendaVisitTypes() {
+    return $.grep(agendaVisitTypes || [], function(row) {
+        return parseInt((row && row.attivo) || 0, 10) === 1;
+    });
+}
+
+function getAgendaSlotActualDurationMinutes(slot) {
+    var explicitDuration = parseInt((slot && slot.durata_slot_minuti) || 0, 10) || 0;
+    if (explicitDuration > 0) {
+        return explicitDuration;
+    }
+
+    var startMoment = parseAgendaMoment(slot && slot.ora_inizio ? slot.ora_inizio : '');
+    var endMoment = parseAgendaMoment(slot && slot.ora_fine ? slot.ora_fine : '');
+    if (!startMoment || !endMoment || !startMoment.isValid() || !endMoment.isValid()) {
+        return 0;
+    }
+
+    return Math.max(0, endMoment.diff(startMoment, 'minutes'));
+}
+
+function buildAgendaVisitTypeDisplay(row) {
+    var label = $.trim((row && row.tipo_visita_label) || '');
+    var duration = parseInt((row && row.appointment_durata_minuti) || (row && row.durata_minuti) || 0, 10) || 0;
+
+    if (label === '' && duration <= 0) {
+        return '';
+    }
+
+    if (label !== '' && duration > 0) {
+        return label + ' (' + duration + ' min)';
+    }
+
+    if (label !== '') {
+        return label;
+    }
+
+    return duration + ' min';
+}
+
+function isAgendaCoveredSecondarySlot(slot) {
+    var appointmentId = parseInt((slot && slot.id_appuntamento) || 0, 10) || 0;
+    if (appointmentId <= 0) {
+        return false;
+    }
+
+    var isPrimary = parseInt((slot && slot.appointment_is_primary_slot) || 0, 10) || 0;
+    return isPrimary !== 1;
+}
+
+function getAgendaSlotVisualStartMoment(slot) {
+    return parseAgendaMoment(slot && slot.ora_inizio ? slot.ora_inizio : '');
+}
+
+function getAgendaSlotVisualEndMoment(slot) {
+    var explicitEnd = $.trim((slot && slot.appointment_ora_fine) || '');
+    if (explicitEnd !== '' && !isAgendaCoveredSecondarySlot(slot)) {
+        var appointmentEnd = parseAgendaMoment(explicitEnd);
+        if (appointmentEnd && appointmentEnd.isValid()) {
+            return appointmentEnd;
+        }
+    }
+
+    return parseAgendaMoment(slot && slot.ora_fine ? slot.ora_fine : '');
+}
+
+function renderAgendaVisitTypesBox() {
+    var $list = $('#agendaVisitTypesList');
+    if (!$list.length || !supportsAgendaVisitTypes()) {
+        return;
+    }
+
+    agendaVisitTypes = normalizeAgendaVisitTypesRows(agendaVisitTypes);
+
+    if (!agendaVisitTypes.length) {
+        $list.html('<div class="agenda-visit-type-empty">Nessun tipo visita configurato. Aggiungine almeno uno per poter prenotare appuntamenti multi-slot.</div>');
+        return;
+    }
+
+    var html = '';
+
+    $.each(agendaVisitTypes, function(_, row) {
+        var active = parseInt((row && row.attivo) || 0, 10) === 1;
+        html += '<div class="agenda-visit-type-row">';
+        html += '  <div>';
+        html += '    <div class="agenda-visit-type-title">' + escapeHtml((row && row.nome) || '') + '</div>';
+        html += '    <div class="agenda-visit-type-meta">' + escapeHtml(String((row && row.durata_minuti) || 0) + ' minuti') + '</div>';
+        html += '  </div>';
+        html += '  <div class="agenda-visit-type-actions text-right">';
+        html += '    <span class="label label-' + (active ? 'success' : 'default') + '">' + (active ? 'attivo' : 'spento') + '</span>';
+        html += '    <button type="button" class="btn btn-default btn-xs js-edit-visit-type" data-id="' + escapeHtml(row.id_tipo_visita) + '"><i class="fa fa-pencil"></i></button>';
+        html += '    <button type="button" class="btn btn-default btn-xs js-toggle-visit-type" data-id="' + escapeHtml(row.id_tipo_visita) + '" data-active="' + (active ? '0' : '1') + '">';
+        html += '      <i class="fa ' + (active ? 'fa-toggle-off' : 'fa-toggle-on') + '"></i>';
+        html += '    </button>';
+        html += '  </div>';
+        html += '</div>';
+    });
+
+    $list.html(html);
+}
+
+function resetAgendaVisitTypeForm() {
+    $('#visitTypeId').val('');
+    $('#visitTypeName').val('');
+    $('#visitTypeDuration').val('');
+    $('#btnSaveVisitType').html('<i class="fa fa-save"></i> Salva tipo visita');
+    $('#btnCancelVisitTypeEdit').hide();
+}
+
+function populateAgendaVisitTypeForm(row) {
+    if (!row) {
+        resetAgendaVisitTypeForm();
+        return;
+    }
+
+    $('#visitTypeId').val((row && row.id_tipo_visita) || '');
+    $('#visitTypeName').val((row && row.nome) || '');
+    $('#visitTypeDuration').val((row && row.durata_minuti) || '');
+    $('#btnSaveVisitType').html('<i class="fa fa-save"></i> Salva modifica');
+    $('#btnCancelVisitTypeEdit').show();
+    $('#visitTypeName').trigger('focus');
+}
+
+function fillAppointmentVisitTypeSelect(selectedId) {
+    var $select = $('#app_id_tipo_visita');
+    if (!$select.length) {
+        return;
+    }
+
+    agendaVisitTypes = normalizeAgendaVisitTypesRows(agendaVisitTypes);
+
+    var currentId = parseInt(selectedId || 0, 10) || 0;
+    var activeRows = getActiveAgendaVisitTypes();
+    var currentRow = currentId > 0 ? getAgendaVisitTypeById(currentId) : null;
+
+    if (currentId <= 0 && appointmentModalSlot && !($.trim($('#app_id_appuntamento').val() || ''))) {
+        if (activeRows.length === 1) {
+            currentId = parseInt((activeRows[0] && activeRows[0].id_tipo_visita) || 0, 10) || 0;
+            currentRow = getAgendaVisitTypeById(currentId);
+        }
+    }
+
+    var rows = activeRows.slice(0);
+    if (currentRow && parseInt((currentRow && currentRow.attivo) || 0, 10) !== 1) {
+        rows.push(currentRow);
+    }
+
+    var html = '<option value="">Seleziona tipo visita</option>';
+    $.each(rows, function(_, row) {
+        var duration = parseInt((row && row.durata_minuti) || 0, 10) || 0;
+        var label = $.trim((row && row.nome) || '');
+        var isActive = parseInt((row && row.attivo) || 0, 10) === 1;
+        html += '<option value="' + escapeHtml((row && row.id_tipo_visita) || '') + '"' + (currentId === (parseInt((row && row.id_tipo_visita) || 0, 10) || 0) ? ' selected' : '') + '>';
+        html += escapeHtml(label + ' - ' + duration + ' min' + (isActive ? '' : ' (spento)'));
+        html += '</option>';
+    });
+
+    $select.html(html);
+    if (currentId > 0) {
+        $select.val(String(currentId));
+    }
+}
+
+function getAgendaSlotsForAppointmentModal() {
+    if (isTeamDayViewActive()) {
+        return $.isArray(agendaTeamAllSlots) ? agendaTeamAllSlots : [];
+    }
+
+    return $.isArray(agendaCurrentSlots) ? agendaCurrentSlots : [];
+}
+
+function computeAppointmentCoverageForSlot(slot, durationMinutes, currentAppointmentId) {
+    var baseSlot = slot || appointmentModalSlot;
+    var requestedDuration = parseInt(durationMinutes || 0, 10) || 0;
+    var appointmentId = parseInt(currentAppointmentId || 0, 10) || 0;
+
+    if (!baseSlot || requestedDuration <= 0) {
+        return {
+            ok: false,
+            message: 'Seleziona un tipo visita valido.'
+        };
+    }
+
+    var startMoment = getAgendaSlotVisualStartMoment(baseSlot);
+    if (!startMoment || !startMoment.isValid()) {
+        return {
+            ok: false,
+            message: 'Slot iniziale non valido.'
+        };
+    }
+
+    var contextSlots = $.grep(getAgendaSlotsForAppointmentModal(), function(row) {
+        var rowStart = parseAgendaMoment(row && row.ora_inizio ? row.ora_inizio : '');
+        return rowStart
+            && rowStart.isValid()
+            && String((row && row.id_dot) || '') === String((baseSlot && baseSlot.id_dot) || '')
+            && rowStart.format('YYYY-MM-DD') === startMoment.format('YYYY-MM-DD');
+    });
+
+    contextSlots.sort(function(leftRow, rightRow) {
+        var leftMoment = parseAgendaMoment(leftRow && leftRow.ora_inizio ? leftRow.ora_inizio : '');
+        var rightMoment = parseAgendaMoment(rightRow && rightRow.ora_inizio ? rightRow.ora_inizio : '');
+        if (!leftMoment || !rightMoment || !leftMoment.isValid() || !rightMoment.isValid()) {
+            return 0;
+        }
+        return leftMoment.valueOf() - rightMoment.valueOf();
+    });
+
+    var baseSlotId = parseInt((baseSlot && baseSlot.id_slot) || 0, 10) || 0;
+    var startIndex = -1;
+
+    $.each(contextSlots, function(index, row) {
+        if ((parseInt((row && row.id_slot) || 0, 10) || 0) === baseSlotId) {
+            startIndex = index;
+            return false;
+        }
+        return true;
+    });
+
+    if (startIndex < 0) {
+        return {
+            ok: false,
+            message: 'Non riesco a trovare lo slot di partenza nel calendario corrente.'
+        };
+    }
+
+    var coveredRows = [];
+    var totalDuration = 0;
+    var expectedStart = startMoment.clone();
+
+    for (var index = startIndex; index < contextSlots.length; index++) {
+        var row = contextSlots[index];
+        var rowStart = parseAgendaMoment(row && row.ora_inizio ? row.ora_inizio : '');
+        var rowEnd = parseAgendaMoment(row && row.ora_fine ? row.ora_fine : '');
+
+        if (!rowStart || !rowEnd || !rowStart.isValid() || !rowEnd.isValid()) {
+            return {
+                ok: false,
+                message: 'Uno degli slot consecutivi ha orari non validi.'
+            };
+        }
+
+        if (index > startIndex && !rowStart.isSame(expectedStart)) {
+            break;
+        }
+
+        var rowState = $.trim(String((row && row.stato) || '')).toUpperCase();
+        var rowAppointmentId = parseInt((row && row.id_appuntamento) || 0, 10) || 0;
+        var occupiedByOtherAppointment = rowAppointmentId > 0 && rowAppointmentId !== appointmentId;
+
+        if (rowState === 'CHIUSO') {
+            return {
+                ok: false,
+                message: 'La copertura richiesta entra in una giornata bloccata.'
+            };
+        }
+
+        if (occupiedByOtherAppointment) {
+            return {
+                ok: false,
+                message: 'Gli slot consecutivi necessari non sono tutti liberi.'
+            };
+        }
+
+        coveredRows.push(row);
+        totalDuration += getAgendaSlotActualDurationMinutes(row);
+        expectedStart = rowEnd.clone();
+
+        if (totalDuration === requestedDuration) {
+            return {
+                ok: true,
+                slotIds: $.map(coveredRows, function(coveredRow) {
+                    return parseInt((coveredRow && coveredRow.id_slot) || 0, 10) || 0;
+                }),
+                count: coveredRows.length,
+                startMoment: startMoment,
+                endMoment: rowEnd.clone(),
+                message: 'Copre ' + coveredRows.length + ' slot consecutivi fino alle ' + rowEnd.format('HH:mm') + '.'
+            };
+        }
+
+        if (totalDuration > requestedDuration) {
+            return {
+                ok: false,
+                message: 'La durata scelta non e compatibile con la griglia degli slot in questo punto dell agenda.'
+            };
+        }
+    }
+
+    return {
+        ok: false,
+        message: 'Non ci sono abbastanza slot consecutivi liberi per la durata selezionata.'
+    };
+}
+
+function refreshAppointmentVisitTypePreview() {
+    if (!supportsAgendaVisitTypes()) {
+        return null;
+    }
+
+    var $duration = $('#app_durata_visita');
+    var $coverage = $('#app_slot_copertura_info');
+    var selectedType = getAgendaVisitTypeById($('#app_id_tipo_visita').val());
+    var currentAppointmentId = parseInt($('#app_id_appuntamento').val() || 0, 10) || 0;
+
+    if (!selectedType) {
+        $duration.val('');
+        $coverage.removeClass('is-error is-ok').text('');
+        setAppointmentSlotTimeSummary(appointmentModalSlot || null, null);
+        return null;
+    }
+
+    var durationMinutes = parseInt((selectedType && selectedType.durata_minuti) || 0, 10) || 0;
+    $duration.val(durationMinutes > 0 ? (durationMinutes + ' minuti') : '');
+
+    var coverage = computeAppointmentCoverageForSlot(appointmentModalSlot, durationMinutes, currentAppointmentId);
+    setAppointmentSlotTimeSummary(appointmentModalSlot || null, coverage);
+
+    if (!coverage || !coverage.ok) {
+        $coverage.removeClass('is-ok').addClass('is-error').text((coverage && coverage.message) || 'Durata non compatibile.');
+        return coverage;
+    }
+
+    $coverage.removeClass('is-error').addClass('is-ok').text(coverage.message || '');
+    return coverage;
 }
 
 function normalizeAgendaViewModeValue(value) {
@@ -3457,8 +4039,12 @@ function buildAgendaSlotEntries(slots, nextSlotStartMap, dayIndexMap) {
     var entries = [];
 
     $.each(slots || [], function(_, slot) {
-        var slotStart = parseAgendaMoment(slot.ora_inizio);
-        var slotEnd = parseAgendaMoment(slot.ora_fine);
+        if (isAgendaCoveredSecondarySlot(slot)) {
+            return true;
+        }
+
+        var slotStart = getAgendaSlotVisualStartMoment(slot);
+        var slotEnd = getAgendaSlotVisualEndMoment(slot);
 
         if (!slotStart || !slotEnd) {
             return true;
@@ -4057,6 +4643,7 @@ function riallineaRenderingCalendario() {
 }
 
 function resetAppointmentModal() {
+    appointmentModalSlot = null;
     $('#app_id_slot').val('');
     $('#app_id_dot').val('');
     $('#app_id_paziente').val('');
@@ -4073,6 +4660,9 @@ function resetAppointmentModal() {
     $('#app_cellulare').val('');
     $('#app_email').val('');
     $('#app_note').val('');
+    $('#app_id_tipo_visita').val('');
+    $('#app_durata_visita').val('');
+    $('#app_slot_copertura_info').removeClass('is-error is-ok').text('');
 
     $('#patientAutocomplete').addClass('d-none').html('');
     appointmentModalDate = '';
@@ -4122,8 +4712,11 @@ function setAppointmentExtraSlotState(slot) {
 }
 
 function setAppointmentSlotTimeSummary(slot) {
-    var startMoment = parseAgendaMoment(slot && slot.ora_inizio ? slot.ora_inizio : '');
-    var endMoment = parseAgendaMoment(slot && slot.ora_fine ? slot.ora_fine : '');
+    var coverage = arguments.length > 1 ? arguments[1] : null;
+    var startMoment = getAgendaSlotVisualStartMoment(slot);
+    var endMoment = coverage && coverage.ok && coverage.endMoment
+        ? coverage.endMoment
+        : getAgendaSlotVisualEndMoment(slot);
 
     $('#app_ora_inizio').val(startMoment && startMoment.isValid() ? startMoment.format('HH:mm') : '');
     $('#app_ora_fine').val(endMoment && endMoment.isValid() ? endMoment.format('HH:mm') : '');
@@ -4368,6 +4961,7 @@ function apriSlotLiberoDaSlot(slot) {
     }
 
     resetAppointmentModal();
+    appointmentModalSlot = slot;
 
     var startMoment = parseAgendaMoment(slot.ora_inizio);
     if (startMoment && startMoment.isValid()) {
@@ -4380,6 +4974,8 @@ function apriSlotLiberoDaSlot(slot) {
     $('#app_id_dot').val(slot.id_dot || '');
     setAppointmentSlotTimeSummary(slot);
     setAppointmentExtraSlotState(slot);
+    fillAppointmentVisitTypeSelect(0);
+    refreshAppointmentVisitTypePreview();
 
     $.post("<?= base_url('agenda/lock-slot') ?>", {
         id_slot: slot.id_slot
@@ -4397,6 +4993,7 @@ function apriSlotLiberoDaSlot(slot) {
 
 function riempiModaleDaEvento(slot) {
     resetAppointmentModal();
+    appointmentModalSlot = slot;
 
     var dataSlot = estraiDataSlot(slot, null);
     var linkedPatientId = slot.id_cliente_collegato || slot.id_client || slot.id_paziente || '';
@@ -4422,6 +5019,8 @@ function riempiModaleDaEvento(slot) {
     $('#searchPatient').val('');
     setAppointmentExtraSlotState(slot);
     setAppointmentLinkedPatient(linkedPatientId, patientLabel);
+    fillAppointmentVisitTypeSelect(slot.id_tipo_visita || '');
+    refreshAppointmentVisitTypePreview();
 
     if (slot.id_appuntamento) {
         setAppointmentModalEditingState(true);
@@ -4507,10 +5106,16 @@ function caricaSlotCalendario(options) {
         }
 
         $.each(agendaCurrentSlots, function(i, slot) {
+            if (isAgendaCoveredSecondarySlot(slot)) {
+                return true;
+            }
+
             var titolo = '';
             var colore = '#3c8dbc';
             var classe = 'evento-prenotato';
-            var oraEvento = moment((slot.ora_inizio || '').replace(' ', 'T')).format('HH:mm');
+            var startMoment = getAgendaSlotVisualStartMoment(slot);
+            var endMoment = getAgendaSlotVisualEndMoment(slot);
+            var oraEvento = startMoment && startMoment.isValid() ? startMoment.format('HH:mm') : '';
             var stato = ((slot.stato || '') + '').toUpperCase();
             var pazSpec = $.trim(slot.paz_spec || '');
             var isSpecialPatient = isAgendaSpecialPatient(slot, pazSpec);
@@ -4564,8 +5169,8 @@ function caricaSlotCalendario(options) {
             eventi.push({
                 id: slot.id_slot,
                 title: titolo,
-                start: (slot.ora_inizio || '').replace(' ', 'T'),
-                end: (slot.ora_fine || '').replace(' ', 'T'),
+                start: startMoment && startMoment.isValid() ? startMoment.format() : (slot.ora_inizio || '').replace(' ', 'T'),
+                end: endMoment && endMoment.isValid() ? endMoment.format() : (slot.ora_fine || '').replace(' ', 'T'),
                 color: colore,
                 allDay: false,
                 className: classe,
@@ -4676,6 +5281,42 @@ function renderAgendaTeamDayHeader(column) {
         + '</div>';
 }
 
+function buildAgendaTeamDayBackgroundRows(bounds, pixelsPerMinute, stepMinutes, entryHeight) {
+    var html = '';
+    var rowHeight = Math.max(parseInt(entryHeight, 10) || 0, 44);
+    var safeStepMinutes = Math.max(5, parseInt(stepMinutes, 10) || agendaCalendarBaseStep);
+
+    for (var minute = bounds.startMinutes; minute < bounds.endMinutes; minute += safeStepMinutes) {
+        var top = Math.max(0, (minute - bounds.startMinutes) * pixelsPerMinute);
+
+        html += '<div class="agenda-team-slot-guide"'
+            + ' style="top:' + top + 'px;height:' + rowHeight + 'px;"'
+            + ' aria-hidden="true">'
+            + '  <span class="agenda-team-slot-guide-time">' + escapeHtml(formatAgendaTeamMinutesLabel(minute)) + '</span>'
+            + '</div>';
+    }
+
+    return html;
+}
+
+function buildAgendaTeamEntryContent(orario, primaryLabel, secondaryLabel) {
+    var safePrimaryLabel = $.trim(String(primaryLabel || ''));
+    var safeSecondaryLabel = $.trim(String(secondaryLabel || ''));
+
+    return ''
+        + '<div class="agenda-team-entry-content">'
+        + '  <div class="agenda-team-entry-title">'
+        + '    <span class="agenda-team-entry-time">' + escapeHtml(orario) + '</span>'
+        + (safePrimaryLabel !== ''
+            ? '<span class="agenda-team-entry-patient">' + escapeHtml(safePrimaryLabel) + '</span>'
+            : '')
+        + '  </div>'
+        + (safeSecondaryLabel !== ''
+            ? '<div class="agenda-team-entry-note">' + escapeHtml(safeSecondaryLabel) + '</div>'
+            : '')
+        + '</div>';
+}
+
 function buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute, entryHeight) {
     var slots = $.isArray(column.slots) ? column.slots : [];
 
@@ -4686,9 +5327,13 @@ function buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute, entryH
     var html = '';
 
     $.each(slots, function(_, slot) {
+        if (isAgendaCoveredSecondarySlot(slot)) {
+            return true;
+        }
+
         var slotId = parseInt(slot.id_slot, 10) || 0;
-        var startMoment = parseAgendaMoment(slot.ora_inizio || '');
-        var endMoment = parseAgendaMoment(slot.ora_fine || '');
+        var startMoment = getAgendaSlotVisualStartMoment(slot);
+        var endMoment = getAgendaSlotVisualEndMoment(slot);
 
         if (!startMoment || !startMoment.isValid() || !endMoment || !endMoment.isValid()) {
             return true;
@@ -4710,13 +5355,6 @@ function buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute, entryH
         var nominativo = $.trim((slot.cognome || '') + ' ' + (slot.nome || ''));
         var noteEvento = buildAppointmentNoteDisplay(slot);
         var title = orario + (nominativo !== '' ? (' ' + nominativo) : '');
-        var titleHtml = ''
-            + '<div class="agenda-team-entry-title">'
-            + '  <span class="agenda-team-entry-time">' + escapeHtml(orario) + '</span>'
-            + (nominativo !== ''
-                ? '<span class="agenda-team-entry-patient">' + escapeHtml(nominativo) + '</span>'
-                : '')
-            + '</div>';
 
         if ((stato === 'LIBERO' || stato === 'BLOCCATO') && !hasAppointment && !column.giorno_bloccato) {
             html += ''
@@ -4725,7 +5363,7 @@ function buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute, entryH
                 + ' style="top:' + top + 'px;height:' + height + 'px;"'
                 + ' data-slot-id="' + slotId + '"'
                 + ' title="' + escapeHtml(orario + ' - Slot libero') + '">'
-                + '  <span class="agenda-team-free-label">Libero</span>'
+                + buildAgendaTeamEntryContent(orario, 'Libero', 'Slot disponibile')
                 + '</button>';
             return true;
         }
@@ -4735,7 +5373,7 @@ function buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute, entryH
                 + '<div class="agenda-team-entry agenda-team-entry-closed"'
                 + ' style="top:' + top + 'px;height:' + height + 'px;"'
                 + ' title="Giornata bloccata">'
-                + '  <div class="agenda-team-entry-title">Bloccato</div>'
+                + buildAgendaTeamEntryContent(orario, 'Bloccato', 'Fascia non disponibile')
                 + '</div>';
             return true;
         }
@@ -4747,10 +5385,7 @@ function buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute, entryH
                 + '<div class="agenda-team-entry"'
                 + ' style="top:' + top + 'px;height:' + height + 'px;background:' + color + ';border:1px solid ' + color + ';color:#fff;"'
                 + ' title="' + escapeHtml(title || 'Appuntamento') + '">'
-                + titleHtml
-                + (noteEvento !== ''
-                    ? '<div class="agenda-team-entry-note">' + escapeHtml(noteEvento) + '</div>'
-                    : '')
+                + buildAgendaTeamEntryContent(orario, nominativo !== '' ? nominativo : 'Appuntamento', noteEvento)
                 + '</div>';
             return true;
         }
@@ -4761,10 +5396,7 @@ function buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute, entryH
             + ' style="top:' + top + 'px;height:' + height + 'px;background:' + color + ';border:1px solid ' + color + ';color:#fff;"'
             + ' data-slot-id="' + slotId + '"'
             + ' title="' + escapeHtml(title || 'Appuntamento') + '">'
-            + titleHtml
-            + (noteEvento !== ''
-                ? '<div class="agenda-team-entry-note">' + escapeHtml(noteEvento) + '</div>'
-                : '')
+            + buildAgendaTeamEntryContent(orario, nominativo !== '' ? nominativo : 'Appuntamento', noteEvento)
             + '</button>';
 
         return true;
@@ -4775,6 +5407,7 @@ function buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute, entryH
 
 function renderAgendaTeamDay(res) {
     agendaTeamSlotIndex = {};
+    agendaTeamAllSlots = [];
 
     var columns = $.isArray(res && res.columns) ? res.columns : [];
     if (!columns.length) {
@@ -4792,7 +5425,7 @@ function renderAgendaTeamDay(res) {
     var html = '';
 
     $.each(columns, function() {
-        templateColumns += ' minmax(240px, 1fr)';
+        templateColumns += ' minmax(220px, 1fr)';
     });
 
     html += '<div class="agenda-team-grid" style="grid-template-columns:' + templateColumns + ';">';
@@ -4807,8 +5440,12 @@ function renderAgendaTeamDay(res) {
         + '</div>';
 
     $.each(columns, function(_, column) {
+        if ($.isArray(column && column.slots)) {
+            agendaTeamAllSlots = agendaTeamAllSlots.concat(column.slots);
+        }
         html += '<div class="agenda-team-column-body' + (column.giorno_bloccato ? ' is-day-locked' : '') + '"'
             + ' style="height:' + totalHeight + 'px;--agenda-team-step-height:' + stepHeight + 'px;">'
+            + buildAgendaTeamDayBackgroundRows(bounds, pixelsPerMinute, stepMinutes, entryHeight)
             + buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute, entryHeight)
             + '</div>';
     });
@@ -5272,22 +5909,33 @@ function getCreatedByLabel(row) {
 }
 
 function buildAppointmentNoteDisplay(row) {
+    var visitType = buildAgendaVisitTypeDisplay(row);
     var note = $.trim((row && row.note) || '');
     var createdByLabel = getCreatedByLabel(row);
+    var pieces = [];
+
+    if (visitType !== '') {
+        pieces.push(visitType);
+    }
 
     if (createdByLabel === '') {
-        return note;
+        if (note !== '') {
+            pieces.push(note);
+        }
+        return pieces.join(' - ');
     }
 
     if (note !== '' && note.toLowerCase().indexOf(createdByLabel.toLowerCase()) !== -1) {
-        return note;
+        pieces.push(note);
+        return pieces.join(' - ');
     }
 
     if (note !== '') {
-        return note + ' - ' + createdByLabel;
+        pieces.push(note);
     }
 
-    return createdByLabel;
+    pieces.push(createdByLabel);
+    return pieces.join(' - ');
 }
 
 function buildAgendaPatientAppointmentText(row) {
@@ -6208,6 +6856,12 @@ $('#nota_giorno_text').on('blur', function() {
         show: false
     });
 
+    if (supportsAgendaVisitTypes()) {
+        agendaVisitTypes = normalizeAgendaVisitTypesRows(agendaVisitTypes);
+        renderAgendaVisitTypesBox();
+        resetAgendaVisitTypeForm();
+    }
+
     <?php if (!empty($domiciliariAbilitati)): ?>
     $('#modalVisitaDomiciliare').modal({
         backdrop: 'static',
@@ -6261,6 +6915,99 @@ $('#nota_giorno_text').on('blur', function() {
 
         riempiModaleDaEvento(slot);
         $('#appointmentModal').modal('show');
+    });
+
+    $('#btnSaveVisitType').on('click', function() {
+        if (!supportsAgendaVisitTypes()) {
+            return;
+        }
+
+        var nome = $.trim($('#visitTypeName').val() || '');
+        var durata = parseInt($('#visitTypeDuration').val() || 0, 10) || 0;
+
+        if (nome === '') {
+            alert('Inserisci il nome del tipo visita.');
+            $('#visitTypeName').trigger('focus');
+            return;
+        }
+
+        if (durata <= 0) {
+            alert('Inserisci una durata valida in minuti.');
+            $('#visitTypeDuration').trigger('focus');
+            return;
+        }
+
+        $.post("<?= base_url('agenda/salva-tipo-visita') ?>", {
+            id_tipo_visita: $('#visitTypeId').val(),
+            nome: nome,
+            durata_minuti: durata,
+            attivo: 1
+        }, function(res) {
+            if (!res || !res.status) {
+                alert((res && res.message) ? res.message : 'Errore durante il salvataggio del tipo visita.');
+                return;
+            }
+
+            agendaVisitTypes = normalizeAgendaVisitTypesRows(res.rows || []);
+            renderAgendaVisitTypesBox();
+            resetAgendaVisitTypeForm();
+            fillAppointmentVisitTypeSelect($('#app_id_tipo_visita').val() || '');
+            refreshAppointmentVisitTypePreview();
+            showAgendaToast(res.message || 'Tipo visita salvato correttamente.', 'success');
+        }, 'json').fail(function(xhr) {
+            var message = 'Errore durante il salvataggio del tipo visita.';
+            if (xhr && xhr.responseJSON && xhr.responseJSON.message) {
+                message = xhr.responseJSON.message;
+            }
+            alert(message);
+        });
+    });
+
+    $('#btnCancelVisitTypeEdit').on('click', function() {
+        resetAgendaVisitTypeForm();
+    });
+
+    $(document).on('click', '.js-edit-visit-type', function() {
+        var row = getAgendaVisitTypeById($(this).data('id'));
+        if (!row) {
+            return;
+        }
+
+        populateAgendaVisitTypeForm(row);
+    });
+
+    $(document).on('click', '.js-toggle-visit-type', function() {
+        if (!supportsAgendaVisitTypes()) {
+            return;
+        }
+
+        var idTipoVisita = parseInt($(this).data('id') || 0, 10) || 0;
+        var nextActive = parseInt($(this).data('active') || 0, 10) || 0;
+        if (idTipoVisita <= 0) {
+            return;
+        }
+
+        $.post("<?= base_url('agenda/toggle-tipo-visita') ?>", {
+            id_tipo_visita: idTipoVisita,
+            attivo: nextActive
+        }, function(res) {
+            if (!res || !res.status) {
+                alert((res && res.message) ? res.message : 'Errore durante l\'aggiornamento del tipo visita.');
+                return;
+            }
+
+            agendaVisitTypes = normalizeAgendaVisitTypesRows(res.rows || []);
+            renderAgendaVisitTypesBox();
+            fillAppointmentVisitTypeSelect($('#app_id_tipo_visita').val() || '');
+            refreshAppointmentVisitTypePreview();
+            showAgendaToast(res.message || 'Tipo visita aggiornato correttamente.', 'success');
+        }, 'json').fail(function(xhr) {
+            var message = 'Errore durante l\'aggiornamento del tipo visita.';
+            if (xhr && xhr.responseJSON && xhr.responseJSON.message) {
+                message = xhr.responseJSON.message;
+            }
+            alert(message);
+        });
     });
 
     $('#btnDeleteAppointment').on('click', function() {
@@ -6584,6 +7331,10 @@ $('#nota_giorno_text').on('blur', function() {
         cercaPazientiAutocomplete($(this).val());
     });
 
+    $('#app_id_tipo_visita').on('change', function() {
+        refreshAppointmentVisitTypePreview();
+    });
+
     $('#app_cognome, #app_nome').on('input', function() {
         var normalized = normalizeAppointmentPatientName($(this).val());
         if ($(this).val() !== normalized) {
@@ -6663,6 +7414,21 @@ $('#nota_giorno_text').on('blur', function() {
         var successMessage = isUpdate
             ? 'Appuntamento aggiornato correttamente.'
             : 'Prenotazione confermata correttamente.';
+        var coverage = null;
+
+        if (supportsAgendaVisitTypes()) {
+            if ($.trim($('#app_id_tipo_visita').val() || '') === '') {
+                alert('Seleziona il tipo visita.');
+                $('#app_id_tipo_visita').trigger('focus');
+                return;
+            }
+
+            coverage = refreshAppointmentVisitTypePreview();
+            if (!coverage || !coverage.ok) {
+                alert((coverage && coverage.message) ? coverage.message : 'La durata selezionata non e compatibile con gli slot disponibili.');
+                return;
+            }
+        }
 
         setAppointmentSavingState(true);
 
@@ -6686,7 +7452,8 @@ $('#nota_giorno_text').on('blur', function() {
                 telefono: $('#app_telefono').val(),
                 cellulare: $('#app_cellulare').val(),
                 email: $('#app_email').val(),
-                note: $('#app_note').val()
+                note: $('#app_note').val(),
+                id_tipo_visita: $('#app_id_tipo_visita').val()
             }
         }).done(function(res) {
             if (!res || !res.status) {

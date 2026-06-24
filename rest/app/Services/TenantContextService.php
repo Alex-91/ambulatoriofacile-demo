@@ -9,6 +9,8 @@ class TenantContextService
     public const SESSION_KEY = 'tenant_context';
 
     private TenantCatalogService $catalog;
+    private bool $resolvedCurrentTenant = false;
+    private ?TenantContext $currentTenant = null;
 
     public function __construct(?TenantCatalogService $catalog = null)
     {
@@ -23,13 +25,39 @@ class TenantContextService
 
     public function getCurrentTenant(): ?TenantContext
     {
-        $raw = session()->get(self::SESSION_KEY);
-        if (!is_array($raw) || $raw === []) {
-            return null;
+        if ($this->resolvedCurrentTenant) {
+            return $this->currentTenant;
         }
 
-        $context = TenantContext::fromArray($raw);
-        return $context->isValid() ? $context : null;
+        $this->resolvedCurrentTenant = true;
+
+        $raw = session()->get(self::SESSION_KEY);
+        $context = is_array($raw) && $raw !== []
+            ? TenantContext::fromArray($raw)
+            : null;
+
+        if ($context !== null && !$context->isValid()) {
+            $context = null;
+        }
+
+        $platformUserId = (int) (session()->get('platform_user_id') ?? 0);
+        if ($platformUserId > 0) {
+            if ($context !== null) {
+                $membership = $this->catalog->getTenantMembership($platformUserId, $context->tenantId);
+                if ($membership !== null) {
+                    $context = $this->catalog->buildTenantContext($membership);
+                    $this->setCurrentTenant($context);
+                    return $this->currentTenant = $context;
+                }
+            }
+
+            $context = $this->restoreTenantContextFromSession($platformUserId);
+            if ($context !== null) {
+                return $this->currentTenant = $context;
+            }
+        }
+
+        return $this->currentTenant = $context;
     }
 
     public function setCurrentTenant(TenantContext $context): void
@@ -40,11 +68,15 @@ class TenantContextService
         }
 
         session()->set(self::SESSION_KEY, $context->toArray());
+        $this->currentTenant = $context;
+        $this->resolvedCurrentTenant = true;
     }
 
     public function clearCurrentTenant(): void
     {
         session()->remove(self::SESSION_KEY);
+        $this->currentTenant = null;
+        $this->resolvedCurrentTenant = true;
     }
 
     public function activateTenantForPlatformUser(int $platformUserId, int $tenantId): ?TenantContext
@@ -69,5 +101,28 @@ class TenantContextService
         }
 
         return $context->allows($featureKey);
+    }
+
+    private function restoreTenantContextFromSession(int $platformUserId): ?TenantContext
+    {
+        $tenants = (array) (session()->get(TenantAppSessionBootstrapService::PLATFORM_SELECTABLE_TENANTS_SESSION_KEY) ?? []);
+        if (count($tenants) === 1) {
+            $tenantId = (int) ($tenants[0]['id_tenant'] ?? 0);
+            if ($tenantId > 0) {
+                return $this->activateTenantForPlatformUser($platformUserId, $tenantId);
+            }
+        }
+
+        $appUserId = (int) (session()->get('userId') ?? session()->get('id_user') ?? 0);
+        if ($appUserId > 0) {
+            $membership = $this->catalog->findTenantMembershipByAppUser($platformUserId, $appUserId);
+            if ($membership !== null) {
+                $context = $this->catalog->buildTenantContext($membership);
+                $this->setCurrentTenant($context);
+                return $context;
+            }
+        }
+
+        return null;
     }
 }

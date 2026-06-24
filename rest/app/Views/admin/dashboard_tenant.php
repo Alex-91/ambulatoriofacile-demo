@@ -235,6 +235,12 @@ $completion = is_array($completion ?? null) ? $completion : ['completed' => 0, '
                 </a>
               </div>
             <?php endif; ?>
+
+            <div style="margin-top:16px;">
+              <a href="<?= site_url('agenda') ?>" class="btn btn-success">
+                <i class="fa fa-calendar"></i> Vai in agenda
+              </a>
+            </div>
           </div>
 
           <div class="row">

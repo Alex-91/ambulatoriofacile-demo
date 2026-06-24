@@ -328,6 +328,7 @@ $routes->get('chat/attachment/(:num)', 'Chat::attachment/$1');
 
 $routes->group('agenda', function($routes) {
     $routes->get('/', 'Agenda::index');
+    $routes->get('gestione-tipi-visita', 'Agenda::gestioneTipiVisita');
     $routes->get('calendario', 'Agenda::calendario');
     $routes->get('calendario-team-day', 'Agenda::calendarioTeamDay');
     $routes->get('disponibilita-mese', 'Agenda::disponibilitaMese');
@@ -344,6 +345,9 @@ $routes->group('agenda', function($routes) {
     $routes->get('paziente/(:num)', 'Agenda::getPaziente/$1');
     $routes->get('get-nota', 'Agenda::getNota');
     $routes->post('salva-paziente', 'Agenda::salvaPaziente');
+    $routes->get('tipi-visita', 'Agenda::listaTipiVisita');
+    $routes->post('salva-tipo-visita', 'Agenda::salvaTipoVisita');
+    $routes->post('toggle-tipo-visita', 'Agenda::toggleTipoVisita');
 
     $routes->post('salva-appuntamento', 'Agenda::salvaAppuntamento');
     $routes->post('aggiorna-appuntamento', 'Agenda::aggiornaAppuntamento');
