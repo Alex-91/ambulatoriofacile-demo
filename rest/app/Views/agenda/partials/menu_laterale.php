@@ -1,7 +1,21 @@
 <?php
+helper('portal');
+
 $menuTree = $menuAgenda ?? ($menu ?? []);
 $uri = service('uri');
 $currentPath = trim($uri->getPath(), '/');
+$sess = session();
+$tenantContext = $sess->get('tenant_context');
+$tenantId = is_array($tenantContext) ? (int)($tenantContext['tenant_id'] ?? 0) : 0;
+$tenantRole = is_array($tenantContext) ? trim((string)($tenantContext['tenant_role'] ?? '')) : '';
+$currentUser = $sess->get('utente_sess');
+$hasOperationalProfileAccess = (bool)($sess->get('tenant_app_admin') ?? false) === true
+    || $sess->get('is_admin') === true
+    || (int)($sess->get('admin') ?? 0) === 1
+    || (is_object($currentUser) && (int)($currentUser->tipo ?? 0) === 1);
+$showOperationalProfileShortcut = $tenantId > 0
+    && in_array($tenantRole, ['tenant_master', 'tenant_admin'], true)
+    && $hasOperationalProfileAccess;
 
 if (!function_exists('agenda_menu_norm_icon_shared')) {
     function agenda_menu_norm_icon_shared($icon, $isExternal = false) {
@@ -102,6 +116,17 @@ if (!function_exists('agenda_menu_norm_icon_shared')) {
     }
 }
 ?>
+
+<?php if ($showOperationalProfileShortcut): ?>
+<div style="padding:12px 12px 0;">
+    <a href="<?= esc(portal_tenant_operational_profile_url()) ?>" class="btn btn-primary btn-block">
+        <i class="fa fa-briefcase"></i> Vai al profilo operativo
+    </a>
+    <p style="margin:8px 2px 0; color:#6b7785; font-size:12px; line-height:1.45;">
+        Apri dashboard spazio, impostazioni, personale e funzioni del tenant.
+    </p>
+</div>
+<?php endif; ?>
 
 <ul class="nav nav-pills nav-stacked" id="agendaMenuLaterale">
     <?= agenda_menu_render_tree_shared($menuTree, $currentPath) ?>

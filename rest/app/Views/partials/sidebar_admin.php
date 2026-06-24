@@ -56,6 +56,7 @@ $canManageTenantUsers = $tenantId > 0
     && in_array($tenantRole, ['tenant_master', 'tenant_admin'], true)
     && !empty($tenantFeatureFlags['staff_management']);
 $tenantOperationalHomeUrl = $tenantId > 0 ? portal_operational_home_url() : null;
+$tenantAgendaUrl = $tenantId > 0 ? portal_tenant_agenda_url() : null;
 $platformTenants = $sess->get('platform_selectable_tenants');
 $platformTenants = is_array($platformTenants) ? $platformTenants : [];
 $demoSessionActive = (bool) ($sess->get(\App\Services\DemoAccessService::SESSION_KEY_ACTIVE) ?? false);
@@ -89,12 +90,12 @@ $contextActions = [];
 $accountActions = [];
 
 if ($isTenantOperationalConsoleSession) {
-    if ($tenantOperationalHomeUrl !== null) {
+    if ($tenantAgendaUrl !== null) {
         $primaryAction = [
-            'href' => $tenantOperationalHomeUrl,
-            'label' => 'Vai al portale operativo',
-            'icon' => 'fa-home',
-            'active' => $isLinkActive($tenantOperationalHomeUrl),
+            'href' => $tenantAgendaUrl,
+            'label' => 'Vai all\'agenda',
+            'icon' => 'fa-calendar',
+            'active' => $isLinkActive($tenantAgendaUrl),
         ];
     }
 
@@ -108,8 +109,8 @@ if ($isTenantOperationalConsoleSession) {
             $tenantLabel = trim((string) ($availableTenant['tenant_name'] ?? $availableTenant['tenant_key'] ?? 'Spazio cliente'));
             $isCurrentTenant = $availableTenantId === $tenantId;
             $contextActions[] = [
-                'href' => $isCurrentTenant && $tenantOperationalHomeUrl !== null
-                    ? $tenantOperationalHomeUrl
+                'href' => $isCurrentTenant && $tenantAgendaUrl !== null
+                    ? $tenantAgendaUrl
                     : portal_tenant_switch_url($availableTenantId),
                 'label' => $isCurrentTenant ? $tenantLabel . ' (attivo)' : 'Apri spazio: ' . $tenantLabel,
                 'icon' => 'fa-exchange',

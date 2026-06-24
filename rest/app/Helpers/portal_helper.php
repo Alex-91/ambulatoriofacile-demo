@@ -74,6 +74,36 @@ if (!function_exists('portal_tenant_switch_url')) {
     }
 }
 
+if (!function_exists('portal_tenant_agenda_url')) {
+    function portal_tenant_agenda_url(): string
+    {
+        $tenantContextRaw = session()->get(\App\Services\TenantContextService::SESSION_KEY);
+        $tenantId = is_array($tenantContextRaw) ? (int) ($tenantContextRaw['tenant_id'] ?? 0) : 0;
+        $platformUserId = (int) (session()->get('platform_user_id') ?? 0);
+
+        if ($tenantId > 0 && $platformUserId > 0) {
+            return portal_tenant_space_url('agenda');
+        }
+
+        return site_url('agenda');
+    }
+}
+
+if (!function_exists('portal_tenant_operational_profile_url')) {
+    function portal_tenant_operational_profile_url(): string
+    {
+        $tenantContextRaw = session()->get(\App\Services\TenantContextService::SESSION_KEY);
+        $tenantId = is_array($tenantContextRaw) ? (int) ($tenantContextRaw['tenant_id'] ?? 0) : 0;
+        $platformUserId = (int) (session()->get('platform_user_id') ?? 0);
+
+        if ($tenantId > 0 && $platformUserId > 0) {
+            return portal_tenant_space_url('profilo-operativo');
+        }
+
+        return site_url('admin');
+    }
+}
+
 if (!function_exists('portal_space_label')) {
     function portal_space_label(bool $capitalized = false): string
     {
@@ -178,6 +208,14 @@ if (!function_exists('portal_operational_home_url')) {
     {
         $session = session();
         $user = $session->get('utente_sess');
+        $tenantContextRaw = $session->get(\App\Services\TenantContextService::SESSION_KEY);
+        $tenantRole = is_array($tenantContextRaw)
+            ? strtolower(trim((string) ($tenantContextRaw['tenant_role'] ?? '')))
+            : '';
+
+        if ($tenantRole === 'tenant_master' && (bool) ($session->get('isLoggedInConfirmed') ?? false) === true) {
+            return site_url('agenda');
+        }
 
         $isLegacyAdmin = $session->get('is_admin') === true
             || (int) ($session->get('admin') ?? 0) === 1
@@ -206,7 +244,7 @@ if (!function_exists('portal_session_console_url')) {
                 $tenantRole = strtolower(trim($tenantContext->tenantRole));
 
                 if ($tenantRole === 'tenant_master') {
-                    return site_url('admin');
+                    return site_url('agenda');
                 }
 
                 if ($tenantRole === 'tenant_admin') {

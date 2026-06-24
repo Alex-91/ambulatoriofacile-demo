@@ -105,6 +105,7 @@ class TenantAppSessionBootstrapService
 
         $this->resetSessionState();
         $this->hydrateTenantSession($tenantDb, $user, $membership);
+        $this->grantTenantMasterOperationalAdmin($tenantDb, $membership);
 
         $context = $this->tenantContext->activateTenantForPlatformUser($platformUserId, $tenantId);
         if ($context === null) {
@@ -141,7 +142,11 @@ class TenantAppSessionBootstrapService
     {
         $tenantRole = strtolower(trim((string) ($membership['tenant_role'] ?? $context->tenantRole)));
 
-        if (in_array($tenantRole, ['tenant_master', 'tenant_admin'], true)) {
+        if ($tenantRole === 'tenant_master') {
+            return site_url('agenda');
+        }
+
+        if ($tenantRole === 'tenant_admin') {
             return site_url('admin');
         }
 
@@ -484,6 +489,33 @@ class TenantAppSessionBootstrapService
     private function membershipHasAppAdminFlag(array $membership): bool
     {
         return (int) ($membership['is_app_admin'] ?? 0) === 1;
+    }
+
+    /**
+     * @param array<string, mixed> $membership
+     */
+    private function grantTenantMasterOperationalAdmin(\CodeIgniter\Database\BaseConnection $db, array $membership): void
+    {
+        $tenantRole = strtolower(trim((string) ($membership['tenant_role'] ?? '')));
+        if ($tenantRole !== 'tenant_master') {
+            return;
+        }
+
+        $this->tenantAdminMenu->ensureDefaultMenuIfEmpty($db);
+
+        $menuAdmin = $db->query("
+            SELECT titolo_menu, class, class_icon, admin, link2 AS link
+            FROM dap06_mnu
+            WHERE admin = 1
+            ORDER BY ordinamento ASC, id_mnu ASC
+        ")->getResultArray();
+
+        session()->set([
+            'admin' => 1,
+            'is_admin' => true,
+            'menuDataAdmin' => ['result' => $menuAdmin],
+            self::SESSION_KEY_TENANT_APP_ADMIN => true,
+        ]);
     }
 
     private function applyPersonaleAdminOverlay(\CodeIgniter\Database\BaseConnection $db): void
