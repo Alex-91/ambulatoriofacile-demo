@@ -19,6 +19,7 @@ use App\Services\AgendaAppointmentNotificationService;
 use App\Services\NotificationService;
 use App\Services\SmsReminderDashboardService;
 use App\Services\StaffDoctorAccessService;
+use App\Services\TenantCatalogService;
 use App\Services\TenantFeatureService;
 use App\Services\TenantContextService;
 use Exception;
@@ -47,6 +48,7 @@ class Agenda extends BaseController
     protected TenantFeatureService $tenantFeatureService;
     protected $db;
     protected ?array $tenantFeatureMap = null;
+    protected ?array $runtimeTenantFeatureMap = null;
 
     public function __construct()
     {
@@ -665,7 +667,10 @@ public function eseguiRepairRecurringExtraSlots()
 
         $context = $this->tenantContextService->getCurrentTenant();
         if ($context === null) {
-            return false;
+            $runtimeFeatureMap = $this->getRuntimeTenantFeatureMap();
+            return array_key_exists($featureKey, $runtimeFeatureMap)
+                ? (bool) $runtimeFeatureMap[$featureKey]
+                : false;
         }
 
         $featureMap = $this->getTenantFeatureMap($context->tenantId);
@@ -674,6 +679,25 @@ public function eseguiRepairRecurringExtraSlots()
         }
 
         return $context->allows($featureKey);
+    }
+
+    /**
+     * @return array<string, bool>
+     */
+    protected function getRuntimeTenantFeatureMap(): array
+    {
+        if ($this->runtimeTenantFeatureMap === null) {
+            try {
+                $this->runtimeTenantFeatureMap = (new TenantCatalogService())->resolveFeatureMapForCurrentRuntimeTenant();
+            } catch (\Throwable $e) {
+                log_message('error', 'Agenda::getRuntimeTenantFeatureMap failed: {message}', [
+                    'message' => $e->getMessage(),
+                ]);
+                $this->runtimeTenantFeatureMap = [];
+            }
+        }
+
+        return $this->runtimeTenantFeatureMap;
     }
 
     /**

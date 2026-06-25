@@ -13,6 +13,8 @@ class TenantCatalogService
     private PlatformTenantsModel $tenantsModel;
     private PlatformUsersModel $usersModel;
     private TenantFeatureService $tenantFeatures;
+    private bool $runtimeTenantResolved = false;
+    private ?array $runtimeTenantCache = null;
 
     public function __construct()
     {
@@ -102,6 +104,75 @@ class TenantCatalogService
         }
 
         return $this->tenantFeatures->resolveEffectiveFeatureMapForTenant($tenantId);
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    public function resolveCurrentRuntimeTenant(): ?array
+    {
+        if ($this->runtimeTenantResolved) {
+            return $this->runtimeTenantCache;
+        }
+
+        $this->runtimeTenantResolved = true;
+
+        $dbConfig = config(\Config\Database::class);
+        $runtimeConfig = is_array($dbConfig->default ?? null) ? $dbConfig->default : [];
+
+        $dbName = strtolower(trim((string) ($runtimeConfig['database'] ?? '')));
+        if ($dbName === '') {
+            return $this->runtimeTenantCache = null;
+        }
+
+        $rows = $this->db->table('platform_tenants')
+            ->where('LOWER(db_name)', $dbName)
+            ->orderBy('is_active', 'DESC')
+            ->orderBy('id_tenant', 'ASC')
+            ->get()
+            ->getResultArray();
+
+        if ($rows === []) {
+            return $this->runtimeTenantCache = null;
+        }
+
+        if (count($rows) === 1) {
+            return $this->runtimeTenantCache = $rows[0];
+        }
+
+        $dbHost = strtolower(trim((string) ($runtimeConfig['hostname'] ?? '')));
+        $dbUser = strtolower(trim((string) ($runtimeConfig['username'] ?? '')));
+        $dbPort = (int) ($runtimeConfig['port'] ?? 0);
+
+        $rows = array_values(array_filter($rows, static function (array $row) use ($dbHost, $dbUser, $dbPort): bool {
+            $hostMatches = $dbHost === ''
+                || strtolower(trim((string) ($row['db_host'] ?? ''))) === $dbHost;
+            $userMatches = $dbUser === ''
+                || strtolower(trim((string) ($row['db_username'] ?? ''))) === $dbUser;
+            $portMatches = $dbPort <= 0
+                || (int) ($row['db_port'] ?? 0) === $dbPort;
+
+            return $hostMatches && $userMatches && $portMatches;
+        }));
+
+        if ($rows === []) {
+            return $this->runtimeTenantCache = null;
+        }
+
+        return $this->runtimeTenantCache = $rows[0];
+    }
+
+    /**
+     * @return array<string, bool>
+     */
+    public function resolveFeatureMapForCurrentRuntimeTenant(): array
+    {
+        $tenant = $this->resolveCurrentRuntimeTenant();
+        if (!is_array($tenant)) {
+            return [];
+        }
+
+        return $this->resolveFeatureMapForTenant((int) ($tenant['id_tenant'] ?? 0));
     }
 
     public function buildTenantContext(array $membership): TenantContext

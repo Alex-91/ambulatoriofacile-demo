@@ -227,6 +227,13 @@ if ($tenantId > 0) {
     } catch (\Throwable $e) {
         $adminVisitTypesFeatureEnabled = false;
     }
+} else {
+    try {
+        $adminFeatureMap = (new \App\Services\TenantCatalogService())->resolveFeatureMapForCurrentRuntimeTenant();
+        $adminVisitTypesFeatureEnabled = !empty($adminFeatureMap['agenda_visit_types']);
+    } catch (\Throwable $e) {
+        $adminVisitTypesFeatureEnabled = false;
+    }
 }
 
 if ($adminVisitTypesFeatureEnabled) {

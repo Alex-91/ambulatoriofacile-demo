@@ -28,6 +28,15 @@ if (!$visitTypesFeatureEnabledResolved && $tenantId > 0) {
     }
 }
 
+if (!$visitTypesFeatureEnabledResolved && $tenantId <= 0) {
+    try {
+        $featureMap = (new \App\Services\TenantCatalogService())->resolveFeatureMapForCurrentRuntimeTenant();
+        $visitTypesFeatureEnabledResolved = !empty($featureMap['agenda_visit_types']);
+    } catch (\Throwable $e) {
+        $visitTypesFeatureEnabledResolved = false;
+    }
+}
+
 if (!function_exists('agenda_menu_norm_icon_shared')) {
     function agenda_menu_norm_icon_shared($icon, $isExternal = false) {
         $icon = trim((string)$icon);
