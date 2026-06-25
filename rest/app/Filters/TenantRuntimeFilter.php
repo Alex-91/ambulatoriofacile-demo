@@ -13,12 +13,12 @@ class TenantRuntimeFilter implements FilterInterface
 {
     public function before(RequestInterface $request, $arguments = null)
     {
-        helper('portal');
+        helper(['portal', 'session_auth']);
         if ($this->shouldSkipPath($request)) {
             return null;
         }
 
-        if ((bool) (session()->get('isLoggedInConfirmed') ?? false) !== true) {
+        if (!session_access_is_confirmed()) {
             return null;
         }
 

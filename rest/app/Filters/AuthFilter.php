@@ -10,13 +10,12 @@ class AuthFilter implements FilterInterface
 {
     public function before(RequestInterface $request, $arguments = null)
     {
-        $session = session();
+        helper(['portal', 'session_auth']);
 
-        if ((bool) $session->get('isLoggedInConfirmed') === true) {
+        if (session_access_is_confirmed()) {
             return null;
         }
 
-        helper('portal');
         return redirect()->to(portal_public_access_url('login'));
     }
 

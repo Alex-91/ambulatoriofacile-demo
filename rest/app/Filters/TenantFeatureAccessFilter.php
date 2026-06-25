@@ -12,7 +12,9 @@ class TenantFeatureAccessFilter implements FilterInterface
 {
     public function before(RequestInterface $request, $arguments = null)
     {
-        if ((bool) (session()->get('isLoggedInConfirmed') ?? false) !== true) {
+        helper('session_auth');
+
+        if (!session_access_is_confirmed()) {
             return null;
         }
 
