@@ -66,6 +66,8 @@ $routes->post('login/spazio/notifiche-appuntamenti/save', 'Tenant\AppointmentNot
 $routes->get('login/spazio/utenti', 'Tenant\SpaceUsers::index');
 $routes->post('login/spazio/utenti/save', 'Tenant\SpaceUsers::save');
 $routes->post('login/spazio/utenti/accesso', 'Tenant\SpaceUsers::sendAccess');
+$routes->get('login/spazio/agenda', 'Tenant\ConsoleBridge::agenda');
+$routes->get('login/spazio/profilo-operativo', 'Tenant\ConsoleBridge::operationalProfile');
 $routes->get('login/spazio/onboarding', 'Tenant\Onboarding::index');
 $routes->post('login/spazio/onboarding/completa', 'Tenant\Onboarding::complete');
 $routes->get('tenant/switch/(:num)', 'Login\LoginController::switchTenant/$1');

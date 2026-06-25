@@ -98,8 +98,14 @@ $useMinimalTenantOnboardingHeader = $isTenantOnboardingRoute
     && $showTenantOnboardingLink;
 $hideHeaderMenu = $hideHeaderMenu || $useMinimalTenantOnboardingHeader;
 $tenantOperationalHomeUrl = $tenantId > 0 ? portal_operational_home_url() : null;
+$headerCurrentUser = $sess->get('utente_sess');
 $canOpenTenantAdminMenu = $tenantId > 0
-    && (bool) ($sess->get('tenant_app_admin') ?? false) === true;
+    && (
+        (bool) ($sess->get('tenant_app_admin') ?? false) === true
+        || $sess->get('is_admin') === true
+        || (int) ($sess->get('admin') ?? 0) === 1
+        || (is_object($headerCurrentUser) && (int) ($headerCurrentUser->tipo ?? 0) === 1)
+    );
 $moveHeaderActionsToSidebar = $isTenantOperationalConsoleSession && !$useMinimalTenantOnboardingHeader;
 $showHeaderProfileAction = !$isPlatformConsoleSession && !$moveHeaderActionsToSidebar;
 $portalConsoleHeaderOverride = isset($portal_console_header) ? (bool) $portal_console_header : null;
@@ -368,11 +374,11 @@ if ($headerMenuUserId > 0) {
               <?php endif; ?>
               <?php if (!$useMinimalTenantOnboardingHeader && $canOpenTenantAdminMenu && !$isTenantOperationalConsoleSession): ?>
               <div class="platform-user-section">
-                <a href="<?= site_url('admin') ?>" class="btn btn-default btn-flat platform-user-action">
-                  <i class="fa fa-briefcase"></i> Apri menu amministrativo
+                <a href="<?= esc(portal_tenant_operational_profile_url()) ?>" class="btn btn-default btn-flat platform-user-action">
+                  <i class="fa fa-briefcase"></i> Vai al profilo operativo
                 </a>
                 <div class="platform-user-help">
-                  Qui trovi il profilo admin e le voci agenda riservate al medico amministratore.
+                  Apri direttamente dashboard spazio, agenda amministrativa e funzioni del tenant.
                 </div>
               </div>
               <?php endif; ?>

@@ -57,6 +57,7 @@ $canManageTenantUsers = $tenantId > 0
     && !empty($tenantFeatureFlags['staff_management']);
 $canOpenAgenda = $tenantId > 0 || session()->get('is_admin') === true || (int) (session()->get('admin') ?? 0) === 1;
 $tenantOperationalHomeUrl = $tenantId > 0 ? portal_operational_home_url() : null;
+$tenantAgendaUrl = $tenantId > 0 ? portal_tenant_agenda_url() : null;
 $platformTenants = $sess->get('platform_selectable_tenants');
 $platformTenants = is_array($platformTenants) ? $platformTenants : [];
 $demoSessionActive = (bool) ($sess->get(\App\Services\DemoAccessService::SESSION_KEY_ACTIVE) ?? false);
@@ -90,16 +91,18 @@ $secondaryPrimaryAction = null;
 $contextActions = [];
 $accountActions = [];
 
-if ($isTenantOperationalConsoleSession && $tenantOperationalHomeUrl !== null) {
-    $primaryAction = [
-        'href' => $tenantOperationalHomeUrl,
-        'label' => 'Vai al portale operativo',
-        'icon' => 'fa-home',
-        'active' => $isLinkActive($tenantOperationalHomeUrl),
-    ];
+if ($isTenantOperationalConsoleSession) {
+    if ($tenantAgendaUrl !== null) {
+        $primaryAction = [
+            'href' => $tenantAgendaUrl,
+            'label' => 'Vai all\'agenda',
+            'icon' => 'fa-calendar',
+            'active' => $isLinkActive($tenantAgendaUrl),
+        ];
+    }
 }
 
-if ($canOpenAgenda) {
+if ($canOpenAgenda && !$isTenantOperationalConsoleSession) {
     $secondaryPrimaryAction = [
         'href' => site_url('agenda'),
         'label' => 'Vai in agenda',
@@ -119,8 +122,8 @@ if ($isTenantOperationalConsoleSession) {
             $tenantLabel = trim((string) ($availableTenant['tenant_name'] ?? $availableTenant['tenant_key'] ?? 'Spazio cliente'));
             $isCurrentTenant = $availableTenantId === $tenantId;
             $contextActions[] = [
-                'href' => $isCurrentTenant && $tenantOperationalHomeUrl !== null
-                    ? $tenantOperationalHomeUrl
+                'href' => $isCurrentTenant && $tenantAgendaUrl !== null
+                    ? $tenantAgendaUrl
                     : portal_tenant_switch_url($availableTenantId),
                 'label' => $isCurrentTenant ? $tenantLabel . ' (attivo)' : 'Apri spazio: ' . $tenantLabel,
                 'icon' => 'fa-exchange',

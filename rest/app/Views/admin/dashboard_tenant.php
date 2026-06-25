@@ -77,6 +77,13 @@ $completion = is_array($completion ?? null) ? $completion : ['completed' => 0, '
     .tenant-alert .btn {
       margin-top: 10px;
     }
+    .tenant-hero-actions {
+      margin-top: 16px;
+    }
+    .tenant-hero-actions .btn {
+      margin-right: 10px;
+      margin-bottom: 10px;
+    }
     .summary-card,
     .shortcut-card,
     .check-card {
@@ -223,6 +230,12 @@ $completion = is_array($completion ?? null) ? $completion : ['completed' => 0, '
             </div>
             <div class="text-muted">
               Hai completato <?= (int)($completion['completed'] ?? 0) ?> passaggi su <?= (int)($completion['total'] ?? 0) ?>.
+            </div>
+
+            <div class="tenant-hero-actions">
+              <a href="<?= esc(portal_tenant_agenda_url()) ?>" class="btn btn-primary">
+                <i class="fa fa-calendar"></i> Vai all'agenda
+              </a>
             </div>
 
             <?php if ($requiresLocationSetup): ?>

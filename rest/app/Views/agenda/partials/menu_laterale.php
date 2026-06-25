@@ -8,14 +8,16 @@ $session = session();
 $tenantContextRaw = $session->get(\App\Services\TenantContextService::SESSION_KEY);
 $tenantRole = is_array($tenantContextRaw) ? strtolower(trim((string) ($tenantContextRaw['tenant_role'] ?? ''))) : '';
 $tenantId = is_array($tenantContextRaw) ? (int) ($tenantContextRaw['tenant_id'] ?? 0) : 0;
-$canOpenOperationalConsole = ($tenantId > 0 && in_array($tenantRole, ['tenant_master', 'tenant_admin'], true))
+$currentUser = $session->get('utente_sess');
+$hasOperationalProfileAccess = (bool) ($session->get('tenant_app_admin') ?? false) === true
     || $session->get('is_admin') === true
-    || (int) ($session->get('admin') ?? 0) === 1;
-$agendaConsoleUrl = null;
-if ($tenantId > 0 && in_array($tenantRole, ['tenant_master', 'tenant_admin'], true)) {
-    $agendaConsoleUrl = portal_session_console_url();
+    || (int) ($session->get('admin') ?? 0) === 1
+    || (is_object($currentUser) && (int) ($currentUser->tipo ?? 0) === 1);
+$operationalProfileUrl = null;
+if ($tenantId > 0 && in_array($tenantRole, ['tenant_master', 'tenant_admin'], true) && $hasOperationalProfileAccess) {
+    $operationalProfileUrl = portal_tenant_operational_profile_url();
 } elseif ($session->get('is_admin') === true || (int) ($session->get('admin') ?? 0) === 1) {
-    $agendaConsoleUrl = portal_operational_home_url();
+    $operationalProfileUrl = portal_operational_home_url();
 }
 $visitTypesFeatureEnabledResolved = isset($visitTypesFeatureEnabled)
     ? !empty($visitTypesFeatureEnabled)
@@ -159,14 +161,17 @@ if ($visitTypesFeatureEnabledResolved && !agenda_menu_has_route_shared($menuTree
 }
 ?>
 
-<?php if ($agendaConsoleUrl !== null): ?>
-    <div style="padding:15px 15px 0;">
-        <a href="<?= esc($agendaConsoleUrl) ?>" class="btn btn-default btn-block" style="font-weight:700;">
-            <i class="fa fa-briefcase"></i> Vai al centro operativo
-        </a>
-    </div>
+<?php if ($operationalProfileUrl !== null): ?>
+<div style="padding:12px 12px 0;">
+    <a href="<?= esc($operationalProfileUrl) ?>" class="btn btn-primary btn-block">
+        <i class="fa fa-briefcase"></i> Vai al profilo operativo
+    </a>
+    <p style="margin:8px 2px 0; color:#6b7785; font-size:12px; line-height:1.45;">
+        Apri dashboard spazio, impostazioni, personale e funzioni del tenant.
+    </p>
+</div>
 <?php endif; ?>
 
-<ul class="nav nav-pills nav-stacked" id="agendaMenuLaterale" style="margin-top:<?= $agendaConsoleUrl !== null ? '12px' : '0' ?>;">
+<ul class="nav nav-pills nav-stacked" id="agendaMenuLaterale" style="margin-top:<?= $operationalProfileUrl !== null ? '12px' : '0' ?>;">
     <?= agenda_menu_render_tree_shared($menuTree, $currentPath) ?>
 </ul>
