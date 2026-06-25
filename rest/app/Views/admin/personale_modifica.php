@@ -240,7 +240,7 @@ $success = $success ?? null;
               </p>
             </div>
             <div class="box-footer">
-              <form method="post" action="<?= site_url('admin/personale/elimina-account') ?>" onsubmit="return confirm(document.getElementById('deleteAccountConfirmMessage').value || 'Confermi l\\'eliminazione definitiva di questo account del personale?');">
+              <form method="post" action="<?= site_url('admin/personale/elimina-account') ?>" onsubmit="return confirm(document.getElementById('deleteAccountConfirmMessage').value || 'Confermi l\'eliminazione definitiva di questo account del personale?');">
                 <?= csrf_field() ?>
                 <input type="hidden" name="id_personale" id="id_personale_delete">
                 <input type="hidden" id="deleteAccountConfirmMessage" value="">
@@ -270,7 +270,7 @@ $success = $success ?? null;
         submitLabel: 'Elimina dottore',
         intro: 'Questa operazione e irreversibile.',
         details: 'Verranno eliminati account del dottore, appuntamenti, slot, memo, note, blocchi agenda, messaggi, chat, allegati e collegamenti associati. I pazienti resteranno nel sistema ma senza dottore associato.',
-        confirm: 'Confermi l\\'eliminazione definitiva del dottore? Verranno cancellati appuntamenti, slot, memo, note, agenda, messaggi, chat e collegamenti associati, mentre i pazienti resteranno senza dottore associato.'
+        confirm: 'Confermi l\'eliminazione definitiva del dottore? Verranno cancellati appuntamenti, slot, memo, note, agenda, messaggi, chat e collegamenti associati, mentre i pazienti resteranno senza dottore associato.'
       };
     }
 
@@ -285,7 +285,7 @@ $success = $success ?? null;
       submitLabel: 'Elimina account',
       intro: 'Questa operazione e irreversibile.',
       details: 'Verranno eliminati account, credenziali, collegamenti, messaggi, chat e dati collegati a questo ' + roleLabel + '. I dati condivisi degli altri utenti resteranno nel sistema.',
-      confirm: 'Confermi l\\'eliminazione definitiva di questo ' + roleLabel + '? Verranno cancellati account, collegamenti, messaggi, chat e dati collegati.'
+      confirm: 'Confermi l\'eliminazione definitiva di questo ' + roleLabel + '? Verranno cancellati account, collegamenti, messaggi, chat e dati collegati.'
     };
   }
 
