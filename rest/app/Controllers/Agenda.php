@@ -1315,6 +1315,17 @@ public function eseguiRepairRecurringExtraSlots()
         $medici = $this->agendaModel->getMediciVisibili($this->getCurrentUserId());
         $teamDayViewEnabled = $this->canUseTeamDayView($medici);
         $visitTypesFeatureEnabled = $this->isVisitTypesFeatureEnabled();
+        $visitTypes = [];
+
+        if ($visitTypesFeatureEnabled) {
+            try {
+                $visitTypes = $this->visitTypeModel->listForAgenda();
+            } catch (\Throwable $e) {
+                log_message('error', 'Agenda::index visit types bootstrap failed: {message}', [
+                    'message' => $e->getMessage(),
+                ]);
+            }
+        }
 
         $selectedDot = (int)($this->request->getGet('id_dot') ?: $this->getFirstVisibleDoctorId($medici));
 
@@ -1335,7 +1346,7 @@ public function eseguiRepairRecurringExtraSlots()
             'teamDayViewEnabled'   => $teamDayViewEnabled,
             'sharedMemoManagementEnabled' => $this->isSharedAgendaMemosFeatureEnabled(),
             'visitTypesFeatureEnabled' => $visitTypesFeatureEnabled,
-            'visitTypes'           => $visitTypesFeatureEnabled ? $this->visitTypeModel->listForAgenda() : [],
+            'visitTypes'           => $visitTypes,
             'domiciliariAbilitati' => $domiciliariAbilitati,
             'locationCatalog'      => $this->locationModel->getCatalog(true),
             'menuAgenda'           => method_exists($this->agendaModel, 'getMenuVisibleByUser')

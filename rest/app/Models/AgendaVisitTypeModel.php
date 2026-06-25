@@ -30,28 +30,27 @@ class AgendaVisitTypeModel extends Model
     {
         try {
             $this->ensureSchemaReady();
+            if (!$this->db->tableExists($this->table)) {
+                return [];
+            }
+
+            $builder = $this->builder()
+                ->orderBy('attivo', 'DESC')
+                ->orderBy('ordinamento', 'ASC')
+                ->orderBy('nome', 'ASC');
+
+            if (!$includeInactive) {
+                $builder->where('attivo', 1);
+            }
+
+            return array_map([$this, 'normalizeRow'], $builder->get()->getResultArray());
         } catch (\Throwable $e) {
-            log_message('error', 'AgendaVisitTypeModel::listForAgenda schema unavailable: {message}', [
+            log_message('error', 'AgendaVisitTypeModel::listForAgenda failed: {message}', [
                 'message' => $e->getMessage(),
             ]);
 
             return [];
         }
-
-        if (!$this->db->tableExists($this->table)) {
-            return [];
-        }
-
-        $builder = $this->builder()
-            ->orderBy('attivo', 'DESC')
-            ->orderBy('ordinamento', 'ASC')
-            ->orderBy('nome', 'ASC');
-
-        if (!$includeInactive) {
-            $builder->where('attivo', 1);
-        }
-
-        return array_map([$this, 'normalizeRow'], $builder->get()->getResultArray());
     }
 
     public function findType(int $idTipoVisita): ?array
@@ -62,20 +61,19 @@ class AgendaVisitTypeModel extends Model
 
         try {
             $this->ensureSchemaReady();
+            if (!$this->db->tableExists($this->table)) {
+                return null;
+            }
+
+            $row = $this->find($idTipoVisita);
+            return $row ? $this->normalizeRow($row) : null;
         } catch (\Throwable $e) {
-            log_message('error', 'AgendaVisitTypeModel::findType schema unavailable: {message}', [
+            log_message('error', 'AgendaVisitTypeModel::findType failed: {message}', [
                 'message' => $e->getMessage(),
             ]);
 
             return null;
         }
-
-        if (!$this->db->tableExists($this->table)) {
-            return null;
-        }
-
-        $row = $this->find($idTipoVisita);
-        return $row ? $this->normalizeRow($row) : null;
     }
 
     public function saveType(array $data, int $userId): int

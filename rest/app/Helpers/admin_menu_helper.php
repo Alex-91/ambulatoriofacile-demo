@@ -145,6 +145,10 @@ if (!function_exists('admin_menu_resolve_href')) {
             return site_url('agenda/gestione-sedi');
         }
 
+        if ($normalized === 'agenda/gestione-tipi-visita') {
+            return site_url('agenda/gestione-tipi-visita');
+        }
+
         $adminScopedPrefixes = [
             'personale/',
             'clienti/',
