@@ -79,9 +79,8 @@ if (!function_exists('portal_tenant_agenda_url')) {
     {
         $tenantContextRaw = session()->get(\App\Services\TenantContextService::SESSION_KEY);
         $tenantId = is_array($tenantContextRaw) ? (int) ($tenantContextRaw['tenant_id'] ?? 0) : 0;
-        $platformUserId = (int) (session()->get('platform_user_id') ?? 0);
 
-        if ($tenantId > 0 && $platformUserId > 0) {
+        if ($tenantId > 0) {
             return portal_tenant_space_url('agenda');
         }
 
@@ -94,9 +93,8 @@ if (!function_exists('portal_tenant_operational_profile_url')) {
     {
         $tenantContextRaw = session()->get(\App\Services\TenantContextService::SESSION_KEY);
         $tenantId = is_array($tenantContextRaw) ? (int) ($tenantContextRaw['tenant_id'] ?? 0) : 0;
-        $platformUserId = (int) (session()->get('platform_user_id') ?? 0);
 
-        if ($tenantId > 0 && $platformUserId > 0) {
+        if ($tenantId > 0) {
             return portal_tenant_space_url('profilo-operativo');
         }
 
