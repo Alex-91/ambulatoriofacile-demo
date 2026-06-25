@@ -2520,6 +2520,52 @@ function isAgendaCoveredSecondarySlot(slot) {
     return isPrimary !== 1;
 }
 
+function getAgendaPrimaryCoveredSlot(slot, slotPool) {
+    if (!slot || !isAgendaCoveredSecondarySlot(slot)) {
+        return slot || null;
+    }
+
+    var appointmentId = parseInt((slot && slot.id_appuntamento) || 0, 10) || 0;
+    if (appointmentId <= 0) {
+        return slot;
+    }
+
+    var currentDotId = String((slot && slot.id_dot) || '');
+    var currentDate = '';
+    var currentStart = parseAgendaMoment(slot && slot.ora_inizio ? slot.ora_inizio : '');
+    if (currentStart && currentStart.isValid()) {
+        currentDate = currentStart.format('YYYY-MM-DD');
+    }
+
+    var primarySlot = null;
+    $.each($.isArray(slotPool) ? slotPool : [], function(_, row) {
+        var rowAppointmentId = parseInt((row && row.id_appuntamento) || 0, 10) || 0;
+        if (rowAppointmentId !== appointmentId) {
+            return true;
+        }
+
+        if ((parseInt((row && row.appointment_is_primary_slot) || 0, 10) || 0) !== 1) {
+            return true;
+        }
+
+        if (currentDotId !== '' && String((row && row.id_dot) || '') !== currentDotId) {
+            return true;
+        }
+
+        if (currentDate !== '') {
+            var rowStart = parseAgendaMoment(row && row.ora_inizio ? row.ora_inizio : '');
+            if (!rowStart || !rowStart.isValid() || rowStart.format('YYYY-MM-DD') !== currentDate) {
+                return true;
+            }
+        }
+
+        primarySlot = row;
+        return false;
+    });
+
+    return primarySlot || slot;
+}
+
 function getAgendaSlotVisualStartMoment(slot) {
     return parseAgendaMoment(slot && slot.ora_inizio ? slot.ora_inizio : '');
 }
@@ -5319,10 +5365,6 @@ function buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute, entryH
     var html = '';
 
     $.each(slots, function(_, slot) {
-        if (isAgendaCoveredSecondarySlot(slot)) {
-            return true;
-        }
-
         var slotId = parseInt(slot.id_slot, 10) || 0;
         var startMoment = getAgendaSlotVisualStartMoment(slot);
         var endMoment = getAgendaSlotVisualEndMoment(slot);
@@ -6905,7 +6947,7 @@ $('#nota_giorno_text').on('blur', function() {
             return;
         }
 
-        riempiModaleDaEvento(slot);
+        riempiModaleDaEvento(getAgendaPrimaryCoveredSlot(slot, agendaTeamAllSlots));
         $('#appointmentModal').modal('show');
     });
 
