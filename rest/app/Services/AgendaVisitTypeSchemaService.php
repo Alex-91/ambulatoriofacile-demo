@@ -12,6 +12,7 @@ class AgendaVisitTypeSchemaService
 
     private BaseConnection $db;
     private bool $schemaEnsured = false;
+    private bool $provisioningFallbackAttempted = false;
 
     public function __construct(?BaseConnection $db = null)
     {
@@ -28,6 +29,10 @@ class AgendaVisitTypeSchemaService
         $migration->up();
 
         if (!$this->db->tableExists(self::VISIT_TYPES_TABLE)) {
+            $this->repairThroughTenantProvisioning();
+        }
+
+        if (!$this->db->tableExists(self::VISIT_TYPES_TABLE)) {
             $error = $this->db->error();
             $message = trim((string) ($error['message'] ?? ''));
 
@@ -39,5 +44,28 @@ class AgendaVisitTypeSchemaService
         }
 
         $this->schemaEnsured = true;
+    }
+
+    private function repairThroughTenantProvisioning(): void
+    {
+        if ($this->provisioningFallbackAttempted) {
+            return;
+        }
+
+        $this->provisioningFallbackAttempted = true;
+
+        try {
+            $tenantId = (new TenantContextService())->getCurrentTenant()?->tenantId ?? 0;
+            if ($tenantId <= 0) {
+                return;
+            }
+
+            (new TenantInfrastructureProvisioningService())->ensureTenantMigrationsApplied($tenantId);
+            $this->db->reconnect();
+        } catch (\Throwable $e) {
+            log_message('error', 'AgendaVisitTypeSchemaService fallback provisioning failed: {message}', [
+                'message' => $e->getMessage(),
+            ]);
+        }
     }
 }

@@ -146,6 +146,26 @@ class TenantInfrastructureProvisioningService
         }
     }
 
+    public function ensureTenantMigrationsApplied(int $tenantId): bool
+    {
+        $tenant = $this->catalog->getTenantById($tenantId);
+        if (!$tenant) {
+            throw new \RuntimeException('Spazio cliente non trovato.');
+        }
+
+        $resolvedTenant = $this->persistResolvedDatabaseDefaults($tenant);
+        $adminConnection = $this->connectAdminMysql($resolvedTenant);
+
+        try {
+            $this->ensureDatabaseExists($adminConnection, (string) ($resolvedTenant['db_name'] ?? ''));
+            $this->ensureRuntimeUserPrivileges($adminConnection, $resolvedTenant);
+
+            return $this->runTenantMigrations($resolvedTenant);
+        } finally {
+            $adminConnection->close();
+        }
+    }
+
     /**
      * @return array<string, mixed>
      */
