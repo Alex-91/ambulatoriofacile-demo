@@ -77,10 +77,16 @@ if (!function_exists('portal_tenant_switch_url')) {
 if (!function_exists('portal_tenant_agenda_url')) {
     function portal_tenant_agenda_url(): string
     {
+        helper('session_auth');
+
         $tenantContextRaw = session()->get(\App\Services\TenantContextService::SESSION_KEY);
         $tenantId = is_array($tenantContextRaw) ? (int) ($tenantContextRaw['tenant_id'] ?? 0) : 0;
 
         if ($tenantId > 0) {
+            if (session_access_is_confirmed()) {
+                return site_url('agenda');
+            }
+
             $bridgePath = 'login/spazio/agenda';
             $demoSessionActive = false;
 
@@ -100,10 +106,16 @@ if (!function_exists('portal_tenant_agenda_url')) {
 if (!function_exists('portal_tenant_operational_profile_url')) {
     function portal_tenant_operational_profile_url(): string
     {
+        helper('session_auth');
+
         $tenantContextRaw = session()->get(\App\Services\TenantContextService::SESSION_KEY);
         $tenantId = is_array($tenantContextRaw) ? (int) ($tenantContextRaw['tenant_id'] ?? 0) : 0;
 
         if ($tenantId > 0) {
+            if (session_access_is_confirmed()) {
+                return site_url('admin');
+            }
+
             $bridgePath = 'login/spazio/profilo-operativo';
             $demoSessionActive = false;
 

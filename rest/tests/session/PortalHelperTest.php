@@ -42,6 +42,42 @@ final class PortalHelperTest extends CIUnitTestCase
         $this->assertStringEndsWith('/login/spazio/profilo-operativo', portal_tenant_operational_profile_url());
     }
 
+    public function testTenantAgendaUrlUsesDirectAppPathWhenSessionIsConfirmed(): void
+    {
+        $user = new stdClass();
+        $user->id_user = 42;
+
+        service('session')->set([
+            'utente_sess' => $user,
+            'isLoggedInConfirmed' => true,
+            TenantContextService::SESSION_KEY => [
+                'tenant_id' => 12,
+                'tenant_role' => 'tenant_master',
+            ],
+        ]);
+
+        $this->assertStringEndsWith('/agenda', portal_tenant_agenda_url());
+        $this->assertStringNotContainsString('/login/spazio/agenda', portal_tenant_agenda_url());
+    }
+
+    public function testTenantOperationalProfileUrlUsesDirectAppPathWhenSessionIsConfirmed(): void
+    {
+        $user = new stdClass();
+        $user->id_user = 42;
+
+        service('session')->set([
+            'utente_sess' => $user,
+            'isLoggedInConfirmed' => true,
+            TenantContextService::SESSION_KEY => [
+                'tenant_id' => 12,
+                'tenant_role' => 'tenant_master',
+            ],
+        ]);
+
+        $this->assertStringEndsWith('/admin', portal_tenant_operational_profile_url());
+        $this->assertStringNotContainsString('/login/spazio/profilo-operativo', portal_tenant_operational_profile_url());
+    }
+
     public function testTenantAgendaUrlKeepsLoginPrefixInDemoMode(): void
     {
         service('session')->set([
@@ -78,6 +114,8 @@ final class PortalHelperTest extends CIUnitTestCase
     private function resetSessionState(): void
     {
         service('session')->remove([
+            'utente_sess',
+            'isLoggedInConfirmed',
             'platform_user_id',
             DemoAccessService::SESSION_KEY_ACTIVE,
             TenantContextService::SESSION_KEY,
