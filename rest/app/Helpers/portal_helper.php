@@ -81,8 +81,16 @@ if (!function_exists('portal_tenant_agenda_url')) {
         $tenantId = is_array($tenantContextRaw) ? (int) ($tenantContextRaw['tenant_id'] ?? 0) : 0;
 
         if ($tenantId > 0) {
-            // The bridge routes only exist under login/spazio/*, even in demo mode.
-            return portal_login_area_url('spazio/agenda');
+            $bridgePath = 'login/spazio/agenda';
+            $demoSessionActive = false;
+
+            try {
+                $demoSessionActive = (bool) (session()->get(\App\Services\DemoAccessService::SESSION_KEY_ACTIVE) ?? false);
+            } catch (\Throwable) {
+                $demoSessionActive = false;
+            }
+
+            return $demoSessionActive ? site_url($bridgePath) : portal_public_access_url($bridgePath);
         }
 
         return site_url('agenda');
@@ -96,8 +104,16 @@ if (!function_exists('portal_tenant_operational_profile_url')) {
         $tenantId = is_array($tenantContextRaw) ? (int) ($tenantContextRaw['tenant_id'] ?? 0) : 0;
 
         if ($tenantId > 0) {
-            // The bridge routes only exist under login/spazio/*, even in demo mode.
-            return portal_login_area_url('spazio/profilo-operativo');
+            $bridgePath = 'login/spazio/profilo-operativo';
+            $demoSessionActive = false;
+
+            try {
+                $demoSessionActive = (bool) (session()->get(\App\Services\DemoAccessService::SESSION_KEY_ACTIVE) ?? false);
+            } catch (\Throwable) {
+                $demoSessionActive = false;
+            }
+
+            return $demoSessionActive ? site_url($bridgePath) : portal_public_access_url($bridgePath);
         }
 
         return site_url('admin');
