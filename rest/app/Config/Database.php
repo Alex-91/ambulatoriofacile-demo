@@ -34,6 +34,13 @@ class Database extends Config
     public array $platform = [];
 
     /**
+     * Per-request tenant runtime connection used after tenant context bootstrap.
+     *
+     * @var array<string, mixed>
+     */
+    public array $tenantRuntime = [];
+
+    /**
      * Constructor to initialize the default database connection.
      */
     public function __construct()

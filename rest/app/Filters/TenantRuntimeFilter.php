@@ -11,6 +11,8 @@ use CodeIgniter\HTTP\ResponseInterface;
 
 class TenantRuntimeFilter implements FilterInterface
 {
+    private const TENANT_RUNTIME_GROUP = 'tenantRuntime';
+
     public function before(RequestInterface $request, $arguments = null)
     {
         helper(['portal', 'session_auth']);
@@ -36,8 +38,7 @@ class TenantRuntimeFilter implements FilterInterface
             }
 
             $config = (new TenantDatabaseConnector())->buildConnectionConfig($tenant);
-            $dbConfig = config(\Config\Database::class);
-            $dbConfig->default = $config;
+            $this->bindTenantRuntimeDatabaseConfig($config);
         } catch (\Throwable $e) {
             log_message('error', 'TenantRuntimeFilter failed: ' . $e->getMessage());
             $this->clearTenantSession();
@@ -119,5 +120,16 @@ class TenantRuntimeFilter implements FilterInterface
             \App\Services\TenantAppSessionBootstrapService::PLATFORM_SELECTABLE_TENANTS_SESSION_KEY,
             'loginSource',
         ]);
+    }
+
+    /**
+     * @param array<string, mixed> $config
+     */
+    private function bindTenantRuntimeDatabaseConfig(array $config): void
+    {
+        $dbConfig = config(\Config\Database::class);
+        $dbConfig->default = $config;
+        $dbConfig->tenantRuntime = $config;
+        $dbConfig->defaultGroup = self::TENANT_RUNTIME_GROUP;
     }
 }
