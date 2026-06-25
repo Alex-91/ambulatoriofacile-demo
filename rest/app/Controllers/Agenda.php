@@ -2375,6 +2375,7 @@ public function eseguiRepairRecurringExtraSlots()
                 ], 403);
             }
 
+            $currentUserId = $this->getCurrentUserId();
             $selectedDot = $selectedDot > 0 ? $selectedDot : $this->getFirstVisibleDoctorId($medici);
             if ($selectedDot > 0 && !$this->doctorListContainsId($medici, $selectedDot)) {
                 $selectedDot = $this->getFirstVisibleDoctorId($medici);
