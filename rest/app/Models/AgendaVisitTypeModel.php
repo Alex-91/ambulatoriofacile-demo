@@ -28,7 +28,15 @@ class AgendaVisitTypeModel extends Model
 
     public function listForAgenda(bool $includeInactive = true): array
     {
-        $this->ensureSchemaReady();
+        try {
+            $this->ensureSchemaReady();
+        } catch (\Throwable $e) {
+            log_message('error', 'AgendaVisitTypeModel::listForAgenda schema unavailable: {message}', [
+                'message' => $e->getMessage(),
+            ]);
+
+            return [];
+        }
 
         if (!$this->db->tableExists($this->table)) {
             return [];
@@ -52,7 +60,15 @@ class AgendaVisitTypeModel extends Model
             return null;
         }
 
-        $this->ensureSchemaReady();
+        try {
+            $this->ensureSchemaReady();
+        } catch (\Throwable $e) {
+            log_message('error', 'AgendaVisitTypeModel::findType schema unavailable: {message}', [
+                'message' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
 
         if (!$this->db->tableExists($this->table)) {
             return null;
