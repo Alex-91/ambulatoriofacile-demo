@@ -248,6 +248,7 @@ $routes->get('personale/modifica_personale', 'PersonaleEdit::index');
 $routes->get('personale/search', 'PersonaleEdit::search');      // AJAX
 $routes->get('personale/get/(:num)', 'PersonaleEdit::get/$1');  // AJAX
 $routes->post('personale/update', 'PersonaleEdit::update');     // POST
+$routes->post('personale/elimina-account', 'PersonaleEdit::deletePersonnel');
 $routes->post('personale/elimina-dottore', 'PersonaleEdit::deleteDoctor');
 $routes->get('personale/logs', 'Logs::index');
 $routes->get('logs/read', 'Logs::read');        // AJAX: contenuto log

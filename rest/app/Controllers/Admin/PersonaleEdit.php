@@ -257,21 +257,33 @@ if ($datascadenza !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $datascadenza))
 
     public function deleteDoctor()
     {
+        return $this->deletePersonnel();
+    }
+
+    public function deletePersonnel()
+    {
         if ($redirect = $this->guardAdmin()) {
             return $redirect;
         }
 
         $me = session()->get('utente_sess');
+        $model = new PersonaleModel();
 
         $idPersonale = (int)($this->request->getPost('id_personale') ?? 0);
         if ($idPersonale <= 0) {
             return redirect()->to(site_url('admin/personale/modifica_personale'))
-                ->with('errors', ['generic' => 'Seleziona un dottore valido da eliminare.']);
+                ->with('errors', ['generic' => 'Seleziona un account del personale valido da eliminare.']);
+        }
+
+        $personale = $model->getPersonaleDecryptedById($idPersonale);
+        if (!$personale) {
+            return redirect()->to(site_url('admin/personale/modifica_personale'))
+                ->with('errors', ['generic' => 'Account del personale non trovato.']);
         }
 
         try {
             $service = new DoctorDeletionService();
-            $result = $service->deleteDoctor(
+            $result = $service->deletePersonnel(
                 $idPersonale,
                 (int)($me->id_personale ?? 0),
                 (int)($me->id_user ?? 0)
@@ -281,19 +293,35 @@ if ($datascadenza !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $datascadenza))
                 session()->remove('selectedDoctorId');
             }
 
-            $message = 'Dottore eliminato correttamente. Rimossi agenda, appuntamenti, slot, memo, note e messaggi collegati.'
-                . ' Pazienti sganciati: ' . (int)($result['patients_detached'] ?? 0)
-                . '. Messaggi rimossi: '
-                . ((int)($result['legacy_messages_deleted'] ?? 0) + (int)($result['new_messages_deleted'] ?? 0))
-                . '.';
+            $message = $this->buildDeletePersonnelSuccessMessage($personale, $result);
 
             return redirect()->to(site_url('admin/personale/modifica_personale'))
                 ->with('success', $message);
         } catch (\Throwable $e) {
-            log_message('error', 'Delete doctor admin error: ' . $e->getMessage());
+            log_message('error', 'Delete personnel admin error: ' . $e->getMessage());
 
             return redirect()->to(site_url('admin/personale/modifica_personale'))
                 ->with('errors', ['generic' => $e->getMessage()]);
         }
+    }
+
+    private function buildDeletePersonnelSuccessMessage(array $personale, array $result): string
+    {
+        $tipo = (int)($personale['tipo'] ?? 0);
+        $legacyAndModernMessages = (int)($result['legacy_messages_deleted'] ?? 0)
+            + (int)($result['legacy_replies_deleted'] ?? 0)
+            + (int)($result['new_messages_deleted'] ?? 0);
+        $chatMessages = (int)($result['chat_messages_deleted'] ?? 0);
+
+        if ($tipo === 1) {
+            return 'Dottore eliminato correttamente. Rimossi agenda, appuntamenti, slot, memo, note, chat e messaggi collegati.'
+                . ' Pazienti sganciati: ' . (int)($result['patients_detached'] ?? 0)
+                . '. Messaggi rimossi: ' . ($legacyAndModernMessages + $chatMessages)
+                . '.';
+        }
+
+        return 'Account del personale eliminato correttamente. Rimossi collegamenti, messaggi, chat e dati collegati.'
+            . ' Messaggi rimossi: ' . ($legacyAndModernMessages + $chatMessages)
+            . '.';
     }
 }

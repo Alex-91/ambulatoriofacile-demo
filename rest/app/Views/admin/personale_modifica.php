@@ -223,28 +223,28 @@ $success = $success ?? null;
               <div class="box-footer">
                 <button class="btn btn-success" type="submit"><i class="fa fa-save"></i> Salva</button>
                 <button class="btn btn-default" type="button" id="btnReset">Reset</button>
-                <button class="btn btn-danger pull-right" type="button" id="btnJumpDeleteDoctor" style="display:none;">
-                  <i class="fa fa-trash"></i> Elimina dottore
+                <button class="btn btn-danger pull-right" type="button" id="btnJumpDeleteAccount" style="display:none;">
+                  <i class="fa fa-trash"></i> <span id="btnJumpDeleteAccountLabel">Elimina account</span>
                 </button>
               </div>
 
             </form>
           </div>
 
-          <div class="box box-danger" id="deleteDoctorBox" style="display:none;">
-            <div class="box-header with-border"><h3 class="box-title">Elimina Dottore</h3></div>
+          <div class="box box-danger" id="deleteAccountBox" style="display:none;">
+            <div class="box-header with-border"><h3 class="box-title" id="deleteAccountTitle">Elimina account del personale</h3></div>
             <div class="box-body">
-              <p class="text-danger" style="margin-bottom:8px;">Questa operazione e irreversibile.</p>
-              <p style="margin-bottom:0;">
-                Verranno eliminati account del dottore, appuntamenti, slot, memo, note, blocchi agenda, messaggi, allegati e collegamenti associati.
-                Gli utenti/pazienti collegati resteranno nel sistema ma senza dottore associato.
+              <p class="text-danger" style="margin-bottom:8px;" id="deleteAccountIntro">Questa operazione e irreversibile.</p>
+              <p style="margin-bottom:0;" id="deleteAccountDetails">
+                Verranno eliminati account, collegamenti, messaggi, chat e dati operativi collegati a questo membro del personale.
               </p>
             </div>
             <div class="box-footer">
-              <form method="post" action="<?= site_url('admin/personale/elimina-dottore') ?>" onsubmit="return confirm('Confermi l\\'eliminazione definitiva del dottore? Verranno cancellati appuntamenti, slot, memo, note, agenda, messaggi e collegamenti associati, mentre i pazienti resteranno senza dottore associato.');">
+              <form method="post" action="<?= site_url('admin/personale/elimina-account') ?>" onsubmit="return confirm(document.getElementById('deleteAccountConfirmMessage').value || 'Confermi l\\'eliminazione definitiva di questo account del personale?');">
                 <?= csrf_field() ?>
                 <input type="hidden" name="id_personale" id="id_personale_delete">
-                <button class="btn btn-danger" type="submit"><i class="fa fa-trash"></i> Elimina dottore</button>
+                <input type="hidden" id="deleteAccountConfirmMessage" value="">
+                <button class="btn btn-danger" type="submit"><i class="fa fa-trash"></i> <span id="btnDeleteAccountLabel">Elimina account</span></button>
               </form>
             </div>
           </div>
@@ -261,22 +261,65 @@ $success = $success ?? null;
 
 <script>
 (function(){
-  function toggleDeleteDoctorBox(tipoValue){
-    var isDoctor = String(tipoValue || '') === '1';
-    $('#deleteDoctorBox').toggle(isDoctor);
-    $('#btnJumpDeleteDoctor').toggle(isDoctor);
+  function getDeleteAccountMeta(tipoValue){
+    var normalized = String(tipoValue || '').trim();
+    if (normalized === '1') {
+      return {
+        title: 'Elimina dottore',
+        jumpLabel: 'Elimina dottore',
+        submitLabel: 'Elimina dottore',
+        intro: 'Questa operazione e irreversibile.',
+        details: 'Verranno eliminati account del dottore, appuntamenti, slot, memo, note, blocchi agenda, messaggi, chat, allegati e collegamenti associati. I pazienti resteranno nel sistema ma senza dottore associato.',
+        confirm: 'Confermi l\\'eliminazione definitiva del dottore? Verranno cancellati appuntamenti, slot, memo, note, agenda, messaggi, chat e collegamenti associati, mentre i pazienti resteranno senza dottore associato.'
+      };
+    }
+
+    var roleLabel = 'account del personale';
+    if (normalized === '2') roleLabel = 'infermiere';
+    if (normalized === '3') roleLabel = 'segreteria';
+    if (normalized === '4') roleLabel = 'profilo amministrativo';
+
+    return {
+      title: 'Elimina account del personale',
+      jumpLabel: 'Elimina account',
+      submitLabel: 'Elimina account',
+      intro: 'Questa operazione e irreversibile.',
+      details: 'Verranno eliminati account, credenziali, collegamenti, messaggi, chat e dati collegati a questo ' + roleLabel + '. I dati condivisi degli altri utenti resteranno nel sistema.',
+      confirm: 'Confermi l\\'eliminazione definitiva di questo ' + roleLabel + '? Verranno cancellati account, collegamenti, messaggi, chat e dati collegati.'
+    };
+  }
+
+  function renderDeleteAccountBox(tipoValue){
+    var hasSelection = $.trim($('#id_personale_h').val() || '') !== '';
+    if (!hasSelection) {
+      $('#deleteAccountBox').hide();
+      $('#btnJumpDeleteAccount').hide();
+      return;
+    }
+
+    var meta = getDeleteAccountMeta(tipoValue);
+    $('#deleteAccountTitle').text(meta.title);
+    $('#deleteAccountIntro').text(meta.intro);
+    $('#deleteAccountDetails').text(meta.details);
+    $('#deleteAccountConfirmMessage').val(meta.confirm);
+    $('#btnJumpDeleteAccountLabel').text(meta.jumpLabel);
+    $('#btnDeleteAccountLabel').text(meta.submitLabel);
+    $('#deleteAccountBox').show();
+    $('#btnJumpDeleteAccount').show();
   }
 
   function escHtml(s){ return String(s||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m])); }
 
   function resetEdit(){
     $('#editBox').hide();
-    $('#deleteDoctorBox').hide();
+    $('#deleteAccountBox').hide();
     $('#id_personale_h,#id_personale_delete,#id_user,#nome,#cognome,#qualifica,#email,#cellulare,#username,#password,#id_gruppo').val('');
+    $('#deleteAccountConfirmMessage').val('');
     $('#tipo').html('<option value="">Seleziona...</option>');
     $('#luoghi').html('');
     $('#titolare,#sostituto,#show_in_agenda,#show_in_posta,#show_in_chat').prop('checked', false);
     $('#datascadenza').val('');
+    $('#btnJumpDeleteAccount').hide();
   }
 function toISODate(datetimeStr){
   if(!datetimeStr) return '';
@@ -393,7 +436,7 @@ function syncLuoghi(){
        
         buildSelect($('#tipo'), res.tipi || [], 'id', 'label', p.tipo || '');
         buildMultiSelect($('#luoghi'), res.gruppi || [], 'id', 'label', res.selected_luoghi || [p.luogo || '']);
-        toggleDeleteDoctorBox(p.tipo || '');
+        renderDeleteAccountBox(p.tipo || '');
 
         if(u){
           $('#username').val(u.username || '');
@@ -426,9 +469,9 @@ function syncLuoghi(){
 
   $('#btnReset').on('click', function(){ resetEdit(); });
   $('#luoghi').on('change', syncLuoghi);
-  $('#tipo').on('change', function(){ toggleDeleteDoctorBox($(this).val()); });
-  $('#btnJumpDeleteDoctor').on('click', function(){
-    var $box = $('#deleteDoctorBox');
+  $('#tipo').on('change', function(){ renderDeleteAccountBox($(this).val()); });
+  $('#btnJumpDeleteAccount').on('click', function(){
+    var $box = $('#deleteAccountBox');
     if (!$box.is(':visible')) {
       return;
     }

@@ -11,6 +11,7 @@ class DoctorDeletionService
     private BaseConnection $db;
     private DatabaseConfig $dbConfig;
     private array $doctorFamilyCache = [];
+    private array $tableFieldExistsCache = [];
 
     public function __construct(?BaseConnection $db = null)
     {
@@ -25,12 +26,7 @@ class DoctorDeletionService
             throw new \InvalidArgumentException('Dottore non valido.');
         }
 
-        $doctor = $this->db->table('dap03_personale')
-            ->select('id_personale, id_user, tipo, COALESCE(legacy_id_dot, 0) AS legacy_id_dot')
-            ->where('id_personale', $doctorPersonaleId)
-            ->get(1)
-            ->getRowArray();
-
+        $doctor = $this->findPersonaleRecord($doctorPersonaleId);
         if (!$doctor) {
             throw new \RuntimeException('Dottore non trovato.');
         }
@@ -39,21 +35,39 @@ class DoctorDeletionService
             throw new \RuntimeException('Il record selezionato non e un dottore.');
         }
 
-        $doctorUserId = (int)($doctor['id_user'] ?? 0);
-        if (($currentSessionPersonaleId ?? 0) === $doctorPersonaleId || ($doctorUserId > 0 && ($currentSessionUserId ?? 0) === $doctorUserId)) {
+        return $this->deletePersonnel($doctorPersonaleId, $currentSessionPersonaleId, $currentSessionUserId);
+    }
+
+    public function deletePersonnel(int $personaleId, ?int $currentSessionPersonaleId = null, ?int $currentSessionUserId = null): array
+    {
+        if ($personaleId <= 0) {
+            throw new \InvalidArgumentException('Account personale non valido.');
+        }
+
+        $personale = $this->findPersonaleRecord($personaleId);
+        if (!$personale) {
+            throw new \RuntimeException('Account personale non trovato.');
+        }
+
+        $personaleUserId = (int)($personale['id_user'] ?? 0);
+        if (($currentSessionPersonaleId ?? 0) === $personaleId || ($personaleUserId > 0 && ($currentSessionUserId ?? 0) === $personaleUserId)) {
             throw new \RuntimeException('Non puoi eliminare l\'account con cui sei loggato.');
         }
 
-        $legacyDoctorId = (int)($doctor['legacy_id_dot'] ?? 0);
-        $affectedClientIds = $this->listAffectedClientIds($doctorPersonaleId);
+        $personaleTipo = (int)($personale['tipo'] ?? 0);
+        $isDoctor = $personaleTipo === 1;
+        $legacyDoctorId = $isDoctor ? (int)($personale['legacy_id_dot'] ?? 0) : 0;
+        $affectedClientIds = $isDoctor ? $this->listAffectedClientIds($personaleId) : [];
         $agendaScope = $this->collectAgendaScope($legacyDoctorId);
-        $legacyMessageScope = $this->collectLegacyMessageScope($doctorPersonaleId);
-        $newMessageScope = $this->collectNewMessageScope($doctorUserId);
+        $legacyMessageScope = $this->collectLegacyMessageScope($personaleId);
+        $newMessageScope = $this->collectNewMessageScope($personaleUserId);
+        $chatScope = $this->collectChatScope($personaleUserId, $isDoctor);
         $cleanupPlan = $this->buildCleanupPlan($agendaScope, $legacyMessageScope, $newMessageScope);
 
         $summary = [
-            'doctor_id' => $doctorPersonaleId,
-            'doctor_user_id' => $doctorUserId,
+            'personale_id' => $personaleId,
+            'personale_user_id' => $personaleUserId,
+            'personale_tipo' => $personaleTipo,
             'legacy_doctor_id' => $legacyDoctorId,
             'patients_detached' => count($affectedClientIds),
             'agenda_configs_deleted' => count($agendaScope['config_ids']),
@@ -64,30 +78,43 @@ class DoctorDeletionService
             'new_threads_deleted' => count($newMessageScope['thread_ids']),
             'new_messages_deleted' => count($newMessageScope['message_ids']),
             'new_drafts_deleted' => count($newMessageScope['draft_ids']),
+            'chat_threads_deleted' => $isDoctor ? count($chatScope['thread_ids']) : 0,
+            'chat_messages_deleted' => count($chatScope['message_ids']),
+            'chat_memberships_deleted' => count($chatScope['membership_thread_ids']),
         ];
 
         $this->db->transBegin();
 
         try {
-            $this->detachPatients($affectedClientIds, $doctorPersonaleId, $legacyDoctorId);
-            $this->deleteDoctorLinks($doctorPersonaleId);
-            $this->deleteAgendaData($legacyDoctorId, $agendaScope);
+            if ($isDoctor) {
+                $this->detachPatients($affectedClientIds, $personaleId, $legacyDoctorId);
+            }
+
+            $this->deletePersonnelLinks($personaleId, $personaleUserId, $personaleTipo);
+            if ($isDoctor) {
+                $this->deleteAgendaData($legacyDoctorId, $agendaScope);
+            }
             $this->deleteLegacyMessages($legacyMessageScope);
             $this->deleteNewMessages($newMessageScope);
-            $this->deleteUserArtifacts($doctorUserId);
+            $this->deleteChatData($chatScope, $isDoctor, $personaleUserId);
+            $this->deleteUserArtifacts($personaleUserId);
 
             $this->db->table('dap03_personale')
-                ->where('id_personale', $doctorPersonaleId)
+                ->where('id_personale', $personaleId)
                 ->delete();
 
-            if ($doctorUserId > 0 && $this->tableExists('dap01_users')) {
+            if ($personaleUserId > 0 && $this->tableExists('dap01_users')) {
                 $this->db->table('dap01_users')
-                    ->where('id_user', $doctorUserId)
+                    ->where('id_user', $personaleUserId)
                     ->delete();
             }
 
             if (!$this->db->transStatus()) {
-                throw new \RuntimeException('La cancellazione del dottore non e andata a buon fine.');
+                throw new \RuntimeException(
+                    $isDoctor
+                        ? 'La cancellazione del dottore non e andata a buon fine.'
+                        : 'La cancellazione dell\'account personale non e andata a buon fine.'
+                );
             }
 
             $this->db->transCommit();
@@ -96,10 +123,23 @@ class DoctorDeletionService
             throw $e;
         }
 
-        $summary['patient_search_resynced'] = $this->resyncPatientSearchIndex($affectedClientIds);
+        $summary['patient_search_resynced'] = $isDoctor ? $this->resyncPatientSearchIndex($affectedClientIds) : 0;
         $summary['filesystem_cleanup'] = $this->cleanupFilesystem($cleanupPlan);
 
         return $summary;
+    }
+
+    private function findPersonaleRecord(int $personaleId): ?array
+    {
+        if ($personaleId <= 0) {
+            return null;
+        }
+
+        return $this->db->table('dap03_personale')
+            ->select('id_personale, id_user, tipo, COALESCE(legacy_id_dot, 0) AS legacy_id_dot')
+            ->where('id_personale', $personaleId)
+            ->get(1)
+            ->getRowArray();
     }
 
     private function detachPatients(array $clientIds, int $doctorPersonaleId = 0, int $legacyDoctorId = 0): void
@@ -243,32 +283,39 @@ class DoctorDeletionService
         return $resynced;
     }
 
-    private function deleteDoctorLinks(int $doctorPersonaleId): void
+    private function deletePersonnelLinks(int $personaleId, int $userId = 0, int $personaleTipo = 0): void
     {
-        if ($doctorPersonaleId <= 0) {
+        if ($personaleId <= 0 && $userId <= 0) {
             return;
         }
 
-        if ($this->tableExists('dap14_seg_dot')) {
-            $this->db->table('dap14_seg_dot')
-                ->where('id_dot', $doctorPersonaleId)
-                ->delete();
-        }
+        $this->deleteByAnyField('dap14_seg_dot', [
+            'id_dot' => $personaleId,
+            'id_seg' => $personaleId,
+            'id_inf' => $personaleId,
+        ]);
 
-        if ($this->tableExists('dap15_inf_dot')) {
-            $this->db->table('dap15_inf_dot')
-                ->where('id_dot', $doctorPersonaleId)
-                ->delete();
-        }
+        $this->deleteByAnyField('dap15_inf_dot', [
+            'id_dot' => $personaleId,
+            'id_inf' => $personaleId,
+        ]);
 
-        if ($this->tableExists('dap18_sostituto')) {
-            $this->db->table('dap18_sostituto')
-                ->groupStart()
-                    ->where('id_personale', $doctorPersonaleId)
-                    ->orWhere('id_personale_da_sostituire', $doctorPersonaleId)
-                ->groupEnd()
-                ->delete();
+        $this->deleteByAnyField('dap18_sostituto', [
+            'id_personale' => $personaleId,
+            'id_personale_da_sostituire' => $personaleId,
+        ]);
+
+        if ($personaleTipo !== 1) {
+            $this->deleteByAnyField('dap13_seg', [
+                'id_user' => $userId,
+                'id_inf' => $personaleId,
+            ]);
         }
+    }
+
+    private function deleteDoctorLinks(int $doctorPersonaleId): void
+    {
+        $this->deletePersonnelLinks($doctorPersonaleId, 0, 1);
     }
 
     private function deleteAgendaData(int $legacyDoctorId, array $scope): void
@@ -494,6 +541,109 @@ class DoctorDeletionService
                     ->whereIn('id_thread', $chunk)
                     ->delete();
             }
+        }
+    }
+
+    private function collectChatScope(int $userId, bool $deleteWholeDoctorThreads = false): array
+    {
+        if ($userId <= 0) {
+            return [
+                'thread_ids' => [],
+                'message_ids' => [],
+                'membership_thread_ids' => [],
+            ];
+        }
+
+        $membershipThreadIds = $this->tableExists('dap_chat_thread_user')
+            ? $this->queryIds(
+                'SELECT DISTINCT id_thread FROM dap_chat_thread_user WHERE id_user = ?',
+                [$userId],
+                'id_thread'
+            )
+            : [];
+
+        $messageIds = $this->tableExists('dap_chat_message')
+            ? $this->queryIds(
+                'SELECT id_message FROM dap_chat_message WHERE sender_id = ?',
+                [$userId],
+                'id_message'
+            )
+            : [];
+
+        $threadIds = $membershipThreadIds;
+        if ($deleteWholeDoctorThreads && $this->tableExists('dap_chat_thread')) {
+            $doctorThreadIds = $this->queryIds(
+                "SELECT id_thread
+                 FROM dap_chat_thread
+                 WHERE thread_type = 'group'
+                   AND (group_key = ? OR group_key = ?)",
+                ['segreteria_' . $userId, 'infermieri_' . $userId],
+                'id_thread'
+            );
+
+            $threadIds = $this->uniquePositiveInts(array_merge($threadIds, $doctorThreadIds));
+        }
+
+        if ($deleteWholeDoctorThreads && $threadIds !== [] && $this->tableExists('dap_chat_message')) {
+            $messageIds = $this->uniquePositiveInts(array_merge(
+                $messageIds,
+                $this->queryIdsByChunks(
+                    'SELECT id_message FROM dap_chat_message WHERE id_thread IN (%s)',
+                    $threadIds,
+                    'id_message'
+                )
+            ));
+        }
+
+        return [
+            'thread_ids' => $threadIds,
+            'message_ids' => $messageIds,
+            'membership_thread_ids' => $membershipThreadIds,
+        ];
+    }
+
+    private function deleteChatData(array $scope, bool $deleteWholeDoctorThreads, int $userId): void
+    {
+        $threadIds = $this->uniquePositiveInts($scope['thread_ids'] ?? []);
+
+        if ($deleteWholeDoctorThreads && $threadIds !== []) {
+            if ($this->tableExists('dap_chat_message')) {
+                foreach (array_chunk($threadIds, 500) as $chunk) {
+                    $this->db->table('dap_chat_message')
+                        ->whereIn('id_thread', $chunk)
+                        ->delete();
+                }
+            }
+
+            if ($this->tableExists('dap_chat_thread_user')) {
+                foreach (array_chunk($threadIds, 500) as $chunk) {
+                    $this->db->table('dap_chat_thread_user')
+                        ->whereIn('id_thread', $chunk)
+                        ->delete();
+                }
+            }
+
+            if ($this->tableExists('dap_chat_thread')) {
+                foreach (array_chunk($threadIds, 500) as $chunk) {
+                    $this->db->table('dap_chat_thread')
+                        ->whereIn('id_thread', $chunk)
+                        ->delete();
+                }
+            }
+
+            return;
+        }
+
+        if ($userId > 0 && $this->tableExists('dap_chat_message')) {
+            $this->db->table('dap_chat_message')
+                ->where('sender_id', $userId)
+                ->delete();
+        }
+
+        if ($userId > 0 && $this->tableExists('dap_chat_thread_user')) {
+            $this->db->table('dap_chat_thread_user')
+                ->where('id_user', $userId)
+                ->delete();
         }
     }
 
@@ -1049,6 +1199,37 @@ class DoctorDeletionService
         return false;
     }
 
+    private function deleteByAnyField(string $table, array $criteria): void
+    {
+        if (!$this->tableExists($table)) {
+            return;
+        }
+
+        $builder = $this->db->table($table);
+        $hasConditions = false;
+
+        $builder->groupStart();
+        foreach ($criteria as $field => $value) {
+            $value = (int)$value;
+            if ($value <= 0 || !$this->fieldExists($table, $field)) {
+                continue;
+            }
+
+            if ($hasConditions) {
+                $builder->orWhere($field, $value);
+            } else {
+                $builder->where($field, $value);
+            }
+
+            $hasConditions = true;
+        }
+        $builder->groupEnd();
+
+        if ($hasConditions) {
+            $builder->delete();
+        }
+    }
+
     private function tableExists(string $table): bool
     {
         try {
@@ -1056,6 +1237,23 @@ class DoctorDeletionService
         } catch (\Throwable $e) {
             return false;
         }
+    }
+
+    private function fieldExists(string $table, string $field): bool
+    {
+        $cacheKey = $table . '.' . $field;
+        if (array_key_exists($cacheKey, $this->tableFieldExistsCache)) {
+            return $this->tableFieldExistsCache[$cacheKey];
+        }
+
+        try {
+            $exists = $this->db->fieldExists($field, $table);
+        } catch (\Throwable $e) {
+            $exists = false;
+        }
+
+        $this->tableFieldExistsCache[$cacheKey] = $exists;
+        return $exists;
     }
 
     private function queryIds(string $sql, array $params, string $column): array

@@ -379,6 +379,7 @@ class AdminMenuVisibilityService
                 'admin/personale/search',
                 'admin/personale/get',
                 'admin/personale/update',
+                'admin/personale/elimina-account',
                 'admin/personale/elimina-dottore',
             ],
             'personale/modifica_cliente' => [
