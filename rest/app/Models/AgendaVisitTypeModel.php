@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\AgendaVisitTypeSchemaService;
 use CodeIgniter\Model;
 use Exception;
 
@@ -23,9 +24,12 @@ class AgendaVisitTypeModel extends Model
     protected $useTimestamps = true;
     protected $createdField = 'created_at';
     protected $updatedField = 'updated_at';
+    private ?AgendaVisitTypeSchemaService $schemaService = null;
 
     public function listForAgenda(bool $includeInactive = true): array
     {
+        $this->ensureSchemaReady();
+
         if (!$this->db->tableExists($this->table)) {
             return [];
         }
@@ -44,7 +48,13 @@ class AgendaVisitTypeModel extends Model
 
     public function findType(int $idTipoVisita): ?array
     {
-        if ($idTipoVisita <= 0 || !$this->db->tableExists($this->table)) {
+        if ($idTipoVisita <= 0) {
+            return null;
+        }
+
+        $this->ensureSchemaReady();
+
+        if (!$this->db->tableExists($this->table)) {
             return null;
         }
 
@@ -54,6 +64,8 @@ class AgendaVisitTypeModel extends Model
 
     public function saveType(array $data, int $userId): int
     {
+        $this->ensureSchemaReady();
+
         if (!$this->db->tableExists($this->table)) {
             throw new Exception('La tabella dei tipi visita non e disponibile.');
         }
@@ -107,7 +119,13 @@ class AgendaVisitTypeModel extends Model
 
     public function toggleActive(int $idTipoVisita, bool $active, int $userId): bool
     {
-        if ($idTipoVisita <= 0 || !$this->db->tableExists($this->table)) {
+        if ($idTipoVisita <= 0) {
+            throw new Exception('Tipo visita non valido.');
+        }
+
+        $this->ensureSchemaReady();
+
+        if (!$this->db->tableExists($this->table)) {
             throw new Exception('Tipo visita non valido.');
         }
 
@@ -139,5 +157,11 @@ class AgendaVisitTypeModel extends Model
         $row['attivo'] = (int) ($row['attivo'] ?? 0);
         $row['ordinamento'] = (int) ($row['ordinamento'] ?? 0);
         return $row;
+    }
+
+    private function ensureSchemaReady(): void
+    {
+        $this->schemaService ??= new AgendaVisitTypeSchemaService($this->db);
+        $this->schemaService->ensureReady();
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\AgendaVisitTypeSchemaService;
 use CodeIgniter\Model;
 use Exception;
 
@@ -14,6 +15,7 @@ class AgendaAppointmentModel extends Model
     /** @var array<string, bool> */
     private array $fieldExistsCache = [];
     private ?bool $hasAppointmentSlotLinkTable = null;
+    private ?AgendaVisitTypeSchemaService $visitTypeSchemaService = null;
 
     public function __construct()
     {
@@ -647,6 +649,8 @@ class AgendaAppointmentModel extends Model
         $usesSpan = (int) ($plan['duration_minutes'] ?? 0) > $slotDuration;
 
         if ($visitTypesFeatureEnabled) {
+            $this->ensureVisitTypeSchemaReady();
+
             foreach (['id_tipo_visita', 'tipo_visita_label', 'durata_minuti', 'ora_fine_appuntamento'] as $field) {
                 if (!$this->appointmentTableHasField($field)) {
                     throw new Exception('La struttura del database non e aggiornata per gestire i tipi visita.');
@@ -675,5 +679,13 @@ class AgendaAppointmentModel extends Model
         }
 
         return $this->fieldExistsCache[$field];
+    }
+
+    private function ensureVisitTypeSchemaReady(): void
+    {
+        $this->visitTypeSchemaService ??= new AgendaVisitTypeSchemaService($this->db);
+        $this->visitTypeSchemaService->ensureReady();
+        $this->fieldExistsCache = [];
+        $this->hasAppointmentSlotLinkTable = null;
     }
 }
