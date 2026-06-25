@@ -81,7 +81,8 @@ if (!function_exists('portal_tenant_agenda_url')) {
         $tenantId = is_array($tenantContextRaw) ? (int) ($tenantContextRaw['tenant_id'] ?? 0) : 0;
 
         if ($tenantId > 0) {
-            return portal_tenant_space_url('agenda');
+            // The bridge routes only exist under login/spazio/*, even in demo mode.
+            return portal_login_area_url('spazio/agenda');
         }
 
         return site_url('agenda');
@@ -95,7 +96,8 @@ if (!function_exists('portal_tenant_operational_profile_url')) {
         $tenantId = is_array($tenantContextRaw) ? (int) ($tenantContextRaw['tenant_id'] ?? 0) : 0;
 
         if ($tenantId > 0) {
-            return portal_tenant_space_url('profilo-operativo');
+            // The bridge routes only exist under login/spazio/*, even in demo mode.
+            return portal_login_area_url('spazio/profilo-operativo');
         }
 
         return site_url('admin');
