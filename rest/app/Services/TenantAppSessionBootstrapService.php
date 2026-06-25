@@ -140,7 +140,13 @@ class TenantAppSessionBootstrapService
      */
     private function resolvePlatformTenantRedirectUrl(\App\Libraries\TenantContext $context, array $membership): string
     {
+        helper('session_auth');
+
         $tenantRole = strtolower(trim((string) ($membership['tenant_role'] ?? $context->tenantRole)));
+
+        if (session_should_open_agenda_first()) {
+            return site_url('agenda');
+        }
 
         if ($tenantRole === 'tenant_master') {
             return site_url('agenda');

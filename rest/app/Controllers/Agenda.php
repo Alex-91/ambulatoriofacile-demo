@@ -605,6 +605,40 @@ public function eseguiRepairRecurringExtraSlots()
         return $this->isTeamDayViewFeatureEnabled() && count($medici) > 1;
     }
 
+    protected function getTeamDayDoctorsForCurrentUser(): array
+    {
+        $mediciVisibili = $this->agendaModel->getMediciVisibili($this->getCurrentUserId());
+        if (!$this->isTeamDayViewFeatureEnabled()) {
+            return $mediciVisibili;
+        }
+
+        $teamDoctors = $this->agendaModel->getAllAgendaProfessionals();
+        if (count($teamDoctors) > 1) {
+            return $teamDoctors;
+        }
+
+        return $mediciVisibili;
+    }
+
+    protected function doctorListContainsId(array $medici, int $idDot): bool
+    {
+        if ($idDot <= 0) {
+            return false;
+        }
+
+        foreach ($medici as $medico) {
+            $currentId = (int) (is_object($medico)
+                ? ($medico->id_dot ?? 0)
+                : ($medico['id_dot'] ?? 0));
+
+            if ($currentId === $idDot) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     protected function isSharedAgendaMemosFeatureEnabled(): bool
     {
         return $this->tenantFeatureEnabled(self::SHARED_AGENDA_MEMOS_FEATURE);
@@ -1313,7 +1347,8 @@ public function eseguiRepairRecurringExtraSlots()
     public function index()
     {
         $medici = $this->agendaModel->getMediciVisibili($this->getCurrentUserId());
-        $teamDayViewEnabled = $this->canUseTeamDayView($medici);
+        $teamDayDoctors = $this->getTeamDayDoctorsForCurrentUser();
+        $teamDayViewEnabled = $this->canUseTeamDayView($teamDayDoctors);
         $visitTypesFeatureEnabled = $this->isVisitTypesFeatureEnabled();
         $visitTypes = [];
 
@@ -2298,10 +2333,8 @@ public function eseguiRepairRecurringExtraSlots()
         $step = 'start';
 
         try {
-            $currentUserId = $this->getCurrentUserId();
-
             $step = 'load_visible_doctors';
-            $medici = $this->agendaModel->getMediciVisibili($currentUserId);
+            $medici = $this->getTeamDayDoctorsForCurrentUser();
             if (!$this->canUseTeamDayView($medici)) {
                 return $this->respondCalendarioJson([
                     'status' => false,
@@ -2319,7 +2352,7 @@ public function eseguiRepairRecurringExtraSlots()
             }
 
             $selectedDot = $selectedDot > 0 ? $selectedDot : $this->getFirstVisibleDoctorId($medici);
-            if ($selectedDot > 0 && !$this->agendaModel->canUserAccessDoctor($currentUserId, $selectedDot)) {
+            if ($selectedDot > 0 && !$this->doctorListContainsId($medici, $selectedDot)) {
                 $selectedDot = $this->getFirstVisibleDoctorId($medici);
             }
 

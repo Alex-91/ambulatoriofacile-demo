@@ -13,6 +13,14 @@ class AuthFilter implements FilterInterface
         helper(['portal', 'session_auth']);
 
         if (session_access_is_confirmed()) {
+            $path = strtolower(trim((string) $request->getUri()->getPath(), '/'));
+            if (($path === 'admin' || str_starts_with($path, 'admin/'))
+                && !session_has_operational_profile_access()) {
+                return redirect()
+                    ->to(portal_operational_home_url())
+                    ->with('error', 'Profilo operativo non disponibile per questo account.');
+            }
+
             return null;
         }
 

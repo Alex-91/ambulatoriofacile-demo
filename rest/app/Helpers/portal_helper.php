@@ -234,23 +234,16 @@ if (!function_exists('portal_resolve_redirect_url')) {
 if (!function_exists('portal_operational_home_url')) {
     function portal_operational_home_url(): string
     {
-        $session = session();
-        $user = $session->get('utente_sess');
-        $tenantContextRaw = $session->get(\App\Services\TenantContextService::SESSION_KEY);
-        $tenantRole = is_array($tenantContextRaw)
-            ? strtolower(trim((string) ($tenantContextRaw['tenant_role'] ?? '')))
-            : '';
+        helper('session_auth');
 
-        if ($tenantRole === 'tenant_master' && (bool) ($session->get('isLoggedInConfirmed') ?? false) === true) {
+        $session = session();
+        $tenantRole = session_current_tenant_role();
+
+        if ((bool) ($session->get('isLoggedInConfirmed') ?? false) === true && session_should_open_agenda_first()) {
             return site_url('agenda');
         }
 
-        $isLegacyAdmin = $session->get('is_admin') === true
-            || (int) ($session->get('admin') ?? 0) === 1
-            || (int) ($session->get('tipoUser') ?? 0) === 1
-            || (is_object($user) && (int) ($user->tipo ?? 0) === 1);
-
-        if ($isLegacyAdmin) {
+        if (session_has_operational_profile_access()) {
             return site_url('admin');
         }
 
@@ -265,20 +258,12 @@ if (!function_exists('portal_operational_home_url')) {
 if (!function_exists('portal_session_console_url')) {
     function portal_session_console_url(): ?string
     {
+        helper('session_auth');
+
         $tenantContextRaw = session()->get(\App\Services\TenantContextService::SESSION_KEY);
         if (is_array($tenantContextRaw) && $tenantContextRaw !== []) {
             $tenantContext = \App\Libraries\TenantContext::fromArray($tenantContextRaw);
             if ($tenantContext->isValid()) {
-                $tenantRole = strtolower(trim($tenantContext->tenantRole));
-
-                if ($tenantRole === 'tenant_master') {
-                    return site_url('agenda');
-                }
-
-                if ($tenantRole === 'tenant_admin') {
-                    return site_url('admin');
-                }
-
                 return portal_operational_home_url();
             }
         }

@@ -4,18 +4,10 @@
     <meta charset="UTF-8">
     <?php $agendaTitle = (string)($pageTitle ?? 'Agenda'); ?>
     <?php
-        helper(['portal']);
+        helper(['portal', 'session_auth']);
         $sharedMemoManagementEnabled = !empty($sharedMemoManagementEnabled);
-        $tenantContextRaw = session()->get(\App\Services\TenantContextService::SESSION_KEY);
-        $tenantRole = is_array($tenantContextRaw) ? strtolower(trim((string) ($tenantContextRaw['tenant_role'] ?? ''))) : '';
-        $canOpenAgendaConsole = (is_array($tenantContextRaw)
-            && in_array($tenantRole, ['tenant_master', 'tenant_admin'], true))
-            || session()->get('is_admin') === true
-            || (int) (session()->get('admin') ?? 0) === 1;
         $agendaConsoleUrl = null;
-        if (is_array($tenantContextRaw) && in_array($tenantRole, ['tenant_master', 'tenant_admin'], true)) {
-            $agendaConsoleUrl = portal_session_console_url();
-        } elseif (session()->get('is_admin') === true || (int) (session()->get('admin') ?? 0) === 1) {
+        if (session_has_operational_profile_access()) {
             $agendaConsoleUrl = portal_operational_home_url();
         }
         $visitTypesPageUrl = base_url('agenda/gestione-tipi-visita');

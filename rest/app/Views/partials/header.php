@@ -1,6 +1,6 @@
 <?php
 helper('admin_menu');
-helper('portal');
+helper(['portal', 'session_auth']);
 
 $sess = session();
 $headerMenuUserId = (int) ($sess->get('id_user') ?? 0);
@@ -98,14 +98,7 @@ $useMinimalTenantOnboardingHeader = $isTenantOnboardingRoute
     && $showTenantOnboardingLink;
 $hideHeaderMenu = $hideHeaderMenu || $useMinimalTenantOnboardingHeader;
 $tenantOperationalHomeUrl = $tenantId > 0 ? portal_operational_home_url() : null;
-$headerCurrentUser = $sess->get('utente_sess');
-$canOpenTenantAdminMenu = $tenantId > 0
-    && (
-        (bool) ($sess->get('tenant_app_admin') ?? false) === true
-        || $sess->get('is_admin') === true
-        || (int) ($sess->get('admin') ?? 0) === 1
-        || (is_object($headerCurrentUser) && (int) ($headerCurrentUser->tipo ?? 0) === 1)
-    );
+$canOpenTenantAdminMenu = $tenantId > 0 && session_has_operational_profile_access();
 $moveHeaderActionsToSidebar = $isTenantOperationalConsoleSession && !$useMinimalTenantOnboardingHeader;
 $showHeaderProfileAction = !$isPlatformConsoleSession && !$moveHeaderActionsToSidebar;
 $portalConsoleHeaderOverride = isset($portal_console_header) ? (bool) $portal_console_header : null;
@@ -139,7 +132,7 @@ $headerLogoUrl = $isPortalConsoleHeader
     ? (($isTenantOperationalConsoleSession && $tenantOperationalHomeUrl !== null)
         ? $tenantOperationalHomeUrl
         : ($demoSessionActive ? site_url('access') : portal_public_access_url('login')))
-    : (($hideHeaderMenu || (bool) ($sess->get('is_admin') ?? false) === true)
+    : (($hideHeaderMenu || session_has_operational_profile_access())
         ? portal_operational_home_url()
         : site_url('/'));
 $headerLogoImageUrl = base_url('public/assets/images/logo-symbol.svg');

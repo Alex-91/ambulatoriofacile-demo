@@ -1,5 +1,5 @@
 <?php
-helper(['portal']);
+helper(['portal', 'session_auth']);
 
 $menuTree = $menuAgenda ?? ($menu ?? []);
 $uri = service('uri');
@@ -8,15 +8,11 @@ $session = session();
 $tenantContextRaw = $session->get(\App\Services\TenantContextService::SESSION_KEY);
 $tenantRole = is_array($tenantContextRaw) ? strtolower(trim((string) ($tenantContextRaw['tenant_role'] ?? ''))) : '';
 $tenantId = is_array($tenantContextRaw) ? (int) ($tenantContextRaw['tenant_id'] ?? 0) : 0;
-$currentUser = $session->get('utente_sess');
-$hasOperationalProfileAccess = (bool) ($session->get('tenant_app_admin') ?? false) === true
-    || $session->get('is_admin') === true
-    || (int) ($session->get('admin') ?? 0) === 1
-    || (is_object($currentUser) && (int) ($currentUser->tipo ?? 0) === 1);
+$hasOperationalProfileAccess = session_has_operational_profile_access();
 $operationalProfileUrl = null;
 if ($tenantId > 0 && in_array($tenantRole, ['tenant_master', 'tenant_admin'], true) && $hasOperationalProfileAccess) {
     $operationalProfileUrl = portal_tenant_operational_profile_url();
-} elseif ($session->get('is_admin') === true || (int) ($session->get('admin') ?? 0) === 1) {
+} elseif ($hasOperationalProfileAccess) {
     $operationalProfileUrl = portal_operational_home_url();
 }
 $visitTypesFeatureEnabledResolved = isset($visitTypesFeatureEnabled)

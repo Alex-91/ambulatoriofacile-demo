@@ -105,21 +105,6 @@ class ConsoleBridge extends BaseController
 
     private function canAccessOperationalProfile(string $tenantRole): bool
     {
-        if (in_array($tenantRole, ['tenant_master', 'tenant_admin'], true)) {
-            return true;
-        }
-
-        return $this->hasAdminAccess();
-    }
-
-    private function hasAdminAccess(): bool
-    {
-        $session = session();
-        $currentUser = $session->get('utente_sess');
-
-        return $session->get('is_admin') === true
-            || (int) ($session->get('admin') ?? 0) === 1
-            || (bool) ($session->get('tenant_app_admin') ?? false) === true
-            || (is_object($currentUser) && (int) ($currentUser->tipo ?? 0) === 1);
+        return session_has_operational_profile_access();
     }
 }

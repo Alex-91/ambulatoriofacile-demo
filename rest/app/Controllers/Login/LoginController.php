@@ -1057,10 +1057,14 @@ session()->remove(\App\Services\PlatformAccessService::SESSION_KEY_PENDING_PASSW
 
     private function legacyAdminPostLoginRedirectUrl(): string
     {
-        helper('portal');
+        helper(['portal', 'session_auth']);
 
         if ($this->shouldBootstrapLegacyAdminToPlatformConsole()) {
             return portal_platform_url('spazi-clienti');
+        }
+
+        if (session_should_open_agenda_first()) {
+            return 'agenda';
         }
 
         return 'admin';

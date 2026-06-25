@@ -33,13 +33,12 @@ class AuthenticationController extends BaseController
 
     public function index()
     {
-        helper('portal');
+        helper(['portal', 'session_auth']);
         $otpFromUrl = trim((string)$this->request->getGet('otp'));
         $codeFromUrl = trim((string)$this->request->getGet('code'));
         $openedFromPush = (string)$this->request->getGet('fromPush') === '1'
             || $otpFromUrl !== ''
             || $codeFromUrl !== '';
-        $me   = session()->get('utente_sess');
 
         $isPasswordExpiredFlow = (int)session()->get('pwd_expired_flow') === 1;
         $isResetFlow = (int)session()->get('reset_flow') === 1;
@@ -56,11 +55,15 @@ class AuthenticationController extends BaseController
         if (
             !$isPasswordExpiredFlow
             && !$isResetFlow
-            && (
-            session()->get('is_admin') === true
-            || (isset($me->tipo) && (int)$me->tipo === 1)
-            || (int)session()->get('tipoUser') === 1
-            )
+            && session_should_open_agenda_first()
+        ) {
+            return redirect()->to(site_url('agenda'));
+        }
+
+        if (
+            !$isPasswordExpiredFlow
+            && !$isResetFlow
+            && session_has_operational_profile_access()
         ) {
             return redirect()->to(site_url('admin'));
         }
@@ -486,6 +489,8 @@ class AuthenticationController extends BaseController
 
     public function checkOtp()
     {
+        helper('session_auth');
+
         $json      = $this->request->getJSON();
         $authModel = new AuthCodeModel();
         $menuModel = new MenuModel();
@@ -539,9 +544,12 @@ class AuthenticationController extends BaseController
             $utente = session()->get('utente_sess');
 
             if (
+                $redirectUrl === ''
+                && (
                 (int)session()->get('tipoUser') === 2
                 && $utente
                 && isset($utente->id_personale)
+                )
             ) {
                 $db = \Config\Database::connect();
 
@@ -556,6 +564,15 @@ class AuthenticationController extends BaseController
                     $redirectUrl = 'sostituzioni';
                 }
             }
+
+            if ($redirectUrl === '') {
+                if (session_should_open_agenda_first()) {
+                    $redirectUrl = 'agenda';
+                } elseif (session_has_operational_profile_access()) {
+                    $redirectUrl = 'admin';
+                }
+            }
+
             return $this->response->setJSON([
     'success'     => true,
     'redirectUrl' => $redirectUrl,
