@@ -128,6 +128,7 @@ $showDemoRoleSwitch = $demoSessionActive
 $demoAccessUrl = $showDemoRoleSwitch
     ? trim((string) ($demoCurrentAccount['access_url'] ?? site_url('access')))
     : '';
+$showHeaderNavigation = false;
 $headerLogoUrl = $isPortalConsoleHeader
     ? (($isTenantOperationalConsoleSession && $tenantOperationalHomeUrl !== null)
         ? $tenantOperationalHomeUrl
@@ -177,7 +178,7 @@ if (!$chatFeatureEnabled) {
       <?php endif; ?>
     <?php endif; ?>
 
-    <?php if (!$hideHeaderMenu): ?>
+    <?php if ($showHeaderNavigation && !$hideHeaderMenu): ?>
     <div class="navbar-custom-menu<?= $isPortalConsoleHeader ? ' platform-navbar-primary' : '' ?>"<?= $isPortalConsoleHeader ? '' : ' style="float:left !important"' ?>>
       <ul class="nav navbar-nav<?= $isPortalConsoleHeader ? ' platform-navbar-links' : '' ?>">
 
