@@ -22,6 +22,8 @@ use App\Services\StaffDoctorAccessService;
 use App\Services\TenantCatalogService;
 use App\Services\TenantFeatureService;
 use App\Services\TenantContextService;
+use App\Services\TenantDatabaseConnector;
+use App\Services\TenantRuntimeBindingService;
 use Exception;
 
 class Agenda extends BaseController
@@ -1668,6 +1670,11 @@ public function eseguiRepairRecurringExtraSlots()
             @ignore_user_abort(true);
         }
 
+        $tenantId = (int)($this->request->getGet('tenant_id') ?? 0);
+        if ($tenantId > 0) {
+            $this->bindTenantRuntimeForAgendaJob($tenantId);
+        }
+
         $job = $this->agendaJobModel->claimQueuedJob($idJob, $token);
         if (!$job) {
             return $this->respondJsonSafe([
@@ -2052,7 +2059,54 @@ public function eseguiRepairRecurringExtraSlots()
         }
 
         $url = site_url('agenda/job-run/' . $idJob . '/' . rawurlencode($token));
+        $tenantId = $this->resolveCurrentRuntimeTenantId();
+        if ($tenantId > 0) {
+            $url .= (str_contains($url, '?') ? '&' : '?') . 'tenant_id=' . $tenantId;
+        }
+
         return $this->fireAndForgetUrl($url);
+    }
+
+    protected function resolveCurrentRuntimeTenantId(): int
+    {
+        try {
+            $tenant = (new TenantCatalogService())->resolveCurrentRuntimeTenant();
+            return (int)($tenant['id_tenant'] ?? 0);
+        } catch (\Throwable $e) {
+            log_message('error', 'Agenda job tenant resolve failed: ' . $e->getMessage());
+            return 0;
+        }
+    }
+
+    protected function bindTenantRuntimeForAgendaJob(int $tenantId): void
+    {
+        $tenant = (new TenantCatalogService())->getTenantById($tenantId);
+        if (!$tenant || (int)($tenant['is_active'] ?? 0) !== 1) {
+            throw new \RuntimeException('Tenant del job agenda non disponibile.');
+        }
+
+        $config = (new TenantDatabaseConnector())->buildConnectionConfig($tenant);
+        (new TenantRuntimeBindingService())->bindConnectionConfig($config);
+        $this->reloadAgendaRuntimeState();
+    }
+
+    protected function reloadAgendaRuntimeState(): void
+    {
+        $this->agendaModel       = new AgendaModel();
+        $this->slotModel         = new AgendaSlotModel();
+        $this->appointmentModel  = new AgendaAppointmentModel();
+        $this->lockModel         = new AgendaLockModel();
+        $this->noteModel         = new AgendaNoteModel();
+        $this->pazientiModel     = new PazientiModel();
+        $this->agendaConfigModel = new AgendaConfigModel();
+        $this->agendaBackupModel = new AgendaBackupModel();
+        $this->agendaJobModel    = new AgendaJobModel();
+        $this->locationModel     = new AgendaLocationModel();
+        $this->visitTypeModel    = new AgendaVisitTypeModel();
+        $this->db = \Config\Database::connect();
+
+        $this->dbConfig = new DatabaseConfig();
+        $this->dbConfig->setEncryptionConfig($this->db);
     }
 
     protected function fireAndForgetUrl(string $url): bool
