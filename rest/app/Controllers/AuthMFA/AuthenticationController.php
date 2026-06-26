@@ -44,30 +44,13 @@ class AuthenticationController extends BaseController
 
         $isPasswordExpiredFlow = (int)session()->get('pwd_expired_flow') === 1;
         $isResetFlow = (int)session()->get('reset_flow') === 1;
-        $portalRedirect = portal_session_console_url();
+        $accessConfirmed = session_access_is_confirmed();
 
-        if (
-            !$isPasswordExpiredFlow
-            && !$isResetFlow
-            && $portalRedirect !== null
-        ) {
-            return redirect()->to($portalRedirect);
-        }
-
-        if (
-            !$isPasswordExpiredFlow
-            && !$isResetFlow
-            && session_should_open_agenda_first()
-        ) {
-            return redirect()->to(site_url('agenda'));
-        }
-
-        if (
-            !$isPasswordExpiredFlow
-            && !$isResetFlow
-            && session_has_operational_profile_access()
-        ) {
-            return redirect()->to(site_url('admin'));
+        if (!$isPasswordExpiredFlow && !$isResetFlow && $accessConfirmed) {
+            $portalRedirect = portal_session_console_url();
+            if ($portalRedirect !== null) {
+                return redirect()->to($portalRedirect);
+            }
         }
 
         $cellulare = trim((string)(session()->get('cellulare') ?? ''));
