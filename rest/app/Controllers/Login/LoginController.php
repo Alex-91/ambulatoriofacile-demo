@@ -8,6 +8,8 @@ use App\Libraries\Crypto_helper; // Importa la libreria
 use App\Libraries\SystemUserMask;
 use App\Models\ClientDoctorModel;
 use App\Services\DemoAccessService;
+use App\Services\LegacyTenantLoginService;
+use App\Services\LegacyTenantSessionService;
 use App\Services\PlatformAccessService;
 use App\Services\PlatformAdminAccessService;
 use App\Services\PlatformAuthService;
@@ -259,6 +261,7 @@ class LoginController extends BaseController
     {
         session()->remove(self::PLATFORM_TENANT_SELECTION_SESSION_KEY);
         (new PlatformAccessService())->clearPendingPasswordSetup();
+        (new LegacyTenantSessionService())->clearAllPending();
     }
 
     private function shouldAttemptPlatformLogin(string $username, bool $legacyUserExists): bool
@@ -395,7 +398,30 @@ class LoginController extends BaseController
         $tenantId = (int) (($payload->tenant_id ?? 0));
         $pending = session()->get(self::PLATFORM_TENANT_SELECTION_SESSION_KEY);
 
-        if (!is_array($pending) || $tenantId <= 0) {
+        if ($tenantId <= 0) {
+            return $this->response->setJSON([
+                'resp' => 'KO',
+                'success' => false,
+                'message' => 'Selezione studio non valida.',
+            ])->setStatusCode(400);
+        }
+
+        if (!is_array($pending)) {
+            try {
+                $legacySelection = (new LegacyTenantLoginService())->completePendingSelection($tenantId);
+                if ($legacySelection !== null) {
+                    return $this->response->setJSON($legacySelection);
+                }
+            } catch (\Throwable $e) {
+                (new LegacyTenantSessionService())->clearAllPending();
+
+                return $this->response->setJSON([
+                    'resp' => 'KO',
+                    'success' => false,
+                    'message' => $e->getMessage(),
+                ])->setStatusCode(403);
+            }
+
             return $this->response->setJSON([
                 'resp' => 'KO',
                 'success' => false,
@@ -719,6 +745,8 @@ session()->remove(\App\Services\PlatformAccessService::SESSION_KEY_PENDING_PASSW
                                 session()->remove('menuData');      // menu normale
                                 session()->remove('menuAgenda');    // se vuoi
 
+                                $this->queueLegacyRuntimeTenantForCurrentDatabase(true);
+
                                 return $this->response->setJSON([
                                     'resp'        => 'OK',
                                     'success'     => true,
@@ -929,6 +957,8 @@ session()->remove(\App\Services\PlatformAccessService::SESSION_KEY_PENDING_PASSW
                             session()->set('cellulare', $client['cellulare']);
                         }
                         }
+
+                        $this->queueLegacyRuntimeTenantForCurrentDatabase(false);
                         
                         return $this->response->setJSON([
                             'resp' => 'OK',
@@ -964,6 +994,7 @@ session()->remove(\App\Services\PlatformAccessService::SESSION_KEY_PENDING_PASSW
                     $utentePresente = $query->getRow();
                 }
                 session()->set('cellulare',  $utentePresente->cellulare);
+                $this->queueLegacyRuntimeTenantForCurrentDatabase(false);
                    return $this->response->setJSON([
                             'resp'        => 'SCADENZA',
                             'success'     => true,
@@ -985,6 +1016,13 @@ session()->remove(\App\Services\PlatformAccessService::SESSION_KEY_PENDING_PASSW
              $loginUsername = (strpos($username, '->') !== false)
                 ? ($usernamesArray['username_adm'] ?? $username)
                 : $username;
+
+            if (strpos($username, '->') === false && !str_contains($loginUsername, '@')) {
+                $legacyTenantLogin = (new LegacyTenantLoginService())->authenticate($loginUsername, $password);
+                if ($legacyTenantLogin !== null) {
+                    return $this->response->setJSON($legacyTenantLogin);
+                }
+            }
 
              $existingUser = $db->table('dap01_users')
                 ->select('id_user, tipo_user, datascadenza')
@@ -1056,6 +1094,26 @@ session()->remove(\App\Services\PlatformAccessService::SESSION_KEY_PENDING_PASSW
         $this->clearPendingPlatformLogin();
         session()->destroy();
         return redirect()->to('/login');
+    }
+
+    private function queueLegacyRuntimeTenantForCurrentDatabase(bool $activateNow): void
+    {
+        $appUserId = (int) (session()->get('userId') ?? session()->get('id_user') ?? 0);
+        $userType = (int) (session()->get('tipoUser') ?? 0);
+
+        if ($appUserId <= 0 || $userType <= 0) {
+            return;
+        }
+
+        try {
+            (new LegacyTenantSessionService())->queueCurrentRuntimeTenantIfAvailable($appUserId, $userType, $activateNow);
+        } catch (\Throwable $e) {
+            log_message('warning', 'LoginController::queueLegacyRuntimeTenantForCurrentDatabase failed: {message}', [
+                'message' => $e->getMessage(),
+                'app_user_id' => $appUserId,
+                'tipo_user' => $userType,
+            ]);
+        }
     }
 
     private function postLoginFallbackUrl(): string

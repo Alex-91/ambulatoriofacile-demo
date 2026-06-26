@@ -10,6 +10,8 @@ use App\Models\ClientDoctorModel;
 use App\Libraries\Crypto_helper; // Importa la libreria
 use App\Libraries\DatabaseConfig;
 use App\Models\AuthCodeModel;
+use App\Services\LegacyTenantSessionService;
+use App\Services\TenantDatabaseConnector;
 
 class ResetController extends BaseController
 {
@@ -32,6 +34,7 @@ class ResetController extends BaseController
 
     public function __construct()
     {
+        (new LegacyTenantSessionService())->bindPendingRuntimeIfAvailable();
         $this->db = \Config\Database::connect(); // Assegna alla proprietà della classe
         $this->dbConfig = new DatabaseConfig();
         $this->dbConfig->setEncryptionConfig($this->db);
@@ -66,12 +69,11 @@ class ResetController extends BaseController
     {
         try {
             log_message('info', 'Avvio checkUsername');
-            
+
+            $tenantSession = new LegacyTenantSessionService();
+            $tenantSession->clearAllPending();
             $userModel = new UsersModel();
-            $crypto_helper = new Crypto_helper();
-            $clientsModel = new ClientsModel();
-            $doctorModel = new DoctorModel();
-            
+
             $json = $this->request->getJSON();
             if (!$json) {
                 $this->logErrorLogin('checkUsername', 'Payload JSON assente o non valido durante il recupero password. Il box errorLogin della pagina reset deve segnalare che i dati inviati non sono utilizzabili.');
@@ -85,29 +87,48 @@ class ResetController extends BaseController
             
             $codice_fiscale = strtoupper($json->username);
             log_message('info', 'Ricerca utente con codice fiscale: ' . $codice_fiscale);
-            
+
             $utentePresente = $userModel->where('username', $codice_fiscale)->first();
-            
+            $lookupDb = $this->db;
+            $matchedTenant = null;
+
             if (!$utentePresente) {
-                $this->logErrorLogin('checkUsername', 'Utente non trovato in dap01_users durante il recupero password. Il frontend mostra errorLogin perche il codice fiscale/username non e registrato.', [
-                    'username' => $codice_fiscale,
-                ]);
-                return $this->response->setJSON(['error' => "Utente non trovato."])->setStatusCode(500);
-            }
-            
-            if ($utentePresente['tipo_user'] == 2) {
-                log_message('info', 'Utente di tipo 2, ricerca numero di cellulare.');
-                $cellulareData = $doctorModel->getCellulareByUserId($utentePresente['id_user']);
+                $tenantMatch = $this->findTenantUserByUsername($codice_fiscale);
+                if ($tenantMatch !== null) {
+                    $utentePresente = (array) ($tenantMatch['user'] ?? []);
+                    $lookupDb = $tenantMatch['db'];
+                    $matchedTenant = (array) ($tenantMatch['tenant'] ?? []);
+                    $tenantSession->queuePendingRuntime(
+                        $matchedTenant,
+                        (int) ($utentePresente['id_user'] ?? 0),
+                        (int) ($utentePresente['tipo_user'] ?? 0)
+                    );
+                } else {
+                    $this->logErrorLogin('checkUsername', 'Utente non trovato in dap01_users durante il recupero password. Il frontend mostra errorLogin perche il codice fiscale/username non e registrato.', [
+                        'username' => $codice_fiscale,
+                    ]);
+                    return $this->response->setJSON(['error' => "Utente non trovato."])->setStatusCode(500);
+                }
             } else {
-                log_message('info', 'Utente di altro tipo, ricerca numero di cellulare.');
-                $cellulareData = $clientsModel->getCellulareByUserId($utentePresente['id_user']);
+                $tenantSession->queueCurrentRuntimeTenantIfAvailable(
+                    (int) ($utentePresente['id_user'] ?? 0),
+                    (int) ($utentePresente['tipo_user'] ?? 0),
+                    false
+                );
             }
-            
+
+            $cellulareData = $this->resolveCellulareForResetUser(
+                $lookupDb,
+                (int) ($utentePresente['id_user'] ?? 0),
+                (int) ($utentePresente['tipo_user'] ?? 0)
+            );
+
             if (!$cellulareData) {
                 $this->logErrorLogin('checkUsername', 'Cellulare non recuperato per utente esistente. Il reset non puo proseguire perche manca il recapito da usare nel flusso OTP/reset.', [
                     'username'  => $codice_fiscale,
                     'id_user'   => (int) ($utentePresente['id_user'] ?? 0),
                     'tipo_user' => (int) ($utentePresente['tipo_user'] ?? 0),
+                    'tenant_id' => (int) ($matchedTenant['id_tenant'] ?? 0),
                 ]);
                 return $this->response->setJSON(['error' => "Errore ricerca cellulare."])->setStatusCode(500);
             }
@@ -272,6 +293,12 @@ return $this->response->setJSON(['success' => true]);
         session()->remove('pwd_expired_flow');
         session()->remove('otp_ok_for_reset');
         session()->remove('otp');
+        session()->remove('platform_user_id');
+        session()->remove('platform_user_email');
+        session()->remove('platform_is_admin');
+        session()->remove('loginSource');
+        session()->remove(\App\Services\TenantContextService::SESSION_KEY);
+        (new LegacyTenantSessionService())->clearAllPending();
 
         //log_message('info', 'Password modificata con successo per utente ID: ' . $userId);
 
@@ -288,5 +315,103 @@ return $this->response->setJSON(['success' => true]);
             ]);
             return $this->response->setJSON(['error' => $e->getMessage()])->setStatusCode(500);
         }
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function findTenantUserByUsername(string $username): ?array
+    {
+        $username = trim($username);
+        if ($username === '') {
+            return null;
+        }
+
+        $platformDb = \Config\Database::connect('platform');
+        $connector = new TenantDatabaseConnector();
+        $config = new DatabaseConfig();
+
+        $tenants = $platformDb->table('platform_tenants t')
+            ->select('t.*, p.package_code, p.package_name')
+            ->join('platform_packages p', 'p.id_package = t.id_package', 'left')
+            ->where('t.is_active', 1)
+            ->orderBy('t.tenant_name', 'ASC')
+            ->get()
+            ->getResultArray();
+
+        $matches = [];
+
+        foreach ($tenants as $tenant) {
+            $status = strtolower(trim((string) ($tenant['status'] ?? 'active')));
+            if (in_array($status, ['archived', 'suspended'], true)) {
+                continue;
+            }
+
+            try {
+                $tenantDb = $connector->connect($tenant);
+                $config->setEncryptionConfig($tenantDb);
+            } catch (\Throwable $e) {
+                log_message('warning', 'ResetController tenant connect failed: ' . $e->getMessage(), [
+                    'tenant_id' => (int) ($tenant['id_tenant'] ?? 0),
+                    'tenant_key' => (string) ($tenant['tenant_key'] ?? ''),
+                ]);
+                continue;
+            }
+
+            if (!$tenantDb->tableExists('dap01_users')) {
+                continue;
+            }
+
+            $user = $tenantDb->table('dap01_users')
+                ->select('id_user, username, tipo_user')
+                ->where('username', $username)
+                ->get(1)
+                ->getRowArray();
+
+            if (!$user) {
+                continue;
+            }
+
+            $matches[] = [
+                'tenant' => $tenant,
+                'db' => $tenantDb,
+                'user' => $user,
+            ];
+        }
+
+        if (count($matches) !== 1) {
+            if (count($matches) > 1) {
+                $this->logErrorLogin('checkUsername', 'Username presente in piu spazi tenant durante il recupero password. Richiesta non gestita automaticamente per evitare reset sullo spazio sbagliato.', [
+                    'username' => $username,
+                    'tenant_ids' => array_map(static fn(array $match): int => (int) ($match['tenant']['id_tenant'] ?? 0), $matches),
+                ]);
+            }
+
+            return null;
+        }
+
+        return $matches[0];
+    }
+
+    private function resolveCellulareForResetUser(\CodeIgniter\Database\BaseConnection $db, int $userId, int $userType): ?string
+    {
+        if ($userId <= 0) {
+            return null;
+        }
+
+        $crypto = new Crypto_helper();
+        if ($userType === 3) {
+            $sql = "SELECT " . $crypto->decrypt("b.cellulare") . " FROM dap02_clients b WHERE b.id_user = ? LIMIT 1";
+        } else {
+            $sql = "SELECT " . $crypto->decrypt("b.cellulare") . " FROM dap03_personale b WHERE b.id_user = ? LIMIT 1";
+        }
+
+        $row = $db->query($sql, [$userId])->getRowArray();
+        if (!$row) {
+            return null;
+        }
+
+        $value = reset($row);
+        return trim((string) $value) ?: null;
     }
 }

@@ -4,9 +4,15 @@ namespace App\Controllers;
 
 use App\Controllers\BaseController;
 use App\Libraries\Crypto_helper;
+use App\Services\LegacyTenantSessionService;
 
 class PasswordController extends BaseController
 {
+    public function __construct()
+    {
+        (new LegacyTenantSessionService())->bindPendingRuntimeIfAvailable();
+    }
+
     public function index()
     {
         helper('portal');
@@ -120,6 +126,12 @@ class PasswordController extends BaseController
         session()->remove('tipoUser');
         session()->remove('cellulare');
         session()->remove('utente_sess');
+        session()->remove('platform_user_id');
+        session()->remove('platform_user_email');
+        session()->remove('platform_is_admin');
+        session()->remove('loginSource');
+        session()->remove(\App\Services\TenantContextService::SESSION_KEY);
+        (new LegacyTenantSessionService())->clearAllPending();
 
         return $this->response->setJSON(['ok' => true, 'redirectUrl' => 'login']);
     }

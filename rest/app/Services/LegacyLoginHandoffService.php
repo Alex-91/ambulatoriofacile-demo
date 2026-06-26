@@ -15,9 +15,9 @@ class LegacyLoginHandoffService
     private \CodeIgniter\Database\BaseConnection $db;
     private Crypto_helper $crypto;
 
-    public function __construct()
+    public function __construct(?\CodeIgniter\Database\BaseConnection $db = null)
     {
-        $this->db = \Config\Database::connect();
+        $this->db = $db ?? \Config\Database::connect();
         $this->crypto = new Crypto_helper();
     }
 
@@ -29,10 +29,7 @@ class LegacyLoginHandoffService
 
     public function bootstrapDemoSessionByUserId(int $userId, string $expectedUsername = ''): array
     {
-        $result = $this->bootstrapSessionForUser([
-            'userId' => $userId,
-            'username' => $expectedUsername,
-        ]);
+        $result = $this->bootstrapUserById($userId, $expectedUsername);
 
         if (($result['resp'] ?? 'KO') !== 'OK' || !(bool) ($result['requiresOtp'] ?? false)) {
             return $result;
@@ -43,6 +40,14 @@ class LegacyLoginHandoffService
         $result['requiresOtp'] = false;
 
         return $result;
+    }
+
+    public function bootstrapUserById(int $userId, string $expectedUsername = ''): array
+    {
+        return $this->bootstrapSessionForUser([
+            'userId' => $userId,
+            'username' => $expectedUsername,
+        ]);
     }
 
     private function validateSignedPayload(string $payloadEncoded, string $signatureEncoded): array
@@ -268,6 +273,9 @@ class LegacyLoginHandoffService
             'loginSource',
             'is_admin_arrow_login',
             'admin_arrow_username',
+            TenantContextService::SESSION_KEY,
+            LegacyTenantSessionService::SESSION_KEY_PENDING_SELECTION,
+            LegacyTenantSessionService::SESSION_KEY_PENDING_RUNTIME,
         ]);
     }
 

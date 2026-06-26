@@ -10,6 +10,7 @@ use App\Models\AuthCodeModel;
 use App\Models\ClientsModel;
 use App\Models\MenuModel;
 use App\Models\PersonaleModel;
+use App\Services\LegacyTenantSessionService;
 use App\Services\LegacyLoginHandoffService;
 use App\Services\NotificationService;
 use App\Services\OtpDeliveryLogService;
@@ -24,6 +25,7 @@ class AuthenticationController extends BaseController
 
     public function __construct()
     {
+        (new LegacyTenantSessionService())->bindPendingRuntimeIfAvailable();
         $this->db = \Config\Database::connect();
         $this->dbConfig = new DatabaseConfig();
         $this->dbConfig->setEncryptionConfig($this->db);
@@ -538,6 +540,7 @@ class AuthenticationController extends BaseController
             session()->set('menuAgenda', $menuAgenda);
 
             session()->set('isLoggedInConfirmed', true);
+            (new LegacyTenantSessionService())->activatePendingRuntime();
             $navigation->refreshCurrentSession(true);
             $redirectUrl = '';
 
