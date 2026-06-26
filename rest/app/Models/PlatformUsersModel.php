@@ -34,6 +34,42 @@ class PlatformUsersModel extends Model
             return null;
         }
 
-        return $this->where('LOWER(email)', $email)->first();
+        try {
+            $row = $this->builder()
+                ->where('email', $email)
+                ->get(1)
+                ->getRowArray();
+
+            if (is_array($row)) {
+                return $row;
+            }
+        } catch (\Throwable $e) {
+            log_message('warning', 'PlatformUsersModel::findByEmailInsensitive direct lookup failed: {message}', [
+                'message' => $e->getMessage(),
+                'email' => $email,
+            ]);
+        }
+
+        try {
+            $table = $this->db->protectIdentifiers($this->table, true);
+            $query = $this->db->query(
+                'SELECT * FROM ' . $table . ' WHERE LOWER(email) = ? LIMIT 1',
+                [$email]
+            );
+
+            if ($query === false) {
+                return null;
+            }
+
+            $row = $query->getRowArray();
+            return is_array($row) ? $row : null;
+        } catch (\Throwable $e) {
+            log_message('error', 'PlatformUsersModel::findByEmailInsensitive fallback lookup failed: {message}', [
+                'message' => $e->getMessage(),
+                'email' => $email,
+            ]);
+
+            throw $e;
+        }
     }
 }

@@ -295,7 +295,21 @@ class LoginController extends BaseController
         helper('portal');
         $this->clearPendingPlatformLogin();
 
-        $result = (new PlatformAuthService())->authenticate($username, $password);
+        try {
+            $result = (new PlatformAuthService())->authenticate($username, $password);
+        } catch (\Throwable $e) {
+            log_message('error', 'LoginController::handlePlatformLogin platform auth failed: {message}', [
+                'message' => $e->getMessage(),
+                'username' => $username,
+            ]);
+
+            return $this->response->setJSON([
+                'resp' => 'KO',
+                'success' => false,
+                'message' => 'Login unico temporaneamente non disponibile. Riprova tra poco.',
+            ])->setStatusCode(503);
+        }
+
         if ($result === null) {
             return null;
         }

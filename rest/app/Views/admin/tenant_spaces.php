@@ -42,6 +42,7 @@ $masterTempPasswords = is_array($masterTempPasswords ?? null) ? $masterTempPassw
 $platformMasterAccounts = is_array($platformMasterAccounts ?? null) ? $platformMasterAccounts : [];
 $selectableTenants = session()->get('platform_selectable_tenants');
 $selectableTenants = is_array($selectableTenants) ? $selectableTenants : [];
+$passwordRulesHint = 'Almeno 8 caratteri, una maiuscola, una minuscola e un carattere speciale.';
 $accessibleTenantIds = [];
 foreach ($selectableTenants as $selectableTenant) {
     $selectableTenantId = (int)($selectableTenant['id_tenant'] ?? 0);
@@ -583,6 +584,7 @@ $oldValue = static function (string $key, $fallback = '') {
                     <div class="form-group">
                       <label><?= $isEdit ? 'Nuova password' : 'Password iniziale' ?></label>
                       <input type="password" class="form-control" name="master_password" autocomplete="new-password">
+                      <p class="text-muted" style="margin:6px 0 0 0; font-size:12px;"><?= esc($passwordRulesHint) ?></p>
                     </div>
                   </div>
                 </div>
@@ -1050,6 +1052,7 @@ $oldValue = static function (string $key, $fallback = '') {
                       <div class="form-group">
                         <label><?= $isEditingMember ? 'Nuova password' : 'Password iniziale' ?></label>
                         <input type="password" class="form-control" name="member_password" id="member_password" autocomplete="new-password">
+                        <p class="text-muted" style="margin:6px 0 0 0; font-size:12px;"><?= esc($passwordRulesHint) ?></p>
                       </div>
                     </div>
                     <div class="col-md-4">

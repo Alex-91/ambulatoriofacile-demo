@@ -23,6 +23,7 @@ class TenantProvisioningService
     private PlatformFeaturesModel $featuresModel;
     private PlatformTenantFeaturesModel $tenantFeaturesModel;
     private PlatformTenantFeaturePreferencesModel $tenantFeaturePreferencesModel;
+    private PlatformAccessService $platformAccessService;
 
     public function __construct()
     {
@@ -34,6 +35,7 @@ class TenantProvisioningService
         $this->featuresModel = new PlatformFeaturesModel();
         $this->tenantFeaturesModel = new PlatformTenantFeaturesModel();
         $this->tenantFeaturePreferencesModel = new PlatformTenantFeaturePreferencesModel();
+        $this->platformAccessService = new PlatformAccessService();
     }
 
     /**
@@ -557,6 +559,9 @@ class TenantProvisioningService
         string $lastName = '',
         string $plainPassword = ''
     ): array {
+        $this->assertExplicitPasswordRules($plainPassword);
+        $plainPassword = trim($plainPassword);
+
         $platformUser = $this->usersModel->findByEmailInsensitive($email);
         $userCreated = false;
         $temporaryPassword = null;
@@ -623,6 +628,19 @@ class TenantProvisioningService
                 'temporary_password' => $temporaryPassword,
             ],
         ];
+    }
+
+    private function assertExplicitPasswordRules(string $plainPassword): void
+    {
+        $plainPassword = trim($plainPassword);
+        if ($plainPassword === '') {
+            return;
+        }
+
+        $rules = $this->platformAccessService->validatePasswordRules($plainPassword);
+        if (!$rules['valid']) {
+            throw new \InvalidArgumentException((string) ($rules['message'] ?? 'Password non valida.'));
+        }
     }
 
     /**

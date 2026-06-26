@@ -20,6 +20,46 @@ class TenantInfrastructureProvisioningService
         '2026-06-19-000002_CreatePlatformUserAccessTokens.php',
     ];
 
+    /**
+     * Runtime tables that must start empty when provisioning a fresh tenant
+     * from a shared template database.
+     *
+     * @var array<int, string>
+     */
+    private array $templateRuntimeResetTables = [
+        'msg_user_flags',
+        'msg_attachments',
+        'msg_drafts',
+        'msg_messages',
+        'msg_threads',
+        'dap_chat_attachments',
+        'dap_chat_message',
+        'dap_chat_thread_user',
+        'dap_chat_thread',
+        'dap26_doctor_patient_search',
+        'dap13_visite_domiciliari',
+        'dap12_agenda_appuntamenti',
+        'dap11_agenda_slot',
+        'dap39_sms_dot',
+        'dap15_inf_dot',
+        'dap14_seg_dot',
+        'dap24_agenda_visibilita',
+        'dap09_client_doctor',
+        'dap_user_schede',
+        'dap16_auth_code',
+        'push_delivery_logs',
+        'push_outbox',
+        'push_subscriptions',
+        'device_links',
+        'otp_delivery_logs',
+        'dap02_clients',
+        'dap03_personale',
+        'dap01_users',
+        'dap43_ambulatori_stanze',
+        'dap42_ambulatori',
+        'dap21_gruppo',
+    ];
+
     private PlatformTenantsModel $tenantsModel;
     private TenantProvisioningService $tenantProvisioning;
     private TenantCatalogService $catalog;
@@ -57,7 +97,7 @@ class TenantInfrastructureProvisioningService
             $templateMode = 'skipped';
             if ($tableCountBefore === 0) {
                 $templateMode = $this->provisionTemplate($adminConnection, $resolvedTenant);
-                $this->resetProvisioningLocationCatalogs($adminConnection, (string) ($resolvedTenant['db_name'] ?? ''));
+                $this->resetProvisioningTemplateData($adminConnection, (string) ($resolvedTenant['db_name'] ?? ''));
             }
 
             try {
@@ -360,26 +400,31 @@ class TenantInfrastructureProvisioningService
         throw new \RuntimeException('Nessun template DB configurato. Imposta TENANT_PROVISIONING_TEMPLATE_DATABASE oppure TENANT_PROVISIONING_TEMPLATE_SQL_PATH.');
     }
 
-    private function resetProvisioningLocationCatalogs(mysqli $mysqli, string $databaseName): void
+    private function resetProvisioningTemplateData(mysqli $mysqli, string $databaseName): void
     {
         $databaseName = trim($databaseName);
         if ($databaseName === '') {
             return;
         }
 
-        foreach (['dap43_ambulatori_stanze', 'dap42_ambulatori', 'dap21_gruppo'] as $tableName) {
-            if (!$this->databaseTableExists($mysqli, $databaseName, $tableName)) {
-                continue;
-            }
+        $mysqli->query('SET FOREIGN_KEY_CHECKS=0');
+        try {
+            foreach ($this->templateRuntimeResetTables as $tableName) {
+                if (!$this->databaseTableExists($mysqli, $databaseName, $tableName)) {
+                    continue;
+                }
 
-            $sql = 'DELETE FROM '
-                . $this->escapeIdentifier($databaseName)
-                . '.'
-                . $this->escapeIdentifier($tableName);
+                $sql = 'DELETE FROM '
+                    . $this->escapeIdentifier($databaseName)
+                    . '.'
+                    . $this->escapeIdentifier($tableName);
 
-            if (!$mysqli->query($sql)) {
-                throw new \RuntimeException('Pulizia catalogo luoghi tenant non riuscita per ' . $tableName . ': ' . $mysqli->error);
+                if (!$mysqli->query($sql)) {
+                    throw new \RuntimeException('Pulizia dati template tenant non riuscita per ' . $tableName . ': ' . $mysqli->error);
+                }
             }
+        } finally {
+            $mysqli->query('SET FOREIGN_KEY_CHECKS=1');
         }
     }
 

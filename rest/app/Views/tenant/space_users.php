@@ -15,6 +15,7 @@ $tenant = is_array($tenant ?? null) ? $tenant : [];
 $tenantName = trim((string)($tenantContext->tenantName ?? ($tenant['tenant_name'] ?? 'Studio cliente')));
 $editingMemberId = (int) old('member_id_platform_user_tenant');
 $isEditingMember = $editingMemberId > 0;
+$passwordRulesHint = 'Almeno 8 caratteri, una maiuscola, una minuscola e un carattere speciale.';
 
 $oldValue = static function (string $key, $fallback = '') {
     $old = old($key);
@@ -248,6 +249,7 @@ $oldValue = static function (string $key, $fallback = '') {
                     <div class="form-group">
                       <label><?= $isEditingMember ? 'Nuova password' : 'Password iniziale' ?></label>
                       <input type="password" class="form-control" name="member_password" id="member_password" autocomplete="new-password">
+                      <p class="text-muted" style="margin:6px 0 0 0; font-size:12px;"><?= esc($passwordRulesHint) ?></p>
                     </div>
                   </div>
                   <div class="col-md-5">
