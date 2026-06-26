@@ -32,7 +32,7 @@ class TenantAppUserProvisioningService
     /**
      * @return array<string, mixed>
      */
-    public function syncMembership(int $membershipId, bool $strict = false): array
+    public function syncMembership(int $membershipId, bool $strict = false, string $plainPassword = ''): array
     {
         if ($membershipId <= 0) {
             throw new \InvalidArgumentException('Membership tenant non valida.');
@@ -97,10 +97,10 @@ class TenantAppUserProvisioningService
 
         try {
             if ($appUserId > 0) {
-                $this->updateTenantAppUser($tenantDb, $appUserId, $platformUser, $profile, $defaultLocationId);
+                $this->updateTenantAppUser($tenantDb, $appUserId, $platformUser, $profile, $defaultLocationId, $plainPassword);
                 $mode = $linkedByEmail ? 'linked_existing' : 'updated_existing';
             } else {
-                $appUserId = $this->createTenantAppUser($tenantDb, $platformUser, $profile, $defaultLocationId);
+                $appUserId = $this->createTenantAppUser($tenantDb, $platformUser, $profile, $defaultLocationId, $plainPassword);
                 $mode = 'created';
             }
 
@@ -285,12 +285,13 @@ class TenantAppUserProvisioningService
         \CodeIgniter\Database\BaseConnection $db,
         array $platformUser,
         array $profile,
-        int $defaultLocationId
+        int $defaultLocationId,
+        string $plainPassword = ''
     ): int {
         $db->query('SET @init_vector = RANDOM_BYTES(16)');
 
         $username = $this->resolveUniqueUsername($db, $this->preferredUsername($platformUser), 0);
-        $password = $this->randomPassword();
+        $password = trim($plainPassword) !== '' ? trim($plainPassword) : $this->randomPassword();
         $expiresAt = date('Y-m-d H:i:s', strtotime('+5 years'));
         $privacyDate = date('Y-m-d');
 
@@ -326,7 +327,8 @@ class TenantAppUserProvisioningService
         int $appUserId,
         array $platformUser,
         array $profile,
-        int $defaultLocationId
+        int $defaultLocationId,
+        string $plainPassword = ''
     ): void {
         $userRow = $db->table('dap01_users')
             ->select('id_user, tipo_user')
@@ -352,6 +354,21 @@ class TenantAppUserProvisioningService
                 'datascadenza' => date('Y-m-d H:i:s', strtotime('+5 years')),
                 'is_active' => 1,
             ]);
+
+        $plainPassword = trim($plainPassword);
+        if ($plainPassword !== '') {
+            $db->query('SET @init_vector = RANDOM_BYTES(16)');
+            $db->query("
+                UPDATE dap01_users
+                SET password = " . $this->crypto->encrypt_insert('?') . ",
+                    vector_id = @init_vector
+                WHERE id_user = ?
+                LIMIT 1
+            ", [
+                $plainPassword,
+                $appUserId,
+            ]);
+        }
 
         $this->insertOrUpdatePersonale($db, $appUserId, $platformUser, $profile, $defaultLocationId, true);
     }

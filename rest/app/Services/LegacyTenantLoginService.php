@@ -134,6 +134,13 @@ class LegacyTenantLoginService
             }
 
             if (!$row) {
+                $userByUsername = $this->findTenantUserByUsername($tenantDb, $username);
+                if ($userByUsername && $this->syncTenantPasswordFromPlatformIfNeeded($tenantDb, $tenant, $userByUsername, $password)) {
+                    $row = $userByUsername;
+                }
+            }
+
+            if (!$row) {
                 continue;
             }
 
@@ -152,6 +159,125 @@ class LegacyTenantLoginService
         }
 
         return $matches;
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function findTenantUserByUsername(\CodeIgniter\Database\BaseConnection $tenantDb, string $username): ?array
+    {
+        try {
+            $row = $tenantDb->query(
+                "SELECT a.id_user,
+                        a.username,
+                        a.tipo_user,
+                        CASE WHEN a.datascadenza <= NOW() THEN 'SCADENZA' ELSE 'OK' END AS resp
+                 FROM dap01_users a
+                 WHERE a.username = ?
+                 LIMIT 1",
+                [$username]
+            )->getRowArray();
+        } catch (\Throwable $e) {
+            return null;
+        }
+
+        return $row ?: null;
+    }
+
+    /**
+     * @param array<string, mixed> $tenant
+     * @param array<string, mixed> $userRow
+     */
+    private function syncTenantPasswordFromPlatformIfNeeded(
+        \CodeIgniter\Database\BaseConnection $tenantDb,
+        array $tenant,
+        array $userRow,
+        string $password
+    ): bool {
+        $tenantId = (int) ($tenant['id_tenant'] ?? 0);
+        $appUserId = (int) ($userRow['id_user'] ?? 0);
+        if ($tenantId <= 0 || $appUserId <= 0 || trim($password) === '') {
+            return false;
+        }
+
+        $membership = $this->platformDb->table('platform_user_tenants put')
+            ->select('put.id_platform_user_tenant, put.id_platform_user, pu.password_hash, pu.status')
+            ->join('platform_users pu', 'pu.id_platform_user = put.id_platform_user', 'inner')
+            ->where('put.id_tenant', $tenantId)
+            ->where('put.app_user_id', $appUserId)
+            ->orderBy('put.is_owner', 'DESC')
+            ->orderBy('put.id_platform_user_tenant', 'ASC')
+            ->get(1)
+            ->getRowArray();
+
+        if (!$membership) {
+            $email = $this->resolveTenantUserEmail($tenantDb, $appUserId);
+            if ($email !== '') {
+                $membership = $this->platformDb->table('platform_user_tenants put')
+                    ->select('put.id_platform_user_tenant, put.id_platform_user, pu.password_hash, pu.status')
+                    ->join('platform_users pu', 'pu.id_platform_user = put.id_platform_user', 'inner')
+                    ->where('put.id_tenant', $tenantId)
+                    ->where('LOWER(pu.email)', strtolower($email))
+                    ->orderBy('put.is_owner', 'DESC')
+                    ->orderBy('put.id_platform_user_tenant', 'ASC')
+                    ->get(1)
+                    ->getRowArray();
+            }
+        }
+
+        if (!$membership) {
+            return false;
+        }
+
+        $platformStatus = strtolower(trim((string) ($membership['status'] ?? 'active')));
+        if (in_array($platformStatus, ['suspended', 'blocked'], true)) {
+            return false;
+        }
+
+        $passwordHash = trim((string) ($membership['password_hash'] ?? ''));
+        if ($passwordHash === '' || !password_verify($password, $passwordHash)) {
+            return false;
+        }
+
+        $tenantDb->query('SET @init_vector = RANDOM_BYTES(16)');
+        $tenantDb->query("
+            UPDATE dap01_users
+            SET password = " . $this->crypto->encrypt_insert('?') . ",
+                vector_id = @init_vector
+            WHERE id_user = ?
+            LIMIT 1
+        ", [
+            $password,
+            $appUserId,
+        ]);
+
+        log_message('info', 'LegacyTenantLoginService resynced tenant password from platform credentials for tenant_id={tenantId}, app_user_id={appUserId}', [
+            'tenantId' => $tenantId,
+            'appUserId' => $appUserId,
+        ]);
+
+        return true;
+    }
+
+    private function resolveTenantUserEmail(\CodeIgniter\Database\BaseConnection $tenantDb, int $appUserId): string
+    {
+        if ($appUserId <= 0 || !$tenantDb->tableExists('dap03_personale') || !$tenantDb->fieldExists('email', 'dap03_personale')) {
+            return '';
+        }
+
+        try {
+            $row = $tenantDb->query(
+                "SELECT " . $this->crypto->decryptSenzaAlias('p.email') . " AS email
+                 FROM dap03_personale p
+                 WHERE p.id_user = ?
+                 LIMIT 1",
+                [$appUserId]
+            )->getRowArray();
+        } catch (\Throwable $e) {
+            return '';
+        }
+
+        return strtolower(trim((string) ($row['email'] ?? '')));
     }
 
     /**

@@ -376,7 +376,11 @@ class TenantProvisioningService
 
             $this->db->transCommit();
             try {
-                $tenantAppSync = (new TenantAppUserProvisioningService())->syncMembership($membershipId, false);
+                $tenantAppSync = (new TenantAppUserProvisioningService())->syncMembership(
+                    $membershipId,
+                    false,
+                    (string) ($payload['password'] ?? '')
+                );
             } catch (\Throwable $syncError) {
                 $tenantAppSync = [
                     'status' => 'error',
@@ -520,7 +524,11 @@ class TenantProvisioningService
             $membershipId = (int) ($membership['id_platform_user_tenant'] ?? 0);
             if ($membershipId > 0) {
                 try {
-                    $tenantAppSync = (new TenantAppUserProvisioningService())->syncMembership($membershipId, false);
+                    $tenantAppSync = (new TenantAppUserProvisioningService())->syncMembership(
+                        $membershipId,
+                        false,
+                        (string) ($payload['master_password'] ?? '')
+                    );
                 } catch (\Throwable $syncError) {
                     $tenantAppSync = [
                         'status' => 'error',
