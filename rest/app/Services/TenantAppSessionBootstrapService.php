@@ -112,9 +112,14 @@ class TenantAppSessionBootstrapService
             throw new \RuntimeException('Impossibile attivare il contesto tenant.');
         }
 
+        $loginOtp = new TenantLoginOtpService($this->catalog);
+        $otpRequired = $loginOtp->syncCurrentSessionRequirement(
+            $loginOtp->isOtpRequiredForTenant($tenantId)
+        );
+
         session()->set([
             'isLoggedIn' => true,
-            'isLoggedInConfirmed' => true,
+            'isLoggedInConfirmed' => !$otpRequired,
             'platform_user_id' => $platformUserId,
             'platform_user_email' => (string) ($platformUser['email'] ?? ''),
             'platform_is_admin' => $this->platformAdminAccess->isPlatformAdmin($platformUser),
@@ -124,7 +129,9 @@ class TenantAppSessionBootstrapService
             'loginSource' => 'platform_tenant',
         ]);
 
-        $redirectUrl = $this->resolvePlatformTenantRedirectUrl($context, $membership);
+        $redirectUrl = $otpRequired
+            ? site_url('auth')
+            : $this->resolvePlatformTenantRedirectUrl($context, $membership);
 
         return [
             'redirectUrl' => $redirectUrl,
@@ -189,6 +196,7 @@ class TenantAppSessionBootstrapService
             'otp_ok_for_reset',
             'otp',
             'otp_identity',
+            TenantLoginOtpService::SESSION_KEY_REQUIRED,
             'badge_posta_unread',
             'badge_chat_unread',
             'header_nav_items',

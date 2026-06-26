@@ -13,6 +13,7 @@ use App\Services\LegacyTenantSessionService;
 use App\Services\PlatformAccessService;
 use App\Services\PlatformAdminAccessService;
 use App\Services\PlatformAuthService;
+use App\Services\TenantLoginOtpService;
 use App\Services\TenantAppSessionBootstrapService;
 
 class LoginController extends BaseController
@@ -537,6 +538,7 @@ session()->remove('nav_refresh_meta');
 session()->remove('schede_access_map');
 session()->remove('schede_data');
 session()->remove('otp_identity');
+session()->remove(\App\Services\TenantLoginOtpService::SESSION_KEY_REQUIRED);
 session()->remove(\App\Services\TenantContextService::SESSION_KEY);
 session()->remove('platform_user_id');
 session()->remove('platform_user_email');
@@ -725,27 +727,26 @@ session()->remove(\App\Services\PlatformAccessService::SESSION_KEY_PENDING_PASSW
                         session()->set('cellulare',  $obj->cellulare);
                         session()->set('admin', 1);
                         session()->set('utente_sess', $obj);
-                        // ✅ Admin: bypass OTP + bypass scelta schede
-                            if ((int)session()->get('tipoUser') === 1) {
+                        if ((int)session()->get('tipoUser') === 1) {
+                            session()->set('is_admin', true);
 
-                                session()->set('is_admin', true);
-                                session()->set('isLoggedInConfirmed', true); // così sei già "confermato"
+                            $adminMenuModel = new \App\Models\AdminMenuModel();
+                            $menuAdmin = $adminMenuModel->getAdminMenu();
 
-                                // carico menu admin da dap06_mnu (admin=1)
-                                $adminMenuModel = new \App\Models\AdminMenuModel();
-                                $menuAdmin = $adminMenuModel->getAdminMenu();
+                            session()->set('menuDataAdmin', [
+                                'result' => $menuAdmin,
+                            ]);
 
-                                // salvo in sessione (così header/sidebar lo leggono)
-                                session()->set('menuDataAdmin', [
-                                    'result' => $menuAdmin,
-                                ]);
+                            session()->remove('requireDoctorSelection');
+                            session()->remove('menuData');
+                            session()->remove('menuAgenda');
 
-                                // IMPORTANTISSIMO: se hai roba vecchia in sessione che forzerebbe scelta schede/otp:
-                                session()->remove('requireDoctorSelection');
-                                session()->remove('menuData');      // menu normale
-                                session()->remove('menuAgenda');    // se vuoi
+                            $this->queueLegacyRuntimeTenantForCurrentDatabase(false);
+                            $otpRequired = (new TenantLoginOtpService())->syncCurrentSessionRequirement();
 
-                                $this->queueLegacyRuntimeTenantForCurrentDatabase(true);
+                            if (!$otpRequired) {
+                                session()->set('isLoggedInConfirmed', true);
+                                (new LegacyTenantSessionService())->activatePendingRuntime();
 
                                 return $this->response->setJSON([
                                     'resp'        => 'OK',
@@ -753,6 +754,13 @@ session()->remove(\App\Services\PlatformAccessService::SESSION_KEY_PENDING_PASSW
                                     'redirectUrl' => $this->legacyAdminPostLoginRedirectUrl()
                                 ]);
                             }
+
+                            return $this->response->setJSON([
+                                'resp'        => 'OK',
+                                'success'     => true,
+                                'redirectUrl' => 'auth'
+                            ]);
+                        }
 
                         }
 

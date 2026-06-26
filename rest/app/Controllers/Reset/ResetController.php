@@ -143,6 +143,7 @@ session()->remove('pwd_expired_flow');
 session()->remove('otp_ok_for_reset');
 session()->remove('otp');
 session()->remove('otp_identity');
+session()->remove(\App\Services\TenantLoginOtpService::SESSION_KEY_REQUIRED);
 
 // ✅ (consigliato) pulizia stato login normale
 session()->remove('isLoggedIn');
@@ -293,6 +294,7 @@ return $this->response->setJSON(['success' => true]);
         session()->remove('pwd_expired_flow');
         session()->remove('otp_ok_for_reset');
         session()->remove('otp');
+        session()->remove(\App\Services\TenantLoginOtpService::SESSION_KEY_REQUIRED);
         session()->remove('platform_user_id');
         session()->remove('platform_user_email');
         session()->remove('platform_is_admin');

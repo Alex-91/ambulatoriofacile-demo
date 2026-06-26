@@ -83,6 +83,7 @@ class PlatformAdminAccessService
             'schede_access_map',
             'schede_data',
             'otp_identity',
+            TenantLoginOtpService::SESSION_KEY_REQUIRED,
             TenantContextService::SESSION_KEY,
             'platform_user_id',
             'platform_user_email',

@@ -30,10 +30,14 @@ class ConsoleBridge extends BaseController
 
         if ($platformUserId > 0 && $tenantId > 0) {
             try {
-                (new TenantAppSessionBootstrapService())->bootstrap($platformUserId, $tenantId);
+                $bootstrap = (new TenantAppSessionBootstrapService())->bootstrap($platformUserId, $tenantId);
                 $session = session();
                 [$tenantId, $tenantRole] = $this->readTenantContext($session);
                 $sessionConfirmed = session_access_is_confirmed();
+
+                if (!$sessionConfirmed && (bool) ($session->get('isLoggedIn') ?? false) === true) {
+                    return redirect()->to((string) ($bootstrap['redirectUrl'] ?? site_url('auth')));
+                }
             } catch (\Throwable $e) {
                 log_message('warning', '[ConsoleBridge] bootstrap fallito: {message}', [
                     'message' => $e->getMessage(),

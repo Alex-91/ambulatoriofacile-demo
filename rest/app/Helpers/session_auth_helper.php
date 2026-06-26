@@ -9,6 +9,10 @@ if (!function_exists('session_access_is_confirmed')) {
             return true;
         }
 
+        if ((bool) ($session->get(\App\Services\TenantLoginOtpService::SESSION_KEY_REQUIRED) ?? false) === true) {
+            return false;
+        }
+
         $sessionUser = $session->get('utente_sess');
         if (!is_object($sessionUser) || (int) ($sessionUser->id_user ?? 0) <= 0) {
             return false;

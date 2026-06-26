@@ -15,6 +15,7 @@ use App\Services\LegacyLoginHandoffService;
 use App\Services\NotificationService;
 use App\Services\OtpDeliveryLogService;
 use App\Services\SessionNavigationService;
+use App\Services\TenantLoginOtpService;
 
 class AuthenticationController extends BaseController
 {
@@ -36,6 +37,7 @@ class AuthenticationController extends BaseController
     public function index()
     {
         helper(['portal', 'session_auth']);
+        (new TenantLoginOtpService())->syncCurrentSessionRequirement();
         $otpFromUrl = trim((string)$this->request->getGet('otp'));
         $codeFromUrl = trim((string)$this->request->getGet('code'));
         $openedFromPush = (string)$this->request->getGet('fromPush') === '1'
@@ -53,11 +55,19 @@ class AuthenticationController extends BaseController
             }
         }
 
-        $cellulare = trim((string)(session()->get('cellulare') ?? ''));
-        $otpIdentity = $this->currentOtpIdentity();
         $userId    = (int)(session()->get('userId') ?? 0);
 
-        if ($userId <= 0 || $otpIdentity === '') {
+        if ($userId <= 0) {
+            return $this->sessionExpiredRedirect();
+        }
+
+        if (!$this->isOtpRequiredForCurrentSession()) {
+            return redirect()->to($this->resolveAccessCompletionRedirectUrl());
+        }
+
+        $cellulare = trim((string)(session()->get('cellulare') ?? ''));
+        $otpIdentity = $this->currentOtpIdentity();
+        if ($otpIdentity === '') {
             return $this->sessionExpiredRedirect();
         }
 
@@ -500,74 +510,9 @@ class AuthenticationController extends BaseController
         session()->remove('is_admin_arrow_login');
         session()->remove('admin_arrow_username');
 
-        if ((int)session()->get('reset_flow') === 1) {
-            session()->set('otp_ok_for_reset', 1);
-            return $this->response->setJSON([
-                'success'     => true,
-                'redirectUrl' => 'reset/cambio',
-            ]);
-        }
-
-        if ((int)session()->get('pwd_expired_flow') === 1) {
-            session()->set('otp_ok_for_expired', 1);
-            return $this->response->setJSON([
-                'success'     => true,
-                'redirectUrl' => 'password/scaduta',
-            ]);
-        }
-
-        if (session()->get('isLoggedIn') === true) {
-            $obj = session()->get('utente_sess');
-
-            $menuAgenda = $menuModel->getMenuAgenda();
-            session()->set('menuAgenda', $menuAgenda);
-
-            session()->set('isLoggedInConfirmed', true);
-            (new LegacyTenantSessionService())->activatePendingRuntime();
-            $navigation->refreshCurrentSession(true);
-            $redirectUrl = '';
-
-            $utente = session()->get('utente_sess');
-
-            if (
-                $redirectUrl === ''
-                && (
-                (int)session()->get('tipoUser') === 2
-                && $utente
-                && isset($utente->id_personale)
-                )
-            ) {
-                $db = \Config\Database::connect();
-
-                $row = $db->query("
-                    SELECT COUNT(*) AS totale
-                    FROM dap18_sostituto
-                    WHERE id_personale = ?
-                    AND CURDATE() BETWEEN data_inizio AND data_fine
-                ", [(int)$utente->id_personale])->getRowArray();
-
-                if ((int)($row['totale'] ?? 0) > 0) {
-                    $redirectUrl = 'sostituzioni';
-                }
-            }
-
-            if ($redirectUrl === '') {
-                if (session_should_open_agenda_first()) {
-                    $redirectUrl = 'agenda';
-                } elseif (session_has_operational_profile_access()) {
-                    $redirectUrl = 'admin';
-                }
-            }
-
-            return $this->response->setJSON([
-    'success'     => true,
-    'redirectUrl' => $redirectUrl,
-]);
-        }
-
         return $this->response->setJSON([
             'success'     => true,
-            'redirectUrl' => '',
+            'redirectUrl' => $this->completeAccessConfirmation($menuModel, $navigation),
         ]);
     }
 
@@ -735,6 +680,86 @@ class AuthenticationController extends BaseController
     {
         $tipoUser = $this->getCurrentSessionUserType();
         return $tipoUser > 0;
+    }
+
+    private function isOtpRequiredForCurrentSession(): bool
+    {
+        return (new TenantLoginOtpService())->syncCurrentSessionRequirement();
+    }
+
+    private function resolveAccessCompletionRedirectUrl(): string
+    {
+        $redirectUrl = $this->completeAccessConfirmation(new MenuModel(), new SessionNavigationService());
+        $redirectUrl = trim($redirectUrl);
+
+        if ($redirectUrl === '') {
+            return site_url('/');
+        }
+
+        if (preg_match('#^https?://#i', $redirectUrl) === 1) {
+            return $redirectUrl;
+        }
+
+        return site_url(ltrim($redirectUrl, '/'));
+    }
+
+    private function completeAccessConfirmation(MenuModel $menuModel, SessionNavigationService $navigation): string
+    {
+        session()->remove('is_admin_arrow_login');
+        session()->remove('admin_arrow_username');
+        session()->remove(TenantLoginOtpService::SESSION_KEY_REQUIRED);
+
+        if ((int)session()->get('reset_flow') === 1) {
+            session()->set('otp_ok_for_reset', 1);
+            return 'reset/cambio';
+        }
+
+        if ((int)session()->get('pwd_expired_flow') === 1) {
+            session()->set('otp_ok_for_expired', 1);
+            return 'password/scaduta';
+        }
+
+        if (session()->get('isLoggedIn') !== true) {
+            return '';
+        }
+
+        $menuAgenda = $menuModel->getMenuAgenda();
+        session()->set('menuAgenda', $menuAgenda);
+        session()->set('isLoggedInConfirmed', true);
+        (new LegacyTenantSessionService())->activatePendingRuntime();
+        $navigation->refreshCurrentSession(true);
+
+        $redirectUrl = '';
+        $utente = session()->get('utente_sess');
+
+        if (
+            (int)session()->get('tipoUser') === 2
+            && $utente
+            && isset($utente->id_personale)
+        ) {
+            $db = \Config\Database::connect();
+
+            $row = $db->query("
+                SELECT COUNT(*) AS totale
+                FROM dap18_sostituto
+                WHERE id_personale = ?
+                  AND CURDATE() BETWEEN data_inizio AND data_fine
+            ", [(int)$utente->id_personale])->getRowArray();
+
+            if ((int)($row['totale'] ?? 0) > 0) {
+                $redirectUrl = 'sostituzioni';
+            }
+        }
+
+        if ($redirectUrl === '') {
+            if (session_should_open_agenda_first()) {
+                $redirectUrl = 'agenda';
+            } elseif (session_has_operational_profile_access()) {
+                $redirectUrl = 'admin';
+            }
+        }
+
+        return $redirectUrl;
     }
 
     private function canSkipEmailPasswordConfirmationForOtp(): bool

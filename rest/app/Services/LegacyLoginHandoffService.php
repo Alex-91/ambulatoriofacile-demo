@@ -175,11 +175,12 @@ class LegacyLoginHandoffService
 
         if ((string) ($user['resp'] ?? '') === 'SCADENZA') {
             $this->prepareExpiredPasswordFlow($user);
+            (new TenantLoginOtpService())->syncCurrentSessionRequirement();
 
             return [
                 'resp' => 'SCADENZA',
                 'redirectUrl' => 'auth',
-                'requiresOtp' => true,
+                'requiresOtp' => (new TenantLoginOtpService())->isOtpRequiredForCurrentSession(),
                 'userType' => (int) $user['tipo_user'],
             ];
         }
@@ -192,6 +193,19 @@ class LegacyLoginHandoffService
 
         if ($userType === 1) {
             $this->hydrateAdminSession((int) $user['id_user']);
+
+            if ($this->shouldRequireOtpForCurrentSession()) {
+                $this->ensureOtpBootstrapState((int) $user['id_user'], $userType);
+
+                return [
+                    'resp' => 'OK',
+                    'redirectUrl' => 'auth',
+                    'requiresOtp' => true,
+                    'userType' => $userType,
+                ];
+            }
+
+            $this->confirmBootstrappedSession($userType);
 
             return [
                 'resp' => 'OK',
@@ -211,12 +225,21 @@ class LegacyLoginHandoffService
             throw new \RuntimeException('Tipo utente non supportato per handoff.');
         }
 
-        $this->ensureOtpBootstrapState((int) $user['id_user'], $userType);
+        if ($this->shouldRequireOtpForCurrentSession()) {
+            $this->ensureOtpBootstrapState((int) $user['id_user'], $userType);
+
+            return [
+                'resp' => 'OK',
+                'redirectUrl' => 'auth',
+                'requiresOtp' => true,
+                'userType' => $userType,
+            ];
+        }
 
         return [
             'resp' => 'OK',
-            'redirectUrl' => 'auth',
-            'requiresOtp' => true,
+            'redirectUrl' => $this->confirmBootstrappedSession($userType),
+            'requiresOtp' => false,
             'userType' => $userType,
         ];
     }
@@ -271,6 +294,7 @@ class LegacyLoginHandoffService
             'schede_data',
             'nav_refresh_meta',
             'otp_identity',
+            TenantLoginOtpService::SESSION_KEY_REQUIRED,
             'loginSource',
             'is_admin_arrow_login',
             'admin_arrow_username',
@@ -351,7 +375,6 @@ class LegacyLoginHandoffService
             'cellulare' => $obj->cellulare,
             'admin' => 1,
             'is_admin' => true,
-            'isLoggedInConfirmed' => true,
             'utente_sess' => $obj,
             'menuDataAdmin' => ['result' => $menuAdmin],
         ]);
@@ -587,6 +610,7 @@ class LegacyLoginHandoffService
         $menuAgenda = (new \App\Models\MenuModel())->getMenuAgenda();
         session()->set('menuAgenda', $menuAgenda);
         session()->set('isLoggedInConfirmed', true);
+        session()->remove(TenantLoginOtpService::SESSION_KEY_REQUIRED);
 
         (new SessionNavigationService())->refreshCurrentSession(true);
 
@@ -643,6 +667,11 @@ class LegacyLoginHandoffService
         if ($identity !== '') {
             session()->set('otp_identity', $identity);
         }
+    }
+
+    private function shouldRequireOtpForCurrentSession(): bool
+    {
+        return (new TenantLoginOtpService())->syncCurrentSessionRequirement();
     }
 
     private function base64UrlDecode(string $value): ?string

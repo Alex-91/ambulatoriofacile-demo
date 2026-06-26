@@ -118,6 +118,7 @@ class PasswordController extends BaseController
         session()->remove('pwd_expired_flow');
         session()->remove('otp_ok_for_expired');
         session()->remove('otp');
+        session()->remove(\App\Services\TenantLoginOtpService::SESSION_KEY_REQUIRED);
         session()->remove('isLoggedIn');
         session()->remove('isLoggedInConfirmed');
         session()->remove('userId');

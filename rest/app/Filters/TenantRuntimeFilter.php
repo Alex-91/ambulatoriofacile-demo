@@ -115,6 +115,7 @@ class TenantRuntimeFilter implements FilterInterface
             'schede_access_map',
             'schede_data',
             'nav_refresh_meta',
+            \App\Services\TenantLoginOtpService::SESSION_KEY_REQUIRED,
             'platform_user_id',
             'platform_user_email',
             \App\Services\TenantAppSessionBootstrapService::PLATFORM_SELECTABLE_TENANTS_SESSION_KEY,
