@@ -270,6 +270,7 @@ class LegacyLoginHandoffService
             'schede_access_map',
             'schede_data',
             'nav_refresh_meta',
+            'otp_identity',
             'loginSource',
             'is_admin_arrow_login',
             'admin_arrow_username',
@@ -282,17 +283,27 @@ class LegacyLoginHandoffService
     private function prepareExpiredPasswordFlow(array $user): void
     {
         $cellulare = $this->resolveCellulareByUserType((int) $user['id_user'], (int) $user['tipo_user']);
-        if ($cellulare === '') {
-            throw new \RuntimeException('Numero di telefono non disponibile per il cambio password.');
-        }
 
-        session()->set([
+        $payload = [
             'forcePwdChange' => 1,
             'pwd_expired_flow' => 1,
             'pwd_userId' => (int) $user['id_user'],
             'pwd_username' => (string) $user['username'],
-            'cellulare' => $cellulare,
-        ]);
+        ];
+
+        if ($cellulare !== '') {
+            $payload['cellulare'] = $cellulare;
+        }
+
+        session()->set($payload);
+        if ($cellulare === '') {
+            session()->remove('cellulare');
+            log_message('info', '[LegacyLoginHandoffService] Password scaduta senza cellulare per userId={userId}; uso otp_identity uid fallback.', [
+                'userId' => (int) $user['id_user'],
+            ]);
+        }
+
+        $this->syncOtpIdentity((int) $user['id_user'], $cellulare);
         session()->remove('otp_ok_for_expired');
         session()->remove('otp');
     }
@@ -541,12 +552,19 @@ class LegacyLoginHandoffService
             $cellulare = $this->resolveCellulareByUserType($userId, $userType);
         }
 
-        if ($cellulare === '') {
-            throw new \RuntimeException('Numero di telefono mancante per OTP.');
+        if ($cellulare !== '') {
+            $user->cellulare = $cellulare;
+            $session->set('cellulare', $cellulare);
+        } else {
+            $user->cellulare = '';
+            $session->remove('cellulare');
+            log_message('info', '[LegacyLoginHandoffService] OTP bootstrap senza cellulare per userId={userId}, tipoUser={tipoUser}; uso fallback uid.', [
+                'userId' => $userId,
+                'tipoUser' => $userType,
+            ]);
         }
 
-        $user->cellulare = $cellulare;
-        $session->set('cellulare', $cellulare);
+        $this->syncOtpIdentity($userId, $cellulare);
         $session->set('utente_sess', $user);
 
         if (trim((string) ($session->get('nome_visualizzato') ?? '')) === '') {
@@ -612,6 +630,19 @@ class LegacyLoginHandoffService
 
         $firstValue = reset($row);
         return trim((string) $firstValue);
+    }
+
+    private function syncOtpIdentity(int $userId, string $cellulare): void
+    {
+        $identity = trim($cellulare);
+        if ($identity === '' && $userId > 0) {
+            $identity = 'uid:' . $userId;
+        }
+
+        session()->remove('otp_identity');
+        if ($identity !== '') {
+            session()->set('otp_identity', $identity);
+        }
     }
 
     private function base64UrlDecode(string $value): ?string
