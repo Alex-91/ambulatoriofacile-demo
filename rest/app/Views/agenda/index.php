@@ -2083,7 +2083,7 @@
     <div class="row" style="margin-bottom:15px;">
         <div class="col-sm-12 text-right">
             <button type="button" class="btn btn-default" id="btnPrintDayAgenda">
-                <i class="fa fa-file-pdf-o"></i> Stampa PDF giorno
+                <i class="fa fa-file-pdf-o"></i> <span id="btnPrintDayAgendaLabel">Stampa PDF giorno</span>
             </button>
 
             <button type="button" class="btn btn-warning" id="btnAddExtraSlot">
@@ -3297,6 +3297,21 @@ function syncAgendaViewButtons() {
             .toggleClass('active', isActive)
             .attr('aria-pressed', isActive ? 'true' : 'false');
     });
+
+    syncAgendaPrintButtonLabel(activeView);
+}
+
+function syncAgendaPrintButtonLabel(activeView) {
+    var normalized = normalizeAgendaViewModeValue(activeView || $('#view_mode').val());
+    var label = 'Stampa PDF giorno';
+
+    if (normalized === 'week') {
+        label = 'Stampa PDF settimana';
+    } else if (normalized === 'team_day') {
+        label = 'Stampa PDF giorno team';
+    }
+
+    $('#btnPrintDayAgendaLabel').text(label);
 }
 
 function toggleAgendaTeamDayLayout(isTeamDay) {
@@ -8062,7 +8077,8 @@ $('#nota_giorno_text').on('blur', function() {
     $('#btnPrintDayAgenda').on('click', function() {
         var url = "<?= base_url('agenda/stampa-pdf-giorno') ?>?id_dot=" +
             encodeURIComponent($('#id_dot').val()) +
-            "&data=" + encodeURIComponent($('#agenda_date').val());
+            "&data=" + encodeURIComponent($('#agenda_date').val()) +
+            "&view=" + encodeURIComponent($('#view_mode').val());
 
         window.open(url, '_blank');
     });
