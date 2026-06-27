@@ -3959,6 +3959,7 @@ public function eseguiRepairRecurringExtraSlots()
         $gridDuration = !empty($allSlots) ? $this->calcolaStepCalendario($allSlots) : 15;
         [$minTime, $maxTime] = $this->resolveTimelinePdfBounds($allSlots, $gridDuration);
         $timeline = $this->buildTimelinePdfTable($columns, $gridDuration, $minTime, $maxTime);
+        $timeline['row_height_px'] = $this->resolveTimelinePdfRowHeight(count($timeline['rows'] ?? []), 'team_day');
 
         $html = view('agenda/timeline_pdf', [
             'title' => 'Agenda giornaliera team',
@@ -4351,8 +4352,28 @@ public function eseguiRepairRecurringExtraSlots()
         return $days[(int)date('N', $timestamp)] ?? $date;
     }
 
-    private function resolveTimelinePdfRowHeight(int $rowCount): int
+    private function resolveTimelinePdfRowHeight(int $rowCount, string $pageMode = ''): int
     {
+        if ($pageMode === 'team_day') {
+            if ($rowCount >= 110) {
+                return 12;
+            }
+
+            if ($rowCount >= 85) {
+                return 14;
+            }
+
+            if ($rowCount >= 60) {
+                return 17;
+            }
+
+            if ($rowCount >= 44) {
+                return 20;
+            }
+
+            return 24;
+        }
+
         if ($rowCount >= 110) {
             return 8;
         }

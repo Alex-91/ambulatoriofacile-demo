@@ -6,6 +6,8 @@ if (!function_exists('timeline_pdf_text')) {
         return $value !== '' ? $value : $fallback;
     }
 }
+
+$isTeamDay = (($pageMode ?? '') === 'team_day');
 ?>
 <!DOCTYPE html>
 <html lang="it">
@@ -47,11 +49,15 @@ if (!function_exists('timeline_pdf_text')) {
             width: 100%;
             border-collapse: collapse;
             table-layout: fixed;
+            page-break-inside: auto;
         }
 
         .timeline-table th,
         .timeline-table td {
             border: 1px solid #cfd8e3;
+            overflow-wrap: break-word;
+            word-wrap: break-word;
+            page-break-inside: avoid;
         }
 
         .timeline-table thead th {
@@ -59,6 +65,15 @@ if (!function_exists('timeline_pdf_text')) {
             padding: 5px 4px;
             text-align: center;
             vertical-align: top;
+        }
+
+        .timeline-table thead {
+            display: table-header-group;
+        }
+
+        .timeline-table tbody tr {
+            page-break-inside: avoid;
+            page-break-after: auto;
         }
 
         .timeline-table .time-col {
@@ -180,9 +195,76 @@ if (!function_exists('timeline_pdf_text')) {
             font-size: 7px;
             line-height: 1.25;
         }
+
+        body.is-team-day {
+            font-size: 10px;
+        }
+
+        body.is-team-day h1 {
+            font-size: 20px;
+        }
+
+        body.is-team-day .summary-row {
+            font-size: 9px;
+            line-height: 1.3;
+        }
+
+        body.is-team-day .mode-note {
+            font-size: 9px;
+            line-height: 1.35;
+        }
+
+        body.is-team-day .timeline-table thead th {
+            padding: 7px 5px;
+        }
+
+        body.is-team-day .timeline-table tbody .time-col {
+            padding: 5px 3px;
+            font-size: 9px;
+        }
+
+        body.is-team-day .column-label {
+            font-size: 11px;
+            line-height: 1.2;
+        }
+
+        body.is-team-day .column-sub {
+            font-size: 9px;
+            line-height: 1.25;
+        }
+
+        body.is-team-day .badge {
+            font-size: 8px;
+            padding: 2px 5px;
+        }
+
+        body.is-team-day .timeline-cell .cell-inner {
+            padding: 7px 6px;
+        }
+
+        body.is-team-day .timeline-cell.is-empty-column .cell-inner {
+            padding-top: 24px;
+        }
+
+        body.is-team-day .entry-time {
+            font-size: 8px;
+            line-height: 1.2;
+        }
+
+        body.is-team-day .entry-title {
+            margin-top: 3px;
+            font-size: 10px;
+            line-height: 1.25;
+        }
+
+        body.is-team-day .entry-note {
+            margin-top: 4px;
+            font-size: 8px;
+            line-height: 1.35;
+        }
     </style>
 </head>
-<body>
+<body class="<?= $isTeamDay ? 'is-team-day' : 'is-standard-timeline' ?>">
     <h1><?= esc(timeline_pdf_text($title ?? '', 'Agenda')) ?></h1>
 
     <div class="summary">
@@ -197,7 +279,7 @@ if (!function_exists('timeline_pdf_text')) {
         <?php endif; ?>
         <div class="mode-note">
             <?php if (($pageMode ?? '') === 'team_day'): ?>
-                Gli appuntamenti che coprono piu slot vengono stampati come un unico blocco continuo per tutto il loro orario.
+                Gli appuntamenti che coprono piu slot vengono stampati come un unico blocco continuo per tutto il loro orario. Se l'agenda e lunga, la stampa prosegue su piu pagine in altezza mantenendo invariata la larghezza delle colonne.
             <?php else: ?>
                 La timeline stampa un unico riquadro per ogni appuntamento che copre slot consecutivi.
             <?php endif; ?>
