@@ -81,12 +81,18 @@ $isTeamDay = (($pageMode ?? '') === 'team_day');
             text-align: center;
             background: #f8fafc;
             font-weight: bold;
+            white-space: normal;
         }
 
         .timeline-table tbody .time-col {
             padding: 3px 2px;
             font-size: 8px;
             color: #334155;
+        }
+
+        .timeline-table .time-col-heading {
+            font-size: 8px;
+            letter-spacing: 0.02em;
         }
 
         .column-label {
@@ -138,6 +144,7 @@ $isTeamDay = (($pageMode ?? '') === 'team_day');
 
         .timeline-cell .cell-inner {
             padding: 4px 5px;
+            white-space: normal;
         }
 
         .timeline-cell.is-gap .cell-inner {
@@ -218,9 +225,18 @@ $isTeamDay = (($pageMode ?? '') === 'team_day');
             padding: 7px 5px;
         }
 
+        body.is-team-day .timeline-table .time-col {
+            width: 54px;
+        }
+
         body.is-team-day .timeline-table tbody .time-col {
-            padding: 5px 3px;
-            font-size: 9px;
+            padding: 7px 4px;
+            font-size: 12px;
+            line-height: 1.25;
+        }
+
+        body.is-team-day .timeline-table .time-col-heading {
+            font-size: 10px;
         }
 
         body.is-team-day .column-label {
@@ -247,8 +263,8 @@ $isTeamDay = (($pageMode ?? '') === 'team_day');
         }
 
         body.is-team-day .entry-time {
-            font-size: 8px;
-            line-height: 1.2;
+            font-size: 10px;
+            line-height: 1.25;
         }
 
         body.is-team-day .entry-title {
@@ -289,53 +305,102 @@ $isTeamDay = (($pageMode ?? '') === 'team_day');
     <table class="timeline-table">
         <thead>
             <tr>
-                <th class="time-col">Ora</th>
-                <?php foreach (($columns ?? []) as $column): ?>
-                    <th>
-                        <div class="column-label"><?= esc(timeline_pdf_text($column['label'] ?? '', 'Colonna')) ?></div>
-                        <?php if (timeline_pdf_text($column['sub_label'] ?? '') !== ''): ?>
-                            <div class="column-sub"><?= esc(timeline_pdf_text($column['sub_label'] ?? '')) ?></div>
-                        <?php endif; ?>
-                        <?php if (!empty($column['header_badges']) && is_array($column['header_badges'])): ?>
-                            <div class="column-badges">
-                                <?php foreach ($column['header_badges'] as $badge): ?>
-                                    <?php
-                                    $tone = timeline_pdf_text($badge['tone'] ?? 'muted', 'muted');
-                                    $label = timeline_pdf_text($badge['label'] ?? '');
-                                    if ($label === '') {
-                                        continue;
-                                    }
-                                    ?>
-                                    <span class="badge is-<?= esc($tone) ?>"><?= esc($label) ?></span>
-                                <?php endforeach; ?>
-                            </div>
-                        <?php endif; ?>
-                    </th>
-                <?php endforeach; ?>
+                <?php if ($isTeamDay): ?>
+                    <?php foreach (($columns ?? []) as $column): ?>
+                        <th class="time-col time-col-heading">Ora</th>
+                        <th>
+                            <div class="column-label"><?= esc(timeline_pdf_text($column['label'] ?? '', 'Colonna')) ?></div>
+                            <?php if (timeline_pdf_text($column['sub_label'] ?? '') !== ''): ?>
+                                <div class="column-sub"><?= esc(timeline_pdf_text($column['sub_label'] ?? '')) ?></div>
+                            <?php endif; ?>
+                            <?php if (!empty($column['header_badges']) && is_array($column['header_badges'])): ?>
+                                <div class="column-badges">
+                                    <?php foreach ($column['header_badges'] as $badge): ?>
+                                        <?php
+                                        $tone = timeline_pdf_text($badge['tone'] ?? 'muted', 'muted');
+                                        $label = timeline_pdf_text($badge['label'] ?? '');
+                                        if ($label === '') {
+                                            continue;
+                                        }
+                                        ?>
+                                        <span class="badge is-<?= esc($tone) ?>"><?= esc($label) ?></span>
+                                    <?php endforeach; ?>
+                                </div>
+                            <?php endif; ?>
+                        </th>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <th class="time-col">Ora</th>
+                    <?php foreach (($columns ?? []) as $column): ?>
+                        <th>
+                            <div class="column-label"><?= esc(timeline_pdf_text($column['label'] ?? '', 'Colonna')) ?></div>
+                            <?php if (timeline_pdf_text($column['sub_label'] ?? '') !== ''): ?>
+                                <div class="column-sub"><?= esc(timeline_pdf_text($column['sub_label'] ?? '')) ?></div>
+                            <?php endif; ?>
+                            <?php if (!empty($column['header_badges']) && is_array($column['header_badges'])): ?>
+                                <div class="column-badges">
+                                    <?php foreach ($column['header_badges'] as $badge): ?>
+                                        <?php
+                                        $tone = timeline_pdf_text($badge['tone'] ?? 'muted', 'muted');
+                                        $label = timeline_pdf_text($badge['label'] ?? '');
+                                        if ($label === '') {
+                                            continue;
+                                        }
+                                        ?>
+                                        <span class="badge is-<?= esc($tone) ?>"><?= esc($label) ?></span>
+                                    <?php endforeach; ?>
+                                </div>
+                            <?php endif; ?>
+                        </th>
+                    <?php endforeach; ?>
+                <?php endif; ?>
             </tr>
         </thead>
         <tbody>
             <?php foreach (($rows ?? []) as $row): ?>
                 <tr style="height:<?= (int)($rowHeightPx ?? 14) ?>px;">
-                    <td class="time-col"><?= esc(timeline_pdf_text($row['time_label'] ?? '')) ?></td>
-                    <?php foreach (($row['cells'] ?? []) as $cell): ?>
-                        <?php if ($cell === null): ?>
-                            <?php continue; ?>
-                        <?php endif; ?>
-                        <td rowspan="<?= max(1, (int)($cell['rowspan'] ?? 1)) ?>" class="timeline-cell <?= esc(timeline_pdf_text($cell['class'] ?? '')) ?>">
-                            <div class="cell-inner">
-                                <?php if (timeline_pdf_text($cell['time_range'] ?? '') !== ''): ?>
-                                    <div class="entry-time"><?= esc(timeline_pdf_text($cell['time_range'] ?? '')) ?></div>
-                                <?php endif; ?>
-                                <?php if (timeline_pdf_text($cell['primary_label'] ?? '') !== ''): ?>
-                                    <div class="entry-title"><?= esc(timeline_pdf_text($cell['primary_label'] ?? '')) ?></div>
-                                <?php endif; ?>
-                                <?php if (timeline_pdf_text($cell['secondary_label'] ?? '') !== ''): ?>
-                                    <div class="entry-note"><?= esc(timeline_pdf_text($cell['secondary_label'] ?? '')) ?></div>
-                                <?php endif; ?>
-                            </div>
-                        </td>
-                    <?php endforeach; ?>
+                    <?php if ($isTeamDay): ?>
+                        <?php foreach (($columns ?? []) as $columnIndex => $column): ?>
+                            <?php $cell = $row['cells'][$columnIndex] ?? null; ?>
+                            <td class="time-col"><?= esc(timeline_pdf_text($row['time_label'] ?? '')) ?></td>
+                            <?php if ($cell === null): ?>
+                                <?php continue; ?>
+                            <?php endif; ?>
+                            <td rowspan="<?= max(1, (int)($cell['rowspan'] ?? 1)) ?>" class="timeline-cell <?= esc(timeline_pdf_text($cell['class'] ?? '')) ?>">
+                                <div class="cell-inner">
+                                    <?php if (timeline_pdf_text($cell['time_range'] ?? '') !== ''): ?>
+                                        <div class="entry-time"><?= esc(timeline_pdf_text($cell['time_range'] ?? '')) ?></div>
+                                    <?php endif; ?>
+                                    <?php if (timeline_pdf_text($cell['primary_label'] ?? '') !== ''): ?>
+                                        <div class="entry-title"><?= esc(timeline_pdf_text($cell['primary_label'] ?? '')) ?></div>
+                                    <?php endif; ?>
+                                    <?php if (timeline_pdf_text($cell['secondary_label'] ?? '') !== ''): ?>
+                                        <div class="entry-note"><?= esc(timeline_pdf_text($cell['secondary_label'] ?? '')) ?></div>
+                                    <?php endif; ?>
+                                </div>
+                            </td>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <td class="time-col"><?= esc(timeline_pdf_text($row['time_label'] ?? '')) ?></td>
+                        <?php foreach (($row['cells'] ?? []) as $cell): ?>
+                            <?php if ($cell === null): ?>
+                                <?php continue; ?>
+                            <?php endif; ?>
+                            <td rowspan="<?= max(1, (int)($cell['rowspan'] ?? 1)) ?>" class="timeline-cell <?= esc(timeline_pdf_text($cell['class'] ?? '')) ?>">
+                                <div class="cell-inner">
+                                    <?php if (timeline_pdf_text($cell['time_range'] ?? '') !== ''): ?>
+                                        <div class="entry-time"><?= esc(timeline_pdf_text($cell['time_range'] ?? '')) ?></div>
+                                    <?php endif; ?>
+                                    <?php if (timeline_pdf_text($cell['primary_label'] ?? '') !== ''): ?>
+                                        <div class="entry-title"><?= esc(timeline_pdf_text($cell['primary_label'] ?? '')) ?></div>
+                                    <?php endif; ?>
+                                    <?php if (timeline_pdf_text($cell['secondary_label'] ?? '') !== ''): ?>
+                                        <div class="entry-note"><?= esc(timeline_pdf_text($cell['secondary_label'] ?? '')) ?></div>
+                                    <?php endif; ?>
+                                </div>
+                            </td>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
                 </tr>
             <?php endforeach; ?>
         </tbody>
