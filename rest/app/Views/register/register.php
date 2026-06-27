@@ -50,7 +50,7 @@
         <!-- Top content -->
         		<div class="container">
       <div class="wrapper">
-        <div class="title" style="background-image: url('<?= base_url('public/assets/images/logo-symbol.svg'); ?>');background-size: contain;background-repeat: no-repeat;background-position-x: center;"></div>
+        <div class="title" style="background-image:url('<?= base_url('public/assets/images/logo-header.svg'); ?>');"></div>
         <form id="userForm" action="#">
       <span id="titolo">Registrazione Utente</span>
       <div class="row">

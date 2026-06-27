@@ -252,7 +252,7 @@ $emailLabel = $hasProfileEmailBool ? (!empty($maskedEmail) ? $maskedEmail : $pro
 <body>
 <div class="container">
   <div class="wrapper">
-    <div class="title" style="background-image: url('<?= base_url('public/assets/images/logo-symbol.svg'); ?>'); background-size: contain; background-repeat: no-repeat; background-position-x: center;"></div>
+    <div class="title" style="background-image:url('<?= base_url('public/assets/images/logo-header.svg'); ?>');"></div>
 
     <div id="section-has-mobile" style="<?= $hasMobileBool ? '' : 'display:none' ?>">
       <div class="banner" id="connectedBanner">
