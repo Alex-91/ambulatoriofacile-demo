@@ -8,12 +8,27 @@ use Exception;
 
 class AgendaVisitTypeModel extends Model
 {
+    /** @var array<int, string> */
+    private const DEFAULT_COLORS = [
+        '#3C8DBC',
+        '#16A085',
+        '#5E72E4',
+        '#EB6B56',
+        '#8E44AD',
+        '#F39C12',
+        '#27AE60',
+        '#C0392B',
+        '#2C82C9',
+        '#D35400',
+    ];
+
     protected $table = 'dap44_agenda_tipi_visita';
     protected $primaryKey = 'id_tipo_visita';
     protected $returnType = 'array';
     protected $allowedFields = [
         'nome',
         'durata_minuti',
+        'colore',
         'attivo',
         'ordinamento',
         'created_by',
@@ -87,9 +102,11 @@ class AgendaVisitTypeModel extends Model
         $idTipoVisita = (int) ($data['id_tipo_visita'] ?? 0);
         $nome = trim((string) ($data['nome'] ?? ''));
         $durataMinuti = (int) ($data['durata_minuti'] ?? 0);
+        $coloreInput = trim((string) ($data['colore'] ?? ''));
         $attivo = array_key_exists('attivo', $data)
             ? ((int) $data['attivo'] === 1 ? 1 : 0)
             : 1;
+        $existing = null;
 
         if ($nome === '') {
             throw new Exception('Il nome del tipo visita e obbligatorio.');
@@ -103,19 +120,26 @@ class AgendaVisitTypeModel extends Model
             throw new Exception('La durata del tipo visita non puo superare 480 minuti.');
         }
 
-        $payload = [
-            'nome' => $nome,
-            'durata_minuti' => $durataMinuti,
-            'attivo' => $attivo,
-            'updated_by' => $userId > 0 ? $userId : null,
-        ];
+        if ($coloreInput !== '' && $this->normalizeStoredColor($coloreInput) === '') {
+            throw new Exception('Seleziona un colore valido per il tipo visita.');
+        }
 
         if ($idTipoVisita > 0) {
             $existing = $this->find($idTipoVisita);
             if (!$existing) {
                 throw new Exception('Tipo visita non trovato.');
             }
+        }
 
+        $payload = [
+            'nome' => $nome,
+            'durata_minuti' => $durataMinuti,
+            'colore' => $this->resolveColorValue($coloreInput, $existing),
+            'attivo' => $attivo,
+            'updated_by' => $userId > 0 ? $userId : null,
+        ];
+
+        if ($idTipoVisita > 0) {
             $this->update($idTipoVisita, $payload);
             return $idTipoVisita;
         }
@@ -170,7 +194,63 @@ class AgendaVisitTypeModel extends Model
         $row['durata_minuti'] = (int) ($row['durata_minuti'] ?? 0);
         $row['attivo'] = (int) ($row['attivo'] ?? 0);
         $row['ordinamento'] = (int) ($row['ordinamento'] ?? 0);
+        $row['colore'] = $this->resolveNormalizedRowColor($row);
         return $row;
+    }
+
+    private function resolveColorValue(string $colorInput, ?array $existingRow = null): string
+    {
+        $normalizedInput = $this->normalizeStoredColor($colorInput);
+        if ($normalizedInput !== '') {
+            return $normalizedInput;
+        }
+
+        $existingColor = $this->normalizeStoredColor((string) ($existingRow['colore'] ?? ''));
+        if ($existingColor !== '') {
+            return $existingColor;
+        }
+
+        return $this->pickDefaultColor($existingRow);
+    }
+
+    private function resolveNormalizedRowColor(array $row): string
+    {
+        $normalized = $this->normalizeStoredColor((string) ($row['colore'] ?? ''));
+        if ($normalized !== '') {
+            return $normalized;
+        }
+
+        return $this->pickDefaultColor($row);
+    }
+
+    private function pickDefaultColor(?array $row = null): string
+    {
+        $paletteSize = count(self::DEFAULT_COLORS);
+        if ($paletteSize === 0) {
+            return '#3C8DBC';
+        }
+
+        $idTipoVisita = (int) ($row['id_tipo_visita'] ?? 0);
+        if ($idTipoVisita > 0) {
+            return self::DEFAULT_COLORS[($idTipoVisita - 1) % $paletteSize];
+        }
+
+        $count = 0;
+        if ($this->db->tableExists($this->table)) {
+            $count = (int) $this->builder()->countAllResults();
+        }
+
+        return self::DEFAULT_COLORS[$count % $paletteSize];
+    }
+
+    private function normalizeStoredColor(string $value): string
+    {
+        $normalized = strtoupper(trim($value));
+        if (preg_match('/^#[0-9A-F]{6}$/', $normalized) === 1) {
+            return $normalized;
+        }
+
+        return '';
     }
 
     private function ensureSchemaReady(): void

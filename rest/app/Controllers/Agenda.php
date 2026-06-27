@@ -2968,6 +2968,7 @@ public function eseguiRepairRecurringExtraSlots()
                 'id_tipo_visita' => (int) ($this->request->getPost('id_tipo_visita') ?? 0),
                 'nome' => (string) ($this->request->getPost('nome') ?? ''),
                 'durata_minuti' => (int) ($this->request->getPost('durata_minuti') ?? 0),
+                'colore' => (string) ($this->request->getPost('colore') ?? ''),
                 'attivo' => (int) ($this->request->getPost('attivo') ?? 1),
             ], $this->getCurrentUserId());
 

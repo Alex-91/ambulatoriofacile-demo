@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Database\Migrations\AddColorToAgendaVisitTypes;
 use App\Database\Migrations\CreateAgendaVisitTypesAndAppointmentSpan;
 use CodeIgniter\Database\BaseConnection;
 use Config\Database;
@@ -17,6 +18,7 @@ class AgendaVisitTypeSchemaService
         'id_tipo_visita',
         'nome',
         'durata_minuti',
+        'colore',
         'attivo',
         'ordinamento',
         'created_by',
@@ -90,8 +92,13 @@ class AgendaVisitTypeSchemaService
     private function attemptRuntimeMigration(): void
     {
         try {
-            $migration = new CreateAgendaVisitTypesAndAppointmentSpan(Database::forge($this->db));
+            $forge = Database::forge($this->db);
+
+            $migration = new CreateAgendaVisitTypesAndAppointmentSpan($forge);
             $migration->up();
+
+            $colorMigration = new AddColorToAgendaVisitTypes($forge);
+            $colorMigration->up();
         } catch (\Throwable $e) {
             log_message('error', 'AgendaVisitTypeSchemaService runtime migration failed: {message}', [
                 'message' => $e->getMessage(),

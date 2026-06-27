@@ -62,6 +62,21 @@
             color: #243235;
         }
 
+        .visit-types-card-title-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .visit-types-card-color {
+            width: 16px;
+            height: 16px;
+            flex: 0 0 16px;
+            border-radius: 999px;
+            border: 1px solid rgba(31, 45, 61, 0.14);
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28);
+        }
+
         .visit-types-card-meta {
             margin-top: 4px;
             color: #617478;
@@ -108,6 +123,101 @@
 
         .visit-types-form-box .help-block {
             margin-top: 0;
+        }
+
+        .visit-type-color-picker {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .visit-type-color-palette {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(42px, 1fr));
+            gap: 10px;
+        }
+
+        .visit-type-color-swatch {
+            height: 42px;
+            border: 1px solid #d7e4ea;
+            border-radius: 12px;
+            background: var(--visit-type-color, #3C8DBC);
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.24);
+            cursor: pointer;
+            transition: transform .14s ease, box-shadow .14s ease, border-color .14s ease;
+        }
+
+        .visit-type-color-swatch:hover,
+        .visit-type-color-swatch:focus {
+            transform: translateY(-1px);
+            border-color: #9fb8c6;
+            box-shadow: 0 8px 18px rgba(31, 45, 61, 0.12);
+            outline: none;
+        }
+
+        .visit-type-color-swatch.is-selected {
+            border-color: #1f2d3d;
+            box-shadow: 0 0 0 3px rgba(31, 45, 61, 0.16), 0 10px 22px rgba(31, 45, 61, 0.12);
+        }
+
+        .visit-type-color-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .visit-type-color-current {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #455b63;
+        }
+
+        .visit-type-color-current-sample {
+            width: 20px;
+            height: 20px;
+            border-radius: 999px;
+            border: 1px solid rgba(31, 45, 61, 0.14);
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.32);
+        }
+
+        .visit-type-color-custom {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: auto;
+        }
+
+        .visit-type-color-custom-label {
+            color: #6a7c82;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .visit-type-color-native {
+            width: 44px;
+            height: 32px;
+            padding: 0;
+            border: 1px solid #d7e4ea;
+            border-radius: 10px;
+            background: #fff;
+            cursor: pointer;
+        }
+
+        @media (max-width: 767px) {
+            .visit-type-color-footer {
+                align-items: stretch;
+            }
+
+            .visit-type-color-custom {
+                width: 100%;
+                justify-content: space-between;
+                margin-left: 0;
+            }
         }
     </style>
 </head>
@@ -194,6 +304,24 @@
                                         <input type="number" id="visitTypeDuration" class="form-control" min="5" step="5" placeholder="45">
                                     </div>
 
+                                    <div class="form-group">
+                                        <label for="visitTypeColorCustom">Colore slot agenda</label>
+                                        <div class="visit-type-color-picker">
+                                            <input type="hidden" id="visitTypeColor" value="">
+                                            <div id="visitTypeColorPalette" class="visit-type-color-palette"></div>
+                                            <div class="visit-type-color-footer">
+                                                <div class="visit-type-color-current">
+                                                    <span id="visitTypeColorSample" class="visit-type-color-current-sample"></span>
+                                                    <span>Colore selezionato <strong id="visitTypeColorValue">#3C8DBC</strong></span>
+                                                </div>
+                                                <label class="visit-type-color-custom" for="visitTypeColorCustom">
+                                                    <span class="visit-type-color-custom-label">Personalizza</span>
+                                                    <input type="color" id="visitTypeColorCustom" class="visit-type-color-native" value="#3c8dbc">
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+
                                     <div class="form-group" style="margin-bottom:0;">
                                         <button type="button" class="btn btn-success btn-block" id="btnSaveVisitType">
                                             <i class="fa fa-save"></i> Salva tipo visita
@@ -217,6 +345,7 @@
 <script src="<?= base_url('public/js/agenda-menu.js') ?>"></script>
 <script>
 var visitTypesRows = <?= json_encode(array_values($visitTypes ?? []), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+var visitTypeColorPalette = ['#3C8DBC', '#16A085', '#5E72E4', '#EB6B56', '#8E44AD', '#F39C12', '#27AE60', '#C0392B', '#2C82C9', '#D35400'];
 
 function escapeHtmlVisitTypes(value) {
     return String(value == null ? '' : value)
@@ -225,6 +354,42 @@ function escapeHtmlVisitTypes(value) {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
+}
+
+function normalizeVisitTypeColor(value) {
+    var normalized = $.trim(String(value || '')).toUpperCase();
+    return /^#[0-9A-F]{6}$/.test(normalized) ? normalized : '';
+}
+
+function getSuggestedVisitTypeColor() {
+    return visitTypeColorPalette[visitTypesRows.length % visitTypeColorPalette.length] || '#3C8DBC';
+}
+
+function setVisitTypeColor(value) {
+    var normalized = normalizeVisitTypeColor(value) || getSuggestedVisitTypeColor();
+
+    $('#visitTypeColor').val(normalized);
+    $('#visitTypeColorCustom').val(normalized.toLowerCase());
+    $('#visitTypeColorSample').css('background', normalized);
+    $('#visitTypeColorValue').text(normalized);
+
+    $('#visitTypeColorPalette').find('.visit-type-color-swatch').each(function() {
+        var $swatch = $(this);
+        $swatch.toggleClass('is-selected', String($swatch.data('color') || '').toUpperCase() === normalized);
+    });
+}
+
+function renderVisitTypeColorPalette() {
+    var html = '';
+
+    $.each(visitTypeColorPalette, function(_, color) {
+        html += '<button type="button" class="visit-type-color-swatch"'
+            + ' data-color="' + escapeHtmlVisitTypes(color) + '"'
+            + ' style="--visit-type-color:' + escapeHtmlVisitTypes(color) + ';"'
+            + ' aria-label="Seleziona colore ' + escapeHtmlVisitTypes(color) + '"></button>';
+    });
+
+    $('#visitTypeColorPalette').html(html);
 }
 
 function showVisitTypesFlash(type, message) {
@@ -248,6 +413,7 @@ function resetVisitTypeForm() {
     $('#visitTypeId').val('');
     $('#visitTypeName').val('');
     $('#visitTypeDuration').val('');
+    setVisitTypeColor(getSuggestedVisitTypeColor());
     $('#btnCancelVisitTypeEdit').hide();
 }
 
@@ -255,6 +421,7 @@ function fillVisitTypeForm(row) {
     $('#visitTypeId').val((row && row.id_tipo_visita) || '');
     $('#visitTypeName').val((row && row.nome) || '');
     $('#visitTypeDuration').val((row && row.durata_minuti) || '');
+    setVisitTypeColor((row && row.colore) || '');
     $('#btnCancelVisitTypeEdit').show();
     $('#visitTypeName').trigger('focus');
 }
@@ -274,10 +441,14 @@ function renderVisitTypesList() {
     for (var i = 0; i < visitTypesRows.length; i++) {
         var row = visitTypesRows[i] || {};
         var isActive = parseInt(row.attivo || 0, 10) === 1;
+        var rowColor = normalizeVisitTypeColor(row.colore) || getSuggestedVisitTypeColor();
         html += '<div class="visit-types-card' + (isActive ? '' : ' is-inactive') + '">';
         html += '  <div class="visit-types-card-header">';
         html += '    <div>';
-        html += '      <h4 class="visit-types-card-title">' + escapeHtmlVisitTypes(row.nome || '') + '</h4>';
+        html += '      <div class="visit-types-card-title-row">';
+        html += '          <span class="visit-types-card-color" style="background:' + escapeHtmlVisitTypes(rowColor) + ';"></span>';
+        html += '          <h4 class="visit-types-card-title">' + escapeHtmlVisitTypes(row.nome || '') + '</h4>';
+        html += '      </div>';
         html += '      <div class="visit-types-card-meta">' + escapeHtmlVisitTypes((row.durata_minuti || 0) + ' minuti consecutivi') + '</div>';
         html += '    </div>';
         html += '    <span class="visit-types-status ' + (isActive ? 'is-active' : 'is-inactive') + '">'
@@ -313,11 +484,14 @@ function updateVisitTypesRows(rows) {
 }
 
 $(function() {
+    renderVisitTypeColorPalette();
     renderVisitTypesList();
+    setVisitTypeColor(getSuggestedVisitTypeColor());
 
     $('#btnSaveVisitType').on('click', function() {
         var nome = $.trim($('#visitTypeName').val() || '');
         var durata = parseInt($('#visitTypeDuration').val() || 0, 10) || 0;
+        var colore = normalizeVisitTypeColor($('#visitTypeColor').val());
 
         if (nome === '') {
             showVisitTypesFlash('warning', 'Inserisci il nome del tipo visita.');
@@ -331,10 +505,16 @@ $(function() {
             return;
         }
 
+        if (colore === '') {
+            showVisitTypesFlash('warning', 'Seleziona un colore valido per il tipo visita.');
+            return;
+        }
+
         $.post("<?= base_url('agenda/salva-tipo-visita') ?>", {
             id_tipo_visita: $('#visitTypeId').val(),
             nome: nome,
             durata_minuti: durata,
+            colore: colore,
             attivo: 1
         }, function(res) {
             if (!res || res.status !== true) {
@@ -356,6 +536,14 @@ $(function() {
 
     $('#btnCancelVisitTypeEdit').on('click', function() {
         resetVisitTypeForm();
+    });
+
+    $('#visitTypeColorPalette').on('click', '.visit-type-color-swatch', function() {
+        setVisitTypeColor($(this).data('color') || '');
+    });
+
+    $('#visitTypeColorCustom').on('input change', function() {
+        setVisitTypeColor($(this).val() || '');
     });
 
     $('#visitTypesList').on('click', '.js-edit-visit-type', function() {

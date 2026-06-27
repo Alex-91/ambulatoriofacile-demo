@@ -438,6 +438,22 @@
             color: #1f2d3d;
         }
 
+        .agenda-visit-type-title-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 0;
+        }
+
+        .agenda-visit-type-color {
+            width: 14px;
+            height: 14px;
+            flex: 0 0 14px;
+            border-radius: 999px;
+            border: 1px solid rgba(31, 45, 61, 0.14);
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28);
+        }
+
         .agenda-visit-type-meta {
             margin-top: 4px;
             font-size: 12px;
@@ -454,6 +470,89 @@
             font-size: 13px;
         }
 
+        .agenda-visit-type-color-picker {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .agenda-visit-type-color-palette {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(34px, 1fr));
+            gap: 8px;
+        }
+
+        .agenda-visit-type-color-swatch {
+            height: 34px;
+            border: 1px solid #d7e4ea;
+            border-radius: 10px;
+            background: var(--visit-type-color, #3C8DBC);
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.24);
+            cursor: pointer;
+            transition: transform .14s ease, box-shadow .14s ease, border-color .14s ease;
+        }
+
+        .agenda-visit-type-color-swatch:hover,
+        .agenda-visit-type-color-swatch:focus {
+            transform: translateY(-1px);
+            border-color: #9fb8c6;
+            box-shadow: 0 8px 18px rgba(31, 45, 61, 0.12);
+            outline: none;
+        }
+
+        .agenda-visit-type-color-swatch.is-selected {
+            border-color: #1f2d3d;
+            box-shadow: 0 0 0 3px rgba(31, 45, 61, 0.16), 0 10px 22px rgba(31, 45, 61, 0.12);
+        }
+
+        .agenda-visit-type-color-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .agenda-visit-type-color-current {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #455b63;
+        }
+
+        .agenda-visit-type-color-current-sample {
+            width: 18px;
+            height: 18px;
+            border-radius: 999px;
+            border: 1px solid rgba(31, 45, 61, 0.14);
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.32);
+        }
+
+        .agenda-visit-type-color-custom {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: auto;
+        }
+
+        .agenda-visit-type-color-custom-label {
+            color: #6a7c82;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .agenda-visit-type-color-native {
+            width: 42px;
+            height: 30px;
+            padding: 0;
+            border: 1px solid #d7e4ea;
+            border-radius: 9px;
+            background: #fff;
+            cursor: pointer;
+        }
+
         .agenda-appointment-coverage {
             min-height: 18px;
             font-size: 12px;
@@ -467,6 +566,52 @@
 
         .agenda-appointment-coverage.is-ok {
             color: #247149;
+        }
+
+        .agenda-visit-type-select-preview {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-height: 42px;
+            margin-top: 8px;
+            padding: 8px 10px;
+            border: 1px solid #dbe7ef;
+            border-radius: 10px;
+            background: linear-gradient(180deg, #fbfdff 0%, #f5f9fc 100%);
+            color: #405463;
+        }
+
+        .agenda-visit-type-select-preview.is-empty {
+            color: #7b8a97;
+        }
+
+        .agenda-visit-type-select-sample {
+            width: 16px;
+            height: 16px;
+            flex: 0 0 16px;
+            border-radius: 999px;
+            border: 1px solid rgba(31, 45, 61, 0.14);
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.32);
+            background: #dbe7ef;
+        }
+
+        .agenda-visit-type-select-copy {
+            min-width: 0;
+        }
+
+        .agenda-visit-type-select-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 700;
+            color: inherit;
+        }
+
+        .agenda-visit-type-select-meta {
+            display: block;
+            margin-top: 2px;
+            font-size: 12px;
+            color: inherit;
+            opacity: 0.92;
         }
 
         .agenda-patient-history-header {
@@ -888,6 +1033,21 @@
             color: #fff;
         }
 
+        .agenda-custom-slot.has-visit-type-color {
+            background: var(--agenda-slot-bg, #3c8dbc);
+            border-color: var(--agenda-slot-border, #2f74a0);
+            color: var(--agenda-slot-text, #fff);
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+        }
+
+        .agenda-custom-slot.has-visit-type-color:hover,
+        .agenda-custom-slot.has-visit-type-color:focus {
+            background: var(--agenda-slot-hover-bg, var(--agenda-slot-bg, #3c8dbc));
+            border-color: var(--agenda-slot-hover-border, var(--agenda-slot-border, #2f74a0));
+            box-shadow: var(--agenda-slot-hover-shadow, 0 10px 20px rgba(31, 45, 61, 0.16));
+            color: var(--agenda-slot-text, #fff);
+        }
+
         .agenda-custom-slot.is-search-focus {
             border-color: #1f6fa7 !important;
             box-shadow: 0 0 0 3px rgba(60, 141, 188, 0.26), 0 14px 24px rgba(31, 111, 167, 0.18);
@@ -929,6 +1089,13 @@
             background: #fdeeee;
             border-color: #e5b6b4;
             color: #9e302a;
+        }
+
+        .agenda-slot-location.has-visit-type-color {
+            background: var(--agenda-slot-soft-bg, #eef6fb);
+            border-color: var(--agenda-slot-soft-border, #b8d3e4);
+            color: var(--agenda-slot-soft-text, #24506c);
+            box-shadow: 0 10px 20px rgba(31, 45, 61, 0.08), inset 0 0 0 1px rgba(255, 255, 255, 0.22);
         }
 
         .agenda-slot-location.is-empty {
@@ -1439,6 +1606,18 @@
             font-variant-numeric: tabular-nums;
         }
 
+        .agenda-team-entry.has-visit-type-color {
+            background: var(--agenda-slot-bg, #3c8dbc);
+            border: 1px solid var(--agenda-slot-border, #2f74a0);
+            color: var(--agenda-slot-text, #fff);
+            box-shadow: 0 12px 24px var(--agenda-slot-shadow, rgba(31, 45, 61, 0.14));
+        }
+
+        .agenda-team-entry.has-visit-type-color .agenda-team-entry-time {
+            background: var(--agenda-team-pill-bg, rgba(255, 255, 255, 0.18));
+            color: var(--agenda-team-pill-text, inherit);
+        }
+
         .agenda-team-entry-patient {
             min-width: 0;
             overflow: hidden;
@@ -1513,6 +1692,20 @@
         }
 
         @media (max-width: 767px) {
+            .agenda-visit-type-color-footer {
+                align-items: stretch;
+            }
+
+            .agenda-visit-type-color-custom {
+                width: 100%;
+                justify-content: space-between;
+                margin-left: 0;
+            }
+
+            .agenda-visit-type-select-preview {
+                align-items: flex-start;
+            }
+
             .agenda-doctor-hero {
                 padding: 18px 16px;
             }
@@ -1774,6 +1967,23 @@
                             <div class="form-group">
                                 <label for="visitTypeDuration">Durata in minuti</label>
                                 <input type="number" id="visitTypeDuration" class="form-control" min="5" step="5" placeholder="45">
+                            </div>
+                            <div class="form-group">
+                                <label for="visitTypeColorCustom">Colore slot agenda</label>
+                                <div class="agenda-visit-type-color-picker">
+                                    <input type="hidden" id="visitTypeColor" value="">
+                                    <div id="visitTypeColorPalette" class="agenda-visit-type-color-palette"></div>
+                                    <div class="agenda-visit-type-color-footer">
+                                        <div class="agenda-visit-type-color-current">
+                                            <span id="visitTypeColorSample" class="agenda-visit-type-color-current-sample"></span>
+                                            <span>Colore selezionato <strong id="visitTypeColorValue">#3C8DBC</strong></span>
+                                        </div>
+                                        <label class="agenda-visit-type-color-custom" for="visitTypeColorCustom">
+                                            <span class="agenda-visit-type-color-custom-label">Personalizza</span>
+                                            <input type="color" id="visitTypeColorCustom" class="agenda-visit-type-color-native" value="#3c8dbc">
+                                        </label>
+                                    </div>
+                                </div>
                             </div>
                             <div class="form-group" style="margin-bottom:0;">
                                 <button type="button" class="btn btn-success btn-block" id="btnSaveVisitType">
@@ -2059,6 +2269,13 @@
                         <select id="app_id_tipo_visita" class="form-control">
                             <option value="">Seleziona tipo visita</option>
                         </select>
+                        <div id="app_visit_type_preview" class="agenda-visit-type-select-preview is-empty">
+                            <span id="app_visit_type_preview_sample" class="agenda-visit-type-select-sample"></span>
+                            <div class="agenda-visit-type-select-copy">
+                                <span id="app_visit_type_preview_label" class="agenda-visit-type-select-label">Nessun tipo visita selezionato</span>
+                                <span id="app_visit_type_preview_meta" class="agenda-visit-type-select-meta">Il colore degli slot seguira il tipo visita scelto.</span>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="col-md-4 form-group">
@@ -2408,6 +2625,7 @@ var agendaMiniCalendarAvailabilityCounts = {};
 var agendaMiniCalendarXhr = null;
 var agendaMiniCalendarRequestSeq = 0;
 var agendaVisitTypes = <?= json_encode(array_values(is_array($visitTypes ?? null) ? $visitTypes : []), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+var agendaVisitTypeColorPalette = ['#3C8DBC', '#16A085', '#5E72E4', '#EB6B56', '#8E44AD', '#F39C12', '#27AE60', '#C0392B', '#2C82C9', '#D35400'];
 var appointmentModalSlot = null;
 
 function supportsAgendaVisitTypes() {
@@ -2436,7 +2654,8 @@ function normalizeAgendaVisitTypesRows(rows) {
             nome: $.trim((row && row.nome) || ''),
             durata_minuti: parseInt((row && row.durata_minuti) || 0, 10) || 0,
             attivo: parseInt((row && row.attivo) || 0, 10) === 1 ? 1 : 0,
-            ordinamento: parseInt((row && row.ordinamento) || 0, 10) || 0
+            ordinamento: parseInt((row && row.ordinamento) || 0, 10) || 0,
+            colore: normalizeAgendaVisitTypeColor(row && row.colore ? row.colore : '')
         });
 
         return true;
@@ -2453,6 +2672,191 @@ function normalizeAgendaVisitTypesRows(rows) {
     });
 
     return normalized;
+}
+
+function normalizeAgendaVisitTypeColor(value) {
+    var normalized = $.trim(String(value || '')).toUpperCase();
+    return /^#[0-9A-F]{6}$/.test(normalized) ? normalized : '';
+}
+
+function getSuggestedAgendaVisitTypeColor() {
+    return agendaVisitTypeColorPalette[(agendaVisitTypes || []).length % agendaVisitTypeColorPalette.length] || '#3C8DBC';
+}
+
+function setAgendaVisitTypeColor(value) {
+    var normalized = normalizeAgendaVisitTypeColor(value) || getSuggestedAgendaVisitTypeColor();
+
+    $('#visitTypeColor').val(normalized);
+    $('#visitTypeColorCustom').val(normalized.toLowerCase());
+    $('#visitTypeColorSample').css('background', normalized);
+    $('#visitTypeColorValue').text(normalized);
+
+    $('#visitTypeColorPalette').find('.agenda-visit-type-color-swatch').each(function() {
+        var $swatch = $(this);
+        $swatch.toggleClass('is-selected', String($swatch.data('color') || '').toUpperCase() === normalized);
+    });
+}
+
+function renderAgendaVisitTypeColorPalette() {
+    var html = '';
+
+    $.each(agendaVisitTypeColorPalette, function(_, color) {
+        html += '<button type="button" class="agenda-visit-type-color-swatch"'
+            + ' data-color="' + escapeHtml(color) + '"'
+            + ' style="--visit-type-color:' + escapeHtml(color) + ';"'
+            + ' aria-label="Seleziona colore ' + escapeHtml(color) + '"></button>';
+    });
+
+    $('#visitTypeColorPalette').html(html);
+}
+
+function parseAgendaHexColor(value) {
+    var normalized = normalizeAgendaVisitTypeColor(value);
+    if (normalized === '') {
+        return null;
+    }
+
+    return {
+        r: parseInt(normalized.substr(1, 2), 16),
+        g: parseInt(normalized.substr(3, 2), 16),
+        b: parseInt(normalized.substr(5, 2), 16)
+    };
+}
+
+function mixAgendaRgbColor(sourceRgb, targetRgb, ratio) {
+    var mixRatio = Math.max(0, Math.min(1, parseFloat(ratio) || 0));
+
+    return {
+        r: Math.round(sourceRgb.r + ((targetRgb.r - sourceRgb.r) * mixRatio)),
+        g: Math.round(sourceRgb.g + ((targetRgb.g - sourceRgb.g) * mixRatio)),
+        b: Math.round(sourceRgb.b + ((targetRgb.b - sourceRgb.b) * mixRatio))
+    };
+}
+
+function agendaRgbToCss(rgb, alpha) {
+    if (!rgb) {
+        return '';
+    }
+
+    if (typeof alpha === 'number') {
+        return 'rgba(' + rgb.r + ', ' + rgb.g + ', ' + rgb.b + ', ' + alpha + ')';
+    }
+
+    return 'rgb(' + rgb.r + ', ' + rgb.g + ', ' + rgb.b + ')';
+}
+
+function getAgendaVisitTypeContrastColor(rgb) {
+    if (!rgb) {
+        return '#FFFFFF';
+    }
+
+    var yiq = ((rgb.r * 299) + (rgb.g * 587) + (rgb.b * 114)) / 1000;
+    return yiq >= 166 ? '#1F2D3D' : '#FFFFFF';
+}
+
+function buildAgendaVisitTypeVisualStyle(color) {
+    var normalized = normalizeAgendaVisitTypeColor(color);
+    var rgb = parseAgendaHexColor(normalized);
+    if (!rgb) {
+        return null;
+    }
+
+    var darkRgb = { r: 31, g: 45, b: 61 };
+    var whiteRgb = { r: 255, g: 255, b: 255 };
+    var textColor = getAgendaVisitTypeContrastColor(rgb);
+    var borderRgb = mixAgendaRgbColor(rgb, darkRgb, 0.18);
+    var hoverBorderRgb = mixAgendaRgbColor(rgb, darkRgb, 0.28);
+    var hoverBgRgb = textColor === '#FFFFFF'
+        ? mixAgendaRgbColor(rgb, whiteRgb, 0.08)
+        : mixAgendaRgbColor(rgb, darkRgb, 0.06);
+    var softBgRgb = mixAgendaRgbColor(rgb, whiteRgb, 0.88);
+    var softBorderRgb = mixAgendaRgbColor(rgb, whiteRgb, 0.70);
+    var softTextRgb = mixAgendaRgbColor(rgb, darkRgb, 0.58);
+    var shadowRgb = mixAgendaRgbColor(rgb, darkRgb, 0.45);
+
+    return {
+        color: normalized,
+        textColor: textColor,
+        cssVars: {
+            '--agenda-slot-bg': normalized,
+            '--agenda-slot-border': agendaRgbToCss(borderRgb),
+            '--agenda-slot-hover-bg': agendaRgbToCss(hoverBgRgb),
+            '--agenda-slot-hover-border': agendaRgbToCss(hoverBorderRgb),
+            '--agenda-slot-hover-shadow': '0 10px 22px ' + agendaRgbToCss(shadowRgb, 0.22),
+            '--agenda-slot-text': textColor,
+            '--agenda-slot-soft-bg': agendaRgbToCss(softBgRgb),
+            '--agenda-slot-soft-border': agendaRgbToCss(softBorderRgb),
+            '--agenda-slot-soft-text': agendaRgbToCss(softTextRgb),
+            '--agenda-slot-shadow': agendaRgbToCss(shadowRgb, 0.20),
+            '--agenda-team-pill-bg': textColor === '#FFFFFF' ? 'rgba(255, 255, 255, 0.18)' : 'rgba(31, 45, 61, 0.10)',
+            '--agenda-team-pill-text': textColor === '#FFFFFF' ? '#FFFFFF' : '#1F2D3D'
+        }
+    };
+}
+
+function getAgendaVisitTypeColorById(idTipoVisita) {
+    var row = getAgendaVisitTypeById(idTipoVisita);
+    return normalizeAgendaVisitTypeColor(row && row.colore ? row.colore : '');
+}
+
+function getAgendaVisitTypeVisualStyleById(idTipoVisita) {
+    var color = getAgendaVisitTypeColorById(idTipoVisita);
+    return color !== '' ? buildAgendaVisitTypeVisualStyle(color) : null;
+}
+
+function applyAgendaVisitTypeVisualStyle($elements, visualStyle) {
+    if (!$elements || !$elements.length || !visualStyle || !visualStyle.cssVars) {
+        return;
+    }
+
+    $elements.addClass('has-visit-type-color').each(function() {
+        var element = this;
+        $.each(visualStyle.cssVars, function(propertyName, propertyValue) {
+            element.style.setProperty(propertyName, propertyValue);
+        });
+    });
+}
+
+function buildAgendaVisitTypeInlineStyle(visualStyle) {
+    if (!visualStyle || !visualStyle.cssVars) {
+        return '';
+    }
+
+    var cssText = '';
+    $.each(visualStyle.cssVars, function(propertyName, propertyValue) {
+        if (String(propertyValue || '') !== '') {
+            cssText += propertyName + ':' + propertyValue + ';';
+        }
+    });
+
+    return cssText;
+}
+
+function updateAppointmentVisitTypePreview(row) {
+    var $preview = $('#app_visit_type_preview');
+    if (!$preview.length) {
+        return;
+    }
+
+    var $sample = $('#app_visit_type_preview_sample');
+    var $label = $('#app_visit_type_preview_label');
+    var $meta = $('#app_visit_type_preview_meta');
+
+    if (!row) {
+        $preview.addClass('is-empty');
+        $sample.css('background', '#dbe7ef');
+        $label.text('Nessun tipo visita selezionato');
+        $meta.text('Il colore degli slot seguira il tipo visita scelto.');
+        return;
+    }
+
+    var color = normalizeAgendaVisitTypeColor(row.colore) || getSuggestedAgendaVisitTypeColor();
+    var duration = parseInt((row && row.durata_minuti) || 0, 10) || 0;
+
+    $preview.removeClass('is-empty');
+    $sample.css('background', color);
+    $label.text($.trim((row && row.nome) || 'Tipo visita'));
+    $meta.text((duration > 0 ? (duration + ' minuti') : 'Durata non definita') + ' - Colore slot ' + color);
 }
 
 function getAgendaVisitTypeById(idTipoVisita) {
@@ -2599,9 +3003,13 @@ function renderAgendaVisitTypesBox() {
 
     $.each(agendaVisitTypes, function(_, row) {
         var active = parseInt((row && row.attivo) || 0, 10) === 1;
+        var rowColor = normalizeAgendaVisitTypeColor(row && row.colore ? row.colore : '') || getSuggestedAgendaVisitTypeColor();
         html += '<div class="agenda-visit-type-row">';
         html += '  <div>';
-        html += '    <div class="agenda-visit-type-title">' + escapeHtml((row && row.nome) || '') + '</div>';
+        html += '    <div class="agenda-visit-type-title-row">';
+        html += '      <span class="agenda-visit-type-color" style="background:' + escapeHtml(rowColor) + ';"></span>';
+        html += '      <div class="agenda-visit-type-title">' + escapeHtml((row && row.nome) || '') + '</div>';
+        html += '    </div>';
         html += '    <div class="agenda-visit-type-meta">' + escapeHtml(String((row && row.durata_minuti) || 0) + ' minuti') + '</div>';
         html += '  </div>';
         html += '  <div class="agenda-visit-type-actions text-right">';
@@ -2621,6 +3029,7 @@ function resetAgendaVisitTypeForm() {
     $('#visitTypeId').val('');
     $('#visitTypeName').val('');
     $('#visitTypeDuration').val('');
+    setAgendaVisitTypeColor(getSuggestedAgendaVisitTypeColor());
     $('#btnSaveVisitType').html('<i class="fa fa-save"></i> Salva tipo visita');
     $('#btnCancelVisitTypeEdit').hide();
 }
@@ -2634,6 +3043,7 @@ function populateAgendaVisitTypeForm(row) {
     $('#visitTypeId').val((row && row.id_tipo_visita) || '');
     $('#visitTypeName').val((row && row.nome) || '');
     $('#visitTypeDuration').val((row && row.durata_minuti) || '');
+    setAgendaVisitTypeColor((row && row.colore) || '');
     $('#btnSaveVisitType').html('<i class="fa fa-save"></i> Salva modifica');
     $('#btnCancelVisitTypeEdit').show();
     $('#visitTypeName').trigger('focus');
@@ -2677,6 +3087,8 @@ function fillAppointmentVisitTypeSelect(selectedId) {
     if (currentId > 0) {
         $select.val(String(currentId));
     }
+
+    updateAppointmentVisitTypePreview(getAgendaVisitTypeById($select.val()));
 }
 
 function getAgendaSlotsForAppointmentModal() {
@@ -2820,6 +3232,8 @@ function refreshAppointmentVisitTypePreview() {
     var $coverage = $('#app_slot_copertura_info');
     var selectedType = getAgendaVisitTypeById($('#app_id_tipo_visita').val());
     var currentAppointmentId = parseInt($('#app_id_appuntamento').val() || 0, 10) || 0;
+
+    updateAppointmentVisitTypePreview(selectedType);
 
     if (!selectedType) {
         $duration.val('');
@@ -3865,6 +4279,7 @@ function renderAgendaSlotLayer() {
             : (telefonoEvento !== '' ? ('Tel: ' + telefonoEvento) : '');
         var hasAppointment = !!slot.id_appuntamento || (stato !== 'LIBERO' && stato !== 'BLOCCATO' && stato !== 'CHIUSO');
         var slotDayBlocked = isAgendaSlotDayBlocked(slot, entry.dayKey);
+        var visitTypeVisualStyle = (!slotDayBlocked && hasAppointment) ? getAgendaVisitTypeVisualStyleById(slot.id_tipo_visita) : null;
         var titolo = 'Slot libero';
         var extraClass = 'is-free';
         var titoloVisuale = titolo;
@@ -3912,6 +4327,7 @@ function renderAgendaSlotLayer() {
 
         var locationBoxWidth = hasLocationColumn ? Math.min(locationColumnWidth, Math.max(width - 18, 0)) : 0;
         var locationStateClass = 'is-free';
+        var $locationBox = null;
         var slotCss = {
             top: top + 'px',
             left: left + 'px',
@@ -3932,7 +4348,7 @@ function renderAgendaSlotLayer() {
         }
 
         if (locationBoxWidth > 0) {
-            var $locationBox = $('<div class="agenda-slot-location"></div>')
+            $locationBox = $('<div class="agenda-slot-location"></div>')
                 .addClass(locationStateClass)
                 .toggleClass('is-empty', locationText === '')
                 .attr('title', locationText !== '' ? locationText : 'Ambulatorio e stanza non indicati')
@@ -3952,6 +4368,10 @@ function renderAgendaSlotLayer() {
                 }
             } else {
                 $locationBox.append($('<div class="agenda-slot-location-room"></div>').text('-'));
+            }
+
+            if (visitTypeVisualStyle && extraClass.indexOf('is-booked') !== -1) {
+                applyAgendaVisitTypeVisualStyle($locationBox, visitTypeVisualStyle);
             }
 
             $layer.append($locationBox);
@@ -3992,6 +4412,10 @@ function renderAgendaSlotLayer() {
             .css(slotCss)
             .append($('<div class="agenda-custom-slot-time"></div>').text(timeLabel))
             .append($('<div class="agenda-custom-slot-title"></div>').text(titoloVisuale));
+
+        if (visitTypeVisualStyle && extraClass.indexOf('is-booked') !== -1) {
+            applyAgendaVisitTypeVisualStyle($slot, visitTypeVisualStyle);
+        }
 
         if (isAgendaSearchFocusedSlot(slot)) {
             $slot.addClass('is-search-focus');
@@ -5161,6 +5585,7 @@ function caricaSlotCalendario(options) {
             var nominativo = $.trim((slot.cognome || '') + ' ' + (slot.nome || ''));
             var noteEvento = buildAppointmentNoteDisplay(slot);
             var slotDayBlocked = isAgendaSlotDayBlocked(slot);
+            var visitTypeColor = (!slotDayBlocked && hasAppointment) ? getAgendaVisitTypeColorById(slot.id_tipo_visita) : '';
 
             if ((stato === 'LIBERO' || stato === 'BLOCCATO') && !hasAppointment && !slotDayBlocked) {
                 return true;
@@ -5196,6 +5621,11 @@ function caricaSlotCalendario(options) {
                 if (isSpecialPatient) {
                     colore = getPazSpecColor(pazSpec) || '#2e8b57';
                     classe = 'evento-prenotato evento-prenotato-spec';
+                }
+
+                if (visitTypeColor !== '') {
+                    colore = visitTypeColor;
+                    classe = 'evento-prenotato';
                 }
             }
 
@@ -5386,6 +5816,7 @@ function buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute, entryH
         var pazSpec = $.trim(slot.paz_spec || '');
         var isSpecialPatient = isAgendaSpecialPatient(slot, pazSpec);
         var hasAppointment = !!slot.id_appuntamento || (stato !== 'LIBERO' && stato !== 'BLOCCATO' && stato !== 'CHIUSO');
+        var visitTypeVisualStyle = (!column.giorno_bloccato && hasAppointment) ? getAgendaVisitTypeVisualStyleById(slot.id_tipo_visita) : null;
         var nominativo = $.trim((slot.cognome || '') + ' ' + (slot.nome || ''));
         var noteEvento = buildAppointmentNoteDisplay(slot);
         var title = orario + (nominativo !== '' ? (' ' + nominativo) : '');
@@ -5413,11 +5844,20 @@ function buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute, entryH
         }
 
         var color = column.giorno_bloccato ? '#d9534f' : (isSpecialPatient ? '#2e8b57' : '#3c8dbc');
+        var bookedStyle = 'top:' + top + 'px;height:' + height + 'px;';
+        var bookedClass = 'agenda-team-entry';
+
+        if (visitTypeVisualStyle) {
+            bookedClass += ' has-visit-type-color';
+            bookedStyle += buildAgendaVisitTypeInlineStyle(visitTypeVisualStyle);
+        } else {
+            bookedStyle += 'background:' + color + ';border:1px solid ' + color + ';color:#fff;';
+        }
 
         if (column.giorno_bloccato) {
             html += ''
-                + '<div class="agenda-team-entry"'
-                + ' style="top:' + top + 'px;height:' + height + 'px;background:' + color + ';border:1px solid ' + color + ';color:#fff;"'
+                + '<div class="' + bookedClass + '"'
+                + ' style="' + bookedStyle + '"'
                 + ' title="' + escapeHtml(title || 'Appuntamento') + '">'
                 + buildAgendaTeamEntryContent(orario, nominativo !== '' ? nominativo : 'Appuntamento', noteEvento)
                 + '</div>';
@@ -5426,8 +5866,8 @@ function buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute, entryH
 
         html += ''
             + '<button type="button"'
-            + ' class="agenda-team-entry js-agenda-team-booked-slot"'
-            + ' style="top:' + top + 'px;height:' + height + 'px;background:' + color + ';border:1px solid ' + color + ';color:#fff;"'
+            + ' class="' + bookedClass + ' js-agenda-team-booked-slot"'
+            + ' style="' + bookedStyle + '"'
             + ' data-slot-id="' + slotId + '"'
             + ' title="' + escapeHtml(title || 'Appuntamento') + '">'
             + buildAgendaTeamEntryContent(orario, nominativo !== '' ? nominativo : 'Appuntamento', noteEvento)
@@ -6892,6 +7332,7 @@ $('#nota_giorno_text').on('blur', function() {
 
     if (supportsAgendaVisitTypes()) {
         agendaVisitTypes = normalizeAgendaVisitTypesRows(agendaVisitTypes);
+        renderAgendaVisitTypeColorPalette();
         renderAgendaVisitTypesBox();
         resetAgendaVisitTypeForm();
     }
@@ -6958,6 +7399,7 @@ $('#nota_giorno_text').on('blur', function() {
 
         var nome = $.trim($('#visitTypeName').val() || '');
         var durata = parseInt($('#visitTypeDuration').val() || 0, 10) || 0;
+        var colore = normalizeAgendaVisitTypeColor($('#visitTypeColor').val());
 
         if (nome === '') {
             alert('Inserisci il nome del tipo visita.');
@@ -6971,10 +7413,16 @@ $('#nota_giorno_text').on('blur', function() {
             return;
         }
 
+        if (colore === '') {
+            alert('Seleziona un colore valido per il tipo visita.');
+            return;
+        }
+
         $.post("<?= base_url('agenda/salva-tipo-visita') ?>", {
             id_tipo_visita: $('#visitTypeId').val(),
             nome: nome,
             durata_minuti: durata,
+            colore: colore,
             attivo: 1
         }, function(res) {
             if (!res || !res.status) {
@@ -6987,6 +7435,9 @@ $('#nota_giorno_text').on('blur', function() {
             resetAgendaVisitTypeForm();
             fillAppointmentVisitTypeSelect($('#app_id_tipo_visita').val() || '');
             refreshAppointmentVisitTypePreview();
+            caricaSlotCalendario({
+                showLoader: false
+            });
             showAgendaToast(res.message || 'Tipo visita salvato correttamente.', 'success');
         }, 'json').fail(function(xhr) {
             var message = 'Errore durante il salvataggio del tipo visita.';
@@ -6999,6 +7450,14 @@ $('#nota_giorno_text').on('blur', function() {
 
     $('#btnCancelVisitTypeEdit').on('click', function() {
         resetAgendaVisitTypeForm();
+    });
+
+    $('#visitTypeColorPalette').on('click', '.agenda-visit-type-color-swatch', function() {
+        setAgendaVisitTypeColor($(this).data('color') || '');
+    });
+
+    $('#visitTypeColorCustom').on('input change', function() {
+        setAgendaVisitTypeColor($(this).val() || '');
     });
 
     $(document).on('click', '.js-edit-visit-type', function() {
@@ -7034,6 +7493,9 @@ $('#nota_giorno_text').on('blur', function() {
             renderAgendaVisitTypesBox();
             fillAppointmentVisitTypeSelect($('#app_id_tipo_visita').val() || '');
             refreshAppointmentVisitTypePreview();
+            caricaSlotCalendario({
+                showLoader: false
+            });
             showAgendaToast(res.message || 'Tipo visita aggiornato correttamente.', 'success');
         }, 'json').fail(function(xhr) {
             var message = 'Errore durante l\'aggiornamento del tipo visita.';
