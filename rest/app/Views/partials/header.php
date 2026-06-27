@@ -196,12 +196,19 @@ if (!$chatFeatureEnabled) {
     float: none;
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-start;
     padding: 0 15px 0 12px;
+    position: relative;
   }
 
   .skin-blue .af-app-header .navbar-custom-menu {
     float: none !important;
+  }
+
+  .skin-blue .af-app-header > .navbar > .navbar-custom-menu:last-child {
+    margin-left: auto;
+    position: relative;
+    z-index: 2;
   }
 
   .skin-blue .af-app-header .navbar-nav > li > a,
@@ -226,6 +233,14 @@ if (!$chatFeatureEnabled) {
     padding: 0;
     line-height: 1.4;
     font-weight: 600;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+    max-width: calc(100% - 220px);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .skin-blue .af-app-header .platform-navbar-shell {
@@ -233,8 +248,9 @@ if (!$chatFeatureEnabled) {
     min-width: 0;
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-end;
     gap: 14px;
+    position: relative;
   }
 
   .skin-blue .af-app-header .platform-navbar-shell-minimal {
@@ -247,6 +263,14 @@ if (!$chatFeatureEnabled) {
     gap: 8px;
     color: #24434a;
     font-weight: 600;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+    max-width: calc(100% - 220px);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .skin-blue .af-app-header .platform-navbar-tenant-label {
@@ -265,6 +289,7 @@ if (!$chatFeatureEnabled) {
     align-items: center;
     gap: 10px;
     padding: 11px 12px;
+    justify-content: flex-end;
   }
 
   .skin-blue .af-app-header .platform-user-toggle .user-image {
@@ -362,6 +387,14 @@ if (!$chatFeatureEnabled) {
     .skin-blue .af-app-header .platform-navbar-shell {
       gap: 8px;
     }
+
+    .skin-blue .af-app-header .navbar-text,
+    .skin-blue .af-app-header .platform-navbar-tenant {
+      position: static;
+      left: auto;
+      transform: none;
+      max-width: none;
+    }
   }
 </style>
 
@@ -391,7 +424,7 @@ if (!$chatFeatureEnabled) {
         <strong class="platform-navbar-tenant-name"><?= esc($tenantName) ?></strong>
       </div>
       <?php else: ?>
-      <div class="navbar-text hidden-xs" style="float:left; margin-left:16px;">
+      <div class="navbar-text hidden-xs">
         Spazio: <?= esc($tenantName) ?>
       </div>
       <?php endif; ?>
