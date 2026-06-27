@@ -4356,22 +4356,22 @@ public function eseguiRepairRecurringExtraSlots()
     {
         if ($pageMode === 'team_day') {
             if ($rowCount >= 110) {
-                return 12;
+                return 24;
             }
 
             if ($rowCount >= 85) {
-                return 14;
+                return 28;
             }
 
             if ($rowCount >= 60) {
-                return 17;
+                return 34;
             }
 
             if ($rowCount >= 44) {
-                return 20;
+                return 40;
             }
 
-            return 24;
+            return 48;
         }
 
         if ($rowCount >= 110) {
