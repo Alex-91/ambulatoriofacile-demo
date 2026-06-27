@@ -136,7 +136,7 @@ $headerLogoUrl = $isPortalConsoleHeader
     : (($hideHeaderMenu || session_has_operational_profile_access())
         ? portal_operational_home_url()
         : site_url('/'));
-$headerLogoImageUrl = base_url('public/assets/images/logo-symbol.svg');
+$headerLogoImageUrl = base_url('public/assets/images/logo-header.svg');
 
 if (!$chatFeatureEnabled) {
     $badgeChat = 0;
@@ -146,11 +146,230 @@ if (!$chatFeatureEnabled) {
 }
 ?>
 
-<header class="main-header" style="background:#2c8895">
+<style>
+  .skin-blue .af-app-header {
+    background: #fff !important;
+    border-bottom: 1px solid #e5edf2;
+    box-shadow: 0 1px 0 rgba(15, 23, 42, 0.04);
+    display: flex;
+    align-items: center;
+    min-height: 58px;
+  }
+
+  .skin-blue .af-app-header .logo,
+  .skin-blue .af-app-header .logo:hover {
+    background: #fff !important;
+    color: #16343a !important;
+    width: auto !important;
+    min-width: 0;
+    height: 58px;
+    line-height: 58px;
+    padding: 0 0 0 15px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    float: none;
+    flex: 0 0 auto;
+    overflow: visible;
+  }
+
+  .skin-blue .af-app-header .logo .logo-mini {
+    display: none !important;
+  }
+
+  .skin-blue .af-app-header .logo .logo-lg {
+    display: block !important;
+  }
+
+  .skin-blue .af-app-header .logo img {
+    display: block;
+    width: auto;
+    height: 36px;
+    max-width: 100%;
+  }
+
+  .skin-blue .af-app-header > .navbar {
+    background: transparent !important;
+    margin-left: 0 !important;
+    min-height: 58px;
+    flex: 1 1 auto;
+    float: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 15px 0 12px;
+  }
+
+  .skin-blue .af-app-header .navbar-custom-menu {
+    float: none !important;
+  }
+
+  .skin-blue .af-app-header .navbar-nav > li > a,
+  .skin-blue .af-app-header .navbar-text,
+  .skin-blue .af-app-header .platform-navbar-tenant,
+  .skin-blue .af-app-header .platform-user-toggle,
+  .skin-blue .af-app-header .platform-user-name,
+  .skin-blue .af-app-header .platform-nav-link {
+    color: #24434a !important;
+  }
+
+  .skin-blue .af-app-header .navbar-nav > li > a:hover,
+  .skin-blue .af-app-header .navbar-nav > li > a:focus,
+  .skin-blue .af-app-header .platform-user-toggle:hover,
+  .skin-blue .af-app-header .platform-user-toggle:focus {
+    background: rgba(44, 136, 149, 0.08) !important;
+    color: #16343a !important;
+  }
+
+  .skin-blue .af-app-header .navbar-text {
+    margin: 0;
+    padding: 0;
+    line-height: 1.4;
+    font-weight: 600;
+  }
+
+  .skin-blue .af-app-header .platform-navbar-shell {
+    width: 100%;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+  }
+
+  .skin-blue .af-app-header .platform-navbar-shell-minimal {
+    justify-content: flex-end;
+  }
+
+  .skin-blue .af-app-header .platform-navbar-tenant {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #24434a;
+    font-weight: 600;
+  }
+
+  .skin-blue .af-app-header .platform-navbar-tenant-label {
+    color: #6b7d85;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .skin-blue .af-app-header .platform-navbar-tenant-name {
+    color: #16343a;
+  }
+
+  .skin-blue .af-app-header .platform-user-toggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 12px;
+  }
+
+  .skin-blue .af-app-header .platform-user-toggle .user-image {
+    border: 1px solid #dce7eb;
+  }
+
+  .skin-blue .af-app-header .platform-user-dropdown,
+  .skin-blue .af-app-header .dropdown-menu {
+    background: #fff;
+    border: 1px solid #dce7eb;
+    box-shadow: 0 20px 36px rgba(15, 23, 42, 0.12);
+  }
+
+  .skin-blue .af-app-header .dropdown-menu > li > a {
+    color: #24434a;
+  }
+
+  .skin-blue .af-app-header .dropdown-menu > li > a:hover,
+  .skin-blue .af-app-header .dropdown-menu > li > a:focus {
+    background: #f2f8fa;
+    color: #16343a;
+  }
+
+  .skin-blue .af-app-header .platform-user-summary {
+    background: #f8fbfc;
+    color: #16343a;
+  }
+
+  .skin-blue .af-app-header .platform-user-summary-text small,
+  .skin-blue .af-app-header .platform-user-help {
+    color: #6b7d85;
+  }
+
+  .skin-blue .af-app-header .platform-user-footer {
+    background: #fff;
+  }
+
+  .skin-blue .af-app-header .platform-user-action.btn,
+  .skin-blue .af-app-header .platform-user-footer .btn {
+    border-color: #dce7eb;
+    color: #24434a;
+  }
+
+  .skin-blue .af-app-header .platform-user-action.btn:hover,
+  .skin-blue .af-app-header .platform-user-footer .btn:hover {
+    background: #f2f8fa;
+    border-color: #bcd5dc;
+    color: #16343a;
+  }
+
+  .skin-blue .af-app-header .label-success {
+    background: #2c8895 !important;
+  }
+
+  .skin-blue .af-app-header .platform-navbar-primary {
+    margin-right: auto;
+  }
+
+  .skin-blue .af-app-header .platform-navbar-secondary {
+    margin-left: auto;
+  }
+
+  @media (max-width: 767px) {
+    .skin-blue .af-app-header {
+      display: flex;
+      flex-wrap: nowrap;
+    }
+
+    .skin-blue .af-app-header .logo {
+      width: auto !important;
+      height: 54px;
+      padding-left: 15px;
+    }
+
+    .skin-blue .af-app-header .logo img {
+      height: 32px;
+      max-width: 150px;
+    }
+
+    .skin-blue .af-app-header > .navbar {
+      width: auto !important;
+      margin: 0 !important;
+      min-height: 54px;
+      padding: 0 10px 0 8px;
+    }
+
+    .skin-blue .af-app-header .platform-user-name {
+      display: none !important;
+    }
+
+    .skin-blue .af-app-header .platform-user-toggle {
+      padding: 10px 8px;
+    }
+
+    .skin-blue .af-app-header .platform-navbar-shell {
+      gap: 8px;
+    }
+  }
+</style>
+
+<header class="main-header af-app-header">
   <!-- Logo -->
-  <a href="<?= esc($headerLogoUrl) ?>" class="logo" aria-label="AmbulatorioFacile">
-    <span class="logo-mini"><img src="<?= esc($headerLogoImageUrl) ?>" alt="AmbulatorioFacile" style="width:30px;height:30px;vertical-align:middle;"></span>
-    <span class="logo-lg"><img src="<?= esc($headerLogoImageUrl) ?>" alt="AmbulatorioFacile" style="width:44px;height:44px;vertical-align:middle;"></span>
+  <a href="<?= esc($headerLogoUrl) ?>" class="logo af-app-header-logo" aria-label="AmbulatorioFacile">
+    <span class="logo-mini"><img src="<?= esc($headerLogoImageUrl) ?>" alt="AmbulatorioFacile"></span>
+    <span class="logo-lg"><img src="<?= esc($headerLogoImageUrl) ?>" alt="AmbulatorioFacile"></span>
   </a>
 
   <nav class="navbar navbar-static-top<?= $isPortalConsoleHeader ? ' platform-console-navbar' : '' ?>" role="navigation">
@@ -172,7 +391,7 @@ if (!$chatFeatureEnabled) {
         <strong class="platform-navbar-tenant-name"><?= esc($tenantName) ?></strong>
       </div>
       <?php else: ?>
-      <div class="navbar-text hidden-xs" style="float:left; color:#e8f6f8; margin-left:16px; font-weight:600;">
+      <div class="navbar-text hidden-xs" style="float:left; margin-left:16px;">
         Spazio: <?= esc($tenantName) ?>
       </div>
       <?php endif; ?>
@@ -293,7 +512,7 @@ if ($headerMenuUserId > 0) {
     <i class="fa fa-bars"></i>
   </a>
 
-  <ul class="dropdown-menu" style="left:0; right:auto;background:#2c8895">
+  <ul class="dropdown-menu" style="left:0; right:auto;">
     <?php foreach ($navItems as $i => $item): ?>
       <?php
         $itemLink = (string)($item['link'] ?? '');

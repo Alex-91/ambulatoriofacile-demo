@@ -33,13 +33,17 @@ body {
 
 /* LOGO */
 .title {
-  height: 120px;
-  background-color: #f7f7f7;
+  height: 96px;
+  background-color: #fff;
+  background-position: 24px center;
+  background-size: auto 38px;
+  background-repeat: no-repeat;
+  border-bottom: 1px solid #eef2f4;
 }
 
 /* FORM */
 form {
-  padding: 30px 25px 35px;
+  padding: 26px 25px 35px;
 }
 
 /* RIGHE INPUT */
@@ -176,6 +180,12 @@ form {
 @media (max-width: 480px) {
   .wrapper {
     border-radius: 12px;
+  }
+
+  .title {
+    height: 84px;
+    background-position: 20px center;
+    background-size: auto 34px;
   }
 
   form {

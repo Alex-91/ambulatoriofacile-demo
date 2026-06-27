@@ -40,7 +40,14 @@
     /* Estensioni minime allo stile esistente (login.css) */
     .container { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 16px; }
     .wrapper { width: 100%; max-width: 720px; background: #fff; border-radius: 14px; padding: 20px 20px 28px; box-shadow: 0 10px 30px rgba(0,0,0,.08); }
-    .title { height: 80px; background-image: url('<?= base_url('public/assets/images/logo-symbol.svg'); ?>'); background-size: contain; background-repeat: no-repeat; background-position: center; margin-bottom: 10px; }
+    .title {
+      height: 72px;
+      background-image: url('<?= base_url('public/assets/images/logo-header.svg'); ?>');
+      background-size: auto 40px;
+      background-repeat: no-repeat;
+      background-position: left center;
+      margin-bottom: 10px;
+    }
 
     .quick-nav {
       display: grid;
@@ -99,10 +106,10 @@
 .topbar .title{
   flex: 1 1 320px;           /* il titolo cresce e puÃ² andare a capo */
   min-width: 220px;
-  height: 80px;
-  background-size: contain;
+  height: 72px;
+  background-size: auto 40px;
   background-repeat: no-repeat;
-  background-position: center;
+  background-position: left center;
   margin-bottom: 0;          /* ora lo gestisce topbar */
 }
 

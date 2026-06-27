@@ -120,7 +120,7 @@ $loginError = trim((string) ($loginError ?? ''));
         <!-- Top content -->
         		<div class="container">
       <div class="wrapper">
-<div class="title" style="background-image: url('<?= base_url('public/assets/images/logo-symbol.svg'); ?>'); background-size: contain; background-repeat: no-repeat; background-position-x: center;"></div>
+<div class="title" style="background-image:url('<?= base_url('public/assets/images/logo-header.svg'); ?>');"></div>
      <form action="<?= portal_public_access_url('login') ?>" method="post">
         <?php if ($demoMode): ?>
           <div class="demo-login-banner">
