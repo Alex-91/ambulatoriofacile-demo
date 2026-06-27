@@ -3711,28 +3711,8 @@ public function eseguiRepairRecurringExtraSlots()
         $this->ensureDompdfAvailable();
 
         $showWaConfirmationColumn = $this->shouldShowWaConfirmationColumn($idDot);
-
-        // Il PDF deve mostrare al massimo un appuntamento attivo per slot:
-        // in produzione possono esistere righe storiche annullate o duplicate
-        // sullo stesso id_slot, che altrimenti verrebbero stampate piu volte.
-        $activeAppointmentSubquery = $this->db->table('dap12_agenda_appuntamenti a_active')
-            ->select('a_active.id_slot, MAX(a_active.id_appuntamento) AS id_appuntamento', false)
-            ->where('a_active.stato <>', 'ANNULLATO')
-            ->groupBy('a_active.id_slot')
-            ->getCompiledSelect();
-
-        $rows = $this->db->table('dap11_agenda_slot s')
-            ->select("
-                s.data_slot, s.ora_inizio, s.ora_fine,
-                a.cognome, a.nome, a.telefono, a.cellulare, a.note
-            ")
-            ->join('(' . $activeAppointmentSubquery . ') a_sel', 'a_sel.id_slot = s.id_slot', 'left', false)
-            ->join('dap12_agenda_appuntamenti a', 'a.id_appuntamento = a_sel.id_appuntamento', 'left')
-            ->where('s.id_dot', $idDot)
-            ->where('s.data_slot', $data)
-            ->orderBy('s.ora_inizio', 'ASC')
-            ->get()
-            ->getResultArray();
+        $slots = $this->slotModel->getSlotsCalendario($idDot, $data, 'day');
+        $rows = $this->buildSingleDayPdfRows($slots, $showWaConfirmationColumn);
 
         $dot = $this->agendaModel->getAgendaProfessionalByLegacyId($idDot) ?? [];
         $doctorLabel = $this->resolveAgendaProfessionalDisplayLabel($dot, $idDot);
@@ -3746,10 +3726,10 @@ public function eseguiRepairRecurringExtraSlots()
 
         $html .= '<h2>Agenda del giorno</h2>';
         $html .= '<p><strong>Dottore:</strong> ' . esc($doctorLabel) . '</p>';
-        $html .= '<p><strong>Data:</strong> ' . esc($data) . '</p>';
+        $html .= '<p><strong>Data:</strong> ' . esc($this->formatAgendaPdfLongDate($data)) . '</p>';
 
         $html .= '<table><thead><tr>
-            <th>Inizio</th>
+            <th>Orario</th>
             <th>Paziente</th>
             <th>Telefono</th>
             <th>Cellulare</th>
@@ -3757,14 +3737,18 @@ public function eseguiRepairRecurringExtraSlots()
             <th>Note</th>
         </tr></thead><tbody>';
 
+        if ($rows === []) {
+            $colspan = $showWaConfirmationColumn ? 6 : 5;
+            $html .= '<tr><td colspan="' . $colspan . '">Nessuno slot disponibile per la data selezionata.</td></tr>';
+        }
+
         foreach ($rows as $r) {
-            $waConfirmedLabel = WhatsappAppointmentNote::hasWaConfirmation((string)($r['note'] ?? '')) ? 'SI' : 'NO';
             $html .= '<tr>
-                <td>' . htmlspecialchars(date('H:i', strtotime((string)$r['ora_inizio']))) . '</td>
-                <td>' . htmlspecialchars(trim(($r['cognome'] ?? '') . ' ' . ($r['nome'] ?? ''))) . '</td>
+                <td>' . htmlspecialchars((string)($r['time_range'] ?? '')) . '</td>
+                <td>' . htmlspecialchars((string)($r['patient_label'] ?? '')) . '</td>
                 <td>' . htmlspecialchars((string)($r['telefono'] ?? '')) . '</td>
                 <td>' . htmlspecialchars((string)($r['cellulare'] ?? '')) . '</td>
-                ' . ($showWaConfirmationColumn ? '<td>' . htmlspecialchars($waConfirmedLabel) . '</td>' : '') . '
+                ' . ($showWaConfirmationColumn ? '<td>' . htmlspecialchars((string)($r['wa_confirmation'] ?? '')) . '</td>' : '') . '
                 <td>' . htmlspecialchars((string)($r['note'] ?? '')) . '</td>
             </tr>';
         }
@@ -3777,6 +3761,69 @@ public function eseguiRepairRecurringExtraSlots()
             'A4',
             'landscape'
         );
+    }
+
+    private function buildSingleDayPdfRows(array $slots, bool $showWaConfirmationColumn): array
+    {
+        $rows = [];
+
+        foreach ($slots as $slot) {
+            if ($this->shouldSkipSingleDayPdfSecondaryAppointmentSlot($slot)) {
+                continue;
+            }
+
+            $hasAppointment = $this->agendaPdfSlotHasAppointment($slot);
+            $stato = strtoupper(trim((string)($slot['stato'] ?? '')));
+            $patientLabel = $hasAppointment
+                ? trim((string)($slot['cognome'] ?? '') . ' ' . (string)($slot['nome'] ?? ''))
+                : '';
+            $note = $hasAppointment ? trim((string)($slot['note'] ?? '')) : '';
+
+            if ($hasAppointment && $patientLabel === '') {
+                $patientLabel = 'Appuntamento';
+            }
+
+            if (!$hasAppointment && $stato === 'CHIUSO') {
+                $patientLabel = 'Bloccato';
+                $note = 'Fascia non disponibile';
+            }
+
+            $rows[] = [
+                'time_range' => $this->buildSingleDayPdfTimeRange($slot),
+                'patient_label' => $patientLabel,
+                'telefono' => $hasAppointment ? trim((string)($slot['telefono'] ?? '')) : '',
+                'cellulare' => $hasAppointment ? trim((string)($slot['cellulare'] ?? '')) : '',
+                'wa_confirmation' => $showWaConfirmationColumn && $hasAppointment
+                    ? (WhatsappAppointmentNote::hasWaConfirmation((string)($slot['note'] ?? '')) ? 'SI' : 'NO')
+                    : '',
+                'note' => $note,
+            ];
+        }
+
+        return $rows;
+    }
+
+    private function shouldSkipSingleDayPdfSecondaryAppointmentSlot(array $slot): bool
+    {
+        return (int)($slot['id_appuntamento'] ?? 0) > 0
+            && (int)($slot['appointment_is_primary_slot'] ?? 0) !== 1;
+    }
+
+    private function buildSingleDayPdfTimeRange(array $slot): string
+    {
+        $startMinutes = $this->agendaPdfSlotStartMinutes($slot);
+        $endMinutes = $this->agendaPdfSlotHasAppointment($slot)
+            ? $this->agendaPdfSlotVisualEndMinutes($slot)
+            : $this->agendaPdfTimeToMinutes((string)($slot['ora_fine'] ?? ''));
+
+        if ($startMinutes === null || $endMinutes === null) {
+            $startRaw = trim((string)($slot['ora_inizio'] ?? ''));
+            $endRaw = trim((string)($slot['ora_fine'] ?? ''));
+
+            return trim($startRaw . ' - ' . $endRaw, ' -');
+        }
+
+        return $this->formatAgendaPdfTimeFromMinutes($startMinutes) . ' - ' . $this->formatAgendaPdfTimeFromMinutes($endMinutes);
     }
 
     private function stampaPdfSettimanaResponse(int $idDot, string $data)
