@@ -41,6 +41,8 @@ $routes->get('login', 'Login\LoginController::index');
 $routes->head('login', 'Login\LoginController::index');
 $routes->get('pwa-manifest', 'PwaController::loginManifest');
 $routes->get('pwa-install-sw', 'PwaController::loginServiceWorker');
+$routes->get('login/pwa-manifest', 'PwaController::loginManifest');
+$routes->get('login/pwa-install-sw', 'PwaController::loginServiceWorker');
 $routes->post('login', 'Login\LoginController::login');
 $routes->post('login/tenant-select', 'Login\LoginController::selectTenant');
 $routes->post('tenant-select', 'Login\LoginController::selectTenant');
