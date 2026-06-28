@@ -81,11 +81,11 @@ class DemoAccessService
     public function isLoginPrefillEnabled(): bool
     {
         $raw = env('DEMO_LOGIN_PREFILL_ENABLED');
-        if ($raw !== null && $raw !== false && trim((string) $raw) !== '') {
-            return $this->isTruthyFlag($raw);
+        if ($raw === null || $raw === false || trim((string) $raw) === '') {
+            return false;
         }
 
-        return $this->isPublicAccessEnabled();
+        return $this->isTruthyFlag($raw);
     }
 
     /**
