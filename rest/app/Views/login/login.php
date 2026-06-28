@@ -7,6 +7,12 @@ $demoProfileLabel = (string) ($demoProfileLabel ?? '');
 $demoOtpHint = (bool) ($demoOtpHint ?? false);
 $loginSuccess = trim((string) ($loginSuccess ?? ''));
 $loginError = trim((string) ($loginError ?? ''));
+$manifestHref = $demoMode
+    ? base_url('manifest.json')
+    : portal_public_access_url('login/manifest.json');
+$installWorkerUrl = $demoMode
+    ? ''
+    : portal_public_access_url('login/sw.js');
 ?>
 <html><head>
        
@@ -24,10 +30,25 @@ $loginError = trim((string) ($loginError ?? ''));
  <link rel="stylesheet" href="<?= base_url('public/assets/css/login.css'); ?>">
  <script src="<?= base_url('public/assets/js/jquery.min.js'); ?>"></script>
  <link rel="stylesheet" href="<?= base_url('public/assets/fontawesome/css/all.min.css'); ?>">
-<link rel="manifest" href="<?= base_url('manifest.json') ?>">
+<link rel="manifest" href="<?= esc($manifestHref, 'attr') ?>">
 <meta name="theme-color" content="#6c5ce7">
 <link rel="apple-touch-icon" href="<?= base_url('icons/maskable-512.png') ?>">
 <script>window.BASE_URL = "<?= base_url() ?>";</script>
+<?php if (!$demoMode): ?>
+<script>
+window.LOGIN_INSTALL_SW_URL = <?= json_encode($installWorkerUrl) ?>;
+
+window.addEventListener('load', function () {
+  if (!('serviceWorker' in navigator) || !window.LOGIN_INSTALL_SW_URL) {
+    return;
+  }
+
+  navigator.serviceWorker.register(window.LOGIN_INSTALL_SW_URL, { scope: '/' }).catch(function (error) {
+    console.warn('Login install service worker non registrato', error);
+  });
+});
+</script>
+<?php endif; ?>
 <style>
   .demo-login-banner {
     margin: 0 0 18px;

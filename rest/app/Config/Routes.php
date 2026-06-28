@@ -39,6 +39,8 @@ $routes->set404Override('App\Controllers\Errors::redirectHome');
 
 $routes->get('login', 'Login\LoginController::index');
 $routes->head('login', 'Login\LoginController::index');
+$routes->get('login/manifest.json', 'PwaController::loginManifest');
+$routes->get('login/sw.js', 'PwaController::loginServiceWorker');
 $routes->post('login', 'Login\LoginController::login');
 $routes->post('login/tenant-select', 'Login\LoginController::selectTenant');
 $routes->post('tenant-select', 'Login\LoginController::selectTenant');
