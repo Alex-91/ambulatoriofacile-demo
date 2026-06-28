@@ -9,10 +9,10 @@ $loginSuccess = trim((string) ($loginSuccess ?? ''));
 $loginError = trim((string) ($loginError ?? ''));
 $manifestHref = $demoMode
     ? base_url('manifest.json')
-    : portal_public_access_url('login/manifest.json');
+    : portal_public_access_url('login/pwa-manifest.json');
 $installWorkerUrl = $demoMode
     ? ''
-    : portal_public_access_url('login/sw.js');
+    : portal_public_access_url('login/pwa-install-sw.js');
 ?>
 <html><head>
        
