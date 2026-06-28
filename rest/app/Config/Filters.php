@@ -129,6 +129,8 @@ public function __construct()
                     'agenda/job-run',
                     'agenda/job-run/*',
                     'agenda/job-run/*/*',
+                    'reset-demo/run',
+                    'reset-demo/run/*',
                     'checkOtp',
                     'password/scaduta',
                     'push/publicKey',
