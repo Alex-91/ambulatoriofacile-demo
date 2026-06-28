@@ -1374,8 +1374,11 @@
 
         .agenda-view-switch {
             display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
             gap: 6px;
+        }
+
+        .agenda-view-switch--sidebar {
+            grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
         }
 
         .agenda-view-switch .btn {
@@ -1383,7 +1386,71 @@
             font-size: 12px;
             font-weight: 700;
             white-space: normal;
-            border-radius: 8px !important;
+            border-radius: 10px !important;
+            transition: all .16s ease;
+        }
+
+        .agenda-view-switch .btn.btn-default {
+            border-color: #d6e3ec;
+            background: #fff;
+            color: #365465;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+        }
+
+        .agenda-view-switch .btn.btn-default:hover,
+        .agenda-view-switch .btn.btn-default:focus {
+            border-color: #bdd2e0;
+            background: #f5f9fc;
+            color: #24495d;
+        }
+
+        .agenda-view-switch .btn.btn-primary {
+            box-shadow: 0 10px 18px rgba(60, 141, 188, 0.18);
+        }
+
+        .agenda-calendar-viewbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 18px;
+            margin-bottom: 16px;
+            padding: 16px 18px;
+            border: 1px solid #dce8f0;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #fcfdff 0%, #f5f9fd 52%, #edf6ff 100%);
+            box-shadow: 0 10px 20px rgba(31, 45, 61, 0.06);
+        }
+
+        .agenda-calendar-viewbar-copy {
+            min-width: 0;
+        }
+
+        .agenda-calendar-viewbar-kicker {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 999px;
+            background: #e8f3fb;
+            color: #2f6f91;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .agenda-view-switch--calendar {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            gap: 8px;
+            flex: 0 0 auto;
+        }
+
+        .agenda-view-switch--calendar .btn {
+            min-width: 132px;
+            padding: 10px 14px;
+            font-size: 13px;
         }
 
         .agenda-view-help {
@@ -1736,8 +1803,23 @@
                 font-size: 16px;
             }
 
-            .agenda-view-switch {
+            .agenda-calendar-viewbar {
+                flex-direction: column;
+                align-items: stretch;
+                padding: 14px;
+            }
+
+            .agenda-view-switch--sidebar {
                 grid-template-columns: 1fr;
+            }
+
+            .agenda-view-switch--calendar {
+                justify-content: stretch;
+            }
+
+            .agenda-view-switch--calendar .btn {
+                flex: 1 1 100%;
+                min-width: 0;
             }
 
             .agenda-team-header {
@@ -1898,7 +1980,7 @@
                                         <option value="team_day" <?= (($viewMode ?? 'day') === 'team_day') ? 'selected' : '' ?>>Giorno team</option>
                                     <?php endif; ?>
                                 </select>
-                                <div class="agenda-view-switch" role="group" aria-label="Vista agenda">
+                                <div class="agenda-view-switch agenda-view-switch--sidebar" role="group" aria-label="Vista agenda">
                                     <button type="button" class="btn btn-default agenda-view-btn" data-view-mode="day">
                                         <i class="fa fa-sun-o"></i> Giorno
                                     </button>
@@ -2100,7 +2182,7 @@
     <div class="row" style="margin-bottom:15px;">
         <div class="col-sm-12 text-right">
             <button type="button" class="btn btn-default" id="btnPrintDayAgenda">
-                <i class="fa fa-file-pdf-o"></i> Stampa PDF giorno
+                <i class="fa fa-file-pdf-o"></i> <span id="btnPrintDayAgendaLabel">Stampa PDF giorno</span>
             </button>
 
             <button type="button" class="btn btn-warning" id="btnAddExtraSlot">
@@ -2116,6 +2198,27 @@
             <button type="button" class="btn btn-danger" id="btnBlockDayAgenda" style="display:none;">
                 <i class="fa fa-lock"></i> Blocca giornata
             </button>
+        </div>
+    </div>
+
+    <div class="agenda-calendar-viewbar">
+        <div class="agenda-calendar-viewbar-copy">
+            <span class="agenda-calendar-viewbar-kicker">
+                <i class="fa fa-eye"></i> Vista agenda
+            </span>
+        </div>
+        <div class="agenda-view-switch agenda-view-switch--calendar" role="group" aria-label="Vista agenda rapida sopra il calendario">
+            <button type="button" class="btn btn-default agenda-view-btn" data-view-mode="day">
+                <i class="fa fa-sun-o"></i> Giorno
+            </button>
+            <button type="button" class="btn btn-default agenda-view-btn" data-view-mode="week">
+                <i class="fa fa-calendar"></i> Settimana
+            </button>
+            <?php if (!empty($teamDayViewEnabled)): ?>
+                <button type="button" class="btn btn-default agenda-view-btn" data-view-mode="team_day">
+                    <i class="fa fa-columns"></i> Giorno Team
+                </button>
+            <?php endif; ?>
         </div>
     </div>
 
@@ -3386,6 +3489,21 @@ function syncAgendaViewButtons() {
             .toggleClass('active', isActive)
             .attr('aria-pressed', isActive ? 'true' : 'false');
     });
+
+    syncAgendaPrintButtonLabel(activeView);
+}
+
+function syncAgendaPrintButtonLabel(activeView) {
+    var normalized = normalizeAgendaViewModeValue(activeView || $('#view_mode').val());
+    var label = 'Stampa PDF giorno';
+
+    if (normalized === 'week') {
+        label = 'Stampa PDF settimana';
+    } else if (normalized === 'team_day') {
+        label = 'Stampa PDF giorno team';
+    }
+
+    $('#btnPrintDayAgendaLabel').text(label);
 }
 
 function toggleAgendaTeamDayLayout(isTeamDay) {
@@ -8151,7 +8269,8 @@ $('#nota_giorno_text').on('blur', function() {
     $('#btnPrintDayAgenda').on('click', function() {
         var url = "<?= base_url('agenda/stampa-pdf-giorno') ?>?id_dot=" +
             encodeURIComponent($('#id_dot').val()) +
-            "&data=" + encodeURIComponent($('#agenda_date').val());
+            "&data=" + encodeURIComponent($('#agenda_date').val()) +
+            "&view=" + encodeURIComponent($('#view_mode').val());
 
         window.open(url, '_blank');
     });

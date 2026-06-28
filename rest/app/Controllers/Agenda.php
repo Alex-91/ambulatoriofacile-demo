@@ -3684,40 +3684,38 @@ public function eseguiRepairRecurringExtraSlots()
     public function stampaPdfGiorno()
     {
         $idDot = (int)$this->request->getGet('id_dot');
-        $data  = (string)$this->request->getGet('data');
+        $data = trim((string)($this->request->getGet('data') ?? ''));
+        $requestedView = (string)($this->request->getGet('view') ?? 'day');
 
-        $this->assertDoctorAllowed($idDot);
-        $showWaConfirmationColumn = $this->shouldShowWaConfirmationColumn($idDot);
-
-        // Il PDF deve mostrare al massimo un appuntamento attivo per slot:
-        // in produzione possono esistere righe storiche annullate o duplicate
-        // sullo stesso id_slot, che altrimenti verrebbero stampate piu volte.
-        $activeAppointmentSubquery = $this->db->table('dap12_agenda_appuntamenti a_active')
-            ->select('a_active.id_slot, MAX(a_active.id_appuntamento) AS id_appuntamento', false)
-            ->where('a_active.stato <>', 'ANNULLATO')
-            ->groupBy('a_active.id_slot')
-            ->getCompiledSelect();
-
-        $rows = $this->db->table('dap11_agenda_slot s')
-            ->select("
-                s.data_slot, s.ora_inizio, s.ora_fine,
-                a.cognome, a.nome, a.telefono, a.cellulare, a.note
-            ")
-            ->join('(' . $activeAppointmentSubquery . ') a_sel', 'a_sel.id_slot = s.id_slot', 'left', false)
-            ->join('dap12_agenda_appuntamenti a', 'a.id_appuntamento = a_sel.id_appuntamento', 'left')
-            ->where('s.id_dot', $idDot)
-            ->where('s.data_slot', $data)
-            ->orderBy('s.ora_inizio', 'ASC')
-            ->get()
-            ->getResultArray();
-
-        if (!class_exists('\Dompdf\Dompdf')) {
-            throw new \Exception('Dompdf non disponibile.');
+        if ($data === '') {
+            $data = date('Y-m-d');
         }
 
-        $dot = $this->agendaModel->getAgendaProfessionalByLegacyId($idDot) ?? [];
+        $teamDayDoctors = $this->getTeamDayDoctorsForCurrentUser();
+        $view = $this->normalizeAgendaViewMode($requestedView, $this->canUseTeamDayView($teamDayDoctors));
 
-        $doctorLabel = trim(($dot['cognome'] ?? '') . ' ' . ($dot['nome'] ?? ''));
+        if ($view === 'week') {
+            return $this->stampaPdfSettimanaResponse($idDot, $data);
+        }
+
+        if ($view === 'team_day') {
+            return $this->stampaPdfGiornoTeamResponse($idDot, $data, $teamDayDoctors);
+        }
+
+        return $this->stampaPdfGiornoSingoloResponse($idDot, $data);
+    }
+
+    private function stampaPdfGiornoSingoloResponse(int $idDot, string $data)
+    {
+        $this->assertDoctorAllowed($idDot);
+        $this->ensureDompdfAvailable();
+
+        $showWaConfirmationColumn = $this->shouldShowWaConfirmationColumn($idDot);
+        $slots = $this->slotModel->getSlotsCalendario($idDot, $data, 'day');
+        $rows = $this->buildSingleDayPdfRows($slots, $showWaConfirmationColumn);
+
+        $dot = $this->agendaModel->getAgendaProfessionalByLegacyId($idDot) ?? [];
+        $doctorLabel = $this->resolveAgendaProfessionalDisplayLabel($dot, $idDot);
 
         $html = '<html><head><style>
             body{font-family:DejaVu Sans,sans-serif;font-size:11px;}
@@ -3728,10 +3726,10 @@ public function eseguiRepairRecurringExtraSlots()
 
         $html .= '<h2>Agenda del giorno</h2>';
         $html .= '<p><strong>Dottore:</strong> ' . esc($doctorLabel) . '</p>';
-        $html .= '<p><strong>Data:</strong> ' . esc($data) . '</p>';
+        $html .= '<p><strong>Data:</strong> ' . esc($this->formatAgendaPdfLongDate($data)) . '</p>';
 
         $html .= '<table><thead><tr>
-            <th>Inizio</th>
+            <th>Orario</th>
             <th>Paziente</th>
             <th>Telefono</th>
             <th>Cellulare</th>
@@ -3739,28 +3737,679 @@ public function eseguiRepairRecurringExtraSlots()
             <th>Note</th>
         </tr></thead><tbody>';
 
+        if ($rows === []) {
+            $colspan = $showWaConfirmationColumn ? 6 : 5;
+            $html .= '<tr><td colspan="' . $colspan . '">Nessuno slot disponibile per la data selezionata.</td></tr>';
+        }
+
         foreach ($rows as $r) {
-            $waConfirmedLabel = WhatsappAppointmentNote::hasWaConfirmation((string)($r['note'] ?? '')) ? 'SI' : 'NO';
             $html .= '<tr>
-                <td>' . htmlspecialchars(date('H:i', strtotime($r['ora_inizio']))) . '</td>
-                <td>' . htmlspecialchars(trim(($r['cognome'] ?? '') . ' ' . ($r['nome'] ?? ''))) . '</td>
-                <td>' . htmlspecialchars($r['telefono'] ?? '') . '</td>
-                <td>' . htmlspecialchars($r['cellulare'] ?? '') . '</td>
-                ' . ($showWaConfirmationColumn ? '<td>' . htmlspecialchars($waConfirmedLabel) . '</td>' : '') . '
-                <td>' . htmlspecialchars($r['note'] ?? '') . '</td>
+                <td>' . htmlspecialchars((string)($r['time_range'] ?? '')) . '</td>
+                <td>' . htmlspecialchars((string)($r['patient_label'] ?? '')) . '</td>
+                <td>' . htmlspecialchars((string)($r['telefono'] ?? '')) . '</td>
+                <td>' . htmlspecialchars((string)($r['cellulare'] ?? '')) . '</td>
+                ' . ($showWaConfirmationColumn ? '<td>' . htmlspecialchars((string)($r['wa_confirmation'] ?? '')) . '</td>' : '') . '
+                <td>' . htmlspecialchars((string)($r['note'] ?? '')) . '</td>
             </tr>';
         }
 
         $html .= '</tbody></table></body></html>';
 
+        return $this->renderAgendaPdfResponse(
+            $html,
+            'agenda_' . $idDot . '_' . $data . '.pdf',
+            'A4',
+            'landscape'
+        );
+    }
+
+    private function buildSingleDayPdfRows(array $slots, bool $showWaConfirmationColumn): array
+    {
+        $rows = [];
+
+        foreach ($slots as $slot) {
+            if ($this->shouldSkipSingleDayPdfSecondaryAppointmentSlot($slot)) {
+                continue;
+            }
+
+            $hasAppointment = $this->agendaPdfSlotHasAppointment($slot);
+            $stato = strtoupper(trim((string)($slot['stato'] ?? '')));
+            $patientLabel = $hasAppointment
+                ? trim((string)($slot['cognome'] ?? '') . ' ' . (string)($slot['nome'] ?? ''))
+                : '';
+            $note = $hasAppointment ? trim((string)($slot['note'] ?? '')) : '';
+
+            if ($hasAppointment && $patientLabel === '') {
+                $patientLabel = 'Appuntamento';
+            }
+
+            if (!$hasAppointment && $stato === 'CHIUSO') {
+                $patientLabel = 'Bloccato';
+                $note = 'Fascia non disponibile';
+            }
+
+            $rows[] = [
+                'time_range' => $this->buildSingleDayPdfTimeRange($slot),
+                'patient_label' => $patientLabel,
+                'telefono' => $hasAppointment ? trim((string)($slot['telefono'] ?? '')) : '',
+                'cellulare' => $hasAppointment ? trim((string)($slot['cellulare'] ?? '')) : '',
+                'wa_confirmation' => $showWaConfirmationColumn && $hasAppointment
+                    ? (WhatsappAppointmentNote::hasWaConfirmation((string)($slot['note'] ?? '')) ? 'SI' : 'NO')
+                    : '',
+                'note' => $note,
+            ];
+        }
+
+        return $rows;
+    }
+
+    private function shouldSkipSingleDayPdfSecondaryAppointmentSlot(array $slot): bool
+    {
+        return (int)($slot['id_appuntamento'] ?? 0) > 0
+            && (int)($slot['appointment_is_primary_slot'] ?? 0) !== 1;
+    }
+
+    private function buildSingleDayPdfTimeRange(array $slot): string
+    {
+        $startMinutes = $this->agendaPdfSlotStartMinutes($slot);
+        $endMinutes = $this->agendaPdfSlotHasAppointment($slot)
+            ? $this->agendaPdfSlotVisualEndMinutes($slot)
+            : $this->agendaPdfTimeToMinutes((string)($slot['ora_fine'] ?? ''));
+
+        if ($startMinutes === null || $endMinutes === null) {
+            $startRaw = trim((string)($slot['ora_inizio'] ?? ''));
+            $endRaw = trim((string)($slot['ora_fine'] ?? ''));
+
+            return trim($startRaw . ' - ' . $endRaw, ' -');
+        }
+
+        return $this->formatAgendaPdfTimeFromMinutes($startMinutes) . ' - ' . $this->formatAgendaPdfTimeFromMinutes($endMinutes);
+    }
+
+    private function stampaPdfSettimanaResponse(int $idDot, string $data)
+    {
+        $this->assertDoctorAllowed($idDot);
+        $this->ensureDompdfAvailable();
+
+        $dot = $this->agendaModel->getAgendaProfessionalByLegacyId($idDot) ?? [];
+        $doctorLabel = $this->resolveAgendaProfessionalDisplayLabel($dot, $idDot);
+        $weekRange = $this->resolveAgendaWeekRange($data);
+        $slots = $this->slotModel->getSlotsCalendario($idDot, $data, 'week');
+        $blockedMap = $this->agendaModel->getGiorniBloccatiMapForRange($idDot, $weekRange['start'], $weekRange['end']);
+        $gridDuration = !empty($slots) ? $this->calcolaStepCalendario($slots) : 15;
+        [$minTime, $maxTime] = $this->resolveTimelinePdfBounds($slots, $gridDuration);
+
+        $slotsByDate = [];
+        foreach ($slots as $slot) {
+            $dateKey = substr((string)($slot['data_slot'] ?? ''), 0, 10);
+            if ($dateKey === '') {
+                continue;
+            }
+
+            $slotsByDate[$dateKey][] = $slot;
+        }
+
+        $columns = [];
+        foreach ($weekRange['dates'] as $dateValue) {
+            $daySlots = $slotsByDate[$dateValue] ?? [];
+            $isBlocked = !empty($blockedMap[$dateValue]);
+            $message = '';
+
+            if (empty($daySlots)) {
+                $message = $isBlocked
+                    ? 'Giornata bloccata'
+                    : $this->agendaConfigModel->getNoAgendaMessageForDate($idDot, $dateValue);
+            }
+
+            $headerBadges = [];
+            if ($dateValue === $data) {
+                $headerBadges[] = ['label' => 'Data attiva', 'tone' => 'primary'];
+            }
+            if ($isBlocked) {
+                $headerBadges[] = ['label' => 'Bloccata', 'tone' => 'danger'];
+            }
+
+            $columns[] = [
+                'key' => $dateValue,
+                'label' => $this->formatAgendaPdfWeekdayLabel($dateValue),
+                'sub_label' => $this->formatAgendaPdfShortDate($dateValue),
+                'header_badges' => $headerBadges,
+                'has_slots' => !empty($daySlots),
+                'slots' => $daySlots,
+                'message' => $message,
+                'giorno_bloccato' => $isBlocked,
+            ];
+        }
+
+        $timeline = $this->buildTimelinePdfTable($columns, $gridDuration, $minTime, $maxTime);
+        $html = view('agenda/timeline_pdf', [
+            'title' => 'Agenda settimanale',
+            'subtitle' => 'Settimana dal ' . $this->formatAgendaPdfLongDate($weekRange['start']) . ' al ' . $this->formatAgendaPdfLongDate($weekRange['end']),
+            'contextLabel' => $doctorLabel,
+            'generatedAt' => date('d/m/Y H:i'),
+            'columns' => $columns,
+            'rows' => $timeline['rows'],
+            'rowHeightPx' => $timeline['row_height_px'],
+            'pageMode' => 'week',
+        ]);
+
+        return $this->renderAgendaPdfResponse(
+            $html,
+            'agenda_settimana_' . $idDot . '_' . $weekRange['start'] . '_' . $weekRange['end'] . '.pdf',
+            'A3',
+            'landscape'
+        );
+    }
+
+    private function stampaPdfGiornoTeamResponse(int $selectedDot, string $data, array $medici)
+    {
+        if (!$this->canUseTeamDayView($medici)) {
+            throw new \Exception('La vista giorno team non e disponibile per questo spazio.');
+        }
+
+        $this->ensureDompdfAvailable();
+
+        if ($selectedDot <= 0 || !$this->doctorListContainsId($medici, $selectedDot)) {
+            $selectedDot = $this->getFirstVisibleDoctorId($medici);
+        }
+
+        $columns = [];
+        $allSlots = [];
+        $selectedDoctorLabel = '';
+
+        foreach ($medici as $medico) {
+            $doctor = $this->normalizeAgendaProfessionalRow($medico);
+            $idDot = (int)($doctor['id_dot'] ?? 0);
+            if ($idDot <= 0) {
+                continue;
+            }
+
+            $columnPayload = $this->buildTeamDayColumnPayload($doctor, $data, $idDot === $selectedDot);
+            $headerBadges = [];
+
+            if (!empty($columnPayload['is_selected'])) {
+                $selectedDoctorLabel = (string)($columnPayload['label'] ?? '');
+                $headerBadges[] = ['label' => 'Attivo', 'tone' => 'primary'];
+            }
+
+            if (!empty($columnPayload['giorno_bloccato'])) {
+                $headerBadges[] = ['label' => 'Bloccata', 'tone' => 'danger'];
+            } elseif (empty($columnPayload['has_slots'])) {
+                $headerBadges[] = ['label' => 'Senza agenda', 'tone' => 'muted'];
+            }
+
+            $columns[] = [
+                'key' => 'dot-' . $idDot,
+                'label' => (string)($columnPayload['label'] ?? ('Professionista ' . $idDot)),
+                'sub_label' => !empty($columnPayload['giorno_bloccato'])
+                    ? 'Giornata bloccata'
+                    : (!empty($columnPayload['has_slots']) ? $this->formatAgendaPdfLongDate($data) : 'Nessuna agenda'),
+                'header_badges' => $headerBadges,
+                'has_slots' => !empty($columnPayload['has_slots']),
+                'slots' => is_array($columnPayload['slots'] ?? null) ? $columnPayload['slots'] : [],
+                'message' => (string)($columnPayload['message'] ?? ''),
+                'giorno_bloccato' => !empty($columnPayload['giorno_bloccato']),
+            ];
+
+            if (!empty($columnPayload['slots']) && is_array($columnPayload['slots'])) {
+                $allSlots = array_merge($allSlots, $columnPayload['slots']);
+            }
+        }
+
+        $gridDuration = !empty($allSlots) ? $this->calcolaStepCalendario($allSlots) : 15;
+        [$minTime, $maxTime] = $this->resolveTimelinePdfBounds($allSlots, $gridDuration);
+        $timeline = $this->buildTimelinePdfTable($columns, $gridDuration, $minTime, $maxTime);
+        $timeline['row_height_px'] = $this->resolveTimelinePdfRowHeight(count($timeline['rows'] ?? []), 'team_day');
+
+        $html = view('agenda/timeline_pdf', [
+            'title' => 'Agenda giornaliera team',
+            'subtitle' => 'Vista orizzontale del team del ' . $this->formatAgendaPdfLongDate($data),
+            'contextLabel' => $selectedDoctorLabel !== '' ? ('Professionista attivo: ' . $selectedDoctorLabel) : 'Tutti i professionisti visibili',
+            'generatedAt' => date('d/m/Y H:i'),
+            'columns' => $columns,
+            'rows' => $timeline['rows'],
+            'rowHeightPx' => $timeline['row_height_px'],
+            'pageMode' => 'team_day',
+        ]);
+
+        return $this->renderAgendaPdfResponse(
+            $html,
+            'agenda_team_' . $data . '.pdf',
+            'A3',
+            'landscape'
+        );
+    }
+
+    private function buildTimelinePdfTable(array $columns, int $stepMinutes, string $minTime, string $maxTime): array
+    {
+        $stepMinutes = max(5, $stepMinutes);
+        $startMinutes = $this->agendaPdfTimeToMinutes($minTime) ?? 480;
+        $endMinutes = $this->agendaPdfTimeToMinutes($maxTime) ?? 1080;
+
+        if ($endMinutes <= $startMinutes) {
+            $endMinutes = $startMinutes + max($stepMinutes, 60);
+        }
+
+        $timeRows = [];
+        for ($minute = $startMinutes; $minute < $endMinutes; $minute += $stepMinutes) {
+            $timeRows[] = $minute;
+        }
+
+        if ($timeRows === []) {
+            $timeRows[] = $startMinutes;
+        }
+
+        $columnState = [];
+        foreach ($columns as $index => $column) {
+            $slotMap = [];
+
+            foreach (($column['slots'] ?? []) as $slot) {
+                $slotStart = $this->agendaPdfSlotStartMinutes($slot);
+                if ($slotStart === null) {
+                    continue;
+                }
+
+                $slotMap[$slotStart] = $slot;
+            }
+
+            ksort($slotMap);
+            $columnState[$index] = [
+                'slot_map' => $slotMap,
+                'rowspan_skip' => 0,
+            ];
+        }
+
+        $rows = [];
+        $totalRows = count($timeRows);
+
+        foreach ($timeRows as $rowIndex => $minute) {
+            $row = [
+                'time_label' => $this->formatAgendaPdfTimeFromMinutes($minute),
+                'cells' => [],
+            ];
+
+            foreach ($columns as $index => $column) {
+                if ($columnState[$index]['rowspan_skip'] > 0) {
+                    $columnState[$index]['rowspan_skip']--;
+                    $row['cells'][] = null;
+                    continue;
+                }
+
+                $slotMap = $columnState[$index]['slot_map'];
+                if (empty($slotMap) && empty($column['has_slots'])) {
+                    if ($rowIndex === 0) {
+                        $cell = $this->buildTimelinePdfEmptyColumnCell($column, $totalRows);
+                        $columnState[$index]['rowspan_skip'] = max(0, ($cell['rowspan'] ?? 1) - 1);
+                        $row['cells'][] = $cell;
+                    } else {
+                        $row['cells'][] = null;
+                    }
+                    continue;
+                }
+
+                if (isset($slotMap[$minute])) {
+                    $cell = $this->buildTimelinePdfSlotCell(
+                        $slotMap[$minute],
+                        !empty($column['giorno_bloccato']),
+                        $stepMinutes,
+                        $totalRows - $rowIndex
+                    );
+                    $columnState[$index]['rowspan_skip'] = max(0, ($cell['rowspan'] ?? 1) - 1);
+                    $row['cells'][] = $cell;
+                    continue;
+                }
+
+                $row['cells'][] = [
+                    'rowspan' => 1,
+                    'class' => 'is-gap',
+                    'time_range' => '',
+                    'primary_label' => '',
+                    'secondary_label' => '',
+                ];
+            }
+
+            $rows[] = $row;
+        }
+
+        return [
+            'rows' => $rows,
+            'row_height_px' => $this->resolveTimelinePdfRowHeight($totalRows),
+        ];
+    }
+
+    private function buildTimelinePdfSlotCell(array $slot, bool $giornoBloccato, int $stepMinutes, int $remainingRows): array
+    {
+        $startMinutes = $this->agendaPdfSlotStartMinutes($slot);
+        $endMinutes = $this->agendaPdfSlotVisualEndMinutes($slot);
+        $slotEndMinutes = $this->agendaPdfTimeToMinutes((string)($slot['ora_fine'] ?? ''));
+
+        if ($startMinutes === null) {
+            $startMinutes = 0;
+        }
+
+        if ($endMinutes === null || $endMinutes <= $startMinutes) {
+            $endMinutes = $slotEndMinutes !== null && $slotEndMinutes > $startMinutes
+                ? $slotEndMinutes
+                : ($startMinutes + $stepMinutes);
+        }
+
+        $rowspan = (int)ceil(($endMinutes - $startMinutes) / max(1, $stepMinutes));
+        $rowspan = max(1, min($remainingRows, $rowspan));
+        $stato = strtoupper(trim((string)($slot['stato'] ?? '')));
+        $hasAppointment = $this->agendaPdfSlotHasAppointment($slot);
+
+        if (!$hasAppointment && $giornoBloccato) {
+            return [
+                'rowspan' => $rowspan,
+                'class' => 'is-blocked',
+                'time_range' => $this->formatAgendaPdfTimeFromMinutes($startMinutes),
+                'primary_label' => 'Bloccato',
+                'secondary_label' => 'Fascia non disponibile',
+            ];
+        }
+
+        if ($stato === 'CHIUSO') {
+            return [
+                'rowspan' => $rowspan,
+                'class' => 'is-blocked',
+                'time_range' => $this->formatAgendaPdfTimeFromMinutes($startMinutes),
+                'primary_label' => 'Bloccato',
+                'secondary_label' => 'Fascia non disponibile',
+            ];
+        }
+
+        if (!$hasAppointment) {
+            return [
+                'rowspan' => $rowspan,
+                'class' => 'is-free',
+                'time_range' => '',
+                'primary_label' => '',
+                'secondary_label' => '',
+            ];
+        }
+
+        $patientLabel = trim((string)($slot['cognome'] ?? '') . ' ' . (string)($slot['nome'] ?? ''));
+        if ($patientLabel === '') {
+            $patientLabel = 'Appuntamento';
+        }
+
+        return [
+            'rowspan' => $rowspan,
+            'class' => $giornoBloccato ? 'is-booked-locked' : 'is-booked',
+            'time_range' => $this->formatAgendaPdfTimeFromMinutes($startMinutes) . ' - ' . $this->formatAgendaPdfTimeFromMinutes($endMinutes),
+            'primary_label' => $patientLabel,
+            'secondary_label' => $this->buildAgendaPdfAppointmentNote($slot),
+        ];
+    }
+
+    private function buildTimelinePdfEmptyColumnCell(array $column, int $rowspan): array
+    {
+        $isBlocked = !empty($column['giorno_bloccato']);
+        $message = trim((string)($column['message'] ?? ''));
+
+        if ($message === '') {
+            $message = $isBlocked ? 'Giornata bloccata' : 'Nessuna agenda';
+        }
+
+        return [
+            'rowspan' => max(1, $rowspan),
+            'class' => $isBlocked ? 'is-blocked is-empty-column' : 'is-no-agenda is-empty-column',
+            'time_range' => '',
+            'primary_label' => $message,
+            'secondary_label' => '',
+        ];
+    }
+
+    private function resolveTimelinePdfBounds(array $slots, int $stepMinutes): array
+    {
+        if (empty($slots)) {
+            return ['08:00:00', '18:00:00'];
+        }
+
+        $minTime = null;
+        $maxTime = null;
+
+        foreach ($slots as $slot) {
+            $slotStart = date('H:i:s', strtotime((string)($slot['ora_inizio'] ?? '')));
+            $slotEndRaw = $this->agendaPdfSlotVisualEndMinutes($slot);
+            $slotEnd = $slotEndRaw !== null
+                ? $this->formatAgendaPdfTimeFromMinutes($slotEndRaw) . ':00'
+                : date('H:i:s', strtotime((string)($slot['ora_fine'] ?? '')));
+
+            if ($minTime === null || $slotStart < $minTime) {
+                $minTime = $slotStart;
+            }
+
+            if ($maxTime === null || $slotEnd > $maxTime) {
+                $maxTime = $slotEnd;
+            }
+        }
+
+        return [
+            $this->floorTimeToStep($minTime ?? '08:00:00', 5),
+            $this->ceilTimeToStep($maxTime ?? '18:00:00', 5),
+        ];
+    }
+
+    private function resolveAgendaWeekRange(string $date): array
+    {
+        $anchor = \DateTimeImmutable::createFromFormat('Y-m-d', $date) ?: new \DateTimeImmutable();
+        $weekday = (int)$anchor->format('N');
+        $weekStart = $anchor->modify('-' . ($weekday - 1) . ' days');
+        $dates = [];
+
+        for ($offset = 0; $offset < 7; $offset++) {
+            $dates[] = $weekStart->modify('+' . $offset . ' days')->format('Y-m-d');
+        }
+
+        return [
+            'start' => $weekStart->format('Y-m-d'),
+            'end' => $weekStart->modify('+6 days')->format('Y-m-d'),
+            'dates' => $dates,
+        ];
+    }
+
+    private function resolveAgendaProfessionalDisplayLabel(array $doctor, int $fallbackId = 0): string
+    {
+        $label = trim((string)($doctor['label'] ?? ''));
+        if ($label !== '') {
+            return $label;
+        }
+
+        $label = trim((string)($doctor['cognome'] ?? '') . ' ' . (string)($doctor['nome'] ?? ''));
+        if ($label !== '') {
+            return $label;
+        }
+
+        return $fallbackId > 0 ? ('Professionista #' . $fallbackId) : 'Professionista';
+    }
+
+    private function buildAgendaPdfAppointmentNote(array $slot): string
+    {
+        $pieces = [];
+        $visitType = $this->buildAgendaPdfVisitTypeLabel($slot);
+        $note = trim((string)($slot['note'] ?? ''));
+        $createdByUsername = trim((string)($slot['created_by_username'] ?? ''));
+
+        if ($visitType !== '') {
+            $pieces[] = $visitType;
+        }
+
+        if ($note !== '') {
+            $pieces[] = $note;
+        }
+
+        if ($createdByUsername !== '') {
+            $createdByLabel = 'Utente: ' . $createdByUsername;
+            $noteLower = function_exists('mb_strtolower')
+                ? mb_strtolower($note, 'UTF-8')
+                : strtolower($note);
+            $createdByLower = function_exists('mb_strtolower')
+                ? mb_strtolower($createdByLabel, 'UTF-8')
+                : strtolower($createdByLabel);
+
+            if ($note === '' || strpos($noteLower, $createdByLower) === false) {
+                $pieces[] = $createdByLabel;
+            }
+        }
+
+        $pieces = array_values(array_unique(array_filter(array_map('trim', $pieces), static fn(string $value): bool => $value !== '')));
+
+        return implode(' - ', $pieces);
+    }
+
+    private function buildAgendaPdfVisitTypeLabel(array $slot): string
+    {
+        $label = trim((string)($slot['tipo_visita_label'] ?? ''));
+        $duration = (int)($slot['appointment_durata_minuti'] ?? 0);
+
+        if ($label !== '' && $duration > 0) {
+            return $label . ' (' . $duration . ' min)';
+        }
+
+        if ($label !== '') {
+            return $label;
+        }
+
+        return $duration > 0 ? ($duration . ' min') : '';
+    }
+
+    private function agendaPdfSlotHasAppointment(array $slot): bool
+    {
+        $appointmentId = (int)($slot['id_appuntamento'] ?? 0);
+        $stato = strtoupper(trim((string)($slot['stato'] ?? '')));
+
+        return $appointmentId > 0 || !in_array($stato, ['LIBERO', 'BLOCCATO', 'CHIUSO'], true);
+    }
+
+    private function agendaPdfSlotStartMinutes(array $slot): ?int
+    {
+        return $this->agendaPdfTimeToMinutes((string)($slot['ora_inizio'] ?? ''));
+    }
+
+    private function agendaPdfSlotVisualEndMinutes(array $slot): ?int
+    {
+        $explicitEnd = trim((string)($slot['appointment_ora_fine'] ?? ''));
+        $isCoveredSecondary = (int)($slot['id_appuntamento'] ?? 0) > 0
+            && (int)($slot['appointment_is_primary_slot'] ?? 0) !== 1;
+
+        if ($explicitEnd !== '' && !$isCoveredSecondary) {
+            return $this->agendaPdfTimeToMinutes($explicitEnd);
+        }
+
+        return $this->agendaPdfTimeToMinutes((string)($slot['ora_fine'] ?? ''));
+    }
+
+    private function agendaPdfTimeToMinutes(string $time): ?int
+    {
+        $time = trim($time);
+        if ($time === '') {
+            return null;
+        }
+
+        if (!preg_match('/(\d{2}):(\d{2})/', $time, $matches)) {
+            return null;
+        }
+
+        return ((int)$matches[1] * 60) + (int)$matches[2];
+    }
+
+    private function formatAgendaPdfTimeFromMinutes(int $minutes): string
+    {
+        $minutes = max(0, $minutes);
+        return sprintf('%02d:%02d', intdiv($minutes, 60), $minutes % 60);
+    }
+
+    private function formatAgendaPdfShortDate(string $date): string
+    {
+        $timestamp = strtotime($date);
+        return $timestamp === false ? $date : date('d/m', $timestamp);
+    }
+
+    private function formatAgendaPdfLongDate(string $date): string
+    {
+        $timestamp = strtotime($date);
+        return $timestamp === false ? $date : date('d/m/Y', $timestamp);
+    }
+
+    private function formatAgendaPdfWeekdayLabel(string $date): string
+    {
+        $timestamp = strtotime($date);
+        if ($timestamp === false) {
+            return $date;
+        }
+
+        $days = [
+            1 => 'Lunedi',
+            2 => 'Martedi',
+            3 => 'Mercoledi',
+            4 => 'Giovedi',
+            5 => 'Venerdi',
+            6 => 'Sabato',
+            7 => 'Domenica',
+        ];
+
+        return $days[(int)date('N', $timestamp)] ?? $date;
+    }
+
+    private function resolveTimelinePdfRowHeight(int $rowCount, string $pageMode = ''): int
+    {
+        if ($pageMode === 'team_day') {
+            if ($rowCount >= 110) {
+                return 24;
+            }
+
+            if ($rowCount >= 85) {
+                return 28;
+            }
+
+            if ($rowCount >= 60) {
+                return 34;
+            }
+
+            if ($rowCount >= 44) {
+                return 40;
+            }
+
+            return 48;
+        }
+
+        if ($rowCount >= 110) {
+            return 8;
+        }
+
+        if ($rowCount >= 85) {
+            return 10;
+        }
+
+        if ($rowCount >= 60) {
+            return 12;
+        }
+
+        if ($rowCount >= 44) {
+            return 14;
+        }
+
+        return 18;
+    }
+
+    private function ensureDompdfAvailable(): void
+    {
+        if (!class_exists('\Dompdf\Dompdf')) {
+            throw new \Exception('Dompdf non disponibile.');
+        }
+    }
+
+    private function renderAgendaPdfResponse(string $html, string $filename, $paper, string $orientation = 'portrait')
+    {
         $dompdf = new \Dompdf\Dompdf();
-        $dompdf->loadHtml($html);
-        $dompdf->setPaper('A4', 'landscape');
+        $dompdf->loadHtml($html, 'UTF-8');
+        $dompdf->setPaper($paper, $orientation);
         $dompdf->render();
 
         return $this->response
             ->setHeader('Content-Type', 'application/pdf')
-            ->setHeader('Content-Disposition', 'inline; filename="agenda_' . $idDot . '_' . $data . '.pdf"')
+            ->setHeader('Content-Disposition', 'inline; filename="' . $filename . '"')
             ->setBody($dompdf->output());
     }
 

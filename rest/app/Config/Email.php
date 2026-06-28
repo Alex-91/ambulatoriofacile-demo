@@ -95,12 +95,12 @@ class Email extends BaseConfig
     public int $priority = 3;
 
     /**
-     * Newline character. (Use “\r\n” to comply with RFC 822)
+     * Newline character. (Use "\r\n" to comply with RFC 822)
      */
     public string $CRLF = "\r\n";
 
     /**
-     * Newline character. (Use “\r\n” to comply with RFC 822)
+     * Newline character. (Use "\r\n" to comply with RFC 822)
      */
     public string $newline = "\r\n";
 
@@ -125,6 +125,7 @@ class Email extends BaseConfig
 
         $smtpHost = $this->envString(['email.SMTPHost', 'EMAIL_SMTP_HOST']);
         $protocol = $this->envString(['email.protocol', 'EMAIL_PROTOCOL']);
+        $smtpCrypto = $this->envNullableString(['email.SMTPCrypto', 'EMAIL_SMTP_CRYPTO']);
 
         $this->fromEmail     = $this->envString(['email.fromEmail', 'EMAIL_FROM_ADDRESS'], $this->fromEmail);
         $this->fromName      = $this->envString(['email.fromName', 'EMAIL_FROM_NAME'], $this->fromName);
@@ -137,7 +138,11 @@ class Email extends BaseConfig
         $this->SMTPPort      = $this->envInt(['email.SMTPPort', 'EMAIL_SMTP_PORT'], $this->SMTPPort);
         $this->SMTPTimeout   = $this->envInt(['email.SMTPTimeout', 'EMAIL_SMTP_TIMEOUT'], $this->SMTPTimeout);
         $this->SMTPKeepAlive = $this->envBool(['email.SMTPKeepAlive', 'EMAIL_SMTP_KEEP_ALIVE'], $this->SMTPKeepAlive);
-        $this->SMTPCrypto    = $this->envString(['email.SMTPCrypto', 'EMAIL_SMTP_CRYPTO'], $this->SMTPCrypto);
+
+        if ($smtpCrypto !== null) {
+            $this->SMTPCrypto = $smtpCrypto;
+        }
+
         $this->wordWrap      = $this->envBool(['email.wordWrap', 'EMAIL_WORD_WRAP'], $this->wordWrap);
         $this->wrapChars     = $this->envInt(['email.wrapChars', 'EMAIL_WRAP_CHARS'], $this->wrapChars);
         $this->mailType      = $this->envString(['email.mailType', 'EMAIL_MAIL_TYPE'], $this->mailType);
@@ -149,6 +154,11 @@ class Email extends BaseConfig
         $this->BCCBatchMode  = $this->envBool(['email.BCCBatchMode', 'EMAIL_BCC_BATCH_MODE'], $this->BCCBatchMode);
         $this->BCCBatchSize  = $this->envInt(['email.BCCBatchSize', 'EMAIL_BCC_BATCH_SIZE'], $this->BCCBatchSize);
         $this->DSN           = $this->envBool(['email.DSN', 'EMAIL_DSN'], $this->DSN);
+
+        if ($this->SMTPPort === 465 && in_array(strtolower($this->SMTPCrypto), ['ssl', 'tls'], true)) {
+            // CodeIgniter handles port 465 as implicit TLS when SMTPCrypto is empty.
+            $this->SMTPCrypto = '';
+        }
     }
 
     /**
@@ -157,12 +167,12 @@ class Email extends BaseConfig
     private function envString(array $keys, string $default = ''): string
     {
         foreach ($keys as $key) {
-            $value = env($key);
+            $value = $this->getRawEnvValue($key);
             if ($value === null || $value === '') {
                 continue;
             }
 
-            return trim((string) $value);
+            return $value;
         }
 
         return $default;
@@ -171,10 +181,27 @@ class Email extends BaseConfig
     /**
      * @param list<string> $keys
      */
+    private function envNullableString(array $keys): ?string
+    {
+        foreach ($keys as $key) {
+            $value = $this->getRawEnvValue($key);
+            if ($value === null) {
+                continue;
+            }
+
+            return $value;
+        }
+
+        return null;
+    }
+
+    /**
+     * @param list<string> $keys
+     */
     private function envInt(array $keys, int $default): int
     {
         foreach ($keys as $key) {
-            $value = env($key);
+            $value = $this->getRawEnvValue($key);
             if ($value === null || $value === '') {
                 continue;
             }
@@ -191,7 +218,7 @@ class Email extends BaseConfig
     private function envBool(array $keys, bool $default): bool
     {
         foreach ($keys as $key) {
-            $value = env($key);
+            $value = $this->getRawEnvValue($key);
             if ($value === null || $value === '') {
                 continue;
             }
@@ -201,5 +228,35 @@ class Email extends BaseConfig
         }
 
         return $default;
+    }
+
+    private function getRawEnvValue(string $key): ?string
+    {
+        $value = $_ENV[$key] ?? $_SERVER[$key] ?? getenv($key);
+        if ($value === false || $value === null) {
+            return null;
+        }
+
+        return $this->normalizeEnvValue($value);
+    }
+
+    /**
+     * @param bool|float|int|string $value
+     */
+    private function normalizeEnvValue($value): string
+    {
+        $normalized = trim((string) $value);
+        $length = strlen($normalized);
+
+        if ($length >= 2) {
+            $firstChar = $normalized[0];
+            $lastChar = $normalized[$length - 1];
+
+            if (($firstChar === "'" && $lastChar === "'") || ($firstChar === '"' && $lastChar === '"')) {
+                $normalized = substr($normalized, 1, -1);
+            }
+        }
+
+        return trim($normalized);
     }
 }
