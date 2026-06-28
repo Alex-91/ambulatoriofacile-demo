@@ -49,6 +49,17 @@ demo_auto_reset_log() {
   printf '%s %s\n' "$timestamp" "$log_message" >> "$log_file"
 }
 
+clear_runtime_caches() {
+  cache_root="$APP_ROOT/rest/writable/cache"
+
+  if [ -d "$cache_root" ]; then
+    find "$cache_root" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+  fi
+
+  mkdir -p "$cache_root/temp"
+  echo "Cache runtime ripulita."
+}
+
 bootstrap_demo_database() {
   if [ "$BOOTSTRAP_DEMO_DB" != "1" ]; then
     echo "Demo bootstrap disabilitato."
@@ -275,6 +286,8 @@ fi
 
 chown -R www-data:www-data "$UPLOAD_ROOT" "$APP_ROOT/rest/writable"
 chmod -R ug+rwX "$UPLOAD_ROOT" "$APP_ROOT/rest/writable"
+
+clear_runtime_caches
 
 bootstrap_demo_database
 
