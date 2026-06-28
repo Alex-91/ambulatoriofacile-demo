@@ -3,12 +3,18 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Services\DemoAccessService;
 use App\Services\DemoDatasetResetService;
 
 class DemoResetController extends BaseController
 {
     public function run()
     {
+        $demoAccess = new DemoAccessService();
+        if (! $demoAccess->isDemoSiteEnabled() || ! $demoAccess->isDemoBootstrapEnabled()) {
+            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
+        }
+
         $configuredToken = trim((string) (env('DEMO_RESET_ACCESS_TOKEN') ?: env('CRON_ACCESS_TOKEN') ?: ''));
         $providedToken = trim((string) ($this->request->getGet('token') ?: $this->request->getHeaderLine('X-Cron-Token')));
 

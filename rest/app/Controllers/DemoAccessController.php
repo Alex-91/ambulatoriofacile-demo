@@ -9,12 +9,17 @@ class DemoAccessController extends BaseController
     public function enter()
     {
         helper('url');
+        $demoAccess = new DemoAccessService();
+
+        if (! $demoAccess->isDemoSiteEnabled()) {
+            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
+        }
 
         $accessUrl = site_url('access');
         $requestedUsername = trim((string) $this->request->getGet('u'));
 
         try {
-            $result = (new DemoAccessService())->loginAccount($requestedUsername);
+            $result = $demoAccess->loginAccount($requestedUsername);
 
             return redirect()->to((string) ($result['redirectUrl'] ?? site_url('/')));
         } catch (\Throwable $e) {

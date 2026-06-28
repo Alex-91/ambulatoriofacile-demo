@@ -48,6 +48,16 @@ class DemoAccessService
         $this->platformDb = $platformDb ?? Database::connect('platform');
     }
 
+    public function isDemoSiteEnabled(): bool
+    {
+        $raw = env('DEMO_SITE_ENABLED');
+        if ($raw !== null && $raw !== false && trim((string) $raw) !== '') {
+            return $this->isTruthyFlag($raw);
+        }
+
+        return $this->isPublicAccessEnabled() || $this->isDemoBootstrapEnabled();
+    }
+
     public function isPublicAccessEnabled(): bool
     {
         $raw = env('DEMO_PUBLIC_ROLE_SWITCH_ENABLED');
@@ -55,7 +65,27 @@ class DemoAccessService
             $raw = env('demo.publicRoleSwitchEnabled');
         }
 
-        return in_array(strtolower(trim((string) $raw)), ['1', 'true', 'yes', 'on'], true);
+        return $this->isTruthyFlag($raw);
+    }
+
+    public function isDemoBootstrapEnabled(): bool
+    {
+        $raw = env('BOOTSTRAP_DEMO_DB');
+        if ($raw === null || $raw === false || trim((string) $raw) === '') {
+            $raw = env('demo.bootstrapDb');
+        }
+
+        return $this->isTruthyFlag($raw);
+    }
+
+    public function isLoginPrefillEnabled(): bool
+    {
+        $raw = env('DEMO_LOGIN_PREFILL_ENABLED');
+        if ($raw !== null && $raw !== false && trim((string) $raw) !== '') {
+            return $this->isTruthyFlag($raw);
+        }
+
+        return $this->isPublicAccessEnabled();
     }
 
     /**
@@ -376,6 +406,11 @@ class DemoAccessService
             'redirectUrl' => site_url(trim((string) ($account['redirect_route'] ?? 'piattaforma/spazi-clienti'), '/')),
             'resolved_username' => (string) ($account['username'] ?? ''),
         ];
+    }
+
+    private function isTruthyFlag(mixed $value): bool
+    {
+        return in_array(strtolower(trim((string) $value)), ['1', 'true', 'yes', 'on'], true);
     }
 
     private function ensurePlatformDemoTenantFeatures(int $tenantId, int $platformUserId): void
