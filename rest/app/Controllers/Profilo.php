@@ -94,7 +94,7 @@ class Profilo extends BaseController
         'hasMobile'        => !empty($activeMobile),
         'activeDevice'     => $activeMobile ?: null,
 
-        'vapidPublicKey'   => env('VAPID_PUBLIC_KEY',''),
+        'vapidPublicKey'   => push_vapid_public_key(),
         ]);
     }
 

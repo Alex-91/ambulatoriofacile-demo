@@ -760,9 +760,10 @@ if ($headerMenuUserId > 0) {
 
 <script src="<?= base_url('public/plugins/jQuery/jQuery-2.1.4.min.js') ?>"></script>
 <script src="<?= base_url('public/bootstrap/js/bootstrap.min.js') ?>"></script>
+<script src="<?= base_url('public/assets/js/push-registration.js') ?>"></script>
 <script>
   window.PUSH_MOBILE_CFG = {
-    vapidKey: "<?= esc(env('VAPID_PUBLIC_KEY', '')) ?>",
+    vapidKey: <?= json_encode(push_vapid_public_key()) ?>,
     swUrl: "<?= base_url('sw.js') ?>",
     registerUrl: "<?= base_url('profilo/device/register-here') ?>",
     syncPermissionUrl: "<?= base_url('push/sync-permission') ?>",
@@ -776,6 +777,7 @@ if ($headerMenuUserId > 0) {
   'use strict';
 
   var cfg = window.PUSH_MOBILE_CFG || {};
+  cfg.vapidKey = normalizePushVapidKey(cfg.vapidKey);
   if (!cfg.vapidKey || !cfg.registerUrl || !cfg.swUrl) return;
   if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return;
   if (!isMobileUA()) return;
@@ -794,21 +796,15 @@ if ($headerMenuUserId > 0) {
   start().catch(function () {});
 
   async function start() {
-    var reg = await navigator.serviceWorker.register(cfg.swUrl);
-    var sub = await reg.pushManager.getSubscription();
-
-    if (!sub) {
-      if (Notification.permission !== 'granted') {
-        localStorage.setItem('push_mobile_last_prompt_at', String(Date.now()));
-        var perm = await Notification.requestPermission();
-        if (perm !== 'granted') return;
-      }
-
-      sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(cfg.vapidKey)
-      });
+    if (Notification.permission !== 'granted') {
+      localStorage.setItem('push_mobile_last_prompt_at', String(Date.now()));
+      var perm = await Notification.requestPermission();
+      if (perm !== 'granted') return;
     }
+
+    var pushState = await window.PushRegistration.ensurePushSubscription(cfg.swUrl, cfg.vapidKey);
+    var reg = pushState.registration;
+    var sub = pushState.subscription;
 
     if (!sub) return;
 
@@ -884,6 +880,27 @@ if ($headerMenuUserId > 0) {
   function registrationStorageKey() {
     var userId = parseInt(cfg.userId || 0, 10) || 0;
     return 'push_mobile_registered_endpoint:' + (userId > 0 ? String(userId) : 'guest');
+  }
+
+  function normalizePushVapidKey(rawValue) {
+    return String(rawValue || '')
+      .trim()
+      .replace(/^["'`]+|["'`]+$/g, '')
+      .replace(/\s+/g, '');
+  }
+
+  function applicationServerKeyFromVapid(rawValue) {
+    var normalized = normalizePushVapidKey(rawValue);
+    if (!normalized) {
+      throw new Error('Missing VAPID key');
+    }
+
+    var outputArray = urlBase64ToUint8Array(normalized);
+    if (outputArray.length !== 65 || outputArray[0] !== 4) {
+      throw new Error('Invalid VAPID key');
+    }
+
+    return outputArray;
   }
 
   function urlBase64ToUint8Array(base64String) {

@@ -48,6 +48,16 @@ class DemoAccessService
         $this->platformDb = $platformDb ?? Database::connect('platform');
     }
 
+    public function isDemoSiteEnabled(): bool
+    {
+        $raw = env('DEMO_SITE_ENABLED');
+        if ($raw !== null && $raw !== false && trim((string) $raw) !== '') {
+            return $this->isTruthyFlag($raw);
+        }
+
+        return $this->isPublicAccessEnabled() || $this->isDemoBootstrapEnabled();
+    }
+
     public function isPublicAccessEnabled(): bool
     {
         $raw = env('DEMO_PUBLIC_ROLE_SWITCH_ENABLED');
@@ -55,7 +65,27 @@ class DemoAccessService
             $raw = env('demo.publicRoleSwitchEnabled');
         }
 
-        return in_array(strtolower(trim((string) $raw)), ['1', 'true', 'yes', 'on'], true);
+        return $this->isTruthyFlag($raw);
+    }
+
+    public function isDemoBootstrapEnabled(): bool
+    {
+        $raw = env('BOOTSTRAP_DEMO_DB');
+        if ($raw === null || $raw === false || trim((string) $raw) === '') {
+            $raw = env('demo.bootstrapDb');
+        }
+
+        return $this->isTruthyFlag($raw);
+    }
+
+    public function isLoginPrefillEnabled(): bool
+    {
+        $raw = env('DEMO_LOGIN_PREFILL_ENABLED');
+        if ($raw === null || $raw === false || trim((string) $raw) === '') {
+            return false;
+        }
+
+        return $this->isTruthyFlag($raw);
     }
 
     /**
@@ -64,25 +94,6 @@ class DemoAccessService
     public function presentationAccounts(): array
     {
         return [
-            [
-                'group_key' => 'platform',
-                'group_title' => 'Console piattaforma',
-                'group_note' => 'Qui provi il super master vero della piattaforma, separato dal responsabile dello studio demo.',
-                'account_type' => 'platform_admin',
-                'role' => 'Super master',
-                'username' => 'demo.platform.master',
-                'candidate_usernames' => ['demo.platform.master', self::DEMO_PLATFORM_MASTER_EMAIL],
-                'login_username' => self::DEMO_PLATFORM_MASTER_EMAIL,
-                'login_password' => self::DEMO_PLATFORM_PASSWORD,
-                'platform_email' => self::DEMO_PLATFORM_MASTER_EMAIL,
-                'platform_first_name' => 'Giulia',
-                'platform_last_name' => 'Conti',
-                'label' => 'Super master piattaforma demo',
-                'note' => 'Apre la console centrale piattaforma per vedere studi attivi, funzioni globali e regia master.',
-                'redirect_route' => 'piattaforma/spazi-clienti',
-                'prefer_account_redirect' => true,
-                'scenarios' => ['console piattaforma', 'super master', 'spazi clienti'],
-            ],
             [
                 'group_key' => 'tenant',
                 'group_title' => 'Studio demo senza login',
@@ -364,12 +375,23 @@ class DemoAccessService
         $this->ensurePlatformDemoTenantFeatures((int) $setup['tenant_id'], (int) $setup['platform_user_id']);
         $result = (new TenantAppSessionBootstrapService())->bootstrap($setup['platform_user_id'], $setup['tenant_id']);
         $this->decorateCurrentSession($account, $setup['resolved_username']);
+        $this->confirmPublicDemoTenantSession();
 
         return [
             'account' => $account,
             'redirectUrl' => $this->resolveRedirectUrl($account, $result),
             'resolved_username' => $setup['resolved_username'],
         ];
+    }
+
+    private function confirmPublicDemoTenantSession(): void
+    {
+        session()->remove(TenantLoginOtpService::SESSION_KEY_REQUIRED);
+        session()->set([
+            'isLoggedIn' => true,
+            'isLoggedInConfirmed' => true,
+            'loginSource' => 'demo_public_access',
+        ]);
     }
 
     private function loginPlatformAdminAccount(array $account): array
@@ -384,6 +406,11 @@ class DemoAccessService
             'redirectUrl' => site_url(trim((string) ($account['redirect_route'] ?? 'piattaforma/spazi-clienti'), '/')),
             'resolved_username' => (string) ($account['username'] ?? ''),
         ];
+    }
+
+    private function isTruthyFlag(mixed $value): bool
+    {
+        return in_array(strtolower(trim((string) $value)), ['1', 'true', 'yes', 'on'], true);
     }
 
     private function ensurePlatformDemoTenantFeatures(int $tenantId, int $platformUserId): void

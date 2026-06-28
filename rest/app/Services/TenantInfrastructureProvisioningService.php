@@ -336,7 +336,7 @@ class TenantInfrastructureProvisioningService
             return false;
         }
 
-        $runtimePassword = (string) env($passwordRef, '');
+        $runtimePassword = $this->tenantDbConnector->resolvePasswordValue($passwordRef);
         if ($runtimePassword === '') {
             return false;
         }

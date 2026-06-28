@@ -39,13 +39,13 @@ COPY docker/php.ini /usr/local/etc/php/conf.d/codex-app.ini
 COPY docker/start-container.sh /usr/local/bin/start-container
 
 RUN chmod +x /usr/local/bin/start-container \
-    && composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction \
+    && composer install --no-dev --optimize-autoloader --no-interaction \
     && mkdir -p upload rest/writable rest/writable/cache rest/writable/cache/temp rest/writable/logs rest/writable/session rest/writable/uploads rest/writable/uploads/messages rest/writable/uploads/messages/drafts rest/writable/uploads/chat rest/writable/uploads/agenda_backup rest/writable/debugbar rest/writable/demo_setup rest/writable/demo_requests rest/writable/reminder_state rest/writable/locks \
     && chown -R www-data:www-data /var/www/html
 
 EXPOSE 80
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=5s --start-period=180s --retries=3 \
   CMD curl -fsS http://127.0.0.1/ || exit 1
 
 ENTRYPOINT ["/usr/local/bin/start-container"]

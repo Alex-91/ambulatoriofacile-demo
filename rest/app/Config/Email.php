@@ -123,42 +123,83 @@ class Email extends BaseConfig
     {
         parent::__construct();
 
-        $smtpHost = trim((string) env('email.SMTPHost', ''));
-        $protocol = trim((string) env('email.protocol', ''));
+        $smtpHost = $this->envString(['email.SMTPHost', 'EMAIL_SMTP_HOST']);
+        $protocol = $this->envString(['email.protocol', 'EMAIL_PROTOCOL']);
 
-        $this->fromEmail     = trim((string) env('email.fromEmail', $this->fromEmail));
-        $this->fromName      = trim((string) env('email.fromName', $this->fromName));
-        $this->recipients    = trim((string) env('email.recipients', $this->recipients));
+        $this->fromEmail     = $this->envString(['email.fromEmail', 'EMAIL_FROM_ADDRESS'], $this->fromEmail);
+        $this->fromName      = $this->envString(['email.fromName', 'EMAIL_FROM_NAME'], $this->fromName);
+        $this->recipients    = $this->envString(['email.recipients', 'EMAIL_RECIPIENTS'], $this->recipients);
         $this->protocol      = $protocol !== '' ? $protocol : ($smtpHost !== '' ? 'smtp' : $this->protocol);
-        $this->mailPath      = trim((string) env('email.mailPath', $this->mailPath));
+        $this->mailPath      = $this->envString(['email.mailPath', 'EMAIL_MAIL_PATH'], $this->mailPath);
         $this->SMTPHost      = $smtpHost !== '' ? $smtpHost : $this->SMTPHost;
-        $this->SMTPUser      = trim((string) env('email.SMTPUser', $this->SMTPUser));
-        $this->SMTPPass      = (string) env('email.SMTPPass', $this->SMTPPass);
-        $this->SMTPPort      = (int) env('email.SMTPPort', $this->SMTPPort);
-        $this->SMTPTimeout   = (int) env('email.SMTPTimeout', $this->SMTPTimeout);
-        $this->SMTPKeepAlive = $this->envBool('email.SMTPKeepAlive', $this->SMTPKeepAlive);
-        $this->SMTPCrypto    = (string) env('email.SMTPCrypto', $this->SMTPCrypto);
-        $this->wordWrap      = $this->envBool('email.wordWrap', $this->wordWrap);
-        $this->wrapChars     = (int) env('email.wrapChars', $this->wrapChars);
-        $this->mailType      = trim((string) env('email.mailType', $this->mailType));
-        $this->charset       = trim((string) env('email.charset', $this->charset));
-        $this->validate      = $this->envBool('email.validate', $this->validate);
-        $this->priority      = (int) env('email.priority', $this->priority);
-        $this->CRLF          = (string) env('email.CRLF', $this->CRLF);
-        $this->newline       = (string) env('email.newline', $this->newline);
-        $this->BCCBatchMode  = $this->envBool('email.BCCBatchMode', $this->BCCBatchMode);
-        $this->BCCBatchSize  = (int) env('email.BCCBatchSize', $this->BCCBatchSize);
-        $this->DSN           = $this->envBool('email.DSN', $this->DSN);
+        $this->SMTPUser      = $this->envString(['email.SMTPUser', 'EMAIL_SMTP_USER'], $this->SMTPUser);
+        $this->SMTPPass      = $this->envString(['email.SMTPPass', 'EMAIL_SMTP_PASS'], $this->SMTPPass);
+        $this->SMTPPort      = $this->envInt(['email.SMTPPort', 'EMAIL_SMTP_PORT'], $this->SMTPPort);
+        $this->SMTPTimeout   = $this->envInt(['email.SMTPTimeout', 'EMAIL_SMTP_TIMEOUT'], $this->SMTPTimeout);
+        $this->SMTPKeepAlive = $this->envBool(['email.SMTPKeepAlive', 'EMAIL_SMTP_KEEP_ALIVE'], $this->SMTPKeepAlive);
+        $this->SMTPCrypto    = $this->envString(['email.SMTPCrypto', 'EMAIL_SMTP_CRYPTO'], $this->SMTPCrypto);
+        $this->wordWrap      = $this->envBool(['email.wordWrap', 'EMAIL_WORD_WRAP'], $this->wordWrap);
+        $this->wrapChars     = $this->envInt(['email.wrapChars', 'EMAIL_WRAP_CHARS'], $this->wrapChars);
+        $this->mailType      = $this->envString(['email.mailType', 'EMAIL_MAIL_TYPE'], $this->mailType);
+        $this->charset       = $this->envString(['email.charset', 'EMAIL_CHARSET'], $this->charset);
+        $this->validate      = $this->envBool(['email.validate', 'EMAIL_VALIDATE'], $this->validate);
+        $this->priority      = $this->envInt(['email.priority', 'EMAIL_PRIORITY'], $this->priority);
+        $this->CRLF          = $this->envString(['email.CRLF', 'EMAIL_CRLF'], $this->CRLF);
+        $this->newline       = $this->envString(['email.newline', 'EMAIL_NEWLINE'], $this->newline);
+        $this->BCCBatchMode  = $this->envBool(['email.BCCBatchMode', 'EMAIL_BCC_BATCH_MODE'], $this->BCCBatchMode);
+        $this->BCCBatchSize  = $this->envInt(['email.BCCBatchSize', 'EMAIL_BCC_BATCH_SIZE'], $this->BCCBatchSize);
+        $this->DSN           = $this->envBool(['email.DSN', 'EMAIL_DSN'], $this->DSN);
     }
 
-    private function envBool(string $key, bool $default): bool
+    /**
+     * @param list<string> $keys
+     */
+    private function envString(array $keys, string $default = ''): string
     {
-        $value = env($key);
-        if ($value === null || $value === '') {
-            return $default;
+        foreach ($keys as $key) {
+            $value = env($key);
+            if ($value === null || $value === '') {
+                continue;
+            }
+
+            return trim((string) $value);
         }
 
-        $parsed = filter_var($value, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE);
-        return $parsed ?? $default;
+        return $default;
+    }
+
+    /**
+     * @param list<string> $keys
+     */
+    private function envInt(array $keys, int $default): int
+    {
+        foreach ($keys as $key) {
+            $value = env($key);
+            if ($value === null || $value === '') {
+                continue;
+            }
+
+            return (int) $value;
+        }
+
+        return $default;
+    }
+
+    /**
+     * @param list<string> $keys
+     */
+    private function envBool(array $keys, bool $default): bool
+    {
+        foreach ($keys as $key) {
+            $value = env($key);
+            if ($value === null || $value === '') {
+                continue;
+            }
+
+            $parsed = filter_var($value, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE);
+            return $parsed ?? $default;
+        }
+
+        return $default;
     }
 }

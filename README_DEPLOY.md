@@ -130,12 +130,24 @@ Se vuoi attivare anche il multi-tenant con provisioning da pannello admin:
 Per il portale reale con login unico su root dominio usa questa logica:
 
 1. `BOOTSTRAP_DEMO_DB=0`
-2. `app.baseURL=https://ambulatoriofacile.it/app/`
-3. `APP_CANONICAL_URL=https://ambulatoriofacile.it/app/`
-4. `APP_PUBLIC_ACCESS_BASE_URL=https://ambulatoriofacile.it/`
-5. `PLATFORM_MASTER_EMAILS=tuamail@dominio.it,amico@dominio.it` solo se vuoi tenere un seed/bootstrap tecnico da Coolify per i master piattaforma
-6. domini Coolify della app reale:
+2. `DEMO_SITE_ENABLED=0`
+3. `DEMO_PUBLIC_ROLE_SWITCH_ENABLED=0`
+4. `DEMO_LOGIN_PREFILL_ENABLED=0`
+5. `app.baseURL=https://ambulatoriofacile.it/app/`
+6. `APP_CANONICAL_URL=https://ambulatoriofacile.it/app/`
+7. `APP_PUBLIC_ACCESS_BASE_URL=https://ambulatoriofacile.it/`
+8. `PLATFORM_MASTER_EMAILS=tuamail@dominio.it,amico@dominio.it` solo se vuoi tenere un seed/bootstrap tecnico da Coolify per i master piattaforma
+9. domini Coolify della app reale:
    `https://ambulatoriofacile.it/login,https://ambulatoriofacile.it/app`
+
+Per la demo commerciale usa invece:
+
+1. `DEMO_SITE_ENABLED=1`
+2. `BOOTSTRAP_DEMO_DB=1`
+3. `DEMO_PUBLIC_ROLE_SWITCH_ENABLED=1`
+4. `DEMO_LOGIN_PREFILL_ENABLED=0` per lasciare il login reale pulito anche se il codice e' lo stesso
+5. dominio Coolify demo:
+   `https://ambulatoriofacile.it/demo` oppure `https://demo.ambulatoriofacile.it/`
 
 ### 5. Monta i volumi persistenti
 
@@ -178,6 +190,19 @@ Se attivi il multi-tenant, aggiungi anche questi test:
 5. accesso master a `ambulatoriofacile.it/login/piattaforma/spazi-clienti`
 6. gestione utenti cliente da `ambulatoriofacile.it/login/spazio/utenti`
 
+## Reset notturno demo
+
+Per la demo commerciale puoi mantenere il database sempre fresco con un reset schedulato:
+
+1. seed rolling di default su 5 giorni lavorativi
+2. endpoint protetto da token per trigger remoto
+3. comando CLI dedicato per esecuzione manuale o da cron
+4. loop automatico nel container attivabile da env, senza aprire ogni volta Coolify
+
+Dettagli operativi:
+
+- `rest/docs/demo-reset-notturno.md`
+
 ## Flusso futuro con Codex
 
 Da quel momento il flusso e':
@@ -187,6 +212,28 @@ Da quel momento il flusso e':
 3. push su GitHub
 4. Coolify redeploya
 5. vedi subito la modifica live in demo
+
+## Tenere demo e login allineati
+
+La regola pratica migliore e':
+
+1. un solo repository
+2. stesso branch `main`
+3. due app Coolify separate
+4. database, upload, writable ed env sempre separati
+
+Flusso consigliato di rilascio:
+
+1. sviluppi una volta sola nel repo prodotto
+2. push su `main`
+3. deploy su `demo`
+4. verifica funzionale rapida in `demo`
+5. deploy su `login/app` usando lo stesso commit
+
+In questo modo il codice resta allineato, ma il comportamento resta separato:
+
+- `demo` mostra accessi diretti e reset notturno
+- `login/app` continua con login reale e dati reali
 
 ## Regola importante per il database
 

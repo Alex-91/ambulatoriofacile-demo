@@ -17,7 +17,7 @@ class Push extends BaseConfig
 
     public function __construct()
     {
-        $this->vapidPublicKey = trim(env('VAPID_PUBLIC_KEY',''));
+        $this->vapidPublicKey = push_vapid_public_key();
         $this->vapidSubject   = trim(env('VAPID_SUBJECT','mailto:admin@example.com'));
 
         $this->mode         = 'remote';

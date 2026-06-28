@@ -31,7 +31,7 @@ class PushController extends BaseController
     public function publicKey()
     {
         return $this->response->setJSON([
-            'key' => env('VAPID_PUBLIC_KEY', ''),
+            'key' => push_vapid_public_key(),
         ]);
     }
 

@@ -16,14 +16,17 @@ $routes->post('richiesta/invia', 'DemoController::submitDemoRequest');
 $routes->get('richieste-locali', 'DemoController::requestInbox');
 $routes->get('richieste-locali/export', 'DemoController::exportRequestInbox');
 $routes->get('demo', 'DemoController::index');
+$routes->get('demo/', 'DemoController::index');
 $routes->get('demo/access', 'DemoController::access');
 $routes->get('demo/entra', 'DemoAccessController::enter');
 $routes->get('demo/vertical/(:segment)', 'DemoController::vertical/$1');
 $routes->get('demo/access/(:segment)', 'DemoController::access/$1');
+$routes->get('demo/reset-demo/run', 'DemoResetController::run');
 $routes->get('demo/richiesta', 'DemoController::requestDemo');
 $routes->post('demo/richiesta/invia', 'DemoController::submitDemoRequest');
 $routes->get('demo/richieste-locali', 'DemoController::requestInbox');
 $routes->get('demo/richieste-locali/export', 'DemoController::exportRequestInbox');
+$routes->get('reset-demo/run', 'DemoResetController::run');
 $routes->get('app', 'Home::index');
 $routes->head('app', 'Home::index');
 $routes->get('nuovo', 'Admin\Personale::create');
@@ -181,6 +184,10 @@ $routes->post('posta/attachment/delete', 'Posta\PostaController::deleteAttachmen
 $routes->get('posta/attachment/list',   'Posta\PostaController::listAttachmentTemp');
 $routes->get('posta/attachment/(:num)', 'Posta\PostaController::attachment/$1');
 $routes->get('inviata', 'Posta\PostaController::sent');
+
+if (ENVIRONMENT === 'development') {
+    $routes->get('dev/agenda-spazio-test', 'Dev\LocalDebugController::agendaSpazioTest');
+}
 
 $routes->post('draft/create', 'DraftController::create');  // crea bozza dap10_message
 $routes->post('draft/save',   'DraftController::save');    // autosave

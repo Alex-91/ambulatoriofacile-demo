@@ -22,11 +22,15 @@ class DemoController extends Controller
 
     public function vertical(string $profileId)
     {
+        $this->ensureDemoSiteEnabled();
+
         return redirect()->to(site_url('/'));
     }
 
     public function access(?string $profileId = null)
     {
+        $this->ensureDemoSiteEnabled();
+
         $seedReport = $this->loadLatestReport('demo_seed_*.json');
         $isLocal = $this->isLocalHost();
         $demoAccess = new DemoAccessService();
@@ -51,6 +55,8 @@ class DemoController extends Controller
 
     public function requestDemo()
     {
+        $this->ensureDemoSiteEnabled();
+
         $isLocal = $this->isLocalHost();
         $feedback = session()->getFlashdata('demo_request_feedback');
         $errors = session()->getFlashdata('demo_request_errors');
@@ -71,6 +77,8 @@ class DemoController extends Controller
 
     public function submitDemoRequest()
     {
+        $this->ensureDemoSiteEnabled();
+
         $demoContext = $this->unifiedDemoRequestContext();
         $payload = [
             'full_name' => trim((string) $this->request->getPost('full_name')),
@@ -169,6 +177,8 @@ class DemoController extends Controller
 
     public function requestInbox()
     {
+        $this->ensureDemoSiteEnabled();
+
         if (! $this->isLocalHost()) {
             throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
         }
@@ -194,6 +204,8 @@ class DemoController extends Controller
 
     public function exportRequestInbox()
     {
+        $this->ensureDemoSiteEnabled();
+
         if (! $this->isLocalHost()) {
             throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
         }
@@ -244,6 +256,15 @@ class DemoController extends Controller
         $host = trim((string) preg_replace('/:\d+$/', '', $host));
 
         return in_array($host, ['', 'localhost', '127.0.0.1', '::1'], true);
+    }
+
+    private function ensureDemoSiteEnabled(): void
+    {
+        if ((new DemoAccessService())->isDemoSiteEnabled()) {
+            return;
+        }
+
+        throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
     }
 
     /**

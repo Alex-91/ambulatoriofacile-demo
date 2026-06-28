@@ -394,12 +394,13 @@
 
 <script src="<?= base_url('public/bootstrap/js/bootstrap.min.js') ?>"></script>
 <script src="<?= base_url('public/dist/js/app.min.js') ?>"></script>
+<script src="<?= base_url('public/assets/js/push-registration.js') ?>"></script>
 <script>
 (function(){
   const btn = document.getElementById('btnLinkHere');
   if (!btn) return;
 
-  const vapidKey = "<?= esc($vapidPublicKey ?? '') ?>";
+  const vapidKey = normalizePushVapidKey(<?= json_encode($vapidPublicKey ?? '') ?>);
   const csrfName = "<?= csrf_token() ?>";
   const csrfHash = "<?= csrf_hash() ?>";
   const iconUrl = "<?= base_url('notifications/icon.svg') ?>";
@@ -535,9 +536,7 @@
       if (!('serviceWorker' in navigator)) throw new Error('Service Worker non supportato');
       if (!('PushManager' in window)) throw new Error(unsupportedNotificationsMessage());
       if (typeof Notification === 'undefined') throw new Error(unsupportedNotificationsMessage());
-
-      const reg = await navigator.serviceWorker.register("<?= base_url('sw.js') ?>");
-      await navigator.serviceWorker.ready;
+      const reg = await window.PushRegistration.ensureServiceWorker("<?= base_url('sw.js') ?>");
 
       const perm = await Notification.requestPermission();
       if (perm !== 'granted') {
@@ -550,10 +549,8 @@
 
       await ensureDeviceNotificationsAvailable(reg);
 
-      const sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(vapidKey),
-      });
+      const pushState = await window.PushRegistration.ensurePushSubscription("<?= base_url('sw.js') ?>", vapidKey);
+      const sub = pushState.subscription;
 
       const deviceLabel = await getDeviceName();
 
@@ -583,6 +580,30 @@
       btn.innerHTML = '<i class="fa fa-link"></i> Associa questo dispositivo';
     }
   });
+
+  function normalizePushVapidKey(rawValue) {
+    return String(rawValue || '')
+      .trim()
+      .replace(/^["'`]+|["'`]+$/g, '')
+      .replace(/\s+/g, '');
+  }
+
+  function applicationServerKeyFromVapid(rawValue) {
+    const normalized = normalizePushVapidKey(rawValue);
+    if (!normalized) {
+      throw new Error('Configurazione notifiche push non disponibile. Ricarica la pagina e riprova.');
+    }
+
+    try {
+      const outputArray = urlBase64ToUint8Array(normalized);
+      if (outputArray.length !== 65 || outputArray[0] !== 4) {
+        throw new Error('invalid_length');
+      }
+      return outputArray;
+    } catch (_) {
+      throw new Error('Configurazione notifiche push non valida. Ricarica la pagina e riprova.');
+    }
+  }
 
   function urlBase64ToUint8Array(base64String) {
     const padding = '='.repeat((4 - base64String.length % 4) % 4);

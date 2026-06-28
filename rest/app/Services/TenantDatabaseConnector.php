@@ -55,7 +55,7 @@ class TenantDatabaseConnector
             throw new \RuntimeException('Configurazione database tenant incompleta.');
         }
 
-        $password = (string) env($dbPasswordRef, '');
+        $password = $this->resolvePasswordValue($dbPasswordRef);
         if ($password === '') {
             throw new \RuntimeException('Variabile ambiente tenant non trovata: ' . $dbPasswordRef);
         }
@@ -81,6 +81,28 @@ class TenantDatabaseConnector
         return Database::connect($this->buildConnectionConfig($tenant), false);
     }
 
+    public function resolvePasswordValue(string $reference): string
+    {
+        $reference = trim($reference);
+        if ($reference === '') {
+            return '';
+        }
+
+        $candidates = array_values(array_unique(array_filter(array_merge(
+            [$reference],
+            $this->passwordReferenceAliases($reference)
+        ))));
+
+        foreach ($candidates as $candidate) {
+            $value = env($candidate);
+            if ($value !== null && $value !== '') {
+                return trim((string) $value);
+            }
+        }
+
+        return '';
+    }
+
     private function defaultTenantDatabaseName(string $tenantKey): string
     {
         $tenantKey = strtolower(trim($tenantKey));
@@ -88,6 +110,21 @@ class TenantDatabaseConnector
         $tenantKey = trim($tenantKey, '_');
 
         return $tenantKey !== '' ? 'af_' . $tenantKey : '';
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function passwordReferenceAliases(string $reference): array
+    {
+        $map = [
+            'DB_PASSWORD' => ['database.default.password'],
+            'database.default.password' => ['DB_PASSWORD'],
+            'PLATFORM_DB_PASSWORD' => ['database.platform.password'],
+            'database.platform.password' => ['PLATFORM_DB_PASSWORD'],
+        ];
+
+        return $map[$reference] ?? [];
     }
 
     private function envValue(string $primaryKey, string $fallbackKey, string $default = ''): string

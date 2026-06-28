@@ -7,6 +7,21 @@
         helper(['portal', 'session_auth']);
         $sharedMemoManagementEnabled = !empty($sharedMemoManagementEnabled);
         $agendaConsoleUrl = null;
+        $assetVersion = static function (string $relativePath): string {
+            $normalizedPath = str_replace(['/', '\\'], DIRECTORY_SEPARATOR, ltrim($relativePath, '/\\'));
+            $absolutePath = rtrim(FCPATH, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $normalizedPath;
+
+            if (!is_file($absolutePath)) {
+                return '';
+            }
+
+            $mtime = @filemtime($absolutePath);
+            if (!$mtime) {
+                return '';
+            }
+
+            return '?v=' . rawurlencode((string) $mtime);
+        };
         if (session_has_operational_profile_access()) {
             $agendaConsoleUrl = portal_operational_home_url();
         }
@@ -34,19 +49,21 @@
     ?>
     <title><?= esc($agendaTitle . (' | AmbulatorioFacile')) ?></title>
     <meta content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" name="viewport">
-<link href="<?= base_url('public/css/agenda-menu.css') ?>" rel="stylesheet" type="text/css" />
-    <link href="<?= base_url('public/bootstrap/css/bootstrap.min.css') ?>" rel="stylesheet" type="text/css" />
-    <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css" rel="stylesheet" type="text/css" />
-    <link href="https://code.ionicframework.com/ionicons/2.0.1/css/ionicons.min.css" rel="stylesheet" type="text/css" />
+<link href="<?= base_url('public/css/agenda-menu.css') . $assetVersion('public/css/agenda-menu.css') ?>" rel="stylesheet" type="text/css" />
+    <link href="<?= base_url('public/bootstrap/css/bootstrap.min.css') . $assetVersion('public/bootstrap/css/bootstrap.min.css') ?>" rel="stylesheet" type="text/css" />
+    <link href="<?= base_url('public/assets/fontawesome/css/all.min.css') . $assetVersion('public/assets/fontawesome/css/all.min.css') ?>" rel="stylesheet" type="text/css" />
+    <link href="<?= base_url('public/assets/fontawesome/css/v4-shims.min.css') . $assetVersion('public/assets/fontawesome/css/v4-shims.min.css') ?>" rel="stylesheet" type="text/css" />
+    <link href="<?= base_url('public/assets/fontawesome/css/v4-font-face.min.css') . $assetVersion('public/assets/fontawesome/css/v4-font-face.min.css') ?>" rel="stylesheet" type="text/css" />
+    <link href="<?= base_url('public/assets/css/ionicons.min.css') . $assetVersion('public/assets/css/ionicons.min.css') ?>" rel="stylesheet" type="text/css" />
 
-    <link href="<?= base_url('public/plugins/fullcalendar/fullcalendar.min.css') ?>" rel="stylesheet" type="text/css" />
-    <link href="<?= base_url('public/plugins/fullcalendar/fullcalendar.print.css') ?>" rel="stylesheet" type="text/css" media="print" />
+    <link href="<?= base_url('public/plugins/fullcalendar/fullcalendar.min.css') . $assetVersion('public/plugins/fullcalendar/fullcalendar.min.css') ?>" rel="stylesheet" type="text/css" />
+    <link href="<?= base_url('public/plugins/fullcalendar/fullcalendar.print.css') . $assetVersion('public/plugins/fullcalendar/fullcalendar.print.css') ?>" rel="stylesheet" type="text/css" media="print" />
 
-    <link href="<?= base_url('public/dist/css/AdminLTE.css') ?>" rel="stylesheet" type="text/css" />
-    <link href="<?= base_url('public/dist/css/skins/_all-skins.min.css') ?>" rel="stylesheet" type="text/css" />
-    <link href="<?= base_url('public/plugins/iCheck/flat/blue.css') ?>" rel="stylesheet" type="text/css" />
+    <link href="<?= base_url('public/dist/css/AdminLTE.css') . $assetVersion('public/dist/css/AdminLTE.css') ?>" rel="stylesheet" type="text/css" />
+    <link href="<?= base_url('public/dist/css/skins/_all-skins.min.css') . $assetVersion('public/dist/css/skins/_all-skins.min.css') ?>" rel="stylesheet" type="text/css" />
+    <link href="<?= base_url('public/plugins/iCheck/flat/blue.css') . $assetVersion('public/plugins/iCheck/flat/blue.css') ?>" rel="stylesheet" type="text/css" />
 
-    <link href="<?= base_url('public/css/agenda.css') ?>" rel="stylesheet" type="text/css" />
+    <link href="<?= base_url('public/css/agenda.css') . $assetVersion('public/css/agenda.css') ?>" rel="stylesheet" type="text/css" />
 
     <style>
    
@@ -2588,14 +2605,86 @@ window.AGENDA_CONFIG = {
 };
 </script>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jQuery-slimScroll/1.3.8/jquery.slimscroll.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/fastclick/1.0.6/fastclick.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/admin-lte/2.4.18/js/adminlte.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/iCheck/1.0.2/icheck.min.js"></script>
+<script src="<?= base_url('public/plugins/slimScroll/jquery.slimscroll.min.js') . $assetVersion('public/plugins/slimScroll/jquery.slimscroll.min.js') ?>"></script>
+<script src="<?= base_url('public/plugins/fastclick/fastclick.min.js') . $assetVersion('public/plugins/fastclick/fastclick.min.js') ?>"></script>
+<script src="<?= base_url('public/dist/js/app.min.js') . $assetVersion('public/dist/js/app.min.js') ?>"></script>
+<script src="<?= base_url('public/plugins/iCheck/icheck.min.js') . $assetVersion('public/plugins/iCheck/icheck.min.js') ?>"></script>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/3.10.2/fullcalendar.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/3.10.2/locale/it.js"></script>
+<script src="<?= base_url('public/plugins/daterangepicker/moment.min.js') . $assetVersion('public/plugins/daterangepicker/moment.min.js') ?>"></script>
+<script src="<?= base_url('public/plugins/fullcalendar/fullcalendar.min.js') . $assetVersion('public/plugins/fullcalendar/fullcalendar.min.js') ?>"></script>
+<script>
+if (window.moment && window.moment.fn) {
+    if (typeof window.moment.fn.isSameOrBefore !== 'function') {
+        window.moment.fn.isSameOrBefore = function(input, units) {
+            return this.isSame(input, units) || this.isBefore(input, units);
+        };
+    }
+
+    if (typeof window.moment.fn.isSameOrAfter !== 'function') {
+        window.moment.fn.isSameOrAfter = function(input, units) {
+            return this.isSame(input, units) || this.isAfter(input, units);
+        };
+    }
+}
+
+if (window.moment && typeof window.moment.locale === 'function') {
+    window.moment.locale('it', {
+        months: ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'],
+        monthsShort: ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'],
+        weekdays: ['domenica', 'lunedi', 'martedi', 'mercoledi', 'giovedi', 'venerdi', 'sabato'],
+        weekdaysShort: ['dom', 'lun', 'mar', 'mer', 'gio', 'ven', 'sab'],
+        weekdaysMin: ['do', 'lu', 'ma', 'me', 'gi', 've', 'sa'],
+        longDateFormat: {
+            LT: 'HH:mm',
+            LTS: 'HH:mm:ss',
+            L: 'DD/MM/YYYY',
+            LL: 'D MMMM YYYY',
+            LLL: 'D MMMM YYYY HH:mm',
+            LLLL: 'dddd D MMMM YYYY HH:mm'
+        },
+        relativeTime: {
+            future: 'tra %s',
+            past: '%s fa',
+            s: 'alcuni secondi',
+            m: 'un minuto',
+            mm: '%d minuti',
+            h: 'un ora',
+            hh: '%d ore',
+            d: 'un giorno',
+            dd: '%d giorni',
+            M: 'un mese',
+            MM: '%d mesi',
+            y: 'un anno',
+            yy: '%d anni'
+        },
+        week: {
+            dow: 1,
+            doy: 4
+        }
+    });
+}
+
+if (window.jQuery && window.jQuery.fullCalendar) {
+    var agendaItalianLocale = {
+        buttonText: {
+            today: 'oggi',
+            month: 'mese',
+            week: 'settimana',
+            day: 'giorno',
+            list: 'agenda'
+        },
+        allDayText: 'Tutto il giorno',
+        eventLimitText: 'altro',
+        noEventsMessage: 'Nessun evento da visualizzare'
+    };
+
+    if (typeof window.jQuery.fullCalendar.locale === 'function') {
+        window.jQuery.fullCalendar.locale('it', agendaItalianLocale);
+    } else if (typeof window.jQuery.fullCalendar.lang === 'function') {
+        window.jQuery.fullCalendar.lang('it', agendaItalianLocale);
+    }
+}
+</script>
 
 <script>
 var agendaCalendarStep = 15;
@@ -8218,7 +8307,7 @@ $('#nota_giorno_text').on('blur', function() {
     });
 });
 </script>
-<script src="<?= base_url('public/js/agenda-menu.js') ?>"></script>
+<script src="<?= base_url('public/js/agenda-menu.js') . $assetVersion('public/js/agenda-menu.js') ?>"></script>
 </body>
 </html>
 

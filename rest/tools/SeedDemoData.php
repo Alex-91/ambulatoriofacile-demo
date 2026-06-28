@@ -11,13 +11,12 @@ declare(strict_types=1);
 mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 date_default_timezone_set('Europe/Rome');
 
-const DEMO_SEED_DEFAULT_ENV_FILE = '.env.demo';
 const DEMO_SEED_DEFAULT_PASSWORD = 'Demo2026';
 const DEMO_SEED_FORBIDDEN_DATABASES = ['farmacia', 'mail', 'mailsimo'];
 const DEMO_SEED_REPORT_DIR = __DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . 'writable' . DIRECTORY_SEPARATOR . 'demo_setup';
 const DEMO_SEED_LOCAL_DOCTOR_ID_BASE = 1000000000;
-const DEMO_SEED_AGENDA_START_DATE = '2026-06-01';
-const DEMO_SEED_AGENDA_END_DATE = '2026-06-30';
+const DEMO_SEED_DEFAULT_AGENDA_BUSINESS_DAYS = 5;
+const DEMO_SEED_MIN_AGENDA_BUSINESS_DAYS = 2;
 const DEMO_PLATFORM_BOOTSTRAP_MIGRATIONS = [
     '2026-06-19-000001_CreatePlatformMultiTenantFoundation.php' => 'App\\Database\\Migrations\\CreatePlatformMultiTenantFoundation',
     '2026-06-19-000002_CreatePlatformUserAccessTokens.php' => 'App\\Database\\Migrations\\CreatePlatformUserAccessTokens',
@@ -29,16 +28,51 @@ const DEMO_PLATFORM_BOOTSTRAP_MIGRATIONS = [
     '2026-06-22-000003_RepairTenantFeaturePreferencesSchema.php' => 'App\\Database\\Migrations\\RepairTenantFeaturePreferencesSchema',
 ];
 
-main($argv ?? []);
+if (seedDemoDataShouldRunCli()) {
+    exit(seedDemoDataCliMain($argv ?? []));
+}
 
-function main(array $argv): void
+function seedDemoDataShouldRunCli(): bool
+{
+    if (PHP_SAPI !== 'cli') {
+        return false;
+    }
+
+    $scriptFilename = realpath((string) ($_SERVER['SCRIPT_FILENAME'] ?? ''));
+    return $scriptFilename !== false && $scriptFilename === __FILE__;
+}
+
+function seedDemoDataCliMain(array $argv): int
+{
+    $result = seedDemoDataRun($argv, static function (string $message, string $stream = 'stdout'): void {
+        $line = rtrim($message, "\r\n") . PHP_EOL;
+
+        if ($stream === 'stderr') {
+            fwrite(STDERR, $line);
+            return;
+        }
+
+        echo $line;
+    });
+
+    return (int) ($result['exit_code'] ?? 1);
+}
+
+/**
+ * @param array<int, string> $argv
+ * @param null|callable(string, string): void $logger
+ * @return array<string, mixed>
+ */
+function seedDemoDataRun(array $argv, ?callable $logger = null): array
 {
     ensureDirectory(DEMO_SEED_REPORT_DIR);
 
     $options = parseOptions($argv);
     $envPath = resolveEnvFilePath($options['env_file']);
-    $env = loadSimpleEnvFile($envPath);
-    applyRuntimeEnvironment($env);
+    $env = $envPath !== '' ? loadSimpleEnvFile($envPath) : [];
+    if ($env !== []) {
+        applyRuntimeEnvironment($env);
+    }
 
     $config = buildRuntimeConfig($options, $env, $envPath);
     applyRuntimeConfigOverrides($config);
@@ -79,7 +113,12 @@ function main(array $argv): void
             'clients' => [],
         ];
 
-        $fixtures = buildFixtures($config['demo_password']);
+        $fixtures = buildFixtures($config['demo_password'], $config['agenda_days']);
+        $report['summary']['agenda_window'] = [
+            'start_date' => $fixtures['agenda_days'][0] ?? $config['agenda_start_date'],
+            'end_date' => $fixtures['agenda_days'][count($fixtures['agenda_days']) - 1] ?? $config['agenda_start_date'],
+            'business_days' => count($fixtures['agenda_days']),
+        ];
 
         $db->begin_transaction();
 
@@ -91,7 +130,7 @@ function main(array $argv): void
         seedUserSchede($db, $state, $report);
         seedStaffLinks($db, $fixtures['staff_links'], $state, $report);
         seedDoctorReminderFlags($db, $state, $report);
-        seedAgenda($db, $fixtures['agenda'], $state, $report);
+        seedAgenda($db, $fixtures['agenda'], $fixtures['agenda_days'], $state, $report);
         seedHomeVisits($db, $fixtures['home_visits'], $state, $report);
         seedChatData($db, $fixtures['chat_threads'], $state, $report);
         seedPostaData($db, $fixtures['posta_threads'], $state, $report);
@@ -109,20 +148,23 @@ function main(array $argv): void
         ];
 
         $path = writeReport($report);
+        seedDemoDataLog($logger, "Demo seed completato su {$config['database']}");
+        seedDemoDataLog($logger, "Brand demo: {$config['brand']}");
+        seedDemoDataLog($logger, 'Finestra agenda: ' . ($report['summary']['agenda_window']['start_date'] ?? '?') . ' -> ' . ($report['summary']['agenda_window']['end_date'] ?? '?') . ' (' . (int) ($report['summary']['agenda_window']['business_days'] ?? 0) . ' giorni lavorativi)');
+        seedDemoDataLog($logger, "Password demo comune: {$config['demo_password']}");
+        seedDemoDataLog($logger, 'Account admin: demo.admin');
+        seedDemoDataLog($logger, 'Account operativo con OTP fisso: demo.dietista (OTP 2510)');
+        seedDemoDataLog($logger, "Report: {$path}");
 
-        echo "Demo seed completato su {$config['database']}\n";
-        echo "Brand demo: {$config['brand']}\n";
-        echo "Password demo comune: {$config['demo_password']}\n";
-        echo "Account admin: demo.admin\n";
-        echo "Account operativo con OTP fisso: demo.dietista (OTP 2510)\n";
-        echo "Report: {$path}\n";
-        exit(0);
+        return [
+            'ok' => true,
+            'exit_code' => 0,
+            'report' => $report,
+            'report_path' => $path,
+            'config' => $config,
+        ];
     } catch (Throwable $e) {
-        if ($db->errno === 0) {
-            safeRollback($db);
-        } else {
-            safeRollback($db);
-        }
+        safeRollback($db);
 
         $report['finished_at'] = date('c');
         $report['status'] = 'error';
@@ -132,9 +174,17 @@ function main(array $argv): void
             'line' => $e->getLine(),
         ];
         $path = writeReport($report);
-        fwrite(STDERR, "Errore seed demo: {$e->getMessage()}\n");
-        fwrite(STDERR, "Report: {$path}\n");
-        exit(1);
+        seedDemoDataLog($logger, "Errore seed demo: {$e->getMessage()}", 'stderr');
+        seedDemoDataLog($logger, "Report: {$path}", 'stderr');
+
+        return [
+            'ok' => false,
+            'exit_code' => 1,
+            'report' => $report,
+            'report_path' => $path,
+            'config' => $config ?? [],
+            'error' => $e,
+        ];
     } finally {
         $db->close();
     }
@@ -143,7 +193,7 @@ function main(array $argv): void
 function parseOptions(array $argv): array
 {
     return [
-        'env_file' => optionValue($argv, 'env-file') ?: DEMO_SEED_DEFAULT_ENV_FILE,
+        'env_file' => optionValue($argv, 'env-file') ?: '',
         'host' => optionValue($argv, 'host'),
         'port' => optionValue($argv, 'port'),
         'user' => optionValue($argv, 'user'),
@@ -153,6 +203,8 @@ function parseOptions(array $argv): array
         'db_mode' => optionValue($argv, 'db-mode'),
         'brand' => optionValue($argv, 'brand'),
         'demo_password' => optionValue($argv, 'demo-password') ?: DEMO_SEED_DEFAULT_PASSWORD,
+        'agenda_start_date' => optionValue($argv, 'agenda-start-date'),
+        'agenda_business_days' => optionValue($argv, 'agenda-business-days'),
     ];
 }
 
@@ -168,8 +220,13 @@ function optionValue(array $argv, string $name): ?string
     return null;
 }
 
-function resolveEnvFilePath(string $envFile): string
+function resolveEnvFilePath(?string $envFile): string
 {
+    $envFile = trim((string) $envFile);
+    if ($envFile === '') {
+        return '';
+    }
+
     $candidate = $envFile;
     if (!preg_match('/^[A-Za-z]:\\\\|^\//', $candidate)) {
         $candidate = dirname(__DIR__) . DIRECTORY_SEPARATOR . $envFile;
@@ -258,24 +315,28 @@ function applyRuntimeConfigOverrides(array $config): void
 function buildRuntimeConfig(array $options, array $env, string $envPath): array
 {
     $config = [
-        'host' => trim((string)($options['host'] ?: ($env['database.default.hostname'] ?? 'localhost'))),
-        'port' => (int)($options['port'] ?: ($env['database.default.port'] ?? 3306)),
-        'user' => trim((string)($options['user'] ?: ($env['database.default.username'] ?? 'root'))),
-        'pass' => (string)($options['pass'] ?? ($env['database.default.password'] ?? 'root')),
-        'database' => trim((string)($options['database'] ?: ($env['database.default.database'] ?? 'ambulatoriofacile_demo'))),
-        'db_key' => trim((string)($options['db_key'] ?: ($env['DB_ENCRYPTION_KEY'] ?? ($env['database.default.DB_ENCRYPTION_KEY'] ?? '')))),
-        'db_mode' => trim((string)($options['db_mode'] ?: ($env['DB_ENCRYPTION_MODE'] ?? 'aes-256-cbc'))),
-        'brand' => trim((string)($options['brand'] ?: ($env['PRODUCT_BRAND_NAME'] ?? 'AmbulatorioFacile'))),
+        'host' => trim((string) runtimeConfigValue($options['host'] ?? null, $env, ['database.default.hostname', 'DB_HOST'], 'localhost')),
+        'port' => (int) runtimeConfigValue($options['port'] ?? null, $env, ['database.default.port', 'DB_PORT'], '3306'),
+        'user' => trim((string) runtimeConfigValue($options['user'] ?? null, $env, ['database.default.username', 'DB_USERNAME'], 'root')),
+        'pass' => (string) runtimeConfigValue($options['pass'] ?? null, $env, ['database.default.password', 'DB_PASSWORD'], 'root'),
+        'database' => trim((string) runtimeConfigValue($options['database'] ?? null, $env, ['database.default.database', 'DB_DATABASE'], 'ambulatoriofacile_demo')),
+        'db_key' => trim((string) runtimeConfigValue($options['db_key'] ?? null, $env, ['DB_ENCRYPTION_KEY', 'database.default.DB_ENCRYPTION_KEY'], '')),
+        'db_mode' => trim((string) runtimeConfigValue($options['db_mode'] ?? null, $env, ['DB_ENCRYPTION_MODE'], 'aes-256-cbc')),
+        'brand' => trim((string) runtimeConfigValue($options['brand'] ?? null, $env, ['PRODUCT_BRAND_NAME'], 'AmbulatorioFacile')),
         'demo_password' => trim((string)$options['demo_password']),
+        'agenda_start_date' => normalizeDemoSeedDate((string) runtimeConfigValue($options['agenda_start_date'] ?? null, $env, ['DEMO_SEED_AGENDA_START_DATE'], date('Y-m-d'))),
+        'agenda_business_days' => normalizeDemoSeedBusinessDays(runtimeConfigValue($options['agenda_business_days'] ?? null, $env, ['DEMO_SEED_AGENDA_BUSINESS_DAYS'], (string) DEMO_SEED_DEFAULT_AGENDA_BUSINESS_DAYS)),
         'env_path' => $envPath,
     ];
+
+    $config['agenda_days'] = nextBusinessDaysFromDate($config['agenda_start_date'], $config['agenda_business_days']);
 
     if ($config['database'] === '') {
         throw new RuntimeException('Database demo non configurato.');
     }
 
     if ($config['db_key'] === '') {
-        throw new RuntimeException('Chiave DB_ENCRYPTION_KEY mancante nel file env demo.');
+        throw new RuntimeException('Chiave DB_ENCRYPTION_KEY mancante nell\'ambiente demo.');
     }
 
     if ($config['demo_password'] === '') {
@@ -288,8 +349,89 @@ function buildRuntimeConfig(array $options, array $env, string $envPath): array
 function assertTargetDatabaseIsSafe(string $database): void
 {
     $lower = strtolower(trim($database));
-    if ($lower === '' || in_array($lower, DEMO_SEED_FORBIDDEN_DATABASES, true)) {
+    if ($lower === '' || in_array($lower, DEMO_SEED_FORBIDDEN_DATABASES, true) || !str_contains($lower, 'demo')) {
         throw new RuntimeException('Il seed demo puo lavorare solo su un database demo dedicato.');
+    }
+}
+
+/**
+ * @param array<string, string> $env
+ * @param array<int, string> $keys
+ */
+function runtimeConfigValue(?string $optionValue, array $env, array $keys, string $fallback = ''): string
+{
+    $optionValue = trim((string) $optionValue);
+    if ($optionValue !== '') {
+        return $optionValue;
+    }
+
+    foreach ($keys as $key) {
+        $envValue = trim((string) ($env[$key] ?? ''));
+        if ($envValue !== '') {
+            return $envValue;
+        }
+
+        $runtimeValue = getenv($key);
+        if ($runtimeValue !== false && trim((string) $runtimeValue) !== '') {
+            return trim((string) $runtimeValue);
+        }
+    }
+
+    return $fallback;
+}
+
+function normalizeDemoSeedDate(string $value): string
+{
+    $value = trim($value);
+    $timestamp = strtotime($value);
+
+    if ($value === '' || $timestamp === false) {
+        throw new RuntimeException('Data seed demo non valida. Usa il formato YYYY-MM-DD.');
+    }
+
+    return date('Y-m-d', $timestamp);
+}
+
+/**
+ * @param string|int $value
+ */
+function normalizeDemoSeedBusinessDays($value): int
+{
+    $days = (int) $value;
+    if ($days < DEMO_SEED_MIN_AGENDA_BUSINESS_DAYS) {
+        $days = DEMO_SEED_MIN_AGENDA_BUSINESS_DAYS;
+    }
+
+    return $days;
+}
+
+function nextBusinessDaysFromDate(string $startDate, int $days): array
+{
+    $result = [];
+    $cursor = strtotime($startDate);
+
+    if ($cursor === false) {
+        throw new RuntimeException('Impossibile calcolare la finestra agenda demo.');
+    }
+
+    while (count($result) < $days) {
+        if ((int) date('N', $cursor) <= 5) {
+            $result[] = date('Y-m-d', $cursor);
+        }
+
+        $cursor = strtotime('+1 day', $cursor);
+        if ($cursor === false) {
+            throw new RuntimeException('Impossibile calcolare la finestra agenda demo.');
+        }
+    }
+
+    return $result;
+}
+
+function seedDemoDataLog(?callable $logger, string $message, string $stream = 'stdout'): void
+{
+    if ($logger !== null) {
+        $logger($message, $stream);
     }
 }
 
@@ -928,9 +1070,8 @@ function seedDoctorReminderFlags(mysqli $db, array &$state, array &$report): voi
     $report['summary']['doctor_reminder_flags'] = $count;
 }
 
-function seedAgenda(mysqli $db, array $agendaFixtures, array &$state, array &$report): void
+function seedAgenda(mysqli $db, array $agendaFixtures, array $businessDays, array &$state, array &$report): void
 {
-    $businessDays = demoAgendaBusinessDays();
     $slotCount = 0;
     $appointmentCount = 0;
 
@@ -1520,21 +1661,6 @@ function normalizeCodeValue(string $value): string
     return strtolower(preg_replace('/[^a-zA-Z0-9]+/', '', trim($value)) ?? '');
 }
 
-function nextBusinessDays(int $count): array
-{
-    $days = [];
-    $cursor = strtotime('tomorrow');
-    while (count($days) < $count) {
-        $dayOfWeek = (int)date('N', $cursor);
-        if ($dayOfWeek <= 5) {
-            $days[] = date('Y-m-d', $cursor);
-        }
-        $cursor = strtotime('+1 day', $cursor);
-    }
-
-    return $days;
-}
-
 function businessDaysInRange(string $startDate, string $endDate): array
 {
     $days = [];
@@ -1549,11 +1675,6 @@ function businessDaysInRange(string $startDate, string $endDate): array
     }
 
     return $days;
-}
-
-function demoAgendaBusinessDays(): array
-{
-    return businessDaysInRange(DEMO_SEED_AGENDA_START_DATE, DEMO_SEED_AGENDA_END_DATE);
 }
 
 function buildAccountSummary(array $staffFixtures, array $clientFixtures): array
@@ -1584,9 +1705,8 @@ function buildAccountSummary(array $staffFixtures, array $clientFixtures): array
     return $accounts;
 }
 
-function buildFixtures(string $demoPassword): array
+function buildFixtures(string $demoPassword, array $futureDays): array
 {
-    $futureDays = demoAgendaBusinessDays();
     $clients = [
         clientFixture('nutrition_01', 'Laura', 'Bianchi', 'nutrition_lead', 61001, 'Prima visita nutrizionale dimagrimento', 'laura.bianchi@example.test', '3477001001', '0217001001', 'Via Solari 12', 'Milano', 'MI', 'BNCLRA80A41F205A', 'demo.portal.nutri', $demoPassword),
         clientFixture('nutrition_02', 'Marco', 'Conti', 'nutrition_lead', 61002, 'Controllo piano alimentare e aderenza', 'marco.conti@example.test', '3477001002', '0217001002', 'Via Savona 24', 'Milano', 'MI', 'CNTMRC79B12F205B'),
@@ -1743,6 +1863,7 @@ function buildFixtures(string $demoPassword): array
     ];
 
     return [
+        'agenda_days' => $futureDays,
         'groups' => [
             ['key' => 'nutrition_studio', 'name' => 'Studio Nutrizione Equilibrio'],
             ['key' => 'sport_centro', 'name' => 'SportLab Arena'],

@@ -48,6 +48,7 @@ $token = $_GET['token'] ?? '';
   </div>
 </div>
 
+<script src="<?= base_url('public/assets/js/push-registration.js') ?>"></script>
 <script>
 (async () => {
   const statusEl = document.getElementById('status');
@@ -56,7 +57,7 @@ $token = $_GET['token'] ?? '';
   const installHint = document.getElementById('installHint');
 
   const token = "<?= esc($token) ?>";
-  const vapidKey = "<?= esc($vapidPublicKey ?? '') ?>";
+  const vapidKey = normalizePushVapidKey(<?= json_encode($vapidPublicKey ?? '') ?>);
   const csrfName = "<?= esc($csrfName) ?>";
   const csrfHash = "<?= esc($csrfHash) ?>";
   const iconUrl = "<?= base_url('notifications/icon.svg') ?>";
@@ -65,6 +66,30 @@ $token = $_GET['token'] ?? '';
   function setStatus(message, cssClass = 'small') {
     statusEl.className = cssClass;
     statusEl.textContent = message;
+  }
+
+  function normalizePushVapidKey(rawValue) {
+    return String(rawValue || '')
+      .trim()
+      .replace(/^["'`]+|["'`]+$/g, '')
+      .replace(/\s+/g, '');
+  }
+
+  function applicationServerKeyFromVapid(rawValue) {
+    const normalized = normalizePushVapidKey(rawValue);
+    if (!normalized) {
+      throw new Error('Configurazione notifiche push non disponibile. Ricarica la pagina e riprova.');
+    }
+
+    try {
+      const outputArray = urlBase64ToUint8Array(normalized);
+      if (outputArray.length !== 65 || outputArray[0] !== 4) {
+        throw new Error('invalid_length');
+      }
+      return outputArray;
+    } catch (_) {
+      throw new Error('Configurazione notifiche push non valida. Ricarica la pagina e riprova.');
+    }
   }
 
   function urlBase64ToUint8Array(base64String) {
@@ -243,15 +268,13 @@ $token = $_GET['token'] ?? '';
       if (typeof Notification === 'undefined') {
   throw new Error(unsupportedNotificationsMessage());
 }
-
 if (Notification.permission === 'denied') {
   await syncDeniedPushPermission();
   throw new Error(blockedNotificationsMessage());
 }
 
       setStatus('Registrazione service workerâ€¦');
-      const reg = await navigator.serviceWorker.register("<?= base_url('sw.js') ?>");
-      await navigator.serviceWorker.ready;
+      const reg = await window.PushRegistration.ensureServiceWorker("<?= base_url('sw.js') ?>");
 
      let permission = 'default';
 
@@ -277,13 +300,8 @@ if (typeof Notification !== 'undefined') {
 
       setStatus('Registrazione dispositivoâ€¦');
 
-      let sub = await reg.pushManager.getSubscription();
-      if (!sub) {
-        sub = await reg.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(vapidKey),
-        });
-      }
+      const pushState = await window.PushRegistration.ensurePushSubscription("<?= base_url('sw.js') ?>", vapidKey);
+      const sub = pushState.subscription;
 
       const body = new URLSearchParams({
         token,

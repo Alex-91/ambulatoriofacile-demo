@@ -167,9 +167,13 @@ class LoginController extends BaseController
         $profileLabels = $this->demoProfileLabels();
         $requestedProfile = strtolower(trim((string) $this->request->getGet('profile')));
         $requestedProfile = preg_replace('/[^a-z0-9\\-]/', '', $requestedProfile) ?? '';
-        $profileSlug = array_key_exists($requestedProfile, $profileLabels) ? $requestedProfile : '';
-        $prefillUsername = $this->sanitizeDemoUsername((string) $this->request->getGet('u'));
-        $demoMode = $this->request->getGet('demo') === '1' || $prefillUsername !== '' || $profileSlug !== '';
+        $rawProfileSlug = array_key_exists($requestedProfile, $profileLabels) ? $requestedProfile : '';
+        $rawPrefillUsername = $this->sanitizeDemoUsername((string) $this->request->getGet('u'));
+        $demoModeRequested = $this->request->getGet('demo') === '1' || $rawPrefillUsername !== '' || $rawProfileSlug !== '';
+        $demoAccess = new DemoAccessService();
+        $demoMode = $demoAccess->isLoginPrefillEnabled() && $demoModeRequested;
+        $profileSlug = $demoMode ? $rawProfileSlug : '';
+        $prefillUsername = $demoMode ? $rawPrefillUsername : '';
 
         if ($demoMode && $prefillUsername !== '') {
             $this->preparePrefilledDemoAccount($prefillUsername);

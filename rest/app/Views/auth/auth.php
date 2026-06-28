@@ -29,6 +29,7 @@ $emailLabel = $hasProfileEmailBool ? (!empty($maskedEmail) ? $maskedEmail : $pro
 <link rel="stylesheet" href="<?= base_url('public/assets/fontawesome/css/all.min.css'); ?>">
 <script src="<?= base_url('public/assets/js/jquery.min.js'); ?>"></script>
 <script>window.BASE_URL = "<?= base_url() ?>";</script>
+<script src="<?= base_url('public/assets/js/push-registration.js') ?>"></script>
 <script src="<?= base_url('js/pwa.js') ?>" defer></script>
 
 <script>
@@ -825,9 +826,33 @@ $emailLabel = $hasProfileEmailBool ? (!empty($maskedEmail) ? $maskedEmail : $pro
   const csrfName = "<?= $csrfName ?>";
   const csrfHash = "<?= $csrfHash ?>";
   const preferCurrentDeviceOtp = <?= $preferCurrentDeviceOtpBool ? 'true' : 'false' ?>;
-  const vapidKey = "<?= esc($vapidPublicKey ?? '') ?>";
+  const vapidKey = normalizePushVapidKey(<?= json_encode($vapidPublicKey ?? '') ?>);
   const iconUrl = "<?= base_url('notifications/icon.svg') ?>";
   const badgeUrl = "<?= base_url('notifications/badge.svg') ?>";
+
+  function normalizePushVapidKey(rawValue) {
+    return String(rawValue || '')
+      .trim()
+      .replace(/^["'`]+|["'`]+$/g, '')
+      .replace(/\s+/g, '');
+  }
+
+  function applicationServerKeyFromVapid(rawValue) {
+    const normalized = normalizePushVapidKey(rawValue);
+    if (!normalized) {
+      throw new Error('Configurazione notifiche push non disponibile. Ricarica la pagina e riprova.');
+    }
+
+    try {
+      const outputArray = urlBase64ToUint8Array(normalized);
+      if (outputArray.length !== 65 || outputArray[0] !== 4) {
+        throw new Error('invalid_length');
+      }
+      return outputArray;
+    } catch (_) {
+      throw new Error('Configurazione notifiche push non valida. Ricarica la pagina e riprova.');
+    }
+  }
 
   function urlBase64ToUint8Array(base64String) {
     const padding = '='.repeat((4 - base64String.length % 4) % 4);
@@ -1307,9 +1332,7 @@ async function showLocalNotification(title, body) {
       if (!('serviceWorker' in navigator)) throw new Error('Service Worker non supportato');
       if (!('PushManager' in window)) throw new Error(unsupportedNotificationsMessage());
       if (typeof Notification === 'undefined') throw new Error(unsupportedNotificationsMessage());
-
-      const reg = await navigator.serviceWorker.register("<?= base_url('sw.js') ?>");
-      await navigator.serviceWorker.ready;
+      const reg = await window.PushRegistration.ensureServiceWorker("<?= base_url('sw.js') ?>");
 
       let permission = Notification.permission;
       if (permission !== 'granted') {
@@ -1324,13 +1347,8 @@ async function showLocalNotification(title, body) {
         throw new Error('Permesso notifiche non concesso.');
       }
 
-      let sub = await reg.pushManager.getSubscription();
-      if (!sub) {
-        sub = await reg.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(vapidKey),
-        });
-      }
+      const pushState = await window.PushRegistration.ensurePushSubscription("<?= base_url('sw.js') ?>", vapidKey);
+      const sub = pushState.subscription;
 
       const deviceName = await getDeviceName();
       const body = new URLSearchParams({
@@ -1392,9 +1410,7 @@ async function showLocalNotification(title, body) {
 
         if (!('serviceWorker' in navigator)) throw new Error('Service Worker non supportato');
         if (!('PushManager' in window)) throw new Error(unsupportedNotificationsMessage());
-
-        const reg = await navigator.serviceWorker.register("<?= base_url('sw.js') ?>");
-        await navigator.serviceWorker.ready;
+        const reg = await window.PushRegistration.ensureServiceWorker("<?= base_url('sw.js') ?>");
 
         let perm = 'default';
 
@@ -1417,13 +1433,8 @@ if (perm !== 'granted') {
 
         await ensureDeviceNotificationsAvailable(reg);
 
-        let sub = await reg.pushManager.getSubscription();
-        if (!sub) {
-          sub = await reg.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey: urlBase64ToUint8Array(vapidKey),
-          });
-        }
+        const pushState = await window.PushRegistration.ensurePushSubscription("<?= base_url('sw.js') ?>", vapidKey);
+        const sub = pushState.subscription;
 
         const deviceName = await getDeviceName();
 
