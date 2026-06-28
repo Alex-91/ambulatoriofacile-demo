@@ -178,6 +178,18 @@ Se attivi il multi-tenant, aggiungi anche questi test:
 5. accesso master a `ambulatoriofacile.it/login/piattaforma/spazi-clienti`
 6. gestione utenti cliente da `ambulatoriofacile.it/login/spazio/utenti`
 
+## Reset notturno demo
+
+Per la demo commerciale puoi mantenere il database sempre fresco con un reset schedulato:
+
+1. seed rolling di default su 5 giorni lavorativi
+2. endpoint protetto da token per trigger remoto
+3. comando CLI dedicato per esecuzione manuale o da cron
+
+Dettagli operativi:
+
+- `rest/docs/demo-reset-notturno.md`
+
 ## Flusso futuro con Codex
 
 Da quel momento il flusso e':
