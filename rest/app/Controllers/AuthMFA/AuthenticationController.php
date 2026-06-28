@@ -880,6 +880,9 @@ class AuthenticationController extends BaseController
 
     private function sendOtpEmailMessage(string $emailAddress, string $otp, array $profileContext = []): array
     {
+        $config = null;
+        $fromEmail = '';
+        $fromName = '';
         try {
             $mailer = \Config\Services::email(null, false);
             $config = config('Email');
@@ -896,19 +899,46 @@ class AuthenticationController extends BaseController
             }
 
             $viewData = $this->buildOtpEmailViewData($otp, $profileContext, $fromName);
-            $messageHtml = view('emails/otp_email', $viewData);
-            $messageText = view('emails/otp_email_text', $viewData);
+            $messageText = $this->buildOtpEmailPlainText($viewData);
+            $messageHtml = '';
+
+            try {
+                $messageHtml = view('emails/otp_email', $viewData);
+                $renderedText = trim((string) view('emails/otp_email_text', $viewData));
+                if ($renderedText !== '') {
+                    $messageText = $renderedText;
+                }
+            } catch (\Throwable $viewError) {
+                error_log('[OTP email] template render fallback: ' . $viewError->getMessage());
+            }
 
             $mailer->clear(true);
             $mailer->setFrom($fromEmail, $fromName);
             $mailer->setTo($emailAddress);
             $mailer->setSubject('Codice OTP AmbulatorioFacile');
             $mailer->setMailType('html');
-            $mailer->setMessage($messageHtml);
+            $mailer->setMessage($messageHtml !== '' ? $messageHtml : nl2br(esc($messageText)));
             $mailer->setAltMessage($messageText);
 
             if (!$mailer->send()) {
-                $debugMessage = trim(strip_tags((string) $mailer->printDebugger(['headers', 'subject'])));
+                $htmlDebugMessage = trim(strip_tags((string) $mailer->printDebugger(['headers', 'subject'])));
+
+                $mailer->clear(true);
+                $mailer->setFrom($fromEmail, $fromName);
+                $mailer->setTo($emailAddress);
+                $mailer->setSubject('Codice OTP AmbulatorioFacile');
+                $mailer->setMailType('text');
+                $mailer->setMessage($messageText);
+
+                if ($mailer->send()) {
+                    error_log('[OTP email] HTML send failed, text fallback succeeded for ' . $emailAddress . '. html_debug=' . ($htmlDebugMessage !== '' ? $htmlDebugMessage : 'n/a'));
+                    return ['ok' => true, 'fallback' => 'text'];
+                }
+
+                $textDebugMessage = trim(strip_tags((string) $mailer->printDebugger(['headers', 'subject'])));
+                $combinedDebug = 'html=' . ($htmlDebugMessage !== '' ? $htmlDebugMessage : 'n/a')
+                    . ' | text=' . ($textDebugMessage !== '' ? $textDebugMessage : 'n/a');
+
                 log_message('error', 'sendOtpEmailMessage failed for {email}. protocol={protocol} host={host} port={port} crypto={crypto} from={from}. Debugger: {debugger}', [
                     'email'    => $emailAddress,
                     'protocol' => (string)($config->protocol ?? ''),
@@ -916,9 +946,10 @@ class AuthenticationController extends BaseController
                     'port'     => (string)($config->SMTPPort ?? ''),
                     'crypto'   => (string)($config->SMTPCrypto ?? ''),
                     'from'     => $fromEmail,
-                    'debugger' => $debugMessage !== '' ? $debugMessage : 'n/a',
+                    'debugger' => $combinedDebug,
                 ]);
-                return ['ok' => false, 'error' => $debugMessage];
+                error_log('[OTP email] send failure for ' . $emailAddress . ' | protocol=' . (string)($config->protocol ?? '') . ' host=' . (string)($config->SMTPHost ?? '') . ' port=' . (string)($config->SMTPPort ?? '') . ' crypto=' . (string)($config->SMTPCrypto ?? '') . ' | ' . $combinedDebug);
+                return ['ok' => false, 'error' => $combinedDebug];
             }
 
             return ['ok' => true];
@@ -932,8 +963,31 @@ class AuthenticationController extends BaseController
                 'from'     => $fromEmail ?? '',
                 'message'  => $e->getMessage(),
             ]);
+            error_log('[OTP email] exception for ' . $emailAddress . ' | protocol=' . (string)($config->protocol ?? '') . ' host=' . (string)($config->SMTPHost ?? '') . ' port=' . (string)($config->SMTPPort ?? '') . ' crypto=' . (string)($config->SMTPCrypto ?? '') . ' from=' . ($fromEmail ?? '') . ' | ' . $e->getMessage());
             return ['ok' => false, 'error' => $e->getMessage()];
         }
+    }
+
+    private function buildOtpEmailPlainText(array $viewData): string
+    {
+        $lines = array_filter([
+            trim((string) ($viewData['brandName'] ?? 'AmbulatorioFacile')),
+            trim((string) ($viewData['notificationTitle'] ?? 'Codice OTP')),
+            '',
+            trim((string) ($viewData['greeting'] ?? 'Gentile utente,')),
+            '',
+            trim((string) ($viewData['notificationMessage'] ?? '')),
+            '',
+            trim((string) ($viewData['otpLabel'] ?? 'Il tuo codice OTP')) . ': ' . trim((string) ($viewData['otp'] ?? '')),
+            trim((string) ($viewData['otpSecurityNote'] ?? '')),
+            trim((string) ($viewData['otpValidityNote'] ?? '')),
+            '',
+            trim((string) ($viewData['ctaCaption'] ?? '')),
+            '',
+            trim((string) ($viewData['footerNote'] ?? '')),
+        ], static fn(string $line): bool => $line !== '');
+
+        return implode("\n", $lines);
     }
 
     private function buildOtpEmailViewData(string $otp, array $profileContext, string $fromName): array
