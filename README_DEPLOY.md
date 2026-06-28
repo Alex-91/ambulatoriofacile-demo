@@ -185,6 +185,7 @@ Per la demo commerciale puoi mantenere il database sempre fresco con un reset sc
 1. seed rolling di default su 5 giorni lavorativi
 2. endpoint protetto da token per trigger remoto
 3. comando CLI dedicato per esecuzione manuale o da cron
+4. loop automatico nel container attivabile da env, senza aprire ogni volta Coolify
 
 Dettagli operativi:
 

@@ -17,6 +17,10 @@ Imposta in Coolify:
 
 ```dotenv
 DEMO_SEED_AGENDA_BUSINESS_DAYS=5
+DEMO_AUTO_RESET_ENABLED=1
+DEMO_AUTO_RESET_HOUR=2
+DEMO_AUTO_RESET_MINUTE=15
+DEMO_AUTO_RESET_TZ=Europe/Rome
 DEMO_RESET_ACCESS_TOKEN=CHANGE_ME
 ```
 
@@ -24,6 +28,10 @@ Note:
 
 - `DEMO_RESET_ACCESS_TOKEN` puo restare vuoto se vuoi riusare `CRON_ACCESS_TOKEN`
 - `DEMO_SEED_AGENDA_BUSINESS_DAYS` controlla sia il seed a bootstrap sia il reset notturno
+- `DEMO_AUTO_RESET_ENABLED=1` attiva il loop interno al container: non serve tenere aperto Coolify e non serve configurare uno scheduler esterno
+- `DEMO_AUTO_RESET_HOUR` e `DEMO_AUTO_RESET_MINUTE` definiscono l'orario locale del reset
+- `DEMO_AUTO_RESET_TZ` di default usa `Europe/Rome`
+- `DEMO_AUTO_RESET_CHECK_INTERVAL` e' opzionale e di default vale `300` secondi
 
 ## Comando CLI
 
@@ -69,7 +77,11 @@ Risposta attesa:
 
 ## Scheduler consigliati
 
-Se non vuoi entrare ogni volta in Coolify, le opzioni piu pulite sono:
+Soluzione consigliata per questa demo:
+
+1. usare il loop automatico interno al container con `DEMO_AUTO_RESET_ENABLED=1`
+
+Alternative, solo se preferisci un trigger esterno:
 
 1. cron del server che fa una `curl` verso l'endpoint protetto
 2. scheduler esterno tipo cron-job.org o EasyCron

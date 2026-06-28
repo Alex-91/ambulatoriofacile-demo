@@ -7,6 +7,11 @@ BOOTSTRAP_SQL_PATH="${BOOTSTRAP_SQL_PATH:-$APP_ROOT/docker/demo/ambulatoriofacil
 BOOTSTRAP_DEMO_DB="${BOOTSTRAP_DEMO_DB:-1}"
 RUN_DEMO_SEED="${RUN_DEMO_SEED:-0}"
 DEMO_SEED_PASSWORD="${DEMO_SEED_PASSWORD:-Demo2026}"
+DEMO_AUTO_RESET_ENABLED="${DEMO_AUTO_RESET_ENABLED:-0}"
+DEMO_AUTO_RESET_HOUR="${DEMO_AUTO_RESET_HOUR:-2}"
+DEMO_AUTO_RESET_MINUTE="${DEMO_AUTO_RESET_MINUTE:-15}"
+DEMO_AUTO_RESET_CHECK_INTERVAL="${DEMO_AUTO_RESET_CHECK_INTERVAL:-300}"
+DEMO_AUTO_RESET_TZ="${DEMO_AUTO_RESET_TZ:-${TZ:-Europe/Rome}}"
 
 cd "$APP_ROOT"
 
@@ -21,6 +26,27 @@ get_config_value() {
   fi
 
   printf '%s' "$fallback"
+}
+
+normalize_int() {
+  value="${1:-}"
+  fallback="${2:-0}"
+
+  case "$value" in
+    ''|*[!0-9]*)
+      printf '%s' "$fallback"
+      return 0
+      ;;
+  esac
+
+  printf '%s' "$value"
+}
+
+demo_auto_reset_log() {
+  log_message="$1"
+  log_file="$APP_ROOT/rest/writable/logs/demo_auto_reset.log"
+  timestamp="$(TZ="$DEMO_AUTO_RESET_TZ" date '+%Y-%m-%d %H:%M:%S %Z')"
+  printf '%s %s\n' "$timestamp" "$log_message" >> "$log_file"
 }
 
 bootstrap_demo_database() {
@@ -142,6 +168,74 @@ EOF
   echo "Seed demo completato."
 }
 
+run_demo_auto_reset_once() {
+  days="$(normalize_int "${DEMO_SEED_AGENDA_BUSINESS_DAYS:-5}" 5)"
+
+  demo_auto_reset_log "Avvio reset dataset demo automatico (days=$days)."
+
+  if php "$APP_ROOT/rest/spark" demo:reset-dataset --days="$days" >> "$APP_ROOT/rest/writable/logs/demo_auto_reset.log" 2>&1; then
+    demo_auto_reset_log "Reset dataset demo automatico completato."
+    return 0
+  fi
+
+  demo_auto_reset_log "Reset dataset demo automatico fallito."
+  return 1
+}
+
+start_demo_auto_reset_loop() {
+  if [ "$DEMO_AUTO_RESET_ENABLED" != "1" ]; then
+    echo "Reset demo automatico disabilitato."
+    return 0
+  fi
+
+  if [ ! -f "$APP_ROOT/rest/spark" ]; then
+    echo "Spark non trovato, reset demo automatico non avviato."
+    return 0
+  fi
+
+  reset_hour="$(normalize_int "$DEMO_AUTO_RESET_HOUR" 2)"
+  reset_minute="$(normalize_int "$DEMO_AUTO_RESET_MINUTE" 15)"
+  check_interval="$(normalize_int "$DEMO_AUTO_RESET_CHECK_INTERVAL" 300)"
+
+  if [ "$reset_hour" -gt 23 ]; then
+    reset_hour=2
+  fi
+
+  if [ "$reset_minute" -gt 59 ]; then
+    reset_minute=15
+  fi
+
+  if [ "$check_interval" -lt 60 ]; then
+    check_interval=300
+  fi
+
+  state_file="$APP_ROOT/rest/writable/demo_setup/demo_auto_reset_last_run.txt"
+  target_hm="$(printf '%02d%02d' "$reset_hour" "$reset_minute")"
+
+  echo "Avvio loop reset demo automatico alle ${reset_hour}:$(printf '%02d' "$reset_minute") ($DEMO_AUTO_RESET_TZ)."
+  demo_auto_reset_log "Loop reset demo automatico avviato. Orario target ${reset_hour}:$(printf '%02d' "$reset_minute"), controllo ogni ${check_interval}s."
+
+  (
+    while :; do
+      current_date="$(TZ="$DEMO_AUTO_RESET_TZ" date '+%Y-%m-%d')"
+      current_hm="$(TZ="$DEMO_AUTO_RESET_TZ" date '+%H%M')"
+      last_run_date=""
+
+      if [ -f "$state_file" ]; then
+        last_run_date="$(sed -n '1p' "$state_file" 2>/dev/null || true)"
+      fi
+
+      if [ "$current_hm" -ge "$target_hm" ] && [ "$last_run_date" != "$current_date" ]; then
+        if run_demo_auto_reset_once; then
+          printf '%s\n' "$current_date" > "$state_file"
+        fi
+      fi
+
+      sleep "$check_interval"
+    done
+  ) &
+}
+
 mkdir -p \
   "$UPLOAD_ROOT" \
   "$APP_ROOT/rest/writable/cache" \
@@ -181,5 +275,6 @@ if [ "${RUN_MIGRATIONS:-1}" = "1" ] && [ -f "$APP_ROOT/rest/spark" ]; then
 fi
 
 seed_demo_runtime
+start_demo_auto_reset_loop
 
 exec apache2-foreground
