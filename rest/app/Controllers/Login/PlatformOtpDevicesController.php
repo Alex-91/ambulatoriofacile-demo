@@ -43,8 +43,8 @@ class PlatformOtpDevicesController extends BaseController
             'accounts' => [],
             'summary' => [
                 'total_accounts' => 0,
-                'mapped_accounts' => 0,
                 'active_devices' => 0,
+                'multiple_devices_accounts' => 0,
             ],
             'runtime_warning' => null,
         ];
@@ -87,10 +87,10 @@ class PlatformOtpDevicesController extends BaseController
         }
 
         $tenantId = (int) ($this->request->getPost('id_tenant') ?? 0);
-        $membershipId = (int) ($this->request->getPost('membership_id_platform_user_tenant') ?? 0);
+        $appUserId = (int) ($this->request->getPost('app_user_id') ?? 0);
 
         try {
-            $result = (new OtpDeviceManagementService())->disconnectTenantMemberDevice($tenantId, $membershipId);
+            $result = (new OtpDeviceManagementService())->disconnectTenantAccountDevices($tenantId, $appUserId);
 
             return redirect()
                 ->to(portal_platform_url('dispositivi-otp') . '?id_tenant=' . $tenantId)
@@ -98,7 +98,7 @@ class PlatformOtpDevicesController extends BaseController
         } catch (\Throwable $e) {
             log_message('error', 'PlatformOtpDevicesController::disconnect failed: ' . $e->getMessage(), [
                 'tenant_id' => $tenantId,
-                'membership_id' => $membershipId,
+                'app_user_id' => $appUserId,
             ]);
 
             return redirect()

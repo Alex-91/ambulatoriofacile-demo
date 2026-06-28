@@ -49,7 +49,7 @@ $selectedTenantName = trim((string) ($selectedTenant['tenant_name'] ?? ''));
     <section class="content-header">
       <h1>Dispositivi OTP</h1>
       <p class="text-muted" style="margin:8px 0 0 0;">
-        Dalla console piattaforma puoi controllare i collegamenti OTP dei singoli studi e disassociarli quando un account cambia telefono o resta bloccato su un device non piu disponibile.
+        Dalla console piattaforma puoi controllare gli account applicativi che hanno device OTP attivi nei singoli studi e disassociarli quando un account cambia telefono o resta bloccato su un device non piu disponibile.
       </p>
     </section>
 
@@ -76,14 +76,14 @@ $selectedTenantName = trim((string) ($selectedTenant['tenant_name'] ?? ''));
           <div class="intro-box">
             <h3 style="margin-top:0; margin-bottom:8px;">Controllo centralizzato dei device OTP</h3>
             <p style="margin:0 0 12px 0; color:#52676c;">
-              Seleziona uno studio e controlla in un colpo solo quali account hanno un dispositivo attivo collegato per gli OTP push.
+              Seleziona uno studio e controlla in un colpo solo quali account hanno almeno un device attivo collegato per gli OTP push.
             </p>
             <?php if ($selectedTenantName !== ''): ?>
               <span class="summary-badge">Studio selezionato: <?= esc($selectedTenantName) ?></span>
             <?php endif; ?>
-            <span class="summary-badge">Account nello spazio: <?= (int) ($summary['total_accounts'] ?? 0) ?></span>
-            <span class="summary-badge">Account mappati agenda: <?= (int) ($summary['mapped_accounts'] ?? 0) ?></span>
+            <span class="summary-badge">Account con OTP attivo: <?= (int) ($summary['total_accounts'] ?? 0) ?></span>
             <span class="summary-badge">Dispositivi attivi: <?= (int) ($summary['active_devices'] ?? 0) ?></span>
+            <span class="summary-badge">Account con piu device: <?= (int) ($summary['multiple_devices_accounts'] ?? 0) ?></span>
           </div>
 
           <div class="box box-default">
@@ -112,14 +112,14 @@ $selectedTenantName = trim((string) ($selectedTenant['tenant_name'] ?? ''));
 
           <div class="box box-primary">
             <div class="box-header with-border">
-              <h3 class="box-title">Account e collegamenti OTP</h3>
+              <h3 class="box-title">Account applicativi e collegamenti OTP</h3>
             </div>
             <div class="box-body">
               <?= view('partials/otp_device_accounts_table', [
                   'accounts' => $accounts,
                   'disconnectUrl' => portal_platform_url('dispositivi-otp/disconnect'),
                   'tenantId' => (int) ($selectedTenantId ?? 0),
-                  'emptyMessage' => 'Nessun account disponibile per lo studio selezionato.',
+                  'emptyMessage' => 'Nessun account con dispositivi OTP attivi disponibile per lo studio selezionato.',
               ]) ?>
             </div>
           </div>

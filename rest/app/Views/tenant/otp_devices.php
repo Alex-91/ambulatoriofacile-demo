@@ -53,7 +53,7 @@ $tenantName = trim((string) ($tenantContext->tenantName ?? ($tenant['tenant_name
     <section class="content-header">
       <h1>Dispositivi OTP</h1>
       <p class="text-muted" style="margin:8px 0 0 0;">
-        Qui puoi vedere quali account dello studio hanno un dispositivo collegato per ricevere gli OTP push e disassociare rapidamente i collegamenti non piu validi.
+        Qui puoi vedere gli account applicativi dello studio che hanno almeno un device collegato per ricevere gli OTP push e disassociare rapidamente i collegamenti non piu validi.
       </p>
     </section>
 
@@ -77,22 +77,22 @@ $tenantName = trim((string) ($tenantContext->tenantName ?? ($tenant['tenant_name
           <div class="workspace-hero">
             <h3 style="margin-top:0; margin-bottom:8px;"><?= esc($tenantName) ?></h3>
             <p style="margin:0 0 12px 0; color:#52676c;">
-              Se un collaboratore cambia telefono o perde il dispositivo, puoi disattivare il collegamento qui senza intervenire a mano sul database.
+              Se un collaboratore cambia telefono o perde il dispositivo, puoi disattivare qui tutti i device OTP attivi del suo account senza intervenire a mano sul database.
             </p>
-            <span class="summary-badge">Account nello spazio: <?= (int) ($summary['total_accounts'] ?? 0) ?></span>
-            <span class="summary-badge">Account mappati agenda: <?= (int) ($summary['mapped_accounts'] ?? 0) ?></span>
+            <span class="summary-badge">Account con OTP attivo: <?= (int) ($summary['total_accounts'] ?? 0) ?></span>
             <span class="summary-badge">Dispositivi attivi: <?= (int) ($summary['active_devices'] ?? 0) ?></span>
+            <span class="summary-badge">Account con piu device: <?= (int) ($summary['multiple_devices_accounts'] ?? 0) ?></span>
           </div>
 
           <div class="box box-primary">
             <div class="box-header with-border">
-              <h3 class="box-title">Account e collegamenti OTP</h3>
+              <h3 class="box-title">Account applicativi e collegamenti OTP</h3>
             </div>
             <div class="box-body">
               <?= view('partials/otp_device_accounts_table', [
                   'accounts' => $accounts,
                   'disconnectUrl' => portal_tenant_space_url('dispositivi-otp/disconnect'),
-                  'emptyMessage' => 'Nessun account dello spazio disponibile.',
+                  'emptyMessage' => 'Nessun account con dispositivi OTP attivi disponibile per questo studio.',
               ]) ?>
             </div>
           </div>

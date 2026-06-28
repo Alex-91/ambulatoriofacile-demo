@@ -1,5 +1,4 @@
 <?php
-helper('portal');
 
 $accounts = is_array($accounts ?? null) ? $accounts : [];
 $disconnectUrl = trim((string) ($disconnectUrl ?? ''));
@@ -26,11 +25,11 @@ $formatDateTime = static function (?string $value): string {
     <thead>
       <tr>
         <th>Account</th>
-        <th>Ruolo</th>
-        <th>Mapping agenda</th>
-        <th>Dispositivo OTP</th>
+        <th>Profilo</th>
+        <th>Username</th>
+        <th>Dispositivi OTP</th>
         <th>Stato</th>
-        <th style="width:120px;">Azioni</th>
+        <th style="width:140px;">Azioni</th>
       </tr>
     </thead>
     <tbody>
@@ -43,26 +42,28 @@ $formatDateTime = static function (?string $value): string {
           <?php
             $fullName = trim((string) ($account['full_name'] ?? ''));
             $email = trim((string) ($account['email'] ?? ''));
-            $appUserId = (int) ($account['app_user_id'] ?? 0);
-            $appUsername = trim((string) ($account['app_username'] ?? ''));
+            $cellulare = trim((string) ($account['cellulare'] ?? ''));
+            $username = trim((string) ($account['username'] ?? ''));
+            $deviceCount = (int) ($account['device_count'] ?? 0);
             $hasActiveDevice = !empty($account['has_active_device']);
           ?>
           <tr>
             <td>
-              <strong><?= esc($fullName !== '' ? $fullName : $email) ?></strong><br>
-              <span class="text-muted"><?= esc($email !== '' ? $email : '-') ?></span>
+              <strong><?= esc($fullName !== '' ? $fullName : ('Account #' . (int) ($account['app_user_id'] ?? 0))) ?></strong><br>
+              <?php if ($email !== ''): ?>
+                <span class="text-muted"><?= esc($email) ?></span><br>
+              <?php endif; ?>
+              <span class="text-muted"><?= esc($cellulare !== '' ? $cellulare : 'Cellulare non disponibile') ?></span>
             </td>
             <td>
-              <?= esc(portal_space_role_label((string) ($account['tenant_role'] ?? 'tenant_staff'))) ?>
+              <strong><?= esc((string) ($account['user_type_label'] ?? 'Account applicativo')) ?></strong><br>
+              <span class="text-muted">ID utente: <?= (int) ($account['app_user_id'] ?? 0) ?></span>
             </td>
             <td>
-              <?php if ($appUserId > 0): ?>
-                <strong>ID:</strong> <?= $appUserId ?><br>
-                <span class="text-muted">
-                  <?= esc($appUsername !== '' ? $appUsername : 'Utente agenda senza username leggibile') ?>
-                </span>
+              <?php if ($username !== ''): ?>
+                <strong><?= esc($username) ?></strong>
               <?php else: ?>
-                <span class="text-warning">Account non collegato a un utente agenda.</span>
+                <span class="text-warning">Username non disponibile</span>
               <?php endif; ?>
             </td>
             <td>
@@ -71,29 +72,26 @@ $formatDateTime = static function (?string $value): string {
                 <span class="text-muted">
                   <?= esc(trim((string) ($account['device_os'] ?? '') . ' ' . (string) ($account['device_type'] ?? ''))) ?>
                 </span><br>
-                <span class="text-muted">Ultimo contatto: <?= esc($formatDateTime((string) ($account['last_seen'] ?? ''))) ?></span>
+                <span class="text-muted">Device attivi: <?= $deviceCount ?></span>
               <?php else: ?>
                 <span class="text-muted">Nessun dispositivo attivo collegato.</span>
               <?php endif; ?>
             </td>
             <td>
-              <?php if (!empty($account['is_owner'])): ?>
-                <span class="label label-primary">responsabile</span>
+              <?php if ($hasActiveDevice): ?>
+                <span class="label label-success">OTP attivo</span>
+              <?php else: ?>
+                <span class="label label-default">Nessun device</span>
               <?php endif; ?>
-              <?php if (!empty($account['is_default'])): ?>
-                <span class="label label-info">predefinito</span>
+              <?php if ($deviceCount > 1): ?>
+                <span class="label label-warning"><?= $deviceCount ?> device</span>
               <?php endif; ?>
-              <?php if (!empty($account['is_app_admin'])): ?>
-                <span class="label label-primary">medico amministratore</span>
+              <?php if (empty($account['is_runtime_active'])): ?>
+                <span class="label label-danger">account disattivato</span>
               <?php endif; ?>
-              <?php if (trim((string) ($account['invitation_status'] ?? '')) !== ''): ?>
-                <span class="label label-default"><?= esc((string) ($account['invitation_status'] ?? '')) ?></span>
-              <?php endif; ?>
-              <?php if (trim((string) ($account['platform_user_status'] ?? '')) !== ''): ?>
-                <span class="label label-<?= ((string) ($account['platform_user_status'] ?? '') === 'active') ? 'success' : 'warning' ?>">
-                  <?= esc((string) ($account['platform_user_status'] ?? '')) ?>
-                </span>
-              <?php endif; ?>
+              <div class="text-muted" style="margin-top:6px;">
+                Ultimo contatto: <?= esc($formatDateTime((string) ($account['last_seen'] ?? ''))) ?>
+              </div>
             </td>
             <td>
               <?php if ($hasActiveDevice && $disconnectUrl !== ''): ?>
@@ -102,11 +100,11 @@ $formatDateTime = static function (?string $value): string {
                   <?php if ($tenantId > 0): ?>
                     <input type="hidden" name="id_tenant" value="<?= $tenantId ?>">
                   <?php endif; ?>
-                  <input type="hidden" name="membership_id_platform_user_tenant" value="<?= (int) ($account['membership_id'] ?? 0) ?>">
+                  <input type="hidden" name="app_user_id" value="<?= (int) ($account['app_user_id'] ?? 0) ?>">
                   <button
                     type="submit"
                     class="btn btn-xs btn-danger"
-                    onclick="return confirm('Vuoi disassociare il dispositivo OTP collegato a questo account?');"
+                    onclick="return confirm('Vuoi disassociare tutti i dispositivi OTP attivi collegati a questo account?');"
                   >
                     <i class="fa fa-unlink"></i> Disassocia
                   </button>
