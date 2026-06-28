@@ -922,6 +922,7 @@ class AuthenticationController extends BaseController
 
             if (!$mailer->send()) {
                 $htmlDebugMessage = trim(strip_tags((string) $mailer->printDebugger(['headers', 'subject'])));
+                $htmlDebugRaw = $this->extractMailerDebugRaw($mailer);
 
                 $mailer->clear(true);
                 $mailer->setFrom($fromEmail, $fromName);
@@ -936,8 +937,17 @@ class AuthenticationController extends BaseController
                 }
 
                 $textDebugMessage = trim(strip_tags((string) $mailer->printDebugger(['headers', 'subject'])));
+                $textDebugRaw = $this->extractMailerDebugRaw($mailer);
                 $combinedDebug = 'html=' . ($htmlDebugMessage !== '' ? $htmlDebugMessage : 'n/a')
                     . ' | text=' . ($textDebugMessage !== '' ? $textDebugMessage : 'n/a');
+
+                if ($htmlDebugRaw !== '') {
+                    $combinedDebug .= ' | html_raw=' . $htmlDebugRaw;
+                }
+
+                if ($textDebugRaw !== '') {
+                    $combinedDebug .= ' | text_raw=' . $textDebugRaw;
+                }
 
                 log_message('error', 'sendOtpEmailMessage failed for {email}. protocol={protocol} host={host} port={port} crypto={crypto} from={from}. Debugger: {debugger}', [
                     'email'    => $emailAddress,
@@ -965,6 +975,31 @@ class AuthenticationController extends BaseController
             ]);
             error_log('[OTP email] exception for ' . $emailAddress . ' | protocol=' . (string)($config->protocol ?? '') . ' host=' . (string)($config->SMTPHost ?? '') . ' port=' . (string)($config->SMTPPort ?? '') . ' crypto=' . (string)($config->SMTPCrypto ?? '') . ' from=' . ($fromEmail ?? '') . ' | ' . $e->getMessage());
             return ['ok' => false, 'error' => $e->getMessage()];
+        }
+    }
+
+    private function extractMailerDebugRaw(\CodeIgniter\Email\Email $mailer): string
+    {
+        try {
+            $property = new \ReflectionProperty(\CodeIgniter\Email\Email::class, 'debugMessageRaw');
+
+            if (method_exists($property, 'setAccessible')) {
+                $property->setAccessible(true);
+            }
+
+            $rawMessages = $property->getValue($mailer);
+            if (!is_array($rawMessages) || $rawMessages === []) {
+                return '';
+            }
+
+            $normalized = array_map(static function ($message): string {
+                return trim(str_replace(["\r", "\n"], ' ', (string) $message));
+            }, $rawMessages);
+
+            return trim(implode(' || ', array_filter($normalized, static fn(string $message): bool => $message !== '')));
+        } catch (\Throwable $debugError) {
+            error_log('[OTP email] raw debug extraction failed: ' . $debugError->getMessage());
+            return '';
         }
     }
 
