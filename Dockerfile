@@ -45,7 +45,7 @@ RUN chmod +x /usr/local/bin/start-container \
 
 EXPOSE 80
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=5s --start-period=180s --retries=3 \
   CMD curl -fsS http://127.0.0.1/ || exit 1
 
 ENTRYPOINT ["/usr/local/bin/start-container"]

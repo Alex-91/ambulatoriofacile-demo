@@ -84,6 +84,14 @@ bootstrap_demo_database() {
     sleep 2
   done
 
+  echo "Verifico la presenza del database $db_name..."
+  MYSQL_PWD="$db_pass" mysql \
+    --host="$db_host" \
+    --port="$db_port" \
+    --user="$db_user" \
+    --default-character-set=utf8mb4 \
+    --execute="CREATE DATABASE IF NOT EXISTS \`$db_name\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+
   users_count="$(MYSQL_PWD="$db_pass" mysql \
     --host="$db_host" \
     --port="$db_port" \
