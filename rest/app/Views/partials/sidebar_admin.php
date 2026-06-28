@@ -52,6 +52,9 @@ $canManageAppointmentNotifications = $tenantId > 0
     && $tenantRole === 'tenant_master'
     && (int) ($sess->get('platform_user_id') ?? 0) > 0
     && !empty($tenantFeatureFlags['appointment_notifications']);
+$canManageOtpDevices = $tenantId > 0
+    && in_array($tenantRole, ['tenant_master', 'tenant_admin'], true)
+    && (int) ($sess->get('platform_user_id') ?? 0) > 0;
 $canManageTenantUsers = $tenantId > 0
     && in_array($tenantRole, ['tenant_master', 'tenant_admin'], true)
     && !empty($tenantFeatureFlags['staff_management']);
@@ -177,6 +180,15 @@ if ($isTenantOperationalConsoleSession) {
             'label' => 'Gestisci utenti dello spazio',
             'icon' => 'fa-users',
             'active' => $isLinkActive(portal_tenant_space_url('utenti')),
+        ];
+    }
+
+    if ($canManageOtpDevices) {
+        $contextActions[] = [
+            'href' => portal_tenant_space_url('dispositivi-otp'),
+            'label' => 'Gestisci dispositivi OTP',
+            'icon' => 'fa-mobile',
+            'active' => $isLinkActive(portal_tenant_space_url('dispositivi-otp')),
         ];
     }
 

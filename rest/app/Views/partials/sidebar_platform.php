@@ -12,6 +12,10 @@ $platformFeaturesActive = (
     str_starts_with($currentPath, 'login/piattaforma/funzioni')
     || str_starts_with($currentPath, 'piattaforma/funzioni')
 ) ? 'active' : '';
+$otpDevicesActive = (
+    str_starts_with($currentPath, 'login/piattaforma/dispositivi-otp')
+    || str_starts_with($currentPath, 'piattaforma/dispositivi-otp')
+) ? 'active' : '';
 $appointmentNotificationsActive = (
     str_starts_with($currentPath, 'login/piattaforma/notifiche-appuntamenti')
     || str_starts_with($currentPath, 'piattaforma/notifiche-appuntamenti')
@@ -34,6 +38,12 @@ $platformMasterEmails = is_array($platformMasterEmails ?? null) ? $platformMaste
         <a href="<?= portal_platform_url('funzioni') ?>">
           <i class="fa fa-toggle-on"></i>
           Catalogo funzioni
+        </a>
+      </li>
+      <li class="<?= esc($otpDevicesActive) ?>">
+        <a href="<?= portal_platform_url('dispositivi-otp') ?>">
+          <i class="fa fa-mobile"></i>
+          Dispositivi OTP
         </a>
       </li>
       <li class="<?= esc($appointmentNotificationsActive) ?>">

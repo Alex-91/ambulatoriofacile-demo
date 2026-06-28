@@ -53,6 +53,8 @@ $routes->post('login/password-imposta', 'Login\PlatformAccessController::savePas
 $routes->get('login/piattaforma', 'Login\PlatformTenantSpacesController::index');
 $routes->get('login/piattaforma/funzioni', 'Login\PlatformFeaturesController::index');
 $routes->post('login/piattaforma/funzioni/save', 'Login\PlatformFeaturesController::save');
+$routes->get('login/piattaforma/dispositivi-otp', 'Login\PlatformOtpDevicesController::index');
+$routes->post('login/piattaforma/dispositivi-otp/disconnect', 'Login\PlatformOtpDevicesController::disconnect');
 $routes->get('login/piattaforma/notifiche-appuntamenti', 'Login\PlatformAppointmentNotificationsController::index');
 $routes->post('login/piattaforma/notifiche-appuntamenti/launch', 'Login\PlatformAppointmentNotificationsController::launch');
 $routes->get('login/piattaforma/notifiche-appuntamenti/run', 'Login\PlatformAppointmentNotificationsController::run');
@@ -68,6 +70,8 @@ $routes->post('login/piattaforma/spazi-clienti/members/accesso', 'Login\Platform
 $routes->get('login/spazi/cambia/(:num)', 'Login\LoginController::switchTenant/$1');
 $routes->get('login/spazio/funzioni', 'Tenant\SpaceFeatures::index');
 $routes->post('login/spazio/funzioni/save', 'Tenant\SpaceFeatures::save');
+$routes->get('login/spazio/dispositivi-otp', 'Tenant\OtpDevices::index');
+$routes->post('login/spazio/dispositivi-otp/disconnect', 'Tenant\OtpDevices::disconnect');
 $routes->get('login/spazio/notifiche-appuntamenti', 'Tenant\AppointmentNotifications::index');
 $routes->post('login/spazio/notifiche-appuntamenti/save', 'Tenant\AppointmentNotifications::save');
 $routes->get('login/spazio/utenti', 'Tenant\SpaceUsers::index');
@@ -85,6 +89,8 @@ $routes->post('password-imposta', 'Login\PlatformAccessController::savePassword'
 $routes->get('piattaforma', 'Login\PlatformTenantSpacesController::index');
 $routes->get('piattaforma/funzioni', 'Login\PlatformFeaturesController::index');
 $routes->post('piattaforma/funzioni/save', 'Login\PlatformFeaturesController::save');
+$routes->get('piattaforma/dispositivi-otp', 'Login\PlatformOtpDevicesController::index');
+$routes->post('piattaforma/dispositivi-otp/disconnect', 'Login\PlatformOtpDevicesController::disconnect');
 $routes->get('piattaforma/notifiche-appuntamenti', 'Login\PlatformAppointmentNotificationsController::index');
 $routes->post('piattaforma/notifiche-appuntamenti/launch', 'Login\PlatformAppointmentNotificationsController::launch');
 $routes->get('piattaforma/notifiche-appuntamenti/run', 'Login\PlatformAppointmentNotificationsController::run');
@@ -100,6 +106,8 @@ $routes->post('piattaforma/spazi-clienti/members/accesso', 'Login\PlatformTenant
 $routes->get('spazi/cambia/(:num)', 'Login\LoginController::switchTenant/$1');
 $routes->get('spazio/funzioni', 'Tenant\SpaceFeatures::index');
 $routes->post('spazio/funzioni/save', 'Tenant\SpaceFeatures::save');
+$routes->get('spazio/dispositivi-otp', 'Tenant\OtpDevices::index');
+$routes->post('spazio/dispositivi-otp/disconnect', 'Tenant\OtpDevices::disconnect');
 $routes->get('spazio/notifiche-appuntamenti', 'Tenant\AppointmentNotifications::index');
 $routes->post('spazio/notifiche-appuntamenti/save', 'Tenant\AppointmentNotifications::save');
 $routes->get('spazio/utenti', 'Tenant\SpaceUsers::index');
