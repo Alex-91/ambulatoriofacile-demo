@@ -16,6 +16,7 @@ $routes->post('richiesta/invia', 'DemoController::submitDemoRequest');
 $routes->get('richieste-locali', 'DemoController::requestInbox');
 $routes->get('richieste-locali/export', 'DemoController::exportRequestInbox');
 $routes->get('demo', 'DemoController::index');
+$routes->get('demo/', 'DemoController::index');
 $routes->get('demo/access', 'DemoController::access');
 $routes->get('demo/entra', 'DemoAccessController::enter');
 $routes->get('demo/vertical/(:segment)', 'DemoController::vertical/$1');
