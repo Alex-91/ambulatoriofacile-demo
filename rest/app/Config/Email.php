@@ -139,8 +139,14 @@ class Email extends BaseConfig
         $this->SMTPTimeout   = $this->envInt(['email.SMTPTimeout', 'EMAIL_SMTP_TIMEOUT'], $this->SMTPTimeout);
         $this->SMTPKeepAlive = $this->envBool(['email.SMTPKeepAlive', 'EMAIL_SMTP_KEEP_ALIVE'], $this->SMTPKeepAlive);
 
-        if ($smtpCrypto !== null) {
-            $this->SMTPCrypto = $smtpCrypto;
+        if ($smtpCrypto !== null && trim($smtpCrypto) !== '') {
+            $this->SMTPCrypto = strtolower(trim($smtpCrypto));
+        } elseif ($this->SMTPPort === 465) {
+            // SMTP 465 commonly expects implicit SSL/TLS.
+            $this->SMTPCrypto = 'ssl';
+        } elseif ($this->SMTPPort === 587) {
+            // SMTP 587 commonly expects STARTTLS.
+            $this->SMTPCrypto = 'tls';
         }
 
         $this->wordWrap      = $this->envBool(['email.wordWrap', 'EMAIL_WORD_WRAP'], $this->wordWrap);
@@ -155,10 +161,6 @@ class Email extends BaseConfig
         $this->BCCBatchSize  = $this->envInt(['email.BCCBatchSize', 'EMAIL_BCC_BATCH_SIZE'], $this->BCCBatchSize);
         $this->DSN           = $this->envBool(['email.DSN', 'EMAIL_DSN'], $this->DSN);
 
-        if ($this->SMTPPort === 465 && in_array(strtolower($this->SMTPCrypto), ['ssl', 'tls'], true)) {
-            // CodeIgniter handles port 465 as implicit TLS when SMTPCrypto is empty.
-            $this->SMTPCrypto = '';
-        }
     }
 
     /**
