@@ -12,7 +12,7 @@ Questa checklist serve per passare dalla base codice al primo uso reale del logi
 Env minime consigliate sulla app reale:
 
 - `BOOTSTRAP_DEMO_DB=0`
-- `app.baseURL=https://ambulatoriofacile.it/app/`
+- `APP_BASE_URL=https://ambulatoriofacile.it/app/`
 - `APP_CANONICAL_URL=https://ambulatoriofacile.it/app/`
 - `APP_PUBLIC_ACCESS_BASE_URL=https://ambulatoriofacile.it/`
 
@@ -51,14 +51,14 @@ Per inviti e reset password il canale email deve essere gia funzionante.
 
 Variabili minime:
 
-- `email.fromEmail`
-- `email.fromName`
-- `email.protocol`
-- `email.SMTPHost`
-- `email.SMTPUser`
-- `email.SMTPPass`
-- `email.SMTPPort`
-- `email.SMTPCrypto`
+- `EMAIL_FROM_ADDRESS`
+- `EMAIL_FROM_NAME`
+- `EMAIL_PROTOCOL`
+- `EMAIL_SMTP_HOST`
+- `EMAIL_SMTP_USER`
+- `EMAIL_SMTP_PASS`
+- `EMAIL_SMTP_PORT`
+- `EMAIL_SMTP_CRYPTO`
 
 ## 4. Account master piattaforma
 

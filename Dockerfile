@@ -1,6 +1,7 @@
 FROM php:8.2-apache
 
 ARG DEBIAN_FRONTEND=noninteractive
+ENV COMPOSER_ALLOW_SUPERUSER=1
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -39,7 +40,10 @@ COPY docker/php.ini /usr/local/etc/php/conf.d/codex-app.ini
 COPY docker/start-container.sh /usr/local/bin/start-container
 
 RUN chmod +x /usr/local/bin/start-container \
-    && composer install --no-dev --optimize-autoloader --no-interaction \
+    && (composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist --no-progress \
+        || (rm -rf vendor \
+            && (composer clear-cache || true) \
+            && composer install --no-dev --optimize-autoloader --no-interaction --prefer-source --no-progress)) \
     && mkdir -p upload rest/writable rest/writable/cache rest/writable/cache/temp rest/writable/logs rest/writable/session rest/writable/uploads rest/writable/uploads/messages rest/writable/uploads/messages/drafts rest/writable/uploads/chat rest/writable/uploads/agenda_backup rest/writable/debugbar rest/writable/demo_setup rest/writable/demo_requests rest/writable/reminder_state rest/writable/locks \
     && chown -R www-data:www-data /var/www/html
 

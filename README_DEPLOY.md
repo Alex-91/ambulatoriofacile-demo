@@ -108,7 +108,7 @@ Se usi sottopercorso:
 
 Poi imposta in env:
 
-- `app.baseURL`
+- `APP_BASE_URL`
 - `APP_CANONICAL_URL`
 
 con lo stesso valore finale.
@@ -119,6 +119,12 @@ con lo stesso valore finale.
 2. Copia tutto in Coolify
 3. Sostituisci i placeholder `CHANGE_ME`
 4. Per il DB usa i valori della risorsa MySQL appena creata
+
+Importante:
+
+1. in Coolify usa solo variabili shell-safe come `APP_BASE_URL`, `DB_HOST`, `EMAIL_PROTOCOL`
+2. non incollare chiavi con punti come `app.baseURL`, `database.default.*`, `email.*`
+3. Coolify le carica tramite shell build-time e quelle chiavi possono rompere il deploy con errori tipo `command not found`
 
 Se vuoi attivare anche il multi-tenant con provisioning da pannello admin:
 
@@ -133,7 +139,7 @@ Per il portale reale con login unico su root dominio usa questa logica:
 2. `DEMO_SITE_ENABLED=0`
 3. `DEMO_PUBLIC_ROLE_SWITCH_ENABLED=0`
 4. `DEMO_LOGIN_PREFILL_ENABLED=0`
-5. `app.baseURL=https://ambulatoriofacile.it/app/`
+5. `APP_BASE_URL=https://ambulatoriofacile.it/app/`
 6. `APP_CANONICAL_URL=https://ambulatoriofacile.it/app/`
 7. `APP_PUBLIC_ACCESS_BASE_URL=https://ambulatoriofacile.it/`
 8. `PLATFORM_MASTER_EMAILS=tuamail@dominio.it,amico@dominio.it` solo se vuoi tenere un seed/bootstrap tecnico da Coolify per i master piattaforma
