@@ -162,7 +162,7 @@ class Email extends BaseConfig
                 continue;
             }
 
-            return trim((string) $value);
+            return $this->normalizeEnvValue($value);
         }
 
         return $default;
@@ -179,7 +179,7 @@ class Email extends BaseConfig
                 continue;
             }
 
-            return (int) $value;
+            return (int) $this->normalizeEnvValue($value);
         }
 
         return $default;
@@ -196,10 +196,30 @@ class Email extends BaseConfig
                 continue;
             }
 
-            $parsed = filter_var($value, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE);
+            $parsed = filter_var($this->normalizeEnvValue($value), FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE);
             return $parsed ?? $default;
         }
 
         return $default;
+    }
+
+    /**
+     * @param bool|float|int|string $value
+     */
+    private function normalizeEnvValue($value): string
+    {
+        $normalized = trim((string) $value);
+        $length = strlen($normalized);
+
+        if ($length >= 2) {
+            $firstChar = $normalized[0];
+            $lastChar = $normalized[$length - 1];
+
+            if (($firstChar === "'" && $lastChar === "'") || ($firstChar === '"' && $lastChar === '"')) {
+                $normalized = substr($normalized, 1, -1);
+            }
+        }
+
+        return trim($normalized);
     }
 }
