@@ -65,25 +65,6 @@ class DemoAccessService
     {
         return [
             [
-                'group_key' => 'platform',
-                'group_title' => 'Console piattaforma',
-                'group_note' => 'Qui provi il super master vero della piattaforma, separato dal responsabile dello studio demo.',
-                'account_type' => 'platform_admin',
-                'role' => 'Super master',
-                'username' => 'demo.platform.master',
-                'candidate_usernames' => ['demo.platform.master', self::DEMO_PLATFORM_MASTER_EMAIL],
-                'login_username' => self::DEMO_PLATFORM_MASTER_EMAIL,
-                'login_password' => self::DEMO_PLATFORM_PASSWORD,
-                'platform_email' => self::DEMO_PLATFORM_MASTER_EMAIL,
-                'platform_first_name' => 'Giulia',
-                'platform_last_name' => 'Conti',
-                'label' => 'Super master piattaforma demo',
-                'note' => 'Apre la console centrale piattaforma per vedere studi attivi, funzioni globali e regia master.',
-                'redirect_route' => 'piattaforma/spazi-clienti',
-                'prefer_account_redirect' => true,
-                'scenarios' => ['console piattaforma', 'super master', 'spazi clienti'],
-            ],
-            [
                 'group_key' => 'tenant',
                 'group_title' => 'Studio demo senza login',
                 'group_note' => 'Qui provi la nuova area studio direttamente dalla demo, senza password e senza uscire dal percorso pubblico.',
@@ -364,12 +345,23 @@ class DemoAccessService
         $this->ensurePlatformDemoTenantFeatures((int) $setup['tenant_id'], (int) $setup['platform_user_id']);
         $result = (new TenantAppSessionBootstrapService())->bootstrap($setup['platform_user_id'], $setup['tenant_id']);
         $this->decorateCurrentSession($account, $setup['resolved_username']);
+        $this->confirmPublicDemoTenantSession();
 
         return [
             'account' => $account,
             'redirectUrl' => $this->resolveRedirectUrl($account, $result),
             'resolved_username' => $setup['resolved_username'],
         ];
+    }
+
+    private function confirmPublicDemoTenantSession(): void
+    {
+        session()->remove(TenantLoginOtpService::SESSION_KEY_REQUIRED);
+        session()->set([
+            'isLoggedIn' => true,
+            'isLoggedInConfirmed' => true,
+            'loginSource' => 'demo_public_access',
+        ]);
     }
 
     private function loginPlatformAdminAccount(array $account): array
