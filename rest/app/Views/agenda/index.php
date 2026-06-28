@@ -1422,21 +1422,6 @@
             text-transform: uppercase;
         }
 
-        .agenda-calendar-viewbar-title {
-            margin: 10px 0 4px;
-            color: #1f2d3d;
-            font-size: 18px;
-            font-weight: 700;
-            line-height: 1.3;
-        }
-
-        .agenda-calendar-viewbar-text {
-            margin: 0;
-            color: #5f6b77;
-            font-size: 13px;
-            line-height: 1.5;
-        }
-
         .agenda-view-switch--calendar {
             display: flex;
             flex-wrap: wrap;
@@ -2204,10 +2189,6 @@
             <span class="agenda-calendar-viewbar-kicker">
                 <i class="fa fa-eye"></i> Vista agenda
             </span>
-            <div class="agenda-calendar-viewbar-title">Controlli rapidi sopra il calendario</div>
-            <p class="agenda-calendar-viewbar-text">
-                Cambia prospettiva senza tornare al pannello laterale e continua a lavorare direttamente sull'agenda.
-            </p>
         </div>
         <div class="agenda-view-switch agenda-view-switch--calendar" role="group" aria-label="Vista agenda rapida sopra il calendario">
             <button type="button" class="btn btn-default agenda-view-btn" data-view-mode="day">
