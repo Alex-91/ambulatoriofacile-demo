@@ -134,6 +134,8 @@ public function __construct()
                     'checkOtp',
                     'password/scaduta',
                     'push/publicKey',
+                    'pwa-manifest',
+                    'pwa-install-sw',
                     'test',
                     'dev',
                     'dev/*',
