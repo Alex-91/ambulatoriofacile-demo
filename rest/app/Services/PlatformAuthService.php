@@ -36,7 +36,7 @@ class PlatformAuthService
         }
 
         $hash = (string) ($platformUser['password_hash'] ?? '');
-        if ($hash === '' || !password_verify($password, $hash)) {
+        if (!$this->passwordMatches($password, $hash)) {
             return null;
         }
 
@@ -108,5 +108,24 @@ class PlatformAuthService
     {
         $email = strtolower(trim($email));
         return filter_var($email, FILTER_VALIDATE_EMAIL) ? $email : '';
+    }
+
+    private function passwordMatches(string $password, string $hash): bool
+    {
+        if ($hash === '') {
+            return false;
+        }
+
+        if (password_verify($password, $hash)) {
+            return true;
+        }
+
+        // Password setup trims leading/trailing spaces before hashing.
+        $normalizedPassword = trim($password);
+        if ($normalizedPassword === '' || $normalizedPassword === $password) {
+            return false;
+        }
+
+        return password_verify($normalizedPassword, $hash);
     }
 }
