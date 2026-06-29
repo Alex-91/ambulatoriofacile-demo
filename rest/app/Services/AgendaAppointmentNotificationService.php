@@ -377,6 +377,13 @@ class AgendaAppointmentNotificationService
 
             $this->logService->append($tenant, $logEntry);
             $result['results'][] = $sendResult;
+
+            // Channels are treated as an ordered fallback chain:
+            // once one delivery succeeds, we stop and avoid duplicate alerts.
+            if (!empty($sendResult['ok'])) {
+                $result['delivered_channel'] = $channel;
+                break;
+            }
         }
 
         return $result;
