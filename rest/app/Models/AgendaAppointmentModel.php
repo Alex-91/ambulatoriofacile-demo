@@ -460,6 +460,14 @@ class AgendaAppointmentModel extends Model
             return [];
         }
 
+        $row = $this->db->table($this->table)
+            ->select('id_slot')
+            ->where('id_appuntamento', $idAppuntamento)
+            ->get()
+            ->getRowArray();
+
+        $baseSlotId = (int) ($row['id_slot'] ?? 0);
+
         if ($this->appointmentSlotLinkTableExists()) {
             $rows = $this->db->table('dap45_agenda_appuntamenti_slot')
                 ->select('id_slot')
@@ -470,21 +478,20 @@ class AgendaAppointmentModel extends Model
                 ->getResultArray();
 
             if ($rows !== []) {
-                return array_values(array_filter(array_map(
+                $slotIds = array_values(array_filter(array_map(
                     static fn(array $row): int => (int) ($row['id_slot'] ?? 0),
                     $rows
                 )));
+
+                if ($baseSlotId > 0) {
+                    array_unshift($slotIds, $baseSlotId);
+                }
+
+                return array_values(array_unique(array_filter($slotIds)));
             }
         }
 
-        $row = $this->db->table($this->table)
-            ->select('id_slot')
-            ->where('id_appuntamento', $idAppuntamento)
-            ->get()
-            ->getRowArray();
-
-        $slotId = (int) ($row['id_slot'] ?? 0);
-        return $slotId > 0 ? [$slotId] : [];
+        return $baseSlotId > 0 ? [$baseSlotId] : [];
     }
 
     private function restoreSlotState(int $idSlot, string $timestamp): void

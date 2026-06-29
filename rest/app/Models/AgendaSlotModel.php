@@ -289,6 +289,16 @@ public function getAvailabilityDaysForRange(int $idDot, string $fromDate, string
         if ($this->appointmentSlotLinkTableExists()) {
             return "
                 SELECT
+                    a.id_slot AS id_slot,
+                    {$columnSql},
+                    1 AS appointment_is_primary_slot,
+                    1 AS appointment_slot_position
+                FROM dap12_agenda_appuntamenti a
+                WHERE a.stato <> 'ANNULLATO'
+
+                UNION ALL
+
+                SELECT
                     rel.id_slot AS id_slot,
                     {$columnSql},
                     rel.is_primario AS appointment_is_primary_slot,
@@ -297,21 +307,7 @@ public function getAvailabilityDaysForRange(int $idDot, string $fromDate, string
                 INNER JOIN dap45_agenda_appuntamenti_slot rel
                     ON rel.id_appuntamento = a.id_appuntamento
                 WHERE a.stato <> 'ANNULLATO'
-
-                UNION ALL
-
-                SELECT
-                    a.id_slot AS id_slot,
-                    {$columnSql},
-                    1 AS appointment_is_primary_slot,
-                    1 AS appointment_slot_position
-                FROM dap12_agenda_appuntamenti a
-                WHERE a.stato <> 'ANNULLATO'
-                  AND NOT EXISTS (
-                        SELECT 1
-                        FROM dap45_agenda_appuntamenti_slot rel
-                        WHERE rel.id_appuntamento = a.id_appuntamento
-                  )
+                  AND rel.id_slot <> a.id_slot
             ";
         }
 
