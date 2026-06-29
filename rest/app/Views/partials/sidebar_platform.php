@@ -12,6 +12,10 @@ $platformFeaturesActive = (
     str_starts_with($currentPath, 'login/piattaforma/funzioni')
     || str_starts_with($currentPath, 'piattaforma/funzioni')
 ) ? 'active' : '';
+$platformImpersonationActive = (
+    str_starts_with($currentPath, 'login/piattaforma/impersonificazione')
+    || str_starts_with($currentPath, 'piattaforma/impersonificazione')
+) ? 'active' : '';
 $otpDevicesActive = (
     str_starts_with($currentPath, 'login/piattaforma/dispositivi-otp')
     || str_starts_with($currentPath, 'piattaforma/dispositivi-otp')
@@ -38,6 +42,12 @@ $platformMasterEmails = is_array($platformMasterEmails ?? null) ? $platformMaste
         <a href="<?= portal_platform_url('funzioni') ?>">
           <i class="fa fa-toggle-on"></i>
           Catalogo funzioni
+        </a>
+      </li>
+      <li class="<?= esc($platformImpersonationActive) ?>">
+        <a href="<?= portal_platform_url('impersonificazione') ?>">
+          <i class="fa fa-user-secret"></i>
+          Accesso delegato
         </a>
       </li>
       <li class="<?= esc($otpDevicesActive) ?>">

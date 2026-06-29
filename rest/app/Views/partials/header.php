@@ -128,6 +128,11 @@ $showDemoRoleSwitch = $demoSessionActive
 $demoAccessUrl = $showDemoRoleSwitch
     ? trim((string) ($demoCurrentAccount['access_url'] ?? site_url('access')))
     : '';
+$activeImpersonation = $sess->get(\App\Services\PlatformImpersonationService::SESSION_KEY);
+$activeImpersonation = is_array($activeImpersonation) ? $activeImpersonation : null;
+$impersonationMinutesLeft = $activeImpersonation !== null
+    ? max(1, (int) ceil(max(0, ((int) ($activeImpersonation['expires_at'] ?? 0)) - time()) / 60))
+    : 0;
 $showHeaderNavigation = false;
 $headerLogoUrl = $isPortalConsoleHeader
     ? (($isTenantOperationalConsoleSession && $tenantOperationalHomeUrl !== null)
@@ -688,6 +693,11 @@ if ($headerMenuUserId > 0) {
               <?php endif; ?>
               <?php if (!$useMinimalTenantOnboardingHeader && $canAccessPlatformConsole): ?>
               <div class="platform-user-section">
+                <a href="<?= portal_platform_url('impersonificazione') ?>" class="btn btn-default btn-flat platform-user-action" style="margin-bottom:8px;">
+                  <i class="fa fa-user-secret"></i> Accesso delegato
+                </a>
+              </div>
+              <div class="platform-user-section">
                 <a href="<?= portal_platform_url('spazi-clienti') ?>" class="btn btn-default btn-flat platform-user-action">
                   <i class="fa fa-sitemap"></i> Console piattaforma
                 </a>
@@ -757,6 +767,30 @@ if ($headerMenuUserId > 0) {
 
   </nav>
 </header>
+
+<?php if ($activeImpersonation !== null): ?>
+<div style="background:#fef7e8; border-bottom:1px solid #ead7a5; padding:12px 18px; color:#5e4a1c;">
+  <div style="display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content:space-between;">
+    <div>
+      <strong>Accesso delegato attivo</strong>
+      come <?= esc((string) ($activeImpersonation['target_display_name'] ?? $activeImpersonation['target_username'] ?? 'account')) ?>
+      nello spazio <?= esc((string) ($activeImpersonation['tenant_name'] ?? '')) ?>.
+      Motivo: <?= esc((string) ($activeImpersonation['reason'] ?? '')) ?>.
+      Scade tra circa <?= $impersonationMinutesLeft ?> minuti.
+    </div>
+    <div style="display:flex; gap:8px; align-items:center;">
+      <a href="<?= esc(portal_platform_url('impersonificazione')) ?>" class="btn btn-default btn-sm">
+        <i class="fa fa-user-secret"></i> Console accesso delegato
+      </a>
+      <form method="post" action="<?= esc(portal_platform_url('impersonificazione/stop')) ?>" style="margin:0;">
+        <button type="submit" class="btn btn-warning btn-sm">
+          <i class="fa fa-sign-out"></i> Termina accesso delegato
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+<?php endif; ?>
 
 <script src="<?= base_url('public/plugins/jQuery/jQuery-2.1.4.min.js') ?>"></script>
 <script src="<?= base_url('public/bootstrap/js/bootstrap.min.js') ?>"></script>

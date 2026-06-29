@@ -49,6 +49,7 @@ public function __construct()
         'pagecache'     => PageCache::class,
         'performance'   => PerformanceMetrics::class,
         'auth'          => \App\Filters\AuthFilter::class,
+        'platformimpersonation' => \App\Filters\PlatformImpersonationFilter::class,
         'tenantruntime' => \App\Filters\TenantRuntimeFilter::class,
         'tenantfeatures' => \App\Filters\TenantFeatureAccessFilter::class,
         'adminmenuaccess' => \App\Filters\AdminMenuAccessFilter::class,
@@ -90,6 +91,7 @@ public function __construct()
     public array $globals = [
         'before' => [
             'cors',
+            'platformimpersonation',
             'tenantruntime',
             'cryptodb',
             'auth' => [

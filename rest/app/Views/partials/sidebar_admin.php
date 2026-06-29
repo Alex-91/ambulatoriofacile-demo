@@ -79,6 +79,8 @@ $showDemoRoleSwitch = $demoSessionActive
 $demoAccessUrl = $showDemoRoleSwitch
     ? trim((string) ($demoCurrentAccount['access_url'] ?? site_url('access')))
     : '';
+$activeImpersonation = $sess->get(\App\Services\PlatformImpersonationService::SESSION_KEY);
+$activeImpersonation = is_array($activeImpersonation) ? $activeImpersonation : null;
 
 $isLinkActive = static function (string $href) use ($normalizePath, $currentPath): bool {
     $itemPath = strtolower($normalizePath($href));
@@ -167,6 +169,13 @@ if ($isTenantOperationalConsoleSession) {
 
     if ($canAccessPlatformConsole) {
         $contextActions[] = [
+            'href' => portal_platform_url('impersonificazione'),
+            'label' => 'Apri accesso delegato',
+            'icon' => 'fa-user-secret',
+            'active' => $isLinkActive(portal_platform_url('impersonificazione')),
+        ];
+
+        $contextActions[] = [
             'href' => portal_platform_url('spazi-clienti'),
             'label' => 'Console piattaforma',
             'icon' => 'fa-sitemap',
@@ -207,6 +216,15 @@ if ($isTenantOperationalConsoleSession) {
             'label' => 'Gestisci notifiche appuntamenti',
             'icon' => 'fa-commenting',
             'active' => $isLinkActive(portal_tenant_space_url('notifiche-appuntamenti')),
+        ];
+    }
+
+    if ($activeImpersonation !== null) {
+        $contextActions[] = [
+            'href' => portal_platform_url('impersonificazione'),
+            'label' => 'Sessione delegata attiva',
+            'icon' => 'fa-shield',
+            'active' => false,
         ];
     }
 
