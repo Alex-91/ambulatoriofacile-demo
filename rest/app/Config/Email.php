@@ -139,11 +139,19 @@ class Email extends BaseConfig
         $this->SMTPTimeout   = $this->envInt(['email.SMTPTimeout', 'EMAIL_SMTP_TIMEOUT'], $this->SMTPTimeout);
         $this->SMTPKeepAlive = $this->envBool(['email.SMTPKeepAlive', 'EMAIL_SMTP_KEEP_ALIVE'], $this->SMTPKeepAlive);
 
-        if ($smtpCrypto !== null && trim($smtpCrypto) !== '') {
-            $this->SMTPCrypto = strtolower(trim($smtpCrypto));
+        $normalizedSmtpCrypto = $smtpCrypto !== null ? strtolower(trim($smtpCrypto)) : null;
+
+        if ($this->SMTPPort === 465 && in_array($normalizedSmtpCrypto, ['ssl', 'tls'], true)) {
+            // CI4 already uses implicit TLS internally on port 465.
+            // Normalizing legacy ssl/tls values avoids transport mismatches with some SMTP providers.
+            $normalizedSmtpCrypto = '';
+        }
+
+        if ($normalizedSmtpCrypto !== null && $normalizedSmtpCrypto !== '') {
+            $this->SMTPCrypto = $normalizedSmtpCrypto;
         } elseif ($this->SMTPPort === 465) {
-            // SMTP 465 commonly expects implicit SSL/TLS.
-            $this->SMTPCrypto = 'ssl';
+            // Leave the value empty so the CI4 mailer can use its built-in implicit TLS handling for port 465.
+            $this->SMTPCrypto = '';
         } elseif ($this->SMTPPort === 587) {
             // SMTP 587 commonly expects STARTTLS.
             $this->SMTPCrypto = 'tls';
