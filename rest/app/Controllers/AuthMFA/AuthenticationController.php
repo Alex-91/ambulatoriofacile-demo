@@ -1069,9 +1069,9 @@ class AuthenticationController extends BaseController
             return false;
         }
 
-        if ($this->isPlatformTenantLoginSession()) {
-            $platformUserId = (int) (session()->get('platform_user_id') ?? 0);
-            return $this->verifyPlatformSessionPassword($platformUserId, $password);
+        $platformUserId = (int) (session()->get('platform_user_id') ?? 0);
+        if ($platformUserId > 0 && $this->verifyPlatformSessionPassword($platformUserId, $password)) {
+            return true;
         }
 
         $userId = (int)(session()->get('userId') ?? 0);
@@ -1081,12 +1081,6 @@ class AuthenticationController extends BaseController
 
         return $this->verifyLegacySessionPassword($userId, $password);
     }
-
-    private function isPlatformTenantLoginSession(): bool
-    {
-        return trim((string) (session()->get('loginSource') ?? '')) === 'platform_tenant';
-    }
-
     private function verifyPlatformSessionPassword(int $platformUserId, string $password): bool
     {
         if ($platformUserId <= 0 || $password === '') {
