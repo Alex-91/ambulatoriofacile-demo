@@ -133,13 +133,76 @@ $activeImpersonation = is_array($activeImpersonation) ? $activeImpersonation : n
 $impersonationMinutesLeft = $activeImpersonation !== null
     ? max(1, (int) ceil(max(0, ((int) ($activeImpersonation['expires_at'] ?? 0)) - time()) / 60))
     : 0;
+$resolveHeaderLogoMenuUrl = static function (array $items): ?string {
+    foreach ($items as $item) {
+        if (!is_array($item)) {
+            continue;
+        }
+
+        $link = trim((string) ($item['link'] ?? $item['url'] ?? ''));
+        if ($link === '' || $link === '#') {
+            continue;
+        }
+
+        $normalizedLink = strtolower(trim((string) parse_url($link, PHP_URL_PATH), '/'));
+        if (in_array($normalizedLink, ['', 'logout', 'admin/personale/logout', 'login', 'auth'], true)) {
+            continue;
+        }
+
+        return preg_match('#^https?://#i', $link) === 1 ? $link : site_url($link);
+    }
+
+    return null;
+};
+$headerLogoFallbackUrl = null;
+$headerLogoSources = [];
+if (is_array($menu_items ?? null)) {
+    $headerLogoSources[] = $menu_items;
+}
+
+$headerMenuItems = $sess->get('header_menu_items');
+if (is_array($headerMenuItems)) {
+    $headerLogoSources[] = $headerMenuItems;
+}
+
+$headerNavItems = $sess->get('header_nav_items');
+if (is_array($headerNavItems)) {
+    $headerLogoSources[] = $headerNavItems;
+}
+
+$menuData = $sess->get('menuData');
+if (is_array($menuData) && is_array($menuData['result'] ?? null)) {
+    $headerLogoSources[] = $menuData['result'];
+}
+
+$menuAgenda = $sess->get('menuAgenda');
+if (is_array($menuAgenda)) {
+    $headerLogoSources[] = $menuAgenda;
+}
+
+foreach ($headerLogoSources as $headerLogoSource) {
+    $headerLogoFallbackUrl = $resolveHeaderLogoMenuUrl($headerLogoSource);
+    if ($headerLogoFallbackUrl !== null) {
+        break;
+    }
+}
+
+$defaultOperationalHomeUrl = session_access_is_confirmed() ? portal_operational_home_url() : site_url('/');
+$defaultOperationalHomePath = trim((string) parse_url($defaultOperationalHomeUrl, PHP_URL_PATH), '/');
+$defaultOperationalHomeSegments = $defaultOperationalHomePath === '' ? [] : explode('/', $defaultOperationalHomePath);
+$defaultOperationalHomeLastSegment = $defaultOperationalHomeSegments === []
+    ? ''
+    : strtolower(trim((string) end($defaultOperationalHomeSegments)));
+$resolvedOperationalHomeUrl = $headerLogoFallbackUrl !== null && $defaultOperationalHomeLastSegment === 'app'
+    ? $headerLogoFallbackUrl
+    : $defaultOperationalHomeUrl;
 $showHeaderNavigation = false;
 $headerLogoUrl = $isPortalConsoleHeader
     ? (($isTenantOperationalConsoleSession && $tenantOperationalHomeUrl !== null)
         ? $tenantOperationalHomeUrl
         : ($demoSessionActive ? site_url('access') : portal_public_access_url('login')))
     : (session_access_is_confirmed()
-        ? portal_operational_home_url()
+        ? $resolvedOperationalHomeUrl
         : site_url('/'));
 $headerLogoImageUrl = base_url('public/assets/images/logo-header.svg');
 
