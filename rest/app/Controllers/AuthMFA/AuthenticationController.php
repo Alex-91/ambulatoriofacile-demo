@@ -1065,11 +1065,50 @@ class AuthenticationController extends BaseController
 
     private function verifyCurrentLoginPassword(string $password): bool
     {
-        $userId = (int)(session()->get('userId') ?? 0);
-        if ($userId <= 0 || $password === '') {
+        if ($password === '') {
             return false;
         }
 
+        if ($this->isPlatformTenantLoginSession()) {
+            $platformUserId = (int) (session()->get('platform_user_id') ?? 0);
+            return $this->verifyPlatformSessionPassword($platformUserId, $password);
+        }
+
+        $userId = (int)(session()->get('userId') ?? 0);
+        if ($userId <= 0) {
+            return false;
+        }
+
+        return $this->verifyLegacySessionPassword($userId, $password);
+    }
+
+    private function isPlatformTenantLoginSession(): bool
+    {
+        return trim((string) (session()->get('loginSource') ?? '')) === 'platform_tenant';
+    }
+
+    private function verifyPlatformSessionPassword(int $platformUserId, string $password): bool
+    {
+        if ($platformUserId <= 0 || $password === '') {
+            return false;
+        }
+
+        $platformUser = (new \App\Models\PlatformUsersModel())->find($platformUserId);
+        if (!is_array($platformUser) || $platformUser === []) {
+            return false;
+        }
+
+        $status = strtolower(trim((string) ($platformUser['status'] ?? 'active')));
+        if (in_array($status, ['suspended', 'blocked'], true)) {
+            return false;
+        }
+
+        $hash = trim((string) ($platformUser['password_hash'] ?? ''));
+        return $hash !== '' && password_verify($password, $hash);
+    }
+
+    private function verifyLegacySessionPassword(int $userId, string $password): bool
+    {
         $crypto = new Crypto_helper();
         $sql = "SELECT id_user
                 FROM dap01_users
