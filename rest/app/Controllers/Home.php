@@ -17,7 +17,7 @@ class Home extends Controller
 
     public function index()
     {
-        helper('portal');
+        helper(['portal', 'session_auth']);
 
         if ((bool)session()->get('isLoggedIn') && !$this->isLogged()) {
             if ((int)session()->get('forcePwdChange') === 1) {
@@ -121,7 +121,7 @@ class Home extends Controller
 
     private function isLogged(): bool
     {
-        return (bool)session()->get('isLoggedInConfirmed');
+        return session_access_is_confirmed();
     }
 
     private function userCanAccess(string $codiceScheda): bool

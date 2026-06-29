@@ -236,18 +236,17 @@ if (!function_exists('portal_operational_home_url')) {
     {
         helper('session_auth');
 
-        $session = session();
-        $tenantRole = session_current_tenant_role();
+        $isConfirmed = session_access_is_confirmed();
 
-        if ((bool) ($session->get('isLoggedInConfirmed') ?? false) === true && session_should_open_agenda_first()) {
+        if ($isConfirmed && session_should_open_agenda_first()) {
             return site_url('agenda');
         }
 
-        if (session_has_operational_profile_access()) {
+        if ($isConfirmed && session_has_operational_profile_access()) {
             return site_url('admin');
         }
 
-        if ((bool) ($session->get('isLoggedInConfirmed') ?? false) === true) {
+        if ($isConfirmed) {
             return site_url('app');
         }
 

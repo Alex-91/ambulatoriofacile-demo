@@ -6,13 +6,13 @@ class Errors extends BaseController
 {
     public function redirectHome()
     {
-        helper('portal');
+        helper(['portal', 'session_auth']);
 
         $requestUri = (string) ($_SERVER['AF_ORIGINAL_REQUEST_URI'] ?? $_SERVER['REQUEST_URI'] ?? '');
         $path = trim((string) parse_url($requestUri, PHP_URL_PATH), '/');
 
         if ($path === 'app') {
-            if ((bool) session()->get('isLoggedInConfirmed') === true) {
+            if (session_access_is_confirmed()) {
                 return redirect()->to(site_url('/'));
             }
 
