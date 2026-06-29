@@ -87,6 +87,13 @@ $formatDateTime = static function (?string $value): string {
           <?php if (!empty($success)): ?>
             <div class="alert alert-success"><?= esc((string) $success) ?></div>
           <?php endif; ?>
+          <?php if (!empty($settings['using_default_preferences'])): ?>
+            <div class="alert alert-info">
+              Questo spazio sta usando la configurazione iniziale del centro notifiche appuntamenti:
+              il flusso da medico a medico via OTP e attivo, mentre i messaggi verso pazienti restano spenti
+              finche il responsabile dello studio non salva una configurazione personalizzata.
+            </div>
+          <?php endif; ?>
 
           <div class="intro-box">
             <h3 style="margin-top:0; margin-bottom:8px;">

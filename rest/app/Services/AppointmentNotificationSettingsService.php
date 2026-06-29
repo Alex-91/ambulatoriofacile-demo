@@ -61,8 +61,11 @@ class AppointmentNotificationSettingsService
                 ->first()
             : null;
 
+        $rawPreferenceConfig = trim((string) ($preferenceRow['config_json'] ?? ''));
+        $usingDefaultPreferences = $rawPreferenceConfig === '';
+
         $config = $this->sanitizeConfig(
-            $this->decodeConfig((string) ($preferenceRow['config_json'] ?? '')),
+            $this->decodeConfig($rawPreferenceConfig),
             array_keys(array_filter($availableChannels, static fn(bool $enabled): bool => $enabled))
         );
 
@@ -106,6 +109,7 @@ class AppointmentNotificationSettingsService
             'message_types' => $messageTypeRows,
             'raw_config' => $config,
             'preference_row' => is_array($preferenceRow) ? $preferenceRow : null,
+            'using_default_preferences' => $usingDefaultPreferences,
         ];
     }
 
@@ -234,8 +238,11 @@ class AppointmentNotificationSettingsService
                     'channels' => [],
                 ],
                 self::TYPE_DOCTOR_CROSS_BOOKING => [
-                    'enabled' => false,
-                    'channels' => [],
+                    // Keep the first-run default focused on the internal workflow
+                    // that triggered the feature request, without enabling patient
+                    // communications until the tenant master makes an explicit choice.
+                    'enabled' => true,
+                    'channels' => [self::CHANNEL_OTP],
                 ],
                 self::TYPE_REMINDER => [
                     'enabled' => false,
