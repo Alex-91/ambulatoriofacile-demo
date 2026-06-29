@@ -24,7 +24,7 @@ $formatDateTime = static function (?string $value): string {
 
 $typeLabels = [
     \App\Services\AppointmentNotificationSettingsService::TYPE_PATIENT_BOOKING => 'Conferma appuntamento',
-    \App\Services\AppointmentNotificationSettingsService::TYPE_DOCTOR_CROSS_BOOKING => 'Da professionista a professionista',
+    \App\Services\AppointmentNotificationSettingsService::TYPE_DOCTOR_CROSS_BOOKING => 'Da medico a medico',
     \App\Services\AppointmentNotificationSettingsService::TYPE_REMINDER => 'Reminder appuntamento',
 ];
 $channelMeta = [
@@ -61,7 +61,7 @@ $channelMeta = [
     <section class="content-header">
       <h1>Notifiche Appuntamenti</h1>
       <p class="text-muted" style="margin:8px 0 0 0;">
-        Qui controlli in modo centralizzato i canali acquistati, le configurazioni dei responsabili di studio e lo storico invii di conferme, reminder e avvisi tra professionisti.
+        Qui controlli in modo centralizzato i canali acquistati, le configurazioni dei responsabili di studio e lo storico invii di conferme, reminder e avvisi tra medici.
       </p>
     </section>
 

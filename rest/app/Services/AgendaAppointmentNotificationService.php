@@ -63,6 +63,7 @@ class AgendaAppointmentNotificationService
             return ['handled' => false, 'reason' => 'target_doctor_not_found'];
         }
 
+        $targetIsDoctor = $this->isDoctorAgendaProfessional($targetDoctor);
         $targetContact = $this->personaleModel->getPersonaleDecryptedById((int) ($targetDoctor['id_personale'] ?? 0)) ?? [];
         $doctorLabel = $this->buildDoctorLabel($targetDoctor, $targetContact);
         $patientLabel = $this->buildPatientLabel($appointment);
@@ -106,39 +107,51 @@ class AgendaAppointmentNotificationService
         }
 
         if ($actorIsDoctor && $actorUserId > 0 && $actorLegacyIdDot > 0 && $actorLegacyIdDot !== $targetLegacyIdDot) {
-            $crossPlan = $this->settingsService->resolveDispatchPlan((int) ($tenant['id_tenant'] ?? 0), AppointmentNotificationSettingsService::TYPE_DOCTOR_CROSS_BOOKING);
-            if (!empty($crossPlan['enabled']) && !empty($crossPlan['channels'])) {
-                $actorDoctor = $this->agendaModel->getAgendaProfessionalByLegacyId($actorLegacyIdDot);
-                $actorContact = $actorDoctor !== null
-                    ? ($this->personaleModel->getPersonaleDecryptedById((int) ($actorDoctor['id_personale'] ?? 0)) ?? [])
-                    : [];
-                $actorLabel = $actorDoctor !== null ? $this->buildDoctorLabel($actorDoctor, $actorContact) : 'Un collega';
-                $doctorRecipient = $this->buildDoctorRecipient($targetDoctor, $targetContact, $doctorLabel);
-                $message = $this->buildCrossDoctorMessage($actorLabel, $patientLabel, $scheduledFor, $notes);
+            if (!$targetIsDoctor) {
+                $result['doctor_cross_booking'] = [
+                    'enabled' => false,
+                    'reason' => 'target_user_not_doctor',
+                ];
+            } else {
+                $crossPlan = $this->settingsService->resolveDispatchPlan((int) ($tenant['id_tenant'] ?? 0), AppointmentNotificationSettingsService::TYPE_DOCTOR_CROSS_BOOKING);
+                if (!empty($crossPlan['enabled']) && !empty($crossPlan['channels'])) {
+                    $actorDoctor = $this->agendaModel->getAgendaProfessionalByLegacyId($actorLegacyIdDot);
+                    if ($actorDoctor === null || !$this->isDoctorAgendaProfessional($actorDoctor)) {
+                        $result['doctor_cross_booking'] = [
+                            'enabled' => false,
+                            'reason' => 'actor_user_not_doctor',
+                        ];
+                    } else {
+                        $actorContact = $this->personaleModel->getPersonaleDecryptedById((int) ($actorDoctor['id_personale'] ?? 0)) ?? [];
+                        $actorLabel = $this->buildDoctorLabel($actorDoctor, $actorContact);
+                        $doctorRecipient = $this->buildDoctorRecipient($targetDoctor, $targetContact, $doctorLabel);
+                        $message = $this->buildCrossDoctorMessage($actorLabel, $patientLabel, $scheduledFor, $notes);
 
-                $result['doctor_cross_booking'] = $this->dispatchPlan(
-                    $tenant,
-                    (array) $crossPlan,
-                    $doctorRecipient,
-                    $message,
-                    [
-                        'subject' => 'Nuovo appuntamento inserito da un professionista',
-                        'otp_subject' => 'Codice OTP e nuovo appuntamento inserito da un professionista',
-                    ],
-                    [
-                        'message_type' => AppointmentNotificationSettingsService::TYPE_DOCTOR_CROSS_BOOKING,
-                        'recipient_role' => 'doctor',
-                        'appointment_id' => $appointmentId,
-                        'doctor_id' => $targetLegacyIdDot,
-                        'doctor_label' => $doctorLabel,
-                        'actor_user_id' => $actorUserId,
-                        'actor_label' => $actorLabel,
-                        'patient_label' => $patientLabel,
-                        'scheduled_for' => $scheduledFor,
-                        'notes' => $notes,
-                        'source' => 'appointment_booking',
-                    ]
-                );
+                        $result['doctor_cross_booking'] = $this->dispatchPlan(
+                            $tenant,
+                            (array) $crossPlan,
+                            $doctorRecipient,
+                            $message,
+                            [
+                                'subject' => 'Nuovo appuntamento inserito da un medico',
+                                'otp_subject' => 'Codice OTP e nuovo appuntamento inserito da un medico',
+                            ],
+                            [
+                                'message_type' => AppointmentNotificationSettingsService::TYPE_DOCTOR_CROSS_BOOKING,
+                                'recipient_role' => 'doctor',
+                                'appointment_id' => $appointmentId,
+                                'doctor_id' => $targetLegacyIdDot,
+                                'doctor_label' => $doctorLabel,
+                                'actor_user_id' => $actorUserId,
+                                'actor_label' => $actorLabel,
+                                'patient_label' => $patientLabel,
+                                'scheduled_for' => $scheduledFor,
+                                'notes' => $notes,
+                                'source' => 'appointment_booking',
+                            ]
+                        );
+                    }
+                }
             }
         }
 
@@ -206,12 +219,16 @@ class AgendaAppointmentNotificationService
      */
     private function buildDoctorRecipient(array $doctor, array $contact, string $doctorLabel): array
     {
+        $mobile = (string) ($contact['cellulare'] ?? '');
+        $phone = (string) ($contact['telefono'] ?? '');
+
         return [
-            'mobile' => (string) ($contact['cellulare'] ?? ''),
+            'mobile' => $mobile,
+            'phone' => $phone,
             'email' => (string) ($contact['email'] ?? ''),
             'label' => $doctorLabel,
             'user_id' => (int) ($doctor['id_user'] ?? 0),
-            'otp_identity' => (string) (($contact['email'] ?? '') ?: ($contact['cellulare'] ?? '') ?: ((int) ($doctor['id_user'] ?? 0) > 0 ? ('uid:' . (int) ($doctor['id_user'] ?? 0)) : '')),
+            'otp_identity' => (string) (($contact['email'] ?? '') ?: $mobile ?: $phone ?: ((int) ($doctor['id_user'] ?? 0) > 0 ? ('uid:' . (int) ($doctor['id_user'] ?? 0)) : '')),
         ];
     }
 
@@ -290,6 +307,14 @@ class AgendaAppointmentNotificationService
         }
 
         return implode("\n", $lines);
+    }
+
+    /**
+     * @param array<string, mixed> $doctor
+     */
+    private function isDoctorAgendaProfessional(array $doctor): bool
+    {
+        return (int) ($doctor['tipo'] ?? 0) === StaffDoctorAccessService::TIPO_DOTTORE;
     }
 
     /**
