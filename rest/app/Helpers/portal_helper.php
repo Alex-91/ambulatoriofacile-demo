@@ -231,58 +231,113 @@ if (!function_exists('portal_resolve_redirect_url')) {
     }
 }
 
+if (!function_exists('portal_first_accessible_menu_url')) {
+    function portal_first_accessible_menu_url($items, array $excludedLinks = []): ?string
+    {
+        $normalizedExcludedLinks = [];
+        foreach (array_merge(['', '#', 'logout', 'admin/personale/logout', 'login', 'auth'], $excludedLinks) as $excludedLink) {
+            $normalizedExcludedLinks[] = strtolower(trim((string) parse_url((string) $excludedLink, PHP_URL_PATH), '/'));
+        }
+        $normalizedExcludedLinks = array_values(array_unique($normalizedExcludedLinks));
+
+        $resolveNode = static function ($node) use (&$resolveNode, $normalizedExcludedLinks): ?string {
+            if (is_object($node)) {
+                $node = (array) $node;
+            }
+
+            if (!is_array($node) || $node === []) {
+                return null;
+            }
+
+            $canAccess = $node['can_access'] ?? null;
+            if ($canAccess !== null && (int) $canAccess !== 1) {
+                return null;
+            }
+
+            $link = trim((string) ($node['link'] ?? $node['url'] ?? $node['route'] ?? $node['rotta'] ?? ''));
+            if ($link !== '' && $link !== '#') {
+                $normalizedLink = strtolower(trim((string) parse_url($link, PHP_URL_PATH), '/'));
+                if (!in_array($normalizedLink, $normalizedExcludedLinks, true)) {
+                    return portal_resolve_redirect_url($link);
+                }
+            }
+
+            foreach (['children', 'menu', 'result'] as $childKey) {
+                $children = $node[$childKey] ?? null;
+                if (!is_array($children)) {
+                    continue;
+                }
+
+                $resolvedUrl = $resolveNode($children);
+                if ($resolvedUrl !== null) {
+                    return $resolvedUrl;
+                }
+            }
+
+            foreach ($node as $key => $value) {
+                if (in_array($key, ['children', 'menu', 'result'], true)) {
+                    continue;
+                }
+
+                if (!is_array($value) && !is_object($value)) {
+                    continue;
+                }
+
+                $resolvedUrl = $resolveNode($value);
+                if ($resolvedUrl !== null) {
+                    return $resolvedUrl;
+                }
+            }
+
+            return null;
+        };
+
+        return $resolveNode($items);
+    }
+}
+
 if (!function_exists('portal_first_accessible_operational_url')) {
     function portal_first_accessible_operational_url(): ?string
     {
         $session = session();
-        $excludedLinks = [
-            '',
-            '#',
-            'logout',
-            'admin/personale/logout',
-            'login',
-            'auth',
-        ];
-
-        $resolveLink = static function ($value) use ($excludedLinks): ?string {
-            $link = trim((string) $value);
-            if ($link === '') {
-                return null;
-            }
-
-            $normalizedLink = strtolower(trim((string) parse_url($link, PHP_URL_PATH), '/'));
-            if (in_array($normalizedLink, $excludedLinks, true)) {
-                return null;
-            }
-
-            return portal_resolve_redirect_url($link);
-        };
 
         $headerNavItems = $session->get('header_nav_items');
         if (is_array($headerNavItems)) {
-            foreach ($headerNavItems as $item) {
-                if (!is_array($item)) {
-                    continue;
-                }
+            $resolvedUrl = portal_first_accessible_menu_url($headerNavItems);
+            if ($resolvedUrl !== null) {
+                return $resolvedUrl;
+            }
+        }
 
-                $resolvedUrl = $resolveLink($item['link'] ?? '');
-                if ($resolvedUrl !== null) {
-                    return $resolvedUrl;
-                }
+        $headerMenuItems = $session->get('header_menu_items');
+        if (is_array($headerMenuItems)) {
+            $resolvedUrl = portal_first_accessible_menu_url($headerMenuItems);
+            if ($resolvedUrl !== null) {
+                return $resolvedUrl;
+            }
+        }
+
+        $menuData = $session->get('menuData');
+        if (is_array($menuData) && is_array($menuData['result'] ?? null)) {
+            $resolvedUrl = portal_first_accessible_menu_url($menuData['result']);
+            if ($resolvedUrl !== null) {
+                return $resolvedUrl;
+            }
+        }
+
+        $menuAgenda = $session->get('menuAgenda');
+        if (is_array($menuAgenda)) {
+            $resolvedUrl = portal_first_accessible_menu_url($menuAgenda);
+            if ($resolvedUrl !== null) {
+                return $resolvedUrl;
             }
         }
 
         $schede = $session->get('schede_data');
         if (is_array($schede)) {
-            foreach ($schede as $scheda) {
-                if (!is_array($scheda) || (int) ($scheda['can_access'] ?? 0) !== 1) {
-                    continue;
-                }
-
-                $resolvedUrl = $resolveLink($scheda['url'] ?? '');
-                if ($resolvedUrl !== null) {
-                    return $resolvedUrl;
-                }
+            $resolvedUrl = portal_first_accessible_menu_url($schede);
+            if ($resolvedUrl !== null) {
+                return $resolvedUrl;
             }
         }
 

@@ -133,27 +133,6 @@ $activeImpersonation = is_array($activeImpersonation) ? $activeImpersonation : n
 $impersonationMinutesLeft = $activeImpersonation !== null
     ? max(1, (int) ceil(max(0, ((int) ($activeImpersonation['expires_at'] ?? 0)) - time()) / 60))
     : 0;
-$resolveHeaderLogoMenuUrl = static function (array $items): ?string {
-    foreach ($items as $item) {
-        if (!is_array($item)) {
-            continue;
-        }
-
-        $link = trim((string) ($item['link'] ?? $item['url'] ?? ''));
-        if ($link === '' || $link === '#') {
-            continue;
-        }
-
-        $normalizedLink = strtolower(trim((string) parse_url($link, PHP_URL_PATH), '/'));
-        if (in_array($normalizedLink, ['', 'logout', 'admin/personale/logout', 'login', 'auth'], true)) {
-            continue;
-        }
-
-        return preg_match('#^https?://#i', $link) === 1 ? $link : site_url($link);
-    }
-
-    return null;
-};
 $headerLogoFallbackUrl = null;
 $headerLogoSources = [];
 if (is_array($menu_items ?? null)) {
@@ -181,7 +160,9 @@ if (is_array($menuAgenda)) {
 }
 
 foreach ($headerLogoSources as $headerLogoSource) {
-    $headerLogoFallbackUrl = $resolveHeaderLogoMenuUrl($headerLogoSource);
+    $headerLogoFallbackUrl = function_exists('portal_first_accessible_menu_url')
+        ? portal_first_accessible_menu_url($headerLogoSource)
+        : null;
     if ($headerLogoFallbackUrl !== null) {
         break;
     }
