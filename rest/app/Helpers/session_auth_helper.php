@@ -22,13 +22,16 @@ if (!function_exists('session_access_is_confirmed')) {
         $isPlatformAdmin = (bool) ($session->get('platform_is_admin') ?? false) === true;
         $tenantContext = $session->get(\App\Services\TenantContextService::SESSION_KEY);
         $hasTenantContext = is_array($tenantContext) && $tenantContext !== [];
+        $hasLegacyRuntimeContext = (bool) ($session->get('isLoggedIn') ?? false) === true
+            || (int) ($session->get('tipoUser') ?? 0) > 0;
 
-        if (!$isPlatformAdmin && $platformUserId <= 0 && !$hasTenantContext) {
+        if (!$isPlatformAdmin && $platformUserId <= 0 && !$hasTenantContext && !$hasLegacyRuntimeContext) {
             return false;
         }
 
-        // Self-heal platform/tenant sessions that already have a valid user context
-        // but lost the confirmation flag before reaching a filtered route.
+        // Self-heal already authenticated sessions that still have a valid
+        // runtime user context but lost the confirmation flag before reaching
+        // a guarded route or the /app landing page.
         $session->set([
             'isLoggedIn' => true,
             'isLoggedInConfirmed' => true,
