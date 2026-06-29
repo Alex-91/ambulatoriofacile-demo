@@ -461,13 +461,16 @@ class PlatformImpersonationService
             $selectFields[] = 'is_active';
         }
 
-        $selectFields[] = "CASE WHEN datascadenza <= NOW() THEN 'scadenza' ELSE 'ok' END AS password_status";
+        $selectFields[] = $tenantDb->fieldExists('datascadenza', 'dap01_users')
+            ? "CASE WHEN datascadenza <= NOW() THEN 'scadenza' ELSE 'ok' END AS password_status"
+            : "'ok' AS password_status";
 
-        return $tenantDb->table('dap01_users')
+        $query = $tenantDb->table('dap01_users')
             ->select(implode(', ', $selectFields), false)
             ->orderBy('username', 'ASC')
-            ->get()
-            ->getResultArray();
+            ->get();
+
+        return $query ? $query->getResultArray() : [];
     }
 
     /**
@@ -480,22 +483,53 @@ class PlatformImpersonationService
             return [];
         }
 
-        $rows = $tenantDb->query("
-            SELECT id_user,
-                   id_personale,
-                   tipo,
-                   " . $this->crypto->decrypt('nome') . " AS nome,
-                   " . $this->crypto->decrypt('cognome') . " AS cognome,
-                   " . $this->crypto->decrypt('email') . " AS email,
-                   " . $this->crypto->decrypt('cellulare') . " AS cellulare,
-                   " . $this->crypto->decrypt('qualifica') . " AS qualifica
-            FROM dap03_personale
-            WHERE id_user IN (" . implode(',', array_map('intval', $userIds)) . ')
-        ')->getResultArray();
+        $selectFields = ['p.id_user'];
+
+        if ($tenantDb->fieldExists('id_personale', 'dap03_personale')) {
+            $selectFields[] = 'p.id_personale';
+        }
+
+        if ($tenantDb->fieldExists('tipo', 'dap03_personale')) {
+            $selectFields[] = 'p.tipo';
+        }
+
+        foreach (['nome', 'cognome', 'email', 'cellulare', 'qualifica'] as $field) {
+            if ($tenantDb->fieldExists($field, 'dap03_personale')) {
+                $selectFields[] = $this->crypto->decryptSenzaAlias('p.' . $field) . ' AS ' . $field;
+            }
+        }
+
+        $builder = $tenantDb->table('dap03_personale p')
+            ->select(implode(', ', $selectFields), false)
+            ->whereIn('p.id_user', $userIds);
+
+        if ($tenantDb->fieldExists('is_active', 'dap03_personale')) {
+            $builder->orderBy('p.is_active', 'DESC');
+        }
+
+        if ($tenantDb->fieldExists('titolare', 'dap03_personale')) {
+            $builder->orderBy('p.titolare', 'DESC');
+        }
+
+        if ($tenantDb->fieldExists('sostituto', 'dap03_personale')) {
+            $builder->orderBy('p.sostituto', 'ASC');
+        }
+
+        if ($tenantDb->fieldExists('id_personale', 'dap03_personale')) {
+            $builder->orderBy('p.id_personale', 'ASC');
+        }
+
+        $query = $builder->get();
+        $rows = $query ? $query->getResultArray() : [];
 
         $indexed = [];
         foreach ($rows as $row) {
-            $indexed[(int) ($row['id_user'] ?? 0)] = $row;
+            $userId = (int) ($row['id_user'] ?? 0);
+            if ($userId <= 0 || isset($indexed[$userId])) {
+                continue;
+            }
+
+            $indexed[$userId] = $row;
         }
 
         return $indexed;
@@ -511,21 +545,41 @@ class PlatformImpersonationService
             return [];
         }
 
-        $rows = $tenantDb->query("
-            SELECT id_user,
-                   id_client,
-                   id_personale,
-                   " . $this->crypto->decrypt('nome') . " AS nome,
-                   " . $this->crypto->decrypt('cognome') . " AS cognome,
-                   " . $this->crypto->decrypt('email') . " AS email,
-                   " . $this->crypto->decrypt('cellulare') . " AS cellulare
-            FROM dap02_clients
-            WHERE id_user IN (" . implode(',', array_map('intval', $userIds)) . ')
-        ')->getResultArray();
+        $selectFields = ['c.id_user'];
+
+        if ($tenantDb->fieldExists('id_client', 'dap02_clients')) {
+            $selectFields[] = 'c.id_client';
+        }
+
+        if ($tenantDb->fieldExists('id_personale', 'dap02_clients')) {
+            $selectFields[] = 'c.id_personale';
+        }
+
+        foreach (['nome', 'cognome', 'email', 'cellulare'] as $field) {
+            if ($tenantDb->fieldExists($field, 'dap02_clients')) {
+                $selectFields[] = $this->crypto->decryptSenzaAlias('c.' . $field) . ' AS ' . $field;
+            }
+        }
+
+        $builder = $tenantDb->table('dap02_clients c')
+            ->select(implode(', ', $selectFields), false)
+            ->whereIn('c.id_user', $userIds);
+
+        if ($tenantDb->fieldExists('id_client', 'dap02_clients')) {
+            $builder->orderBy('c.id_client', 'ASC');
+        }
+
+        $query = $builder->get();
+        $rows = $query ? $query->getResultArray() : [];
 
         $indexed = [];
         foreach ($rows as $row) {
-            $indexed[(int) ($row['id_user'] ?? 0)] = $row;
+            $userId = (int) ($row['id_user'] ?? 0);
+            if ($userId <= 0 || isset($indexed[$userId])) {
+                continue;
+            }
+
+            $indexed[$userId] = $row;
         }
 
         return $indexed;
@@ -541,11 +595,12 @@ class PlatformImpersonationService
             return [];
         }
 
-        $rows = $tenantDb->table('dap13_seg')
+        $query = $tenantDb->table('dap13_seg')
             ->select('id_user, id_inf, nome, cognome')
             ->whereIn('id_user', $userIds)
-            ->get()
-            ->getResultArray();
+            ->get();
+
+        $rows = $query ? $query->getResultArray() : [];
 
         $indexed = [];
         foreach ($rows as $row) {
@@ -564,13 +619,38 @@ class PlatformImpersonationService
             return [];
         }
 
-        $rows = $this->platformDb->table('platform_user_tenants put')
-            ->select('put.app_user_id, put.id_platform_user, put.tenant_role, pu.email AS platform_email')
-            ->join('platform_users pu', 'pu.id_platform_user = put.id_platform_user', 'left')
+        if (!$this->platformDb->fieldExists('app_user_id', 'platform_user_tenants')) {
+            return [];
+        }
+
+        $selectFields = ['put.app_user_id'];
+
+        if ($this->platformDb->fieldExists('id_platform_user', 'platform_user_tenants')) {
+            $selectFields[] = 'put.id_platform_user';
+        }
+
+        if ($this->platformDb->fieldExists('tenant_role', 'platform_user_tenants')) {
+            $selectFields[] = 'put.tenant_role';
+        }
+
+        $builder = $this->platformDb->table('platform_user_tenants put')
+            ->select(implode(', ', $selectFields), false)
             ->where('put.id_tenant', $tenantId)
-            ->where('put.app_user_id IS NOT NULL', null, false)
-            ->get()
-            ->getResultArray();
+            ->where('put.app_user_id IS NOT NULL', null, false);
+
+        if (
+            $this->platformDb->tableExists('platform_users')
+            && $this->platformDb->fieldExists('id_platform_user', 'platform_user_tenants')
+            && $this->platformDb->fieldExists('id_platform_user', 'platform_users')
+            && $this->platformDb->fieldExists('email', 'platform_users')
+        ) {
+            $builder
+                ->select('pu.email AS platform_email')
+                ->join('platform_users pu', 'pu.id_platform_user = put.id_platform_user', 'left');
+        }
+
+        $query = $builder->get();
+        $rows = $query ? $query->getResultArray() : [];
 
         $indexed = [];
         foreach ($rows as $row) {
