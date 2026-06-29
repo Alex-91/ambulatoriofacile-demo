@@ -138,7 +138,7 @@ $headerLogoUrl = $isPortalConsoleHeader
     ? (($isTenantOperationalConsoleSession && $tenantOperationalHomeUrl !== null)
         ? $tenantOperationalHomeUrl
         : ($demoSessionActive ? site_url('access') : portal_public_access_url('login')))
-    : (($hideHeaderMenu || session_has_operational_profile_access())
+    : (session_access_is_confirmed()
         ? portal_operational_home_url()
         : site_url('/'));
 $headerLogoImageUrl = base_url('public/assets/images/logo-header.svg');
