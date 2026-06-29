@@ -93,7 +93,7 @@ $formatDateTime = static function (?string $value): string {
               Studio attivo: <?= esc((string) ($tenantContext->tenantName ?? '')) ?>
             </h3>
             <p style="margin:0 0 12px 0; color:#52676c;">
-              Qui il responsabile dello studio decide quali notifiche inviare tra conferma appuntamento, reminder e presa appuntamento da un professionista all'altro. SMS e WhatsApp dipendono dal pacchetto, mentre Email e OTP sono disponibili direttamente dentro l'applicazione.
+              Qui il responsabile dello studio decide quali notifiche inviare tra conferma appuntamento, reminder e presa appuntamento da un medico a un altro medico. SMS e WhatsApp dipendono dal pacchetto, mentre Email e OTP sono disponibili direttamente dentro l'applicazione.
             </p>
             <a class="btn btn-default" href="<?= portal_tenant_space_url('funzioni') ?>">
               <i class="fa fa-arrow-left"></i> Torna alle funzioni dello spazio
@@ -114,7 +114,7 @@ $formatDateTime = static function (?string $value): string {
                       <?php if (in_array($channelKey, ['sms', 'wa'], true)): ?>
                         Disponibilità commerciale e tecnica del canale <?= esc((string) $meta['label']) ?> per questo studio.
                       <?php elseif ($channelKey === 'email'): ?>
-                        Invio email usando i recapiti salvati in agenda e in anagrafica paziente o professionista.
+                        Invio email usando i recapiti salvati in agenda e in anagrafica paziente o medico destinatario.
                       <?php else: ?>
                         Genera un codice OTP e lo recapita usando il contatto disponibile del destinatario.
                       <?php endif; ?>
@@ -185,6 +185,9 @@ $formatDateTime = static function (?string $value): string {
                           </label>
                         <?php endforeach; ?>
                       </div>
+                      <p class="text-muted" style="margin:0 0 10px 0;">
+                        Se attivi questo flusso devi selezionare almeno un canale tra quelli disponibili per lo studio.
+                      </p>
 
                       <?php if ($key === \App\Services\AppointmentNotificationSettingsService::TYPE_REMINDER): ?>
                         <div class="row">

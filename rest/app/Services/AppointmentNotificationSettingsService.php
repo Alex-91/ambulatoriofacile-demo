@@ -131,6 +131,7 @@ class AppointmentNotificationSettingsService
         ));
 
         $config = $this->sanitizeConfig($rawConfig, $availableChannels);
+        $this->assertEnabledMessageTypesHaveChannels($config);
 
         $ok = $this->preferencesModel->setPreference(
             $tenantId,
@@ -177,8 +178,8 @@ class AppointmentNotificationSettingsService
                 'description' => 'Parte appena l appuntamento viene salvato per il paziente.',
             ],
             self::TYPE_DOCTOR_CROSS_BOOKING => [
-                'label' => 'Presa appuntamento da un professionista all altro',
-                'description' => 'Parte quando un professionista prenota per un altro professionista dello stesso spazio.',
+                'label' => 'Presa appuntamento da un medico a un altro medico',
+                'description' => 'Parte quando un medico prenota per un altro medico dello stesso spazio.',
             ],
             self::TYPE_REMINDER => [
                 'label' => 'Reminder appuntamento',
@@ -292,6 +293,26 @@ class AppointmentNotificationSettingsService
         }
 
         return $sanitized;
+    }
+
+    /**
+     * @param array<string, mixed> $config
+     */
+    private function assertEnabledMessageTypesHaveChannels(array $config): void
+    {
+        $messageTypes = (array) ($config['message_types'] ?? []);
+
+        foreach ($this->messageTypeDefinitions() as $messageType => $meta) {
+            $row = (array) ($messageTypes[$messageType] ?? []);
+            $enabled = (bool) ($row['enabled'] ?? false);
+            $channels = array_values((array) ($row['channels'] ?? []));
+            if (!$enabled || $channels !== []) {
+                continue;
+            }
+
+            $label = trim((string) ($meta['label'] ?? $messageType));
+            throw new \RuntimeException('Per "' . $label . '" devi selezionare almeno un canale disponibile.');
+        }
     }
 
     /**
