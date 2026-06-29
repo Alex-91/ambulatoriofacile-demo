@@ -108,35 +108,9 @@
 
           <div id="pwdMatch" class="text-muted" style="margin-top:10px;"></div>
 
-          <div class="form-group" style="margin-top:20px;">
-            <label for="otp_code">Codice OTP*</label>
-            <input type="text"
-                   name="otp_code"
-                   id="otp_code"
-                   class="form-control"
-                   inputmode="numeric"
-                   pattern="[0-9]*"
-                   maxlength="8"
-                   autocomplete="one-time-code"
-                   placeholder="Inserisci OTP"
-                   required>
+          <div class="alert alert-info" style="margin-top:20px; margin-bottom:0;">
+            La password del profilo viene aggiornata direttamente dopo il controllo dei campi, senza richiedere OTP.
           </div>
-
-          <div class="btn-group" role="group" aria-label="Invio OTP cambio password">
-            <button type="button"
-                    class="btn btn-default btn-sm btnSendPwdOtp"
-                    data-channel="push"
-                    <?= empty($activeDevice) ? 'disabled' : '' ?>>
-              <i class="fa fa-bell"></i> Push
-            </button>
-            <button type="button" class="btn btn-default btn-sm btnSendPwdOtp" data-channel="sms">
-              <i class="fa fa-comment"></i> SMS
-            </button>
-            <button type="button" class="btn btn-default btn-sm btnSendPwdOtp" data-channel="email">
-              <i class="fa fa-envelope"></i> Email
-            </button>
-          </div>
-          <div id="otpStatus" class="text-muted" style="margin-top:10px;"></div>
         </div>
       </div>
     </div>
@@ -645,13 +619,7 @@
 
   const pwd  = document.getElementById('password_new');
   const pwd2 = document.getElementById('password_new2');
-  const otp  = document.getElementById('otp_code');
   const btn  = document.getElementById('btnPwdSave');
-  const otpStatus = document.getElementById('otpStatus');
-  const sendOtpBtns = document.querySelectorAll('.btnSendPwdOtp');
-  const otpUrl = "<?= base_url('profilo/password/otp') ?>";
-  const csrfName = "<?= csrf_token() ?>";
-  const csrfHash = "<?= csrf_hash() ?>";
 
   const rLen = document.getElementById('rule-length');
   const rUp  = document.getElementById('rule-uppercase');
@@ -681,7 +649,6 @@
     setRule(rSp,  okSpec);
 
     const okAll = okLen && okUp && okLow && okSpec;
-    const otpOk = otp && /^[0-9]{4,8}$/.test(otp.value || '');
 
     if (v2.length > 0) {
       if (v === v2) {
@@ -696,82 +663,11 @@
       matchInfo.textContent = '';
     }
 
-    btn.disabled = !(okAll && v.length > 0 && v === v2 && otpOk);
+    btn.disabled = !(okAll && v.length > 0 && v === v2);
   }
 
   pwd.addEventListener('input', validate);
   pwd2.addEventListener('input', validate);
-  if (otp) {
-    otp.addEventListener('input', function() {
-      otp.value = (otp.value || '').replace(/\D/g, '').slice(0, 8);
-      validate();
-    });
-  }
-
-  sendOtpBtns.forEach(function(button) {
-    if (button.disabled) {
-      button.setAttribute('data-initial-disabled', '1');
-    }
-
-    button.addEventListener('click', async function() {
-      const channel = button.getAttribute('data-channel') || 'push';
-      const oldHtml = button.innerHTML;
-      setOtpButtonsDisabled(true);
-      button.innerHTML = 'Invio...';
-
-      if (otpStatus) {
-        otpStatus.className = 'text-muted';
-        otpStatus.textContent = 'Invio OTP in corso...';
-      }
-
-      try {
-        const body = new URLSearchParams({
-          channel: channel,
-          [csrfName]: csrfHash
-        });
-
-        const res = await fetch(otpUrl, {
-          method: 'POST',
-          headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-          body: body
-        });
-
-        let json = {};
-        try {
-          json = await res.json();
-        } catch (e) {
-          json = {};
-        }
-
-        if (!res.ok || !json.ok) {
-          throw new Error(json.msg || 'Invio OTP non riuscito.');
-        }
-
-        if (otpStatus) {
-          otpStatus.className = 'text-success';
-          otpStatus.textContent = json.msg || 'OTP inviato.';
-        }
-
-        if (otp) {
-          otp.focus();
-        }
-      } catch (err) {
-        if (otpStatus) {
-          otpStatus.className = 'text-danger';
-          otpStatus.textContent = err.message || 'Invio OTP non riuscito.';
-        }
-      } finally {
-        button.innerHTML = oldHtml;
-        setOtpButtonsDisabled(false);
-      }
-    });
-  });
-
-  function setOtpButtonsDisabled(disabled) {
-    sendOtpBtns.forEach(function(button) {
-      button.disabled = disabled || button.getAttribute('data-initial-disabled') === '1';
-    });
-  }
 
   validate();
 })();

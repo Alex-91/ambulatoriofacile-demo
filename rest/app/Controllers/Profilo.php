@@ -7,7 +7,6 @@ use App\Models\ClientDoctorModel;
 use App\Models\PersonaleModel;
 use App\Models\SchedeModel;
 use App\Models\PushSubscriptionModel;
-use App\Models\AuthCodeModel;
 use App\Libraries\Crypto_helper;
 use App\Libraries\SmsSender;
 use App\Services\NotificationService;
@@ -452,21 +451,6 @@ public function salvaPassword()
         return redirect()->back()->with('error',
             'Password non valida: min 8 caratteri, 1 maiuscola, 1 minuscola, 1 speciale.'
         );
-    }
-
-    $otpCode = trim((string)($this->request->getPost('otp_code') ?? ''));
-    if (!preg_match('/^[0-9]{4,8}$/', $otpCode)) {
-        return redirect()->back()->with('error', 'Inserisci il codice OTP ricevuto.');
-    }
-
-    $otpContext = $this->getPasswordOtpContext($me);
-    $otpCellulare = trim((string)$otpContext['cellulare']);
-    if ($otpCellulare === '') {
-        return redirect()->back()->with('error', 'Cellulare non disponibile per verificare OTP.');
-    }
-
-    if (!(new AuthCodeModel())->checkOtp($otpCode, $otpCellulare)) {
-        return redirect()->back()->with('error', 'Codice OTP errato o scaduto.');
     }
 
     // 3) aggiorno dap01_users con la tua tecnica (SQL scritto)
