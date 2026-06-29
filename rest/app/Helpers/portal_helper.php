@@ -231,6 +231,78 @@ if (!function_exists('portal_resolve_redirect_url')) {
     }
 }
 
+if (!function_exists('portal_first_accessible_operational_url')) {
+    function portal_first_accessible_operational_url(): ?string
+    {
+        $session = session();
+        $excludedLinks = [
+            '',
+            '#',
+            'logout',
+            'admin/personale/logout',
+            'login',
+            'auth',
+        ];
+
+        $resolveLink = static function ($value) use ($excludedLinks): ?string {
+            $link = trim((string) $value);
+            if ($link === '') {
+                return null;
+            }
+
+            $normalizedLink = strtolower(trim((string) parse_url($link, PHP_URL_PATH), '/'));
+            if (in_array($normalizedLink, $excludedLinks, true)) {
+                return null;
+            }
+
+            return portal_resolve_redirect_url($link);
+        };
+
+        $headerNavItems = $session->get('header_nav_items');
+        if (is_array($headerNavItems)) {
+            foreach ($headerNavItems as $item) {
+                if (!is_array($item)) {
+                    continue;
+                }
+
+                $resolvedUrl = $resolveLink($item['link'] ?? '');
+                if ($resolvedUrl !== null) {
+                    return $resolvedUrl;
+                }
+            }
+        }
+
+        $schede = $session->get('schede_data');
+        if (is_array($schede)) {
+            foreach ($schede as $scheda) {
+                if (!is_array($scheda) || (int) ($scheda['can_access'] ?? 0) !== 1) {
+                    continue;
+                }
+
+                $resolvedUrl = $resolveLink($scheda['url'] ?? '');
+                if ($resolvedUrl !== null) {
+                    return $resolvedUrl;
+                }
+            }
+        }
+
+        $accessMap = $session->get('schede_access_map');
+        if (!is_array($accessMap)) {
+            return null;
+        }
+
+        foreach (['agenda', 'posta', 'chat'] as $fallbackLink) {
+            if ((int) ($accessMap[$fallbackLink] ?? 0) !== 1) {
+                continue;
+            }
+
+            return portal_resolve_redirect_url($fallbackLink);
+        }
+
+        return null;
+    }
+}
+
 if (!function_exists('portal_operational_home_url')) {
     function portal_operational_home_url(): string
     {
@@ -247,6 +319,11 @@ if (!function_exists('portal_operational_home_url')) {
         }
 
         if ($isConfirmed) {
+            $firstAccessibleUrl = portal_first_accessible_operational_url();
+            if ($firstAccessibleUrl !== null) {
+                return $firstAccessibleUrl;
+            }
+
             return site_url('app');
         }
 
