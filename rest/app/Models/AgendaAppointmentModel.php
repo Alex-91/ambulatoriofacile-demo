@@ -145,11 +145,14 @@ class AgendaAppointmentModel extends Model
         );
         $previousSlotIds = $this->getAppointmentCoveredSlotIds($idAppuntamento);
 
-        $update = $this->buildAppointmentPayload($data, $plan, $coveredSlots, 0, date('Y-m-d H:i:s'));
+        $timestamp = date('Y-m-d H:i:s');
+        $update = $this->buildAppointmentPayload($data, $plan, $coveredSlots, 0, $timestamp);
 
         unset($update['id_slot'], $update['id_dot'], $update['stato'], $update['created_at'], $update['created_by']);
 
-        $update['updated_at'] = date('Y-m-d H:i:s');
+        if ($this->appointmentTableHasField('updated_at')) {
+            $update['updated_at'] = $timestamp;
+        }
 
         $this->db->transStart();
 
@@ -157,12 +160,12 @@ class AgendaAppointmentModel extends Model
             ->where('id_appuntamento', $idAppuntamento)
             ->update($update);
 
-        $this->replaceAppointmentSlotLinks($idAppuntamento, $coveredSlotIds, $update['updated_at']);
-        $this->setSlotsState($coveredSlotIds, 'PRENOTATO', $update['updated_at']);
+        $this->replaceAppointmentSlotLinks($idAppuntamento, $coveredSlotIds, $timestamp);
+        $this->setSlotsState($coveredSlotIds, 'PRENOTATO', $timestamp);
 
         $slotIdsToRestore = array_values(array_diff($previousSlotIds, $coveredSlotIds));
         foreach ($slotIdsToRestore as $slotIdToRestore) {
-            $this->restoreSlotState($slotIdToRestore, $update['updated_at']);
+            $this->restoreSlotState($slotIdToRestore, $timestamp);
         }
 
         $this->db->transComplete();
@@ -188,8 +191,11 @@ class AgendaAppointmentModel extends Model
 
         $updatePayload = [
             'stato' => 'ANNULLATO',
-            'updated_at' => $timestamp,
         ];
+
+        if ($this->appointmentTableHasField('updated_at')) {
+            $updatePayload['updated_at'] = $timestamp;
+        }
 
         if ($this->appointmentTableHasField('updated_by')) {
             $updatePayload['updated_by'] = $userId > 0 ? $userId : null;
