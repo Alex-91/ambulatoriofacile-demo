@@ -334,6 +334,7 @@ class LegacyLoginHandoffService
 
     private function hydrateAdminSession(int $userId): void
     {
+        $orderBy = $this->personaleOrderByClause('a');
         $sql = "SELECT a.tipo, a.id_user, a.id_personale,
                        " . $this->crypto->decrypt('a.nome') . ",
                        " . $this->crypto->decrypt('a.cognome') . ",
@@ -345,6 +346,7 @@ class LegacyLoginHandoffService
                            $this->crypto->decrypt_concat('a.nome') . ") AS nome_completo
                 FROM dap03_personale a
                 WHERE id_user = ?
+                " . $orderBy . "
                 LIMIT 1";
 
         $admin = $this->db->query($sql, [$userId])->getRowArray();
@@ -382,6 +384,7 @@ class LegacyLoginHandoffService
 
     private function hydratePersonaleSession(int $userId, int $userType): void
     {
+        $orderBy = $this->personaleOrderByClause('a');
         $sql = "SELECT a.sostituto,
                        a.tipo,
                        CASE WHEN a.tipo = 1 THEN 'P'
@@ -404,6 +407,7 @@ class LegacyLoginHandoffService
                       OR (titolare = 0 AND sostituto = 1)
                       OR (titolare = 1 AND sostituto = 1)) AND a.tipo = 1)
                        OR (a.tipo != 1 AND titolare = 0 AND sostituto = 0))
+                " . $orderBy . "
                 LIMIT 1";
 
         $personale = $this->db->query($sql, [$userId])->getRowArray();
@@ -426,6 +430,7 @@ class LegacyLoginHandoffService
                                        $this->crypto->decrypt_concat('a.nome') . ") AS nome_completo
                             FROM dap03_personale a
                             WHERE id_user = ?
+                            " . $orderBy . "
                             LIMIT 1";
             $personale = $this->db->query($fallbackSql, [$userId])->getRowArray();
         }
@@ -460,6 +465,7 @@ class LegacyLoginHandoffService
 
     private function hydrateClientSession(int $userId): void
     {
+        $orderBy = $this->clientOrderByClause('a');
         $sql = "SELECT a.id_user,
                        a.id_client,
                        a.id_personale,
@@ -473,6 +479,7 @@ class LegacyLoginHandoffService
                        " . $this->crypto->decrypt('a.codice_fiscale') . "
                 FROM dap02_clients a
                 WHERE a.id_user = ?
+                " . $orderBy . "
                 LIMIT 1";
 
         $client = $this->db->query($sql, [$userId])->getRowArray();
@@ -667,6 +674,50 @@ class LegacyLoginHandoffService
         if ($identity !== '') {
             session()->set('otp_identity', $identity);
         }
+    }
+
+    private function personaleOrderByClause(string $alias = 'a'): string
+    {
+        $parts = [];
+
+        if (
+            $this->db->fieldExists('tipo', 'dap03_personale')
+            && $this->db->fieldExists('titolare', 'dap03_personale')
+            && $this->db->fieldExists('sostituto', 'dap03_personale')
+        ) {
+            $parts[] = "CASE WHEN (((({$alias}.titolare = 1 AND {$alias}.sostituto = 0)
+                OR ({$alias}.titolare = 0 AND {$alias}.sostituto = 1)
+                OR ({$alias}.titolare = 1 AND {$alias}.sostituto = 1)) AND {$alias}.tipo = 1)
+                OR ({$alias}.tipo != 1 AND {$alias}.titolare = 0 AND {$alias}.sostituto = 0))
+                THEN 0 ELSE 1 END ASC";
+        }
+
+        if ($this->db->fieldExists('is_active', 'dap03_personale')) {
+            $parts[] = "{$alias}.is_active DESC";
+        }
+
+        if ($this->db->fieldExists('titolare', 'dap03_personale')) {
+            $parts[] = "{$alias}.titolare DESC";
+        }
+
+        if ($this->db->fieldExists('sostituto', 'dap03_personale')) {
+            $parts[] = "{$alias}.sostituto ASC";
+        }
+
+        if ($this->db->fieldExists('id_personale', 'dap03_personale')) {
+            $parts[] = "{$alias}.id_personale ASC";
+        }
+
+        return $parts === [] ? '' : ' ORDER BY ' . implode(', ', $parts);
+    }
+
+    private function clientOrderByClause(string $alias = 'a'): string
+    {
+        if (!$this->db->fieldExists('id_client', 'dap02_clients')) {
+            return '';
+        }
+
+        return " ORDER BY {$alias}.id_client ASC";
     }
 
     private function shouldRequireOtpForCurrentSession(): bool

@@ -503,6 +503,22 @@ class PlatformImpersonationService
             ->select(implode(', ', $selectFields), false)
             ->whereIn('p.id_user', $userIds);
 
+        if (
+            $tenantDb->fieldExists('tipo', 'dap03_personale')
+            && $tenantDb->fieldExists('titolare', 'dap03_personale')
+            && $tenantDb->fieldExists('sostituto', 'dap03_personale')
+        ) {
+            $builder->orderBy(
+                "CASE WHEN ((((p.titolare = 1 AND p.sostituto = 0)
+                    OR (p.titolare = 0 AND p.sostituto = 1)
+                    OR (p.titolare = 1 AND p.sostituto = 1)) AND p.tipo = 1)
+                    OR (p.tipo != 1 AND p.titolare = 0 AND p.sostituto = 0))
+                    THEN 0 ELSE 1 END",
+                'ASC',
+                false
+            );
+        }
+
         if ($tenantDb->fieldExists('is_active', 'dap03_personale')) {
             $builder->orderBy('p.is_active', 'DESC');
         }
