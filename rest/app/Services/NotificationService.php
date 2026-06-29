@@ -174,6 +174,36 @@ class NotificationService
         ]);
     }
 
+    public function sendAppointmentOtpPush(int $userId, string $otp, string $message): array
+    {
+        $summary = trim(preg_replace('/\s+/', ' ', str_replace(["\r", "\n"], ' ', $message)) ?? '');
+        if ($summary === '') {
+            $summary = 'Hai un nuovo appuntamento registrato per te.';
+        }
+
+        $payload = [
+            'type'  => 'otp',
+            'title' => 'Nuovo appuntamento',
+            'body'  => 'Codice OTP: ' . $otp . '. ' . $summary,
+            'tag'   => 'otp-appointment-' . $userId . '-' . $otp,
+            'icon'  => self::notificationIconUrl(),
+            'badge' => self::notificationBadgeUrl(),
+            'silent' => false,
+            'renotify' => true,
+            'requireInteraction' => false,
+            'data'  => [
+                'url' => base_url('agenda'),
+                'otp' => $otp,
+                'context' => 'appointment_notification',
+            ],
+        ];
+
+        return $this->sendToUser($userId, $payload, 'appointment_otp', [
+            'TTL'     => 300,
+            'urgency' => 'high',
+        ]);
+    }
+
     public function sendDoctorMailPush(int $patientUserId, ?int $threadId = null): array
     {
         $url = base_url('messaggi/inbox');

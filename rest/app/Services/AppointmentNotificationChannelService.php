@@ -15,6 +15,7 @@ class AppointmentNotificationChannelService
 
     /** @var array<int, string>|null */
     private ?array $arubaSession = null;
+    private ?NotificationService $notificationService = null;
 
     /**
      * @param array<string, mixed>|string $recipient
@@ -146,7 +147,7 @@ class AppointmentNotificationChannelService
 
         return match ($channel) {
             AppointmentNotificationSettingsService::CHANNEL_EMAIL => (string) ($recipient['email'] ?? ''),
-            AppointmentNotificationSettingsService::CHANNEL_OTP => (string) (($recipient['email'] ?? '') ?: ($recipient['mobile'] ?? '') ?: ($recipient['phone'] ?? '')),
+            AppointmentNotificationSettingsService::CHANNEL_OTP => $this->describeOtpRecipient($recipient),
             default => (string) (($recipient['mobile'] ?? '') ?: ($recipient['phone'] ?? '')),
         };
     }
@@ -225,11 +226,14 @@ class AppointmentNotificationChannelService
      */
     private function sendOtpChannel(array $recipient, string $message, array $options): array
     {
+        $pushUserId = $this->resolvePushOtpUserId($recipient);
         $deliveryEmail = (string) ($recipient['email'] ?? '');
         $deliveryMobile = (string) (($recipient['mobile'] ?? '') ?: ($recipient['phone'] ?? ''));
-        $deliveryChannel = $deliveryEmail !== ''
-            ? AppointmentNotificationSettingsService::CHANNEL_EMAIL
-            : ($deliveryMobile !== '' ? AppointmentNotificationSettingsService::CHANNEL_SMS : '');
+        $deliveryChannel = $pushUserId > 0
+            ? 'push'
+            : ($deliveryEmail !== ''
+                ? AppointmentNotificationSettingsService::CHANNEL_EMAIL
+                : ($deliveryMobile !== '' ? AppointmentNotificationSettingsService::CHANNEL_SMS : ''));
 
         if ($deliveryChannel === '') {
             return $this->invalidRecipientResult(AppointmentNotificationSettingsService::CHANNEL_OTP);
@@ -237,7 +241,11 @@ class AppointmentNotificationChannelService
 
         $identity = trim((string) ($options['otp_identity'] ?? $recipient['otp_identity'] ?? ''));
         if ($identity === '') {
-            $identity = $deliveryEmail !== '' ? $deliveryEmail : $deliveryMobile;
+            if ($pushUserId > 0) {
+                $identity = 'uid:' . $pushUserId;
+            } else {
+                $identity = $deliveryEmail !== '' ? $deliveryEmail : $deliveryMobile;
+            }
         }
 
         if ($identity === '') {
@@ -259,6 +267,24 @@ class AppointmentNotificationChannelService
         }
 
         $otpMessage = $this->buildOtpMessage($message, $otp);
+        if ($deliveryChannel === 'push') {
+            $sendResult = $this->notificationService()->sendAppointmentOtpPush($pushUserId, $otp, $message);
+            $response = [
+                'delivery_channel' => 'push',
+                'push_result' => $sendResult,
+            ];
+
+            return [
+                'ok' => !empty($sendResult['ok']),
+                'channel' => AppointmentNotificationSettingsService::CHANNEL_OTP,
+                'recipient' => $this->describeOtpRecipient($recipient),
+                'provider' => 'OTP Push',
+                'provider_id' => '',
+                'response' => $response,
+                'error' => $sendResult['error'] ?? null,
+            ];
+        }
+
         if ($deliveryChannel === AppointmentNotificationSettingsService::CHANNEL_EMAIL) {
             $sendResult = $this->sendEmailChannel(
                 ['email' => $deliveryEmail],
@@ -300,6 +326,42 @@ class AppointmentNotificationChannelService
             'response' => $response,
             'error' => $sendResult['error'] ?? null,
         ];
+    }
+
+    /**
+     * @param array<string, mixed> $recipient
+     */
+    private function describeOtpRecipient(array $recipient): string
+    {
+        $pushUserId = $this->resolvePushOtpUserId($recipient);
+        if ($pushUserId > 0) {
+            $label = trim((string) ($recipient['label'] ?? ''));
+            return $label !== '' ? ($label . ' (push)') : ('push:user#' . $pushUserId);
+        }
+
+        return (string) (($recipient['email'] ?? '') ?: ($recipient['mobile'] ?? '') ?: ($recipient['phone'] ?? ''));
+    }
+
+    /**
+     * @param array<string, mixed> $recipient
+     */
+    private function resolvePushOtpUserId(array $recipient): int
+    {
+        $userId = max(0, (int) ($recipient['user_id'] ?? 0));
+        if ($userId <= 0) {
+            return 0;
+        }
+
+        return $this->notificationService()->hasActiveMobile($userId) ? $userId : 0;
+    }
+
+    private function notificationService(): NotificationService
+    {
+        if ($this->notificationService === null) {
+            $this->notificationService = new NotificationService();
+        }
+
+        return $this->notificationService;
     }
 
     /**
