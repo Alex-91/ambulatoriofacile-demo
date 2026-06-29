@@ -1242,6 +1242,9 @@ public function eseguiRepairRecurringExtraSlots()
         return $this->response
             ->setStatusCode($statusCode)
             ->setContentType('application/json')
+            ->setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+            ->setHeader('Pragma', 'no-cache')
+            ->setHeader('Expires', '0')
             ->setBody($json);
     }
 
@@ -3182,7 +3185,10 @@ public function eseguiRepairRecurringExtraSlots()
 
             $this->assertDoctorAllowed($this->getIdDotFromAppuntamento($idAppuntamento));
 
-            $this->appointmentModel->deleteAppointment($idAppuntamento, $this->getCurrentUserId());
+            $deleted = $this->appointmentModel->deleteAppointment($idAppuntamento, $this->getCurrentUserId());
+            if (!$deleted) {
+                throw new Exception('Errore durante l\'annullamento della prenotazione.');
+            }
 
             return $this->response->setJSON([
                 'status'  => true,

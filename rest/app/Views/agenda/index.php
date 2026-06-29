@@ -5729,7 +5729,8 @@ function caricaSlotCalendario(options) {
     agendaCalendarXhr = $.get("<?= base_url('agenda/calendario') ?>", {
         id_dot: idDot,
         data: data,
-        view: view
+        view: view,
+        _ts: Date.now()
     }, function(res) {
         if (requestSeq !== agendaCalendarRequestSeq) {
             return;
@@ -6159,7 +6160,8 @@ function caricaSlotCalendarioTeamDay(options) {
 
     agendaTeamDayXhr = $.get("<?= base_url('agenda/calendario-team-day') ?>", {
         id_dot: idDot,
-        data: data
+        data: data,
+        _ts: Date.now()
     }, function(res) {
         if (requestSeq !== agendaTeamDayRequestSeq) {
             return;

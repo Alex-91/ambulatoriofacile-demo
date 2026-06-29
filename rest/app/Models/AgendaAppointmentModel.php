@@ -211,7 +211,19 @@ class AgendaAppointmentModel extends Model
 
         $this->db->transComplete();
 
-        return (bool) $this->db->transStatus();
+        if (!$this->db->transStatus()) {
+            $dbError = $this->db->error();
+            log_message('error', 'AgendaAppointmentModel::deleteAppointment failed for id_appuntamento={id} user_id={user} code={code} message={message}', [
+                'id' => $idAppuntamento,
+                'user' => $userId,
+                'code' => (string) ($dbError['code'] ?? ''),
+                'message' => (string) ($dbError['message'] ?? ''),
+            ]);
+
+            throw new Exception('Errore durante l\'annullamento della prenotazione.');
+        }
+
+        return true;
     }
 
     private function buildAppointmentPayload(array $data, array $plan, array $coveredSlots, int $createdBy, string $timestamp): array
