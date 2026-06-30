@@ -157,6 +157,16 @@ class PlatformImpersonationService
             }
 
             $tenantSession->activatePendingRuntime();
+            $runtimeContext = (new TenantContextService($this->tenantCatalog))->getCurrentTenant();
+            if (
+                $runtimeContext === null
+                || !$runtimeContext->isValid()
+                || (int) $runtimeContext->tenantId !== $tenantId
+                || (int) $runtimeContext->appUserId !== $appUserId
+            ) {
+                throw new \RuntimeException('Impossibile attivare correttamente lo spazio della sessione delegata.');
+            }
+
             session()->set(self::SESSION_KEY, [
                 'log_id' => $logId,
                 'session_token' => $sessionToken,

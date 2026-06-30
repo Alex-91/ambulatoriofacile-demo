@@ -259,6 +259,7 @@ class LegacyLoginHandoffService
     private function resetAuthSession(): void
     {
         $session = session();
+        $pendingRuntime = $session->get(LegacyTenantSessionService::SESSION_KEY_PENDING_RUNTIME);
         $session->regenerate(true);
         $session->remove([
             'isLoggedIn',
@@ -302,6 +303,10 @@ class LegacyLoginHandoffService
             LegacyTenantSessionService::SESSION_KEY_PENDING_SELECTION,
             LegacyTenantSessionService::SESSION_KEY_PENDING_RUNTIME,
         ]);
+
+        if (is_array($pendingRuntime) && $pendingRuntime !== []) {
+            $session->set(LegacyTenantSessionService::SESSION_KEY_PENDING_RUNTIME, $pendingRuntime);
+        }
     }
 
     private function prepareExpiredPasswordFlow(array $user): void
@@ -613,6 +618,8 @@ class LegacyLoginHandoffService
         if ((bool) session()->get('isLoggedIn') !== true) {
             return '';
         }
+
+        (new LegacyTenantSessionService())->activatePendingRuntime();
 
         $menuAgenda = (new \App\Models\MenuModel())->getMenuAgenda();
         session()->set('menuAgenda', $menuAgenda);
