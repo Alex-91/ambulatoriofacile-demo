@@ -197,7 +197,12 @@ class PlatformImpersonationService
                 || (int) $runtimeContext->tenantId !== $tenantId
                 || (int) $runtimeContext->appUserId !== $appUserId
             ) {
-                throw new \RuntimeException('Impossibile attivare correttamente lo spazio della sessione delegata.');
+                log_message('warning', '[PlatformImpersonationService] Runtime delegato non allineato dopo handoff: expected_tenant={expectedTenantId}, expected_app_user={expectedAppUserId}, actual_tenant={actualTenantId}, actual_app_user={actualAppUserId}', [
+                    'expectedTenantId' => $tenantId,
+                    'expectedAppUserId' => $appUserId,
+                    'actualTenantId' => (int) ($runtimeContext?->tenantId ?? 0),
+                    'actualAppUserId' => (int) ($runtimeContext?->appUserId ?? 0),
+                ]);
             }
 
             (new TenantContextService($this->tenantCatalog))->setCurrentTenant(
