@@ -157,7 +157,10 @@ class PlatformImpersonationService
                 throw new \RuntimeException('Impossibile aprire la sessione delegata per l account scelto.');
             }
 
-            $runtimeContext = $tenantSession->activatePendingRuntime();
+            $runtimePayload = session()->get(TenantContextService::SESSION_KEY);
+            $runtimeContext = is_array($runtimePayload) && $runtimePayload !== []
+                ? TenantContext::fromArray($runtimePayload)
+                : null;
             if (
                 $runtimeContext === null
                 || !$runtimeContext->isValid()
