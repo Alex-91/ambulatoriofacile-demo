@@ -12,10 +12,12 @@
   <meta name="apple-mobile-web-app-title" content="<?= esc('AmbulatorioFacile') ?>">
 
   <link rel="shortcut icon" href="<?= base_url('public/assets/images/logonew.jpg'); ?>" />
-  <link rel="apple-touch-icon" href="<?= base_url('public/assets/images/logonew.jpg'); ?>">
+  <link rel="apple-touch-icon" href="<?= base_url('public/assets/images/pwa-icon-192.png'); ?>">
+  <link rel="manifest" href="<?= base_url('manifest.json') ?>">
   <link rel="stylesheet" href="<?= base_url('public/assets/css/login_schede.css'); ?>">
   <link rel="stylesheet" href="<?= base_url('public/assets/fontawesome/css/all.min.css'); ?>">
   <script src="<?= base_url('public/assets/js/jquery.min.js'); ?>"></script>
+  <script src="<?= base_url('js/pwa.js') ?>" defer></script>
   <script>document.title = <?= json_encode('AmbulatorioFacile' . ' - Menu') ?>;</script>
 
   <?php

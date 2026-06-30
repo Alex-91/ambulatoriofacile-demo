@@ -22,17 +22,17 @@ class PwaController extends BaseController
             'theme_color' => '#2c8895',
             'icons' => [
                 [
-                    'src' => $appBaseUrl . '/icons/maskable-192.png',
+                    'src' => $appBaseUrl . '/public/assets/images/pwa-icon-192.png',
                     'sizes' => '192x192',
                     'type' => 'image/png',
                 ],
                 [
-                    'src' => $appBaseUrl . '/icons/maskable-512.png',
+                    'src' => $appBaseUrl . '/public/assets/images/pwa-icon-512.png',
                     'sizes' => '512x512',
                     'type' => 'image/png',
                 ],
                 [
-                    'src' => $appBaseUrl . '/icons/maskable-512.png',
+                    'src' => $appBaseUrl . '/public/assets/images/pwa-maskable-512.png',
                     'sizes' => '512x512',
                     'type' => 'image/png',
                     'purpose' => 'maskable',

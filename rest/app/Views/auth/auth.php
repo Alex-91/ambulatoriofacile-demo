@@ -23,7 +23,8 @@ $emailLabel = $hasProfileEmailBool ? (!empty($maskedEmail) ? $maskedEmail : $pro
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="<?= esc('AmbulatorioFacile') ?>">
-<link rel="apple-touch-icon" href="<?= base_url('public/assets/images/logonew.jpg'); ?>">
+<link rel="apple-touch-icon" href="<?= base_url('public/assets/images/pwa-icon-192.png'); ?>">
+<link rel="manifest" href="<?= base_url('manifest.json') ?>">
 <link rel="stylesheet" href="<?= base_url('public/assets/css/reset.css'); ?>">
 <link rel="stylesheet" href="<?= base_url('public/assets/css/login.css'); ?>">
 <link rel="stylesheet" href="<?= base_url('public/assets/fontawesome/css/all.min.css'); ?>">

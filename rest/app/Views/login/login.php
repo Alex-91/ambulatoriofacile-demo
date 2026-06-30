@@ -32,7 +32,7 @@ $installWorkerUrl = $demoMode
  <link rel="stylesheet" href="<?= base_url('public/assets/fontawesome/css/all.min.css'); ?>">
 <link rel="manifest" href="<?= esc($manifestHref, 'attr') ?>">
 <meta name="theme-color" content="#6c5ce7">
-<link rel="apple-touch-icon" href="<?= base_url('icons/maskable-512.png') ?>">
+<link rel="apple-touch-icon" href="<?= base_url('public/assets/images/pwa-icon-192.png') ?>">
 <script>window.BASE_URL = "<?= base_url() ?>";</script>
 <?php if (!$demoMode): ?>
 <script>
@@ -454,7 +454,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Click sul bottone
     btn.addEventListener('click', async () => {
 
-        // Caso 1: Android / Chrome con beforeinstallprompt
+        // Caso 1: browser che espongono beforeinstallprompt
         if (deferredPrompt) {
             deferredPrompt.prompt();
             await deferredPrompt.userChoice;
@@ -462,13 +462,19 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Caso 2: iOS non installata -> istruzioni
+        // Caso 2: Samsung Internet spesso usa il menu del browser invece del prompt automatico
+        if (/SamsungBrowser/i.test(navigator.userAgent) && !isInStandaloneMode()) {
+            alert("Su Samsung Internet il prompt automatico puo non comparire. Apri il menu del browser e scegli 'Installa app' oppure 'Aggiungi pagina a' e poi 'Schermata Home'.");
+            return;
+        }
+
+        // Caso 3: iOS non installata -> istruzioni
         if (/iphone|ipad|ipod/i.test(navigator.userAgent) && !isInStandaloneMode()) {
             alert("Per installare l'app su iPhone: premi il pulsante Condividi e scegli 'Aggiungi alla schermata Home'.");
             return;
         }
 
-        // Caso 3: altri browser
+        // Caso 4: altri browser
         alert("Per installare l'app usa 'Aggiungi alla schermata Home' del browser oppure, se è già installata, controlla fra le tue app.");
     });
 });
