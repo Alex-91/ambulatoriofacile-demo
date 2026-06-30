@@ -346,13 +346,29 @@ class LoginController extends BaseController
 
         $platformAdminAccess = new PlatformAdminAccessService();
         if ($platformAdminAccess->isPlatformAdmin($platformUser)) {
-            $platformAdminAccess->bootstrapSession($platformUser, (array) ($result['memberships'] ?? []));
+            try {
+                $platformAdminAccess->bootstrapSession($platformUser, (array) ($result['memberships'] ?? []));
 
-            return $this->response->setJSON([
-                'resp' => 'OK',
-                'success' => true,
-                'redirectUrl' => portal_platform_url('spazi-clienti'),
-            ]);
+                return $this->response->setJSON([
+                    'resp' => 'OK',
+                    'success' => true,
+                    'redirectUrl' => portal_platform_url('spazi-clienti'),
+                ]);
+            } catch (\Throwable $e) {
+                log_message('error', 'LoginController::handlePlatformLogin platform admin bootstrap failed: {message}', [
+                    'message' => $e->getMessage(),
+                    'platform_user_id' => $platformUserId,
+                    'email' => (string) ($platformUser['email'] ?? ''),
+                ]);
+
+                if ($selectableTenants === []) {
+                    return $this->response->setJSON([
+                        'resp' => 'KO',
+                        'success' => false,
+                        'message' => 'Accesso piattaforma temporaneamente non disponibile. Riprova tra poco.',
+                    ])->setStatusCode(503);
+                }
+            }
         }
 
         if ($selectableTenants === []) {
