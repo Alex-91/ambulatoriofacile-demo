@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Libraries\TenantContext;
 use App\Libraries\Crypto_helper;
 use App\Libraries\DatabaseConfig;
 use App\Libraries\SystemUserMask;
@@ -166,6 +167,29 @@ class PlatformImpersonationService
             ) {
                 throw new \RuntimeException('Impossibile attivare correttamente lo spazio della sessione delegata.');
             }
+
+            $tenantRole = trim((string) ($targetAccount['tenant_role'] ?? ''));
+            if ($tenantRole === '') {
+                $tenantRole = $this->inferTenantRole((int) ($targetAccount['tipo_user'] ?? 0));
+            }
+
+            (new TenantContextService($this->tenantCatalog))->setCurrentTenant(
+                new TenantContext(
+                    $tenantId,
+                    trim((string) ($tenant['tenant_key'] ?? '')),
+                    trim((string) ($tenant['tenant_name'] ?? '')),
+                    trim((string) ($tenant['status'] ?? '')),
+                    trim((string) ($tenant['onboarding_status'] ?? '')),
+                    trim((string) ($tenant['package_code'] ?? '')),
+                    trim((string) ($tenant['package_name'] ?? '')),
+                    $tenantRole,
+                    0,
+                    $appUserId,
+                    trim((string) ($tenant['storage_key'] ?? '')),
+                    trim((string) ($tenant['feature_profile'] ?? '')),
+                    $this->tenantCatalog->resolveFeatureMapForTenant($tenantId)
+                )
+            );
 
             session()->set(self::SESSION_KEY, [
                 'log_id' => $logId,
