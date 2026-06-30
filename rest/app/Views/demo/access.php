@@ -2,9 +2,13 @@
 /**
  * Splash di ingresso alla demo (/demo).
  * Redesign 2026-06: smistamento a 3 ruoli (Responsabile, Segreteria, Professionista).
- * Due varianti grafiche (B = card affiancate, C = split editoriale) selezionabili:
- *   - override istantaneo per anteprima: ?variant=B oppure ?variant=C
- *   - default "live" per tutti i visitatori: env DEMO_SPLASH_VARIANT = B | C (fallback B)
+ * Due varianti grafiche (B = card affiancate, C = split editoriale). Priorita:
+ *   1. ?variant=B|C  -> anteprima istantanea (vince sempre)
+ *   2. scelta "live" di Simone dall'admin del sito (sezione Impostazioni),
+ *      letta a runtime da https://ambulatoriofacile.it/api/demo/variant
+ *      (cache breve + fallback sicuro: se non risponde si usa env/B)
+ *   3. env DEMO_SPLASH_VARIANT = B | C
+ *   4. default B
  * Questa view prepara i dati condivisi e delega alla variante scelta.
  * Non tocca login/app di produzione.
  */
@@ -80,10 +84,58 @@ foreach ($roleCards as $index => $card) {
 
 $request = service('request');
 $queryVariant = strtoupper(trim((string) ($request->getGet('variant') ?? '')));
-$envVariant   = strtoupper(trim((string) (env('DEMO_SPLASH_VARIANT') ?: '')));
-$variant = in_array($queryVariant, ['B', 'C'], true)
-    ? $queryVariant
-    : (in_array($envVariant, ['B', 'C'], true) ? $envVariant : 'B');
+
+// Variante "live" scelta da Simone nell'admin del sito (sezione Impostazioni).
+// La sorgente di verita e' il Postgres dell'admin; qui la leggiamo a runtime
+// dall'endpoint pubblico, con cache breve (anche negativa, per non martellare)
+// e fallback sicuro: se non risponde si ripiega su env/B e la splash non si
+// rompe mai. Ritorna 'B'|'C' oppure null (= usa il fallback env/B).
+$resolveAdminVariant = static function (): ?string {
+    try {
+        $cache  = service('cache');
+        $cached = $cache?->get('demo_splash_variant');
+        if ($cached === 'B' || $cached === 'C') {
+            return $cached;
+        }
+        if ($cached === '-') {
+            return null; // cache negativa: salta il remoto, usa il fallback
+        }
+
+        $client   = service('curlrequest', ['timeout' => 3, 'connect_timeout' => 2]);
+        $response = $client->get('https://ambulatoriofacile.it/api/demo/variant', [
+            'http_errors'   => false,
+            'allow_redirects' => true,
+        ]);
+
+        if ($response->getStatusCode() === 200) {
+            $data = json_decode((string) $response->getBody(), true);
+            $v = isset($data['variant']) ? strtoupper(trim((string) $data['variant'])) : '';
+            if ($v === 'B' || $v === 'C') {
+                $cache?->save('demo_splash_variant', $v, 20);
+                return $v;
+            }
+        }
+        $cache?->save('demo_splash_variant', '-', 10);
+    } catch (\Throwable $e) {
+        // fallback silenzioso: la splash non deve mai rompersi
+    }
+    return null;
+};
+
+$envVariant = strtoupper(trim((string) (env('DEMO_SPLASH_VARIANT') ?: '')));
+
+if (in_array($queryVariant, ['B', 'C'], true)) {
+    $variant = $queryVariant;                       // anteprima: vince sempre
+} else {
+    $adminVariant = $resolveAdminVariant();
+    if ($adminVariant !== null) {
+        $variant = $adminVariant;                   // scelta admin (live)
+    } elseif (in_array($envVariant, ['B', 'C'], true)) {
+        $variant = $envVariant;                     // fallback env
+    } else {
+        $variant = 'B';                             // default
+    }
+}
 
 $site = 'https://ambulatoriofacile.it';
 
