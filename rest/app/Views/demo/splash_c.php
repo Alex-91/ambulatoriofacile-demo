@@ -76,7 +76,8 @@ $backSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-wi
   .btn-navy-ghost{background:transparent;border:1px solid rgba(255,255,255,.28);color:#fff;border-radius:11px;height:44px;padding:0 16px;font-size:14px}
   .btn-navy-ghost:hover{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.5)}
   .btn-navy-ghost svg{width:18px;height:18px}
-  .choice{padding:24px 20px 8px;display:flex;flex-direction:column;gap:12px}
+  .choice{padding:24px 20px 8px;display:flex;flex-direction:column}
+  .choice-inner{width:100%;display:flex;flex-direction:column;gap:12px}
   .choice-eyebrow{margin:0;font-weight:600;font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--text-light)}
   .crows{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px}
   .crow{display:flex;align-items:center;gap:14px;background:var(--white);border:1px solid var(--border);border-radius:15px;padding:15px 15px;box-shadow:0 1px 2px rgba(8,54,79,.04);transition:border-color .15s,box-shadow .15s}
@@ -103,26 +104,46 @@ $backSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-wi
   .sticky-bar .wa svg{width:20px;height:20px}
   @media (min-width:768px){
     .rail-h1{font-size:27px}
+    .choice{padding:32px 24px 8px}
+    .choice-inner{max-width:680px;margin:0 auto}
     .crow{padding:18px 20px;gap:18px}
     .crow-cta{width:auto;padding:0 18px;gap:7px}
     .cta-label{display:inline}
   }
+  /* ---- desktop: split layout con proporzioni del mockup mantenute a ogni larghezza ---- */
   @media (min-width:1024px){
     body{padding-bottom:0}
-    .csplit{grid-template-columns:392px 1fr;min-height:100vh}
-    .rail{display:flex;flex-direction:column;min-height:100vh;padding:34px 34px}
+    .csplit{grid-template-columns:clamp(400px,36vw,560px) 1fr;min-height:100vh}
+    .rail{display:flex;flex-direction:column;min-height:100vh;padding:44px clamp(36px,3.2vw,56px)}
     .rail-back{display:none}
     .rail-mid{margin:auto 0}
-    .rail-h1{font-size:32px}
-    .rail-sub{font-size:16px;max-width:30ch}
+    .rail-h1{font-size:clamp(30px,2.4vw,38px)}
+    .rail-sub{font-size:16px;max-width:32ch}
     .watermark{right:-44px;bottom:-46px;width:300px}
     .rail-bottom{display:block;position:relative;z-index:1}
-    .choice{padding:40px 38px;justify-content:center;gap:14px}
+    .choice{padding:48px clamp(40px,4vw,72px);justify-content:center}
+    .choice-inner{max-width:600px;margin:0 auto;gap:16px}
+    .crow{padding:18px 22px;gap:18px}
     .crow-title{font-size:17px}
+    .crow-desc{font-size:13.5px}
     .crow .chip{width:50px;height:50px;border-radius:14px}
     .crow .chip svg{width:23px;height:23px}
     .reassure-m{display:none}
     .sticky-bar{display:none}
+  }
+  /* ---- monitor grandi: scala "bella grande", proporzioni invariate ---- */
+  @media (min-width:1440px){
+    .rail{padding:56px clamp(48px,3.4vw,64px)}
+    .rail-h1{font-size:40px}
+    .rail-sub{font-size:17px;max-width:34ch}
+    .choice-inner{max-width:660px;gap:18px}
+    .crow{padding:22px 26px;gap:22px}
+    .crow-title{font-size:19px}
+    .crow-desc{font-size:14.5px}
+    .crow .chip{width:56px;height:56px;border-radius:16px}
+    .crow .chip svg{width:26px;height:26px}
+    .crow-cta{height:52px;min-height:52px;font-size:15px;padding:0 22px}
+    .choice-eyebrow{font-size:12px}
   }
   @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
@@ -166,27 +187,29 @@ $backSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-wi
   </section>
 
   <main class="choice">
-    <p class="choice-eyebrow">Scegli come entrare</p>
-    <ul class="crows">
-      <?php foreach ($roleCards as $card): ?>
-      <li class="crow">
-        <span class="chip chip-<?= esc($card['chip'], 'attr') ?>"><?= $icon($card['icon']) ?></span>
-        <div class="crow-body">
-          <h2 class="crow-title"><?= esc($card['title']) ?></h2>
-          <p class="crow-desc"><?= esc($card['short']) ?></p>
-        </div>
-        <a class="btn crow-cta" href="<?= esc($card['url'], 'attr') ?>" rel="nofollow" aria-label="<?= esc($card['cta'], 'attr') ?>">
-          <span class="cta-label">Entra</span>
-          <?= $arrowSvg ?>
-        </a>
-      </li>
-      <?php endforeach; ?>
-    </ul>
+    <div class="choice-inner">
+      <p class="choice-eyebrow">Scegli come entrare</p>
+      <ul class="crows">
+        <?php foreach ($roleCards as $card): ?>
+        <li class="crow">
+          <span class="chip chip-<?= esc($card['chip'], 'attr') ?>"><?= $icon($card['icon']) ?></span>
+          <div class="crow-body">
+            <h2 class="crow-title"><?= esc($card['title']) ?></h2>
+            <p class="crow-desc"><?= esc($card['short']) ?></p>
+          </div>
+          <a class="btn crow-cta" href="<?= esc($card['url'], 'attr') ?>" rel="nofollow" aria-label="<?= esc($card['cta'], 'attr') ?>">
+            <span class="cta-label">Entra</span>
+            <?= $arrowSvg ?>
+          </a>
+        </li>
+        <?php endforeach; ?>
+      </ul>
 
-    <div class="reassure-m">
-      <span><?= $checkSvg ?>Nessun login</span>
-      <span><?= $checkSvg ?>Dati demo separati</span>
-      <span><?= $checkSvg ?>Cambi ruolo quando vuoi</span>
+      <div class="reassure-m">
+        <span><?= $checkSvg ?>Nessun login</span>
+        <span><?= $checkSvg ?>Dati demo separati</span>
+        <span><?= $checkSvg ?>Cambi ruolo quando vuoi</span>
+      </div>
     </div>
   </main>
 
