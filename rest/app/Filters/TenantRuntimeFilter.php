@@ -5,6 +5,7 @@ namespace App\Filters;
 use App\Services\TenantCatalogService;
 use App\Services\TenantContextService;
 use App\Services\TenantDatabaseConnector;
+use App\Services\TenantRuntimeBindingService;
 use CodeIgniter\Filters\FilterInterface;
 use CodeIgniter\HTTP\RequestInterface;
 use CodeIgniter\HTTP\ResponseInterface;
@@ -128,9 +129,6 @@ class TenantRuntimeFilter implements FilterInterface
      */
     private function bindTenantRuntimeDatabaseConfig(array $config): void
     {
-        $dbConfig = config(\Config\Database::class);
-        $dbConfig->default = $config;
-        $dbConfig->tenantRuntime = $config;
-        $dbConfig->defaultGroup = self::TENANT_RUNTIME_GROUP;
+        (new TenantRuntimeBindingService())->bindConnectionConfig($config);
     }
 }

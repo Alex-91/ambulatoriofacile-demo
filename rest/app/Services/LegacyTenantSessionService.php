@@ -158,6 +158,18 @@ class LegacyTenantSessionService
             return null;
         }
 
+        try {
+            $config = $this->tenantDbConnector->buildConnectionConfig($tenant);
+            $this->runtimeBinder->bindConnectionConfig($config);
+        } catch (\Throwable $e) {
+            log_message('warning', 'LegacyTenantSessionService::activatePendingRuntime failed: ' . $e->getMessage(), [
+                'tenant_id' => (int) ($tenant['id_tenant'] ?? 0),
+                'tenant_key' => (string) ($tenant['tenant_key'] ?? ''),
+            ]);
+            $this->clearPendingRuntime();
+            return null;
+        }
+
         $context = new TenantContext(
             (int) ($tenant['id_tenant'] ?? 0),
             trim((string) ($tenant['tenant_key'] ?? '')),

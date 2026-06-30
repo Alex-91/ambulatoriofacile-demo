@@ -40,6 +40,11 @@ class TenantContextService
             $context = null;
         }
 
+        $activeImpersonation = session()->get(PlatformImpersonationService::SESSION_KEY);
+        if (is_array($activeImpersonation) && $activeImpersonation !== []) {
+            return $this->currentTenant = $context;
+        }
+
         $platformUserId = (int) (session()->get('platform_user_id') ?? 0);
         if ($platformUserId > 0) {
             if ($context !== null) {
