@@ -157,8 +157,7 @@ class PlatformImpersonationService
                 throw new \RuntimeException('Impossibile aprire la sessione delegata per l account scelto.');
             }
 
-            $tenantSession->activatePendingRuntime();
-            $runtimeContext = (new TenantContextService($this->tenantCatalog))->getCurrentTenant();
+            $runtimeContext = $tenantSession->activatePendingRuntime();
             if (
                 $runtimeContext === null
                 || !$runtimeContext->isValid()
