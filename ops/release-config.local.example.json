@@ -1,0 +1,21 @@
+{
+  "coolifyBaseUrl": "https://coolify.example.com",
+  "coolifyToken": "paste-api-token-here",
+  "defaultBranch": "main",
+  "targets": {
+    "demo": {
+      "deployMode": "webhook",
+      "deployWebhookUrl": "https://coolify.example.com/webhooks/deploy/demo",
+      "appUuid": "",
+      "publicBaseUrl": "https://demo.example.com",
+      "healthUrl": "https://demo.example.com/login"
+    },
+    "login": {
+      "deployMode": "webhook",
+      "deployWebhookUrl": "https://coolify.example.com/webhooks/deploy/login",
+      "appUuid": "",
+      "publicBaseUrl": "https://login.example.com",
+      "healthUrl": "https://login.example.com/login"
+    }
+  }
+}

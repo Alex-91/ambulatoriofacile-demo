@@ -42,3 +42,4 @@ desktop.ini
 outputs/
 AGENTS.md
 CODEX_TASK_TEMPLATE.md
+ops/*.local.json
