@@ -9,6 +9,7 @@ use App\Models\SchedeModel;
 use App\Models\PushSubscriptionModel;
 use App\Libraries\Crypto_helper;
 use App\Libraries\SmsSender;
+use App\Services\LoginEmailService;
 use App\Services\NotificationService;
 use App\Services\OtpDeliveryLogService;
 use App\Services\StaffLocationCatalogService;
@@ -563,54 +564,23 @@ private function getForcedOtpForCurrentSession(): ?string
 
 private function sendPasswordOtpEmail(string $emailAddress, string $otp): bool
 {
-    $config = null;
     try {
-        $mailer = \Config\Services::email(null, false);
-        $config = config('Email');
-
-        $fromEmail = trim((string)($config->fromEmail ?? ''));
-        $fromName = trim((string)($config->fromName ?? ''));
-
-        if ($fromEmail === '') {
-            $fromEmail = (string)(env('email.fromEmail') ?: 'noreply@ambulatoriofacile.it');
-        }
-
-        if ($fromName === '') {
-            $fromName = (string)(env('email.fromName') ?: 'AmbulatorioFacile');
-        }
-
         $message = "Il tuo codice OTP e' {$otp}.\n"
             . "Non condividerlo con nessuno.\n"
             . "Il codice rimane valido per circa 2 minuti.";
 
-        $mailer->clear(true);
-        $mailer->setFrom($fromEmail, $fromName);
-        $mailer->setTo($emailAddress);
-        $mailer->setSubject('Codice OTP AmbulatorioFacile');
-        $mailer->setMessage($message);
+        $send = (new LoginEmailService())->send(
+            $emailAddress,
+            'Codice OTP AmbulatorioFacile',
+            $message,
+            null,
+            ['logContext' => 'profile password OTP email']
+        );
 
-        if (!$mailer->send()) {
-            $debugMessage = trim(strip_tags((string)$mailer->printDebugger(['headers', 'subject'])));
-            log_message('error', 'sendPasswordOtpEmail failed for {email}. protocol={protocol} host={host} port={port} crypto={crypto} from={from}. Debugger: {debugger}', [
-                'email' => $emailAddress,
-                'protocol' => (string)($config->protocol ?? ''),
-                'host' => (string)($config->SMTPHost ?? ''),
-                'port' => (string)($config->SMTPPort ?? ''),
-                'crypto' => (string)($config->SMTPCrypto ?? ''),
-                'from' => $fromEmail,
-                'debugger' => $debugMessage !== '' ? $debugMessage : 'n/a',
-            ]);
-            return false;
-        }
-
-        return true;
+        return !empty($send['ok']);
     } catch (\Throwable $e) {
-        log_message('error', 'sendPasswordOtpEmail ERROR for {email}. protocol={protocol} host={host} port={port} crypto={crypto}. Exception: {message}', [
+        log_message('error', 'sendPasswordOtpEmail ERROR for {email}. Exception: {message}', [
             'email' => $emailAddress,
-            'protocol' => (string)($config->protocol ?? ''),
-            'host' => (string)($config->SMTPHost ?? ''),
-            'port' => (string)($config->SMTPPort ?? ''),
-            'crypto' => (string)($config->SMTPCrypto ?? ''),
             'message' => $e->getMessage(),
         ]);
         return false;

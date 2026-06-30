@@ -436,15 +436,16 @@ class PlatformAccessService
 
     private function sendEmail(string $to, string $subject, string $message): void
     {
-        $email = Services::email();
-        $email->clear(true);
-        $email->setTo($to);
-        $email->setSubject($subject);
-        $email->setMessage($message);
+        $result = (new LoginEmailService())->send(
+            $to,
+            $subject,
+            $message,
+            null,
+            ['logContext' => 'platform access email']
+        );
 
-        if (!$email->send()) {
-            $debug = method_exists($email, 'printDebugger') ? trim((string) $email->printDebugger(['headers'])) : '';
-            throw new \RuntimeException('Invio email non riuscito.' . ($debug !== '' ? ' ' . strip_tags($debug) : ''));
+        if (empty($result['ok'])) {
+            throw new \RuntimeException('Invio email non riuscito.' . (!empty($result['error']) ? ' ' . (string) $result['error'] : ''));
         }
     }
 

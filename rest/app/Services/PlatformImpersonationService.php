@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Libraries\TenantContext;
 use App\Libraries\Crypto_helper;
 use App\Libraries\DatabaseConfig;
 use App\Libraries\SystemUserMask;
@@ -140,33 +139,6 @@ class PlatformImpersonationService
             throw new \RuntimeException('Impossibile registrare l audit della sessione delegata.');
         }
 
-        $tenantRole = trim((string) ($targetAccount['tenant_role'] ?? ''));
-        if ($tenantRole === '') {
-            $tenantRole = $this->inferTenantRole((int) ($targetAccount['tipo_user'] ?? 0));
-        }
-
-        session()->set(self::SESSION_KEY, [
-            'log_id' => $logId,
-            'session_token' => $sessionToken,
-            'platform_user_id' => (int) ($platformUser['id_platform_user'] ?? 0),
-            'platform_user_email' => (string) ($platformUser['email'] ?? ''),
-            'platform_user_name' => $this->platformUserDisplayName($platformUser),
-            'tenant_id' => $tenantId,
-            'tenant_name' => (string) ($tenant['tenant_name'] ?? ''),
-            'tenant_key' => (string) ($tenant['tenant_key'] ?? ''),
-            'target_app_user_id' => $appUserId,
-            'target_username' => (string) ($targetAccount['username'] ?? ''),
-            'target_display_name' => (string) ($targetAccount['full_name'] ?? ''),
-            'target_tipo_user' => (int) ($targetAccount['tipo_user'] ?? 0),
-            'target_tenant_role' => $tenantRole,
-            'target_tenant_role_label' => (string) ($targetAccount['tenant_role_label'] ?? ''),
-            'target_user_type_label' => (string) ($targetAccount['user_type_label'] ?? ''),
-            'reason' => $reason,
-            'started_at' => $startedAtTs,
-            'expires_at' => $expiresAtTs,
-            'return_url' => $originPath,
-        ]);
-
         $tenantSession = new LegacyTenantSessionService();
 
         try {
@@ -184,44 +156,38 @@ class PlatformImpersonationService
                 throw new \RuntimeException('Impossibile aprire la sessione delegata per l account scelto.');
             }
 
-            $tenantSession->queuePendingRuntime(
-                $tenant,
-                $appUserId,
-                (int) ($targetAccount['tipo_user'] ?? 0),
-                'platform_impersonation'
-            );
-            $runtimeContext = $tenantSession->activatePendingRuntime();
+            $tenantSession->activatePendingRuntime();
+            $runtimeContext = (new TenantContextService($this->tenantCatalog))->getCurrentTenant();
             if (
                 $runtimeContext === null
                 || !$runtimeContext->isValid()
                 || (int) $runtimeContext->tenantId !== $tenantId
                 || (int) $runtimeContext->appUserId !== $appUserId
             ) {
-                log_message('warning', '[PlatformImpersonationService] Runtime delegato non allineato dopo handoff: expected_tenant={expectedTenantId}, expected_app_user={expectedAppUserId}, actual_tenant={actualTenantId}, actual_app_user={actualAppUserId}', [
-                    'expectedTenantId' => $tenantId,
-                    'expectedAppUserId' => $appUserId,
-                    'actualTenantId' => (int) ($runtimeContext?->tenantId ?? 0),
-                    'actualAppUserId' => (int) ($runtimeContext?->appUserId ?? 0),
-                ]);
+                throw new \RuntimeException('Impossibile attivare correttamente lo spazio della sessione delegata.');
             }
 
-            (new TenantContextService($this->tenantCatalog))->setCurrentTenant(
-                new TenantContext(
-                    $tenantId,
-                    trim((string) ($tenant['tenant_key'] ?? '')),
-                    trim((string) ($tenant['tenant_name'] ?? '')),
-                    trim((string) ($tenant['status'] ?? '')),
-                    trim((string) ($tenant['onboarding_status'] ?? '')),
-                    trim((string) ($tenant['package_code'] ?? '')),
-                    trim((string) ($tenant['package_name'] ?? '')),
-                    $tenantRole,
-                    0,
-                    $appUserId,
-                    trim((string) ($tenant['storage_key'] ?? '')),
-                    trim((string) ($tenant['feature_profile'] ?? '')),
-                    $this->tenantCatalog->resolveFeatureMapForTenant($tenantId)
-                )
-            );
+            session()->set(self::SESSION_KEY, [
+                'log_id' => $logId,
+                'session_token' => $sessionToken,
+                'platform_user_id' => (int) ($platformUser['id_platform_user'] ?? 0),
+                'platform_user_email' => (string) ($platformUser['email'] ?? ''),
+                'platform_user_name' => $this->platformUserDisplayName($platformUser),
+                'tenant_id' => $tenantId,
+                'tenant_name' => (string) ($tenant['tenant_name'] ?? ''),
+                'tenant_key' => (string) ($tenant['tenant_key'] ?? ''),
+                'target_app_user_id' => $appUserId,
+                'target_username' => (string) ($targetAccount['username'] ?? ''),
+                'target_display_name' => (string) ($targetAccount['full_name'] ?? ''),
+                'target_tipo_user' => (int) ($targetAccount['tipo_user'] ?? 0),
+                'target_tenant_role' => (string) ($targetAccount['tenant_role'] ?? ''),
+                'target_tenant_role_label' => (string) ($targetAccount['tenant_role_label'] ?? ''),
+                'target_user_type_label' => (string) ($targetAccount['user_type_label'] ?? ''),
+                'reason' => $reason,
+                'started_at' => $startedAtTs,
+                'expires_at' => $expiresAtTs,
+                'return_url' => $originPath,
+            ]);
 
             log_message('info', '[PlatformImpersonationService] Sessione delegata avviata: platform_user_id={platformUserId}, tenant_id={tenantId}, app_user_id={appUserId}', [
                 'platformUserId' => (int) ($platformUser['id_platform_user'] ?? 0),

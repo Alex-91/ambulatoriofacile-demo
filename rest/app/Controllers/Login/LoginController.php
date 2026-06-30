@@ -1045,7 +1045,7 @@ session()->remove(\App\Services\PlatformAccessService::SESSION_KEY_PENDING_PASSW
                 ? ($usernamesArray['username_adm'] ?? $username)
                 : $username;
 
-            if (strpos($username, '->') === false) {
+            if (strpos($username, '->') === false && !str_contains($loginUsername, '@')) {
                 $legacyTenantLogin = (new LegacyTenantLoginService())->authenticate($loginUsername, $password);
                 if ($legacyTenantLogin !== null) {
                     return $this->response->setJSON($legacyTenantLogin);

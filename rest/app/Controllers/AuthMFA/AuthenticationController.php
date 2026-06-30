@@ -12,6 +12,7 @@ use App\Models\MenuModel;
 use App\Models\PersonaleModel;
 use App\Services\LegacyTenantSessionService;
 use App\Services\LegacyLoginHandoffService;
+use App\Services\LoginEmailService;
 use App\Services\NotificationService;
 use App\Services\OtpDeliveryLogService;
 use App\Services\SessionNavigationService;
@@ -880,20 +881,9 @@ class AuthenticationController extends BaseController
 
     private function sendOtpEmailMessage(string $emailAddress, string $otp, array $profileContext = []): array
     {
-        $config = null;
-        $fromEmail = '';
-        $fromName = '';
         try {
-            $mailer = \Config\Services::email(null, false);
             $config = config('Email');
-
-            $fromEmail = trim((string)($config->fromEmail ?? ''));
             $fromName = trim((string)($config->fromName ?? ''));
-
-            if ($fromEmail === '') {
-                $fromEmail = (string)(env('email.fromEmail') ?: 'noreply@ambulatoriofacile.it');
-            }
-
             if ($fromName === '') {
                 $fromName = (string)(env('email.fromName') ?: 'AmbulatorioFacile');
             }
@@ -912,93 +902,31 @@ class AuthenticationController extends BaseController
                 error_log('[OTP email] template render fallback: ' . $viewError->getMessage());
             }
 
-            $mailer->clear(true);
-            $mailer->setFrom($fromEmail, $fromName);
-            $mailer->setTo($emailAddress);
-            $mailer->setSubject('Codice OTP AmbulatorioFacile');
-            $mailer->setMailType('html');
-            $mailer->setMessage($messageHtml !== '' ? $messageHtml : nl2br(esc($messageText)));
-            $mailer->setAltMessage($messageText);
+            $send = (new LoginEmailService())->send(
+                $emailAddress,
+                'Codice OTP AmbulatorioFacile',
+                $messageText,
+                $messageHtml !== '' ? $messageHtml : nl2br(esc($messageText)),
+                ['logContext' => 'OTP email']
+            );
 
-            if (!$mailer->send()) {
-                $htmlDebugMessage = trim(strip_tags((string) $mailer->printDebugger(['headers', 'subject'])));
-                $htmlDebugRaw = $this->extractMailerDebugRaw($mailer);
-                // Fallback robusto: alcuni server accettano il testo semplice anche se il multipart HTML fallisce.
-                $mailer->clear(true);
-                $mailer->setFrom($fromEmail, $fromName);
-                $mailer->setTo($emailAddress);
-                $mailer->setSubject('Codice OTP AmbulatorioFacile');
-                $mailer->setMailType('text');
-                $mailer->setMessage($messageText);
-
-                if ($mailer->send()) {
-                    error_log('[OTP email] HTML send failed, text fallback succeeded for ' . $emailAddress . '. html_debug=' . ($htmlDebugMessage !== '' ? $htmlDebugMessage : 'n/a'));
-                    return ['ok' => true, 'fallback' => 'text'];
-                }
-
-                $textDebugMessage = trim(strip_tags((string) $mailer->printDebugger(['headers', 'subject'])));
-                $textDebugRaw = $this->extractMailerDebugRaw($mailer);
-                $combinedDebug = 'html=' . ($htmlDebugMessage !== '' ? $htmlDebugMessage : 'n/a')
-                    . ' | text=' . ($textDebugMessage !== '' ? $textDebugMessage : 'n/a');
-
-                if ($htmlDebugRaw !== '') {
-                    $combinedDebug .= ' | html_raw=' . $htmlDebugRaw;
-                }
-
-                if ($textDebugRaw !== '') {
-                    $combinedDebug .= ' | text_raw=' . $textDebugRaw;
-                }
-                log_message('error', 'sendOtpEmailMessage failed for {email}. protocol={protocol} host={host} port={port} crypto={crypto} from={from}. Debugger: {debugger}', [
-                    'email'    => $emailAddress,
-                    'protocol' => (string)($config->protocol ?? ''),
-                    'host'     => (string)($config->SMTPHost ?? ''),
-                    'port'     => (string)($config->SMTPPort ?? ''),
-                    'crypto'   => (string)($config->SMTPCrypto ?? ''),
-                    'from'     => $fromEmail,
-                    'debugger' => $combinedDebug,
-                ]);
-                error_log('[OTP email] send failure for ' . $emailAddress . ' | protocol=' . (string)($config->protocol ?? '') . ' host=' . (string)($config->SMTPHost ?? '') . ' port=' . (string)($config->SMTPPort ?? '') . ' crypto=' . (string)($config->SMTPCrypto ?? '') . ' | ' . $combinedDebug);
-                return ['ok' => false, 'error' => $combinedDebug];
+            if (!$send['ok']) {
+                error_log('[OTP email] send failure for ' . $emailAddress . ' | ' . (string) ($send['error'] ?? 'unknown error'));
+                return ['ok' => false, 'error' => (string) ($send['error'] ?? 'unknown error')];
             }
 
-            return ['ok' => true];
+            return [
+                'ok' => true,
+                'transport' => (string) ($send['transport'] ?? ''),
+                'fallback' => !empty($send['degraded_from_html']) ? 'text' : null,
+            ];
         } catch (\Throwable $e) {
-            log_message('error', 'sendOtpEmailMessage ERROR for {email}. protocol={protocol} host={host} port={port} crypto={crypto} from={from}. Exception: {message}', [
+            log_message('error', 'sendOtpEmailMessage ERROR for {email}. Exception: {message}', [
                 'email'    => $emailAddress,
-                'protocol' => (string)($config->protocol ?? ''),
-                'host'     => (string)($config->SMTPHost ?? ''),
-                'port'     => (string)($config->SMTPPort ?? ''),
-                'crypto'   => (string)($config->SMTPCrypto ?? ''),
-                'from'     => $fromEmail ?? '',
                 'message'  => $e->getMessage(),
             ]);
-            error_log('[OTP email] exception for ' . $emailAddress . ' | protocol=' . (string)($config->protocol ?? '') . ' host=' . (string)($config->SMTPHost ?? '') . ' port=' . (string)($config->SMTPPort ?? '') . ' crypto=' . (string)($config->SMTPCrypto ?? '') . ' from=' . ($fromEmail ?? '') . ' | ' . $e->getMessage());
+            error_log('[OTP email] exception for ' . $emailAddress . ' | ' . $e->getMessage());
             return ['ok' => false, 'error' => $e->getMessage()];
-        }
-    }
-
-    private function extractMailerDebugRaw(\CodeIgniter\Email\Email $mailer): string
-    {
-        try {
-            $property = new \ReflectionProperty(\CodeIgniter\Email\Email::class, 'debugMessageRaw');
-
-            if (method_exists($property, 'setAccessible')) {
-                $property->setAccessible(true);
-            }
-
-            $rawMessages = $property->getValue($mailer);
-            if (!is_array($rawMessages) || $rawMessages === []) {
-                return '';
-            }
-
-            $normalized = array_map(static function ($message): string {
-                return trim(str_replace(["\r", "\n"], ' ', (string) $message));
-            }, $rawMessages);
-
-            return trim(implode(' || ', array_filter($normalized, static fn(string $message): bool => $message !== '')));
-        } catch (\Throwable $debugError) {
-            error_log('[OTP email] raw debug extraction failed: ' . $debugError->getMessage());
-            return '';
         }
     }
     private function buildOtpEmailPlainText(array $viewData): string
@@ -1069,9 +997,9 @@ class AuthenticationController extends BaseController
             return false;
         }
 
-        $platformUserId = (int) (session()->get('platform_user_id') ?? 0);
-        if ($platformUserId > 0 && $this->verifyPlatformSessionPassword($platformUserId, $password)) {
-            return true;
+        if ($this->isPlatformTenantLoginSession()) {
+            $platformUserId = (int) (session()->get('platform_user_id') ?? 0);
+            return $this->verifyPlatformSessionPassword($platformUserId, $password);
         }
 
         $userId = (int)(session()->get('userId') ?? 0);
@@ -1081,6 +1009,12 @@ class AuthenticationController extends BaseController
 
         return $this->verifyLegacySessionPassword($userId, $password);
     }
+
+    private function isPlatformTenantLoginSession(): bool
+    {
+        return trim((string) (session()->get('loginSource') ?? '')) === 'platform_tenant';
+    }
+
     private function verifyPlatformSessionPassword(int $platformUserId, string $password): bool
     {
         if ($platformUserId <= 0 || $password === '') {
