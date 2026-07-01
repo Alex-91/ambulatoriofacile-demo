@@ -6,6 +6,7 @@ use App\Controllers\BaseController;
 use App\Models\PlatformFeaturesModel;
 use App\Models\PlatformPackagesModel;
 use App\Models\PlatformTenantsModel;
+use App\Services\AppointmentNotificationSettingsService;
 use App\Services\PlatformAccessService;
 use App\Services\PlatformAdminAccessService;
 use App\Services\PlatformMasterAccountService;
@@ -257,6 +258,9 @@ class PlatformTenantSpacesController extends BaseController
         $hasFeatureOverrideForm = (int) ($this->request->getPost('feature_override_form') ?? 0) === 1;
         $enabledFeatures = [];
         $disabledFeatures = [];
+        $appointmentNotificationControlForm = (int) ($this->request->getPost('appointment_notification_control_form') ?? 0) === 1;
+        $appointmentNotificationEnabledTypes = [];
+        $appointmentNotificationEnabledChannels = [];
 
         if ($hasFeatureOverrideForm) {
             $enabledFeatures = array_values(array_filter(array_map(
@@ -265,6 +269,17 @@ class PlatformTenantSpacesController extends BaseController
             )));
             $enabledFeatures = array_values(array_unique(array_intersect($enabledFeatures, $featureKeys)));
             $disabledFeatures = array_values(array_diff($featureKeys, $enabledFeatures));
+        }
+
+        if ($appointmentNotificationControlForm) {
+            $appointmentNotificationEnabledTypes = array_values(array_filter(array_map(
+                static fn($value): string => trim(strtolower((string) $value)),
+                (array) $this->request->getPost('appointment_notification_enabled_types')
+            )));
+            $appointmentNotificationEnabledChannels = array_values(array_filter(array_map(
+                static fn($value): string => trim(strtolower((string) $value)),
+                (array) $this->request->getPost('appointment_notification_enabled_channels')
+            )));
         }
 
         $payload = [
@@ -288,6 +303,9 @@ class PlatformTenantSpacesController extends BaseController
             'master_password' => (string) $this->request->getPost('master_password'),
             'enabled_features' => $enabledFeatures,
             'disabled_features' => $disabledFeatures,
+            'appointment_notification_control_form' => $appointmentNotificationControlForm ? 1 : 0,
+            'appointment_notification_enabled_types' => $appointmentNotificationEnabledTypes,
+            'appointment_notification_enabled_channels' => $appointmentNotificationEnabledChannels,
             'is_active' => $this->request->getPost('is_active') !== null
                 ? ((int) ($this->request->getPost('is_active') ?? 0) === 1 ? 1 : 0)
                 : ($isCreate ? 1 : 0),
@@ -723,6 +741,7 @@ class PlatformTenantSpacesController extends BaseController
             'owner' => $owner ?: null,
             'feature_map' => $featureMap,
             'override_map' => $overrideMap,
+            'appointment_notification_settings' => (new AppointmentNotificationSettingsService())->resolveTenantSettings($tenantId),
             'admin_menu' => (new TenantAdminMenuService())->loadCatalogStateForTenant($tenant),
             'runtime' => (new TenantProvisioningService())->buildRuntimeBlueprint($tenant),
             'metadata' => $this->decodeMetadata((string) ($tenant['metadata_json'] ?? '')),

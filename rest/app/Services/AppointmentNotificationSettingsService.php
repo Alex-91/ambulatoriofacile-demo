@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\PlatformFeaturesModel;
 use App\Models\PlatformTenantFeaturePreferencesModel;
+use App\Models\PlatformTenantFeaturesModel;
 use Config\Database;
 
 class AppointmentNotificationSettingsService
@@ -24,6 +25,7 @@ class AppointmentNotificationSettingsService
     private \CodeIgniter\Database\BaseConnection $platformDb;
     private TenantFeatureService $tenantFeatureService;
     private PlatformTenantFeaturePreferencesModel $preferencesModel;
+    private PlatformTenantFeaturesModel $tenantFeaturesModel;
     private PlatformFeaturesModel $featuresModel;
 
     public function __construct()
@@ -31,6 +33,7 @@ class AppointmentNotificationSettingsService
         $this->platformDb = Database::connect('platform');
         $this->tenantFeatureService = new TenantFeatureService();
         $this->preferencesModel = new PlatformTenantFeaturePreferencesModel();
+        $this->tenantFeaturesModel = new PlatformTenantFeaturesModel();
         $this->featuresModel = new PlatformFeaturesModel();
     }
 
@@ -47,11 +50,21 @@ class AppointmentNotificationSettingsService
 
         $moduleFeatureId = (int) ($moduleState['id_feature'] ?? 0);
         $moduleAvailable = (bool) ($moduleState['effective_enabled'] ?? false);
+        $moduleOverrideRow = $this->findTenantFeatureOverrideRow($tenantId, $moduleFeatureId);
+        $platformFeatureConfig = $this->decodeConfig(trim((string) ($moduleOverrideRow['config_json'] ?? '')));
+        $platformMessageTypeControls = $this->buildPlatformMessageTypeControls($platformFeatureConfig);
+        $platformChannelControls = $this->buildPlatformChannelControls($platformFeatureConfig);
         $availableChannels = [
-            self::CHANNEL_SMS => $moduleAvailable && (bool) ($smsState['effective_enabled'] ?? false),
-            self::CHANNEL_WHATSAPP => $moduleAvailable && (bool) ($waState['effective_enabled'] ?? false),
-            self::CHANNEL_EMAIL => $moduleAvailable,
-            self::CHANNEL_OTP => $moduleAvailable,
+            self::CHANNEL_SMS => $moduleAvailable
+                && (bool) ($smsState['effective_enabled'] ?? false)
+                && (bool) ($platformChannelControls[self::CHANNEL_SMS]['enabled'] ?? true),
+            self::CHANNEL_WHATSAPP => $moduleAvailable
+                && (bool) ($waState['effective_enabled'] ?? false)
+                && (bool) ($platformChannelControls[self::CHANNEL_WHATSAPP]['enabled'] ?? true),
+            self::CHANNEL_EMAIL => $moduleAvailable
+                && (bool) ($platformChannelControls[self::CHANNEL_EMAIL]['enabled'] ?? true),
+            self::CHANNEL_OTP => $moduleAvailable
+                && (bool) ($platformChannelControls[self::CHANNEL_OTP]['enabled'] ?? true),
         ];
 
         $preferenceRow = $moduleFeatureId > 0
@@ -73,7 +86,9 @@ class AppointmentNotificationSettingsService
         foreach ($this->messageTypeDefinitions() as $messageType => $meta) {
             $messageConfig = (array) ($config['message_types'][$messageType] ?? []);
             $configuredChannels = $this->normalizeChannels((array) ($messageConfig['channels'] ?? []));
-            $effectiveChannels = $moduleAvailable
+            $platformEnabled = (bool) ($platformMessageTypeControls[$messageType]['enabled'] ?? true);
+            $tenantCanManage = $moduleAvailable && $platformEnabled;
+            $effectiveChannels = $tenantCanManage
                 ? array_values(array_intersect($configuredChannels, array_keys(array_filter($availableChannels))))
                 : [];
 
@@ -81,7 +96,10 @@ class AppointmentNotificationSettingsService
                 'key' => $messageType,
                 'label' => (string) ($meta['label'] ?? $messageType),
                 'description' => (string) ($meta['description'] ?? ''),
-                'enabled' => $moduleAvailable ? (bool) ($messageConfig['enabled'] ?? false) : false,
+                'enabled' => $tenantCanManage ? (bool) ($messageConfig['enabled'] ?? false) : false,
+                'tenant_enabled' => (bool) ($messageConfig['enabled'] ?? false),
+                'platform_enabled' => $platformEnabled,
+                'tenant_can_manage' => $tenantCanManage,
                 'configured_channels' => $configuredChannels,
                 'effective_channels' => $effectiveChannels,
                 'sms_selected' => in_array(self::CHANNEL_SMS, $configuredChannels, true),
@@ -107,10 +125,70 @@ class AppointmentNotificationSettingsService
             ],
             'available_channels' => $availableChannels,
             'message_types' => $messageTypeRows,
+            'platform_message_type_controls' => $platformMessageTypeControls,
+            'platform_channel_controls' => $platformChannelControls,
             'raw_config' => $config,
             'preference_row' => is_array($preferenceRow) ? $preferenceRow : null,
+            'feature_override_row' => is_array($moduleOverrideRow) ? $moduleOverrideRow : null,
             'using_default_preferences' => $usingDefaultPreferences,
         ];
+    }
+
+    /**
+     * @return array<string, array<string, mixed>>
+     */
+    public function resolvePlatformMessageTypeControls(int $tenantId): array
+    {
+        $states = $this->indexStatesByFeatureKey($tenantId);
+        $moduleState = $states[self::FEATURE_NOTIFICATIONS] ?? [];
+        $moduleFeatureId = (int) ($moduleState['id_feature'] ?? 0);
+        $moduleOverrideRow = $this->findTenantFeatureOverrideRow($tenantId, $moduleFeatureId);
+
+        return $this->buildPlatformMessageTypeControls(
+            $this->decodeConfig(trim((string) ($moduleOverrideRow['config_json'] ?? '')))
+        );
+    }
+
+    /**
+     * @param array<int, string> $enabledMessageTypes
+     * @return array<string, mixed>
+     */
+    public function mergePlatformMessageTypeControlsIntoConfig(array $existingFeatureConfig, array $enabledMessageTypes): array
+    {
+        $config = is_array($existingFeatureConfig) ? $existingFeatureConfig : [];
+        $enabledMessageTypes = $this->normalizeMessageTypes($enabledMessageTypes);
+        $controls = [];
+
+        foreach ($this->messageTypeDefinitions() as $messageType => $meta) {
+            $controls[$messageType] = [
+                'enabled' => in_array($messageType, $enabledMessageTypes, true),
+            ];
+        }
+
+        $config['message_type_controls'] = $controls;
+
+        return $config;
+    }
+
+    /**
+     * @param array<int, string> $enabledChannels
+     * @return array<string, mixed>
+     */
+    public function mergePlatformChannelControlsIntoConfig(array $existingFeatureConfig, array $enabledChannels): array
+    {
+        $config = is_array($existingFeatureConfig) ? $existingFeatureConfig : [];
+        $enabledChannels = $this->normalizeChannels($enabledChannels);
+        $controls = [];
+
+        foreach ($this->channelDefinitions() as $channelKey => $meta) {
+            $controls[$channelKey] = [
+                'enabled' => in_array($channelKey, $enabledChannels, true),
+            ];
+        }
+
+        $config['channel_controls'] = $controls;
+
+        return $config;
     }
 
     /**
@@ -135,7 +213,12 @@ class AppointmentNotificationSettingsService
         ));
 
         $config = $this->sanitizeConfig($rawConfig, $availableChannels);
-        $this->assertEnabledMessageTypesHaveChannels($config);
+        $config = $this->preserveLockedMessageTypePreferences(
+            $config,
+            (array) ($current['raw_config'] ?? []),
+            (array) ($current['message_types'] ?? [])
+        );
+        $this->assertEnabledMessageTypesHaveChannels($config, (array) ($current['message_types'] ?? []));
 
         $ok = $this->preferencesModel->setPreference(
             $tenantId,
@@ -203,24 +286,28 @@ class AppointmentNotificationSettingsService
                 'icon' => 'fa-comment',
                 'description' => 'Disponibilita commerciale e tecnica del canale SMS per questo spazio.',
                 'platform_managed' => true,
+                'platform_default_enabled' => false,
             ],
             self::CHANNEL_WHATSAPP => [
                 'label' => 'WhatsApp',
                 'icon' => 'fa-whatsapp',
                 'description' => 'Disponibilita commerciale e tecnica del canale WhatsApp per questo spazio.',
                 'platform_managed' => true,
+                'platform_default_enabled' => false,
             ],
             self::CHANNEL_EMAIL => [
                 'label' => 'Email',
                 'icon' => 'fa-envelope',
                 'description' => 'Canale nativo dell applicazione basato sui recapiti email presenti in agenda e anagrafica.',
                 'platform_managed' => false,
+                'platform_default_enabled' => true,
             ],
             self::CHANNEL_OTP => [
                 'label' => 'OTP',
                 'icon' => 'fa-key',
                 'description' => 'Genera un codice OTP e lo recapita usando il contatto disponibile del destinatario.',
                 'platform_managed' => false,
+                'platform_default_enabled' => true,
             ],
         ];
     }
@@ -305,11 +392,15 @@ class AppointmentNotificationSettingsService
     /**
      * @param array<string, mixed> $config
      */
-    private function assertEnabledMessageTypesHaveChannels(array $config): void
+    private function assertEnabledMessageTypesHaveChannels(array $config, array $currentMessageTypes = []): void
     {
         $messageTypes = (array) ($config['message_types'] ?? []);
 
         foreach ($this->messageTypeDefinitions() as $messageType => $meta) {
+            if ($currentMessageTypes !== [] && empty($currentMessageTypes[$messageType]['tenant_can_manage'])) {
+                continue;
+            }
+
             $row = (array) ($messageTypes[$messageType] ?? []);
             $enabled = (bool) ($row['enabled'] ?? false);
             $channels = array_values((array) ($row['channels'] ?? []));
@@ -337,10 +428,119 @@ class AppointmentNotificationSettingsService
     }
 
     /**
+     * @param array<string, mixed> $featureConfig
+     * @return array<string, array<string, mixed>>
+     */
+    private function buildPlatformMessageTypeControls(array $featureConfig): array
+    {
+        $controls = (array) ($featureConfig['message_type_controls'] ?? []);
+        $rows = [];
+
+        foreach ($this->messageTypeDefinitions() as $messageType => $meta) {
+            $row = (array) ($controls[$messageType] ?? []);
+            $rows[$messageType] = [
+                'key' => $messageType,
+                'label' => (string) ($meta['label'] ?? $messageType),
+                'description' => (string) ($meta['description'] ?? ''),
+                'enabled' => !array_key_exists('enabled', $row) || (bool) ($row['enabled'] ?? false),
+            ];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * @param array<string, mixed> $featureConfig
+     * @return array<string, array<string, mixed>>
+     */
+    private function buildPlatformChannelControls(array $featureConfig): array
+    {
+        $controls = (array) ($featureConfig['channel_controls'] ?? []);
+        $rows = [];
+
+        foreach ($this->channelDefinitions() as $channelKey => $meta) {
+            $row = (array) ($controls[$channelKey] ?? []);
+            $defaultEnabled = (bool) ($meta['platform_default_enabled'] ?? false);
+            $rows[$channelKey] = [
+                'key' => $channelKey,
+                'label' => (string) ($meta['label'] ?? $channelKey),
+                'description' => (string) ($meta['description'] ?? ''),
+                'enabled' => array_key_exists('enabled', $row)
+                    ? (bool) ($row['enabled'] ?? false)
+                    : $defaultEnabled,
+            ];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * @param array<string, mixed> $currentConfig
+     * @param array<string, array<string, mixed>> $currentMessageTypes
+     * @return array<string, mixed>
+     */
+    private function preserveLockedMessageTypePreferences(array $config, array $currentConfig, array $currentMessageTypes): array
+    {
+        $currentRows = (array) ($currentConfig['message_types'] ?? []);
+
+        foreach ($this->messageTypeDefinitions() as $messageType => $meta) {
+            if (!empty($currentMessageTypes[$messageType]['tenant_can_manage'])) {
+                continue;
+            }
+
+            if (isset($currentRows[$messageType]) && is_array($currentRows[$messageType])) {
+                $config['message_types'][$messageType] = $currentRows[$messageType];
+            }
+        }
+
+        return $config;
+    }
+
+    /**
+     * @param array<int, mixed> $messageTypes
+     * @return array<int, string>
+     */
+    private function normalizeMessageTypes(array $messageTypes): array
+    {
+        $supportedTypes = array_keys($this->messageTypeDefinitions());
+        $normalized = [];
+
+        foreach ($messageTypes as $messageType) {
+            $messageType = strtolower(trim((string) $messageType));
+            if (!in_array($messageType, $supportedTypes, true)) {
+                continue;
+            }
+
+            if (!in_array($messageType, $normalized, true)) {
+                $normalized[] = $messageType;
+            }
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function findTenantFeatureOverrideRow(int $tenantId, int $featureId): ?array
+    {
+        if ($tenantId <= 0 || $featureId <= 0) {
+            return null;
+        }
+
+        $row = $this->tenantFeaturesModel
+            ->where('id_tenant', $tenantId)
+            ->where('id_feature', $featureId)
+            ->first();
+
+        return is_array($row) ? $row : null;
+    }
+
+    /**
      * @param array<int, mixed> $channels
      * @return array<int, string>
      */
-    private function normalizeChannels(array $channels): array
+    public function normalizeChannels(array $channels): array
     {
         $normalized = [];
         $supportedChannels = array_keys($this->channelDefinitions());

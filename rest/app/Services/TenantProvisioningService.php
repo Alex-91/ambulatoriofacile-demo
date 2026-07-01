@@ -484,6 +484,51 @@ class TenantProvisioningService
 
         $enabledFeatures = $this->normalizeFeatureKeys($payload['enabled_features'] ?? []);
         $disabledFeatures = $this->normalizeFeatureKeys($payload['disabled_features'] ?? []);
+        $appointmentNotificationControlForm = !empty($payload['appointment_notification_control_form']);
+        $appointmentNotificationEnabledTypes = [];
+        $appointmentNotificationEnabledChannels = [];
+        $appointmentNotificationSettings = null;
+
+        if ($appointmentNotificationControlForm) {
+            $appointmentNotificationSettings = new AppointmentNotificationSettingsService();
+            $supportedNotificationTypes = array_keys($appointmentNotificationSettings->messageTypeDefinitions());
+
+            foreach ((array) ($payload['appointment_notification_enabled_types'] ?? []) as $messageType) {
+                $messageType = trim(strtolower((string) $messageType));
+                if ($messageType === '' || !in_array($messageType, $supportedNotificationTypes, true)) {
+                    continue;
+                }
+
+                if (!in_array($messageType, $appointmentNotificationEnabledTypes, true)) {
+                    $appointmentNotificationEnabledTypes[] = $messageType;
+                }
+            }
+
+            $appointmentNotificationEnabledChannels = $appointmentNotificationSettings->normalizeChannels(
+                (array) ($payload['appointment_notification_enabled_channels'] ?? [])
+            );
+
+            $channelFeatureMap = [
+                AppointmentNotificationSettingsService::CHANNEL_SMS => AppointmentNotificationSettingsService::FEATURE_SMS,
+                AppointmentNotificationSettingsService::CHANNEL_WHATSAPP => AppointmentNotificationSettingsService::FEATURE_WHATSAPP,
+            ];
+
+            foreach ($channelFeatureMap as $channelKey => $featureKey) {
+                $enabledFeatures = array_values(array_diff($enabledFeatures, [$featureKey]));
+                $disabledFeatures = array_values(array_diff($disabledFeatures, [$featureKey]));
+
+                if (in_array($channelKey, $appointmentNotificationEnabledChannels, true)) {
+                    if (!in_array($featureKey, $enabledFeatures, true)) {
+                        $enabledFeatures[] = $featureKey;
+                    }
+                    continue;
+                }
+
+                if (!in_array($featureKey, $disabledFeatures, true)) {
+                    $disabledFeatures[] = $featureKey;
+                }
+            }
+        }
 
         $this->db->transBegin();
 
@@ -512,7 +557,21 @@ class TenantProvisioningService
                 array_key_exists('app_user_id', $payload) ? (int) $payload['app_user_id'] : null
             );
 
-            $this->replaceFeatureOverrides($resolvedTenantId, $enabledFeatures, $disabledFeatures);
+            $featureOverrideConfigs = $this->loadExistingFeatureOverrideConfigs($resolvedTenantId);
+            if ($appointmentNotificationControlForm && $appointmentNotificationSettings !== null) {
+                $notificationFeatureConfig = $featureOverrideConfigs[AppointmentNotificationSettingsService::FEATURE_NOTIFICATIONS] ?? [];
+                $notificationFeatureConfig = $appointmentNotificationSettings->mergePlatformMessageTypeControlsIntoConfig(
+                    $notificationFeatureConfig,
+                    $appointmentNotificationEnabledTypes
+                );
+                $notificationFeatureConfig = $appointmentNotificationSettings->mergePlatformChannelControlsIntoConfig(
+                    $notificationFeatureConfig,
+                    $appointmentNotificationEnabledChannels
+                );
+                $featureOverrideConfigs[AppointmentNotificationSettingsService::FEATURE_NOTIFICATIONS] = $notificationFeatureConfig;
+            }
+
+            $this->replaceFeatureOverrides($resolvedTenantId, $enabledFeatures, $disabledFeatures, $featureOverrideConfigs);
 
             if (!$this->db->transStatus()) {
                 throw new \RuntimeException('Salvataggio tenant non riuscito.');
@@ -713,7 +772,7 @@ class TenantProvisioningService
      * @param array<int, string> $enabledFeatureKeys
      * @param array<int, string> $disabledFeatureKeys
      */
-    private function replaceFeatureOverrides(int $tenantId, array $enabledFeatureKeys, array $disabledFeatureKeys): void
+    private function replaceFeatureOverrides(int $tenantId, array $enabledFeatureKeys, array $disabledFeatureKeys, array $featureConfigsByKey = []): void
     {
         if ($tenantId <= 0) {
             return;
@@ -737,15 +796,48 @@ class TenantProvisioningService
                 continue;
             }
 
+            $featureConfig = isset($featureConfigsByKey[$featureKey]) && is_array($featureConfigsByKey[$featureKey])
+                ? $featureConfigsByKey[$featureKey]
+                : null;
+
             if (in_array($featureKey, $enabledFeatureKeys, true)) {
-                $this->tenantFeaturesModel->setOverride($tenantId, $featureId, true, null, 'admin_panel');
+                $this->tenantFeaturesModel->setOverride($tenantId, $featureId, true, $featureConfig, 'admin_panel');
                 continue;
             }
 
             if (in_array($featureKey, $disabledFeatureKeys, true)) {
-                $this->tenantFeaturesModel->setOverride($tenantId, $featureId, false, null, 'admin_panel');
+                $this->tenantFeaturesModel->setOverride($tenantId, $featureId, false, $featureConfig, 'admin_panel');
             }
         }
+    }
+
+    /**
+     * @return array<string, array<string, mixed>>
+     */
+    private function loadExistingFeatureOverrideConfigs(int $tenantId): array
+    {
+        if ($tenantId <= 0 || !$this->db->tableExists('platform_tenant_features')) {
+            return [];
+        }
+
+        $rows = $this->db->table('platform_tenant_features tf')
+            ->select('f.feature_key, tf.config_json')
+            ->join('platform_features f', 'f.id_feature = tf.id_feature')
+            ->where('tf.id_tenant', $tenantId)
+            ->get()
+            ->getResultArray();
+
+        $configs = [];
+        foreach ($rows as $row) {
+            $featureKey = trim((string) ($row['feature_key'] ?? ''));
+            if ($featureKey === '') {
+                continue;
+            }
+
+            $configs[$featureKey] = $this->decodeJsonConfig((string) ($row['config_json'] ?? ''));
+        }
+
+        return $configs;
     }
 
     /**
@@ -883,6 +975,20 @@ class TenantProvisioningService
 
         $json = json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         return $json !== false ? $json : null;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function decodeJsonConfig(string $json): array
+    {
+        $json = trim($json);
+        if ($json === '') {
+            return [];
+        }
+
+        $decoded = json_decode($json, true);
+        return is_array($decoded) ? $decoded : [];
     }
 
     private function generateTemporaryPassword(): string

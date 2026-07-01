@@ -58,6 +58,7 @@ $formatDateTime = static function (?string $value): string {
     .metric-label { color:#6a7b80; font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; }
     .metric-value { color:#1d5f68; font-size:28px; font-weight:700; margin-top:8px; }
     .notif-config-box { border:1px solid #e5ecee; border-radius:12px; padding:16px; background:#fff; margin-bottom:14px; }
+    .notif-config-box.is-locked { background:#f7f9fa; border-color:#d7e0e3; }
     .notif-config-box h4 { margin-top:0; margin-bottom:6px; }
     .inline-check { display:inline-block; margin-right:18px; }
   </style>
@@ -100,7 +101,7 @@ $formatDateTime = static function (?string $value): string {
               Studio attivo: <?= esc((string) ($tenantContext->tenantName ?? '')) ?>
             </h3>
             <p style="margin:0 0 12px 0; color:#52676c;">
-              Qui il responsabile dello studio decide quali notifiche inviare tra conferma appuntamento, reminder e presa appuntamento da un medico a un altro medico. SMS e WhatsApp dipendono dal pacchetto, mentre Email e OTP sono disponibili direttamente dentro l'applicazione.
+              Qui il responsabile dello studio decide quali notifiche inviare tra conferma appuntamento, reminder e presa appuntamento da un medico a un altro medico. I canali disponibili dipendono sia da cio che la piattaforma ha concesso al tuo studio sia dalla configurazione commerciale attiva.
             </p>
             <a class="btn btn-default" href="<?= portal_tenant_space_url('funzioni') ?>">
               <i class="fa fa-arrow-left"></i> Torna alle funzioni dello spazio
@@ -121,9 +122,9 @@ $formatDateTime = static function (?string $value): string {
                       <?php if (in_array($channelKey, ['sms', 'wa'], true)): ?>
                         Disponibilità commerciale e tecnica del canale <?= esc((string) $meta['label']) ?> per questo studio.
                       <?php elseif ($channelKey === 'email'): ?>
-                        Invio email usando i recapiti salvati in agenda e in anagrafica paziente o medico destinatario.
+                        Invio email usando i recapiti salvati in agenda e in anagrafica, se il canale è stato lasciato disponibile dalla piattaforma per questo studio.
                       <?php else: ?>
-                        Genera un codice OTP e lo recapita usando il contatto disponibile del destinatario.
+                        Genera un codice OTP e lo recapita usando il contatto disponibile del destinatario, se il canale è stato lasciato disponibile dalla piattaforma per questo studio.
                       <?php endif; ?>
                     </p>
                     <span class="label label-<?= !empty($availableChannels[$channelKey]) ? 'success' : 'default' ?>">
@@ -170,39 +171,52 @@ $formatDateTime = static function (?string $value): string {
                       $prefix = $key;
                       $enabledName = $prefix . '_enabled';
                       $channelsName = $prefix . '_channels[]';
+                      $typeLocked = empty($typeRow['tenant_can_manage']);
                     ?>
-                    <div class="notif-config-box">
+                    <div class="notif-config-box<?= $typeLocked ? ' is-locked' : '' ?>">
                       <h4><?= esc((string) ($typeRow['label'] ?? $key)) ?></h4>
                       <p class="text-muted"><?= esc((string) ($typeRow['description'] ?? '')) ?></p>
+                      <div style="margin:0 0 10px 0;">
+                        <span class="label label-<?= !empty($typeRow['platform_enabled']) ? 'info' : 'warning' ?>">
+                          <?= !empty($typeRow['platform_enabled']) ? 'abilitato dalla piattaforma' : 'bloccato dalla piattaforma' ?>
+                        </span>
+                      </div>
 
                       <div class="checkbox" style="margin:0 0 12px 0;">
                         <label>
                           <input type="hidden" name="<?= esc($enabledName) ?>" value="0">
-                          <input type="checkbox" name="<?= esc($enabledName) ?>" value="1" <?= !empty($typeRow['enabled']) ? 'checked' : '' ?>>
+                          <input type="checkbox" name="<?= esc($enabledName) ?>" value="1" <?= !empty($typeRow['enabled']) ? 'checked' : '' ?> <?= $typeLocked ? 'disabled' : '' ?>>
                           Attiva questo flusso
                         </label>
                       </div>
 
-                      <div style="margin-bottom:10px;">
-                        <?php foreach ($channelMeta as $channelKey => $meta): ?>
-                          <?php $selectedKey = $channelKey . '_selected'; ?>
-                          <label class="inline-check">
-                            <input type="checkbox" name="<?= esc($channelsName) ?>" value="<?= esc($channelKey) ?>" <?= !empty($typeRow[$selectedKey]) ? 'checked' : '' ?> <?= empty($availableChannels[$channelKey]) ? 'disabled' : '' ?>>
-                            <?= esc((string) $meta['label']) ?>
-                          </label>
-                        <?php endforeach; ?>
-                      </div>
-                      <p class="text-muted" style="margin:0 0 10px 0;">
-                        Se attivi questo flusso devi selezionare almeno un canale tra quelli disponibili per lo studio.
-                      </p>
-
-                      <?php if ($key === \App\Services\AppointmentNotificationSettingsService::TYPE_REMINDER): ?>
-                        <div class="row">
-                          <div class="col-md-3">
-                            <label>Giorni di anticipo</label>
-                            <input class="form-control" type="number" min="0" max="30" name="appointment_reminder_lead_days" value="<?= (int) ($typeRow['lead_days'] ?? 2) ?>">
-                          </div>
+                      <fieldset style="padding:0; margin:0; border:0;" <?= $typeLocked ? 'disabled' : '' ?>>
+                        <div style="margin-bottom:10px;">
+                          <?php foreach ($channelMeta as $channelKey => $meta): ?>
+                            <?php $selectedKey = $channelKey . '_selected'; ?>
+                            <label class="inline-check">
+                              <input type="checkbox" name="<?= esc($channelsName) ?>" value="<?= esc($channelKey) ?>" <?= !empty($typeRow[$selectedKey]) ? 'checked' : '' ?> <?= empty($availableChannels[$channelKey]) ? 'disabled' : '' ?>>
+                              <?= esc((string) $meta['label']) ?>
+                            </label>
+                          <?php endforeach; ?>
                         </div>
+                        <p class="text-muted" style="margin:0 0 10px 0;">
+                          Se attivi questo flusso devi selezionare almeno un canale tra quelli disponibili per lo studio.
+                        </p>
+
+                        <?php if ($key === \App\Services\AppointmentNotificationSettingsService::TYPE_REMINDER): ?>
+                          <div class="row">
+                            <div class="col-md-3">
+                              <label>Giorni di anticipo</label>
+                              <input class="form-control" type="number" min="0" max="30" name="appointment_reminder_lead_days" value="<?= (int) ($typeRow['lead_days'] ?? 2) ?>">
+                            </div>
+                          </div>
+                        <?php endif; ?>
+                      </fieldset>
+                      <?php if ($typeLocked): ?>
+                        <p class="text-warning" style="margin:10px 0 0 0;">
+                          Questo tipo di notifica e gestito dal master piattaforma per il tuo studio. I canali salvati restano memorizzati, ma il flusso non puo essere modificato da qui finche non viene riabilitato centralmente.
+                        </p>
                       <?php endif; ?>
 
                       <?php
