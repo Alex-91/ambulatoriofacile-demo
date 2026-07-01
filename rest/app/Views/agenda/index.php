@@ -1747,23 +1747,23 @@
         .agenda-team-entry-content {
             display: flex;
             flex-direction: column;
-            align-items: flex-start;
-            justify-content: center;
-            gap: 4px;
+            align-items: stretch;
+            justify-content: flex-start;
+            gap: 6px;
             min-height: 100%;
             text-align: left;
         }
 
         .agenda-team-entry-title {
             display: flex;
-            align-items: center;
+            align-items: flex-start;
+            flex-wrap: wrap;
             gap: 6px;
             color: inherit;
             font-size: 13px;
             font-weight: 700;
             line-height: 1.4;
-            white-space: nowrap;
-            overflow: hidden;
+            white-space: normal;
         }
 
         .agenda-team-entry-time {
@@ -1790,8 +1790,10 @@
 
         .agenda-team-entry-patient {
             min-width: 0;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            flex: 1 1 140px;
+            white-space: normal;
+            overflow-wrap: anywhere;
+            word-break: break-word;
         }
 
         .agenda-team-entry-note {
@@ -1800,9 +1802,9 @@
             font-size: 12px;
             line-height: 1.35;
             opacity: 0.92;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            white-space: normal;
+            overflow-wrap: anywhere;
+            word-break: break-word;
         }
 
         .agenda-team-entry-free-slot {
