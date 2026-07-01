@@ -253,7 +253,7 @@ class AgendaConfigModel extends Model
         }
 
         if ((int)($giorno['giorno_libero'] ?? 0) === 1) {
-            return 'Il giorno selezionato e impostato come libero.';
+            return 'Il giorno selezionato è impostato come libero.';
         }
 
         $fasce = $this->getFasceForDayRow($giorno);

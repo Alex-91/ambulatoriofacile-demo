@@ -1854,13 +1854,15 @@
             left: 14px;
             right: 14px;
             z-index: 2;
-            padding: 14px 12px;
-            border: 1px dashed #ccd7e0;
+            padding: 16px 14px;
+            border: 1px solid #c9d8e4;
             border-radius: 10px;
-            background: rgba(255, 255, 255, 0.96);
-            color: #6b7886;
-            font-size: 13px;
-            line-height: 1.45;
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(244, 249, 252, 0.98) 100%);
+            box-shadow: 0 6px 16px rgba(31, 45, 61, 0.08);
+            color: #425466;
+            font-size: 16px;
+            font-weight: 600;
+            line-height: 1.55;
         }
 
         @media (max-width: 767px) {
