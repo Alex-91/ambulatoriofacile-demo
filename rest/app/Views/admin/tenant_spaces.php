@@ -23,6 +23,36 @@ $memberTempPassword = trim((string)($memberTempPassword ?? ''));
 $tenantData = is_array($selectedTenant['tenant'] ?? null) ? $selectedTenant['tenant'] : [];
 $ownerData = is_array($selectedTenant['owner'] ?? null) ? $selectedTenant['owner'] : [];
 $featureMap = is_array($selectedTenant['feature_map'] ?? null) ? $selectedTenant['feature_map'] : [];
+$appointmentNotificationSettings = is_array($selectedTenant['appointment_notification_settings'] ?? null) ? $selectedTenant['appointment_notification_settings'] : [];
+$appointmentNotificationControls = is_array($appointmentNotificationSettings['platform_message_type_controls'] ?? null) ? $appointmentNotificationSettings['platform_message_type_controls'] : [];
+$appointmentNotificationChannelControls = is_array($appointmentNotificationSettings['platform_channel_controls'] ?? null) ? $appointmentNotificationSettings['platform_channel_controls'] : [];
+$appointmentNotificationTypes = is_array($appointmentNotificationSettings['message_types'] ?? null) ? $appointmentNotificationSettings['message_types'] : [];
+$appointmentNotificationChannelMeta = [
+    'sms' => [
+        'label' => 'SMS',
+        'description' => 'Canale commerciale acquistabile dal cliente e attivabile solo se concesso centralmente.',
+        'feature_key' => \App\Services\AppointmentNotificationSettingsService::FEATURE_SMS,
+    ],
+    'wa' => [
+        'label' => 'WhatsApp',
+        'description' => 'Canale commerciale acquistabile dal cliente e governato centralmente dalla piattaforma.',
+        'feature_key' => \App\Services\AppointmentNotificationSettingsService::FEATURE_WHATSAPP,
+    ],
+    'email' => [
+        'label' => 'Email',
+        'description' => 'Canale nativo dell applicazione, ora governabile anche centralmente per singolo studio.',
+        'feature_key' => null,
+    ],
+    'otp' => [
+        'label' => 'OTP',
+        'description' => 'Canale interno basato su OTP, anch esso governabile centralmente per singolo studio.',
+        'feature_key' => null,
+    ],
+];
+$hiddenFeatureKeys = [
+    \App\Services\AppointmentNotificationSettingsService::FEATURE_SMS,
+    \App\Services\AppointmentNotificationSettingsService::FEATURE_WHATSAPP,
+];
 $adminMenuState = is_array($selectedTenant['admin_menu'] ?? null) ? $selectedTenant['admin_menu'] : [];
 $adminMenuCatalog = is_array($adminMenuState['items'] ?? null) ? $adminMenuState['items'] : [];
 $adminMenuWarning = trim((string)($adminMenuState['warning'] ?? ''));
@@ -726,6 +756,9 @@ $oldValue = static function (string $key, $fallback = '') {
                     <?php foreach ($features as $feature): ?>
                       <?php
                         $featureKey = (string)($feature['feature_key'] ?? '');
+                        if (in_array($featureKey, $hiddenFeatureKeys, true)) {
+                            continue;
+                        }
                         $checked = (bool)($featureMap[$featureKey] ?? false);
                         $oldEnabled = old('enabled_features');
                         if (is_array($oldEnabled)) {
@@ -760,6 +793,85 @@ $oldValue = static function (string $key, $fallback = '') {
                   <p class="text-muted">
                     Alla creazione usiamo i default del pacchetto e del catalogo globale. Dopo il primo salvataggio potrai rifinire gli override funzione per funzione.
                   </p>
+                <?php endif; ?>
+
+                <?php if ($isEdit && $appointmentNotificationControls !== []): ?>
+                  <hr>
+                  <h4 style="margin-top:0;">Governance tipi notifiche appuntamenti</h4>
+                  <p class="text-muted">
+                    Qui il master piattaforma decide quali dei tre flussi appuntamento il responsabile dello studio puo davvero attivare dal suo pannello. Se un tipo viene spento qui, nello spazio cliente il relativo flag risulta visibile ma non cliccabile.
+                  </p>
+                  <?php if (empty($featureMap[\App\Services\AppointmentNotificationSettingsService::FEATURE_NOTIFICATIONS] ?? false)): ?>
+                    <div class="alert alert-info" style="margin-bottom:12px;">
+                      Il modulo generale notifiche appuntamenti e attualmente spento per questo studio. Puoi comunque preparare fin da ora quali tipi saranno delegabili quando il modulo verra acceso.
+                    </div>
+                  <?php endif; ?>
+                  <input type="hidden" name="appointment_notification_control_form" value="1">
+                  <div class="row">
+                    <?php foreach ($appointmentNotificationControls as $messageTypeKey => $controlRow): ?>
+                      <?php
+                        $checked = !empty($controlRow['enabled']);
+                        $oldEnabledTypes = old('appointment_notification_enabled_types');
+                        if (is_array($oldEnabledTypes)) {
+                            $checked = in_array($messageTypeKey, array_map('strval', $oldEnabledTypes), true);
+                        }
+                        $tenantTypeRow = (array) ($appointmentNotificationTypes[$messageTypeKey] ?? []);
+                      ?>
+                      <div class="col-md-4">
+                        <div class="feature-card">
+                          <h4><?= esc((string) ($controlRow['label'] ?? $messageTypeKey)) ?></h4>
+                          <p><?= esc((string) ($controlRow['description'] ?? '')) ?></p>
+                          <div class="checkbox" style="margin:0 0 8px 0;">
+                            <label>
+                              <input type="checkbox" name="appointment_notification_enabled_types[]" value="<?= esc((string) $messageTypeKey) ?>" <?= $checked ? 'checked' : '' ?>>
+                              Delegabile al responsabile dello studio
+                            </label>
+                          </div>
+                          <span class="label label-<?= $checked ? 'info' : 'warning' ?>">
+                            <?= $checked ? 'gestibile dal tenant' : 'bloccata centralmente' ?>
+                          </span>
+                          <span class="label label-<?= !empty($tenantTypeRow['enabled']) ? 'success' : 'default' ?>">
+                            <?= !empty($tenantTypeRow['enabled']) ? 'attiva nello spazio' : 'spenta nello spazio' ?>
+                          </span>
+                        </div>
+                      </div>
+                    <?php endforeach; ?>
+                  </div>
+
+                  <div style="height:8px;"></div>
+                  <h4 style="margin-top:8px;">Governance canali notifiche appuntamenti</h4>
+                  <p class="text-muted">
+                    Qui il master piattaforma decide quali canali lo studio ha realmente acquistato o puo usare. Quando un canale viene spento qui, il tenant lo vede non disponibile e non puo selezionarlo nei suoi flussi.
+                  </p>
+                  <div class="row">
+                    <?php foreach ($appointmentNotificationChannelMeta as $channelKey => $channelMeta): ?>
+                      <?php
+                        $channelFeatureKey = $channelMeta['feature_key'];
+                        $checked = $channelFeatureKey !== null
+                            ? !empty($featureMap[$channelFeatureKey])
+                            : !empty($appointmentNotificationChannelControls[$channelKey]['enabled']);
+                        $oldEnabledChannels = old('appointment_notification_enabled_channels');
+                        if (is_array($oldEnabledChannels)) {
+                            $checked = in_array($channelKey, array_map('strval', $oldEnabledChannels), true);
+                        }
+                      ?>
+                      <div class="col-md-3">
+                        <div class="feature-card">
+                          <h4><?= esc((string) ($channelMeta['label'] ?? strtoupper($channelKey))) ?></h4>
+                          <p><?= esc((string) ($channelMeta['description'] ?? '')) ?></p>
+                          <div class="checkbox" style="margin:0 0 8px 0;">
+                            <label>
+                              <input type="checkbox" name="appointment_notification_enabled_channels[]" value="<?= esc((string) $channelKey) ?>" <?= $checked ? 'checked' : '' ?>>
+                              Canale disponibile per lo studio
+                            </label>
+                          </div>
+                          <span class="label label-<?= $checked ? 'success' : 'default' ?>">
+                            <?= $checked ? 'abilitato centralmente' : 'spento centralmente' ?>
+                          </span>
+                        </div>
+                      </div>
+                    <?php endforeach; ?>
+                  </div>
                 <?php endif; ?>
 
                 <hr>
