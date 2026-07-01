@@ -34,3 +34,9 @@ Per usare il locale contro il DB test su Coolify:
 - comando rapido verso DB test: `ops/use-coolify-test-db.ps1`
 - comando rapido ritorno a DB locale: `ops/use-local-db.ps1`
 - guida: `ops/local-test-db-workflow.md`
+
+## Shortcut chat
+
+Per le frasi rapide riutilizzabili anche nelle nuove chat:
+
+- guida: `ops/chat-shortcuts.md`
