@@ -31,5 +31,16 @@
     "syncMinute": 15,
     "pollFrequency": "* * * * *",
     "timeoutSeconds": 7200
+  },
+  "localTestDb": {
+    "envPath": "rest/.env",
+    "snapshotEnvPath": "ops/.local/rest.env.before-coolify-test",
+    "testDatabaseUuid": "",
+    "publicHost": "coolify.example.com",
+    "preferredPublicPort": 23306,
+    "publicPortTimeout": 3600,
+    "autoExposeDatabase": true,
+    "disableOutboundIntegrations": true,
+    "forceDevelopmentEnvironment": true
   }
 }

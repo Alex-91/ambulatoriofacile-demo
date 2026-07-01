@@ -25,3 +25,12 @@ Per configurare il refresh notturno del DB test da produzione su Coolify:
 - script: `ops/setup-test-db-refresh.ps1`
 - comando rapido refresh immediato: `ops/refresh-test-db-now.ps1`
 - guida: `ops/db-refresh-workflow.md`
+
+## Collegare il locale al DB test
+
+Per usare il locale contro il DB test su Coolify:
+
+- switch principale: `ops/switch-local-db-mode.ps1`
+- comando rapido verso DB test: `ops/use-coolify-test-db.ps1`
+- comando rapido ritorno a DB locale: `ops/use-local-db.ps1`
+- guida: `ops/local-test-db-workflow.md`
