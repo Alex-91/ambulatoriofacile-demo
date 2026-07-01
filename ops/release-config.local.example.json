@@ -17,5 +17,19 @@
       "publicBaseUrl": "https://login.example.com",
       "healthUrl": "https://login.example.com/login"
     }
+  },
+  "dbRefresh": {
+    "projectUuid": "",
+    "environmentUuid": "",
+    "serverUuid": "",
+    "prodDatabaseUuid": "",
+    "testDatabaseUuid": "",
+    "appName": "ambulatoriofacile-db-refresh-job",
+    "taskName": "nightly-prod-to-test-refresh",
+    "syncTimezone": "Europe/Rome",
+    "syncHour": 2,
+    "syncMinute": 15,
+    "pollFrequency": "* * * * *",
+    "timeoutSeconds": 7200
   }
 }
