@@ -1465,6 +1465,79 @@
             min-height: 720px;
         }
 
+        .agenda-team-day-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 12px;
+            padding: 14px 16px;
+            border: 1px solid #d8e5ef;
+            border-radius: 14px;
+            background: linear-gradient(135deg, #eef7ff 0%, #f8fbfe 100%);
+            box-shadow: 0 10px 24px rgba(31, 45, 61, 0.08);
+        }
+
+        .agenda-team-day-toolbar-main {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex: 1 1 auto;
+            min-width: 0;
+        }
+
+        .agenda-team-day-toolbar-copy {
+            min-width: 0;
+        }
+
+        .agenda-team-day-toolbar-kicker {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 6px;
+            color: #4f6b7d;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+
+        .agenda-team-day-toolbar-weekday {
+            color: #1f2d3d;
+            font-size: 28px;
+            font-weight: 800;
+            line-height: 1.05;
+        }
+
+        .agenda-team-day-toolbar-date {
+            margin-top: 3px;
+            color: #3c5668;
+            font-size: 16px;
+            font-weight: 600;
+            line-height: 1.25;
+            text-transform: capitalize;
+        }
+
+        .agenda-team-day-toolbar-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 0 0 auto;
+        }
+
+        .agenda-team-day-toolbar-btn {
+            min-width: 46px;
+            min-height: 42px;
+            border-radius: 10px;
+            font-weight: 700;
+            box-shadow: none;
+        }
+
+        .agenda-team-day-toolbar-btn.btn-primary {
+            padding-left: 16px;
+            padding-right: 16px;
+        }
+
         .agenda-team-summary {
             margin-bottom: 12px;
             padding: 12px 14px;
@@ -1824,6 +1897,32 @@
 
             .agenda-team-header {
                 min-width: 180px;
+            }
+
+            .agenda-team-day-toolbar {
+                flex-direction: column;
+                align-items: stretch;
+                padding: 14px;
+            }
+
+            .agenda-team-day-toolbar-main {
+                justify-content: space-between;
+            }
+
+            .agenda-team-day-toolbar-weekday {
+                font-size: 24px;
+            }
+
+            .agenda-team-day-toolbar-date {
+                font-size: 15px;
+            }
+
+            .agenda-team-day-toolbar-actions {
+                width: 100%;
+            }
+
+            .agenda-team-day-toolbar-actions .agenda-team-day-toolbar-btn {
+                flex: 1 1 0;
             }
 
             .agenda-team-board-wrap {
@@ -2235,6 +2334,28 @@
         </div>
     </div>
     <div id="agendaTeamDayShell" class="agenda-calendar-shell agenda-team-shell">
+        <div class="agenda-team-day-toolbar">
+            <div class="agenda-team-day-toolbar-main">
+                <button type="button" class="btn btn-default agenda-team-day-toolbar-btn" id="btnTeamDayPrev" aria-label="Giorno precedente">
+                    <i class="fa fa-chevron-left"></i>
+                </button>
+                <div class="agenda-team-day-toolbar-copy">
+                    <div class="agenda-team-day-toolbar-kicker">
+                        <i class="fa fa-calendar-o"></i> Agenda del team
+                    </div>
+                    <div class="agenda-team-day-toolbar-weekday" id="agendaTeamDayCurrentWeekday">-</div>
+                    <div class="agenda-team-day-toolbar-date" id="agendaTeamDayCurrentDate">-</div>
+                </div>
+            </div>
+            <div class="agenda-team-day-toolbar-actions">
+                <button type="button" class="btn btn-primary agenda-team-day-toolbar-btn" id="btnTeamDayToday">
+                    Oggi
+                </button>
+                <button type="button" class="btn btn-default agenda-team-day-toolbar-btn" id="btnTeamDayNext" aria-label="Giorno successivo">
+                    <i class="fa fa-chevron-right"></i>
+                </button>
+            </div>
+        </div>
         <div class="agenda-team-summary">
             <i class="fa fa-columns"></i> Vista giornaliera del team: qui vedi in parallelo tutti i professionisti visibili. Le azioni laterali restano riferite al professionista selezionato in alto.
         </div>
@@ -2826,6 +2947,52 @@ function supportsAgendaVisitTypes() {
 
 function supportsTeamDayView() {
     return !!window.AGENDA_CONFIG.teamDayViewEnabled;
+}
+
+function getSelectedAgendaMoment() {
+    var rawValue = $.trim($('#agenda_date').val() || window.AGENDA_CONFIG.selectedDate || '');
+    var selected = moment(rawValue, 'YYYY-MM-DD', true);
+
+    if (!selected.isValid()) {
+        selected = moment(window.AGENDA_CONFIG.selectedDate, 'YYYY-MM-DD', true);
+    }
+
+    if (!selected.isValid()) {
+        selected = moment();
+    }
+
+    return selected.clone().locale('it');
+}
+
+function syncAgendaTeamDayToolbar() {
+    var $weekday = $('#agendaTeamDayCurrentWeekday');
+    var $date = $('#agendaTeamDayCurrentDate');
+
+    if (!$weekday.length || !$date.length) {
+        return;
+    }
+
+    var selected = getSelectedAgendaMoment();
+    var weekdayLabel = selected.format('dddd');
+    var fullDateLabel = selected.format('D MMMM YYYY');
+
+    if (weekdayLabel) {
+        weekdayLabel = weekdayLabel.charAt(0).toUpperCase() + weekdayLabel.slice(1);
+    }
+
+    $weekday.text(weekdayLabel || '-');
+    $date.text(fullDateLabel || '-');
+}
+
+function navigateAgendaSelectedDay(dayOffset) {
+    var selected = getSelectedAgendaMoment();
+    $('#agenda_date').val(selected.add(dayOffset, 'days').format('YYYY-MM-DD'));
+    caricaTutto();
+}
+
+function navigateAgendaToday() {
+    $('#agenda_date').val(moment().format('YYYY-MM-DD'));
+    caricaTutto();
 }
 
 function isSharedMemoManagementEnabled() {
@@ -5238,6 +5405,7 @@ function leggiFiltriAgenda() {
     setAgendaViewMode(view);
     window.AGENDA_CONFIG.selectedDate = data;
     window.AGENDA_CONFIG.viewMode = view;
+    syncAgendaTeamDayToolbar();
 
     return {
         data: data,
@@ -7493,6 +7661,7 @@ function caricaTutto(options) {
 
 $(function () {
     moment.locale('it');
+    syncAgendaTeamDayToolbar();
 
     window.addEventListener('pagehide', function() {
         inviaUnlockBeaconSePresente();
@@ -7819,8 +7988,7 @@ $('#nota_giorno_text').on('blur', function() {
 
     $('#btnToday').on('click', function() {
         if (isTeamDayViewActive()) {
-            $('#agenda_date').val(moment().format('YYYY-MM-DD'));
-            caricaTutto();
+            navigateAgendaToday();
             return;
         }
 
@@ -7837,8 +8005,7 @@ $('#nota_giorno_text').on('blur', function() {
 
     $('#btnPrevDay').on('click', function() {
         if (isTeamDayViewActive()) {
-            $('#agenda_date').val(moment($('#agenda_date').val()).subtract(1, 'days').format('YYYY-MM-DD'));
-            caricaTutto();
+            navigateAgendaSelectedDay(-1);
             return;
         }
 
@@ -7855,8 +8022,7 @@ $('#nota_giorno_text').on('blur', function() {
 
     $('#btnNextDay').on('click', function() {
         if (isTeamDayViewActive()) {
-            $('#agenda_date').val(moment($('#agenda_date').val()).add(1, 'days').format('YYYY-MM-DD'));
-            caricaTutto();
+            navigateAgendaSelectedDay(1);
             return;
         }
 
@@ -7869,6 +8035,18 @@ $('#nota_giorno_text').on('blur', function() {
         var d = moment($('#agenda_date').val()).add(1, 'days').format('YYYY-MM-DD');
         $('#agenda_date').val(d);
         caricaTutto();
+    });
+
+    $('#btnTeamDayToday').on('click', function() {
+        navigateAgendaToday();
+    });
+
+    $('#btnTeamDayPrev').on('click', function() {
+        navigateAgendaSelectedDay(-1);
+    });
+
+    $('#btnTeamDayNext').on('click', function() {
+        navigateAgendaSelectedDay(1);
     });
 
     $('#btnSaveNote').on('click', function() {
