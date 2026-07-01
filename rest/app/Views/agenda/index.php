@@ -1484,10 +1484,12 @@
             gap: 12px;
             flex: 1 1 auto;
             min-width: 0;
+            justify-content: flex-end;
         }
 
         .agenda-team-day-toolbar-copy {
             min-width: 0;
+            text-align: right;
         }
 
         .agenda-team-day-toolbar-kicker {
@@ -1500,22 +1502,33 @@
             font-weight: 700;
             letter-spacing: 0.04em;
             text-transform: uppercase;
+            justify-content: flex-end;
+            width: 100%;
         }
 
-        .agenda-team-day-toolbar-weekday {
+        .agenda-team-day-toolbar-headline {
+            display: flex;
+            align-items: baseline;
+            justify-content: flex-end;
+            gap: 14px;
+            flex-wrap: wrap;
+        }
+
+        .agenda-team-day-toolbar-piece {
             color: #1f2d3d;
             font-size: 28px;
             font-weight: 800;
             line-height: 1.05;
+            text-transform: capitalize;
         }
 
-        .agenda-team-day-toolbar-date {
-            margin-top: 3px;
-            color: #3c5668;
-            font-size: 16px;
-            font-weight: 600;
-            line-height: 1.25;
-            text-transform: capitalize;
+        .agenda-team-day-toolbar-year {
+            margin-top: 6px;
+            color: #5c7282;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
         }
 
         .agenda-team-day-toolbar-actions {
@@ -1909,20 +1922,29 @@
                 justify-content: space-between;
             }
 
-            .agenda-team-day-toolbar-weekday {
+            .agenda-team-day-toolbar-copy {
+                flex: 1 1 auto;
+            }
+
+            .agenda-team-day-toolbar-headline {
+                gap: 10px;
+            }
+
+            .agenda-team-day-toolbar-piece {
                 font-size: 24px;
             }
 
-            .agenda-team-day-toolbar-date {
-                font-size: 15px;
+            .agenda-team-day-toolbar-year {
+                font-size: 11px;
             }
 
             .agenda-team-day-toolbar-actions {
+                justify-content: flex-start;
                 width: 100%;
             }
 
             .agenda-team-day-toolbar-actions .agenda-team-day-toolbar-btn {
-                flex: 1 1 0;
+                flex: 0 0 auto;
             }
 
             .agenda-team-board-wrap {
@@ -2335,6 +2357,11 @@
     </div>
     <div id="agendaTeamDayShell" class="agenda-calendar-shell agenda-team-shell">
         <div class="agenda-team-day-toolbar">
+            <div class="agenda-team-day-toolbar-actions">
+                <button type="button" class="btn btn-primary agenda-team-day-toolbar-btn" id="btnTeamDayToday">
+                    Oggi
+                </button>
+            </div>
             <div class="agenda-team-day-toolbar-main">
                 <button type="button" class="btn btn-default agenda-team-day-toolbar-btn" id="btnTeamDayPrev" aria-label="Giorno precedente">
                     <i class="fa fa-chevron-left"></i>
@@ -2343,14 +2370,13 @@
                     <div class="agenda-team-day-toolbar-kicker">
                         <i class="fa fa-calendar-o"></i> Agenda del team
                     </div>
-                    <div class="agenda-team-day-toolbar-weekday" id="agendaTeamDayCurrentWeekday">-</div>
-                    <div class="agenda-team-day-toolbar-date" id="agendaTeamDayCurrentDate">-</div>
+                    <div class="agenda-team-day-toolbar-headline">
+                        <span class="agenda-team-day-toolbar-piece" id="agendaTeamDayCurrentWeekday">-</span>
+                        <span class="agenda-team-day-toolbar-piece" id="agendaTeamDayCurrentDayNumber">-</span>
+                        <span class="agenda-team-day-toolbar-piece" id="agendaTeamDayCurrentMonth">-</span>
+                    </div>
+                    <div class="agenda-team-day-toolbar-year" id="agendaTeamDayCurrentYear">-</div>
                 </div>
-            </div>
-            <div class="agenda-team-day-toolbar-actions">
-                <button type="button" class="btn btn-primary agenda-team-day-toolbar-btn" id="btnTeamDayToday">
-                    Oggi
-                </button>
                 <button type="button" class="btn btn-default agenda-team-day-toolbar-btn" id="btnTeamDayNext" aria-label="Giorno successivo">
                     <i class="fa fa-chevron-right"></i>
                 </button>
@@ -2966,22 +2992,32 @@ function getSelectedAgendaMoment() {
 
 function syncAgendaTeamDayToolbar() {
     var $weekday = $('#agendaTeamDayCurrentWeekday');
-    var $date = $('#agendaTeamDayCurrentDate');
+    var $dayNumber = $('#agendaTeamDayCurrentDayNumber');
+    var $month = $('#agendaTeamDayCurrentMonth');
+    var $year = $('#agendaTeamDayCurrentYear');
 
-    if (!$weekday.length || !$date.length) {
+    if (!$weekday.length || !$dayNumber.length || !$month.length || !$year.length) {
         return;
     }
 
     var selected = getSelectedAgendaMoment();
     var weekdayLabel = selected.format('dddd');
-    var fullDateLabel = selected.format('D MMMM YYYY');
+    var dayNumberLabel = selected.format('D');
+    var monthLabel = selected.format('MMMM');
+    var yearLabel = selected.format('YYYY');
 
     if (weekdayLabel) {
         weekdayLabel = weekdayLabel.charAt(0).toUpperCase() + weekdayLabel.slice(1);
     }
 
+    if (monthLabel) {
+        monthLabel = monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1);
+    }
+
     $weekday.text(weekdayLabel || '-');
-    $date.text(fullDateLabel || '-');
+    $dayNumber.text(dayNumberLabel || '-');
+    $month.text(monthLabel || '-');
+    $year.text(yearLabel || '-');
 }
 
 function navigateAgendaSelectedDay(dayOffset) {
