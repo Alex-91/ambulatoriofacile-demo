@@ -307,8 +307,22 @@ $isTeamDay = (($pageMode ?? '') === 'team_day');
             <tr>
                 <?php if ($isTeamDay): ?>
                     <?php foreach (($columns ?? []) as $column): ?>
+                        <?php
+                        $columnTheme = is_array($column['column_theme'] ?? null) ? $column['column_theme'] : [];
+                        $headerStyles = [];
+                        if (timeline_pdf_text($columnTheme['pdf_header_bg'] ?? '') !== '') {
+                            $headerStyles[] = 'background:' . timeline_pdf_text($columnTheme['pdf_header_bg'] ?? '');
+                        }
+                        if (timeline_pdf_text($columnTheme['pdf_header_border'] ?? '') !== '') {
+                            $headerStyles[] = 'border-color:' . timeline_pdf_text($columnTheme['pdf_header_border'] ?? '');
+                        }
+                        if (timeline_pdf_text($columnTheme['pdf_header_text'] ?? '') !== '') {
+                            $headerStyles[] = 'color:' . timeline_pdf_text($columnTheme['pdf_header_text'] ?? '');
+                        }
+                        $headerStyleAttr = $headerStyles !== [] ? ' style="' . esc(implode(';', $headerStyles)) . '"' : '';
+                        ?>
                         <th class="time-col time-col-heading">Ora</th>
-                        <th>
+                        <th<?= $headerStyleAttr ?>>
                             <div class="column-label"><?= esc(timeline_pdf_text($column['label'] ?? '', 'Colonna')) ?></div>
                             <?php if (timeline_pdf_text($column['sub_label'] ?? '') !== ''): ?>
                                 <div class="column-sub"><?= esc(timeline_pdf_text($column['sub_label'] ?? '')) ?></div>
@@ -332,7 +346,21 @@ $isTeamDay = (($pageMode ?? '') === 'team_day');
                 <?php else: ?>
                     <th class="time-col">Ora</th>
                     <?php foreach (($columns ?? []) as $column): ?>
-                        <th>
+                        <?php
+                        $columnTheme = is_array($column['column_theme'] ?? null) ? $column['column_theme'] : [];
+                        $headerStyles = [];
+                        if (timeline_pdf_text($columnTheme['pdf_header_bg'] ?? '') !== '') {
+                            $headerStyles[] = 'background:' . timeline_pdf_text($columnTheme['pdf_header_bg'] ?? '');
+                        }
+                        if (timeline_pdf_text($columnTheme['pdf_header_border'] ?? '') !== '') {
+                            $headerStyles[] = 'border-color:' . timeline_pdf_text($columnTheme['pdf_header_border'] ?? '');
+                        }
+                        if (timeline_pdf_text($columnTheme['pdf_header_text'] ?? '') !== '') {
+                            $headerStyles[] = 'color:' . timeline_pdf_text($columnTheme['pdf_header_text'] ?? '');
+                        }
+                        $headerStyleAttr = $headerStyles !== [] ? ' style="' . esc(implode(';', $headerStyles)) . '"' : '';
+                        ?>
+                        <th<?= $headerStyleAttr ?>>
                             <div class="column-label"><?= esc(timeline_pdf_text($column['label'] ?? '', 'Colonna')) ?></div>
                             <?php if (timeline_pdf_text($column['sub_label'] ?? '') !== ''): ?>
                                 <div class="column-sub"><?= esc(timeline_pdf_text($column['sub_label'] ?? '')) ?></div>

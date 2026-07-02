@@ -114,6 +114,7 @@ class TenantSpaces extends BaseController
         $hasFeatureOverrideForm = (int) ($this->request->getPost('feature_override_form') ?? 0) === 1;
         $enabledFeatures = [];
         $disabledFeatures = [];
+        $agendaTeamDayColumnColorsEnabled = (int) ($this->request->getPost('agenda_team_day_column_colors_enabled') ?? 0) === 1;
 
         if ($hasFeatureOverrideForm) {
             $enabledFeatures = array_values(array_filter(array_map(
@@ -145,6 +146,7 @@ class TenantSpaces extends BaseController
             'master_password' => (string)$this->request->getPost('master_password'),
             'enabled_features' => $enabledFeatures,
             'disabled_features' => $disabledFeatures,
+            'agenda_team_day_column_colors_enabled' => $agendaTeamDayColumnColorsEnabled ? 1 : 0,
             'is_active' => $this->request->getPost('is_active') !== null
                 ? ((int)($this->request->getPost('is_active') ?? 0) === 1 ? 1 : 0)
                 : ($isCreate ? 1 : 0),
@@ -420,6 +422,7 @@ class TenantSpaces extends BaseController
             ->getRowArray();
 
         $featureMap = (new TenantCatalogService())->resolveFeatureMapForTenant($tenantId);
+        $featureOverrideConfigMap = $this->loadFeatureOverrideConfigMap($tenantId);
         $explicitOverrides = $this->db->table('platform_tenant_features tf')
             ->select('f.feature_key, tf.is_enabled')
             ->join('platform_features f', 'f.id_feature = tf.id_feature')
@@ -437,11 +440,42 @@ class TenantSpaces extends BaseController
             'package' => $package,
             'owner' => $owner ?: null,
             'feature_map' => $featureMap,
+            'feature_override_config_map' => $featureOverrideConfigMap,
             'override_map' => $overrideMap,
             'admin_menu' => (new TenantAdminMenuService())->loadCatalogStateForTenant($tenant),
             'runtime' => (new TenantProvisioningService())->buildRuntimeBlueprint($tenant),
             'metadata' => $this->decodeMetadata((string) ($tenant['metadata_json'] ?? '')),
         ];
+    }
+
+    /**
+     * @return array<string, array<string, mixed>>
+     */
+    private function loadFeatureOverrideConfigMap(int $tenantId): array
+    {
+        if ($tenantId <= 0) {
+            return [];
+        }
+
+        $rows = $this->db->table('platform_tenant_features tf')
+            ->select('f.feature_key, tf.config_json')
+            ->join('platform_features f', 'f.id_feature = tf.id_feature')
+            ->where('tf.id_tenant', $tenantId)
+            ->get()
+            ->getResultArray();
+
+        $configMap = [];
+        foreach ($rows as $row) {
+            $featureKey = trim((string) ($row['feature_key'] ?? ''));
+            if ($featureKey === '') {
+                continue;
+            }
+
+            $decoded = json_decode((string) ($row['config_json'] ?? ''), true);
+            $configMap[$featureKey] = is_array($decoded) ? $decoded : [];
+        }
+
+        return $configMap;
     }
 
     /**

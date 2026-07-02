@@ -484,10 +484,12 @@ class TenantProvisioningService
 
         $enabledFeatures = $this->normalizeFeatureKeys($payload['enabled_features'] ?? []);
         $disabledFeatures = $this->normalizeFeatureKeys($payload['disabled_features'] ?? []);
+        $agendaTeamDayColumnColorsEnabled = !empty($payload['agenda_team_day_column_colors_enabled']);
         $appointmentNotificationControlForm = !empty($payload['appointment_notification_control_form']);
         $appointmentNotificationEnabledTypes = [];
         $appointmentNotificationEnabledChannels = [];
         $appointmentNotificationSettings = null;
+        $agendaTeamColumnColorSettings = new AgendaTeamColumnColorService();
 
         if ($appointmentNotificationControlForm) {
             $appointmentNotificationSettings = new AppointmentNotificationSettingsService();
@@ -570,6 +572,10 @@ class TenantProvisioningService
                 );
                 $featureOverrideConfigs[AppointmentNotificationSettingsService::FEATURE_NOTIFICATIONS] = $notificationFeatureConfig;
             }
+
+            $teamDayFeatureConfig = $featureOverrideConfigs[AgendaTeamColumnColorService::FEATURE_KEY] ?? [];
+            $featureOverrideConfigs[AgendaTeamColumnColorService::FEATURE_KEY] = $agendaTeamColumnColorSettings
+                ->mergePlatformControlsIntoConfig($teamDayFeatureConfig, $agendaTeamDayColumnColorsEnabled);
 
             $this->replaceFeatureOverrides($resolvedTenantId, $enabledFeatures, $disabledFeatures, $featureOverrideConfigs);
 

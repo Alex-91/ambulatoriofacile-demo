@@ -3,6 +3,8 @@
 namespace App\Controllers\Tenant;
 
 use App\Controllers\BaseController;
+use App\Models\AgendaModel;
+use App\Services\AgendaTeamColumnColorService;
 use App\Services\TenantContextService;
 use App\Services\TenantFeatureService;
 
@@ -31,9 +33,14 @@ class SpaceFeatures extends BaseController
             return $this->sessionExpiredRedirect();
         }
 
+        $agendaProfessionals = (new AgendaModel())->getAllAgendaProfessionals();
+        $teamDayColumnColorSettings = (new AgendaTeamColumnColorService())
+            ->resolveTenantSettings($context->tenantId, $agendaProfessionals);
+
         return view('tenant/space_features', [
             'tenantContext' => $context,
             'featureStates' => (new TenantFeatureService())->listFeatureStatesForTenant($context->tenantId),
+            'teamDayColumnColorSettings' => $teamDayColumnColorSettings,
             'success' => session()->getFlashdata('success'),
             'errors' => session()->getFlashdata('errors') ?? [],
         ]);
@@ -55,9 +62,35 @@ class SpaceFeatures extends BaseController
                 static fn($value): string => trim(strtolower((string) $value)),
                 (array) $this->request->getPost('enabled_features')
             )));
+            $teamDayColumnColorForm = (int) ($this->request->getPost('team_day_column_color_form') ?? 0) === 1;
+            $teamDayColumnColorsEnabled = (int) ($this->request->getPost('team_day_column_colors_enabled') ?? 0) === 1;
+            $teamDayCustomEnabledMap = (array) $this->request->getPost('team_day_column_color_custom_enabled');
+            $teamDayColorValueMap = (array) $this->request->getPost('team_day_column_color_value');
+            $teamDayCustomColors = [];
+
+            foreach ($teamDayCustomEnabledMap as $doctorId => $enabledFlag) {
+                $doctorId = (int) $doctorId;
+                if ($doctorId <= 0 || (int) $enabledFlag !== 1) {
+                    continue;
+                }
+
+                $teamDayCustomColors[$doctorId] = (string) ($teamDayColorValueMap[$doctorId] ?? '');
+            }
 
             $platformUserId = (int) (session()->get('platform_user_id') ?? 0);
             (new TenantFeatureService())->saveTenantManagedFeatures($context->tenantId, $enabledFeatures, $platformUserId);
+
+            if ($teamDayColumnColorForm) {
+                $agendaProfessionals = (new AgendaModel())->getAllAgendaProfessionals();
+                (new AgendaTeamColumnColorService())->saveTenantPreferences(
+                    $context->tenantId,
+                    $teamDayColumnColorsEnabled,
+                    $teamDayCustomColors,
+                    $agendaProfessionals,
+                    $platformUserId
+                );
+            }
+
             $this->tenantContext->activateTenantForPlatformUser($platformUserId, $context->tenantId);
             return redirect()
                 ->to(portal_tenant_space_url('funzioni'))

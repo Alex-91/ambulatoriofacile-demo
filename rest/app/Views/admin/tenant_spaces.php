@@ -23,6 +23,13 @@ $memberTempPassword = trim((string)($memberTempPassword ?? ''));
 $tenantData = is_array($selectedTenant['tenant'] ?? null) ? $selectedTenant['tenant'] : [];
 $ownerData = is_array($selectedTenant['owner'] ?? null) ? $selectedTenant['owner'] : [];
 $featureMap = is_array($selectedTenant['feature_map'] ?? null) ? $selectedTenant['feature_map'] : [];
+$featureConfigMap = is_array($selectedTenant['feature_override_config_map'] ?? null) ? $selectedTenant['feature_override_config_map'] : [];
+$agendaTeamDayFeatureConfig = is_array($featureConfigMap[\App\Services\AgendaTeamColumnColorService::FEATURE_KEY] ?? null)
+    ? $featureConfigMap[\App\Services\AgendaTeamColumnColorService::FEATURE_KEY]
+    : [];
+$agendaTeamDayColorControl = (array) ($agendaTeamDayFeatureConfig['team_day_column_colors'] ?? []);
+$agendaTeamDayColorControlEnabled = !empty($agendaTeamDayColorControl['enabled']);
+$oldAgendaTeamDayColorControl = old('agenda_team_day_column_colors_enabled');
 $appointmentNotificationSettings = is_array($selectedTenant['appointment_notification_settings'] ?? null) ? $selectedTenant['appointment_notification_settings'] : [];
 $appointmentNotificationControls = is_array($appointmentNotificationSettings['platform_message_type_controls'] ?? null) ? $appointmentNotificationSettings['platform_message_type_controls'] : [];
 $appointmentNotificationChannelControls = is_array($appointmentNotificationSettings['platform_channel_controls'] ?? null) ? $appointmentNotificationSettings['platform_channel_controls'] : [];
@@ -783,6 +790,22 @@ $oldValue = static function (string $key, $fallback = '') {
                               <?= ((int)($feature['is_tenant_managed'] ?? 0) === 1) ? 'Governabile dal master cliente' : 'Gestita centralmente' ?>
                             </span>
                           </div>
+                          <?php if ($featureKey === \App\Services\AgendaTeamColumnColorService::FEATURE_KEY): ?>
+                            <div class="checkbox" style="margin:12px 0 0 0;">
+                              <label>
+                                <input
+                                  type="checkbox"
+                                  name="agenda_team_day_column_colors_enabled"
+                                  value="1"
+                                  <?= ((string) $oldAgendaTeamDayColorControl === '1' || ($oldAgendaTeamDayColorControl === null && $agendaTeamDayColorControlEnabled)) ? 'checked' : '' ?>
+                                >
+                                Consenti colori colonna per professionista
+                              </label>
+                            </div>
+                            <div class="text-muted" style="font-size:12px; margin-top:6px; line-height:1.45;">
+                              Se attivo, il responsabile dello studio puo accendere una resa cromatica dedicata per Giorno Team e personalizzare i singoli professionisti dal pannello spazio.
+                            </div>
+                          <?php endif; ?>
                         </div>
                       </div>
                     <?php endforeach; ?>

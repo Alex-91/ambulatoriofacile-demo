@@ -16,6 +16,7 @@ use App\Models\AgendaSlotModel;
 use App\Models\AgendaVisitTypeModel;
 use App\Models\PazientiModel;
 use App\Services\AgendaAppointmentNotificationService;
+use App\Services\AgendaTeamColumnColorService;
 use App\Services\NotificationService;
 use App\Services\SmsReminderDashboardService;
 use App\Services\StaffDoctorAccessService;
@@ -46,11 +47,13 @@ class Agenda extends BaseController
     protected AgendaLocationModel $locationModel;
     protected AgendaVisitTypeModel $visitTypeModel;
     protected NotificationService $notificationService;
+    protected AgendaTeamColumnColorService $agendaTeamColumnColorService;
     protected TenantContextService $tenantContextService;
     protected TenantFeatureService $tenantFeatureService;
     protected $db;
     protected ?array $tenantFeatureMap = null;
     protected ?array $runtimeTenantFeatureMap = null;
+    protected ?array $agendaTeamColumnThemes = null;
 
     public function __construct()
     {
@@ -66,6 +69,7 @@ class Agenda extends BaseController
         $this->locationModel     = new AgendaLocationModel();
         $this->visitTypeModel    = new AgendaVisitTypeModel();
         $this->notificationService = new NotificationService();
+        $this->agendaTeamColumnColorService = new AgendaTeamColumnColorService();
         $this->tenantContextService = new TenantContextService();
         $this->tenantFeatureService = new TenantFeatureService();
 
@@ -718,6 +722,46 @@ public function eseguiRepairRecurringExtraSlots()
         return $this->tenantFeatureMap;
     }
 
+    protected function resolveCurrentAgendaTenantId(): int
+    {
+        $context = $this->tenantContextService->getCurrentTenant();
+        if ($context !== null && (int) ($context->tenantId ?? 0) > 0) {
+            return (int) $context->tenantId;
+        }
+
+        $runtimeTenant = (new TenantCatalogService())->resolveCurrentRuntimeTenant();
+        return (int) ($runtimeTenant['id_tenant'] ?? 0);
+    }
+
+    /**
+     * @param array<int, mixed> $professionals
+     * @return array<int, array<string, mixed>>
+     */
+    protected function getAgendaTeamColumnThemes(array $professionals): array
+    {
+        if ($this->agendaTeamColumnThemes !== null) {
+            return $this->agendaTeamColumnThemes;
+        }
+
+        $tenantId = $this->resolveCurrentAgendaTenantId();
+        if ($tenantId <= 0) {
+            return $this->agendaTeamColumnThemes = [];
+        }
+
+        try {
+            $this->agendaTeamColumnThemes = $this->agendaTeamColumnColorService
+                ->resolveColumnThemes($tenantId, $professionals);
+        } catch (\Throwable $e) {
+            log_message('warning', 'Agenda::getAgendaTeamColumnThemes failed: {message}', [
+                'message' => $e->getMessage(),
+                'tenant_id' => $tenantId,
+            ]);
+            $this->agendaTeamColumnThemes = [];
+        }
+
+        return $this->agendaTeamColumnThemes;
+    }
+
     /**
      * @return array<int, int>
      */
@@ -865,7 +909,7 @@ public function eseguiRepairRecurringExtraSlots()
      * @param array<string, mixed> $doctor
      * @return array<string, mixed>
      */
-    protected function buildTeamDayColumnPayload(array $doctor, string $data, bool $isSelected): array
+    protected function buildTeamDayColumnPayload(array $doctor, string $data, bool $isSelected, array $columnThemes = []): array
     {
         $idDot = (int)($doctor['id_dot'] ?? 0);
         $slots = $idDot > 0 ? $this->slotModel->getSlotsCalendario($idDot, $data, 'day') : [];
@@ -886,6 +930,7 @@ public function eseguiRepairRecurringExtraSlots()
             'slots' => $slots,
             'message' => $message,
             'giorno_bloccato' => $idDot > 0 ? $this->agendaModel->isGiornoBloccato($idDot, $data) : false,
+            'column_theme' => is_array($columnThemes[$idDot] ?? null) ? $columnThemes[$idDot] : null,
         ];
     }
 
@@ -2444,6 +2489,7 @@ public function eseguiRepairRecurringExtraSlots()
             $step = 'build_columns';
             $columns = [];
             $allSlots = [];
+            $columnThemes = $this->getAgendaTeamColumnThemes($medici);
 
             foreach ($medici as $medico) {
                 $doctor = $this->normalizeAgendaProfessionalRow($medico);
@@ -2451,7 +2497,12 @@ public function eseguiRepairRecurringExtraSlots()
                     continue;
                 }
 
-                $column = $this->buildTeamDayColumnPayload($doctor, $data, (int)$doctor['id_dot'] === $selectedDot);
+                $column = $this->buildTeamDayColumnPayload(
+                    $doctor,
+                    $data,
+                    (int)($doctor['id_dot'] ?? 0) === $selectedDot,
+                    $columnThemes
+                );
                 $columns[] = $column;
 
                 if (!empty($column['slots']) && is_array($column['slots'])) {
@@ -3922,6 +3973,7 @@ public function eseguiRepairRecurringExtraSlots()
         $columns = [];
         $allSlots = [];
         $selectedDoctorLabel = '';
+        $columnThemes = $this->getAgendaTeamColumnThemes($medici);
 
         foreach ($medici as $medico) {
             $doctor = $this->normalizeAgendaProfessionalRow($medico);
@@ -3930,7 +3982,7 @@ public function eseguiRepairRecurringExtraSlots()
                 continue;
             }
 
-            $columnPayload = $this->buildTeamDayColumnPayload($doctor, $data, $idDot === $selectedDot);
+            $columnPayload = $this->buildTeamDayColumnPayload($doctor, $data, $idDot === $selectedDot, $columnThemes);
             $headerBadges = [];
 
             if (!empty($columnPayload['is_selected'])) {
@@ -3955,6 +4007,7 @@ public function eseguiRepairRecurringExtraSlots()
                 'slots' => is_array($columnPayload['slots'] ?? null) ? $columnPayload['slots'] : [],
                 'message' => (string)($columnPayload['message'] ?? ''),
                 'giorno_bloccato' => !empty($columnPayload['giorno_bloccato']),
+                'column_theme' => is_array($columnPayload['column_theme'] ?? null) ? $columnPayload['column_theme'] : null,
             ];
 
             if (!empty($columnPayload['slots']) && is_array($columnPayload['slots'])) {
