@@ -61,11 +61,11 @@ $backSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-wi
   .rail{position:relative;overflow:hidden;background:var(--primary);color:#fff;padding:22px 20px 24px}
   .rail-top{position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:12px}
   .rail .logo{display:inline-flex}
-  .rail .logo img{height:24px;width:auto;filter:brightness(0) invert(1)}
+  .rail .logo img{height:26px;width:auto;filter:brightness(0) invert(1)}
   .rail-back{display:inline-flex;align-items:center;gap:5px;font-weight:600;font-size:12px;color:rgba(255,255,255,.85)}
   .rail-back svg{width:13px;height:13px}
   .rail-mid{position:relative;z-index:1}
-  .rail-h1{margin:18px 0 0;font-size:23px;line-height:1.2;font-weight:700;letter-spacing:-.02em;color:#fff}
+  .rail-h1{margin:18px 0 0;font-size:25px;line-height:1.2;font-weight:700;letter-spacing:-.02em;color:#fff}
   .rail-sub{margin:9px 0 0;font-size:14px;line-height:1.5;color:rgba(255,255,255,.74);max-width:38ch}
   .watermark{position:absolute;right:-30px;bottom:-34px;width:150px;height:auto;color:var(--accent);opacity:.08;pointer-events:none;z-index:0}
   .rail-bottom{display:none}
@@ -103,7 +103,8 @@ $backSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-wi
   .sticky-bar .wa:hover{background:var(--bg)}
   .sticky-bar .wa svg{width:20px;height:20px}
   @media (min-width:768px){
-    .rail-h1{font-size:27px}
+    .rail .logo img{height:30px}
+    .rail-h1{font-size:29px}
     .choice{padding:32px 24px 8px}
     .choice-inner{max-width:680px;margin:0 auto}
     .crow{padding:18px 20px;gap:18px}
@@ -116,8 +117,9 @@ $backSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-wi
     .csplit{grid-template-columns:clamp(400px,36vw,560px) 1fr;min-height:100vh}
     .rail{display:flex;flex-direction:column;min-height:100vh;padding:44px clamp(36px,3.2vw,56px)}
     .rail-back{display:none}
+    .rail .logo img{height:34px}
     .rail-mid{margin:auto 0}
-    .rail-h1{font-size:clamp(30px,2.4vw,38px)}
+    .rail-h1{font-size:clamp(34px,2.6vw,42px)}
     .rail-sub{font-size:16px;max-width:32ch}
     .watermark{right:-44px;bottom:-46px;width:300px}
     .rail-bottom{display:block;position:relative;z-index:1}
@@ -134,7 +136,8 @@ $backSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-wi
   /* ---- monitor grandi: scala "bella grande", proporzioni invariate ---- */
   @media (min-width:1440px){
     .rail{padding:56px clamp(48px,3.4vw,64px)}
-    .rail-h1{font-size:40px}
+    .rail .logo img{height:38px}
+    .rail-h1{font-size:44px}
     .rail-sub{font-size:17px;max-width:34ch}
     .choice-inner{max-width:660px;gap:18px}
     .crow{padding:22px 26px;gap:22px}
@@ -166,18 +169,18 @@ $backSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-wi
     </div>
 
     <div class="rail-mid">
-      <h1 class="rail-h1">Entra nella demo dal ruolo che ti interessa.</h1>
-      <p class="rail-sub">Scegli un ruolo e provi subito Ambulatorio Facile dal suo punto di vista.</p>
+      <h1 class="rail-h1">La demo è pronta: entra dal tuo ruolo.</h1>
+      <p class="rail-sub">Scegli il ruolo più vicino al tuo lavoro e prova tutto dal vivo.</p>
     </div>
 
     <div class="rail-bottom">
       <ul class="reassure-rail">
-        <li><span class="dot"></span>Nessun login</li>
-        <li><span class="dot"></span>Dati demo separati dalla produzione</li>
+        <li><span class="dot"></span>Nessun login richiesto</li>
+        <li><span class="dot"></span>Solo dati demo, mai reali</li>
         <li><span class="dot"></span>Cambi ruolo quando vuoi</li>
       </ul>
       <div class="rail-actions">
-        <a class="btn btn-primary" href="<?= esc($prenotaUrl, 'attr') ?>">Prenota una demo</a>
+        <a class="btn btn-primary" href="<?= esc($prenotaUrl, 'attr') ?>">Prenota una dimostrazione</a>
         <a class="btn btn-navy-ghost" href="<?= esc($whatsappUrl, 'attr') ?>" target="_blank" rel="noopener nofollow" aria-label="Scrivici su WhatsApp">
           <?= $waSvg ?>
           WhatsApp
@@ -206,8 +209,8 @@ $backSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-wi
       </ul>
 
       <div class="reassure-m">
-        <span><?= $checkSvg ?>Nessun login</span>
-        <span><?= $checkSvg ?>Dati demo separati</span>
+        <span><?= $checkSvg ?>Nessun login richiesto</span>
+        <span><?= $checkSvg ?>Solo dati demo, mai reali</span>
         <span><?= $checkSvg ?>Cambi ruolo quando vuoi</span>
       </div>
     </div>
@@ -216,7 +219,7 @@ $backSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-wi
 </div>
 
 <nav class="sticky-bar" aria-label="Azioni rapide">
-  <a class="btn btn-primary" href="<?= esc($prenotaUrl, 'attr') ?>">Prenota una demo</a>
+  <a class="btn btn-primary" href="<?= esc($prenotaUrl, 'attr') ?>">Prenota una dimostrazione</a>
   <a class="btn wa" href="<?= esc($whatsappUrl, 'attr') ?>" target="_blank" rel="noopener nofollow" aria-label="Scrivici su WhatsApp">
     <?= $waSvg ?>
   </a>

@@ -132,8 +132,8 @@ $backSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-wi
 </header>
 
 <main>
-  <h1>Entra nella demo dal ruolo che ti interessa.</h1>
-  <p class="subtitle">Scegli un ruolo e provi subito Ambulatorio Facile dal suo punto di vista.</p>
+  <h1>La demo è pronta: entra dal tuo ruolo.</h1>
+  <p class="subtitle">Scegli il ruolo più vicino al tuo lavoro e prova tutto dal vivo.</p>
 
   <ul class="roles">
     <?php foreach ($roleCards as $card): ?>
@@ -156,8 +156,8 @@ $backSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-wi
   </ul>
 
   <div class="reassure">
-    <span><?= $checkSvg ?>Nessun login</span>
-    <span><?= $checkSvg ?>Dati demo separati dalla produzione</span>
+    <span><?= $checkSvg ?>Nessun login richiesto</span>
+    <span><?= $checkSvg ?>Solo dati demo, mai reali</span>
     <span><?= $checkSvg ?>Cambi ruolo quando vuoi</span>
   </div>
 </main>
