@@ -21,6 +21,9 @@ if (!function_exists('admin_menu_pretty_title')) {
             str_contains($key, 'personale/dap15') || str_contains($key, 'dap15') => 'Infermieri e medici',
             str_contains($key, 'whatsapp-reminders') => 'Stato reminder WhatsApp',
             str_contains($key, 'otp-statistiche') => 'Statistiche OTP',
+            str_contains($key, 'agenda/gestione-ferie') => 'Gestione ferie',
+            str_contains($key, 'agenda/elenco-ferie') => 'Elenco ferie',
+            str_contains($key, 'agenda/slot-bloccati') => 'Slot bloccati',
             str_contains($key, 'visibilita-moduli') => 'Visibilita moduli',
             str_contains($key, 'spazi-clienti') || str_contains($key, 'tenant') => 'Spazi cliente',
             str_contains($key, 'agenda/gestione-sedi') || str_contains($key, 'agenda/sedi') || str_contains($key, 'anagrafica/sedi') => 'Gestione sedi',
@@ -47,6 +50,9 @@ if (!function_exists('admin_menu_fallback_icon')) {
         return match (true) {
             str_contains($key, 'whatsapp') => 'fa-whatsapp',
             str_contains($key, 'otp') => 'fa-line-chart',
+            str_contains($key, 'agenda/gestione-ferie') => 'fa-suitcase',
+            str_contains($key, 'agenda/elenco-ferie') => 'fa-calendar-times-o',
+            str_contains($key, 'agenda/slot-bloccati') => 'fa-unlock-alt',
             str_contains($key, 'visibilita') || str_contains($key, 'moduli') => 'fa-toggle-on',
             str_contains($key, 'spazi-clienti') || str_contains($key, 'tenant') => 'fa-sitemap',
             str_contains($key, 'dap14') || str_contains($key, 'segret') => 'fa-users',
@@ -143,6 +149,10 @@ if (!function_exists('admin_menu_resolve_href')) {
 
         if (in_array($normalized, ['agenda/gestione-sedi', 'agenda/sedi', 'anagrafica/sedi'], true)) {
             return site_url('agenda/gestione-sedi');
+        }
+
+        if (in_array($normalized, ['agenda/gestione-ferie', 'agenda/elenco-ferie', 'agenda/slot-bloccati'], true)) {
+            return site_url($normalized);
         }
 
         if ($normalized === 'agenda/gestione-tipi-visita') {

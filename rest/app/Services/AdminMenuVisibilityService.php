@@ -397,6 +397,19 @@ class AdminMenuVisibilityService
                 'admin/anagrafica/sedi/stanza/save',
                 'admin/anagrafica/sedi/stanza/toggle',
             ],
+            'agenda/gestione-ferie' => [
+                'agenda/gestione-ferie',
+                'agenda/salva-ferie-periodo',
+            ],
+            'agenda/elenco-ferie' => [
+                'agenda/elenco-ferie',
+                'agenda/elimina-giorno-ferie',
+                'agenda/elimina-giorni-ferie-selezionati',
+            ],
+            'agenda/slot-bloccati' => [
+                'agenda/slot-bloccati',
+                'agenda/sblocca-slot-bloccato',
+            ],
             'personale/visibilita-moduli' => [
                 'admin/personale/visibilita-moduli',
                 'admin/personale/visibilita-moduli/search',
