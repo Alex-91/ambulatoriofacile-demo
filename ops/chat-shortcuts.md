@@ -14,6 +14,14 @@ Se non specifichi il target, verra' chiesto solo:
 - `login`
 - `entrambi`
 
+Flusso atteso prima del comando:
+
+1. se le modifiche sono ancora nel working tree o in un branch task, fare commit
+2. portare il codice da rilasciare su `main`
+3. verificare che `main` sia pulito e allineato con `origin/main`
+4. fare push di `main`
+5. solo dopo lanciare `release-prod.ps1`
+
 Comando sottostante:
 
 ```powershell
@@ -21,6 +29,10 @@ powershell -ExecutionPolicy Bypass -File .\ops\release-prod.ps1 -Target demo
 powershell -ExecutionPolicy Bypass -File .\ops\release-prod.ps1 -Target login
 powershell -ExecutionPolicy Bypass -File .\ops\release-prod.ps1 -Target both
 ```
+
+Nota:
+
+- `release-prod.ps1` blocca il rilascio se il working tree non e' pulito, se il branch corrente non e' `main` o se `main` non e' allineato a `origin/main`
 
 ## Refresh DB test
 

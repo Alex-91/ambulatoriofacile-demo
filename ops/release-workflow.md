@@ -7,6 +7,8 @@
 
 ## Uso base
 
+Prerequisito: il codice da rilasciare deve essere gia' stato portato su `main` e pushato su `origin/main`.
+
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\ops\release-prod.ps1 -Target demo
 powershell -ExecutionPolicy Bypass -File .\ops\release-prod.ps1 -Target login
@@ -27,8 +29,19 @@ Lo script, salvo override:
 
 1. verifica che il repo sia pulito
 2. verifica che il branch corrente sia quello configurato, di default `main`
-3. esegue il deploy del target scelto
-4. esegue l'health check finale
+3. verifica che `main` sia allineato con `origin/main`
+4. esegue il deploy del target scelto
+5. esegue l'health check finale seguendo anche eventuali redirect
+
+## Preparazione del codice da rilasciare
+
+Se stai lavorando su un branch task, il flusso corretto e':
+
+1. commit delle modifiche del task
+2. allineamento del contenuto su `main` con merge o fast-forward
+3. verifica che `main` sia pulito
+4. push di `main` su `origin`
+5. lancio di `release-prod.ps1`
 
 ## Importante prima del deploy
 
@@ -38,7 +51,8 @@ Quindi:
 
 1. se il codice da rilasciare e' solo locale, va prima portato su `main`
 2. poi `main` va pushato su `origin`
-3. solo dopo ha senso lanciare `release-prod.ps1`
+3. lo script blocca il rilascio se `main` e `origin/main` non coincidono
+4. solo dopo ha senso lanciare `release-prod.ps1`
 
 ## Note operative
 

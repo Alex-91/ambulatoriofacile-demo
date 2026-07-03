@@ -69,6 +69,70 @@ function Test-GitClean {
     }
 }
 
+function Test-GitRemoteAligned {
+    param([string]$ExpectedBranch)
+
+    $remoteRef = "refs/remotes/origin/$ExpectedBranch"
+    & git show-ref --verify --quiet $remoteRef
+    if ($LASTEXITCODE -ne 0) {
+        throw "Riferimento remoto 'origin/$ExpectedBranch' non disponibile. Esegui prima un fetch/push di '$ExpectedBranch'."
+    }
+
+    $comparisonRange = "{0}...origin/{0}" -f $ExpectedBranch
+    $counts = git rev-list --left-right --count $comparisonRange
+    if ($LASTEXITCODE -ne 0) {
+        throw "Impossibile confrontare '$ExpectedBranch' con 'origin/$ExpectedBranch'."
+    }
+
+    $parts = $counts.Trim() -split "\s+"
+    if ($parts.Count -lt 2) {
+        throw "Output inatteso dal confronto Git tra '$ExpectedBranch' e 'origin/$ExpectedBranch'."
+    }
+
+    $ahead = [int]$parts[0]
+    $behind = [int]$parts[1]
+
+    if ($ahead -gt 0 -and $behind -gt 0) {
+        throw "Il branch '$ExpectedBranch' e' divergente rispetto a 'origin/$ExpectedBranch'. Riallinea e pusha '$ExpectedBranch' prima del rilascio."
+    }
+
+    if ($ahead -gt 0) {
+        throw "Il branch '$ExpectedBranch' contiene commit locali non ancora pushati su 'origin/$ExpectedBranch'. Esegui push di '$ExpectedBranch' prima del rilascio."
+    }
+
+    if ($behind -gt 0) {
+        throw "Il branch '$ExpectedBranch' non e' allineato con 'origin/$ExpectedBranch'. Aggiorna '$ExpectedBranch' prima del rilascio."
+    }
+}
+
+function Invoke-HealthRequest {
+    param([string]$Uri)
+
+    $curl = Get-Command "curl.exe" -ErrorAction SilentlyContinue
+    if ($null -ne $curl) {
+        $output = & $curl.Source -sS -L -o NUL -w "%{http_code} %{url_effective}" $Uri
+        if ($LASTEXITCODE -ne 0) {
+            throw "curl.exe ha restituito exit code $LASTEXITCODE durante l'health check."
+        }
+
+        $parts = $output.Trim() -split "\s+", 2
+        if ($parts.Count -lt 2) {
+            throw "Output inatteso da curl.exe durante l'health check: $output"
+        }
+
+        return [pscustomobject]@{
+            StatusCode = [int]$parts[0]
+            ResolvedUrl = [string]$parts[1]
+        }
+    }
+
+    $response = Invoke-WebRequest -Uri $Uri -Method Get -MaximumRedirection 10 -TimeoutSec 30
+    return [pscustomobject]@{
+        StatusCode = [int]$response.StatusCode
+        ResolvedUrl = [string]$response.BaseResponse.ResponseUri.AbsoluteUri
+    }
+}
+
 function Invoke-HttpRequestWithFallback {
     param(
         [string]$Uri,
@@ -152,19 +216,36 @@ function Wait-HealthCheck {
 
     $attempts = 12
     $delaySeconds = 10
+    $lastError = ""
+    $lastStatusCode = ""
+    $lastResolvedUrl = ""
 
     for ($i = 1; $i -le $attempts; $i++) {
         try {
-            $response = Invoke-WebRequest -Uri $HealthUrl -Method Get -MaximumRedirection 5 -TimeoutSec 30
+            $response = Invoke-HealthRequest -Uri $HealthUrl
+            $lastStatusCode = [string]$response.StatusCode
+            $lastResolvedUrl = [string]$response.ResolvedUrl
+
             if ($response.StatusCode -ge 200 -and $response.StatusCode -lt 400) {
-                Write-Host "[$TargetName] health check ok ($($response.StatusCode))"
+                Write-Host "[$TargetName] health check ok ($lastStatusCode) $lastResolvedUrl"
                 return
             }
+
+            $lastError = "status code $lastStatusCode"
         }
         catch {
-            if ($i -eq $attempts) {
-                throw "[$TargetName] health check fallito su $HealthUrl"
+            $lastError = $_.Exception.Message
+        }
+
+        if ($i -eq $attempts) {
+            $details = if ($lastResolvedUrl) {
+                " Ultimo URL risolto: $lastResolvedUrl."
             }
+            else {
+                ""
+            }
+
+            throw "[$TargetName] health check fallito su $HealthUrl. Ultimo esito: $lastError.$details"
         }
 
         Start-Sleep -Seconds $delaySeconds
@@ -180,6 +261,7 @@ Require-Field "targets.login" $config.targets.login
 
 if (-not $SkipGitChecks) {
     Test-GitClean -ExpectedBranch ([string]$config.defaultBranch)
+    Test-GitRemoteAligned -ExpectedBranch ([string]$config.defaultBranch)
 }
 
 $targetsToDeploy = switch ($Target) {
