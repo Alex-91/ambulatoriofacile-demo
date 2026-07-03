@@ -38,6 +38,31 @@ $installWorkerUrl = $demoMode
 <script>
 window.LOGIN_INSTALL_SW_URL = <?= json_encode($installWorkerUrl) ?>;
 
+function ensureStandaloneLoginUrlMarker() {
+  var isStandalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
+    || (window.navigator.standalone === true);
+
+  if (!isStandalone) {
+    return;
+  }
+
+  try {
+    var url = new URL(window.location.href);
+    if (url.searchParams.get('app') === '1') {
+      return;
+    }
+
+    url.searchParams.set('app', '1');
+    var query = url.searchParams.toString();
+    var nextUrl = url.pathname + (query ? '?' + query : '') + (url.hash || '');
+    window.history.replaceState(null, document.title, nextUrl);
+  } catch (error) {
+    console.warn('Marker standalone login non applicato', error);
+  }
+}
+
+ensureStandaloneLoginUrlMarker();
+
 window.addEventListener('load', function () {
   if (!('serviceWorker' in navigator) || !window.LOGIN_INSTALL_SW_URL) {
     return;

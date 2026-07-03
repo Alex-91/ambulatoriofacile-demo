@@ -52,19 +52,14 @@ class PwaController extends BaseController
 
     public function loginServiceWorker()
     {
-        $script = <<<'JS'
-self.addEventListener('install', (event) => {
-  self.skipWaiting();
-});
+        helper('url');
 
-self.addEventListener('activate', (event) => {
-  event.waitUntil(self.clients.claim());
-});
+        $serviceWorkerUrl = json_encode(base_url('sw.js'), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        if ($serviceWorkerUrl === false) {
+            $serviceWorkerUrl = '"/sw.js"';
+        }
 
-self.addEventListener('fetch', (event) => {
-  event.respondWith(fetch(event.request));
-});
-JS;
+        $script = 'importScripts(' . $serviceWorkerUrl . ');';
 
         return $this->response
             ->setHeader('Service-Worker-Allowed', '/')

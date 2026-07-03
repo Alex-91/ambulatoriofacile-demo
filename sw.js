@@ -6,6 +6,82 @@ self.addEventListener('activate', event => {
   event.waitUntil(self.clients.claim());
 });
 
+function normalizeNotificationValue(value) {
+  if (typeof value === 'string' || typeof value === 'number') {
+    return String(value).trim();
+  }
+
+  return '';
+}
+
+function clientHasAppMarker(clientUrl) {
+  try {
+    return new URL(clientUrl).searchParams.get('app') === '1';
+  } catch (e) {
+    return false;
+  }
+}
+
+function clientMatchesPreferredMode(clientUrl, preferredMode) {
+  if (preferredMode === 'standalone') {
+    return clientHasAppMarker(clientUrl);
+  }
+
+  if (preferredMode === 'browser') {
+    return !clientHasAppMarker(clientUrl);
+  }
+
+  return true;
+}
+
+function buildNotificationTargetUrl(rawUrl, preferredMode, scopeBase) {
+  const targetUrl = new URL(rawUrl || 'auth', scopeBase);
+
+  if (preferredMode === 'standalone' && targetUrl.searchParams.get('app') !== '1') {
+    targetUrl.searchParams.set('app', '1');
+  }
+
+  return targetUrl;
+}
+
+function isSameOriginClient(clientUrl, targetUrl) {
+  try {
+    return new URL(clientUrl).origin === targetUrl.origin;
+  } catch (e) {
+    return false;
+  }
+}
+
+function sameOriginPath(clientUrl, targetUrl) {
+  try {
+    const client = new URL(clientUrl);
+    return client.origin === targetUrl.origin && client.pathname === targetUrl.pathname;
+  } catch (e) {
+    return false;
+  }
+}
+
+async function navigateClientToTarget(client, targetUrl) {
+  let activeClient = client;
+
+  if (typeof activeClient.navigate === 'function') {
+    try {
+      const navigatedClient = await activeClient.navigate(targetUrl.href);
+      if (navigatedClient) {
+        activeClient = navigatedClient;
+      }
+    } catch (e) {}
+  }
+
+  if ('focus' in activeClient) {
+    try {
+      await activeClient.focus();
+    } catch (e) {}
+  }
+
+  return activeClient;
+}
+
 self.addEventListener('push', event => {
   let payload = {};
   const scopeBase = new URL('./', self.registration.scope);
@@ -52,26 +128,42 @@ self.addEventListener('notificationclick', event => {
     return;
   }
 
-  const url = event.notification?.data?.url || new URL('auth', scopeBase).href;
+  const data = event.notification?.data || {};
+  const preferredClientMode = normalizeNotificationValue(data.clientMode).toLowerCase();
+  const targetUrl = buildNotificationTargetUrl(
+    data.url || new URL('auth', scopeBase).href,
+    preferredClientMode,
+    scopeBase
+  );
 
   event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clientList => {
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async clientList => {
       for (const client of clientList) {
-        try {
-          const clientUrl = new URL(client.url);
-          const targetUrl = new URL(url, self.location.origin);
+        if (
+          sameOriginPath(client.url, targetUrl)
+          && clientMatchesPreferredMode(client.url, preferredClientMode)
+        ) {
+          return navigateClientToTarget(client, targetUrl);
+        }
+      }
 
-          if (clientUrl.origin === targetUrl.origin) {
-            if ('focus' in client) {
-              client.navigate(targetUrl.href);
-              return client.focus();
-            }
-          }
-        } catch (e) {}
+      for (const client of clientList) {
+        if (
+          isSameOriginClient(client.url, targetUrl)
+          && clientMatchesPreferredMode(client.url, preferredClientMode)
+        ) {
+          return navigateClientToTarget(client, targetUrl);
+        }
+      }
+
+      for (const client of clientList) {
+        if (isSameOriginClient(client.url, targetUrl)) {
+          return navigateClientToTarget(client, targetUrl);
+        }
       }
 
       if (clients.openWindow) {
-        return clients.openWindow(url);
+        return clients.openWindow(targetUrl.href);
       }
     })
   );
