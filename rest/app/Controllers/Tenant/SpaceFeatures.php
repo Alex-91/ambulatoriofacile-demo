@@ -5,6 +5,7 @@ namespace App\Controllers\Tenant;
 use App\Controllers\BaseController;
 use App\Models\AgendaModel;
 use App\Services\AgendaTeamColumnColorService;
+use App\Services\AgendaProfessionalOrderService;
 use App\Services\TenantContextService;
 use App\Services\TenantFeatureService;
 
@@ -34,12 +35,18 @@ class SpaceFeatures extends BaseController
         }
 
         $agendaProfessionals = (new AgendaModel())->getAllAgendaProfessionals();
-        $teamDayColumnColorSettings = (new AgendaTeamColumnColorService())
+        $professionalOrderService = new AgendaProfessionalOrderService();
+        $agendaProfessionalOrderSettings = $professionalOrderService
             ->resolveTenantSettings($context->tenantId, $agendaProfessionals);
+        $orderedAgendaProfessionals = $professionalOrderService
+            ->sortProfessionals($context->tenantId, $agendaProfessionals, false);
+        $teamDayColumnColorSettings = (new AgendaTeamColumnColorService())
+            ->resolveTenantSettings($context->tenantId, $orderedAgendaProfessionals);
 
         return view('tenant/space_features', [
             'tenantContext' => $context,
             'featureStates' => (new TenantFeatureService())->listFeatureStatesForTenant($context->tenantId),
+            'agendaProfessionalOrderSettings' => $agendaProfessionalOrderSettings,
             'teamDayColumnColorSettings' => $teamDayColumnColorSettings,
             'success' => session()->getFlashdata('success'),
             'errors' => session()->getFlashdata('errors') ?? [],
@@ -58,12 +65,19 @@ class SpaceFeatures extends BaseController
         }
 
         try {
+            $tenantManagedFeaturesForm = (int) ($this->request->getPost('tenant_managed_features_form') ?? 0) === 1;
             $enabledFeatures = array_values(array_filter(array_map(
                 static fn($value): string => trim(strtolower((string) $value)),
                 (array) $this->request->getPost('enabled_features')
             )));
             $teamDayColumnColorForm = (int) ($this->request->getPost('team_day_column_color_form') ?? 0) === 1;
             $teamDayColumnColorsEnabled = (int) ($this->request->getPost('team_day_column_colors_enabled') ?? 0) === 1;
+            $agendaProfessionalOrderForm = (int) ($this->request->getPost('agenda_professional_order_form') ?? 0) === 1;
+            $agendaProfessionalOrderEnabled = (int) ($this->request->getPost('agenda_professional_order_enabled') ?? 0) === 1;
+            $agendaProfessionalOrderIds = array_values(array_filter(array_map(
+                static fn($value): int => (int) $value,
+                (array) $this->request->getPost('agenda_professional_order_ids')
+            ), static fn(int $value): bool => $value > 0));
             $teamDayCustomEnabledMap = (array) $this->request->getPost('team_day_column_color_custom_enabled');
             $teamDayColorValueMap = (array) $this->request->getPost('team_day_column_color_value');
             $teamDayCustomColors = [];
@@ -78,10 +92,29 @@ class SpaceFeatures extends BaseController
             }
 
             $platformUserId = (int) (session()->get('platform_user_id') ?? 0);
-            (new TenantFeatureService())->saveTenantManagedFeatures($context->tenantId, $enabledFeatures, $platformUserId);
+            if ($tenantManagedFeaturesForm) {
+                (new TenantFeatureService())->saveTenantManagedFeatures($context->tenantId, $enabledFeatures, $platformUserId);
+            }
+            $agendaProfessionals = (new AgendaModel())->getAllAgendaProfessionals();
+            $professionalOrderService = new AgendaProfessionalOrderService();
+
+            if ($agendaProfessionalOrderForm) {
+                $professionalOrderService->saveTenantPreferences(
+                    $context->tenantId,
+                    $agendaProfessionalOrderEnabled,
+                    $agendaProfessionalOrderIds,
+                    $agendaProfessionals,
+                    $platformUserId
+                );
+
+                $agendaProfessionals = $professionalOrderService->sortProfessionals(
+                    $context->tenantId,
+                    $agendaProfessionals,
+                    false
+                );
+            }
 
             if ($teamDayColumnColorForm) {
-                $agendaProfessionals = (new AgendaModel())->getAllAgendaProfessionals();
                 (new AgendaTeamColumnColorService())->saveTenantPreferences(
                     $context->tenantId,
                     $teamDayColumnColorsEnabled,

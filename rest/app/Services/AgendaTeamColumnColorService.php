@@ -278,8 +278,6 @@ class AgendaTeamColumnColorService
             ];
         }
 
-        ksort($rows);
-
         return $rows;
     }
 

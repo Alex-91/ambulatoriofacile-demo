@@ -16,6 +16,7 @@ use App\Models\AgendaSlotModel;
 use App\Models\AgendaVisitTypeModel;
 use App\Models\PazientiModel;
 use App\Services\AgendaAppointmentNotificationService;
+use App\Services\AgendaProfessionalOrderService;
 use App\Services\AgendaTeamColumnColorService;
 use App\Services\NotificationService;
 use App\Services\SmsReminderDashboardService;
@@ -47,6 +48,7 @@ class Agenda extends BaseController
     protected AgendaLocationModel $locationModel;
     protected AgendaVisitTypeModel $visitTypeModel;
     protected NotificationService $notificationService;
+    protected AgendaProfessionalOrderService $agendaProfessionalOrderService;
     protected AgendaTeamColumnColorService $agendaTeamColumnColorService;
     protected TenantContextService $tenantContextService;
     protected TenantFeatureService $tenantFeatureService;
@@ -69,6 +71,7 @@ class Agenda extends BaseController
         $this->locationModel     = new AgendaLocationModel();
         $this->visitTypeModel    = new AgendaVisitTypeModel();
         $this->notificationService = new NotificationService();
+        $this->agendaProfessionalOrderService = new AgendaProfessionalOrderService();
         $this->agendaTeamColumnColorService = new AgendaTeamColumnColorService();
         $this->tenantContextService = new TenantContextService();
         $this->tenantFeatureService = new TenantFeatureService();
@@ -87,7 +90,7 @@ class Agenda extends BaseController
     }
 public function copiaAppuntamenti()
 {
-    $medici = $this->agendaModel->getMediciVisibili($this->getCurrentUserId());
+    $medici = $this->getOrderedVisibleDoctorsForCurrentUser();
 
     $selectedDot = (int)($this->request->getGet('id_dot') ?: $this->getFirstVisibleDoctorId($medici));
 
@@ -268,14 +271,14 @@ public function storicoMemo()
         $sharedMemoManagementEnabled = $this->isSharedAgendaMemosFeatureEnabled();
 
         if ($sharedMemoManagementEnabled) {
-            $medici = $this->getMemoDoctorOptions($this->agendaModel->getMediciVisibili($currentUserId));
+            $medici = $this->getMemoDoctorOptions($this->getOrderedVisibleDoctorsForUser($currentUserId));
             $selectedDot = max(0, (int)($this->request->getGet('id_dot') ?? 0));
 
             if ($selectedDot > 0 && !$this->agendaModel->canUserAccessDoctor($currentUserId, $selectedDot)) {
                 $selectedDot = $this->getFirstVisibleDoctorId($medici);
             }
         } else {
-            $medici = $this->agendaModel->getMediciVisibili($currentUserId);
+            $medici = $this->getOrderedVisibleDoctorsForUser($currentUserId);
             $selectedDot = (int)($this->request->getGet('id_dot') ?: $this->getFirstVisibleDoctorId($medici));
 
             if ($selectedDot > 0 && !$this->agendaModel->canUserAccessDoctor($currentUserId, $selectedDot)) {
@@ -342,7 +345,7 @@ public function storicoMemo()
 public function gestioneSlotExtra()
 {
     try {
-        $medici = $this->agendaModel->getMediciVisibili($this->getCurrentUserId());
+        $medici = $this->getOrderedVisibleDoctorsForCurrentUser();
 
         $selectedDot = (int)($this->request->getGet('id_dot') ?: $this->getFirstVisibleDoctorId($medici));
 
@@ -367,7 +370,7 @@ public function gestioneSlotExtra()
 public function repairRecurringExtraSlots()
 {
     try {
-        $medici = $this->agendaModel->getMediciVisibili($this->getCurrentUserId());
+        $medici = $this->getOrderedVisibleDoctorsForCurrentUser();
 
         $selectedDot = (int)($this->request->getGet('id_dot') ?: $this->getFirstVisibleDoctorId($medici));
 
@@ -613,14 +616,41 @@ public function eseguiRepairRecurringExtraSlots()
         return $this->isTeamDayViewFeatureEnabled() && count($medici) > 1;
     }
 
+    protected function getOrderedVisibleDoctorsForCurrentUser(): array
+    {
+        return $this->getOrderedVisibleDoctorsForUser($this->getCurrentUserId());
+    }
+
+    protected function getOrderedVisibleDoctorsForUser(int $userId): array
+    {
+        $medici = $this->agendaModel->getMediciVisibili($userId);
+        return $this->applyAgendaProfessionalOrder($medici);
+    }
+
+    protected function getOrderedAgendaProfessionals(bool $respectTenantToggle = true): array
+    {
+        $professionals = $this->agendaModel->getAllAgendaProfessionals();
+        return $this->applyAgendaProfessionalOrder($professionals, $respectTenantToggle);
+    }
+
+    protected function applyAgendaProfessionalOrder(array $professionals, bool $respectTenantToggle = true): array
+    {
+        $tenantId = $this->resolveCurrentAgendaTenantId();
+        return $this->agendaProfessionalOrderService->sortProfessionals(
+            $tenantId,
+            $professionals,
+            $respectTenantToggle
+        );
+    }
+
     protected function getTeamDayDoctorsForCurrentUser(): array
     {
-        $mediciVisibili = $this->agendaModel->getMediciVisibili($this->getCurrentUserId());
+        $mediciVisibili = $this->getOrderedVisibleDoctorsForCurrentUser();
         if (!$this->isTeamDayViewFeatureEnabled()) {
             return $mediciVisibili;
         }
 
-        $teamDoctors = $this->agendaModel->getAllAgendaProfessionals();
+        $teamDoctors = $this->getOrderedAgendaProfessionals();
         if (count($teamDoctors) > 1) {
             return $teamDoctors;
         }
@@ -787,7 +817,7 @@ public function eseguiRepairRecurringExtraSlots()
      */
     protected function getSharedAgendaMemoDoctors(array $visibleDoctors = []): array
     {
-        $allDoctors = $this->agendaModel->getAllAgendaProfessionals();
+        $allDoctors = $this->getOrderedAgendaProfessionals();
         $currentUserId = $this->getCurrentUserId();
 
         if ($currentUserId <= 0) {
@@ -1383,7 +1413,7 @@ public function eseguiRepairRecurringExtraSlots()
 
     protected function assertDomiciliariAbilitatiPerDottore(int $idDot): void
     {
-        $medici = $this->agendaModel->getMediciVisibili($this->getCurrentUserId());
+        $medici = $this->getOrderedVisibleDoctorsForCurrentUser();
 
         if (!$this->isDomiciliareAbilitatoPerDottore($medici, $idDot)) {
             throw new \Exception('Le visite domiciliari non sono abilitate per il dottore selezionato.');
@@ -1420,7 +1450,7 @@ public function eseguiRepairRecurringExtraSlots()
 
     public function index()
     {
-        $medici = $this->agendaModel->getMediciVisibili($this->getCurrentUserId());
+        $medici = $this->getOrderedVisibleDoctorsForCurrentUser();
         $teamDayDoctors = $this->getTeamDayDoctorsForCurrentUser();
         $teamDayViewEnabled = $this->canUseTeamDayView($teamDayDoctors);
         $visitTypesFeatureEnabled = $this->isVisitTypesFeatureEnabled();
@@ -1488,7 +1518,7 @@ public function eseguiRepairRecurringExtraSlots()
 
     public function configSlot()
     {
-        $medici = $this->agendaModel->getMediciVisibili($this->getCurrentUserId());
+        $medici = $this->getOrderedVisibleDoctorsForCurrentUser();
 
         $selectedDot = (int)($this->request->getGet('id_dot') ?: $this->getFirstVisibleDoctorId($medici));
 
@@ -2799,7 +2829,7 @@ public function eseguiRepairRecurringExtraSlots()
 
         $this->assertDoctorAllowed($idDot);
 
-        $medici = $this->agendaModel->getMediciVisibili($this->getCurrentUserId());
+        $medici = $this->getOrderedVisibleDoctorsForCurrentUser();
         $domiciliariAbilitati = $this->isDomiciliareAbilitatoPerDottore($medici, $idDot);
 
         if (!$domiciliariAbilitati) {
@@ -3505,7 +3535,7 @@ public function eseguiRepairRecurringExtraSlots()
 
     public function gestionePazienti()
     {
-        $medici = $this->agendaModel->getMediciVisibili($this->getCurrentUserId());
+        $medici = $this->getOrderedVisibleDoctorsForCurrentUser();
 
         $selectedDot = (int)($this->request->getGet('id_dot') ?: $this->getFirstVisibleDoctorId($medici));
 
@@ -3620,7 +3650,7 @@ public function eseguiRepairRecurringExtraSlots()
                 throw new \Exception('Non hai i permessi per gestire gli slot bloccati.');
             }
 
-            $medici = $this->agendaModel->getMediciVisibili($currentUserId);
+            $medici = $this->getOrderedVisibleDoctorsForUser($currentUserId);
             $doctorLabels = [];
 
             foreach ($medici as $medico) {
@@ -4910,7 +4940,7 @@ public function eseguiRepairRecurringExtraSlots()
 public function eliminaSlotExtraView()
 {
     try {
-        $medici = $this->agendaModel->getMediciVisibili($this->getCurrentUserId());
+        $medici = $this->getOrderedVisibleDoctorsForCurrentUser();
 
         $selectedDot = (int)($this->request->getGet('id_dot') ?: $this->getFirstVisibleDoctorId($medici));
 
@@ -5014,7 +5044,7 @@ public function eliminaSlotExtraSelezionati()
 public function copiaAppuntamentiPeriodo()
 {
     try {
-        $medici = $this->agendaModel->getMediciVisibili($this->getCurrentUserId());
+        $medici = $this->getOrderedVisibleDoctorsForCurrentUser();
 
         $selectedDot = (int)($this->request->getGet('id_dot') ?: $this->getFirstVisibleDoctorId($medici));
 
@@ -5117,7 +5147,7 @@ public function eseguiCopiaAppuntamentiPeriodo()
 public function copiaAppuntamentiSettimanali()
 {
     try {
-        $medici = $this->agendaModel->getMediciVisibili($this->getCurrentUserId());
+        $medici = $this->getOrderedVisibleDoctorsForCurrentUser();
 
         $selectedDot = (int)($this->request->getGet('id_dot') ?: $this->getFirstVisibleDoctorId($medici));
 
@@ -5225,7 +5255,7 @@ public function gestioneFerie()
             throw new \Exception('Non hai i permessi per gestire le ferie.');
         }
 
-        $medici = $this->agendaModel->getMediciVisibili($this->getCurrentUserId());
+        $medici = $this->getOrderedVisibleDoctorsForCurrentUser();
 
         $selectedDot = (int)($this->request->getGet('id_dot') ?: $this->getFirstVisibleDoctorId($medici));
 
@@ -5286,7 +5316,7 @@ public function salvaFeriePeriodo()
 public function gestioneSmsAppuntamenti()
 {
     try {
-        $medici = $this->agendaModel->getMediciVisibili($this->getCurrentUserId());
+        $medici = $this->getOrderedVisibleDoctorsForCurrentUser();
         $doctorIds = array_values(array_unique(array_filter(array_map(
             static function ($medico): int {
                 return (int) (is_object($medico) ? ($medico->id_dot ?? 0) : ($medico['id_dot'] ?? 0));
@@ -5396,7 +5426,7 @@ public function elencoFerie()
             throw new \Exception('Non hai i permessi per visualizzare le ferie.');
         }
 
-        $medici = $this->agendaModel->getMediciVisibili($this->getCurrentUserId());
+        $medici = $this->getOrderedVisibleDoctorsForCurrentUser();
         $selectedDot = (int)($this->request->getGet('id_dot') ?: $this->getFirstVisibleDoctorId($medici));
         $page = max(1, (int)($this->request->getGet('page') ?? 1));
         $perPage = 20;
@@ -5578,7 +5608,7 @@ public function eliminaGiorniFerieSelezionati()
 
             $this->assertDoctorAllowed($idDot);
 
-            $medici = $this->agendaModel->getMediciVisibili($this->getCurrentUserId());
+            $medici = $this->getOrderedVisibleDoctorsForCurrentUser();
             $domiciliariAbilitati = $this->isDomiciliareAbilitatoPerDottore($medici, $idDot);
             $noteRows = $this->isSharedAgendaMemosFeatureEnabled()
                 ? $this->noteModel->getNoteByDoctors($this->getSharedAgendaMemoDoctorIds())

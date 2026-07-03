@@ -12,6 +12,18 @@ $errors = is_array($errors ?? null) ? $errors : [];
 $success = $success ?? null;
 $featureStates = is_array($featureStates ?? null) ? $featureStates : [];
 $tenantContext = $tenantContext ?? null;
+$agendaProfessionalOrderSettings = is_array($agendaProfessionalOrderSettings ?? null) ? $agendaProfessionalOrderSettings : [];
+$agendaProfessionalOrderRows = is_array($agendaProfessionalOrderSettings['doctor_rows'] ?? null)
+    ? $agendaProfessionalOrderSettings['doctor_rows']
+    : [];
+$agendaProfessionalOrderAvailable = !empty($agendaProfessionalOrderSettings['order_management_available']);
+$oldAgendaProfessionalOrderEnabled = old('agenda_professional_order_enabled');
+$oldAgendaProfessionalOrderIds = old('agenda_professional_order_ids');
+$oldAgendaProfessionalOrderIds = is_array($oldAgendaProfessionalOrderIds) ? $oldAgendaProfessionalOrderIds : [];
+$agendaProfessionalDefaultOrderIds = array_values(array_filter(array_map(
+    'intval',
+    (array) ($agendaProfessionalOrderSettings['default_order_ids'] ?? [])
+), static fn(int $value): bool => $value > 0));
 $teamDayColumnColorSettings = is_array($teamDayColumnColorSettings ?? null) ? $teamDayColumnColorSettings : [];
 $appointmentNotificationsAvailable = false;
 $appointmentNotificationsEntitled = false;
@@ -26,6 +38,46 @@ $oldTeamDayCustomEnabledMap = old('team_day_column_color_custom_enabled');
 $oldTeamDayCustomEnabledMap = is_array($oldTeamDayCustomEnabledMap) ? $oldTeamDayCustomEnabledMap : [];
 $oldTeamDayColorValueMap = old('team_day_column_color_value');
 $oldTeamDayColorValueMap = is_array($oldTeamDayColorValueMap) ? $oldTeamDayColorValueMap : [];
+
+$reorderDoctorRows = static function (array $rows, array $orderedIds): array {
+    $orderedIds = array_values(array_filter(array_map('intval', $orderedIds), static fn(int $value): bool => $value > 0));
+    if ($rows === [] || $orderedIds === []) {
+        return $rows;
+    }
+
+    $rowsByDoctorId = [];
+    $remainingRows = [];
+
+    foreach ($rows as $row) {
+        $doctorId = (int) ($row['id_dot'] ?? 0);
+        if ($doctorId <= 0) {
+            continue;
+        }
+
+        $rowsByDoctorId[$doctorId] = $row;
+        $remainingRows[$doctorId] = $row;
+    }
+
+    $sortedRows = [];
+    foreach ($orderedIds as $doctorId) {
+        if (!isset($rowsByDoctorId[$doctorId])) {
+            continue;
+        }
+
+        $sortedRows[] = $rowsByDoctorId[$doctorId];
+        unset($remainingRows[$doctorId]);
+    }
+
+    foreach ($remainingRows as $row) {
+        $sortedRows[] = $row;
+    }
+
+    return $sortedRows !== [] ? $sortedRows : $rows;
+};
+
+if ($oldAgendaProfessionalOrderIds !== []) {
+    $agendaProfessionalOrderRows = $reorderDoctorRows($agendaProfessionalOrderRows, $oldAgendaProfessionalOrderIds);
+}
 
 $manageableRows = [];
 $lockedRows = [];
@@ -53,6 +105,11 @@ foreach ($featureStates as $row) {
 
     $lockedRows[] = $row;
 }
+
+$hasSupplementalSpaceControls = ($agendaProfessionalOrderAvailable && $agendaProfessionalOrderRows !== [])
+    || ($teamDayColorsAvailable && $teamDayColorRows !== []);
+$showGenericEmptyMessage = ($manageableRows === []) && !$hasSupplementalSpaceControls;
+$canSubmitSpaceSettings = ($manageableRows !== []) || $hasSupplementalSpaceControls;
 ?>
 <!DOCTYPE html>
 <html>
@@ -181,6 +238,91 @@ foreach ($featureStates as $row) {
       font-size: 12px;
       line-height: 1.5;
     }
+    .agenda-order-box {
+      margin-top: 18px;
+      border: 1px solid #dbe8eb;
+      border-radius: 12px;
+      background: linear-gradient(180deg, #fbfefe 0%, #f5fbfc 100%);
+      padding: 16px;
+    }
+    .agenda-order-list {
+      margin-top: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .agenda-order-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px;
+      border: 1px solid #dde9ed;
+      border-radius: 12px;
+      background: #fff;
+    }
+    .agenda-order-rank {
+      width: 34px;
+      height: 34px;
+      flex: 0 0 34px;
+      border-radius: 999px;
+      background: #e8f4f6;
+      color: #1a6a74;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 14px;
+    }
+    .agenda-order-main {
+      min-width: 0;
+      flex: 1 1 auto;
+    }
+    .agenda-order-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #223a40;
+      line-height: 1.35;
+    }
+    .agenda-order-meta {
+      margin-top: 4px;
+      font-size: 12px;
+      color: #647b80;
+      line-height: 1.5;
+    }
+    .agenda-order-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    .agenda-order-actions .btn {
+      min-width: 40px;
+    }
+    .agenda-order-note {
+      margin-top: 10px;
+      color: #60777c;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    .agenda-order-toolbar {
+      margin-top: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    @media (max-width: 767px) {
+      .agenda-order-row {
+        align-items: flex-start;
+        flex-wrap: wrap;
+      }
+      .agenda-order-actions {
+        width: 100%;
+        justify-content: flex-start;
+      }
+    }
   </style>
 </head>
 
@@ -244,11 +386,12 @@ foreach ($featureStates as $row) {
             <form method="post" action="<?= portal_tenant_space_url('funzioni/save') ?>">
               <?= csrf_field() ?>
               <div class="box-body">
-                <?php if ($manageableRows === []): ?>
+                <?php if ($showGenericEmptyMessage): ?>
                   <div class="alert alert-info" style="margin-bottom:0;">
                     In questo momento non ci sono funzioni gestibili in autonomia per il tuo studio.
                   </div>
-                <?php else: ?>
+                <?php elseif ($manageableRows !== []): ?>
+                  <input type="hidden" name="tenant_managed_features_form" value="1">
                   <div class="row">
                     <?php foreach ($manageableRows as $row): ?>
                       <?php
@@ -273,6 +416,87 @@ foreach ($featureStates as $row) {
                         </div>
                       </div>
                     <?php endforeach; ?>
+                  </div>
+                <?php endif; ?>
+
+                <?php if ($agendaProfessionalOrderAvailable && $agendaProfessionalOrderRows !== []): ?>
+                  <div class="agenda-order-box">
+                    <input type="hidden" name="agenda_professional_order_form" value="1">
+                    <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+                      <div>
+                        <h4 style="margin:0 0 6px 0;">Ordine professionisti in agenda</h4>
+                        <p style="margin:0; color:#587075;">
+                          Qui decidi in quale sequenza mostrare i professionisti nei selettori agenda e nella vista Giorno Team. Se arrivano nuovi medici, li aggiungiamo automaticamente in coda mantenendo l ordine base finche non li sistemi.
+                        </p>
+                      </div>
+                      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                        <span class="label label-<?= (((string) $oldAgendaProfessionalOrderEnabled === '1') || ($oldAgendaProfessionalOrderEnabled === null && !empty($agendaProfessionalOrderSettings['tenant_order_enabled']))) ? 'success' : 'default' ?>">
+                          <?= (((string) $oldAgendaProfessionalOrderEnabled === '1') || ($oldAgendaProfessionalOrderEnabled === null && !empty($agendaProfessionalOrderSettings['tenant_order_enabled']))) ? 'ordine personalizzato attivo' : 'ordine alfabetico attivo' ?>
+                        </span>
+                        <span class="label label-info">concesso dalla piattaforma</span>
+                      </div>
+                    </div>
+
+                    <div class="checkbox" style="margin:14px 0 0 0;">
+                      <label>
+                        <input
+                          type="checkbox"
+                          name="agenda_professional_order_enabled"
+                          value="1"
+                          <?= (((string) $oldAgendaProfessionalOrderEnabled === '1') || ($oldAgendaProfessionalOrderEnabled === null && !empty($agendaProfessionalOrderSettings['tenant_order_enabled']))) ? 'checked' : '' ?>
+                        >
+                        Usa questo ordine personalizzato in tutta l agenda dello studio
+                      </label>
+                    </div>
+
+                    <div class="agenda-order-toolbar">
+                      <div class="text-muted" style="font-size:12px;">
+                        Usa le frecce per spostare ogni professionista su e giu.
+                      </div>
+                      <button type="button" class="btn btn-default btn-sm js-agenda-order-reset">
+                        <i class="fa fa-refresh"></i> Ripristina ordine base
+                      </button>
+                    </div>
+
+                    <div
+                      class="agenda-order-list js-agenda-order-list"
+                      data-default-order="<?= esc(implode(',', $agendaProfessionalDefaultOrderIds), 'attr') ?>"
+                    >
+                      <?php foreach ($agendaProfessionalOrderRows as $row): ?>
+                        <?php
+                          $doctorId = (int) ($row['id_dot'] ?? 0);
+                          $defaultPosition = (int) ($row['default_position'] ?? 0);
+                          $savedPosition = (int) ($row['saved_position'] ?? 0);
+                        ?>
+                        <div class="agenda-order-row" data-doctor-id="<?= esc((string) $doctorId, 'attr') ?>">
+                          <span class="agenda-order-rank js-agenda-order-rank"><?= esc((string) $savedPosition) ?></span>
+                          <div class="agenda-order-main">
+                            <div class="agenda-order-title">
+                              <?= esc((string) ($row['label'] ?? ('Professionista ' . $doctorId))) ?>
+                            </div>
+                            <div class="agenda-order-meta">
+                              <?= $savedPosition !== $defaultPosition
+                                  ? 'Base alfabetica #' . $defaultPosition . '. Ordine personalizzato salvato #' . $savedPosition . '.'
+                                  : 'Al momento coincide con l ordine base alfabetico (#' . $defaultPosition . ').' ?>
+                            </div>
+                          </div>
+                          <div class="agenda-order-actions">
+                            <button type="button" class="btn btn-default btn-sm js-agenda-order-up" title="Sposta su">
+                              <i class="fa fa-arrow-up"></i>
+                            </button>
+                            <button type="button" class="btn btn-default btn-sm js-agenda-order-down" title="Sposta giu">
+                              <i class="fa fa-arrow-down"></i>
+                            </button>
+                          </div>
+                        </div>
+                      <?php endforeach; ?>
+                    </div>
+
+                    <div class="js-agenda-order-inputs"></div>
+
+                    <div class="agenda-order-note">
+                      Se lasci l opzione spenta, l agenda continua a usare l ordine standard. La sequenza che prepari qui resta comunque salvata e pronta da riattivare quando vuoi.
+                    </div>
                   </div>
                 <?php endif; ?>
 
@@ -377,7 +601,7 @@ foreach ($featureStates as $row) {
                   </div>
                 <?php endif; ?>
               </div>
-              <?php if ($manageableRows !== []): ?>
+              <?php if ($canSubmitSpaceSettings): ?>
               <div class="box-footer">
                 <button class="btn btn-success" type="submit">
                   <i class="fa fa-save"></i> Salva funzioni dello studio
@@ -446,6 +670,130 @@ foreach ($featureStates as $row) {
 <script src="<?= base_url('public/bootstrap/js/bootstrap.min.js') ?>"></script>
 <script>
   (function() {
+    function initAgendaOrderList() {
+      var list = document.querySelector('.js-agenda-order-list');
+      var inputsContainer = document.querySelector('.js-agenda-order-inputs');
+      if (!list || !inputsContainer) {
+        return;
+      }
+
+      var resetButton = document.querySelector('.js-agenda-order-reset');
+
+      function getRows() {
+        return Array.prototype.slice.call(list.querySelectorAll('.agenda-order-row'));
+      }
+
+      function syncAgendaOrderState() {
+        var rows = getRows();
+        inputsContainer.innerHTML = '';
+
+        for (var i = 0; i < rows.length; i++) {
+          var row = rows[i];
+          var doctorId = parseInt(row.getAttribute('data-doctor-id') || '0', 10);
+          var rank = row.querySelector('.js-agenda-order-rank');
+          var upButton = row.querySelector('.js-agenda-order-up');
+          var downButton = row.querySelector('.js-agenda-order-down');
+
+          if (rank) {
+            rank.textContent = String(i + 1);
+          }
+
+          if (upButton) {
+            upButton.disabled = i === 0;
+          }
+
+          if (downButton) {
+            downButton.disabled = i === rows.length - 1;
+          }
+
+          if (doctorId > 0) {
+            var input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'agenda_professional_order_ids[]';
+            input.value = String(doctorId);
+            inputsContainer.appendChild(input);
+          }
+        }
+      }
+
+      function moveRow(row, direction) {
+        if (!row) {
+          return;
+        }
+
+        if (direction < 0) {
+          var previous = row.previousElementSibling;
+          if (previous) {
+            list.insertBefore(row, previous);
+          }
+        } else {
+          var next = row.nextElementSibling;
+          if (next) {
+            list.insertBefore(next, row);
+          }
+        }
+
+        syncAgendaOrderState();
+      }
+
+      list.addEventListener('click', function(event) {
+        var button = event.target.closest('button');
+        if (!button) {
+          return;
+        }
+
+        if (button.classList.contains('js-agenda-order-up')) {
+          moveRow(button.closest('.agenda-order-row'), -1);
+        }
+
+        if (button.classList.contains('js-agenda-order-down')) {
+          moveRow(button.closest('.agenda-order-row'), 1);
+        }
+      });
+
+      if (resetButton) {
+        resetButton.addEventListener('click', function() {
+          var defaultOrder = (list.getAttribute('data-default-order') || '')
+            .split(',')
+            .map(function(value) {
+              return parseInt(value, 10);
+            })
+            .filter(function(value) {
+              return value > 0;
+            });
+
+          if (defaultOrder.length === 0) {
+            return;
+          }
+
+          var rowsByDoctorId = {};
+          getRows().forEach(function(row) {
+            var doctorId = parseInt(row.getAttribute('data-doctor-id') || '0', 10);
+            if (doctorId > 0) {
+              rowsByDoctorId[doctorId] = row;
+            }
+          });
+
+          defaultOrder.forEach(function(doctorId) {
+            if (!rowsByDoctorId[doctorId]) {
+              return;
+            }
+
+            list.appendChild(rowsByDoctorId[doctorId]);
+            delete rowsByDoctorId[doctorId];
+          });
+
+          Object.keys(rowsByDoctorId).forEach(function(doctorId) {
+            list.appendChild(rowsByDoctorId[doctorId]);
+          });
+
+          syncAgendaOrderState();
+        });
+      }
+
+      syncAgendaOrderState();
+    }
+
     function syncTeamDayColorToggle(toggle) {
       var targetId = toggle.getAttribute('data-target');
       if (!targetId) {
@@ -472,6 +820,8 @@ foreach ($featureStates as $row) {
         syncTeamDayColorToggle(this);
       });
     }
+
+    initAgendaOrderList();
   })();
 </script>
 </body>
