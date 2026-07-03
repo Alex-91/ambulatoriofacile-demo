@@ -840,6 +840,28 @@ if ($headerMenuUserId > 0) {
 <script src="<?= base_url('public/bootstrap/js/bootstrap.min.js') ?>"></script>
 <script src="<?= base_url('public/assets/js/push-registration.js') ?>"></script>
 <script>
+(function () {
+  var isStandalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
+    || (window.navigator.standalone === true);
+
+  if (!isStandalone) {
+    return;
+  }
+
+  try {
+    var url = new URL(window.location.href);
+    if (url.searchParams.get('app') === '1') {
+      return;
+    }
+
+    url.searchParams.set('app', '1');
+    var query = url.searchParams.toString();
+    var nextUrl = url.pathname + (query ? '?' + query : '') + (url.hash || '');
+    window.history.replaceState(null, document.title, nextUrl);
+  } catch (_) {}
+})();
+</script>
+<script>
   window.PUSH_MOBILE_CFG = {
     vapidKey: <?= json_encode(push_vapid_public_key()) ?>,
     swUrl: "<?= base_url('sw.js') ?>",

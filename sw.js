@@ -61,6 +61,78 @@ function sameOriginPath(clientUrl, targetUrl) {
   }
 }
 
+function getClientPath(clientUrl) {
+  try {
+    return new URL(clientUrl).pathname;
+  } catch (e) {
+    return '';
+  }
+}
+
+function normalizeClientPath(path) {
+  const normalized = String(path || '').replace(/\/+$/, '');
+
+  return normalized !== '' ? normalized : '/';
+}
+
+function isAgendaLikePath(path) {
+  const normalizedPath = normalizeClientPath(path);
+
+  return normalizedPath.endsWith('/agenda')
+    || normalizedPath.endsWith('/spazio/agenda')
+    || normalizedPath.endsWith('/login/spazio/agenda');
+}
+
+function isLoginLikeClient(clientUrl) {
+  const path = normalizeClientPath(getClientPath(clientUrl));
+
+  return path.endsWith('/login')
+    || path.endsWith('/auth')
+    || path.includes('/login/')
+    || path.includes('/auth/');
+}
+
+function selectBestNotificationClient(clientList, targetUrl, preferredMode) {
+  let selectedClient = null;
+  let selectedScore = Number.NEGATIVE_INFINITY;
+  const targetPath = targetUrl.pathname;
+  const targetIsAgendaLike = isAgendaLikePath(targetPath);
+
+  for (const client of clientList) {
+    if (!isSameOriginClient(client.url, targetUrl)) {
+      continue;
+    }
+
+    let score = 0;
+    if (sameOriginPath(client.url, targetUrl)) {
+      score += 500;
+    }
+
+    if (clientMatchesPreferredMode(client.url, preferredMode)) {
+      score += 200;
+    }
+
+    if (targetIsAgendaLike && isAgendaLikePath(getClientPath(client.url))) {
+      score += 120;
+    }
+
+    if (clientHasAppMarker(client.url)) {
+      score += 25;
+    }
+
+    if (isLoginLikeClient(client.url)) {
+      score -= 150;
+    }
+
+    if (score > selectedScore) {
+      selectedScore = score;
+      selectedClient = client;
+    }
+  }
+
+  return selectedClient;
+}
+
 async function navigateClientToTarget(client, targetUrl) {
   let activeClient = client;
 
@@ -138,28 +210,14 @@ self.addEventListener('notificationclick', event => {
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async clientList => {
-      for (const client of clientList) {
-        if (
-          sameOriginPath(client.url, targetUrl)
-          && clientMatchesPreferredMode(client.url, preferredClientMode)
-        ) {
-          return navigateClientToTarget(client, targetUrl);
-        }
-      }
+      const selectedClient = selectBestNotificationClient(
+        clientList,
+        targetUrl,
+        preferredClientMode
+      );
 
-      for (const client of clientList) {
-        if (
-          isSameOriginClient(client.url, targetUrl)
-          && clientMatchesPreferredMode(client.url, preferredClientMode)
-        ) {
-          return navigateClientToTarget(client, targetUrl);
-        }
-      }
-
-      for (const client of clientList) {
-        if (isSameOriginClient(client.url, targetUrl)) {
-          return navigateClientToTarget(client, targetUrl);
-        }
+      if (selectedClient) {
+        return navigateClientToTarget(selectedClient, targetUrl);
       }
 
       if (clients.openWindow) {

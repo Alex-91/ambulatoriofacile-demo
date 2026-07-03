@@ -327,8 +327,6 @@ class AgendaCrossDoctorBookingNotificationService
 
     private function buildAgendaDeepLink(int $doctorId, int $appointmentId, string $date): string
     {
-        helper('portal');
-
         $query = http_build_query([
             'id_dot' => max(0, $doctorId),
             'data' => trim($date),
@@ -337,7 +335,12 @@ class AgendaCrossDoctorBookingNotificationService
             'notification_context' => AppointmentNotificationSettingsService::TYPE_DOCTOR_CROSS_BOOKING,
         ]);
 
-        return portal_public_access_url('login/spazio/agenda') . ($query !== '' ? ('?' . $query) : '');
+        $agendaPath = (string) parse_url(site_url('agenda'), PHP_URL_PATH);
+        if ($agendaPath === '') {
+            $agendaPath = '/agenda';
+        }
+
+        return $agendaPath . ($query !== '' ? ('?' . $query) : '');
     }
 
     private function formatItalianDate(string $value): string

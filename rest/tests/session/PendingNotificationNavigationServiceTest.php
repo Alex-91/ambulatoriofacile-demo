@@ -57,6 +57,22 @@ final class PendingNotificationNavigationServiceTest extends CIUnitTestCase
         );
     }
 
+    public function testStandaloneAgendaNotificationKeepsAppMarkerInPendingRedirect(): void
+    {
+        $request = $this->buildRequest(
+            'https://example.test/agenda?id_dot=7&data=2026-07-03&view=day&focus_appointment=91&notification_context=doctor_cross_booking&app=1'
+        );
+
+        $this->service->captureFromRequest($request);
+
+        $pending = service('session')->get(PendingNotificationNavigationService::SESSION_KEY);
+        $this->assertIsArray($pending);
+        $this->assertSame(
+            '/agenda?id_dot=7&data=2026-07-03&view=day&focus_appointment=91&notification_context=doctor_cross_booking&app=1',
+            $pending['url'] ?? null
+        );
+    }
+
     public function testCaptureFromPlainAgendaDoesNotOverrideRicherNotificationRedirect(): void
     {
         $notificationRequest = $this->buildRequest(
