@@ -20,6 +20,11 @@ class PendingNotificationNavigationService
             return;
         }
 
+        $url = $this->resolvePreferredPendingUrl($url);
+        if ($url === '') {
+            return;
+        }
+
         session()->set(self::SESSION_KEY, [
             'url' => $url,
             'created_at' => time(),
@@ -70,6 +75,115 @@ class PendingNotificationNavigationService
         $query = trim((string) $request->getUri()->getQuery());
 
         return $path . ($query !== '' ? ('?' . $query) : '');
+    }
+
+    private function resolvePreferredPendingUrl(string $candidateUrl): string
+    {
+        $candidateUrl = $this->normalizeInternalUrl($candidateUrl);
+        if ($candidateUrl === '') {
+            return '';
+        }
+
+        $existing = session()->get(self::SESSION_KEY);
+        if (!is_array($existing)) {
+            return $candidateUrl;
+        }
+
+        $createdAt = (int) ($existing['created_at'] ?? 0);
+        $existingUrl = $this->normalizeInternalUrl((string) ($existing['url'] ?? ''));
+        if ($createdAt <= 0 || $existingUrl === '' || (time() - $createdAt) > self::TTL_SECONDS) {
+            $this->clear();
+            return $candidateUrl;
+        }
+
+        return $this->mergePendingAgendaUrls($existingUrl, $candidateUrl);
+    }
+
+    private function mergePendingAgendaUrls(string $existingUrl, string $candidateUrl): string
+    {
+        $existingPath = $this->normalizePath((string) parse_url($existingUrl, PHP_URL_PATH));
+        $candidatePath = $this->normalizePath((string) parse_url($candidateUrl, PHP_URL_PATH));
+
+        if (!$this->isAgendaPath($existingPath) || !$this->isAgendaPath($candidatePath)) {
+            return $candidateUrl;
+        }
+
+        $existingQuery = $this->parseQueryParams((string) parse_url($existingUrl, PHP_URL_QUERY));
+        $candidateQuery = $this->parseQueryParams((string) parse_url($candidateUrl, PHP_URL_QUERY));
+
+        $mergedQuery = $existingQuery;
+        foreach ($candidateQuery as $key => $value) {
+            if ($value === '' || $value === null) {
+                continue;
+            }
+
+            $mergedQuery[$key] = $value;
+        }
+
+        $candidateScore = $this->scoreAgendaNavigationQuery($candidateQuery);
+        $mergedScore = $this->scoreAgendaNavigationQuery($mergedQuery);
+        if ($mergedScore < $candidateScore) {
+            $mergedQuery = $candidateQuery;
+        }
+
+        $query = http_build_query($mergedQuery);
+
+        return $candidatePath . ($query !== '' ? ('?' . $query) : '');
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function parseQueryParams(string $query): array
+    {
+        $query = trim($query);
+        if ($query === '') {
+            return [];
+        }
+
+        parse_str($query, $params);
+        if (!is_array($params)) {
+            return [];
+        }
+
+        $normalized = [];
+        foreach ($params as $key => $value) {
+            if (!is_string($key) || $key === '') {
+                continue;
+            }
+
+            if (is_array($value)) {
+                continue;
+            }
+
+            $normalized[$key] = trim((string) $value);
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * @param array<string, string> $query
+     */
+    private function scoreAgendaNavigationQuery(array $query): int
+    {
+        $score = 0;
+
+        $weights = [
+            'focus_appointment' => 50,
+            'notification_context' => 20,
+            'data' => 10,
+            'id_dot' => 5,
+            'view' => 3,
+        ];
+
+        foreach ($weights as $key => $weight) {
+            if (trim((string) ($query[$key] ?? '')) !== '') {
+                $score += $weight;
+            }
+        }
+
+        return $score;
     }
 
     private function consumePendingUrl(): ?string

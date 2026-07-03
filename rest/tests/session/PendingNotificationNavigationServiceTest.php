@@ -57,6 +57,42 @@ final class PendingNotificationNavigationServiceTest extends CIUnitTestCase
         );
     }
 
+    public function testCaptureFromPlainAgendaDoesNotOverrideRicherNotificationRedirect(): void
+    {
+        $notificationRequest = $this->buildRequest(
+            'https://example.test/agenda?id_dot=7&data=2026-07-03&view=day&focus_appointment=91&notification_context=doctor_cross_booking'
+        );
+        $plainAgendaRequest = $this->buildRequest('https://example.test/agenda');
+
+        $this->service->captureFromRequest($notificationRequest);
+        $this->service->captureFromRequest($plainAgendaRequest);
+
+        $pending = service('session')->get(PendingNotificationNavigationService::SESSION_KEY);
+        $this->assertIsArray($pending);
+        $this->assertSame(
+            '/agenda?id_dot=7&data=2026-07-03&view=day&focus_appointment=91&notification_context=doctor_cross_booking',
+            $pending['url'] ?? null
+        );
+    }
+
+    public function testCaptureFromRicherNotificationUpgradesPlainAgendaRedirect(): void
+    {
+        $plainAgendaRequest = $this->buildRequest('https://example.test/agenda');
+        $notificationRequest = $this->buildRequest(
+            'https://example.test/agenda?id_dot=7&data=2026-07-03&view=day&focus_appointment=91&notification_context=doctor_cross_booking'
+        );
+
+        $this->service->captureFromRequest($plainAgendaRequest);
+        $this->service->captureFromRequest($notificationRequest);
+
+        $pending = service('session')->get(PendingNotificationNavigationService::SESSION_KEY);
+        $this->assertIsArray($pending);
+        $this->assertSame(
+            '/agenda?id_dot=7&data=2026-07-03&view=day&focus_appointment=91&notification_context=doctor_cross_booking',
+            $pending['url'] ?? null
+        );
+    }
+
     public function testConsumeRedirectUrlWaitsUntilAuthenticatedDestinationIsReady(): void
     {
         service('session')->set(PendingNotificationNavigationService::SESSION_KEY, [

@@ -123,7 +123,7 @@ class AgendaCrossDoctorBookingNotificationService
                     $targetUserId,
                     [
                         'type' => 'agenda_cross_booking',
-                        'title' => $this->buildPushTitle($patientLabel),
+                        'title' => $this->buildPushTitle($patientLabel, $dateLabel, $timeLabel),
                         'body' => $this->buildPushBody(
                             $actorLabel,
                             $patientLabel,
@@ -278,14 +278,21 @@ class AgendaCrossDoctorBookingNotificationService
         return implode("\n", $lines);
     }
 
-    private function buildPushTitle(string $patientLabel): string
+    private function buildPushTitle(string $patientLabel, string $dateLabel, string $timeLabel): string
     {
+        $whenLabel = trim(trim($dateLabel) . ' ' . trim($timeLabel));
         $patientLabel = trim($patientLabel);
-        if ($patientLabel === '') {
-            return 'Nuovo appuntamento';
+
+        $title = 'Nuovo appuntamento';
+        if ($whenLabel !== '') {
+            $title .= ' - ' . $whenLabel;
         }
 
-        return 'Nuovo appuntamento: ' . $patientLabel;
+        if ($patientLabel !== '') {
+            $title .= ' - ' . $patientLabel;
+        }
+
+        return $title;
     }
 
     private function buildPushBody(
@@ -298,11 +305,11 @@ class AgendaCrossDoctorBookingNotificationService
     ): string
     {
         $parts = [
-            trim($actorLabel) !== ''
-                ? ($actorLabel . ' ti ha inserito un appuntamento.')
-                : 'Ti hanno inserito un nuovo appuntamento.',
-            'Paziente: ' . $patientLabel . '.',
             'Quando: ' . trim($dateLabel . ' alle ' . $timeLabel) . '.',
+            'Paziente: ' . $patientLabel . '.',
+            trim($actorLabel) !== ''
+                ? ('Inserito da: ' . $actorLabel . '.')
+                : 'Ti hanno inserito un nuovo appuntamento.',
         ];
 
         $visitReason = trim($visitReason);

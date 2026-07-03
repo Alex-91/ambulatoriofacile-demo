@@ -138,7 +138,7 @@ class AgendaAppointmentNotificationService
                             [
                                 'subject' => 'Nuovo appuntamento inserito da un medico',
                                 'otp_subject' => 'Codice OTP e nuovo appuntamento inserito da un medico',
-                                'notification_title' => $this->buildCrossDoctorNotificationTitle($patientLabel),
+                                'notification_title' => $this->buildCrossDoctorNotificationTitle($patientLabel, $scheduledFor),
                                 'notification_body' => $this->buildCrossDoctorNotificationBody($actorLabel, $patientLabel, $scheduledFor, $visitReason),
                                 'push_url' => $agendaUrl,
                                 'push_data' => [
@@ -324,23 +324,30 @@ class AgendaAppointmentNotificationService
         return implode("\n", $lines);
     }
 
-    private function buildCrossDoctorNotificationTitle(string $patientLabel): string
+    private function buildCrossDoctorNotificationTitle(string $patientLabel, string $scheduledFor): string
     {
+        $scheduledFor = trim($scheduledFor);
         $patientLabel = trim($patientLabel);
-        if ($patientLabel === '') {
-            return 'Nuovo appuntamento';
+
+        $title = 'Nuovo appuntamento';
+        if ($scheduledFor !== '') {
+            $title .= ' - ' . $scheduledFor;
         }
 
-        return 'Nuovo appuntamento: ' . $patientLabel;
+        if ($patientLabel !== '') {
+            $title .= ' - ' . $patientLabel;
+        }
+
+        return $title;
     }
 
     private function buildCrossDoctorNotificationBody(string $actorLabel, string $patientLabel, string $scheduledFor, string $visitReason): string
     {
         $parts = array_values(array_filter([
-            trim($patientLabel) !== '' ? ('Paziente ' . trim($patientLabel)) : '',
-            trim($scheduledFor) !== '' ? ('il ' . trim($scheduledFor)) : '',
-            trim($visitReason) !== '' ? ('motivo: ' . trim($visitReason)) : '',
-            trim($actorLabel) !== '' ? ('inserito da ' . trim($actorLabel)) : '',
+            trim($scheduledFor) !== '' ? ('Quando: ' . trim($scheduledFor)) : '',
+            trim($patientLabel) !== '' ? ('Paziente: ' . trim($patientLabel)) : '',
+            trim($actorLabel) !== '' ? ('Inserito da: ' . trim($actorLabel)) : '',
+            trim($visitReason) !== '' ? ('Motivo: ' . trim($visitReason)) : '',
         ], static fn(string $value): bool => $value !== ''));
 
         return implode(' | ', $parts);
