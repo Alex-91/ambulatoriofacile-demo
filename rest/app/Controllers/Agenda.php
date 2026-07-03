@@ -1479,6 +1479,8 @@ public function eseguiRepairRecurringExtraSlots()
             'today'                => date('Y-m-d'),
             'selectedDate'         => $this->getDefaultAgendaDate(),
             'viewMode'             => $this->normalizeAgendaViewMode((string)($this->request->getGet('view') ?? 'day'), $teamDayViewEnabled),
+            'focusedAppointmentId' => max(0, (int) ($this->request->getGet('focus_appointment') ?? 0)),
+            'notificationContext'  => trim((string) ($this->request->getGet('notification_context') ?? '')),
             'medici'               => $medici,
             'memoDoctorOptions'    => $this->getMemoDoctorOptions($medici),
             'selectedDot'          => $selectedDot,

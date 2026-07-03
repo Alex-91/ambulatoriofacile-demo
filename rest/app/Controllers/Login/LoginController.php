@@ -13,6 +13,7 @@ use App\Services\LegacyTenantSessionService;
 use App\Services\PlatformAccessService;
 use App\Services\PlatformAdminAccessService;
 use App\Services\PlatformAuthService;
+use App\Services\PendingNotificationNavigationService;
 use App\Services\TenantLoginOtpService;
 use App\Services\TenantAppSessionBootstrapService;
 
@@ -349,11 +350,11 @@ class LoginController extends BaseController
             try {
                 $platformAdminAccess->bootstrapSession($platformUser, (array) ($result['memberships'] ?? []));
 
-                return $this->response->setJSON([
+                return $this->response->setJSON($this->applyNotificationRedirectToPayload([
                     'resp' => 'OK',
                     'success' => true,
                     'redirectUrl' => portal_platform_url('spazi-clienti'),
-                ]);
+                ]));
             } catch (\Throwable $e) {
                 log_message('error', 'LoginController::handlePlatformLogin platform admin bootstrap failed: {message}', [
                     'message' => $e->getMessage(),
@@ -383,11 +384,11 @@ class LoginController extends BaseController
             try {
                 $tenantId = (int) ($selectableTenants[0]['id_tenant'] ?? 0);
                 $bootstrap = (new TenantAppSessionBootstrapService())->bootstrap($platformUserId, $tenantId);
-                return $this->response->setJSON([
+                return $this->response->setJSON($this->applyNotificationRedirectToPayload([
                     'resp' => 'OK',
                     'success' => true,
                     'redirectUrl' => (string) ($bootstrap['redirectUrl'] ?? '/'),
-                ]);
+                ]));
             } catch (\Throwable $e) {
                 $this->clearPendingPlatformLogin();
                 return $this->response->setJSON([
@@ -431,7 +432,7 @@ class LoginController extends BaseController
             try {
                 $legacySelection = (new LegacyTenantLoginService())->completePendingSelection($tenantId);
                 if ($legacySelection !== null) {
-                    return $this->response->setJSON($legacySelection);
+                    return $this->response->setJSON($this->applyNotificationRedirectToPayload($legacySelection));
                 }
             } catch (\Throwable $e) {
                 (new LegacyTenantSessionService())->clearAllPending();
@@ -476,11 +477,11 @@ class LoginController extends BaseController
             );
             $this->clearPendingPlatformLogin();
 
-            return $this->response->setJSON([
+            return $this->response->setJSON($this->applyNotificationRedirectToPayload([
                 'resp' => 'OK',
                 'success' => true,
                 'redirectUrl' => (string) ($bootstrap['redirectUrl'] ?? '/'),
-            ]);
+            ]));
         } catch (\Throwable $e) {
             $this->clearPendingPlatformLogin();
             return $this->response->setJSON([
@@ -768,11 +769,11 @@ session()->remove(\App\Services\PlatformAccessService::SESSION_KEY_PENDING_PASSW
                                 session()->set('isLoggedInConfirmed', true);
                                 (new LegacyTenantSessionService())->activatePendingRuntime();
 
-                                return $this->response->setJSON([
+                                return $this->response->setJSON($this->applyNotificationRedirectToPayload([
                                     'resp'        => 'OK',
                                     'success'     => true,
                                     'redirectUrl' => $this->legacyAdminPostLoginRedirectUrl()
-                                ]);
+                                ]));
                             }
 
                             return $this->response->setJSON([
@@ -1048,7 +1049,7 @@ session()->remove(\App\Services\PlatformAccessService::SESSION_KEY_PENDING_PASSW
             if (strpos($username, '->') === false && !str_contains($loginUsername, '@')) {
                 $legacyTenantLogin = (new LegacyTenantLoginService())->authenticate($loginUsername, $password);
                 if ($legacyTenantLogin !== null) {
-                    return $this->response->setJSON($legacyTenantLogin);
+                    return $this->response->setJSON($this->applyNotificationRedirectToPayload($legacyTenantLogin));
                 }
             }
 
@@ -1168,6 +1169,32 @@ session()->remove(\App\Services\PlatformAccessService::SESSION_KEY_PENDING_PASSW
         }
 
         return 'admin';
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     * @return array<string, mixed>
+     */
+    private function applyNotificationRedirectToPayload(array $payload): array
+    {
+        if (empty($payload['success']) || !array_key_exists('redirectUrl', $payload)) {
+            return $payload;
+        }
+
+        $payload['redirectUrl'] = $this->resolveNotificationRedirectUrl((string) ($payload['redirectUrl'] ?? ''));
+
+        return $payload;
+    }
+
+    private function resolveNotificationRedirectUrl(string $defaultRedirect): string
+    {
+        helper('session_auth');
+
+        if (!session_access_is_confirmed()) {
+            return $defaultRedirect;
+        }
+
+        return (new PendingNotificationNavigationService())->consumeRedirectUrl($defaultRedirect);
     }
 
     private function shouldBootstrapLegacyAdminToPlatformConsole(): bool

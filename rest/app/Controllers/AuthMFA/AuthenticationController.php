@@ -15,6 +15,7 @@ use App\Services\LegacyLoginHandoffService;
 use App\Services\LoginEmailService;
 use App\Services\NotificationService;
 use App\Services\OtpDeliveryLogService;
+use App\Services\PendingNotificationNavigationService;
 use App\Services\SessionNavigationService;
 use App\Services\TenantLoginOtpService;
 
@@ -760,7 +761,7 @@ class AuthenticationController extends BaseController
             }
         }
 
-        return $redirectUrl;
+        return (new PendingNotificationNavigationService())->consumeRedirectUrl($redirectUrl);
     }
 
     private function canSkipEmailPasswordConfirmationForOtp(): bool

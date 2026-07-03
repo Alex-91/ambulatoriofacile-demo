@@ -268,7 +268,13 @@ class AppointmentNotificationChannelService
 
         $otpMessage = $this->buildOtpMessage($message, $otp);
         if ($deliveryChannel === 'push') {
-            $sendResult = $this->notificationService()->sendAppointmentOtpPush($pushUserId, $otp, $message);
+            $pushData = is_array($options['push_data'] ?? null) ? (array) $options['push_data'] : [];
+            $sendResult = $this->notificationService()->sendAppointmentOtpPush($pushUserId, $otp, $message, [
+                'title' => (string) ($options['notification_title'] ?? 'Nuovo appuntamento'),
+                'body' => (string) ($options['notification_body'] ?? ''),
+                'url' => (string) ($options['push_url'] ?? ''),
+                'data' => $pushData,
+            ]);
             $response = [
                 'delivery_channel' => 'push',
                 'push_result' => $sendResult,

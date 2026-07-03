@@ -2854,6 +2854,8 @@ window.AGENDA_CONFIG = {
     selectedDot: <?= (int)($selectedDot ?? 0) ?>,
     selectedDate: "<?= esc($selectedDate ?? date('Y-m-d')) ?>",
     viewMode: "<?= esc($viewMode ?? 'day') ?>",
+    focusedAppointmentId: <?= (int)($focusedAppointmentId ?? 0) ?>,
+    notificationContext: "<?= esc((string)($notificationContext ?? '')) ?>",
     domiciliariAbilitati: <?= !empty($domiciliariAbilitati) ? 'true' : 'false' ?>,
     teamDayViewEnabled: <?= !empty($teamDayViewEnabled) ? 'true' : 'false' ?>,
     sharedMemoManagementEnabled: <?= $sharedMemoManagementEnabled ? 'true' : 'false' ?>,
@@ -6743,9 +6745,10 @@ var patientAutocompleteXhr = null;
 var agendaPatientSearchTimer = null;
 var agendaPatientSearchXhr = null;
 var agendaPatientAppointmentsXhr = null;
-var agendaFocusedAppointmentId = 0;
+var agendaFocusedAppointmentId = parseInt(window.AGENDA_CONFIG.focusedAppointmentId || 0, 10) || 0;
 var agendaFocusedPatientId = 0;
-var agendaShouldScrollToFocusedAppointment = false;
+var agendaShouldScrollToFocusedAppointment = agendaFocusedAppointmentId > 0;
+var agendaNotificationFocusToastShown = false;
 
 function shouldRunPatientAutocomplete(term) {
     var value = $.trim((term || '').toString());
@@ -7120,6 +7123,14 @@ function focusAgendaSearchAppointmentSlotIfNeeded() {
                 });
             } catch (e) {
                 scrollAgendaCalendarIntoView();
+            }
+
+            if (
+                !agendaNotificationFocusToastShown
+                && String(window.AGENDA_CONFIG.notificationContext || '') === 'doctor_cross_booking'
+            ) {
+                showAgendaToast('Appuntamento della notifica aperto ed evidenziato in agenda.', 'success');
+                agendaNotificationFocusToastShown = true;
             }
 
             $slot.trigger('focus');

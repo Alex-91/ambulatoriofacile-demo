@@ -174,17 +174,38 @@ class NotificationService
         ]);
     }
 
-    public function sendAppointmentOtpPush(int $userId, string $otp, string $message): array
+    public function sendAppointmentOtpPush(int $userId, string $otp, string $message, array $options = []): array
     {
         $summary = trim(preg_replace('/\s+/', ' ', str_replace(["\r", "\n"], ' ', $message)) ?? '');
         if ($summary === '') {
             $summary = 'Hai un nuovo appuntamento registrato per te.';
         }
 
+        $title = trim((string) ($options['title'] ?? 'Nuovo appuntamento'));
+        if ($title === '') {
+            $title = 'Nuovo appuntamento';
+        }
+
+        $bodyDetails = trim((string) ($options['body'] ?? ''));
+        if ($bodyDetails === '') {
+            $bodyDetails = $summary;
+        }
+
+        $body = str_contains($bodyDetails, $otp)
+            ? $bodyDetails
+            : ('Codice OTP: ' . $otp . '. ' . $bodyDetails);
+
+        $url = trim((string) ($options['url'] ?? ''));
+        if ($url === '') {
+            $url = base_url('agenda');
+        }
+
+        $data = is_array($options['data'] ?? null) ? (array) $options['data'] : [];
+
         $payload = [
             'type'  => 'otp',
-            'title' => 'Nuovo appuntamento',
-            'body'  => 'Codice OTP: ' . $otp . '. ' . $summary,
+            'title' => $title,
+            'body'  => $body,
             'tag'   => 'otp-appointment-' . $userId . '-' . $otp,
             'icon'  => self::notificationIconUrl(),
             'badge' => self::notificationBadgeUrl(),
@@ -192,10 +213,9 @@ class NotificationService
             'renotify' => true,
             'requireInteraction' => false,
             'data'  => [
-                'url' => base_url('agenda'),
-                'otp' => $otp,
+                'url' => $url,
                 'context' => 'appointment_notification',
-            ],
+            ] + $data,
         ];
 
         return $this->sendToUser($userId, $payload, 'appointment_otp', [

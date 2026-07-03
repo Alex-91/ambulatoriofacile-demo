@@ -68,6 +68,7 @@ class AgendaAppointmentNotificationService
         $doctorLabel = $this->buildDoctorLabel($targetDoctor, $targetContact);
         $patientLabel = $this->buildPatientLabel($appointment);
         $scheduledFor = $this->buildAppointmentDateTime((string) ($appointment['data_slot'] ?? ''), (string) ($appointment['ora_inizio'] ?? ''));
+        $visitReason = trim((string) ($appointment['motivo_visita'] ?? ''));
         $notes = trim((string) ($appointment['note'] ?? ''));
 
         $result = [
@@ -125,7 +126,9 @@ class AgendaAppointmentNotificationService
                         $actorContact = $this->personaleModel->getPersonaleDecryptedById((int) ($actorDoctor['id_personale'] ?? 0)) ?? [];
                         $actorLabel = $this->buildDoctorLabel($actorDoctor, $actorContact);
                         $doctorRecipient = $this->buildDoctorRecipient($targetDoctor, $targetContact, $doctorLabel);
-                        $message = $this->buildCrossDoctorMessage($actorLabel, $patientLabel, $scheduledFor, $notes);
+                        $message = $this->buildCrossDoctorMessage($actorLabel, $patientLabel, $scheduledFor, $visitReason, $notes);
+                        $agendaUrl = $this->buildDoctorAgendaDeepLink($targetLegacyIdDot, $appointmentId, (string) ($appointment['data_slot'] ?? ''));
+                        $notificationContext = AppointmentNotificationSettingsService::TYPE_DOCTOR_CROSS_BOOKING;
 
                         $result['doctor_cross_booking'] = $this->dispatchPlan(
                             $tenant,
@@ -135,6 +138,14 @@ class AgendaAppointmentNotificationService
                             [
                                 'subject' => 'Nuovo appuntamento inserito da un medico',
                                 'otp_subject' => 'Codice OTP e nuovo appuntamento inserito da un medico',
+                                'notification_title' => $this->buildCrossDoctorNotificationTitle($patientLabel),
+                                'notification_body' => $this->buildCrossDoctorNotificationBody($actorLabel, $patientLabel, $scheduledFor, $visitReason),
+                                'push_url' => $agendaUrl,
+                                'push_data' => [
+                                    'appointment_id' => $appointmentId,
+                                    'doctor_id' => $targetLegacyIdDot,
+                                    'notification_context' => $notificationContext,
+                                ],
                             ],
                             [
                                 'message_type' => AppointmentNotificationSettingsService::TYPE_DOCTOR_CROSS_BOOKING,
@@ -294,19 +305,58 @@ class AgendaAppointmentNotificationService
         return implode("\n", $lines);
     }
 
-    private function buildCrossDoctorMessage(string $actorLabel, string $patientLabel, string $scheduledFor, string $notes): string
+    private function buildCrossDoctorMessage(string $actorLabel, string $patientLabel, string $scheduledFor, string $visitReason, string $notes): string
     {
-        $lines = [
-            $actorLabel . ' ha preso un appuntamento per te.',
-            'Data e ora: ' . $scheduledFor . '.',
-            'Paziente: ' . $patientLabel . '.',
-        ];
+        $lines = array_values(array_filter([
+            trim($actorLabel) !== '' ? ('Nuovo appuntamento inserito da ' . $actorLabel . '.') : 'Nuovo appuntamento inserito per te.',
+            trim($patientLabel) !== '' ? ('Paziente: ' . $patientLabel . '.') : '',
+            trim($scheduledFor) !== '' ? ('Data e ora: ' . $scheduledFor . '.') : '',
+        ], static fn(string $value): bool => $value !== ''));
+
+        if ($visitReason !== '') {
+            $lines[] = 'Motivo visita: ' . $visitReason . '.';
+        }
 
         if ($notes !== '') {
             $lines[] = 'Note appuntamento: ' . $notes;
         }
 
         return implode("\n", $lines);
+    }
+
+    private function buildCrossDoctorNotificationTitle(string $patientLabel): string
+    {
+        $patientLabel = trim($patientLabel);
+        if ($patientLabel === '') {
+            return 'Nuovo appuntamento';
+        }
+
+        return 'Nuovo appuntamento: ' . $patientLabel;
+    }
+
+    private function buildCrossDoctorNotificationBody(string $actorLabel, string $patientLabel, string $scheduledFor, string $visitReason): string
+    {
+        $parts = array_values(array_filter([
+            trim($patientLabel) !== '' ? ('Paziente ' . trim($patientLabel)) : '',
+            trim($scheduledFor) !== '' ? ('il ' . trim($scheduledFor)) : '',
+            trim($visitReason) !== '' ? ('motivo: ' . trim($visitReason)) : '',
+            trim($actorLabel) !== '' ? ('inserito da ' . trim($actorLabel)) : '',
+        ], static fn(string $value): bool => $value !== ''));
+
+        return implode(' | ', $parts);
+    }
+
+    private function buildDoctorAgendaDeepLink(int $doctorId, int $appointmentId, string $date): string
+    {
+        $query = http_build_query([
+            'id_dot' => max(0, $doctorId),
+            'data' => trim($date),
+            'view' => 'day',
+            'focus_appointment' => max(0, $appointmentId),
+            'notification_context' => AppointmentNotificationSettingsService::TYPE_DOCTOR_CROSS_BOOKING,
+        ]);
+
+        return site_url('agenda') . ($query !== '' ? ('?' . $query) : '');
     }
 
     /**

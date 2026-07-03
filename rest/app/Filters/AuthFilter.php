@@ -2,6 +2,7 @@
 
 namespace App\Filters;
 
+use App\Services\PendingNotificationNavigationService;
 use CodeIgniter\Filters\FilterInterface;
 use CodeIgniter\HTTP\RequestInterface;
 use CodeIgniter\HTTP\ResponseInterface;
@@ -23,6 +24,8 @@ class AuthFilter implements FilterInterface
 
             return null;
         }
+
+        (new PendingNotificationNavigationService())->captureFromRequest($request);
 
         return redirect()->to(portal_public_access_url('login'));
     }

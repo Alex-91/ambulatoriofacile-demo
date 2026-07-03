@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Controllers\BaseController;
 use App\Libraries\Crypto_helper;
+use App\Services\PendingNotificationNavigationService;
 use App\Services\SessionNavigationService;
 
 class SostituzioniController extends BaseController
@@ -126,10 +127,11 @@ class SostituzioniController extends BaseController
         if ($mode === 'self') {
             session()->remove('sost_opts');
             session()->remove('original_user_sess'); // opzionale
+            $redirectUrl = (new PendingNotificationNavigationService())->consumeRedirectUrl('');
             if (session_status() === PHP_SESSION_ACTIVE) {
                 session_write_close();
             }
-            return $this->response->setJSON(['ok' => true, 'redirectUrl' => '']);
+            return $this->response->setJSON(['ok' => true, 'redirectUrl' => $redirectUrl]);
         }
 
         // ====== ENTRA COME SOSTITUTO ======
@@ -217,11 +219,12 @@ class SostituzioniController extends BaseController
 
         session()->remove('sost_opts');
         $this->navigation->refreshCurrentSession(true);
+        $redirectUrl = (new PendingNotificationNavigationService())->consumeRedirectUrl('');
 
         if (session_status() === PHP_SESSION_ACTIVE) {
             session_write_close();
         }
 
-        return $this->response->setJSON(['ok' => true, 'redirectUrl' => '']);
+        return $this->response->setJSON(['ok' => true, 'redirectUrl' => $redirectUrl]);
     }
 }
