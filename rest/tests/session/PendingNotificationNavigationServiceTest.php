@@ -41,6 +41,22 @@ final class PendingNotificationNavigationServiceTest extends CIUnitTestCase
         );
     }
 
+    public function testCaptureFromAgendaDeepLinkWithoutFocusStillStoresPendingRedirect(): void
+    {
+        $request = $this->buildRequest(
+            'https://example.test/agenda?id_dot=7&data=2026-07-03&view=day'
+        );
+
+        $this->service->captureFromRequest($request);
+
+        $pending = service('session')->get(PendingNotificationNavigationService::SESSION_KEY);
+        $this->assertIsArray($pending);
+        $this->assertSame(
+            '/agenda?id_dot=7&data=2026-07-03&view=day',
+            $pending['url'] ?? null
+        );
+    }
+
     public function testConsumeRedirectUrlWaitsUntilAuthenticatedDestinationIsReady(): void
     {
         service('session')->set(PendingNotificationNavigationService::SESSION_KEY, [

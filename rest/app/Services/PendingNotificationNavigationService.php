@@ -61,10 +61,7 @@ class PendingNotificationNavigationService
             return false;
         }
 
-        $notificationContext = trim((string) ($request->getGet('notification_context') ?? ''));
-        $focusAppointmentId = max(0, (int) ($request->getGet('focus_appointment') ?? 0));
-
-        return $notificationContext !== '' && $focusAppointmentId > 0;
+        return true;
     }
 
     private function buildRelativeUrlFromRequest(RequestInterface $request): string

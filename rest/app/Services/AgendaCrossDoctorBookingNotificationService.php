@@ -64,10 +64,10 @@ class AgendaCrossDoctorBookingNotificationService
         $patientLabel = $this->buildPatientLabel($appointment);
         $dateLabel = $this->formatItalianDate((string) ($appointment['data_slot'] ?? ''));
         $timeLabel = $this->formatItalianTime((string) ($appointment['ora_inizio'] ?? ''));
-        $appointmentUrl = base_url(
-            'agenda?id_dot=' . $targetLegacyIdDot
-            . '&data=' . rawurlencode((string) ($appointment['data_slot'] ?? ''))
-            . '&view=day'
+        $appointmentUrl = $this->buildAgendaDeepLink(
+            $targetLegacyIdDot,
+            $appointmentId,
+            (string) ($appointment['data_slot'] ?? '')
         );
 
         $subject = 'Nuovo appuntamento inserito da ' . $actorLabel;
@@ -123,8 +123,15 @@ class AgendaCrossDoctorBookingNotificationService
                     $targetUserId,
                     [
                         'type' => 'agenda_cross_booking',
-                        'title' => 'Nuovo appuntamento in agenda',
-                        'body' => $this->buildPushBody($actorLabel, $patientLabel, $dateLabel, $timeLabel),
+                        'title' => $this->buildPushTitle($patientLabel),
+                        'body' => $this->buildPushBody(
+                            $actorLabel,
+                            $patientLabel,
+                            $dateLabel,
+                            $timeLabel,
+                            (string) ($appointment['motivo_visita'] ?? ''),
+                            (string) ($appointment['note'] ?? '')
+                        ),
                         'tag' => 'agenda-cross-booking-' . $appointmentId,
                         'icon' => NotificationService::notificationIconUrl(),
                         'badge' => NotificationService::notificationBadgeUrl(),
@@ -133,6 +140,8 @@ class AgendaCrossDoctorBookingNotificationService
                             'appointmentId' => $appointmentId,
                             'idDot' => $targetLegacyIdDot,
                             'date' => (string) ($appointment['data_slot'] ?? ''),
+                            'focus_appointment' => $appointmentId,
+                            'notification_context' => AppointmentNotificationSettingsService::TYPE_DOCTOR_CROSS_BOOKING,
                         ],
                     ],
                     'agenda_cross_booking',
@@ -269,9 +278,57 @@ class AgendaCrossDoctorBookingNotificationService
         return implode("\n", $lines);
     }
 
-    private function buildPushBody(string $actorLabel, string $patientLabel, string $dateLabel, string $timeLabel): string
+    private function buildPushTitle(string $patientLabel): string
     {
-        return $actorLabel . ' ti ha inserito un appuntamento il ' . $dateLabel . ' alle ' . $timeLabel . ' per ' . $patientLabel . '.';
+        $patientLabel = trim($patientLabel);
+        if ($patientLabel === '') {
+            return 'Nuovo appuntamento';
+        }
+
+        return 'Nuovo appuntamento: ' . $patientLabel;
+    }
+
+    private function buildPushBody(
+        string $actorLabel,
+        string $patientLabel,
+        string $dateLabel,
+        string $timeLabel,
+        string $visitReason = '',
+        string $notes = ''
+    ): string
+    {
+        $parts = [
+            trim($actorLabel) !== ''
+                ? ($actorLabel . ' ti ha inserito un appuntamento.')
+                : 'Ti hanno inserito un nuovo appuntamento.',
+            'Paziente: ' . $patientLabel . '.',
+            'Quando: ' . trim($dateLabel . ' alle ' . $timeLabel) . '.',
+        ];
+
+        $visitReason = trim($visitReason);
+        if ($visitReason !== '') {
+            $parts[] = 'Motivo: ' . $visitReason . '.';
+        }
+
+        $notes = trim($notes);
+        if ($notes !== '') {
+            $parts[] = 'Note: ' . $notes . '.';
+        }
+
+        return trim(implode(' ', $parts));
+    }
+
+    private function buildAgendaDeepLink(int $doctorId, int $appointmentId, string $date): string
+    {
+        $query = http_build_query([
+            'id_dot' => max(0, $doctorId),
+            'data' => trim($date),
+            'view' => 'day',
+            'focus_appointment' => max(0, $appointmentId),
+            'notification_context' => AppointmentNotificationSettingsService::TYPE_DOCTOR_CROSS_BOOKING,
+        ]);
+
+        return site_url('agenda') . ($query !== '' ? ('?' . $query) : '');
     }
 
     private function formatItalianDate(string $value): string

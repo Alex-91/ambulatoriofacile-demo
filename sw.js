@@ -7,25 +7,26 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('push', event => {
-  let data = {};
+  let payload = {};
   const scopeBase = new URL('./', self.registration.scope);
 
   try {
-    data = event.data ? event.data.json() : {};
+    payload = event.data ? event.data.json() : {};
   } catch (e) {
-    data = {};
+    payload = {};
   }
 
-  const title = data.title || 'AmbulatorioFacile';
+  const title = payload.title || 'AmbulatorioFacile';
 
   const options = {
-    body: 'Hai una nuova notifica',
-    icon: data.icon || new URL('public/assets/images/icon-192x192.png', scopeBase).href,
-    badge: data.badge || new URL('public/assets/images/icon-192x192.png', scopeBase).href,
-    tag: data.tag || ('ambulatoriofacile-' + Math.random().toString(36)),
-    requireInteraction: true,
-    renotify: true,
-    data: data.data || {},
+    body: payload.body || 'Hai una nuova notifica',
+    icon: payload.icon || new URL('public/assets/images/icon-192x192.png', scopeBase).href,
+    badge: payload.badge || new URL('public/assets/images/icon-192x192.png', scopeBase).href,
+    tag: payload.tag || ('ambulatoriofacile-' + Math.random().toString(36)),
+    requireInteraction: payload.requireInteraction === true,
+    renotify: payload.renotify === true,
+    silent: payload.silent === true,
+    data: payload.data || {},
     actions: [
       {
         action: 'open',
