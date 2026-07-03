@@ -621,6 +621,51 @@ public function eseguiRepairRecurringExtraSlots()
         return $this->getOrderedVisibleDoctorsForUser($this->getCurrentUserId());
     }
 
+    protected function getVisibleAgendaMenuForUser(int $userId): array
+    {
+        if ($userId <= 0) {
+            return [];
+        }
+
+        return method_exists($this->agendaModel, 'getMenuVisibleByUser')
+            ? $this->agendaModel->getMenuVisibleByUser($userId)
+            : $this->agendaModel->getMenuVisible();
+    }
+
+    protected function agendaMenuHasRoute(array $nodes, string $route): bool
+    {
+        $route = trim($route, '/');
+
+        foreach ($nodes as $node) {
+            $nodeRoute = is_object($node)
+                ? trim((string)($node->rotta ?? ''), '/')
+                : trim((string)($node['rotta'] ?? ''), '/');
+
+            if ($nodeRoute === $route) {
+                return true;
+            }
+
+            $children = is_object($node)
+                ? ($node->children ?? [])
+                : ($node['children'] ?? []);
+
+            if (is_array($children) && $this->agendaMenuHasRoute($children, $route)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    protected function assertAgendaRouteAllowed(string $route, string $message = 'Non hai i permessi per accedere a questa sezione.'): void
+    {
+        $menuAgenda = $this->getVisibleAgendaMenuForUser($this->getCurrentUserId());
+
+        if (!$this->agendaMenuHasRoute($menuAgenda, $route)) {
+            throw new \Exception($message);
+        }
+    }
+
     protected function getOrderedVisibleDoctorsForUser(int $userId): array
     {
         $medici = $this->agendaModel->getMediciVisibili($userId);
@@ -5253,9 +5298,7 @@ public function eseguiCopiaAppuntamentiSettimanali()
 public function gestioneFerie()
 {
     try {
-        if (!$this->agendaModel->canBloccareGiorno($this->getCurrentUserId())) {
-            throw new \Exception('Non hai i permessi per gestire le ferie.');
-        }
+        $this->assertAgendaRouteAllowed('agenda/gestione-ferie', 'Non hai i permessi per gestire le ferie.');
 
         $medici = $this->getOrderedVisibleDoctorsForCurrentUser();
 
@@ -5282,9 +5325,7 @@ public function gestioneFerie()
 public function salvaFeriePeriodo()
 {
     try {
-        if (!$this->agendaModel->canBloccareGiorno($this->getCurrentUserId())) {
-            throw new \Exception('Non hai i permessi per gestire le ferie.');
-        }
+        $this->assertAgendaRouteAllowed('agenda/gestione-ferie', 'Non hai i permessi per gestire le ferie.');
 
         $payload = $this->request->getPost();
         $idDot = (int)($payload['id_dot'] ?? 0);
@@ -5424,9 +5465,7 @@ public function disattivaSmsAppuntamenti()
 public function elencoFerie()
 {
     try {
-        if (!$this->agendaModel->canBloccareGiorno($this->getCurrentUserId())) {
-            throw new \Exception('Non hai i permessi per visualizzare le ferie.');
-        }
+        $this->assertAgendaRouteAllowed('agenda/elenco-ferie', 'Non hai i permessi per visualizzare le ferie.');
 
         $medici = $this->getOrderedVisibleDoctorsForCurrentUser();
         $selectedDot = (int)($this->request->getGet('id_dot') ?: $this->getFirstVisibleDoctorId($medici));
@@ -5472,9 +5511,7 @@ public function elencoFerie()
 public function eliminaGiornoFerie()
 {
     try {
-        if (!$this->agendaModel->canBloccareGiorno($this->getCurrentUserId())) {
-            throw new \Exception('Non hai i permessi per eliminare le ferie.');
-        }
+        $this->assertAgendaRouteAllowed('agenda/elenco-ferie', 'Non hai i permessi per eliminare le ferie.');
 
         $idGiornoBloccato = (int)($this->request->getPost('id_giorno_bloccato') ?? 0);
         if ($idGiornoBloccato <= 0) {
@@ -5505,9 +5542,7 @@ public function eliminaGiornoFerie()
 public function eliminaGiorniFerieSelezionati()
 {
     try {
-        if (!$this->agendaModel->canBloccareGiorno($this->getCurrentUserId())) {
-            throw new \Exception('Non hai i permessi per eliminare le ferie.');
-        }
+        $this->assertAgendaRouteAllowed('agenda/elenco-ferie', 'Non hai i permessi per eliminare le ferie.');
 
         $ids = $this->request->getPost('ids');
         if (!is_array($ids) || empty($ids)) {

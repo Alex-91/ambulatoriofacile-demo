@@ -103,10 +103,6 @@ if (!function_exists('agenda_menu_norm_icon_shared')) {
         return false;
     }
 
-    function agenda_menu_is_current_path_shared(string $path, string $currentPath): bool {
-        return trim($path, '/') === trim($currentPath, '/');
-    }
-
     function agenda_menu_render_tree_shared(array $nodes, string $currentPath): string {
         $html = '';
 
@@ -117,13 +113,12 @@ if (!function_exists('agenda_menu_norm_icon_shared')) {
             $href  = agenda_menu_href_from_node_shared($node);
             $path  = trim((string) parse_url($href, PHP_URL_PATH), '/');
             $children = agenda_menu_children_from_node_shared($node);
-            $isCurrent = agenda_menu_is_current_path_shared($path, $currentPath);
 
             if ($tipo === 'MENU' && !empty($children)) {
-                $isOpen = $isCurrent || agenda_menu_has_active_child_shared($children, $currentPath);
+                $isOpen = agenda_menu_has_active_child_shared($children, $currentPath);
                 $idMenu = (int) agenda_menu_get_value_shared($node, 'id_menu', 0);
 
-                $html .= '<li class="agenda-menu-parent'.($isOpen ? ' open' : '').($isCurrent ? ' active' : '').'">';
+                $html .= '<li class="agenda-menu-parent'.($isOpen ? ' open' : '').'">';
                 $html .= '<a href="#" class="agenda-menu-toggle" data-target="submenu_'.$idMenu.'">';
                 $html .= '<i class="'.$icon.'"></i> '.$label;
                 $html .= '<span class="pull-right"><i class="fa fa-angle-'.($isOpen ? 'down' : 'left').' agenda-menu-arrow"></i></span>';
@@ -146,7 +141,7 @@ if (!function_exists('agenda_menu_norm_icon_shared')) {
                 $html .= '</ul>';
                 $html .= '</li>';
             } else {
-                $isActive = $isCurrent;
+                $isActive = ($path === $currentPath);
 
                 $html .= '<li'.($isActive ? ' class="active"' : '').'>';
                 $html .= '<a href="'.$href.'"><i class="'.$icon.'"></i> '.$label.'</a>';

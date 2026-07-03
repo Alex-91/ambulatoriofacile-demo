@@ -557,11 +557,7 @@ private function isMenuRowAllowedForUser(array $row, int $idUser): bool
         return $this->canManageMenuRoles($idUser);
     }
 
-    if (in_array($route, [
-        'agenda/slot-bloccati',
-        'agenda/gestione-ferie',
-        'agenda/elenco-ferie',
-    ], true)) {
+    if ($route === 'agenda/slot-bloccati') {
         return $this->canBloccareGiorno($idUser);
     }
 
