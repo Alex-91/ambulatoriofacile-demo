@@ -363,7 +363,7 @@ class AgendaAppointmentNotificationService
             'notification_context' => AppointmentNotificationSettingsService::TYPE_DOCTOR_CROSS_BOOKING,
         ]);
 
-        return site_url('agenda') . ($query !== '' ? ('?' . $query) : '');
+        return site_url('login/spazio/agenda') . ($query !== '' ? ('?' . $query) : '');
     }
 
     /**

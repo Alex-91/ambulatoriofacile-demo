@@ -4,6 +4,7 @@ namespace App\Controllers\Tenant;
 
 use App\Controllers\BaseController;
 use App\Models\PlatformUsersModel;
+use App\Services\PendingNotificationNavigationService;
 use App\Services\TenantAppSessionBootstrapService;
 use App\Services\TenantContextService;
 
@@ -36,6 +37,7 @@ class ConsoleBridge extends BaseController
                 $sessionConfirmed = session_access_is_confirmed();
 
                 if (!$sessionConfirmed && (bool) ($session->get('isLoggedIn') ?? false) === true) {
+                    $this->capturePendingConsoleNavigation();
                     return redirect()->to((string) ($bootstrap['redirectUrl'] ?? site_url('auth')));
                 }
             } catch (\Throwable $e) {
@@ -45,18 +47,20 @@ class ConsoleBridge extends BaseController
 
                 $sessionConfirmed = session_access_is_confirmed();
                 if (!$sessionConfirmed) {
+                    $this->capturePendingConsoleNavigation();
                     return redirect()->to(portal_public_access_url('login'))
                         ->with('error', 'Sessione spazio non disponibile. Effettua di nuovo il login.');
                 }
             }
         } elseif (!$sessionConfirmed) {
+            $this->capturePendingConsoleNavigation();
             return redirect()->to(portal_public_access_url('login'))
                 ->with('error', 'Sessione spazio non disponibile. Effettua di nuovo il login.');
         }
 
         if ($target === 'admin' && !$this->canAccessOperationalProfile($tenantRole)) {
             if ($sessionConfirmed) {
-                return redirect()->to(site_url('agenda'))
+                return redirect()->to($this->buildConsoleRedirectUrl('agenda'))
                     ->with('error', 'Profilo operativo non disponibile per questo account.');
             }
 
@@ -66,14 +70,14 @@ class ConsoleBridge extends BaseController
 
         if ($target === 'admin') {
             if (!$this->hasAdminAccess()) {
-                return redirect()->to(site_url('agenda'))
+                return redirect()->to($this->buildConsoleRedirectUrl('agenda'))
                     ->with('error', 'Profilo operativo non disponibile per questo account.');
             }
 
-            return redirect()->to(site_url('admin'));
+            return redirect()->to($this->buildConsoleRedirectUrl('admin'));
         }
 
-        return redirect()->to(site_url('agenda'));
+        return redirect()->to($this->buildConsoleRedirectUrl('agenda'));
     }
 
     /**
@@ -110,5 +114,55 @@ class ConsoleBridge extends BaseController
     private function canAccessOperationalProfile(string $tenantRole): bool
     {
         return session_has_operational_profile_access();
+    }
+
+    private function capturePendingConsoleNavigation(): void
+    {
+        (new PendingNotificationNavigationService())->captureFromRequest($this->request);
+    }
+
+    private function buildConsoleRedirectUrl(string $path): string
+    {
+        $url = site_url($path);
+
+        if ($path !== 'agenda') {
+            return $url;
+        }
+
+        return $this->appendCurrentQueryToUrl($url);
+    }
+
+    private function appendCurrentQueryToUrl(string $url): string
+    {
+        $currentQuery = trim((string) $this->request->getUri()->getQuery());
+        if ($currentQuery === '') {
+            return $url;
+        }
+
+        $parts = parse_url($url);
+        if ($parts === false) {
+            return $url;
+        }
+
+        $existingQuery = [];
+        parse_str((string) ($parts['query'] ?? ''), $existingQuery);
+
+        $incomingQuery = [];
+        parse_str($currentQuery, $incomingQuery);
+
+        $mergedQuery = array_replace($existingQuery, $incomingQuery);
+        $rebuiltQuery = http_build_query($mergedQuery);
+
+        $scheme = (string) ($parts['scheme'] ?? 'https');
+        $host = (string) ($parts['host'] ?? '');
+        $port = isset($parts['port']) ? (':' . (int) $parts['port']) : '';
+        $path = (string) ($parts['path'] ?? '/');
+        $fragment = isset($parts['fragment']) && $parts['fragment'] !== '' ? ('#' . $parts['fragment']) : '';
+
+        if ($host === '') {
+            return $url;
+        }
+
+        return $scheme . '://' . $host . $port . $path . ($rebuiltQuery !== '' ? ('?' . $rebuiltQuery) : '') . $fragment;
     }
 }
