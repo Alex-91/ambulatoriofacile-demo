@@ -143,7 +143,7 @@ echo view('demo/splash_' . strtolower($variant), [
     'roleCards'   => $roleCards,
     'siteUrl'     => $site,
     'prenotaUrl'  => $site . '/contatti#prenota',
-    'whatsappUrl' => 'https://wa.me/393347444795',
+    'whatsappUrl' => 'https://wa.me/393272792653',
     'logoUrl'     => $site . '/images/logo.svg',
     'iconSvg'     => $site . '/icon.svg',
     'appleIcon'   => $site . '/apple-icon',
