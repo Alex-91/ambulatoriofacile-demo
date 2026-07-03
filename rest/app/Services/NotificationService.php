@@ -191,10 +191,6 @@ class NotificationService
             $bodyDetails = $summary;
         }
 
-        $body = str_contains($bodyDetails, $otp)
-            ? $bodyDetails
-            : ('Codice OTP: ' . $otp . '. ' . $bodyDetails);
-
         $url = trim((string) ($options['url'] ?? ''));
         if ($url === '') {
             $url = base_url('agenda');
@@ -205,7 +201,7 @@ class NotificationService
         $payload = [
             'type'  => 'otp',
             'title' => $title,
-            'body'  => $body,
+            'body'  => $bodyDetails,
             'tag'   => 'otp-appointment-' . $userId . '-' . $otp,
             'icon'  => self::notificationIconUrl(),
             'badge' => self::notificationBadgeUrl(),

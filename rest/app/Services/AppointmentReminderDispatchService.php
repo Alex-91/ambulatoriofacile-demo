@@ -121,7 +121,7 @@ class AppointmentReminderDispatchService
 
                     $message = $this->buildReminderMessage($row, $targetDate);
                     $subject = 'Reminder appuntamento AmbulatorioFacile';
-                    $otpSubject = 'Codice OTP e reminder appuntamento';
+                    $otpSubject = 'Reminder appuntamento AmbulatorioFacile';
 
                     if (!$sendMode) {
                         $tenantSummary['preview'][] = [

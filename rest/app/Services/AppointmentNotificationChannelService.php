@@ -295,7 +295,7 @@ class AppointmentNotificationChannelService
             $sendResult = $this->sendEmailChannel(
                 ['email' => $deliveryEmail],
                 $otpMessage,
-                ['subject' => (string) ($options['otp_subject'] ?? 'Codice OTP e notifica appuntamento')]
+                ['subject' => (string) ($options['otp_subject'] ?? 'Notifica appuntamento AmbulatorioFacile')]
             );
             $response = ['delivery_channel' => 'email'];
             if (is_array($sendResult['response'] ?? null)) {

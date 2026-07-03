@@ -89,7 +89,7 @@ class AgendaAppointmentNotificationService
                 $message,
                 [
                     'subject' => 'Conferma appuntamento AmbulatorioFacile',
-                    'otp_subject' => 'Codice OTP e conferma appuntamento',
+                    'otp_subject' => 'Conferma appuntamento AmbulatorioFacile',
                 ],
                 [
                     'message_type' => AppointmentNotificationSettingsService::TYPE_PATIENT_BOOKING,
@@ -137,7 +137,7 @@ class AgendaAppointmentNotificationService
                             $message,
                             [
                                 'subject' => 'Nuovo appuntamento inserito da un medico',
-                                'otp_subject' => 'Codice OTP e nuovo appuntamento inserito da un medico',
+                                'otp_subject' => 'Nuovo appuntamento inserito da un medico',
                                 'notification_title' => $this->buildCrossDoctorNotificationTitle($patientLabel, $scheduledFor),
                                 'notification_body' => $this->buildCrossDoctorNotificationBody($actorLabel, $patientLabel, $scheduledFor, $visitReason),
                                 'push_url' => $agendaUrl,
