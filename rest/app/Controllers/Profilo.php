@@ -23,6 +23,8 @@ class Profilo extends BaseController
             return $this->sessionExpiredRedirect();
         }
 
+        helper(['portal', 'session_auth']);
+
     $clients   = new ClientsModel();
     $personale = new PersonaleModel();
     $cd        = new ClientDoctorModel();
@@ -77,6 +79,8 @@ class Profilo extends BaseController
     }
     session()->set('userId', (int)$me->id_user);
 
+        $agendaReturnUrl = session_should_open_agenda_first() ? site_url('agenda') : null;
+
         return view('profilo/index', [
         // paziente
         'cliente'          => $cliente ?: null,
@@ -95,6 +99,7 @@ class Profilo extends BaseController
         'activeDevice'     => $activeMobile ?: null,
 
         'vapidPublicKey'   => push_vapid_public_key(),
+        'agendaReturnUrl'  => $agendaReturnUrl,
         ]);
     }
 

@@ -267,7 +267,7 @@ $oldValue = static function (string $key, $fallback = '') {
             </ul>
             <div style="margin-top:14px;">
               <a class="btn btn-primary" href="<?= portal_platform_url('notifiche-appuntamenti') ?>">
-                <i class="fa fa-commenting"></i> Apri gestione notifiche appuntamenti
+                <i class="fa fa-comments"></i> Apri gestione notifiche appuntamenti
               </a>
               <a class="btn btn-default" href="<?= portal_platform_url('funzioni') ?>">
                 <i class="fa fa-toggle-on"></i> Apri catalogo funzioni

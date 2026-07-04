@@ -489,7 +489,7 @@ class DemoAccessService
                 'feature_scope' => 'workflow',
                 'description' => 'Configura i tre flussi appuntamenti dello studio: messaggio immediato al paziente, avviso ad altro dottore e reminder prima della visita.',
                 'default_enabled' => 0,
-                'icon_class' => 'fa-commenting',
+                'icon_class' => 'fa-comments',
                 'is_tenant_managed' => 1,
                 'tenant_default_enabled' => 1,
                 'sort_order' => 68,

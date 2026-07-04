@@ -49,6 +49,7 @@ if (!function_exists('admin_menu_fallback_icon')) {
 
         return match (true) {
             str_contains($key, 'whatsapp') => 'fa-whatsapp',
+            str_contains($key, 'notifiche-appuntamenti') || str_contains($key, 'notifiche appuntamenti') => 'fa-comments',
             str_contains($key, 'otp') => 'fa-line-chart',
             str_contains($key, 'agenda/gestione-ferie') => 'fa-suitcase',
             str_contains($key, 'agenda/elenco-ferie') => 'fa-calendar-times-o',
@@ -80,6 +81,7 @@ if (!function_exists('admin_menu_resolve_icon')) {
         $unsupportedAliases = [
             'fa-sign-out-alt' => $fallback,
             'fa-right-from-bracket' => $fallback,
+            'fa-commenting' => 'fa-comments',
         ];
 
         if ($icon === '' || $icon === 'fa-circle-o' || $icon === 'circle-o') {

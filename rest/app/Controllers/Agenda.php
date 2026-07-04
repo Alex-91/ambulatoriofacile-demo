@@ -5359,14 +5359,9 @@ public function salvaFeriePeriodo()
 public function gestioneSmsAppuntamenti()
 {
     try {
-        $medici = $this->getOrderedVisibleDoctorsForCurrentUser();
-        $doctorIds = array_values(array_unique(array_filter(array_map(
-            static function ($medico): int {
-                return (int) (is_object($medico) ? ($medico->id_dot ?? 0) : ($medico['id_dot'] ?? 0));
-            },
-            $medici
-        ), static fn(int $id): bool => $id > 0)));
+        $this->assertAgendaRouteAllowed('agenda/gestione-sms-appuntamenti', 'Il servizio SMS non e attivo per questo studio.');
 
+        $medici = $this->getOrderedVisibleDoctorsForCurrentUser();
         $selectedDot = (int)($this->request->getGet('id_dot') ?: $this->getFirstVisibleDoctorId($medici));
 
         if ($selectedDot > 0 && !$this->agendaModel->canUserAccessDoctor($this->getCurrentUserId(), $selectedDot)) {
@@ -5380,8 +5375,6 @@ public function gestioneSmsAppuntamenti()
         }
 
         $abilitati = $this->agendaModel->getSmsAppointmentsEnabledByDoctor();
-        $smsDashboard = (new SmsReminderDashboardService($this->db))
-            ->buildDashboard($doctorIds, $selectedDot, 30, 50);
 
         return view('agenda/gestione_sms_appuntamenti', [
             'pageTitle'      => 'Gestione SMS appuntamenti',
@@ -5389,8 +5382,6 @@ public function gestioneSmsAppuntamenti()
             'selectedDot'    => $selectedDot,
             'configCorrente' => $configCorrente,
             'abilitati'      => $abilitati,
-            'smsDashboard'   => $smsDashboard,
-            'appointmentNotificationsAvailable' => (bool) (($this->tenantContextService->getCurrentTenant()?->allows('appointment_notifications')) ?? false),
             'menuAgenda'     => method_exists($this->agendaModel, 'getMenuVisibleByUser')
                 ? $this->agendaModel->getMenuVisibleByUser($this->getCurrentUserId())
                 : $this->agendaModel->getMenuVisible(),
@@ -5403,6 +5394,8 @@ public function gestioneSmsAppuntamenti()
 public function salvaSmsAppuntamenti()
 {
     try {
+        $this->assertAgendaRouteAllowed('agenda/gestione-sms-appuntamenti', 'Il servizio SMS non e attivo per questo studio.');
+
         $idDot = (int)($this->request->getPost('id_dot') ?? 0);
         $conferma = (int)($this->request->getPost('conferma') ?? 0);
 
@@ -5432,6 +5425,8 @@ public function salvaSmsAppuntamenti()
 public function disattivaSmsAppuntamenti()
 {
     try {
+        $this->assertAgendaRouteAllowed('agenda/gestione-sms-appuntamenti', 'Il servizio SMS non e attivo per questo studio.');
+
         $idSms = (int)($this->request->getPost('id_sms') ?? 0);
 
         if ($idSms <= 0) {

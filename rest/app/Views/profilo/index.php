@@ -44,6 +44,14 @@
 
     <section class="content">
 
+      <?php if (!empty($agendaReturnUrl)): ?>
+        <div class="alert alert-info">
+          <i class="fa fa-calendar"></i>
+          Per tornare alla tua agenda usa
+          <a href="<?= esc($agendaReturnUrl) ?>" class="alert-link">questo collegamento rapido</a>.
+        </div>
+      <?php endif; ?>
+
       <?php if (session()->getFlashdata('success')): ?>
         <div class="alert alert-success"><?= esc(session()->getFlashdata('success')) ?></div>
       <?php endif; ?>

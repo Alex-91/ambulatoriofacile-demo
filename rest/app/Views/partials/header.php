@@ -64,7 +64,7 @@ $currentPath = trim(service('uri')->getPath(), '/');
 $tenantContext = $sess->get('tenant_context');
 $tenantName = is_array($tenantContext) ? trim((string)($tenantContext['tenant_name'] ?? '')) : '';
 $tenantId = is_array($tenantContext) ? (int)($tenantContext['tenant_id'] ?? 0) : 0;
-$tenantRole = is_array($tenantContext) ? trim((string)($tenantContext['tenant_role'] ?? '')) : '';
+$tenantRole = is_array($tenantContext) ? strtolower(trim((string)($tenantContext['tenant_role'] ?? ''))) : '';
 $isTenantOperationalConsoleSession = $tenantId > 0 && in_array($tenantRole, ['tenant_master', 'tenant_admin'], true);
 $hideHeaderMenu = str_starts_with($currentPath, 'admin') || $isTenantOperationalConsoleSession;
 $tenantFeatureFlags = is_array($tenantContext) ? (array)($tenantContext['feature_flags'] ?? []) : [];
@@ -97,10 +97,12 @@ $useMinimalTenantOnboardingHeader = $isTenantOnboardingRoute
     && $tenantRole === 'tenant_master'
     && $showTenantOnboardingLink;
 $hideHeaderMenu = $hideHeaderMenu || $useMinimalTenantOnboardingHeader;
-$tenantOperationalHomeUrl = $tenantId > 0 ? portal_operational_home_url() : null;
-$canOpenTenantAdminMenu = $tenantId > 0 && session_has_operational_profile_access();
+$hasOperationalTenantAvatarContext = $tenantId > 0 && in_array($tenantRole, ['tenant_master', 'tenant_admin'], true);
+$showTenantHeaderSections = !$useMinimalTenantOnboardingHeader && $hasOperationalTenantAvatarContext;
+$tenantOperationalHomeUrl = $showTenantHeaderSections ? portal_operational_home_url() : null;
+$canOpenTenantOperationalProfile = $showTenantHeaderSections;
 $moveHeaderActionsToSidebar = $isTenantOperationalConsoleSession && !$useMinimalTenantOnboardingHeader;
-$showHeaderProfileAction = !$isPlatformConsoleSession && !$moveHeaderActionsToSidebar;
+$showHeaderProfileAction = !$isPlatformConsoleSession;
 $portalConsoleHeaderOverride = isset($portal_console_header) ? (bool) $portal_console_header : null;
 $portalConsolePrefixes = ['login', 'spazio', 'piattaforma'];
 $isPortalConsoleRoute = false;
@@ -130,6 +132,8 @@ $demoAccessUrl = $showDemoRoleSwitch
     : '';
 $activeImpersonation = $sess->get(\App\Services\PlatformImpersonationService::SESSION_KEY);
 $activeImpersonation = is_array($activeImpersonation) ? $activeImpersonation : null;
+$headerPortalSections = (new \App\Services\MenuResolverService())->resolvePortalHeaderSections();
+$headerPortalSections = is_array($headerPortalSections['sections'] ?? null) ? $headerPortalSections['sections'] : [];
 $impersonationMinutesLeft = $activeImpersonation !== null
     ? max(1, (int) ceil(max(0, ((int) ($activeImpersonation['expires_at'] ?? 0)) - time()) / 60))
     : 0;
@@ -374,6 +378,17 @@ if (!$chatFeatureEnabled) {
 
   .skin-blue .af-app-header .platform-user-footer {
     background: #fff;
+  }
+
+  .skin-blue .af-app-header .platform-user-footer-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .skin-blue .af-app-header .platform-user-footer-actions-logout-only {
+    justify-content: flex-end;
   }
 
   .skin-blue .af-app-header .platform-user-action.btn,
@@ -660,14 +675,14 @@ if ($headerMenuUserId > 0) {
             <li class="user-footer platform-user-footer">
               <?php if (!$moveHeaderActionsToSidebar): ?>
               <div class="platform-user-sections">
-              <?php if (!$useMinimalTenantOnboardingHeader && $tenantOperationalHomeUrl !== null): ?>
+              <?php if ($showTenantHeaderSections && $tenantOperationalHomeUrl !== null): ?>
               <div class="platform-user-section">
                 <a href="<?= esc($tenantOperationalHomeUrl) ?>" class="btn btn-default btn-flat platform-user-action">
                   <i class="fa fa-home"></i> Vai al portale operativo
                 </a>
               </div>
               <?php endif; ?>
-              <?php if (!$useMinimalTenantOnboardingHeader && $canOpenTenantAdminMenu && !$isTenantOperationalConsoleSession): ?>
+              <?php if ($showTenantHeaderSections && $canOpenTenantOperationalProfile && !$isTenantOperationalConsoleSession): ?>
               <div class="platform-user-section">
                 <a href="<?= esc(portal_tenant_operational_profile_url()) ?>" class="btn btn-default btn-flat platform-user-action">
                   <i class="fa fa-briefcase"></i> Vai al profilo operativo
@@ -677,31 +692,67 @@ if ($headerMenuUserId > 0) {
                 </div>
               </div>
               <?php endif; ?>
-              <?php if (!$useMinimalTenantOnboardingHeader && $showTenantSwitchSection): ?>
+              <?php if ($showTenantHeaderSections): ?>
+                <?php foreach ($headerPortalSections as $section): ?>
+                  <?php if ((string) ($section['title'] ?? '') !== $tenantSwitchSectionTitle): ?>
+                    <?php continue; ?>
+                  <?php endif; ?>
               <div class="platform-user-section">
-                <div class="platform-user-section-title"><?= esc($tenantSwitchSectionTitle) ?></div>
-                <?php foreach ($platformTenants as $availableTenant): ?>
-                  <?php
-                    $availableTenantId = (int)($availableTenant['id_tenant'] ?? 0);
-                    $isCurrentTenant = $availableTenantId === $tenantId;
-                    $tenantLabel = trim((string)($availableTenant['tenant_name'] ?? $availableTenant['tenant_key'] ?? 'Spazio cliente'));
-                    $tenantSwitchUrl = portal_tenant_switch_url($availableTenantId);
-                  ?>
+                <div class="platform-user-section-title"><?= esc((string) $section['title']) ?></div>
+                <?php foreach ((array) ($section['items'] ?? []) as $action): ?>
                   <div class="platform-user-option">
-                    <?php if ($isCurrentTenant): ?>
+                    <?php if (!empty($action['locked']) || !empty($action['disabled'])): ?>
                       <span class="btn btn-default btn-flat platform-user-action platform-user-action-current">
-                        <?= esc($tenantLabel) ?> (attivo)
+                        <?php if (trim((string) ($action['icon'] ?? '')) !== ''): ?>
+                          <i class="fa <?= esc((string) ($action['icon'] ?? 'fa-circle-o')) ?>"></i>
+                        <?php endif; ?>
+                        <?= esc((string) ($action['label'] ?? 'Voce')) ?>
                       </span>
                     <?php else: ?>
-                      <a href="<?= esc($tenantSwitchUrl) ?>" class="btn btn-default btn-flat platform-user-action">
-                        <?= esc($tenantLabel) ?>
+                      <a href="<?= esc((string) ($action['href'] ?? '#')) ?>" class="btn btn-default btn-flat platform-user-action">
+                        <?php if (trim((string) ($action['icon'] ?? '')) !== ''): ?>
+                          <i class="fa <?= esc((string) ($action['icon'] ?? 'fa-circle-o')) ?>"></i>
+                        <?php endif; ?>
+                        <?= esc((string) ($action['label'] ?? 'Voce')) ?>
                       </a>
                     <?php endif; ?>
                   </div>
                 <?php endforeach; ?>
               </div>
+                <?php endforeach; ?>
               <?php endif; ?>
-              <?php if (!$useMinimalTenantOnboardingHeader && $showDemoRoleSwitch): ?>
+              <?php if ($showTenantHeaderSections): ?>
+                <?php foreach ($headerPortalSections as $section): ?>
+                  <?php if ((string) ($section['title'] ?? '') === $tenantSwitchSectionTitle): ?>
+                    <?php continue; ?>
+                  <?php endif; ?>
+              <div class="platform-user-section">
+                <?php if (trim((string) ($section['title'] ?? '')) !== ''): ?>
+                <div class="platform-user-section-title"><?= esc((string) $section['title']) ?></div>
+                <?php endif; ?>
+                <?php foreach ((array) ($section['items'] ?? []) as $action): ?>
+                  <div class="platform-user-option">
+                    <?php if (!empty($action['locked']) || !empty($action['disabled'])): ?>
+                      <span class="btn btn-default btn-flat platform-user-action platform-user-action-current">
+                        <?php if (trim((string) ($action['icon'] ?? '')) !== ''): ?>
+                          <i class="fa <?= esc((string) ($action['icon'] ?? 'fa-circle-o')) ?>"></i>
+                        <?php endif; ?>
+                        <?= esc((string) ($action['label'] ?? 'Voce')) ?>
+                      </span>
+                    <?php else: ?>
+                      <a href="<?= esc((string) ($action['href'] ?? '#')) ?>" class="btn btn-default btn-flat platform-user-action">
+                        <?php if (trim((string) ($action['icon'] ?? '')) !== ''): ?>
+                          <i class="fa <?= esc((string) ($action['icon'] ?? 'fa-circle-o')) ?>"></i>
+                        <?php endif; ?>
+                        <?= esc((string) ($action['label'] ?? 'Voce')) ?>
+                      </a>
+                    <?php endif; ?>
+                  </div>
+                <?php endforeach; ?>
+              </div>
+                <?php endforeach; ?>
+              <?php endif; ?>
+              <?php if (false && !$useMinimalTenantOnboardingHeader && $showDemoRoleSwitch): ?>
               <div class="platform-user-section">
                 <div class="platform-user-section-title">Cambia ruolo demo</div>
                 <?php if ($demoAccessUrl !== ''): ?>
@@ -735,7 +786,7 @@ if ($headerMenuUserId > 0) {
                 <?php endforeach; ?>
               </div>
               <?php endif; ?>
-              <?php if (!$useMinimalTenantOnboardingHeader && $canAccessPlatformConsole): ?>
+              <?php if (false && !$useMinimalTenantOnboardingHeader && $canAccessPlatformConsole): ?>
               <div class="platform-user-section">
                 <a href="<?= portal_platform_url('impersonificazione') ?>" class="btn btn-default btn-flat platform-user-action" style="margin-bottom:8px;">
                   <i class="fa fa-user-secret"></i> Accesso delegato
@@ -747,36 +798,36 @@ if ($headerMenuUserId > 0) {
                 </a>
               </div>
               <?php endif; ?>
-              <?php if (
+              <?php if (false && (
                   !$useMinimalTenantOnboardingHeader
                   && $canManageTenantUsers
                   && ($headerMenuUserId <= 0 || $headerMenuVisibility->canUserSeeMenuLink($headerMenuUserId, 'spazio/utenti'))
-              ): ?>
+              )): ?>
               <div class="platform-user-section">
                 <a href="<?= portal_tenant_space_url('utenti') ?>" class="btn btn-default btn-flat platform-user-action">
                   <i class="fa fa-users"></i> Gestisci utenti dello spazio
                 </a>
               </div>
               <?php endif; ?>
-              <?php if (
+              <?php if (false && (
                   !$useMinimalTenantOnboardingHeader
                   && $canManageTenantFeatures
                   && ($headerMenuUserId <= 0 || $headerMenuVisibility->canUserSeeMenuLink($headerMenuUserId, 'spazio/funzioni'))
-              ): ?>
+              )): ?>
               <div class="platform-user-section">
                 <a href="<?= portal_tenant_space_url('funzioni') ?>" class="btn btn-default btn-flat platform-user-action">
                   <i class="fa fa-toggle-on"></i> Gestisci funzioni dello spazio
                 </a>
               </div>
               <?php endif; ?>
-              <?php if (
+              <?php if (false && (
                   !$useMinimalTenantOnboardingHeader
                   && $canManageAppointmentNotifications
                   && ($headerMenuUserId <= 0 || $headerMenuVisibility->canUserSeeMenuLink($headerMenuUserId, 'spazio/notifiche-appuntamenti'))
-              ): ?>
+              )): ?>
               <div class="platform-user-section">
                 <a href="<?= portal_tenant_space_url('notifiche-appuntamenti') ?>" class="btn btn-default btn-flat platform-user-action">
-                  <i class="fa fa-commenting"></i> Gestisci notifiche appuntamenti
+                  <i class="fa fa-comments"></i> Gestisci notifiche appuntamenti
                 </a>
               </div>
               <?php endif; ?>
@@ -795,9 +846,13 @@ if ($headerMenuUserId > 0) {
               <?php endif; ?>
               <div class="platform-user-footer-actions<?= $showHeaderProfileAction ? '' : ' platform-user-footer-actions-logout-only' ?>">
                 <?php if ($showHeaderProfileAction): ?>
-                <a href="<?= base_url('profilo') ?>" class="btn btn-default btn-flat">Profilo</a>
+                <div class="platform-user-footer-left">
+                  <a href="<?= base_url('profilo') ?>" class="btn btn-default btn-flat">Profilo</a>
+                </div>
                 <?php endif; ?>
-                <a href="<?= base_url('logout') ?>" class="btn btn-default btn-flat">Logout</a>
+                <div class="platform-user-footer-right">
+                  <a href="<?= base_url('logout') ?>" class="btn btn-default btn-flat">Logout</a>
+                </div>
               </div>
             </li>
           </ul>

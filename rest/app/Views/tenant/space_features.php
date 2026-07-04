@@ -365,7 +365,7 @@ $canSubmitSpaceSettings = ($manageableRows !== []) || $hasSupplementalSpaceContr
             <div style="margin-top:12px;">
               <?php if ($appointmentNotificationsAvailable): ?>
                 <a class="btn btn-default" href="<?= portal_tenant_space_url('notifiche-appuntamenti') ?>">
-                  <i class="fa fa-commenting"></i> Apri centro notifiche appuntamenti
+                  <i class="fa fa-comments"></i> Apri centro notifiche appuntamenti
                 </a>
               <?php elseif ($appointmentNotificationsEntitled): ?>
                 <span class="label label-warning" style="display:inline-block; padding:8px 12px;">

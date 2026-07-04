@@ -5,7 +5,10 @@ namespace App\Models;
 use CodeIgniter\Model;
 use App\Libraries\Crypto_helper;
 use App\Libraries\DatabaseConfig;
+use App\Services\AppointmentNotificationSettingsService;
 use App\Services\DemoAccessService;
+use App\Services\TenantCatalogService;
+use App\Services\TenantContextService;
 
 class AgendaModel extends Model
 {
@@ -22,6 +25,7 @@ class AgendaModel extends Model
     private ?bool $memoBlockTableExists = null;
     private ?bool $domBlockTableExists = null;
     private ?string $blockedDayPrimaryKey = null;
+    private ?bool $smsAppointmentMenuAvailableCache = null;
     private array $personaleFieldExistsCache = [];
 
     private function normalizeLegacyString($value)
@@ -530,13 +534,22 @@ public function getMenuVisibleByUser(int $idUser): array
 
     $buildTree = function (int $parentId) use (&$buildTree, $byParent): array {
         $items = $byParent[$parentId] ?? [];
+        $visibleItems = [];
 
         foreach ($items as &$item) {
             $item['children'] = $buildTree((int)$item['id_menu']);
+
+            $tipo = strtoupper(trim((string)($item['tipo_voce'] ?? 'ITEM')));
+            $route = trim((string)($item['rotta'] ?? ''));
+            if ($tipo === 'MENU' && $item['children'] === [] && ($route === '' || $route === '#')) {
+                continue;
+            }
+
+            $visibleItems[] = $item;
         }
         unset($item);
 
-        return $items;
+        return $visibleItems;
     };
 
     return $buildTree(0);
@@ -561,7 +574,50 @@ private function isMenuRowAllowedForUser(array $row, int $idUser): bool
         return $this->canBloccareGiorno($idUser);
     }
 
+    if ($route === 'agenda/gestione-sms-appuntamenti') {
+        return $this->isSmsAppointmentMenuAvailable();
+    }
+
     return true;
+}
+
+private function isSmsAppointmentMenuAvailable(): bool
+{
+    if ($this->smsAppointmentMenuAvailableCache !== null) {
+        return $this->smsAppointmentMenuAvailableCache;
+    }
+
+    try {
+        $tenantId = 0;
+        $tenantContext = (new TenantContextService())->getCurrentTenant();
+        if ($tenantContext !== null) {
+            $tenantId = (int) ($tenantContext->tenantId ?? 0);
+        }
+
+        if ($tenantId <= 0) {
+            $runtimeTenant = (new TenantCatalogService())->resolveCurrentRuntimeTenant();
+            $tenantId = (int) ($runtimeTenant['id_tenant'] ?? 0);
+        }
+
+        if ($tenantId <= 0) {
+            return $this->smsAppointmentMenuAvailableCache = false;
+        }
+
+        $settings = (new AppointmentNotificationSettingsService())->resolveTenantSettings($tenantId);
+        $availableChannels = is_array($settings['available_channels'] ?? null)
+            ? $settings['available_channels']
+            : [];
+
+        return $this->smsAppointmentMenuAvailableCache = !empty(
+            $availableChannels[AppointmentNotificationSettingsService::CHANNEL_SMS]
+        );
+    } catch (\Throwable $e) {
+        log_message('error', 'AgendaModel::isSmsAppointmentMenuAvailable failed: {message}', [
+            'message' => $e->getMessage(),
+        ]);
+
+        return $this->smsAppointmentMenuAvailableCache = false;
+    }
 }
 
 public function getSlotExtraByDoctorPaginate(

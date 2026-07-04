@@ -10,15 +10,18 @@ class AdminMenuVisibilityService
 {
     private UserAdminMenuVisibilityModel $visibilityModel;
     private TenantAdminMenuService $tenantAdminMenu;
+    private MenuRegistryService $menuRegistry;
     private \CodeIgniter\Database\BaseConnection $db;
 
     public function __construct(
         ?UserAdminMenuVisibilityModel $visibilityModel = null,
-        ?TenantAdminMenuService $tenantAdminMenu = null
+        ?TenantAdminMenuService $tenantAdminMenu = null,
+        ?MenuRegistryService $menuRegistry = null
     ) {
         helper('admin_menu');
         $this->visibilityModel = $visibilityModel ?? new UserAdminMenuVisibilityModel();
         $this->tenantAdminMenu = $tenantAdminMenu ?? new TenantAdminMenuService();
+        $this->menuRegistry = $menuRegistry ?? new MenuRegistryService();
         $this->db = Database::connect();
     }
 
@@ -47,7 +50,7 @@ class AdminMenuVisibilityService
                 'descrizione' => trim((string) ($item['description'] ?? '')),
                 'gruppo' => 'Menu operativo',
                 'ordine' => (int) ($item['order'] ?? 0),
-                'route_prefixes' => $this->routePrefixesForLink($normalizedLink),
+                'route_prefixes' => $this->normalizeRoutePrefixes((array) ($item['route_prefixes'] ?? $this->routePrefixesForLink($normalizedLink))),
             ];
         }
 
@@ -318,52 +321,25 @@ class AdminMenuVisibilityService
      */
     private function contextCatalog(): array
     {
-        return [
-            [
-                'menu_key' => 'spazio/utenti',
-                'menu_link' => 'spazio/utenti',
-                'titolo' => 'Gestisci utenti dello spazio',
-                'descrizione' => 'Voce rapida della console spazio per utenti e inviti.',
-                'gruppo' => 'Console spazio',
-                'ordine' => 2000,
-                'route_prefixes' => [
-                    'spazio/utenti',
-                    'spazio/utenti/save',
-                    'spazio/utenti/accesso',
-                    'login/spazio/utenti',
-                    'login/spazio/utenti/save',
-                    'login/spazio/utenti/accesso',
-                ],
-            ],
-            [
-                'menu_key' => 'spazio/funzioni',
-                'menu_link' => 'spazio/funzioni',
-                'titolo' => 'Gestisci funzioni dello spazio',
-                'descrizione' => 'Voce rapida della console spazio per attivare o disattivare feature.',
-                'gruppo' => 'Console spazio',
-                'ordine' => 2100,
-                'route_prefixes' => [
-                    'spazio/funzioni',
-                    'spazio/funzioni/save',
-                    'login/spazio/funzioni',
-                    'login/spazio/funzioni/save',
-                ],
-            ],
-            [
-                'menu_key' => 'spazio/notifiche-appuntamenti',
-                'menu_link' => 'spazio/notifiche-appuntamenti',
-                'titolo' => 'Gestisci notifiche appuntamenti',
-                'descrizione' => 'Voce rapida della console spazio per reminder e notifiche operative.',
-                'gruppo' => 'Console spazio',
-                'ordine' => 2200,
-                'route_prefixes' => [
-                    'spazio/notifiche-appuntamenti',
-                    'spazio/notifiche-appuntamenti/save',
-                    'login/spazio/notifiche-appuntamenti',
-                    'login/spazio/notifiche-appuntamenti/save',
-                ],
-            ],
-        ];
+        $items = [];
+        foreach ($this->menuRegistry->tenantContextCatalog() as $item) {
+            $menuKey = trim((string) ($item['key'] ?? ''));
+            if ($menuKey === '') {
+                continue;
+            }
+
+            $items[] = [
+                'menu_key' => $menuKey,
+                'menu_link' => trim((string) ($item['link'] ?? $menuKey)),
+                'titolo' => trim((string) ($item['title'] ?? '')) ?: admin_menu_pretty_title('', $menuKey),
+                'descrizione' => trim((string) ($item['description'] ?? '')),
+                'gruppo' => trim((string) ($item['group'] ?? 'Console spazio')) ?: 'Console spazio',
+                'ordine' => (int) ($item['order'] ?? 0),
+                'route_prefixes' => $this->normalizeRoutePrefixes((array) ($item['route_prefixes'] ?? [])),
+            ];
+        }
+
+        return $items;
     }
 
     /**
@@ -371,32 +347,7 @@ class AdminMenuVisibilityService
      */
     private function routePrefixesForLink(string $normalizedLink): array
     {
-        return match ($normalizedLink) {
-            'personale/nuovo' => ['admin/personale/nuovo'],
-            'personale/nuovo_cliente' => ['admin/personale/nuovo_cliente'],
-            'personale/modifica_personale' => [
-                'admin/personale/modifica_personale',
-                'admin/personale/search',
-                'admin/personale/get',
-                'admin/personale/update',
-                'admin/personale/elimina-account',
-                'admin/personale/elimina-dottore',
-            ],
-            'personale/modifica_cliente' => [
-                'admin/personale/modifica_cliente',
-                'admin/clienti/search',
-                'admin/clienti/get',
-                'admin/clienti/update',
-                'admin/clienti/device/disconnect',
-            ],
-            'agenda/gestione-sedi' => [
-                'agenda/gestione-sedi',
-                'admin/anagrafica/sedi',
-                'admin/anagrafica/sedi/save',
-                'admin/anagrafica/sedi/toggle',
-                'admin/anagrafica/sedi/stanza/save',
-                'admin/anagrafica/sedi/stanza/toggle',
-            ],
+        $agendaLegacyPrefixes = match ($normalizedLink) {
             'agenda/gestione-ferie' => [
                 'agenda/gestione-ferie',
                 'agenda/salva-ferie-periodo',
@@ -408,45 +359,28 @@ class AdminMenuVisibilityService
             ],
             'agenda/slot-bloccati' => [
                 'agenda/slot-bloccati',
+                'slot-bloccati',
                 'agenda/sblocca-slot-bloccato',
             ],
-            'personale/visibilita-moduli' => [
-                'admin/personale/visibilita-moduli',
-                'admin/personale/visibilita-moduli/search',
-                'admin/personale/visibilita-moduli/get',
-                'admin/personale/visibilita-moduli/update',
+            'agenda/gestione-tipi-visita' => [
+                'agenda/gestione-tipi-visita',
+                'agenda/tipi-visita',
+                'agenda/salva-tipo-visita',
+                'agenda/toggle-tipo-visita',
             ],
-            'personale/dap14' => [
-                'admin/personale/dap14',
-                'admin/personale/dap14/update',
-            ],
-            'personale/dap15' => [
-                'admin/personale/dap15',
-                'admin/personale/dap15/update',
-            ],
-            'personale/schede-utenti' => [],
-            'sostituti' => [
-                'admin/personale/sostituti',
-                'admin/sostituti/salva',
-                'admin/sostituti/elimina',
-            ],
-            'otp-statistiche' => [
-                'admin/otp-statistiche',
-                'admin/otp-statistiche/csv',
-            ],
-            'whatsapp-reminders' => [
-                'admin/whatsapp-reminders',
-                'admin/whatsapp-reminders/launch',
-                'admin/whatsapp-reminders/run',
-            ],
-            'logs' => [
-                'admin/personale/logs',
-                'admin/logs/read',
-                'admin/logs/download',
-                'admin/logs/list',
-            ],
-            default => ['admin/' . trim($normalizedLink, '/')],
+            default => [],
         };
+
+        if ($agendaLegacyPrefixes !== []) {
+            return $this->normalizeRoutePrefixes($agendaLegacyPrefixes);
+        }
+
+        $registryItem = $this->menuRegistry->findTenantAdminItem($normalizedLink);
+        if (is_array($registryItem)) {
+            return $this->normalizeRoutePrefixes((array) ($registryItem['route_prefixes'] ?? []));
+        }
+
+        return ['admin/' . trim($normalizedLink, '/')];
     }
 
     /**
@@ -493,5 +427,22 @@ class AdminMenuVisibilityService
         }
 
         return trim(str_replace('\\', '/', $normalized), '/');
+    }
+
+    /**
+     * @param list<string> $prefixes
+     * @return list<string>
+     */
+    private function normalizeRoutePrefixes(array $prefixes): array
+    {
+        $normalized = [];
+        foreach ($prefixes as $prefix) {
+            $prefix = $this->normalizeRequestPath((string) $prefix);
+            if ($prefix !== '' && !in_array($prefix, $normalized, true)) {
+                $normalized[] = $prefix;
+            }
+        }
+
+        return $normalized;
     }
 }

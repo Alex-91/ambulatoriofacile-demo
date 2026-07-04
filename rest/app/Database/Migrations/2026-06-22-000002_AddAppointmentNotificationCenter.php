@@ -29,7 +29,7 @@ class AddAppointmentNotificationCenter extends Migration
                 'feature_scope' => 'workflow',
                 'description' => 'Configura i tre flussi appuntamenti dello spazio: messaggio immediato al paziente, avviso da un medico a un altro medico e reminder prima della visita.',
                 'default_enabled' => 0,
-                'icon_class' => 'fa-commenting',
+                'icon_class' => 'fa-comments',
                 'is_tenant_managed' => 1,
                 'tenant_default_enabled' => 1,
                 'sort_order' => 68,

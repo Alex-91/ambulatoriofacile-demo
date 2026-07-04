@@ -333,6 +333,8 @@ function Get-LocalTestSettings {
         SnapshotPath                   = $snapshotPath
         TestDatabaseUuid               = $dbUuid
         PublicHost                     = $publicHost
+        DefaultTenantDatabaseName      = Get-StringSetting -Object $localSection -Name 'defaultTenantDatabaseName' -Default (Get-StringSetting -Object $refreshSection -Name 'defaultTenantDatabaseName' -Default '')
+        PlatformDatabaseName           = Get-StringSetting -Object $localSection -Name 'platformDatabaseName' -Default (Get-StringSetting -Object $refreshSection -Name 'platformDatabaseName' -Default '')
         PreferredPublicPort            = Get-IntSetting -Object $localSection -Name 'preferredPublicPort' -Default 23306
         PublicPortTimeout              = Get-IntSetting -Object $localSection -Name 'publicPortTimeout' -Default 3600
         AutoExposeDatabase             = Get-BooleanSetting -Object $localSection -Name 'autoExposeDatabase' -Default $true
@@ -396,17 +398,61 @@ function Build-TestModeEnvValues {
 
     $connection = Get-DatabaseConnectionInfo -Database $Database
     $publicPort = Get-ObjectProperty -Object $Database -Name 'public_port' -Default $null
+    $databaseName = [string]$connection.Database
 
     if (-not $publicPort) {
         throw "Il DB test non ha una porta pubblica utilizzabile."
     }
 
+    if ([string]::IsNullOrWhiteSpace($databaseName) -or $databaseName.Trim().ToLowerInvariant() -eq 'default') {
+        $fallbackDatabaseName = [string]$Settings.DefaultTenantDatabaseName
+        if ([string]::IsNullOrWhiteSpace($fallbackDatabaseName)) {
+            throw "Coolify ha restituito il database placeholder 'default', ma manca localTestDb.defaultTenantDatabaseName (o dbRefresh.defaultTenantDatabaseName) nella configurazione locale."
+        }
+
+        $databaseName = $fallbackDatabaseName.Trim()
+        $rootPassword = ''
+        if ($connection.Engine -eq 'mysql') {
+            $rootPassword = [string](Get-ObjectProperty -Object $Database -Name 'mysql_root_password' -Default '')
+        }
+        elseif ($connection.Engine -eq 'mariadb') {
+            $rootPassword = [string](Get-ObjectProperty -Object $Database -Name 'mariadb_root_password' -Default '')
+        }
+
+        if (-not [string]::IsNullOrWhiteSpace($rootPassword)) {
+            $connection.Username = 'root'
+            $connection.Password = $rootPassword
+            Write-Warning "Coolify ha restituito mysql_database='default'. Uso il fallback locale '$databaseName' con credenziali root del servizio DB."
+        }
+        else {
+            Write-Warning "Coolify ha restituito mysql_database='default'. Uso il fallback locale '$databaseName'."
+        }
+    }
+
     $values = @{
         'database.default.hostname' = $Settings.PublicHost
         'database.default.port'     = [string]$publicPort
-        'database.default.database' = $connection.Database
+        'database.default.database' = $databaseName
         'database.default.username' = $connection.Username
         'database.default.password' = $connection.Password
+        'TENANT_PROVISIONING_RUNTIME_HOST' = $Settings.PublicHost
+        'TENANT_PROVISIONING_RUNTIME_PORT' = [string]$publicPort
+        'TENANT_PROVISIONING_RUNTIME_USERNAME' = $connection.Username
+        'TENANT_PROVISIONING_RUNTIME_PASSWORD_REF' = 'database.default.password'
+        'TENANT_PROVISIONING_RUNTIME_DRIVER' = 'MySQLi'
+        'TENANT_PROVISIONING_ADMIN_HOST' = $Settings.PublicHost
+        'TENANT_PROVISIONING_ADMIN_PORT' = [string]$publicPort
+        'TENANT_PROVISIONING_ADMIN_USERNAME' = $connection.Username
+        'TENANT_PROVISIONING_ADMIN_PASSWORD' = $connection.Password
+    }
+
+    $platformDatabaseName = [string]$Settings.PlatformDatabaseName
+    if (-not [string]::IsNullOrWhiteSpace($platformDatabaseName)) {
+        $values['database.platform.hostname'] = $Settings.PublicHost
+        $values['database.platform.port']     = [string]$publicPort
+        $values['database.platform.database'] = $platformDatabaseName.Trim()
+        $values['database.platform.username'] = $connection.Username
+        $values['database.platform.password'] = $connection.Password
     }
 
     if ($Settings.ForceDevelopmentEnvironment) {

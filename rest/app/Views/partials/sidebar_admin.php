@@ -1,24 +1,16 @@
 <?php
-helper(['admin_menu', 'portal']);
+helper('admin_menu');
 
-if (empty($menu_items) || !is_array($menu_items)) {
-    $menuDataAdmin = session()->get('menuDataAdmin');
-    $menu_items = is_array($menuDataAdmin['result'] ?? null) ? $menuDataAdmin['result'] : [];
-}
+$resolvedSidebar = (new \App\Services\MenuResolverService())->resolveAdminSidebar(
+    is_array($menu_items ?? null) ? $menu_items : []
+);
 
-$sess = session();
-$currentMenuUserId = (int) ($sess->get('id_user') ?? 0);
-if ($currentMenuUserId <= 0) {
-    $sessionUser = $sess->get('utente_sess');
-    if (is_object($sessionUser) && !empty($sessionUser->id_user)) {
-        $currentMenuUserId = (int) $sessionUser->id_user;
-    }
-}
-
-$adminMenuVisibility = new \App\Services\AdminMenuVisibilityService();
-if ($currentMenuUserId > 0) {
-    $menu_items = $adminMenuVisibility->filterMenuRowsForUser($menu_items, $currentMenuUserId);
-}
+$tenantName = trim((string) ($resolvedSidebar['tenant_name'] ?? ''));
+$menu_items = is_array($resolvedSidebar['menu_items'] ?? null) ? $resolvedSidebar['menu_items'] : [];
+$primaryAction = is_array($resolvedSidebar['primary_action'] ?? null) ? $resolvedSidebar['primary_action'] : null;
+$secondaryPrimaryAction = is_array($resolvedSidebar['secondary_primary_action'] ?? null) ? $resolvedSidebar['secondary_primary_action'] : null;
+$contextActions = is_array($resolvedSidebar['context_actions'] ?? null) ? $resolvedSidebar['context_actions'] : [];
+$accountActions = is_array($resolvedSidebar['account_actions'] ?? null) ? $resolvedSidebar['account_actions'] : [];
 
 $normalizePath = static function (?string $path): string {
     $path = trim((string) $path);
@@ -35,53 +27,6 @@ $normalizePath = static function (?string $path): string {
 };
 
 $currentPath = strtolower($normalizePath(service('uri')->getPath()));
-$tenantContext = $sess->get('tenant_context');
-$tenantName = is_array($tenantContext) ? trim((string) ($tenantContext['tenant_name'] ?? '')) : '';
-$tenantId = is_array($tenantContext) ? (int) ($tenantContext['tenant_id'] ?? 0) : 0;
-$tenantRole = is_array($tenantContext) ? trim((string) ($tenantContext['tenant_role'] ?? '')) : '';
-$tenantFeatureFlags = is_array($tenantContext) ? (array) ($tenantContext['feature_flags'] ?? []) : [];
-$isTenantOperationalConsoleSession = $tenantId > 0 && in_array($tenantRole, ['tenant_master', 'tenant_admin'], true);
-$isTenantMasterOperational = $tenantId > 0 && $tenantRole === 'tenant_master';
-$canAccessPlatformConsole = (bool) ($sess->get('platform_is_admin') ?? false) === true;
-$isPlatformConsoleSession = $canAccessPlatformConsole
-    && (string) ($sess->get('loginSource') ?? '') === 'platform_console';
-$canManageTenantFeatures = $tenantId > 0
-    && $tenantRole === 'tenant_master'
-    && (int) ($sess->get('platform_user_id') ?? 0) > 0;
-$canManageAppointmentNotifications = $tenantId > 0
-    && $tenantRole === 'tenant_master'
-    && (int) ($sess->get('platform_user_id') ?? 0) > 0
-    && !empty($tenantFeatureFlags['appointment_notifications']);
-$canManageOtpDevices = $tenantId > 0
-    && in_array($tenantRole, ['tenant_master', 'tenant_admin'], true)
-    && (int) ($sess->get('platform_user_id') ?? 0) > 0;
-$canManageTenantUsers = $tenantId > 0
-    && in_array($tenantRole, ['tenant_master', 'tenant_admin'], true)
-    && !empty($tenantFeatureFlags['staff_management']);
-$canOpenAgenda = $tenantId > 0 || session()->get('is_admin') === true || (int) (session()->get('admin') ?? 0) === 1;
-$tenantOperationalHomeUrl = $tenantId > 0 ? portal_operational_home_url() : null;
-$tenantAgendaUrl = $tenantId > 0 ? portal_tenant_agenda_url() : null;
-$platformTenants = $sess->get('platform_selectable_tenants');
-$platformTenants = is_array($platformTenants) ? $platformTenants : [];
-$demoSessionActive = (bool) ($sess->get(\App\Services\DemoAccessService::SESSION_KEY_ACTIVE) ?? false);
-$demoCurrentAccount = $sess->get(\App\Services\DemoAccessService::SESSION_KEY_CURRENT);
-$demoSwitchAccounts = $sess->get(\App\Services\DemoAccessService::SESSION_KEY_SWITCH_ACCOUNTS);
-$currentSessionUsername = trim((string) ($sess->get('username') ?? ''));
-$demoCurrentSessionUsername = is_array($demoCurrentAccount)
-    ? trim((string) ($demoCurrentAccount['session_username'] ?? $demoCurrentAccount['username'] ?? ''))
-    : '';
-$showDemoRoleSwitch = $demoSessionActive
-    && is_array($demoCurrentAccount)
-    && is_array($demoSwitchAccounts)
-    && $currentSessionUsername !== ''
-    && $demoCurrentSessionUsername !== ''
-    && strcasecmp($currentSessionUsername, $demoCurrentSessionUsername) === 0;
-$demoAccessUrl = $showDemoRoleSwitch
-    ? trim((string) ($demoCurrentAccount['access_url'] ?? site_url('access')))
-    : '';
-$activeImpersonation = $sess->get(\App\Services\PlatformImpersonationService::SESSION_KEY);
-$activeImpersonation = is_array($activeImpersonation) ? $activeImpersonation : null;
-
 $isLinkActive = static function (string $href) use ($normalizePath, $currentPath): bool {
     $itemPath = strtolower($normalizePath($href));
     if ($itemPath === '') {
@@ -90,200 +35,6 @@ $isLinkActive = static function (string $href) use ($normalizePath, $currentPath
 
     return $currentPath === $itemPath || str_starts_with($currentPath, $itemPath . '/');
 };
-
-$primaryAction = null;
-$secondaryPrimaryAction = null;
-$contextActions = [];
-$accountActions = [];
-
-if ($isTenantOperationalConsoleSession) {
-    if ($tenantAgendaUrl !== null) {
-        $primaryAction = [
-            'href' => $tenantAgendaUrl,
-            'label' => 'Vai all\'agenda',
-            'icon' => 'fa-calendar',
-            'active' => $isLinkActive($tenantAgendaUrl),
-        ];
-    }
-}
-
-if ($canOpenAgenda && !$isTenantOperationalConsoleSession) {
-    $secondaryPrimaryAction = [
-        'href' => site_url('agenda'),
-        'label' => 'Vai in agenda',
-        'icon' => 'fa-calendar',
-        'active' => $isLinkActive(site_url('agenda')),
-    ];
-}
-
-if ($isTenantOperationalConsoleSession) {
-    if ($platformTenants !== []) {
-        foreach ($platformTenants as $availableTenant) {
-            $availableTenantId = (int) ($availableTenant['id_tenant'] ?? 0);
-            if ($availableTenantId <= 0) {
-                continue;
-            }
-
-            $tenantLabel = trim((string) ($availableTenant['tenant_name'] ?? $availableTenant['tenant_key'] ?? 'Spazio cliente'));
-            $isCurrentTenant = $availableTenantId === $tenantId;
-            $contextActions[] = [
-                'href' => $isCurrentTenant && $tenantAgendaUrl !== null
-                    ? $tenantAgendaUrl
-                    : portal_tenant_switch_url($availableTenantId),
-                'label' => $isCurrentTenant ? $tenantLabel . ' (attivo)' : 'Apri spazio: ' . $tenantLabel,
-                'icon' => 'fa-exchange',
-                'active' => $isCurrentTenant,
-            ];
-        }
-    }
-
-    if ($showDemoRoleSwitch) {
-        if ($demoAccessUrl !== '') {
-            $contextActions[] = [
-                'href' => $demoAccessUrl,
-                'label' => 'Apri selettore ruoli demo',
-                'icon' => 'fa-random',
-                'active' => false,
-            ];
-        }
-
-        foreach ($demoSwitchAccounts as $demoSwitchAccount) {
-            if (!is_array($demoSwitchAccount)) {
-                continue;
-            }
-
-            $demoSwitchLabel = trim((string) ($demoSwitchAccount['role'] ?? $demoSwitchAccount['label'] ?? 'Ruolo demo'));
-            $demoSwitchDetail = trim((string) ($demoSwitchAccount['label'] ?? ''));
-            $demoSwitchUrl = trim((string) ($demoSwitchAccount['entry_url'] ?? ''));
-            $demoSwitchCurrent = (bool) ($demoSwitchAccount['is_current'] ?? false);
-
-            $contextActions[] = [
-                'href' => $demoSwitchCurrent || $demoSwitchUrl === '' ? '#' : $demoSwitchUrl,
-                'label' => $demoSwitchLabel . ($demoSwitchDetail !== '' ? ' - ' . $demoSwitchDetail : '') . ($demoSwitchCurrent ? ' (attivo)' : ''),
-                'icon' => 'fa-user-secret',
-                'active' => $demoSwitchCurrent,
-                'disabled' => $demoSwitchCurrent || $demoSwitchUrl === '',
-            ];
-        }
-    }
-
-    if ($canAccessPlatformConsole) {
-        $contextActions[] = [
-            'href' => portal_platform_url('impersonificazione'),
-            'label' => 'Apri accesso delegato',
-            'icon' => 'fa-user-secret',
-            'active' => $isLinkActive(portal_platform_url('impersonificazione')),
-        ];
-
-        $contextActions[] = [
-            'href' => portal_platform_url('spazi-clienti'),
-            'label' => 'Console piattaforma',
-            'icon' => 'fa-sitemap',
-            'active' => $isLinkActive(portal_platform_url('spazi-clienti')),
-        ];
-    }
-
-    if ($canManageTenantUsers) {
-        $contextActions[] = [
-            'href' => portal_tenant_space_url('utenti'),
-            'label' => 'Gestisci utenti dello spazio',
-            'icon' => 'fa-users',
-            'active' => $isLinkActive(portal_tenant_space_url('utenti')),
-        ];
-    }
-
-    if ($canManageOtpDevices) {
-        $contextActions[] = [
-            'href' => portal_tenant_space_url('dispositivi-otp'),
-            'label' => 'Gestisci dispositivi OTP',
-            'icon' => 'fa-mobile',
-            'active' => $isLinkActive(portal_tenant_space_url('dispositivi-otp')),
-        ];
-    }
-
-    if ($canManageTenantFeatures) {
-        $contextActions[] = [
-            'href' => portal_tenant_space_url('funzioni'),
-            'label' => 'Gestisci funzioni dello spazio',
-            'icon' => 'fa-toggle-on',
-            'active' => $isLinkActive(portal_tenant_space_url('funzioni')),
-        ];
-    }
-
-    if ($canManageAppointmentNotifications) {
-        $contextActions[] = [
-            'href' => portal_tenant_space_url('notifiche-appuntamenti'),
-            'label' => 'Gestisci notifiche appuntamenti',
-            'icon' => 'fa-commenting',
-            'active' => $isLinkActive(portal_tenant_space_url('notifiche-appuntamenti')),
-        ];
-    }
-
-    if ($activeImpersonation !== null) {
-        $contextActions[] = [
-            'href' => portal_platform_url('impersonificazione'),
-            'label' => 'Sessione delegata attiva',
-            'icon' => 'fa-shield',
-            'active' => false,
-        ];
-    }
-
-    if (!$isPlatformConsoleSession && !$isTenantMasterOperational) {
-        $accountActions[] = [
-            'href' => base_url('profilo'),
-            'label' => 'Profilo',
-            'icon' => 'fa-user',
-            'active' => $isLinkActive(base_url('profilo')),
-        ];
-    }
-
-    $accountActions[] = [
-        'href' => base_url('logout'),
-        'label' => 'Logout',
-        'icon' => 'fa-sign-out',
-        'active' => false,
-    ];
-}
-
-if ($currentMenuUserId > 0) {
-    $contextActions = $adminMenuVisibility->filterContextActionsForUser($contextActions, $currentMenuUserId);
-}
-
-$adminVisitTypesFeatureEnabled = false;
-if ($tenantId > 0) {
-    try {
-        $adminFeatureMap = (new \App\Services\TenantFeatureService())->resolveEffectiveFeatureMapForTenant($tenantId);
-        $adminVisitTypesFeatureEnabled = !empty($adminFeatureMap['agenda_visit_types']);
-    } catch (\Throwable $e) {
-        $adminVisitTypesFeatureEnabled = false;
-    }
-} else {
-    try {
-        $adminFeatureMap = (new \App\Services\TenantCatalogService())->resolveFeatureMapForCurrentRuntimeTenant();
-        $adminVisitTypesFeatureEnabled = !empty($adminFeatureMap['agenda_visit_types']);
-    } catch (\Throwable $e) {
-        $adminVisitTypesFeatureEnabled = false;
-    }
-}
-
-if ($adminVisitTypesFeatureEnabled) {
-    $hasVisitTypesMenu = false;
-    foreach ($menu_items as $menuRow) {
-        $menuLink = trim((string) ($menuRow['link'] ?? ''));
-        if (strtolower($normalizePath($menuLink)) === 'agenda/gestione-tipi-visita') {
-            $hasVisitTypesMenu = true;
-            break;
-        }
-    }
-
-    if (!$hasVisitTypesMenu) {
-        $menu_items[] = [
-            'titolo_menu' => 'Tipi visita',
-            'link' => 'agenda/gestione-tipi-visita',
-            'class_icon' => 'fa-list-alt',
-        ];
-    }
-}
 ?>
 <div class="box box-solid" style="margin-bottom:0 !important">
   <div class="box-header with-border">
