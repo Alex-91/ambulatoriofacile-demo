@@ -32,9 +32,10 @@ Uso corrente nel modulo:
 
 ## Preset TEST locali
 
-Per i collaudi tecnici del modulo usiamo un file locale ignorato da Git:
+Per i collaudi tecnici del modulo usiamo un file non versionato:
 
 - `ops/.local/ts-test-presets.json`
+- fallback runtime persistente in produzione: `rest/writable/ts/ts-test-presets.json`
 
 Questo file puo contenere le utenze di prova ufficiali del kit TS e viene letto dalla schermata tenant `spazio/fatturazione-ts`.
 

@@ -225,7 +225,7 @@ if (!is_string($testPresetsJson) || $testPresetsJson === '') {
                             <?php endforeach; ?>
                           </select>
                           <div class="secret-note">
-                            Preset letti da <code><?= esc($testPresetsPath) ?></code>. Il file e locale e ignorato da Git.
+                            Preset letti da <code><?= esc($testPresetsPath) ?></code>. Il file non e versionato nel repository; in produzione conviene tenerlo dentro <code>rest/writable</code>.
                           </div>
                         </div>
                       </div>
@@ -238,7 +238,7 @@ if (!is_string($testPresetsJson) || $testPresetsJson === '') {
                     <div id="ts-test-preset-info" class="secret-note" style="margin-top:6px;"></div>
                   <?php else: ?>
                     <div class="alert alert-warning" style="margin-bottom:0;">
-                      Nessun preset TEST locale trovato. Per abilitarli usa il file <code><?= esc($testPresetsPath) ?></code>.
+                      Nessun preset TEST trovato. Per abilitarli crea il file <code><?= esc($testPresetsPath) ?></code>.
                     </div>
                   <?php endif; ?>
                 </div>

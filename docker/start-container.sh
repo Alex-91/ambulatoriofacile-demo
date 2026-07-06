@@ -270,6 +270,7 @@ mkdir -p \
   "$APP_ROOT/rest/writable/demo_setup" \
   "$APP_ROOT/rest/writable/demo_requests" \
   "$APP_ROOT/rest/writable/reminder_state" \
+  "$APP_ROOT/rest/writable/ts" \
   "$APP_ROOT/rest/writable/locks"
 
 if [ -d "$APP_ROOT/rest/upload" ] && [ ! -L "$APP_ROOT/rest/upload" ]; then

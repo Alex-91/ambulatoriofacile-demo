@@ -179,7 +179,7 @@ class TsBilling extends BaseConfig
     {
         $this->thirdPartyBasePath = APPPATH . 'ThirdParty' . DIRECTORY_SEPARATOR . 'TesseraSanitaria';
         $this->tenantStorageRoot = rtrim(WRITEPATH, '\\/') . DIRECTORY_SEPARATOR . 'tenants';
-        $this->testPresetsPath = dirname(rtrim(ROOTPATH, '\\/')) . DIRECTORY_SEPARATOR . 'ops' . DIRECTORY_SEPARATOR . '.local' . DIRECTORY_SEPARATOR . 'ts-test-presets.json';
+        $this->testPresetsPath = $this->resolveTestPresetsPath((string) env('TS_BILLING_TEST_PRESETS_PATH', ''));
 
         $this->documentSyncWsdl = $this->resolveAssetPath(
             (string) env('TS_BILLING_DOCUMENT_SYNC_WSDL', ''),
@@ -264,6 +264,30 @@ class TsBilling extends BaseConfig
         }
 
         return $details;
+    }
+
+    private function resolveTestPresetsPath(string $configuredPath): string
+    {
+        $configuredPath = trim($configuredPath);
+        if ($configuredPath !== '') {
+            if ($this->isAbsolutePath($configuredPath)) {
+                return $configuredPath;
+            }
+
+            return dirname(rtrim(ROOTPATH, '\\/')) . DIRECTORY_SEPARATOR . str_replace(
+                ['/', '\\'],
+                DIRECTORY_SEPARATOR,
+                trim($configuredPath, '/\\')
+            );
+        }
+
+        $projectRoot = dirname(rtrim(ROOTPATH, '\\/'));
+        $localPath = $projectRoot . DIRECTORY_SEPARATOR . 'ops' . DIRECTORY_SEPARATOR . '.local' . DIRECTORY_SEPARATOR . 'ts-test-presets.json';
+        if (is_file($localPath)) {
+            return $localPath;
+        }
+
+        return rtrim(WRITEPATH, '\\/') . DIRECTORY_SEPARATOR . 'ts' . DIRECTORY_SEPARATOR . 'ts-test-presets.json';
     }
 
     private function resolveAssetPath(string $configuredPath, string $defaultRelativePath): string

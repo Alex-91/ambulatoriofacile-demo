@@ -67,6 +67,7 @@ Per accelerare l integrazione tecnica:
 
 - il modulo supporta una modalita `TEST ufficiale TS`
 - i preset di prova vengono letti da un file locale ignorato da Git: `ops/.local/ts-test-presets.json`
+- se il file locale non esiste, il runtime puo usare il fallback persistente `rest/writable/ts/ts-test-presets.json`
 - i preset possono precompilare username, password, pincode e dati anagrafici del soggetto di prova
 - il passaggio a `PRODUZIONE` restera separato e usera solo le credenziali reali del cliente
 
@@ -178,7 +179,8 @@ Regola pratica:
 Eccezione operativa locale:
 
 - le utenze di prova ufficiali del kit TS possono essere salvate solo in file locali ignorati da Git, non dentro file versionati del modulo
-- il path adottato nel progetto e `ops/.local/ts-test-presets.json`
+- in sviluppo il path adottato nel progetto e `ops/.local/ts-test-presets.json`
+- in produzione il fallback persistente consigliato e `rest/writable/ts/ts-test-presets.json`
 
 ## Database platform
 
@@ -539,7 +541,7 @@ Responsabilita:
 - leggere e salvare `platform_tenant_ts_profiles`
 - restituire il profilo default attivo del tenant
 - nel MVP il profilo rappresenta direttamente la struttura / il professionista cliente
-- caricare eventuali preset `TEST` ufficiali da file locale ignorato
+- caricare eventuali preset `TEST` ufficiali da file non versionato, con fallback persistente in `rest/writable/ts/`
 - tracciare in `metadata_json` se il profilo usa un preset tecnico di collaudo oppure una configurazione manuale
 
 ### `TsSecretsService`
