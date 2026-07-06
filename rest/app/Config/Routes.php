@@ -73,6 +73,10 @@ $routes->post('login/piattaforma/spazi-clienti/members/accesso', 'Login\Platform
 $routes->get('login/spazi/cambia/(:num)', 'Login\LoginController::switchTenant/$1');
 $routes->get('login/spazio/funzioni', 'Tenant\SpaceFeatures::index');
 $routes->post('login/spazio/funzioni/save', 'Tenant\SpaceFeatures::save');
+$routes->get('login/spazio/fatturazione-ts', 'Tenant\TsSettingsController::index');
+$routes->post('login/spazio/fatturazione-ts/save', 'Tenant\TsSettingsController::save');
+$routes->post('login/spazio/fatturazione-ts/healthcheck', 'Tenant\TsSettingsController::healthcheck');
+$routes->post('login/spazio/fatturazione-ts/repair-schema', 'Tenant\TsSettingsController::repairSchema');
 $routes->get('login/spazio/dispositivi-otp', 'Tenant\OtpDevices::index');
 $routes->post('login/spazio/dispositivi-otp/disconnect', 'Tenant\OtpDevices::disconnect');
 $routes->get('login/spazio/notifiche-appuntamenti', 'Tenant\AppointmentNotifications::index');
@@ -112,6 +116,10 @@ $routes->post('piattaforma/spazi-clienti/members/accesso', 'Login\PlatformTenant
 $routes->get('spazi/cambia/(:num)', 'Login\LoginController::switchTenant/$1');
 $routes->get('spazio/funzioni', 'Tenant\SpaceFeatures::index');
 $routes->post('spazio/funzioni/save', 'Tenant\SpaceFeatures::save');
+$routes->get('spazio/fatturazione-ts', 'Tenant\TsSettingsController::index');
+$routes->post('spazio/fatturazione-ts/save', 'Tenant\TsSettingsController::save');
+$routes->post('spazio/fatturazione-ts/healthcheck', 'Tenant\TsSettingsController::healthcheck');
+$routes->post('spazio/fatturazione-ts/repair-schema', 'Tenant\TsSettingsController::repairSchema');
 $routes->get('spazio/dispositivi-otp', 'Tenant\OtpDevices::index');
 $routes->post('spazio/dispositivi-otp/disconnect', 'Tenant\OtpDevices::disconnect');
 $routes->get('spazio/notifiche-appuntamenti', 'Tenant\AppointmentNotifications::index');
@@ -166,6 +174,19 @@ $routes->group('push', static function($routes) {
 $routes->group('admin', static function($routes){
     $routes->get('notifiche', 'Admin\NotifyController::form');
     $routes->post('notifiche/send', 'Admin\NotifyController::send');
+    $routes->get('fatturazione-ts', 'Admin\TsDashboardController::index');
+    $routes->get('fatturazione-ts/diagnostica', 'Admin\TsDiagnosticsController::index');
+    $routes->get('fatturazione-ts/diagnostica/download', 'Admin\TsDiagnosticsController::download');
+    $routes->get('fatturazione-ts/documenti', 'Admin\TsDocumentsController::index');
+    $routes->get('fatturazione-ts/documenti/nuovo', 'Admin\TsDocumentsController::create');
+    $routes->get('fatturazione-ts/documenti/modifica/(:num)', 'Admin\TsDocumentsController::edit/$1');
+    $routes->post('fatturazione-ts/documenti/save', 'Admin\TsDocumentsController::save');
+    $routes->post('fatturazione-ts/documenti/send', 'Admin\TsDocumentsController::send');
+    $routes->post('fatturazione-ts/documenti/variazione/(:num)', 'Admin\TsDocumentsController::createVariation/$1');
+    $routes->post('fatturazione-ts/documenti/cancellazione/(:num)', 'Admin\TsDocumentsController::createCancellation/$1');
+    $routes->post('fatturazione-ts/documenti/ricevuta/fetch/(:num)', 'Admin\TsDocumentsController::fetchReceipt/$1');
+    $routes->post('fatturazione-ts/documenti/ricevuta/download-latest/(:num)', 'Admin\TsDocumentsController::downloadLatestReceipt/$1');
+    $routes->get('fatturazione-ts/documenti/ricevuta/download/(:num)', 'Admin\TsDocumentsController::downloadReceipt/$1');
 });
 
 $routes->post('auth/send-otp-wa', 'AuthMFA\AuthenticationController::sendOtpWa');

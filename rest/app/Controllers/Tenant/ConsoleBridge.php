@@ -116,6 +116,11 @@ class ConsoleBridge extends BaseController
         return session_has_operational_profile_access();
     }
 
+    private function hasAdminAccess(): bool
+    {
+        return session_has_operational_profile_access();
+    }
+
     private function capturePendingConsoleNavigation(): void
     {
         (new PendingNotificationNavigationService())->captureFromRequest($this->request);

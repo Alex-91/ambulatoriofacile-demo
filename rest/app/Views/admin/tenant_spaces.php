@@ -758,6 +758,9 @@ $oldValue = static function (string $key, $fallback = '') {
                   <p class="text-muted">
                     Qui decidi quali funzioni sono concesse a questo cliente. Se una funzione è marcata come gestibile dal responsabile dello studio, il cliente potrà poi accenderla o spegnerla dal suo pannello sotto `/login/spazio/funzioni`.
                   </p>
+                  <div class="alert alert-info" style="margin-bottom:14px;">
+                    Per <strong>Fatturazione TS</strong> l interruttore qui vale come attivazione reale dello spazio: quando la accendi, il tenant master dello studio trova subito disponibile la configurazione TS senza un secondo toggle lato studio.
+                  </div>
                   <input type="hidden" name="feature_override_form" value="1">
                   <div class="row">
                     <?php foreach ($features as $feature): ?>
@@ -790,6 +793,13 @@ $oldValue = static function (string $key, $fallback = '') {
                               <?= ((int)($feature['is_tenant_managed'] ?? 0) === 1) ? 'Governabile dal master cliente' : 'Gestita centralmente' ?>
                             </span>
                           </div>
+                          <?php if ($featureKey === \App\Config\TsBilling::FEATURE_KEY): ?>
+                            <div class="text-muted" style="font-size:12px; margin-top:8px; line-height:1.45;">
+                              <?= $checked
+                                  ? 'Lo spazio vedra subito la console TS e il tenant master potra compilare profilo, credenziali e documenti operativi.'
+                                  : 'Finche resta spenta qui, lo spazio non vedra la configurazione Fatturazione TS nel pannello studio.' ?>
+                            </div>
+                          <?php endif; ?>
                           <?php if ($featureKey === \App\Services\AgendaTeamColumnColorService::FEATURE_KEY): ?>
                             <div class="checkbox" style="margin:12px 0 0 0;">
                               <label>

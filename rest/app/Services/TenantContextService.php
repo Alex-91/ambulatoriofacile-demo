@@ -95,12 +95,44 @@ class TenantContextService
 
     public function currentTenantAllows(string $featureKey): bool
     {
+        $featureKey = trim($featureKey);
+        if ($featureKey === '') {
+            return false;
+        }
+
         $context = $this->getCurrentTenant();
         if ($context === null) {
             return false;
         }
 
-        return $context->allows($featureKey);
+        if ($context->allows($featureKey)) {
+            return true;
+        }
+
+        if ($context->tenantId <= 0) {
+            return false;
+        }
+
+        try {
+            $featureMap = $this->catalog->resolveFeatureMapForTenant($context->tenantId);
+        } catch (\Throwable $e) {
+            log_message('warning', '[TenantContextService] refresh feature map fallita | tenant_id={tenantId} | feature={featureKey} | error={error}', [
+                'tenantId' => $context->tenantId,
+                'featureKey' => $featureKey,
+                'error' => $e->getMessage(),
+            ]);
+
+            return false;
+        }
+
+        if ($featureMap === []) {
+            return false;
+        }
+
+        $context->featureFlags = $featureMap;
+        $this->setCurrentTenant($context);
+
+        return (bool) ($featureMap[$featureKey] ?? false);
     }
 
     private function restoreTenantContextFromSession(int $platformUserId): ?TenantContext

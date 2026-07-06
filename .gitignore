@@ -41,6 +41,7 @@ desktop.ini
 .demo-freeze-8085/
 outputs/
 ops/.local/
+tmp_ts_sync.pdf
 AGENTS.md
 CODEX_TASK_TEMPLATE.md
 ops/*.local.json

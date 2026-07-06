@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Libraries\TenantContext;
+
 class MenuResolverService
 {
     private AdminMenuVisibilityService $adminMenuVisibility;
@@ -104,7 +106,7 @@ class MenuResolverService
 
         return [
             'tenant_name' => (string) $context['tenant_name'],
-            'menu_items' => $this->injectVisitTypesMenu($menuItems, (int) $context['tenant_id']),
+            'menu_items' => $this->injectFeatureAwareAdminMenus($menuItems, (int) $context['tenant_id']),
             'primary_action' => $primaryAction,
             'secondary_primary_action' => $secondaryPrimaryAction,
             'context_actions' => $contextActions,
@@ -203,6 +205,10 @@ class MenuResolverService
         $tenantFeatureFlags = (array) ($tenantContext['feature_flags'] ?? []);
         $tenantId = (int) ($tenantContext['tenant_id'] ?? 0);
         $tenantRole = trim((string) ($tenantContext['tenant_role'] ?? ''));
+        $tenantContextObject = $tenantContext !== [] ? TenantContext::fromArray($tenantContext) : null;
+        $tsFeatureService = new TsFeatureService();
+        $tsBillingAccessible = !empty($tenantFeatureFlags['ts_billing'])
+            || $tsFeatureService->allowsLocalTestingBypass($tenantContextObject);
         $canAccessPlatformConsole = (bool) ($session->get('platform_is_admin') ?? false) === true;
         $currentSessionUsername = trim((string) ($session->get('username') ?? ''));
         $demoCurrentAccount = $session->get(\App\Services\DemoAccessService::SESSION_KEY_CURRENT);
@@ -232,6 +238,10 @@ class MenuResolverService
             'can_manage_tenant_features' => $tenantId > 0
                 && $tenantRole === 'tenant_master'
                 && (int) ($session->get('platform_user_id') ?? 0) > 0,
+            'can_manage_ts_billing' => $tenantId > 0
+                && $tenantRole === 'tenant_master'
+                && (int) ($session->get('platform_user_id') ?? 0) > 0
+                && $tsBillingAccessible,
             'can_manage_appointment_notifications' => $tenantId > 0
                 && $tenantRole === 'tenant_master'
                 && (int) ($session->get('platform_user_id') ?? 0) > 0
@@ -388,6 +398,7 @@ class MenuResolverService
             'spazio/utenti' => !empty($context['can_manage_tenant_users']),
             'spazio/dispositivi-otp' => !empty($context['can_manage_otp_devices']),
             'spazio/funzioni' => !empty($context['can_manage_tenant_features']),
+            'spazio/fatturazione-ts' => !empty($context['can_manage_ts_billing']),
             'spazio/notifiche-appuntamenti' => !empty($context['can_manage_appointment_notifications']),
         ];
 
@@ -419,6 +430,18 @@ class MenuResolverService
      * @param list<array<string, mixed>> $menuItems
      * @return list<array<string, mixed>>
      */
+    private function injectFeatureAwareAdminMenus(array $menuItems, int $tenantId): array
+    {
+        $menuItems = $this->injectVisitTypesMenu($menuItems, $tenantId);
+        $menuItems = $this->injectTsBillingMenu($menuItems, $tenantId);
+
+        return $menuItems;
+    }
+
+    /**
+     * @param list<array<string, mixed>> $menuItems
+     * @return list<array<string, mixed>>
+     */
     private function injectVisitTypesMenu(array $menuItems, int $tenantId): array
     {
         if (!$this->isAdminVisitTypesFeatureEnabled($tenantId)) {
@@ -441,6 +464,32 @@ class MenuResolverService
         return $menuItems;
     }
 
+    /**
+     * @param list<array<string, mixed>> $menuItems
+     * @return list<array<string, mixed>>
+     */
+    private function injectTsBillingMenu(array $menuItems, int $tenantId): array
+    {
+        if (!$this->isAdminTsBillingFeatureEnabled($tenantId)) {
+            return $menuItems;
+        }
+
+        foreach ($menuItems as $menuRow) {
+            $menuLink = strtolower($this->normalizePath((string) ($menuRow['link'] ?? '')));
+            if ($menuLink === 'fatturazione-ts') {
+                return $menuItems;
+            }
+        }
+
+        $menuItems[] = [
+            'titolo_menu' => 'Fatturazione TS',
+            'link' => 'fatturazione-ts',
+            'class_icon' => 'fa-file-text-o',
+        ];
+
+        return $menuItems;
+    }
+
     private function isAdminVisitTypesFeatureEnabled(int $tenantId): bool
     {
         if ($tenantId > 0) {
@@ -455,6 +504,25 @@ class MenuResolverService
         try {
             $featureMap = (new TenantCatalogService())->resolveFeatureMapForCurrentRuntimeTenant();
             return !empty($featureMap['agenda_visit_types']);
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    private function isAdminTsBillingFeatureEnabled(int $tenantId): bool
+    {
+        if ($tenantId > 0) {
+            try {
+                $featureMap = (new TenantFeatureService())->resolveEffectiveFeatureMapForTenant($tenantId);
+                return !empty($featureMap['ts_billing']);
+            } catch (\Throwable $e) {
+                return false;
+            }
+        }
+
+        try {
+            $featureMap = (new TenantCatalogService())->resolveFeatureMapForCurrentRuntimeTenant();
+            return !empty($featureMap['ts_billing']);
         } catch (\Throwable $e) {
             return false;
         }

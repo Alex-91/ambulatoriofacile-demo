@@ -211,6 +211,26 @@ class MenuRegistryService
                     'admin/logs/list',
                 ],
             ],
+            [
+                'key' => 'fatturazione-ts',
+                'link' => 'fatturazione-ts',
+                'title' => 'Fatturazione TS',
+                'icon' => 'fa-file-text-o',
+                'order' => 1400,
+                'default' => false,
+                'group' => 'Menu operativo',
+                'description' => 'Apri dashboard e documenti del modulo Sistema Tessera Sanitaria.',
+                'route_prefixes' => [
+                    'admin/fatturazione-ts',
+                    'admin/fatturazione-ts/diagnostica',
+                    'admin/fatturazione-ts/diagnostica/download',
+                    'admin/fatturazione-ts/documenti',
+                    'admin/fatturazione-ts/documenti/nuovo',
+                    'admin/fatturazione-ts/documenti/modifica',
+                    'admin/fatturazione-ts/documenti/save',
+                    'admin/fatturazione-ts/documenti/send',
+                ],
+            ],
         ];
     }
 
@@ -265,6 +285,23 @@ class MenuRegistryService
                     'spazio/funzioni/save',
                     'login/spazio/funzioni',
                     'login/spazio/funzioni/save',
+                ],
+            ],
+            [
+                'key' => 'spazio/fatturazione-ts',
+                'link' => 'spazio/fatturazione-ts',
+                'title' => 'Configura Fatturazione TS',
+                'icon' => 'fa-file-text-o',
+                'order' => 2150,
+                'group' => 'Console spazio',
+                'description' => 'Voce rapida della console spazio per credenziali e profilo Sistema Tessera Sanitaria.',
+                'route_prefixes' => [
+                    'spazio/fatturazione-ts',
+                    'spazio/fatturazione-ts/save',
+                    'spazio/fatturazione-ts/healthcheck',
+                    'login/spazio/fatturazione-ts',
+                    'login/spazio/fatturazione-ts/save',
+                    'login/spazio/fatturazione-ts/healthcheck',
                 ],
             ],
             [

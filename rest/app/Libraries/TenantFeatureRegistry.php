@@ -25,6 +25,20 @@ class TenantFeatureRegistry
                 'menu_prefixes' => ['chat'],
                 'schede_codes' => ['chat'],
             ],
+            'ts_billing' => [
+                'route_prefixes' => [
+                    'admin/fatturazione-ts',
+                    'spazio/fatturazione-ts',
+                    'login/spazio/fatturazione-ts',
+                ],
+                'menu_prefixes' => [
+                    'fatturazione-ts',
+                    'admin/fatturazione-ts',
+                    'spazio/fatturazione-ts',
+                    'login/spazio/fatturazione-ts',
+                ],
+                'schede_codes' => [],
+            ],
         ];
     }
 

@@ -45,11 +45,20 @@ if (!function_exists('session_current_tenant_role')) {
     function session_current_tenant_role(): string
     {
         $tenantContext = session()->get(\App\Services\TenantContextService::SESSION_KEY);
-        if (!is_array($tenantContext) || $tenantContext === []) {
+        if (is_array($tenantContext) && $tenantContext !== []) {
+            return strtolower(trim((string) ($tenantContext['tenant_role'] ?? '')));
+        }
+
+        try {
+            $context = (new \App\Services\TenantContextService())->getCurrentTenant();
+            if ($context !== null && $context->isValid()) {
+                return strtolower(trim((string) $context->tenantRole));
+            }
+        } catch (\Throwable) {
             return '';
         }
 
-        return strtolower(trim((string) ($tenantContext['tenant_role'] ?? '')));
+        return '';
     }
 }
 

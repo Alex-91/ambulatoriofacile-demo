@@ -4,6 +4,7 @@ namespace App\Filters;
 
 use App\Libraries\TenantFeatureRegistry;
 use App\Services\TenantContextService;
+use App\Services\TsFeatureService;
 use CodeIgniter\Filters\FilterInterface;
 use CodeIgniter\HTTP\RequestInterface;
 use CodeIgniter\HTTP\ResponseInterface;
@@ -31,6 +32,26 @@ class TenantFeatureAccessFilter implements FilterInterface
         if ($tenantContext->currentTenantAllows($featureKey)) {
             return null;
         }
+
+        $context = $tenantContext->getCurrentTenant();
+        $tsFeatureService = new TsFeatureService();
+        if ($tsFeatureService->allowsLocalTestingBypass($context, $featureKey)) {
+            log_message('warning', '[TenantFeatureAccessFilter] bypass locale TS attivo | path={path} | feature={featureKey} | tenant_id={tenantId} | tenant_role={tenantRole}', [
+                'path' => trim((string) $request->getUri()->getPath(), '/'),
+                'featureKey' => $featureKey,
+                'tenantId' => (int) ($context->tenantId ?? 0),
+                'tenantRole' => trim((string) ($context->tenantRole ?? '')),
+            ]);
+
+            return null;
+        }
+
+        log_message('warning', '[TenantFeatureAccessFilter] accesso negato | path={path} | feature={featureKey} | tenant_id={tenantId} | tenant_role={tenantRole}', [
+            'path' => trim((string) $request->getUri()->getPath(), '/'),
+            'featureKey' => $featureKey,
+            'tenantId' => (int) ($context->tenantId ?? 0),
+            'tenantRole' => trim((string) ($context->tenantRole ?? '')),
+        ]);
 
         $isAjax = strtolower((string) ($request->getHeaderLine('X-Requested-With'))) === 'xmlhttprequest';
         if ($isAjax) {

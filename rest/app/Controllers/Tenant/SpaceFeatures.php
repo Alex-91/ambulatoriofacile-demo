@@ -8,6 +8,7 @@ use App\Services\AgendaTeamColumnColorService;
 use App\Services\AgendaProfessionalOrderService;
 use App\Services\TenantContextService;
 use App\Services\TenantFeatureService;
+use App\Services\TsFeatureService;
 
 class SpaceFeatures extends BaseController
 {
@@ -46,6 +47,8 @@ class SpaceFeatures extends BaseController
         return view('tenant/space_features', [
             'tenantContext' => $context,
             'featureStates' => (new TenantFeatureService())->listFeatureStatesForTenant($context->tenantId),
+            'tsConfigurationAccessible' => (new TsFeatureService())->isEnabledForContext($context)
+                || (new TsFeatureService())->allowsLocalTestingBypass($context),
             'agendaProfessionalOrderSettings' => $agendaProfessionalOrderSettings,
             'teamDayColumnColorSettings' => $teamDayColumnColorSettings,
             'success' => session()->getFlashdata('success'),

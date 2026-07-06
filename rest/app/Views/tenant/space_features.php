@@ -27,6 +27,7 @@ $agendaProfessionalDefaultOrderIds = array_values(array_filter(array_map(
 $teamDayColumnColorSettings = is_array($teamDayColumnColorSettings ?? null) ? $teamDayColumnColorSettings : [];
 $appointmentNotificationsAvailable = false;
 $appointmentNotificationsEntitled = false;
+$tsConfigurationAccessible = !empty($tsConfigurationAccessible);
 $teamDayColorRows = is_array($teamDayColumnColorSettings['doctor_rows'] ?? null)
     ? $teamDayColumnColorSettings['doctor_rows']
     : [];
@@ -376,6 +377,11 @@ $canSubmitSpaceSettings = ($manageableRows !== []) || $hasSupplementalSpaceContr
                   Centro notifiche non incluso nel pacchetto attuale
                 </span>
               <?php endif; ?>
+              <?php if ($tsConfigurationAccessible): ?>
+                <a class="btn btn-default" href="<?= portal_tenant_space_url('fatturazione-ts') ?>" style="margin-left:8px;">
+                  <i class="fa fa-file-text-o"></i> Apri configurazione TS
+                </a>
+              <?php endif; ?>
             </div>
           </div>
 
@@ -619,14 +625,30 @@ $canSubmitSpaceSettings = ($manageableRows !== []) || $hasSupplementalSpaceContr
             <div class="box-body">
               <div class="row">
                 <?php foreach ($lockedRows as $row): ?>
+                  <?php $lockedFeatureKey = trim((string) ($row['feature_key'] ?? '')); ?>
+                  <?php $lockedFeatureEnabled = (bool) ($row['effective_enabled'] ?? false); ?>
                   <div class="col-md-4">
                     <div class="feature-card">
                       <h4><i class="fa <?= esc((string) ($row['icon_class'] ?? 'fa-lock')) ?>"></i> <?= esc((string) ($row['feature_name'] ?? '')) ?></h4>
                       <p><?= esc((string) ($row['description'] ?? '')) ?></p>
                       <span class="label label-default">gestita dalla piattaforma</span>
-                      <span class="label label-<?= ((bool) ($row['effective_enabled'] ?? false)) ? 'success' : 'default' ?>">
-                        <?= ((bool) ($row['effective_enabled'] ?? false)) ? 'attiva' : 'spenta' ?>
+                      <span class="label label-<?= $lockedFeatureEnabled ? 'success' : 'default' ?>">
+                        <?= $lockedFeatureEnabled ? 'attiva' : 'spenta' ?>
                       </span>
+                      <?php if ($lockedFeatureKey === \App\Config\TsBilling::FEATURE_KEY): ?>
+                        <div class="text-muted" style="margin-top:10px; line-height:1.5;">
+                          <?= ($lockedFeatureEnabled || $tsConfigurationAccessible)
+                              ? 'La Fatturazione TS e pronta per la configurazione operativa dello studio. Da qui puoi aprire subito il profilo e inserire i dati richiesti.'
+                              : 'La Fatturazione TS per questo studio viene attivata centralmente dal master piattaforma.' ?>
+                        </div>
+                        <?php if ($lockedFeatureEnabled || $tsConfigurationAccessible): ?>
+                          <div style="margin-top:10px;">
+                            <a class="btn btn-default btn-sm" href="<?= portal_tenant_space_url('fatturazione-ts') ?>">
+                              <i class="fa fa-cog"></i> Apri configurazione TS
+                            </a>
+                          </div>
+                        <?php endif; ?>
+                      <?php endif; ?>
                     </div>
                   </div>
                 <?php endforeach; ?>
@@ -643,11 +665,22 @@ $canSubmitSpaceSettings = ($manageableRows !== []) || $hasSupplementalSpaceContr
             <div class="box-body">
               <div class="row">
                 <?php foreach ($unavailableRows as $row): ?>
+                  <?php $unavailableFeatureKey = trim((string) ($row['feature_key'] ?? '')); ?>
                   <div class="col-md-4">
                     <div class="feature-card">
                       <h4><i class="fa <?= esc((string) ($row['icon_class'] ?? 'fa-ban')) ?>"></i> <?= esc((string) ($row['feature_name'] ?? '')) ?></h4>
                       <p><?= esc((string) ($row['description'] ?? '')) ?></p>
                       <span class="label label-warning">non disponibile</span>
+                      <?php if ($unavailableFeatureKey === \App\Config\TsBilling::FEATURE_KEY && $tsConfigurationAccessible): ?>
+                        <div class="text-muted" style="margin-top:10px; line-height:1.5;">
+                          In questo ambiente locale di test la configurazione TS resta comunque raggiungibile per permetterti di inserire credenziali e dati dello studio.
+                        </div>
+                        <div style="margin-top:10px;">
+                          <a class="btn btn-default btn-sm" href="<?= portal_tenant_space_url('fatturazione-ts') ?>">
+                            <i class="fa fa-cog"></i> Apri configurazione TS
+                          </a>
+                        </div>
+                      <?php endif; ?>
                     </div>
                   </div>
                 <?php endforeach; ?>

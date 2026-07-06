@@ -26,6 +26,7 @@ RUN apt-get update \
         mbstring \
         mysqli \
         pdo_mysql \
+        soap \
         zip \
     && a2enmod headers rewrite \
     && sed -ri "/<Directory \\/var\\/www\\/>/,/<\\/Directory>/ s/AllowOverride None/AllowOverride All/" /etc/apache2/apache2.conf \

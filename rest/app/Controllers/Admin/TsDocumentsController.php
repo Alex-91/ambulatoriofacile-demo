@@ -1,0 +1,413 @@
+<?php
+
+namespace App\Controllers\Admin;
+
+use App\Services\TsDispatchService;
+use App\Services\TsDocumentService;
+use App\Services\TsReceiptService;
+use App\Services\TsTenantDatabaseContextService;
+
+class TsDocumentsController extends TsAdminBaseController
+{
+    private TsDispatchService $dispatch;
+    private TsDocumentService $documents;
+    private TsReceiptService $receipts;
+    private TsTenantDatabaseContextService $tenantDbContext;
+
+    public function __construct()
+    {
+        parent::__construct();
+        $this->dispatch = new TsDispatchService();
+        $this->documents = new TsDocumentService();
+        $this->receipts = new TsReceiptService();
+        $this->tenantDbContext = new TsTenantDatabaseContextService();
+    }
+
+    public function index()
+    {
+        if ($guard = $this->ensureAccess()) {
+            return $guard;
+        }
+
+        $tenantScope = $this->resolveTenantScope();
+
+        return view('admin/ts/documents', [
+            'menu_items' => $this->adminMenuItems(),
+            'tenantScope' => $tenantScope,
+            'listing' => $this->documents->listDocumentsForTenant((int) ($tenantScope['tenant_id'] ?? 0)),
+        ]);
+    }
+
+    public function create()
+    {
+        if ($guard = $this->ensureAccess()) {
+            return $guard;
+        }
+
+        $tenantScope = $this->resolveTenantScope();
+        $formContext = $this->documents->buildFormContext((int) ($tenantScope['tenant_id'] ?? 0));
+
+        return view('admin/ts/document_form', [
+            'menu_items' => $this->adminMenuItems(),
+            'tenantScope' => $tenantScope,
+            'formContext' => $formContext,
+            'pageTitle' => 'Nuovo documento TS',
+            'success' => session()->getFlashdata('success'),
+            'warning' => session()->getFlashdata('warning'),
+            'errors' => session()->getFlashdata('errors') ?? [],
+        ]);
+    }
+
+    public function edit(int $documentId = 0)
+    {
+        if ($guard = $this->ensureAccess()) {
+            return $guard;
+        }
+
+        $documentId = max(0, $documentId);
+        if ($documentId <= 0) {
+            return redirect()->to(site_url('admin/fatturazione-ts/documenti'))->with('error', 'Documento TS non valido.');
+        }
+
+        $tenantScope = $this->resolveTenantScope();
+        $formContext = $this->documents->buildFormContext((int) ($tenantScope['tenant_id'] ?? 0), $documentId);
+
+        if ((int) ($formContext['document']['id_ts_document'] ?? 0) <= 0) {
+            return redirect()->to(site_url('admin/fatturazione-ts/documenti'))->with('error', 'Documento TS non trovato.');
+        }
+
+        return view('admin/ts/document_form', [
+            'menu_items' => $this->adminMenuItems(),
+            'tenantScope' => $tenantScope,
+            'formContext' => $formContext,
+            'pageTitle' => 'Modifica documento TS',
+            'success' => session()->getFlashdata('success'),
+            'warning' => session()->getFlashdata('warning'),
+            'errors' => session()->getFlashdata('errors') ?? [],
+        ]);
+    }
+
+    public function save()
+    {
+        if ($guard = $this->ensureAccess()) {
+            return $guard;
+        }
+
+        $tenantScope = $this->resolveTenantScope();
+        $tenantId = (int) ($tenantScope['tenant_id'] ?? 0);
+        $documentId = (int) ($this->request->getPost('id_ts_document') ?? 0);
+        $redirectUrl = $documentId > 0
+            ? site_url('admin/fatturazione-ts/documenti/modifica/' . $documentId)
+            : site_url('admin/fatturazione-ts/documenti/nuovo');
+
+        try {
+            $saveMode = trim((string) ($this->request->getPost('save_mode') ?? 'draft'));
+            $result = $this->documents->saveDraftForTenant(
+                $tenantId,
+                [
+                    'id_ts_document' => $documentId,
+                    'id_client' => $this->request->getPost('id_client'),
+                    'patient_cf_plain' => $this->request->getPost('patient_cf_plain'),
+                    'patient_label_plain' => $this->request->getPost('patient_label_plain'),
+                    'document_number' => $this->request->getPost('document_number'),
+                    'document_device' => $this->request->getPost('document_device'),
+                    'issue_date' => $this->request->getPost('issue_date'),
+                    'payment_date' => $this->request->getPost('payment_date'),
+                    'document_type' => $this->request->getPost('document_type'),
+                    'expense_type_code' => $this->request->getPost('expense_type_code'),
+                    'payment_mode' => $this->request->getPost('payment_mode'),
+                    'amount_total' => $this->request->getPost('amount_total'),
+                    'vat_rate' => $this->request->getPost('vat_rate'),
+                    'vat_nature' => $this->request->getPost('vat_nature'),
+                    'opposition_flag' => $this->request->getPost('opposition_flag'),
+                    'notes' => $this->request->getPost('notes'),
+                ],
+                $this->currentAdminUserId(),
+                $saveMode
+            );
+
+            if (!empty($result['blocked'])) {
+                $validationResult = is_array($result['validation'] ?? null) ? $result['validation'] : [];
+                $validationErrors = is_array($validationResult['errors'] ?? null) ? $validationResult['errors'] : [];
+                $validationResult['errors'] = array_values(array_filter($validationErrors, static function ($message): bool {
+                    return stripos(trim((string) $message), 'Esiste gia un documento TS con lo stesso identificativo logico') === false;
+                }));
+
+                return redirect()
+                    ->to($redirectUrl)
+                    ->withInput()
+                    ->with('errors', [
+                        'generic' => trim((string) ($result['message'] ?? 'Salvataggio documento TS bloccato.')),
+                    ])
+                    ->with('validation_result', $validationResult);
+            }
+
+            $savedDocumentId = (int) ($result['document']['id_ts_document'] ?? 0);
+            $targetUrl = $savedDocumentId > 0
+                ? site_url('admin/fatturazione-ts/documenti/modifica/' . $savedDocumentId)
+                : $redirectUrl;
+
+            if ($saveMode === 'send') {
+                $validationResult = is_array($result['validation'] ?? null) ? $result['validation'] : [];
+                if (empty($validationResult['valid'])) {
+                    return redirect()
+                        ->to($targetUrl)
+                        ->with('validation_result', $validationResult)
+                        ->with('errors', [
+                            'generic' => 'Documento TS salvato ma non inviato: correggi gli errori indicati e riprova.',
+                        ]);
+                }
+
+                $dispatchResult = $this->dispatch->dispatchDocument($tenantId, $savedDocumentId, $this->currentAdminUserId());
+                $dispatchTargetUrl = $this->buildDocumentTargetUrl(
+                    (int) ($dispatchResult['document']['id_ts_document'] ?? 0),
+                    $targetUrl
+                );
+
+                return $this->buildDispatchRedirect($dispatchTargetUrl, $dispatchResult);
+            }
+
+            $message = $saveMode === 'validate'
+                ? (!empty($result['validation']['valid'])
+                    ? 'Documento TS salvato e validato localmente.'
+                    : 'Documento TS salvato, ma la validazione locale ha trovato errori.')
+                : 'Bozza documento TS salvata correttamente.';
+
+            $redirect = redirect()->to($targetUrl)->with('success', $message);
+            if ($saveMode === 'validate') {
+                $redirect = $redirect->with('validation_result', $result['validation']);
+            }
+
+            return $redirect;
+        } catch (\Throwable $e) {
+            log_message('error', 'Admin\\TsDocumentsController::save failed: ' . $e->getMessage());
+
+            return redirect()
+                ->to($redirectUrl)
+                ->withInput()
+                ->with('errors', ['generic' => $e->getMessage()]);
+        }
+    }
+
+    public function send()
+    {
+        if ($guard = $this->ensureAccess()) {
+            return $guard;
+        }
+
+        $tenantScope = $this->resolveTenantScope();
+        $tenantId = (int) ($tenantScope['tenant_id'] ?? 0);
+        $documentId = (int) ($this->request->getPost('id_ts_document') ?? 0);
+        $targetUrl = $documentId > 0
+            ? site_url('admin/fatturazione-ts/documenti/modifica/' . $documentId)
+            : site_url('admin/fatturazione-ts/documenti');
+
+        try {
+            $result = $this->dispatch->dispatchDocument($tenantId, $documentId, $this->currentAdminUserId());
+            $dispatchTargetUrl = $this->buildDocumentTargetUrl(
+                (int) ($result['document']['id_ts_document'] ?? 0),
+                $targetUrl
+            );
+
+            return $this->buildDispatchRedirect($dispatchTargetUrl, $result);
+        } catch (\Throwable $e) {
+            log_message('error', 'Admin\\TsDocumentsController::send failed: ' . $e->getMessage());
+
+            return redirect()
+                ->to($targetUrl)
+                ->with('errors', ['generic' => $e->getMessage()]);
+        }
+    }
+
+    public function createVariation(int $documentId = 0)
+    {
+        if ($guard = $this->ensureAccess()) {
+            return $guard;
+        }
+
+        $documentId = max(0, $documentId);
+        $tenantScope = $this->resolveTenantScope();
+        $tenantId = (int) ($tenantScope['tenant_id'] ?? 0);
+        $fallbackUrl = $documentId > 0
+            ? site_url('admin/fatturazione-ts/documenti/modifica/' . $documentId)
+            : site_url('admin/fatturazione-ts/documenti');
+
+        try {
+            $result = $this->documents->createVariationDraftFromDocument($tenantId, $documentId, $this->currentAdminUserId());
+            $createdId = (int) ($result['document']['id_ts_document'] ?? 0);
+            $targetUrl = $this->buildDocumentTargetUrl($createdId, $fallbackUrl);
+
+            return redirect()
+                ->to($targetUrl)
+                ->with('success', 'Bozza di variazione TS pronta: aggiorna i dati e poi usa Salva e invia.');
+        } catch (\Throwable $e) {
+            log_message('error', 'Admin\\TsDocumentsController::createVariation failed: ' . $e->getMessage());
+
+            return redirect()
+                ->to($fallbackUrl)
+                ->with('errors', ['generic' => $e->getMessage()]);
+        }
+    }
+
+    public function createCancellation(int $documentId = 0)
+    {
+        if ($guard = $this->ensureAccess()) {
+            return $guard;
+        }
+
+        $documentId = max(0, $documentId);
+        $tenantScope = $this->resolveTenantScope();
+        $tenantId = (int) ($tenantScope['tenant_id'] ?? 0);
+        $fallbackUrl = $documentId > 0
+            ? site_url('admin/fatturazione-ts/documenti/modifica/' . $documentId)
+            : site_url('admin/fatturazione-ts/documenti');
+
+        try {
+            $prepared = $this->documents->createCancellationOperationFromDocument($tenantId, $documentId, $this->currentAdminUserId());
+            $operationId = (int) ($prepared['document']['id_ts_document'] ?? 0);
+            $targetUrl = $this->buildDocumentTargetUrl($operationId, $fallbackUrl);
+            $dispatchResult = $this->dispatch->dispatchDocument($tenantId, $operationId, $this->currentAdminUserId());
+
+            return $this->buildDispatchRedirect($targetUrl, $dispatchResult);
+        } catch (\Throwable $e) {
+            log_message('error', 'Admin\\TsDocumentsController::createCancellation failed: ' . $e->getMessage());
+
+            return redirect()
+                ->to($fallbackUrl)
+                ->with('errors', ['generic' => $e->getMessage()]);
+        }
+    }
+
+    public function fetchReceipt(int $documentId = 0)
+    {
+        if ($guard = $this->ensureAccess()) {
+            return $guard;
+        }
+
+        $tenantScope = $this->resolveTenantScope();
+        $tenantId = (int) ($tenantScope['tenant_id'] ?? 0);
+        $documentId = max(0, $documentId > 0 ? $documentId : (int) ($this->request->getPost('id_ts_document') ?? 0));
+        $targetUrl = $documentId > 0
+            ? site_url('admin/fatturazione-ts/documenti/modifica/' . $documentId)
+            : site_url('admin/fatturazione-ts/documenti');
+
+        try {
+            $result = $this->receipts->fetchReceiptPdfForDocument($tenantId, $documentId, $this->currentAdminUserId());
+            $supportLog = is_array($result['support_log'] ?? null) ? $result['support_log'] : [];
+            $traceId = trim((string) ($supportLog['trace_id'] ?? ''));
+            $message = ($result['status'] ?? '') === 'cached'
+                ? 'Ricevuta TS gia presente in archivio locale.'
+                : 'Ricevuta TS recuperata e archiviata con successo.';
+            if ($traceId !== '') {
+                $message .= ' Rif. supporto TS: ' . $traceId . '.';
+            }
+
+            return redirect()->to($targetUrl)->with('success', $message);
+        } catch (\Throwable $e) {
+            log_message('error', 'Admin\\TsDocumentsController::fetchReceipt failed: ' . $e->getMessage());
+
+            return redirect()
+                ->to($targetUrl)
+                ->with('errors', ['generic' => $e->getMessage()]);
+        }
+    }
+
+    public function downloadReceipt(int $receiptId = 0)
+    {
+        if ($guard = $this->ensureAccess()) {
+            return $guard;
+        }
+
+        $receiptId = max(0, $receiptId);
+        if ($receiptId <= 0) {
+            return redirect()->to(site_url('admin/fatturazione-ts/documenti'))->with('error', 'Ricevuta TS non valida.');
+        }
+
+        $tenantScope = $this->resolveTenantScope();
+        $context = $this->tenantDbContext->resolveTenantContext((int) ($tenantScope['tenant_id'] ?? 0));
+        $model = $context['receipts'];
+        $receipt = $model->find($receiptId);
+        if (!is_array($receipt)) {
+            return redirect()->to(site_url('admin/fatturazione-ts/documenti'))->with('error', 'Ricevuta TS non trovata.');
+        }
+
+        $path = trim((string) ($receipt['storage_path'] ?? ''));
+        if ($path === '' || !is_file($path)) {
+            return redirect()->to(site_url('admin/fatturazione-ts/documenti'))->with('error', 'File ricevuta TS non disponibile.');
+        }
+
+        $downloadName = 'ricevuta-ts-' . trim((string) ($receipt['ts_protocol'] ?? $receiptId)) . '.pdf';
+
+        return $this->response->download($path, null)->setFileName($downloadName);
+    }
+
+    public function downloadLatestReceipt(int $documentId = 0)
+    {
+        if ($guard = $this->ensureAccess()) {
+            return $guard;
+        }
+
+        $tenantScope = $this->resolveTenantScope();
+        $tenantId = (int) ($tenantScope['tenant_id'] ?? 0);
+        $documentId = max(0, $documentId > 0 ? $documentId : (int) ($this->request->getPost('id_ts_document') ?? 0));
+        $targetUrl = $this->buildDocumentTargetUrl($documentId, site_url('admin/fatturazione-ts/documenti'));
+
+        try {
+            $result = $this->receipts->fetchReceiptPdfForDocument($tenantId, $documentId, $this->currentAdminUserId());
+            $receipt = is_array($result['receipt'] ?? null) ? $result['receipt'] : null;
+            if (!is_array($receipt)) {
+                throw new \RuntimeException('Ricevuta TS non disponibile dopo il recupero.');
+            }
+
+            $path = trim((string) ($receipt['storage_path'] ?? ''));
+            if ($path === '' || !is_file($path)) {
+                throw new \RuntimeException('File ricevuta TS non disponibile.');
+            }
+
+            $downloadName = 'ricevuta-ts-' . trim((string) ($receipt['ts_protocol'] ?? $documentId)) . '.pdf';
+
+            return $this->response->download($path, null)->setFileName($downloadName);
+        } catch (\Throwable $e) {
+            log_message('error', 'Admin\\TsDocumentsController::downloadLatestReceipt failed: ' . $e->getMessage());
+
+            return redirect()
+                ->to($targetUrl)
+                ->with('errors', ['generic' => 'Scaricamento ricevuta TS non riuscito: ' . $e->getMessage()]);
+        }
+    }
+
+    private function buildDispatchRedirect(string $targetUrl, array $result)
+    {
+        $redirect = redirect()->to($targetUrl);
+        if (!empty($result['validation']) && is_array($result['validation'])) {
+            $redirect = $redirect->with('validation_result', $result['validation']);
+        }
+
+        $supportLog = is_array($result['support_log'] ?? null) ? $result['support_log'] : [];
+        $traceId = trim((string) ($supportLog['trace_id'] ?? ''));
+        if (($result['status'] ?? '') === 'ok') {
+            $message = trim((string) ($result['message'] ?? 'Documento TS inviato correttamente.'));
+            if ($traceId !== '') {
+                $message .= ' Rif. supporto TS: ' . $traceId . '.';
+            }
+
+            return $redirect->with('success', $message);
+        }
+
+        $message = trim((string) ($result['message'] ?? 'Tentativo invio TS non completato.'));
+        if ($traceId !== '') {
+            $message .= ' Rif. supporto TS: ' . $traceId . '.';
+        }
+
+        return $redirect->with('errors', [
+            'generic' => $message,
+        ]);
+    }
+
+    private function buildDocumentTargetUrl(int $documentId, string $fallback): string
+    {
+        return $documentId > 0
+            ? site_url('admin/fatturazione-ts/documenti/modifica/' . $documentId)
+            : $fallback;
+    }
+}
