@@ -81,7 +81,7 @@ class Agenda extends BaseController
            $this->dbConfig = new DatabaseConfig();
     $this->dbConfig->setEncryptionConfig($this->db);
 
-        helper(['url', 'form']);
+        helper(['url', 'form', 'session_auth']);
     }
 
     protected function getUserSession()
@@ -1763,7 +1763,7 @@ public function eseguiRepairRecurringExtraSlots()
                     $this->agendaJobModel->findActiveRigeneraJobByDoctor($idDot)
                 );
                 if (!$this->isAgendaJobActive($job)) {
-                    $job = null;
+                    $job = $this->agendaJobModel->findLatestRigeneraJobByDoctor($idDot);
                 }
             } else {
                 throw new \Exception('Parametri mancanti.');
@@ -1784,6 +1784,33 @@ public function eseguiRepairRecurringExtraSlots()
                 'message' => $e->getMessage(),
             ], 500);
         }
+    }
+
+    public function downloadRigeneraSlotConfigBackup(int $idJob = 0)
+    {
+        $idJob = max(0, $idJob);
+        if ($idJob <= 0) {
+            return redirect()->to(base_url('agenda/config-slot'))->with('error', 'Backup agenda non valido.');
+        }
+
+        $job = $this->agendaJobModel->find($idJob);
+        if (!is_array($job)) {
+            return redirect()->to(base_url('agenda/config-slot'))->with('error', 'Backup agenda non trovato.');
+        }
+
+        if ($guard = $this->ensureAgendaBackupDownloadAccess($job)) {
+            return $guard;
+        }
+
+        $download = $this->resolveAgendaBackupDownload($job);
+        if ($download === null) {
+            $targetUrl = $this->buildAgendaConfigTargetUrlFromJob($job);
+            return redirect()->to($targetUrl)->with('error', 'File di backup agenda non disponibile.');
+        }
+
+        return $this->response
+            ->download($download['path'], null)
+            ->setFileName($download['name']);
     }
 
     public function runRigeneraSlotConfigJob(int $idJob, string $token)
@@ -2153,13 +2180,18 @@ public function eseguiRepairRecurringExtraSlots()
 
     protected function ensureAgendaBackupDir(): string
     {
-        $dir = WRITEPATH . 'uploads/agenda_backup/';
+        $dir = $this->getAgendaBackupDir();
 
         if (!is_dir($dir) && !mkdir($dir, 0777, true) && !is_dir($dir)) {
             throw new \Exception('Impossibile creare la cartella di backup agenda.');
         }
 
         return $dir;
+    }
+
+    protected function getAgendaBackupDir(): string
+    {
+        return WRITEPATH . 'uploads/agenda_backup/';
     }
 
     protected function shouldShowWaConfirmationColumn(int $idDot): bool
@@ -2330,6 +2362,10 @@ public function eseguiRepairRecurringExtraSlots()
     protected function buildAgendaJobStatusPayload(array $job): array
     {
         $result = $this->agendaJobModel->decodeResult($job);
+        $backupDownloadUrl = '';
+        if ($this->canCurrentSessionDownloadAgendaBackup($job) && $this->resolveAgendaBackupDownload($job) !== null) {
+            $backupDownloadUrl = site_url('agenda/rigenera-slot-config-backup/' . (int)($job['id_job'] ?? 0));
+        }
 
         return [
             'id_job'            => (int)($job['id_job'] ?? 0),
@@ -2338,6 +2374,7 @@ public function eseguiRepairRecurringExtraSlots()
             'progress_message'  => (string)($job['progress_message'] ?? ''),
             'backup_file'       => (string)($job['backup_file_name'] ?? ($result['backup_file'] ?? '')),
             'backup_format'     => (string)($job['backup_file_format'] ?? ($result['backup_format'] ?? '')),
+            'backup_download_url' => $backupDownloadUrl,
             'inserted'          => (int)($job['inserted_slots'] ?? ($result['inserted'] ?? 0)),
             'message'           => (string)($result['message'] ?? ($job['progress_message'] ?? '')),
             'error_message'     => (string)($job['error_message'] ?? ''),
@@ -2346,6 +2383,101 @@ public function eseguiRepairRecurringExtraSlots()
             'finished_at'       => (string)($job['finished_at'] ?? ''),
             'id_dot'            => (int)($job['id_dot'] ?? 0),
         ];
+    }
+
+    protected function ensureAgendaBackupDownloadAccess(array $job)
+    {
+        if (!session_access_is_confirmed()) {
+            return $this->sessionExpiredRedirect();
+        }
+
+        $context = $this->tenantContextService->getCurrentTenant();
+        if ($context === null || !$context->isValid()) {
+            return $this->sessionExpiredRedirect();
+        }
+
+        if ($context->tenantRole !== 'tenant_master' || (int)$context->platformUserId <= 0) {
+            return redirect()->to(site_url('/'))->with('error', 'Solo il responsabile dello studio puo scaricare il backup agenda.');
+        }
+
+        $idDot = (int)($job['id_dot'] ?? 0);
+        $userId = $this->getCurrentUserIdSafe();
+        if ($idDot <= 0 || $userId <= 0 || !$this->agendaModel->canUserAccessDoctor($userId, $idDot)) {
+            return redirect()->to(base_url('agenda/config-slot'))->with('error', 'Non hai i permessi per scaricare questo backup agenda.');
+        }
+
+        return null;
+    }
+
+    protected function canCurrentSessionDownloadAgendaBackup(array $job): bool
+    {
+        if (!session_access_is_confirmed()) {
+            return false;
+        }
+
+        $context = $this->tenantContextService->getCurrentTenant();
+        if ($context === null || !$context->isValid()) {
+            return false;
+        }
+
+        if ($context->tenantRole !== 'tenant_master' || (int)$context->platformUserId <= 0) {
+            return false;
+        }
+
+        $idDot = (int)($job['id_dot'] ?? 0);
+        $userId = $this->getCurrentUserIdSafe();
+        return $idDot > 0 && $userId > 0 && $this->agendaModel->canUserAccessDoctor($userId, $idDot);
+    }
+
+    protected function resolveAgendaBackupDownload(array $job): ?array
+    {
+        $result = $this->agendaJobModel->decodeResult($job);
+        $rawPath = trim((string)($job['backup_file_path'] ?? ($result['backup_path'] ?? '')));
+        $rawName = trim((string)($job['backup_file_name'] ?? ($result['backup_file'] ?? '')));
+
+        if ($rawPath === '') {
+            if ($rawName === '') {
+                return null;
+            }
+
+            $rawPath = $this->getAgendaBackupDir() . basename($rawName);
+        }
+
+        $realPath = realpath($rawPath);
+        if ($realPath === false || !is_file($realPath)) {
+            return null;
+        }
+
+        $backupDirReal = realpath($this->getAgendaBackupDir());
+        if ($backupDirReal === false) {
+            return null;
+        }
+
+        $normalizedDir = rtrim(str_replace('\\', '/', $backupDirReal), '/') . '/';
+        $normalizedPath = str_replace('\\', '/', $realPath);
+        if (strpos($normalizedPath, $normalizedDir) !== 0) {
+            return null;
+        }
+
+        $downloadName = $rawName !== '' ? basename($rawName) : basename($realPath);
+        if ($downloadName === '') {
+            $downloadName = 'backup_agenda_' . (int)($job['id_job'] ?? 0) . '.dat';
+        }
+
+        return [
+            'path' => $realPath,
+            'name' => $downloadName,
+        ];
+    }
+
+    protected function buildAgendaConfigTargetUrlFromJob(array $job): string
+    {
+        $idDot = (int)($job['id_dot'] ?? 0);
+        if ($idDot > 0) {
+            return base_url('agenda/config-slot?id_dot=' . $idDot);
+        }
+
+        return base_url('agenda/config-slot');
     }
 
     protected function sendAgendaJobNotification(array $job, bool $success): void

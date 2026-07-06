@@ -36,6 +36,10 @@
             margin-right: 8px;
         }
 
+        .agenda-job-actions {
+            margin-top: 10px;
+        }
+
         .doctor-picker-card {
             max-width: 680px;
             margin: 0 auto 24px;
@@ -608,6 +612,7 @@ foreach (($config['giorni'] ?? []) as $g) {
                             <div id="agendaJobProgressBar" class="progress-bar progress-bar-info" role="progressbar" style="width:0%;">0%</div>
                         </div>
                         <div id="agendaJobStatusMeta" class="small text-muted">Puoi continuare a usare l'applicativo mentre il job viene eseguito.</div>
+                        <div id="agendaJobStatusActions" class="agenda-job-actions" style="display:none;"></div>
                     </div>
 
                     <div class="alert alert-info">
@@ -747,6 +752,14 @@ $(function () {
         }
         if (status === 'COMPLETED') {
             meta.push('Slot creati: ' + (parseInt(job.inserted, 10) || 0) + '.');
+        }
+
+        if (job.backup_download_url) {
+            $('#agendaJobStatusActions')
+                .html('<a class="btn btn-default btn-sm" href="' + String(job.backup_download_url) + '"><i class="fa fa-download"></i> Scarica backup</a>')
+                .show();
+        } else {
+            $('#agendaJobStatusActions').hide().empty();
         }
 
         $('#agendaJobStatusBox')

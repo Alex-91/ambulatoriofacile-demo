@@ -71,6 +71,14 @@ class AgendaJobModel extends Model
             ->first();
     }
 
+    public function findLatestRigeneraJobByDoctor(int $idDot): ?array
+    {
+        return $this->where('job_type', self::TYPE_RIGENERA_SLOT_CONFIG)
+            ->where('id_dot', $idDot)
+            ->orderBy('id_job', 'DESC')
+            ->first();
+    }
+
     public function claimQueuedJob(int $idJob, string $token): ?array
     {
         $job = $this->where('id_job', $idJob)

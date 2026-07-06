@@ -410,6 +410,7 @@ $routes->group('agenda', function($routes) {
     $routes->post('salva-config-slot', 'Agenda::salvaConfigSlot');
     $routes->post('rigenera-slot-config', 'Agenda::rigeneraSlotConfig');
     $routes->get('rigenera-slot-config-status', 'Agenda::rigeneraSlotConfigStatus');
+    $routes->get('rigenera-slot-config-backup/(:num)', 'Agenda::downloadRigeneraSlotConfigBackup/$1');
     $routes->get('gestione-sedi', 'Admin\AgendaSediController::index');
     $routes->post('gestione-sedi/save', 'Admin\AgendaSediController::saveAmbulatorio');
     $routes->post('gestione-sedi/toggle', 'Admin\AgendaSediController::toggleAmbulatorio');
