@@ -14,6 +14,7 @@ class TsProfileService
     private \CodeIgniter\Database\BaseConnection $db;
     /** @var array<int, array<string, mixed>>|null */
     private ?array $cachedTestPresets = null;
+    private ?string $cachedTestPresetsSourceLabel = null;
 
     public function __construct(
         ?PlatformTenantTsProfilesModel $profiles = null,
@@ -43,6 +44,7 @@ class TsProfileService
             'supported_environments' => array_keys($this->config->environments),
             'test_presets' => $testPresets,
             'test_presets_path' => $this->config->testPresetsPath,
+            'test_presets_source_label' => $this->cachedTestPresetsSourceLabel ?? $this->config->testPresetsPath,
             'asset_checks' => $this->resolveAssetChecks(),
         ];
     }
@@ -468,15 +470,8 @@ class TsProfileService
             return $this->cachedTestPresets;
         }
 
-        $path = trim($this->config->testPresetsPath);
-        if ($path === '' || !is_file($path)) {
-            $this->cachedTestPresets = [];
-
-            return $this->cachedTestPresets;
-        }
-
-        $raw = @file_get_contents($path);
-        if (!is_string($raw) || trim($raw) === '') {
+        $raw = $this->resolveTestPresetsRaw();
+        if (trim($raw) === '') {
             $this->cachedTestPresets = [];
 
             return $this->cachedTestPresets;
@@ -507,6 +502,32 @@ class TsProfileService
         $this->cachedTestPresets = $resolved;
 
         return $this->cachedTestPresets;
+    }
+
+    private function resolveTestPresetsRaw(): string
+    {
+        $inlineBase64 = trim((string) env('TS_BILLING_TEST_PRESETS_INLINE_B64', ''));
+        if ($inlineBase64 !== '') {
+            $decoded = base64_decode($inlineBase64, true);
+            if (is_string($decoded) && trim($decoded) !== '') {
+                $this->cachedTestPresetsSourceLabel = 'env:TS_BILLING_TEST_PRESETS_INLINE_B64';
+
+                return $decoded;
+            }
+        }
+
+        $path = trim($this->config->testPresetsPath);
+        $this->cachedTestPresetsSourceLabel = $path;
+        if ($path === '' || !is_file($path)) {
+            return '';
+        }
+
+        $raw = @file_get_contents($path);
+        if (!is_string($raw) || trim($raw) === '') {
+            return '';
+        }
+
+        return $raw;
     }
 
     /**

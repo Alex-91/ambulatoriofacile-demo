@@ -22,6 +22,7 @@ $supportedExpenseDetails = is_array($settings['supported_expense_details'] ?? nu
 $supportedEnvironments = is_array($settings['supported_environments'] ?? null) ? $settings['supported_environments'] : ['test', 'production'];
 $testPresets = is_array($settings['test_presets'] ?? null) ? array_values(array_filter($settings['test_presets'], 'is_array')) : [];
 $testPresetsPath = trim((string) ($settings['test_presets_path'] ?? ''));
+$testPresetsSourceLabel = trim((string) ($settings['test_presets_source_label'] ?? $testPresetsPath));
 $errors = is_array($errors ?? null) ? $errors : [];
 $healthcheckResult = is_array($healthcheckResult ?? null) ? $healthcheckResult : [];
 $schemaSyncResult = is_array($schemaSyncResult ?? null) ? $schemaSyncResult : [];
@@ -225,7 +226,7 @@ if (!is_string($testPresetsJson) || $testPresetsJson === '') {
                             <?php endforeach; ?>
                           </select>
                           <div class="secret-note">
-                            Preset letti da <code><?= esc($testPresetsPath) ?></code>. Il file non e versionato nel repository; in produzione conviene tenerlo dentro <code>rest/writable</code>.
+                            Preset letti da <code><?= esc($testPresetsSourceLabel) ?></code>. Se usi un file locale non va versionato nel repository; in produzione il fallback consigliato resta <code>rest/writable</code>.
                           </div>
                         </div>
                       </div>
