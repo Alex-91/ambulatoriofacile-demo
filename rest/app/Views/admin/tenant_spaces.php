@@ -80,6 +80,8 @@ $platformMasterAccounts = is_array($platformMasterAccounts ?? null) ? $platformM
 $selectableTenants = session()->get('platform_selectable_tenants');
 $selectableTenants = is_array($selectableTenants) ? $selectableTenants : [];
 $passwordRulesHint = 'Almeno 8 caratteri, una maiuscola, una minuscola e un carattere speciale.';
+$tsBillingFeatureKey = \App\Config\TsBilling::FEATURE_KEY;
+$tsBillingEnabledForSelectedTenant = !empty($featureMap[$tsBillingFeatureKey]);
 $accessibleTenantIds = [];
 foreach ($selectableTenants as $selectableTenant) {
     $selectableTenantId = (int)($selectableTenant['id_tenant'] ?? 0);
@@ -517,6 +519,9 @@ $oldValue = static function (string $key, $fallback = '') {
                           <a class="btn btn-xs btn-primary" href="<?= esc($tenantLink) ?>">
                             <i class="fa fa-pencil"></i> Modifica
                           </a>
+                          <a class="btn btn-xs btn-warning" href="<?= esc($tenantLink . '#tenant-feature-overrides') ?>" style="margin-top:4px;">
+                            <i class="fa fa-file-text-o"></i> Fatturazione TS
+                          </a>
                           <?php if ($canOpenOperationalSpace): ?>
                             <a class="btn btn-xs btn-default" href="<?= esc($tenantAccessUrl) ?>" style="margin-top:4px;">
                               <i class="fa fa-external-link"></i> Entra
@@ -595,6 +600,28 @@ $oldValue = static function (string $key, $fallback = '') {
                       ? 'Le impostazioni tecniche restano disponibili più sotto, ma il flusso standard continua a usare i valori generati automaticamente.'
                       : 'Alla creazione usiamo il pacchetto base, generiamo automaticamente chiave studio, storage, database dedicato e cartelle locali. Dopo il primo salvataggio potrai rifinire solo gli override davvero necessari.' ?>
                 </p>
+
+                <?php if ($isEdit): ?>
+                  <div class="alert alert-info" style="margin-bottom:18px;">
+                    <div class="row">
+                      <div class="col-md-8">
+                        <h4 style="margin:0 0 8px 0;">Attivazione rapida Fatturazione TS</h4>
+                        <p style="margin:0; line-height:1.5;">
+                          Per questo spazio la Fatturazione TS Ã¨ attualmente
+                          <span class="label label-<?= $tsBillingEnabledForSelectedTenant ? 'success' : 'default' ?>">
+                            <?= $tsBillingEnabledForSelectedTenant ? 'attiva' : 'spenta' ?>
+                          </span>.
+                          Il toggle reale si trova piÃ¹ sotto in <strong>Override funzioni studio</strong> e non serve un secondo passaggio lato studio.
+                        </p>
+                      </div>
+                      <div class="col-md-4 text-right" style="padding-top:8px;">
+                        <a class="btn btn-warning" href="#tenant-feature-overrides">
+                          <i class="fa fa-arrow-down"></i> Vai al toggle TS
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                <?php endif; ?>
 
                 <hr>
                 <h4 style="margin-top:0;">Responsabile dello studio</h4>
@@ -754,6 +781,7 @@ $oldValue = static function (string $key, $fallback = '') {
                   </details>
 
                   <hr>
+                  <div id="tenant-feature-overrides"></div>
                   <h4 style="margin-top:0;">Override funzioni studio</h4>
                   <p class="text-muted">
                     Qui decidi quali funzioni sono concesse a questo cliente. Se una funzione è marcata come gestibile dal responsabile dello studio, il cliente potrà poi accenderla o spegnerla dal suo pannello sotto `/login/spazio/funzioni`.
@@ -774,9 +802,13 @@ $oldValue = static function (string $key, $fallback = '') {
                         if (is_array($oldEnabled)) {
                             $checked = in_array($featureKey, array_map('strval', $oldEnabled), true);
                         }
+                        $isTsBillingCard = $featureKey === $tsBillingFeatureKey;
                       ?>
                       <div class="col-md-4">
-                        <div class="feature-card">
+                        <div
+                          class="feature-card"
+                          <?= $isTsBillingCard ? 'id="ts-billing-feature-card" style="border:2px solid #d39e00; box-shadow:0 0 0 1px rgba(211, 158, 0, 0.12);"' : '' ?>
+                        >
                           <h4><?= esc((string)($feature['feature_name'] ?? $featureKey)) ?></h4>
                           <p><?= esc((string)($feature['description'] ?? '')) ?></p>
                           <div class="checkbox" style="margin:0;">
@@ -793,7 +825,12 @@ $oldValue = static function (string $key, $fallback = '') {
                               <?= ((int)($feature['is_tenant_managed'] ?? 0) === 1) ? 'Governabile dal master cliente' : 'Gestita centralmente' ?>
                             </span>
                           </div>
-                          <?php if ($featureKey === \App\Config\TsBilling::FEATURE_KEY): ?>
+                          <?php if ($isTsBillingCard): ?>
+                            <div style="margin-top:8px;">
+                              <span class="label label-<?= $checked ? 'success' : 'default' ?>">
+                                <?= $checked ? 'Spazio giÃ  abilitato' : 'Da abilitare qui' ?>
+                              </span>
+                            </div>
                             <div class="text-muted" style="font-size:12px; margin-top:8px; line-height:1.45;">
                               <?= $checked
                                   ? 'Lo spazio vedra subito la console TS e il tenant master potra compilare profilo, credenziali e documenti operativi.'
