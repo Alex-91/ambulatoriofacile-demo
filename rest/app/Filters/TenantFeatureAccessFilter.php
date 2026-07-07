@@ -2,6 +2,7 @@
 
 namespace App\Filters;
 
+use App\Services\BillingFeatureService;
 use App\Libraries\TenantFeatureRegistry;
 use App\Services\TenantContextService;
 use App\Services\TsFeatureService;
@@ -34,6 +35,18 @@ class TenantFeatureAccessFilter implements FilterInterface
         }
 
         $context = $tenantContext->getCurrentTenant();
+        $billingFeatureService = new BillingFeatureService();
+        if ($billingFeatureService->allowsLocalTestingBypass($context, $featureKey)) {
+            log_message('warning', '[TenantFeatureAccessFilter] bypass locale Billing attivo | path={path} | feature={featureKey} | tenant_id={tenantId} | tenant_role={tenantRole}', [
+                'path' => trim((string) $request->getUri()->getPath(), '/'),
+                'featureKey' => $featureKey,
+                'tenantId' => (int) ($context->tenantId ?? 0),
+                'tenantRole' => trim((string) ($context->tenantRole ?? '')),
+            ]);
+
+            return null;
+        }
+
         $tsFeatureService = new TsFeatureService();
         if ($tsFeatureService->allowsLocalTestingBypass($context, $featureKey)) {
             log_message('warning', '[TenantFeatureAccessFilter] bypass locale TS attivo | path={path} | feature={featureKey} | tenant_id={tenantId} | tenant_role={tenantRole}', [

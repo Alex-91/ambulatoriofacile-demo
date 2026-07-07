@@ -4,20 +4,20 @@ namespace App\Controllers\Admin;
 
 use App\Controllers\BaseController;
 use App\Libraries\TenantContext;
+use App\Services\BillingFeatureService;
 use App\Services\TenantCatalogService;
 use App\Services\TenantContextService;
-use App\Services\TsFeatureService;
 
-abstract class TsAdminBaseController extends BaseController
+abstract class BillingAdminBaseController extends BaseController
 {
     protected TenantCatalogService $tenantCatalog;
-    protected TsFeatureService $featureService;
+    protected BillingFeatureService $featureService;
 
     public function __construct()
     {
         helper(['portal', 'admin_menu', 'session_auth']);
         $this->tenantCatalog = new TenantCatalogService();
-        $this->featureService = new TsFeatureService();
+        $this->featureService = new BillingFeatureService();
     }
 
     protected function ensureAccess()
@@ -37,19 +37,19 @@ abstract class TsAdminBaseController extends BaseController
 
         if (!$isPlatformAdminSession && !$hasTenantOperationalAccess) {
             return redirect()->to(site_url('/'))
-                ->with('error', 'La console operativa Sistema TS e disponibile solo per admin piattaforma o responsabili dello spazio.');
+                ->with('error', 'La console Fatturazione e disponibile solo per admin piattaforma o responsabili dello spazio.');
         }
 
         if ((int) ($tenantScope['tenant_id'] ?? 0) <= 0) {
-            $fallbackUrl = $hasTenantOperationalAccess ? portal_tenant_space_url('sistema-ts') : site_url('admin');
+            $fallbackUrl = $hasTenantOperationalAccess ? portal_tenant_space_url('fatturazione') : site_url('admin');
 
-            return redirect()->to($fallbackUrl)->with('error', 'Spazio TS non risolto per questa sessione.');
+            return redirect()->to($fallbackUrl)->with('error', 'Spazio fatturazione non risolto per questa sessione.');
         }
 
         if (empty($tenantScope['feature_enabled'])) {
-            $fallbackUrl = $hasTenantOperationalAccess ? portal_tenant_space_url('sistema-ts') : site_url('admin');
+            $fallbackUrl = $hasTenantOperationalAccess ? portal_tenant_space_url('fatturazione') : site_url('admin');
 
-            return redirect()->to($fallbackUrl)->with('error', 'Sistema TS non attivo per questo spazio.');
+            return redirect()->to($fallbackUrl)->with('error', 'Modulo Fatturazione non attivo per questo spazio.');
         }
 
         return null;
@@ -62,14 +62,11 @@ abstract class TsAdminBaseController extends BaseController
     {
         $context = $this->currentTenantContext();
         if ($context !== null) {
-            $featureEnabled = $this->featureService->isEnabledForContext($context)
-                || $this->featureService->allowsLocalTestingBypass($context);
-
             return [
                 'tenant_id' => $context->tenantId,
                 'tenant_name' => $context->tenantName,
                 'tenant_role' => $context->tenantRole,
-                'feature_enabled' => $featureEnabled,
+                'feature_enabled' => $this->featureService->isEnabledForContext($context),
                 'source' => 'session',
             ];
         }

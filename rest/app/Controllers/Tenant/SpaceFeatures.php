@@ -3,6 +3,7 @@
 namespace App\Controllers\Tenant;
 
 use App\Controllers\BaseController;
+use App\Services\BillingFeatureService;
 use App\Models\AgendaModel;
 use App\Services\AgendaTeamColumnColorService;
 use App\Services\AgendaProfessionalOrderService;
@@ -43,12 +44,15 @@ class SpaceFeatures extends BaseController
             ->sortProfessionals($context->tenantId, $agendaProfessionals, false);
         $teamDayColumnColorSettings = (new AgendaTeamColumnColorService())
             ->resolveTenantSettings($context->tenantId, $orderedAgendaProfessionals);
+        $billingFeatureService = new BillingFeatureService();
+        $tsFeatureService = new TsFeatureService();
 
         return view('tenant/space_features', [
             'tenantContext' => $context,
             'featureStates' => (new TenantFeatureService())->listFeatureStatesForTenant($context->tenantId),
-            'tsConfigurationAccessible' => (new TsFeatureService())->isEnabledForContext($context)
-                || (new TsFeatureService())->allowsLocalTestingBypass($context),
+            'billingWorkspaceAccessible' => $billingFeatureService->isEnabledForContext($context),
+            'tsConfigurationAccessible' => $tsFeatureService->isEnabledForContext($context)
+                || $tsFeatureService->allowsLocalTestingBypass($context),
             'agendaProfessionalOrderSettings' => $agendaProfessionalOrderSettings,
             'teamDayColumnColorSettings' => $teamDayColumnColorSettings,
             'success' => session()->getFlashdata('success'),

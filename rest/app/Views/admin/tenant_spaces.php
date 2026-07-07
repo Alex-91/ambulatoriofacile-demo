@@ -80,6 +80,8 @@ $platformMasterAccounts = is_array($platformMasterAccounts ?? null) ? $platformM
 $selectableTenants = session()->get('platform_selectable_tenants');
 $selectableTenants = is_array($selectableTenants) ? $selectableTenants : [];
 $passwordRulesHint = 'Almeno 8 caratteri, una maiuscola, una minuscola e un carattere speciale.';
+$billingFeatureKey = \App\Config\BillingModule::FEATURE_KEY;
+$billingEnabledForSelectedTenant = !empty($featureMap[$billingFeatureKey]);
 $tsBillingFeatureKey = \App\Config\TsBilling::FEATURE_KEY;
 $tsBillingEnabledForSelectedTenant = !empty($featureMap[$tsBillingFeatureKey]);
 $accessibleTenantIds = [];
@@ -520,7 +522,7 @@ $oldValue = static function (string $key, $fallback = '') {
                             <i class="fa fa-pencil"></i> Modifica
                           </a>
                           <a class="btn btn-xs btn-warning" href="<?= esc($tenantLink . '#tenant-feature-overrides') ?>" style="margin-top:4px;">
-                            <i class="fa fa-file-text-o"></i> Fatturazione TS
+                            <i class="fa fa-file-text-o"></i> Sistema TS
                           </a>
                           <?php if ($canOpenOperationalSpace): ?>
                             <a class="btn btn-xs btn-default" href="<?= esc($tenantAccessUrl) ?>" style="margin-top:4px;">
@@ -605,18 +607,28 @@ $oldValue = static function (string $key, $fallback = '') {
                   <div class="alert alert-info" style="margin-bottom:18px;">
                     <div class="row">
                       <div class="col-md-8">
-                        <h4 style="margin:0 0 8px 0;">Attivazione rapida Fatturazione TS</h4>
+                        <h4 style="margin:0 0 8px 0;">Moduli fatturazione e Sistema TS</h4>
                         <p style="margin:0; line-height:1.5;">
-                          Per questo spazio la Fatturazione TS Ã¨ attualmente
+                          Per questo spazio il Sistema TS e attualmente
                           <span class="label label-<?= $tsBillingEnabledForSelectedTenant ? 'success' : 'default' ?>">
                             <?= $tsBillingEnabledForSelectedTenant ? 'attiva' : 'spenta' ?>
                           </span>.
                           Il toggle reale si trova piÃ¹ sotto in <strong>Override funzioni studio</strong> e non serve un secondo passaggio lato studio.
                         </p>
+                        <p class="text-muted" style="margin:8px 0 0 0; line-height:1.5;">
+                          Stato moduli: <strong>Fatturazione</strong>
+                          <span class="label label-<?= $billingEnabledForSelectedTenant ? 'success' : 'default' ?>">
+                            <?= $billingEnabledForSelectedTenant ? 'attiva' : 'spenta' ?>
+                          </span>
+                          <strong style="margin-left:8px;">Sistema TS</strong>
+                          <span class="label label-<?= $tsBillingEnabledForSelectedTenant ? 'success' : 'default' ?>">
+                            <?= $tsBillingEnabledForSelectedTenant ? 'attivo' : 'spento' ?>
+                          </span>
+                        </p>
                       </div>
                       <div class="col-md-4 text-right" style="padding-top:8px;">
                         <a class="btn btn-warning" href="#tenant-feature-overrides">
-                          <i class="fa fa-arrow-down"></i> Vai al toggle TS
+                          <i class="fa fa-arrow-down"></i> Vai ai toggle moduli
                         </a>
                       </div>
                     </div>
@@ -787,7 +799,7 @@ $oldValue = static function (string $key, $fallback = '') {
                     Qui decidi quali funzioni sono concesse a questo cliente. Se una funzione è marcata come gestibile dal responsabile dello studio, il cliente potrà poi accenderla o spegnerla dal suo pannello sotto `/login/spazio/funzioni`.
                   </p>
                   <div class="alert alert-info" style="margin-bottom:14px;">
-                    Per <strong>Fatturazione TS</strong> l interruttore qui vale come attivazione reale dello spazio: quando la accendi, il tenant master dello studio trova subito disponibile la configurazione TS senza un secondo toggle lato studio.
+                    <strong>Fatturazione</strong> e <strong>Sistema TS</strong> ora sono moduli separati: puoi accendere uno senza l altro. Se li attivi entrambi, lo spazio li vede come moduli distinti ma pronti a convivere nello stesso flusso.
                   </div>
                   <input type="hidden" name="feature_override_form" value="1">
                   <div class="row">
@@ -802,12 +814,15 @@ $oldValue = static function (string $key, $fallback = '') {
                         if (is_array($oldEnabled)) {
                             $checked = in_array($featureKey, array_map('strval', $oldEnabled), true);
                         }
+                        $isBillingCard = $featureKey === $billingFeatureKey;
                         $isTsBillingCard = $featureKey === $tsBillingFeatureKey;
                       ?>
                       <div class="col-md-4">
                         <div
                           class="feature-card"
-                          <?= $isTsBillingCard ? 'id="ts-billing-feature-card" style="border:2px solid #d39e00; box-shadow:0 0 0 1px rgba(211, 158, 0, 0.12);"' : '' ?>
+                          <?= $isBillingCard
+                              ? 'style="border:2px solid #8a5b10; box-shadow:0 0 0 1px rgba(138, 91, 16, 0.12);"'
+                              : ($isTsBillingCard ? 'id="ts-billing-feature-card" style="border:2px solid #d39e00; box-shadow:0 0 0 1px rgba(211, 158, 0, 0.12);"' : '') ?>
                         >
                           <h4><?= esc((string)($feature['feature_name'] ?? $featureKey)) ?></h4>
                           <p><?= esc((string)($feature['description'] ?? '')) ?></p>
@@ -825,6 +840,18 @@ $oldValue = static function (string $key, $fallback = '') {
                               <?= ((int)($feature['is_tenant_managed'] ?? 0) === 1) ? 'Governabile dal master cliente' : 'Gestita centralmente' ?>
                             </span>
                           </div>
+                          <?php if ($isBillingCard): ?>
+                            <div style="margin-top:8px;">
+                              <span class="label label-<?= $checked ? 'success' : 'default' ?>">
+                                <?= $checked ? 'Modulo cliente attivo' : 'Da abilitare qui' ?>
+                              </span>
+                            </div>
+                            <div class="text-muted" style="font-size:12px; margin-top:8px; line-height:1.45;">
+                              <?= $checked
+                                  ? 'Lo spazio vede subito il modulo Fatturazione come area separata per i documenti cliente.'
+                                  : 'Finche resta spenta qui, lo spazio non vedra il modulo Fatturazione nel pannello studio.' ?>
+                            </div>
+                          <?php endif; ?>
                           <?php if ($isTsBillingCard): ?>
                             <div style="margin-top:8px;">
                               <span class="label label-<?= $checked ? 'success' : 'default' ?>">
@@ -833,8 +860,8 @@ $oldValue = static function (string $key, $fallback = '') {
                             </div>
                             <div class="text-muted" style="font-size:12px; margin-top:8px; line-height:1.45;">
                               <?= $checked
-                                  ? 'Lo spazio vedra subito la console TS e il tenant master potra compilare profilo, credenziali e documenti operativi.'
-                                  : 'Finche resta spenta qui, lo spazio non vedra la configurazione Fatturazione TS nel pannello studio.' ?>
+                                  ? 'Lo spazio vedra subito la console Sistema TS e il tenant master potra compilare profilo, credenziali e documenti operativi.'
+                                  : 'Finche resta spenta qui, lo spazio non vedra la configurazione Sistema TS nel pannello studio.' ?>
                             </div>
                           <?php endif; ?>
                           <?php if ($featureKey === \App\Services\AgendaTeamColumnColorService::FEATURE_KEY): ?>

@@ -61,11 +61,11 @@ $buildDiagnosticsUrl = static function (array $overrides = []) use ($filters): s
 
     $query = http_build_query($params);
 
-    return site_url('admin/fatturazione-ts/diagnostica') . ($query !== '' ? '?' . $query : '');
+    return site_url('admin/sistema-ts/diagnostica') . ($query !== '' ? '?' . $query : '');
 };
 
 $buildDownloadUrl = static function (string $traceId): string {
-    return site_url('admin/fatturazione-ts/diagnostica/download') . '?trace=' . rawurlencode($traceId);
+    return site_url('admin/sistema-ts/diagnostica/download') . '?trace=' . rawurlencode($traceId);
 };
 
 $truncateText = static function (string $value, int $limit): string {
@@ -151,10 +151,10 @@ $selectedRawPreview = $truncateText($selectedRaw, $rawPreviewLimit);
               Qui possiamo cercare trace per documento, protocollo o data, aprire la timeline della singola operazione e scaricare il JSON completo gia sanificato per analisi interna o confronto con il cliente.
             </p>
             <div class="toolbar-row">
-              <a class="btn btn-primary" href="<?= site_url('admin/fatturazione-ts') ?>">
+              <a class="btn btn-primary" href="<?= site_url('admin/sistema-ts') ?>">
                 <i class="fa fa-dashboard"></i> Torna alla dashboard TS
               </a>
-              <a class="btn btn-default" href="<?= site_url('admin/fatturazione-ts/documenti') ?>">
+              <a class="btn btn-default" href="<?= site_url('admin/sistema-ts/documenti') ?>">
                 <i class="fa fa-list"></i> Vai ai documenti TS
               </a>
             </div>
@@ -165,7 +165,7 @@ $selectedRawPreview = $truncateText($selectedRaw, $rawPreviewLimit);
               <h3 class="box-title">Filtri ricerca</h3>
             </div>
             <div class="box-body">
-              <form method="get" action="<?= site_url('admin/fatturazione-ts/diagnostica') ?>">
+              <form method="get" action="<?= site_url('admin/sistema-ts/diagnostica') ?>">
                 <div class="row">
                   <div class="col-md-3">
                     <div class="form-group">
@@ -237,7 +237,7 @@ $selectedRawPreview = $truncateText($selectedRaw, $rawPreviewLimit);
                     <button class="btn btn-primary" type="submit">
                       <i class="fa fa-search"></i> Cerca trace
                     </button>
-                    <a class="btn btn-default" href="<?= site_url('admin/fatturazione-ts/diagnostica') ?>">
+                    <a class="btn btn-default" href="<?= site_url('admin/sistema-ts/diagnostica') ?>">
                       <i class="fa fa-undo"></i> Reset
                     </a>
                   </div>
@@ -333,7 +333,7 @@ $selectedRawPreview = $truncateText($selectedRaw, $rawPreviewLimit);
                           <i class="fa fa-search-plus"></i> Apri dettaglio
                         </a>
                         <?php if ((int) ($row['document_id'] ?? 0) > 0): ?>
-                          <a class="btn btn-default btn-sm" href="<?= site_url('admin/fatturazione-ts/documenti/modifica/' . (int) ($row['document_id'] ?? 0)) ?>">
+                          <a class="btn btn-default btn-sm" href="<?= site_url('admin/sistema-ts/documenti/modifica/' . (int) ($row['document_id'] ?? 0)) ?>">
                             <i class="fa fa-file-text-o"></i> Documento
                           </a>
                         <?php endif; ?>
@@ -370,7 +370,7 @@ $selectedRawPreview = $truncateText($selectedRaw, $rawPreviewLimit);
                     </a>
                   <?php endif; ?>
                   <?php if ((int) ($selectedEntry['document_id'] ?? 0) > 0): ?>
-                    <a class="btn btn-default" href="<?= site_url('admin/fatturazione-ts/documenti/modifica/' . (int) ($selectedEntry['document_id'] ?? 0)) ?>">
+                    <a class="btn btn-default" href="<?= site_url('admin/sistema-ts/documenti/modifica/' . (int) ($selectedEntry['document_id'] ?? 0)) ?>">
                       <i class="fa fa-file-text-o"></i> Apri documento TS
                     </a>
                   <?php endif; ?>

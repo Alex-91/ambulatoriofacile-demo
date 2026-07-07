@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Config\BillingModule;
+use App\Config\TsBilling;
 use App\Models\PlatformFeaturesModel;
 use App\Models\PlatformTenantFeaturePreferencesModel;
 use Config\Database;
@@ -11,6 +13,7 @@ class TenantFeatureService
     private \CodeIgniter\Database\BaseConnection $db;
     private PlatformFeaturesModel $featuresModel;
     private PlatformTenantFeaturePreferencesModel $preferencesModel;
+    private bool $platformCoreFeaturesEnsured = false;
 
     public function __construct()
     {
@@ -27,6 +30,8 @@ class TenantFeatureService
         if ($tenantId <= 0) {
             return [];
         }
+
+        $this->ensurePlatformCoreFeatures();
 
         $sql = "
             SELECT
@@ -176,6 +181,8 @@ class TenantFeatureService
      */
     public function listPlatformFeatures(): array
     {
+        $this->ensurePlatformCoreFeatures();
+
         return $this->featuresModel
             ->orderBy('sort_order', 'ASC')
             ->orderBy('feature_scope', 'ASC')
@@ -202,5 +209,93 @@ class TenantFeatureService
         }
 
         return $normalized;
+    }
+
+    private function ensurePlatformCoreFeatures(): void
+    {
+        if ($this->platformCoreFeaturesEnsured) {
+            return;
+        }
+
+        $this->platformCoreFeaturesEnsured = true;
+
+        if (!$this->db->tableExists('platform_features')) {
+            return;
+        }
+
+        $now = date('Y-m-d H:i:s');
+        foreach ($this->platformCoreFeatureDefinitions() as $featureKey => $payload) {
+            $this->upsertPlatformFeature($featureKey, $payload, $now);
+        }
+    }
+
+    /**
+     * @return array<string, array<string, mixed>>
+     */
+    private function platformCoreFeatureDefinitions(): array
+    {
+        return [
+            BillingModule::FEATURE_KEY => [
+                'feature_name' => 'Fatturazione',
+                'feature_scope' => 'billing',
+                'description' => 'Il master piattaforma attiva il modulo Fatturazione per lo spazio. Il cliente puo usarlo da solo oppure insieme al Sistema TS mantenendo i due moduli separati ma coordinabili.',
+                'default_enabled' => 0,
+                'icon_class' => 'fa-calculator',
+                'is_tenant_managed' => 0,
+                'tenant_default_enabled' => 0,
+                'sort_order' => 135,
+            ],
+            TsBilling::FEATURE_KEY => [
+                'feature_name' => 'Sistema TS',
+                'feature_scope' => 'billing',
+                'description' => 'Il master piattaforma attiva il modulo Sistema TS per lo spazio. Lo studio puo usarlo in autonomia oppure insieme alla Fatturazione mantenendo i moduli distinti ma coordinabili.',
+                'default_enabled' => 0,
+                'icon_class' => 'fa-file-text-o',
+                'is_tenant_managed' => 0,
+                'tenant_default_enabled' => 0,
+                'sort_order' => 136,
+            ],
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     */
+    private function upsertPlatformFeature(string $featureKey, array $payload, string $now): void
+    {
+        $feature = $this->featuresModel->findByKey($featureKey);
+
+        $data = [
+            'feature_key' => $featureKey,
+            'feature_name' => (string) ($payload['feature_name'] ?? $featureKey),
+            'feature_scope' => (string) ($payload['feature_scope'] ?? 'module'),
+            'description' => (string) ($payload['description'] ?? ''),
+            'default_enabled' => (int) ($payload['default_enabled'] ?? 0),
+            'updated_at' => $now,
+        ];
+
+        if ($this->db->fieldExists('icon_class', 'platform_features')) {
+            $data['icon_class'] = (string) ($payload['icon_class'] ?? 'fa-toggle-on');
+        }
+
+        if ($this->db->fieldExists('is_tenant_managed', 'platform_features')) {
+            $data['is_tenant_managed'] = (int) ($payload['is_tenant_managed'] ?? 0);
+        }
+
+        if ($this->db->fieldExists('tenant_default_enabled', 'platform_features')) {
+            $data['tenant_default_enabled'] = (int) ($payload['tenant_default_enabled'] ?? 0);
+        }
+
+        if ($this->db->fieldExists('sort_order', 'platform_features')) {
+            $data['sort_order'] = (int) ($payload['sort_order'] ?? 0);
+        }
+
+        if ($feature) {
+            $this->featuresModel->update((int) ($feature['id_feature'] ?? 0), $data);
+            return;
+        }
+
+        $data['created_at'] = $now;
+        $this->featuresModel->insert($data);
     }
 }

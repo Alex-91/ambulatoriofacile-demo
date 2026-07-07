@@ -635,7 +635,7 @@ class TsMigrationSafetyService
             ->countAllResults() > 0;
 
         return [[
-            'label' => 'Feature ts_billing registrata',
+            'label' => 'Feature Sistema TS registrata',
             'status' => $featureExists ? 'ok' : 'error',
             'message' => $featureExists
                 ? 'La feature `ts_billing` risulta registrata nel catalogo platform.'

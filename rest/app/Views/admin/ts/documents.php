@@ -7,6 +7,14 @@ $documents = is_array($listing['documents'] ?? null) ? $listing['documents'] : [
 $uiStateLabels = is_array($listing['ui_state_labels'] ?? null) ? $listing['ui_state_labels'] : [];
 $sourceTypeLabels = is_array($listing['source_type_labels'] ?? null) ? $listing['source_type_labels'] : [];
 $tableAvailable = !empty($listing['table_available']);
+$billingQueue = is_array($billingQueue ?? null) ? $billingQueue : [];
+$pendingBillingDocuments = is_array($billingQueue['pending_documents'] ?? null) ? $billingQueue['pending_documents'] : [];
+$sentBillingDocuments = is_array($billingQueue['sent_documents'] ?? null) ? $billingQueue['sent_documents'] : [];
+$pendingBillingCount = (int) ($billingQueue['pending_count'] ?? count($pendingBillingDocuments));
+$sentBillingCount = (int) ($billingQueue['sent_count'] ?? count($sentBillingDocuments));
+$errors = is_array($errors ?? null) ? $errors : [];
+$warning = trim((string) ($warning ?? ''));
+$error = trim((string) ($error ?? ''));
 ?>
 <!DOCTYPE html>
 <html>
@@ -44,6 +52,19 @@ $tableAvailable = !empty($listing['table_available']);
         </div>
 
         <div class="col-md-9">
+          <?php if (!empty($success)): ?>
+            <div class="alert alert-success"><?= esc((string) $success) ?></div>
+          <?php endif; ?>
+          <?php if ($warning !== ''): ?>
+            <div class="alert alert-warning"><?= esc($warning) ?></div>
+          <?php endif; ?>
+          <?php if ($error !== ''): ?>
+            <div class="alert alert-danger"><?= esc($error) ?></div>
+          <?php endif; ?>
+          <?php if (!empty($errors['generic'])): ?>
+            <div class="alert alert-danger"><?= esc((string) $errors['generic']) ?></div>
+          <?php endif; ?>
+
           <div class="summary-strip">
             <strong>Riepilogo rapido:</strong>
             <?= (int) ($summary['total_documents'] ?? 0) ?> documenti totali,
@@ -51,7 +72,9 @@ $tableAvailable = !empty($listing['table_available']);
             <?= (int) ($summary['ready_count'] ?? 0) ?> pronti,
             <?= (int) ($summary['sent_count'] ?? 0) ?> inviati,
             <?= (int) ($summary['rejected_count'] ?? 0) ?> scartati.
-            <a class="btn btn-success btn-sm pull-right" href="<?= site_url('admin/fatturazione-ts/documenti/nuovo') ?>">
+            <span style="margin-left:10px;">Fatture in coda: <?= $pendingBillingCount ?></span>
+            <span style="margin-left:10px;">Fatture gia inviate: <?= $sentBillingCount ?></span>
+            <a class="btn btn-success btn-sm pull-right" href="<?= site_url('admin/sistema-ts/documenti/nuovo') ?>">
               <i class="fa fa-plus"></i> Nuovo documento TS
             </a>
           </div>
@@ -62,9 +85,137 @@ $tableAvailable = !empty($listing['table_available']);
             </div>
           <?php endif; ?>
 
+          <div class="box box-warning">
+            <div class="box-header with-border">
+              <h3 class="box-title">Fatture da inviare a TS</h3>
+            </div>
+            <div class="box-body">
+              <?php if ($pendingBillingDocuments === []): ?>
+                <p class="text-muted" style="margin:0;">
+                  Nessuna fattura definitiva pronta per l invio TS. Le fatture salvate in Fatturazione con integrazione TS attiva compariranno qui.
+                </p>
+              <?php else: ?>
+                <form method="post" action="<?= site_url('admin/sistema-ts/documenti/send-bulk-billing') ?>">
+                  <?= csrf_field() ?>
+                  <div style="margin-bottom:12px;">
+                    <button class="btn btn-warning btn-sm" type="submit" id="billing-ts-bulk-send-btn" disabled>
+                      <i class="fa fa-paper-plane-o"></i> Invia selezionate a TS
+                    </button>
+                  </div>
+                  <div class="table-responsive">
+                    <table class="table table-bordered table-striped" style="margin-bottom:0;">
+                      <thead>
+                        <tr>
+                          <th style="width:40px;"><input type="checkbox" id="billing-ts-check-all"></th>
+                          <th>Fattura</th>
+                          <th>Cliente</th>
+                          <th>Emissione</th>
+                          <th>Totale</th>
+                          <th>Spesa TS</th>
+                          <th>Stato TS</th>
+                          <th>Documento TS</th>
+                          <th style="width:180px;">Azioni</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <?php foreach ($pendingBillingDocuments as $row): ?>
+                          <tr>
+                            <td><input type="checkbox" class="billing-ts-check" name="billing_document_ids[]" value="<?= (int) ($row['id_billing_document'] ?? 0) ?>"></td>
+                            <td>#<?= (int) ($row['id_billing_document'] ?? 0) ?> / <?= esc((string) ($row['document_number'] ?? '-')) ?></td>
+                            <td><?= esc((string) ($row['patient_name'] ?? '-')) ?></td>
+                            <td><?= esc((string) ($row['issue_date'] ?? '-')) ?></td>
+                            <td>&euro; <?= number_format((float) ($row['amount_total'] ?? 0), 2, ',', '.') ?></td>
+                            <td><?= esc(trim((string) ($row['ts_expense_type_code'] ?? '')) !== '' ? (string) ($row['ts_expense_type_code'] ?? '') : 'SP') ?></td>
+                            <td>
+                              <?= esc((string) ($row['ts_sync_state'] ?? 'ready')) ?>
+                              <?php if (trim((string) ($row['ts_local_state'] ?? '')) !== ''): ?>
+                                / <?= esc((string) ($uiStateLabels[(string) ($row['ts_local_state'] ?? '')] ?? (string) ($row['ts_local_state'] ?? ''))) ?>
+                              <?php endif; ?>
+                            </td>
+                            <td>
+                              <?php if ((int) ($row['linked_ts_document_id'] ?? 0) > 0): ?>
+                                #<?= (int) ($row['linked_ts_document_id'] ?? 0) ?>
+                              <?php else: ?>
+                                Non creato
+                              <?php endif; ?>
+                            </td>
+                            <td>
+                              <a class="btn btn-default btn-xs" href="<?= site_url('admin/fatturazione-documenti/modifica/' . (int) ($row['id_billing_document'] ?? 0)) ?>">
+                                <i class="fa fa-file-text-o"></i> Fattura
+                              </a>
+                              <?php if ((int) ($row['linked_ts_document_id'] ?? 0) > 0): ?>
+                                <a class="btn btn-warning btn-xs" href="<?= site_url('admin/sistema-ts/documenti/modifica/' . (int) ($row['linked_ts_document_id'] ?? 0)) ?>">
+                                  <i class="fa fa-exchange"></i> TS
+                                </a>
+                              <?php endif; ?>
+                            </td>
+                          </tr>
+                        <?php endforeach; ?>
+                      </tbody>
+                    </table>
+                  </div>
+                </form>
+              <?php endif; ?>
+            </div>
+          </div>
+
+          <div class="box box-success">
+            <div class="box-header with-border">
+              <h3 class="box-title">Fatture gia inviate a TS</h3>
+            </div>
+            <div class="box-body">
+              <?php if ($sentBillingDocuments === []): ?>
+                <p class="text-muted" style="margin:0;">
+                  Nessuna fattura proveniente da Fatturazione risulta ancora inviata a TS.
+                </p>
+              <?php else: ?>
+                <div class="table-responsive">
+                  <table class="table table-bordered table-striped" style="margin-bottom:0;">
+                    <thead>
+                      <tr>
+                        <th>Fattura</th>
+                        <th>Cliente</th>
+                        <th>Emissione</th>
+                        <th>Totale</th>
+                        <th>Documento TS</th>
+                        <th>Protocollo</th>
+                        <th>Stato TS</th>
+                        <th style="width:260px;">Azioni</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <?php foreach ($sentBillingDocuments as $row): ?>
+                        <tr>
+                          <td>#<?= (int) ($row['id_billing_document'] ?? 0) ?> / <?= esc((string) ($row['document_number'] ?? '-')) ?></td>
+                          <td><?= esc((string) ($row['patient_name'] ?? '-')) ?></td>
+                          <td><?= esc((string) ($row['issue_date'] ?? '-')) ?></td>
+                          <td>&euro; <?= number_format((float) ($row['amount_total'] ?? 0), 2, ',', '.') ?></td>
+                          <td>#<?= (int) ($row['linked_ts_document_id'] ?? 0) ?></td>
+                          <td><?= esc((string) ($row['ts_protocol'] ?? '-')) ?></td>
+                          <td><?= esc((string) ($row['ts_state'] ?? 'accepted')) ?></td>
+                          <td>
+                            <a class="btn btn-default btn-xs" href="<?= site_url('admin/fatturazione-documenti/modifica/' . (int) ($row['id_billing_document'] ?? 0)) ?>">
+                              <i class="fa fa-file-text-o"></i> Fattura
+                            </a>
+                            <a class="btn btn-info btn-xs" href="<?= site_url('admin/sistema-ts/documenti/ricevuta/download-latest/' . (int) ($row['linked_ts_document_id'] ?? 0)) ?>">
+                              <i class="fa fa-download"></i> Ricevuta
+                            </a>
+                            <a class="btn btn-success btn-xs" href="<?= site_url('admin/sistema-ts/documenti/modifica/' . (int) ($row['linked_ts_document_id'] ?? 0)) ?>">
+                              <i class="fa fa-exchange"></i> TS
+                            </a>
+                          </td>
+                        </tr>
+                      <?php endforeach; ?>
+                    </tbody>
+                  </table>
+                </div>
+              <?php endif; ?>
+            </div>
+          </div>
+
           <div class="box box-default">
             <div class="box-header with-border">
-              <h3 class="box-title">Archivio documenti TS</h3>
+              <h3 class="box-title">Archivio completo documenti TS</h3>
             </div>
             <div class="box-body table-responsive">
               <table class="table table-bordered table-striped">
@@ -126,9 +277,14 @@ $tableAvailable = !empty($listing['table_available']);
                           <?php endif; ?>
                         </td>
                         <td>
-                          <a class="btn btn-default btn-xs" href="<?= site_url('admin/fatturazione-ts/documenti/modifica/' . (int) ($row['id_ts_document'] ?? 0)) ?>">
+                          <a class="btn btn-default btn-xs" href="<?= site_url('admin/sistema-ts/documenti/modifica/' . (int) ($row['id_ts_document'] ?? 0)) ?>">
                             <i class="fa fa-pencil"></i> Apri
                           </a>
+                          <?php if (trim((string) ($row['local_state'] ?? '')) === 'sent'): ?>
+                            <a class="btn btn-info btn-xs" href="<?= site_url('admin/sistema-ts/documenti/ricevuta/download-latest/' . (int) ($row['id_ts_document'] ?? 0)) ?>">
+                              <i class="fa fa-download"></i> Ricevuta
+                            </a>
+                          <?php endif; ?>
                         </td>
                       </tr>
                     <?php endforeach; ?>
@@ -149,5 +305,37 @@ $tableAvailable = !empty($listing['table_available']);
 </div>
 <script src="<?= base_url('public/plugins/jQuery/jQuery-2.1.4.min.js') ?>"></script>
 <script src="<?= base_url('public/bootstrap/js/bootstrap.min.js') ?>"></script>
+<script>
+  (function () {
+    var checkAll = document.getElementById('billing-ts-check-all');
+    var bulkButton = document.getElementById('billing-ts-bulk-send-btn');
+    var rowChecks = Array.prototype.slice.call(document.querySelectorAll('.billing-ts-check'));
+
+    if (!checkAll || !bulkButton || rowChecks.length === 0) {
+      return;
+    }
+
+    function syncBulkState() {
+      var anyChecked = rowChecks.some(function (input) {
+        return input.checked;
+      });
+      bulkButton.disabled = !anyChecked;
+      checkAll.checked = rowChecks.length > 0 && rowChecks.every(function (input) {
+        return input.checked;
+      });
+    }
+
+    checkAll.addEventListener('change', function () {
+      rowChecks.forEach(function (input) {
+        input.checked = checkAll.checked;
+      });
+      syncBulkState();
+    });
+
+    rowChecks.forEach(function (input) {
+      input.addEventListener('change', syncBulkState);
+    });
+  })();
+</script>
 </body>
 </html>

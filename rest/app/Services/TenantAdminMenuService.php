@@ -163,9 +163,18 @@ class TenantAdminMenuService
             }
         }
 
-        foreach ($requiredLinks as $link) {
+        $linksToRefresh = [];
+        foreach (array_merge(array_keys($normalizedRows), $requiredLinks) as $link) {
             $normalized = $this->normalizeLink((string) $link);
-            if ($normalized === '' || !isset($catalogByLink[$normalized])) {
+            if ($normalized === '' || in_array($normalized, $linksToRefresh, true)) {
+                continue;
+            }
+
+            $linksToRefresh[] = $normalized;
+        }
+
+        foreach ($linksToRefresh as $normalized) {
+            if (!isset($catalogByLink[$normalized])) {
                 continue;
             }
 

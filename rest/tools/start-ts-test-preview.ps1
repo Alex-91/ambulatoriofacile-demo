@@ -50,6 +50,7 @@ Set-Item -Path 'Env:app.baseURL' -Value $previewUrl
 Set-Item -Path 'Env:APP_CANONICAL_URL' -Value $previewUrl
 Set-Item -Path 'Env:APP_PUBLIC_ACCESS_BASE_URL' -Value $previewUrl
 Set-Item -Path 'Env:APP_RUNTIME_ENV_FILE' -Value $EnvFile
+Set-Item -Path 'Env:APP_ROOT_ENTRY' -Value 'login'
 
 Set-Location $repoRoot
 

@@ -32,7 +32,8 @@ class TenantContextService
         $this->resolvedCurrentTenant = true;
 
         $raw = session()->get(self::SESSION_KEY);
-        $context = is_array($raw) && $raw !== []
+        $raw = is_array($raw) ? $raw : [];
+        $context = $raw !== []
             ? TenantContext::fromArray($raw)
             : null;
 
@@ -41,7 +42,17 @@ class TenantContextService
         }
 
         $platformUserId = (int) (session()->get('platform_user_id') ?? 0);
+        $rawTenantId = (int) ($raw['tenant_id'] ?? 0);
         if ($platformUserId > 0) {
+            if ($rawTenantId > 0) {
+                $membership = $this->catalog->getTenantMembership($platformUserId, $rawTenantId);
+                if ($membership !== null) {
+                    $context = $this->catalog->buildTenantContext($membership);
+                    $this->setCurrentTenant($context);
+                    return $this->currentTenant = $context;
+                }
+            }
+
             if ($context !== null) {
                 $membership = $this->catalog->getTenantMembership($platformUserId, $context->tenantId);
                 if ($membership !== null) {
@@ -52,6 +63,13 @@ class TenantContextService
             }
 
             $context = $this->restoreTenantContextFromSession($platformUserId);
+            if ($context !== null) {
+                return $this->currentTenant = $context;
+            }
+        }
+
+        if ($context === null) {
+            $context = $this->restoreTenantContextFromRawSession($raw);
             if ($context !== null) {
                 return $this->currentTenant = $context;
             }
@@ -156,5 +174,69 @@ class TenantContextService
         }
 
         return null;
+    }
+
+    /**
+     * Ricostruisce un contesto tenant valido anche quando la sessione locale
+     * contiene un payload legacy o parziale ma conserva almeno tenant_id.
+     *
+     * @param array<string, mixed> $raw
+     */
+    private function restoreTenantContextFromRawSession(array $raw): ?TenantContext
+    {
+        $tenantId = (int) ($raw['tenant_id'] ?? 0);
+        if ($tenantId <= 0) {
+            return null;
+        }
+
+        $tenant = $this->catalog->getTenantById($tenantId);
+        if (!is_array($tenant)) {
+            return null;
+        }
+
+        $featureMap = [];
+        try {
+            $featureMap = $this->catalog->resolveFeatureMapForTenant($tenantId);
+        } catch (\Throwable $e) {
+            log_message('warning', '[TenantContextService] fallback feature map fallita | tenant_id={tenantId} | error={error}', [
+                'tenantId' => $tenantId,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        if ($featureMap === []) {
+            foreach ((array) ($raw['feature_flags'] ?? []) as $featureKey => $enabled) {
+                $normalizedKey = trim((string) $featureKey);
+                if ($normalizedKey === '') {
+                    continue;
+                }
+
+                $featureMap[$normalizedKey] = (bool) $enabled;
+            }
+        }
+
+        $context = new TenantContext(
+            $tenantId,
+            trim((string) ($tenant['tenant_key'] ?? $raw['tenant_key'] ?? '')),
+            trim((string) ($tenant['tenant_name'] ?? $raw['tenant_name'] ?? '')),
+            trim((string) ($tenant['status'] ?? $raw['tenant_status'] ?? '')),
+            trim((string) ($tenant['onboarding_status'] ?? $raw['onboarding_status'] ?? '')),
+            trim((string) ($raw['package_code'] ?? '')),
+            trim((string) ($raw['package_name'] ?? '')),
+            trim((string) ($raw['tenant_role'] ?? '')),
+            (int) ($raw['platform_user_id'] ?? session()->get('platform_user_id') ?? 0),
+            (int) ($raw['app_user_id'] ?? session()->get('userId') ?? session()->get('id_user') ?? 0),
+            trim((string) ($tenant['storage_key'] ?? $raw['storage_key'] ?? '')),
+            trim((string) ($tenant['feature_profile'] ?? $raw['feature_profile'] ?? '')),
+            $featureMap
+        );
+
+        if (!$context->isValid()) {
+            return null;
+        }
+
+        $this->setCurrentTenant($context);
+
+        return $context;
     }
 }

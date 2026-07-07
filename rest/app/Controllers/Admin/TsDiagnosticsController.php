@@ -68,12 +68,12 @@ class TsDiagnosticsController extends TsAdminBaseController
         $tenantId = (int) ($tenantScope['tenant_id'] ?? 0);
         $traceId = trim((string) ($this->request->getGet('trace') ?? ''));
         if ($traceId === '') {
-            return redirect()->to(site_url('admin/fatturazione-ts/diagnostica'))->with('error', 'Trace TS non specificato.');
+            return redirect()->to(site_url('admin/sistema-ts/diagnostica'))->with('error', 'Trace TS non specificato.');
         }
 
         $download = $this->diagnostics->resolveTraceDownload($tenantId, $traceId);
         if (!is_array($download) || trim((string) ($download['path'] ?? '')) === '') {
-            return redirect()->to(site_url('admin/fatturazione-ts/diagnostica'))->with('error', 'Trace TS non trovato.');
+            return redirect()->to(site_url('admin/sistema-ts/diagnostica'))->with('error', 'Trace TS non trovato.');
         }
 
         return $this->response

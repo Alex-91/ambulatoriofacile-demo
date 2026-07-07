@@ -26,15 +26,17 @@ $validationWarnings = is_array($effectiveValidation['warnings'] ?? null) ? $effe
 $documentId = (int) ($document['id_ts_document'] ?? 0);
 $sourceType = trim((string) ($document['source_type'] ?? 'manual'));
 $sourceTypeLabel = (string) ($sourceTypeLabels[$sourceType] ?? strtoupper($sourceType));
-$isPrimaryDocument = $sourceType === 'manual';
+$isBillingSourceDocument = $sourceType === 'billing';
+$billingSourceDocumentId = $isBillingSourceDocument ? (int) ($document['source_ref_id'] ?? 0) : 0;
+$isPrimaryDocument = in_array($sourceType, ['manual', 'billing'], true);
 $isVariationDocument = $sourceType === 'ts_variation';
 $isCancellationDocument = $sourceType === 'ts_cancellation';
 $documentState = trim((string) ($document['local_state'] ?? 'draft'));
 $documentTsState = trim((string) ($document['ts_state'] ?? ''));
 $documentSent = $documentId > 0 && ($documentState === 'sent' || in_array($documentTsState, ['accepted', 'varied', 'cancelled'], true));
 $documentLocked = $documentState === 'sent' || $isCancellationDocument;
-$identityLocked = $documentLocked || $isVariationDocument;
-$allFieldsLocked = $documentLocked || $isCancellationDocument;
+$identityLocked = $documentLocked || $isVariationDocument || $isBillingSourceDocument;
+$allFieldsLocked = $documentLocked || $isCancellationDocument || $isBillingSourceDocument;
 $canCreateVariation = $documentId > 0 && $isPrimaryDocument && $documentSent && $documentTsState !== 'cancelled';
 $canCreateCancellation = $documentId > 0 && $isPrimaryDocument && $documentSent && $documentTsState !== 'cancelled';
 $canAttemptSend = $documentId > 0 && $documentState === 'ready';
@@ -106,6 +108,8 @@ if (!is_string($supportedExpenseDetailsJson) || $supportedExpenseDetailsJson ===
       <p class="text-muted" style="margin:8px 0 0 0;">
         <?php if ($isCancellationDocument): ?>
           Questa schermata rappresenta una cancellazione TS collegata a un documento gia inviato. Se l operazione e pronta puoi inviarla subito o riprovare in caso di errore.
+        <?php elseif ($isBillingSourceDocument): ?>
+          Questa schermata deriva da una fattura del modulo Fatturazione. Qui puoi controllare lo stato TS e lanciare l invio, mentre le modifiche ai dati della fattura restano nel modulo origine.
         <?php elseif ($isVariationDocument): ?>
           Questa schermata rappresenta una variazione TS collegata a un documento gia inviato. Aggiorna i dati ammessi e poi usa <strong>Salva e invia</strong>.
         <?php else: ?>
@@ -141,6 +145,8 @@ if (!is_string($supportedExpenseDetailsJson) || $supportedExpenseDetailsJson ===
             <p style="margin:0 0 12px 0; color:#556b70;">
               <?php if ($isCancellationDocument): ?>
                 Questa operazione riusa l identificativo fiscale del documento originale e serve ad annullarlo su TS senza alterare lo storico locale.
+              <?php elseif ($isBillingSourceDocument): ?>
+                Questo record TS nasce da una fattura gia definitiva. Se devi correggere importi, anagrafica o metadati da inviare, torna nella fattura origine e poi rilancia l invio da qui o dalla coda massiva.
               <?php elseif ($isVariationDocument): ?>
                 Questa operazione parte dal documento originale inviato e ti lascia correggere i dati variabili mantenendo agganciati numero, dispositivo e data emissione.
               <?php else: ?>
@@ -161,13 +167,21 @@ if (!is_string($supportedExpenseDetailsJson) || $supportedExpenseDetailsJson ===
                 Operazione collegata al documento #<?= (int) ($parentDocument['id_ts_document'] ?? 0) ?>
                 del <?= esc((string) ($parentDocument['issue_date'] ?? '')) ?>
                 numero <?= esc((string) ($parentDocument['document_number'] ?? '')) ?>.
-                <a href="<?= site_url('admin/fatturazione-ts/documenti/modifica/' . (int) ($parentDocument['id_ts_document'] ?? 0)) ?>" style="margin-left:8px;">
+                <a href="<?= site_url('admin/sistema-ts/documenti/modifica/' . (int) ($parentDocument['id_ts_document'] ?? 0)) ?>" style="margin-left:8px;">
                   Apri documento origine
                 </a>
               </div>
             <?php endif; ?>
+            <?php if ($isBillingSourceDocument && $billingSourceDocumentId > 0): ?>
+              <div class="alert alert-info" style="margin:12px 0 0 0;">
+                Documento TS generato dalla fattura #<?= $billingSourceDocumentId ?>.
+                <a href="<?= site_url('admin/fatturazione-documenti/modifica/' . $billingSourceDocumentId) ?>" style="margin-left:8px;">
+                  Apri fattura origine
+                </a>
+              </div>
+            <?php endif; ?>
             <div style="margin-top:12px;">
-              <a class="btn btn-default" href="<?= site_url('admin/fatturazione-ts/documenti') ?>">
+              <a class="btn btn-default" href="<?= site_url('admin/sistema-ts/documenti') ?>">
                 <i class="fa fa-arrow-left"></i> Torna alla lista documenti TS
               </a>
             </div>
@@ -207,7 +221,7 @@ if (!is_string($supportedExpenseDetailsJson) || $supportedExpenseDetailsJson ===
                 <?php endif; ?>
               </h3>
             </div>
-            <form method="post" action="<?= site_url('admin/fatturazione-ts/documenti/save') ?>">
+            <form method="post" action="<?= site_url('admin/sistema-ts/documenti/save') ?>">
               <?= csrf_field() ?>
               <input type="hidden" name="id_ts_document" value="<?= $documentId ?>">
               <input type="hidden" name="id_client" value="<?= esc($fieldValue('id_client', '0')) ?>">
@@ -215,6 +229,9 @@ if (!is_string($supportedExpenseDetailsJson) || $supportedExpenseDetailsJson ===
                 <?php if ($isVariationDocument): ?>
                   <div class="alert alert-info">
                     Per la variazione TS restano bloccati numero documento, dispositivo e data emissione, cosi l operazione rimane agganciata al record gia trasmesso.
+                <?php elseif ($isBillingSourceDocument): ?>
+                  <div class="alert alert-info">
+                    Questo documento e in sola lettura perche nasce dalla fattura. Se devi correggere i dati, aggiorna prima la fattura e poi rilancia da Sistema TS.
                   </div>
                 <?php elseif ($isCancellationDocument): ?>
                   <div class="alert alert-info">
@@ -354,6 +371,9 @@ if (!is_string($supportedExpenseDetailsJson) || $supportedExpenseDetailsJson ===
                 <?php if ($isCancellationDocument): ?>
                   <div class="alert alert-info" style="margin-bottom:0;">
                     Questa operazione usa i dati del documento originale. Se serve rilanciare la cancellazione usa il pulsante di invio nella sezione esito qui sotto.
+                <?php elseif ($isBillingSourceDocument): ?>
+                  <div class="alert alert-info" style="margin-bottom:0;">
+                    Questo record nasce da Fatturazione. Per modificare i dati usa la fattura origine; per l invio puoi usare il pulsante nella sezione esito qui sotto o la coda massiva.
                   </div>
                 <?php elseif ($documentLocked): ?>
                   <div class="alert alert-success" style="margin-bottom:0;">
@@ -403,7 +423,7 @@ if (!is_string($supportedExpenseDetailsJson) || $supportedExpenseDetailsJson ===
                   <strong>Riferimento supporto TS</strong>
                   <div class="text-muted">
                     <code><?= esc((string) ($supportLog['trace_id'] ?? '')) ?></code>
-                    <a href="<?= site_url('admin/fatturazione-ts/diagnostica?trace=' . rawurlencode((string) ($supportLog['trace_id'] ?? '')) . '&document_id=' . (int) ($document['id_ts_document'] ?? 0)) ?>" style="margin-left:10px;">
+                    <a href="<?= site_url('admin/sistema-ts/diagnostica?trace=' . rawurlencode((string) ($supportLog['trace_id'] ?? '')) . '&document_id=' . (int) ($document['id_ts_document'] ?? 0)) ?>" style="margin-left:10px;">
                       Apri diagnostica
                     </a>
                   </div>
@@ -426,7 +446,7 @@ if (!is_string($supportedExpenseDetailsJson) || $supportedExpenseDetailsJson ===
                 <hr style="margin:16px 0;">
                 <div>
                   <?php if ($canAttemptSend): ?>
-                    <form method="post" action="<?= site_url('admin/fatturazione-ts/documenti/send') ?>" style="display:inline-block; margin:0 8px 8px 0;">
+                    <form method="post" action="<?= site_url('admin/sistema-ts/documenti/send') ?>" style="display:inline-block; margin:0 8px 8px 0;">
                       <?= csrf_field() ?>
                       <input type="hidden" name="id_ts_document" value="<?= $documentId ?>">
                       <button class="btn btn-primary" type="submit">
@@ -436,11 +456,11 @@ if (!is_string($supportedExpenseDetailsJson) || $supportedExpenseDetailsJson ===
                   <?php endif; ?>
 
                   <?php if ($canFetchReceipt && $latestReceiptId > 0): ?>
-                    <a class="btn btn-success" href="<?= site_url('admin/fatturazione-ts/documenti/ricevuta/download/' . $latestReceiptId) ?>" style="margin:0 8px 8px 0;">
+                    <a class="btn btn-success" href="<?= site_url('admin/sistema-ts/documenti/ricevuta/download/' . $latestReceiptId) ?>" style="margin:0 8px 8px 0;">
                       <i class="fa fa-file-pdf-o"></i> Scarica ricevuta PDF TS
                     </a>
                   <?php elseif ($canFetchReceipt): ?>
-                    <form method="post" action="<?= site_url('admin/fatturazione-ts/documenti/ricevuta/download-latest/' . $documentId) ?>" style="display:inline-block; margin:0 8px 8px 0;">
+                    <form method="post" action="<?= site_url('admin/sistema-ts/documenti/ricevuta/download-latest/' . $documentId) ?>" style="display:inline-block; margin:0 8px 8px 0;">
                       <?= csrf_field() ?>
                       <input type="hidden" name="id_ts_document" value="<?= $documentId ?>">
                       <button class="btn btn-success" type="submit">
@@ -451,7 +471,7 @@ if (!is_string($supportedExpenseDetailsJson) || $supportedExpenseDetailsJson ===
 
                   <?php if ($documentSent): ?>
                     <?php if ($canCreateVariation): ?>
-                      <form method="post" action="<?= site_url('admin/fatturazione-ts/documenti/variazione/' . $documentId) ?>" style="display:inline-block; margin:0 8px 8px 0;">
+                      <form method="post" action="<?= site_url('admin/sistema-ts/documenti/variazione/' . $documentId) ?>" style="display:inline-block; margin:0 8px 8px 0;">
                         <?= csrf_field() ?>
                         <button class="btn btn-warning" type="submit">
                           <i class="fa fa-pencil-square-o"></i> Crea variazione TS
@@ -459,17 +479,17 @@ if (!is_string($supportedExpenseDetailsJson) || $supportedExpenseDetailsJson ===
                       </form>
                     <?php endif; ?>
                     <?php if ($canCreateCancellation): ?>
-                      <form method="post" action="<?= site_url('admin/fatturazione-ts/documenti/cancellazione/' . $documentId) ?>" style="display:inline-block; margin:0 8px 8px 0;" onsubmit="return confirm('Confermi la creazione e l invio della cancellazione TS per questo documento?');">
+                      <form method="post" action="<?= site_url('admin/sistema-ts/documenti/cancellazione/' . $documentId) ?>" style="display:inline-block; margin:0 8px 8px 0;" onsubmit="return confirm('Confermi la creazione e l invio della cancellazione TS per questo documento?');">
                         <?= csrf_field() ?>
                         <button class="btn btn-danger" type="submit">
                           <i class="fa fa-ban"></i> Annulla su TS
                         </button>
                       </form>
                     <?php endif; ?>
-                    <a class="btn btn-default" href="<?= site_url('admin/fatturazione-ts/documenti/nuovo') ?>" style="margin:0 8px 8px 0;">
+                    <a class="btn btn-default" href="<?= site_url('admin/sistema-ts/documenti/nuovo') ?>" style="margin:0 8px 8px 0;">
                       <i class="fa fa-plus"></i> Nuovo documento TS
                     </a>
-                    <a class="btn btn-default" href="<?= site_url('admin/fatturazione-ts/documenti') ?>" style="margin:0 8px 8px 0;">
+                    <a class="btn btn-default" href="<?= site_url('admin/sistema-ts/documenti') ?>" style="margin:0 8px 8px 0;">
                       <i class="fa fa-list"></i> Torna alla lista
                     </a>
                   <?php endif; ?>
@@ -477,7 +497,9 @@ if (!is_string($supportedExpenseDetailsJson) || $supportedExpenseDetailsJson ===
 
                 <?php if (!$documentSent && !$canAttemptSend && !$canFetchReceipt): ?>
                   <div class="text-muted" style="margin-top:4px;">
-                    Correggi i campi del documento e usa <strong>Salva e invia</strong> per rilanciare il flusso completo.
+                    <?= $isBillingSourceDocument
+                      ? 'Correggi la fattura origine e poi rilancia l invio da Sistema TS.'
+                      : 'Correggi i campi del documento e usa Salva e invia per rilanciare il flusso completo.' ?>
                   </div>
                 <?php endif; ?>
               </div>
@@ -513,7 +535,7 @@ if (!is_string($supportedExpenseDetailsJson) || $supportedExpenseDetailsJson ===
                             <td><?= esc((string) ($operation['ts_protocol'] ?? '')) ?></td>
                             <td><?= esc((string) ($operation['updated_at'] ?? '')) ?></td>
                             <td>
-                              <a class="btn btn-default btn-xs" href="<?= site_url('admin/fatturazione-ts/documenti/modifica/' . (int) ($operation['id_ts_document'] ?? 0)) ?>">
+                              <a class="btn btn-default btn-xs" href="<?= site_url('admin/sistema-ts/documenti/modifica/' . (int) ($operation['id_ts_document'] ?? 0)) ?>">
                                 <i class="fa fa-folder-open-o"></i> Apri
                               </a>
                             </td>
@@ -559,7 +581,7 @@ if (!is_string($supportedExpenseDetailsJson) || $supportedExpenseDetailsJson ===
                             <td><?= esc((string) ($receipt['created_at'] ?? '')) ?></td>
                             <td><?= esc(number_format(((int) ($receipt['file_size'] ?? 0)) / 1024, 1, ',', '.')) ?> KB</td>
                             <td>
-                              <a class="btn btn-default btn-xs" href="<?= site_url('admin/fatturazione-ts/documenti/ricevuta/download/' . (int) ($receipt['id_ts_receipt'] ?? 0)) ?>">
+                              <a class="btn btn-default btn-xs" href="<?= site_url('admin/sistema-ts/documenti/ricevuta/download/' . (int) ($receipt['id_ts_receipt'] ?? 0)) ?>">
                                 <i class="fa fa-file-pdf-o"></i> Scarica
                               </a>
                             </td>

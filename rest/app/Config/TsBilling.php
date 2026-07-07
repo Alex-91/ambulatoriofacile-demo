@@ -39,6 +39,7 @@ class TsBilling extends BaseConfig
      */
     public array $sourceTypeLabels = [
         'manual' => 'Documento principale',
+        'billing' => 'Fattura da Fatturazione',
         'ts_variation' => 'Variazione TS',
         'ts_cancellation' => 'Cancellazione TS',
     ];

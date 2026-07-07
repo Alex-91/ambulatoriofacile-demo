@@ -454,7 +454,7 @@ class TsDispatchService
                 'success_message' => 'Cancellazione TS inviata correttamente.',
             ],
             default => [
-                'source_type' => 'manual',
+                'source_type' => $sourceType !== '' ? $sourceType : 'manual',
                 'request_root' => $this->config->documentRequestRoot,
                 'soap_operation' => $this->config->documentOperationName,
                 'started_message' => 'Tentativo invio TS avviato.',
@@ -479,7 +479,7 @@ class TsDispatchService
     ): void {
         $sourceType = trim((string) ($operation['source_type'] ?? 'manual'));
         $parentId = (int) ($document['source_ref_id'] ?? 0);
-        if ($sourceType === 'manual' || $parentId <= 0) {
+        if (in_array($sourceType, ['manual', 'billing'], true) || $parentId <= 0) {
             return;
         }
 

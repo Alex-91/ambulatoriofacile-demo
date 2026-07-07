@@ -2,6 +2,7 @@
 
 namespace App\Controllers\Admin;
 
+use App\Services\BillingTsBridgeService;
 use App\Services\TsDispatchService;
 use App\Services\TsDocumentService;
 use App\Services\TsReceiptService;
@@ -10,6 +11,7 @@ use App\Services\TsTenantDatabaseContextService;
 class TsDocumentsController extends TsAdminBaseController
 {
     private TsDispatchService $dispatch;
+    private BillingTsBridgeService $billingTsBridge;
     private TsDocumentService $documents;
     private TsReceiptService $receipts;
     private TsTenantDatabaseContextService $tenantDbContext;
@@ -18,6 +20,7 @@ class TsDocumentsController extends TsAdminBaseController
     {
         parent::__construct();
         $this->dispatch = new TsDispatchService();
+        $this->billingTsBridge = new BillingTsBridgeService();
         $this->documents = new TsDocumentService();
         $this->receipts = new TsReceiptService();
         $this->tenantDbContext = new TsTenantDatabaseContextService();
@@ -30,12 +33,90 @@ class TsDocumentsController extends TsAdminBaseController
         }
 
         $tenantScope = $this->resolveTenantScope();
+        $tenantId = (int) ($tenantScope['tenant_id'] ?? 0);
 
         return view('admin/ts/documents', [
             'menu_items' => $this->adminMenuItems(),
             'tenantScope' => $tenantScope,
-            'listing' => $this->documents->listDocumentsForTenant((int) ($tenantScope['tenant_id'] ?? 0)),
+            'listing' => $this->documents->listDocumentsForTenant($tenantId),
+            'billingQueue' => $this->billingTsBridge->buildQueueForTenant($tenantId),
+            'success' => session()->getFlashdata('success'),
+            'warning' => session()->getFlashdata('warning'),
+            'error' => session()->getFlashdata('error'),
+            'errors' => session()->getFlashdata('errors') ?? [],
         ]);
+    }
+
+    public function sendBillingBulk()
+    {
+        if ($guard = $this->ensureAccess()) {
+            return $guard;
+        }
+
+        $tenantScope = $this->resolveTenantScope();
+        $tenantId = (int) ($tenantScope['tenant_id'] ?? 0);
+        $billingDocumentIds = (array) $this->request->getPost('billing_document_ids');
+        $targetUrl = site_url('admin/sistema-ts/documenti');
+
+        try {
+            $report = $this->billingTsBridge->sendBillingDocumentsBulk($tenantId, $billingDocumentIds, $this->currentAdminUserId());
+            $sentCount = (int) ($report['sent_count'] ?? 0);
+            $blockedCount = (int) ($report['blocked_count'] ?? 0);
+            $errorCount = (int) ($report['error_count'] ?? 0);
+            $results = is_array($report['results'] ?? null) ? $report['results'] : [];
+
+            $summaryParts = [];
+            if ($sentCount > 0) {
+                $summaryParts[] = $sentCount . ' fatture inviate a TS';
+            }
+            if ($blockedCount > 0) {
+                $summaryParts[] = $blockedCount . ' da correggere prima dell invio';
+            }
+            if ($errorCount > 0) {
+                $summaryParts[] = $errorCount . ' con errore tecnico';
+            }
+
+            $summary = $summaryParts !== []
+                ? ucfirst(implode(', ', $summaryParts)) . '.'
+                : 'Nessuna fattura elaborata.';
+
+            $detailMessages = [];
+            foreach ($results as $row) {
+                if (!is_array($row)) {
+                    continue;
+                }
+
+                $status = trim((string) ($row['status'] ?? ''));
+                if (in_array($status, ['ok', 'sent'], true)) {
+                    continue;
+                }
+
+                $detailMessages[] = 'Fattura #' . (int) ($row['billing_document_id'] ?? 0) . ': ' . trim((string) ($row['message'] ?? ''));
+                if (count($detailMessages) >= 3) {
+                    break;
+                }
+            }
+
+            if ($sentCount > 0 && $blockedCount === 0 && $errorCount === 0) {
+                return redirect()->to($targetUrl)->with('success', $summary);
+            }
+
+            if ($sentCount > 0) {
+                return redirect()->to($targetUrl)
+                    ->with('success', $summary)
+                    ->with('warning', implode(' ', $detailMessages));
+            }
+
+            return redirect()->to($targetUrl)->with('errors', [
+                'generic' => trim($summary . ' ' . implode(' ', $detailMessages)),
+            ]);
+        } catch (\Throwable $e) {
+            log_message('error', 'Admin\\TsDocumentsController::sendBillingBulk failed: ' . $e->getMessage());
+
+            return redirect()->to($targetUrl)->with('errors', [
+                'generic' => $e->getMessage(),
+            ]);
+        }
     }
 
     public function create()
@@ -66,14 +147,14 @@ class TsDocumentsController extends TsAdminBaseController
 
         $documentId = max(0, $documentId);
         if ($documentId <= 0) {
-            return redirect()->to(site_url('admin/fatturazione-ts/documenti'))->with('error', 'Documento TS non valido.');
+            return redirect()->to(site_url('admin/sistema-ts/documenti'))->with('error', 'Documento TS non valido.');
         }
 
         $tenantScope = $this->resolveTenantScope();
         $formContext = $this->documents->buildFormContext((int) ($tenantScope['tenant_id'] ?? 0), $documentId);
 
         if ((int) ($formContext['document']['id_ts_document'] ?? 0) <= 0) {
-            return redirect()->to(site_url('admin/fatturazione-ts/documenti'))->with('error', 'Documento TS non trovato.');
+            return redirect()->to(site_url('admin/sistema-ts/documenti'))->with('error', 'Documento TS non trovato.');
         }
 
         return view('admin/ts/document_form', [
@@ -97,8 +178,8 @@ class TsDocumentsController extends TsAdminBaseController
         $tenantId = (int) ($tenantScope['tenant_id'] ?? 0);
         $documentId = (int) ($this->request->getPost('id_ts_document') ?? 0);
         $redirectUrl = $documentId > 0
-            ? site_url('admin/fatturazione-ts/documenti/modifica/' . $documentId)
-            : site_url('admin/fatturazione-ts/documenti/nuovo');
+            ? site_url('admin/sistema-ts/documenti/modifica/' . $documentId)
+            : site_url('admin/sistema-ts/documenti/nuovo');
 
         try {
             $saveMode = trim((string) ($this->request->getPost('save_mode') ?? 'draft'));
@@ -144,7 +225,7 @@ class TsDocumentsController extends TsAdminBaseController
 
             $savedDocumentId = (int) ($result['document']['id_ts_document'] ?? 0);
             $targetUrl = $savedDocumentId > 0
-                ? site_url('admin/fatturazione-ts/documenti/modifica/' . $savedDocumentId)
+                ? site_url('admin/sistema-ts/documenti/modifica/' . $savedDocumentId)
                 : $redirectUrl;
 
             if ($saveMode === 'send') {
@@ -199,8 +280,8 @@ class TsDocumentsController extends TsAdminBaseController
         $tenantId = (int) ($tenantScope['tenant_id'] ?? 0);
         $documentId = (int) ($this->request->getPost('id_ts_document') ?? 0);
         $targetUrl = $documentId > 0
-            ? site_url('admin/fatturazione-ts/documenti/modifica/' . $documentId)
-            : site_url('admin/fatturazione-ts/documenti');
+            ? site_url('admin/sistema-ts/documenti/modifica/' . $documentId)
+            : site_url('admin/sistema-ts/documenti');
 
         try {
             $result = $this->dispatch->dispatchDocument($tenantId, $documentId, $this->currentAdminUserId());
@@ -229,8 +310,8 @@ class TsDocumentsController extends TsAdminBaseController
         $tenantScope = $this->resolveTenantScope();
         $tenantId = (int) ($tenantScope['tenant_id'] ?? 0);
         $fallbackUrl = $documentId > 0
-            ? site_url('admin/fatturazione-ts/documenti/modifica/' . $documentId)
-            : site_url('admin/fatturazione-ts/documenti');
+            ? site_url('admin/sistema-ts/documenti/modifica/' . $documentId)
+            : site_url('admin/sistema-ts/documenti');
 
         try {
             $result = $this->documents->createVariationDraftFromDocument($tenantId, $documentId, $this->currentAdminUserId());
@@ -259,8 +340,8 @@ class TsDocumentsController extends TsAdminBaseController
         $tenantScope = $this->resolveTenantScope();
         $tenantId = (int) ($tenantScope['tenant_id'] ?? 0);
         $fallbackUrl = $documentId > 0
-            ? site_url('admin/fatturazione-ts/documenti/modifica/' . $documentId)
-            : site_url('admin/fatturazione-ts/documenti');
+            ? site_url('admin/sistema-ts/documenti/modifica/' . $documentId)
+            : site_url('admin/sistema-ts/documenti');
 
         try {
             $prepared = $this->documents->createCancellationOperationFromDocument($tenantId, $documentId, $this->currentAdminUserId());
@@ -288,8 +369,8 @@ class TsDocumentsController extends TsAdminBaseController
         $tenantId = (int) ($tenantScope['tenant_id'] ?? 0);
         $documentId = max(0, $documentId > 0 ? $documentId : (int) ($this->request->getPost('id_ts_document') ?? 0));
         $targetUrl = $documentId > 0
-            ? site_url('admin/fatturazione-ts/documenti/modifica/' . $documentId)
-            : site_url('admin/fatturazione-ts/documenti');
+            ? site_url('admin/sistema-ts/documenti/modifica/' . $documentId)
+            : site_url('admin/sistema-ts/documenti');
 
         try {
             $result = $this->receipts->fetchReceiptPdfForDocument($tenantId, $documentId, $this->currentAdminUserId());
@@ -320,7 +401,7 @@ class TsDocumentsController extends TsAdminBaseController
 
         $receiptId = max(0, $receiptId);
         if ($receiptId <= 0) {
-            return redirect()->to(site_url('admin/fatturazione-ts/documenti'))->with('error', 'Ricevuta TS non valida.');
+            return redirect()->to(site_url('admin/sistema-ts/documenti'))->with('error', 'Ricevuta TS non valida.');
         }
 
         $tenantScope = $this->resolveTenantScope();
@@ -328,12 +409,12 @@ class TsDocumentsController extends TsAdminBaseController
         $model = $context['receipts'];
         $receipt = $model->find($receiptId);
         if (!is_array($receipt)) {
-            return redirect()->to(site_url('admin/fatturazione-ts/documenti'))->with('error', 'Ricevuta TS non trovata.');
+            return redirect()->to(site_url('admin/sistema-ts/documenti'))->with('error', 'Ricevuta TS non trovata.');
         }
 
         $path = trim((string) ($receipt['storage_path'] ?? ''));
         if ($path === '' || !is_file($path)) {
-            return redirect()->to(site_url('admin/fatturazione-ts/documenti'))->with('error', 'File ricevuta TS non disponibile.');
+            return redirect()->to(site_url('admin/sistema-ts/documenti'))->with('error', 'File ricevuta TS non disponibile.');
         }
 
         $downloadName = 'ricevuta-ts-' . trim((string) ($receipt['ts_protocol'] ?? $receiptId)) . '.pdf';
@@ -350,7 +431,7 @@ class TsDocumentsController extends TsAdminBaseController
         $tenantScope = $this->resolveTenantScope();
         $tenantId = (int) ($tenantScope['tenant_id'] ?? 0);
         $documentId = max(0, $documentId > 0 ? $documentId : (int) ($this->request->getPost('id_ts_document') ?? 0));
-        $targetUrl = $this->buildDocumentTargetUrl($documentId, site_url('admin/fatturazione-ts/documenti'));
+        $targetUrl = $this->buildDocumentTargetUrl($documentId, site_url('admin/sistema-ts/documenti'));
 
         try {
             $result = $this->receipts->fetchReceiptPdfForDocument($tenantId, $documentId, $this->currentAdminUserId());
@@ -407,7 +488,7 @@ class TsDocumentsController extends TsAdminBaseController
     private function buildDocumentTargetUrl(int $documentId, string $fallback): string
     {
         return $documentId > 0
-            ? site_url('admin/fatturazione-ts/documenti/modifica/' . $documentId)
+            ? site_url('admin/sistema-ts/documenti/modifica/' . $documentId)
             : $fallback;
     }
 }

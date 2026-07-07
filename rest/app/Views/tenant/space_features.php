@@ -27,6 +27,7 @@ $agendaProfessionalDefaultOrderIds = array_values(array_filter(array_map(
 $teamDayColumnColorSettings = is_array($teamDayColumnColorSettings ?? null) ? $teamDayColumnColorSettings : [];
 $appointmentNotificationsAvailable = false;
 $appointmentNotificationsEntitled = false;
+$billingWorkspaceAccessible = !empty($billingWorkspaceAccessible);
 $tsConfigurationAccessible = !empty($tsConfigurationAccessible);
 $teamDayColorRows = is_array($teamDayColumnColorSettings['doctor_rows'] ?? null)
     ? $teamDayColumnColorSettings['doctor_rows']
@@ -377,9 +378,14 @@ $canSubmitSpaceSettings = ($manageableRows !== []) || $hasSupplementalSpaceContr
                   Centro notifiche non incluso nel pacchetto attuale
                 </span>
               <?php endif; ?>
+              <?php if ($billingWorkspaceAccessible): ?>
+                <a class="btn btn-default" href="<?= portal_tenant_space_url('fatturazione') ?>" style="margin-left:8px;">
+                  <i class="fa fa-calculator"></i> Apri modulo fatturazione
+                </a>
+              <?php endif; ?>
               <?php if ($tsConfigurationAccessible): ?>
-                <a class="btn btn-default" href="<?= portal_tenant_space_url('fatturazione-ts') ?>" style="margin-left:8px;">
-                  <i class="fa fa-file-text-o"></i> Apri configurazione TS
+                <a class="btn btn-default" href="<?= portal_tenant_space_url('sistema-ts') ?>" style="margin-left:8px;">
+                  <i class="fa fa-file-text-o"></i> Apri configurazione Sistema TS
                 </a>
               <?php endif; ?>
             </div>
@@ -635,16 +641,30 @@ $canSubmitSpaceSettings = ($manageableRows !== []) || $hasSupplementalSpaceContr
                       <span class="label label-<?= $lockedFeatureEnabled ? 'success' : 'default' ?>">
                         <?= $lockedFeatureEnabled ? 'attiva' : 'spenta' ?>
                       </span>
+                      <?php if ($lockedFeatureKey === \App\Config\BillingModule::FEATURE_KEY): ?>
+                        <div class="text-muted" style="margin-top:10px; line-height:1.5;">
+                          <?= $lockedFeatureEnabled
+                              ? 'La Fatturazione e pronta come modulo separato per il documento cliente. Quando attivi anche il Sistema TS, i due moduli possono convivere.'
+                              : 'La Fatturazione per questo studio viene attivata centralmente dal master piattaforma.' ?>
+                        </div>
+                        <?php if ($lockedFeatureEnabled): ?>
+                          <div style="margin-top:10px;">
+                            <a class="btn btn-default btn-sm" href="<?= portal_tenant_space_url('fatturazione') ?>">
+                              <i class="fa fa-calculator"></i> Apri modulo fatturazione
+                            </a>
+                          </div>
+                        <?php endif; ?>
+                      <?php endif; ?>
                       <?php if ($lockedFeatureKey === \App\Config\TsBilling::FEATURE_KEY): ?>
                         <div class="text-muted" style="margin-top:10px; line-height:1.5;">
                           <?= ($lockedFeatureEnabled || $tsConfigurationAccessible)
-                              ? 'La Fatturazione TS e pronta per la configurazione operativa dello studio. Da qui puoi aprire subito il profilo e inserire i dati richiesti.'
-                              : 'La Fatturazione TS per questo studio viene attivata centralmente dal master piattaforma.' ?>
+                              ? 'Il Sistema TS e pronto per la configurazione operativa dello studio. Da qui puoi aprire subito il profilo e inserire i dati richiesti anche se la Fatturazione resta un modulo separato.'
+                              : 'Il Sistema TS per questo studio viene attivato centralmente dal master piattaforma.' ?>
                         </div>
                         <?php if ($lockedFeatureEnabled || $tsConfigurationAccessible): ?>
                           <div style="margin-top:10px;">
-                            <a class="btn btn-default btn-sm" href="<?= portal_tenant_space_url('fatturazione-ts') ?>">
-                              <i class="fa fa-cog"></i> Apri configurazione TS
+                            <a class="btn btn-default btn-sm" href="<?= portal_tenant_space_url('sistema-ts') ?>">
+                              <i class="fa fa-cog"></i> Apri configurazione Sistema TS
                             </a>
                           </div>
                         <?php endif; ?>
@@ -676,8 +696,8 @@ $canSubmitSpaceSettings = ($manageableRows !== []) || $hasSupplementalSpaceContr
                           In questo ambiente locale di test la configurazione TS resta comunque raggiungibile per permetterti di inserire credenziali e dati dello studio.
                         </div>
                         <div style="margin-top:10px;">
-                          <a class="btn btn-default btn-sm" href="<?= portal_tenant_space_url('fatturazione-ts') ?>">
-                            <i class="fa fa-cog"></i> Apri configurazione TS
+                          <a class="btn btn-default btn-sm" href="<?= portal_tenant_space_url('sistema-ts') ?>">
+                            <i class="fa fa-cog"></i> Apri configurazione Sistema TS
                           </a>
                         </div>
                       <?php endif; ?>

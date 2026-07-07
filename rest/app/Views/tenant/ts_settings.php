@@ -24,6 +24,7 @@ $testPresets = is_array($settings['test_presets'] ?? null) ? array_values(array_
 $testPresetsPath = trim((string) ($settings['test_presets_path'] ?? ''));
 $testPresetsSourceLabel = trim((string) ($settings['test_presets_source_label'] ?? $testPresetsPath));
 $errors = is_array($errors ?? null) ? $errors : [];
+$moduleStatus = is_array($moduleStatus ?? null) ? $moduleStatus : [];
 $healthcheckResult = is_array($healthcheckResult ?? null) ? $healthcheckResult : [];
 $schemaSyncResult = is_array($schemaSyncResult ?? null) ? $schemaSyncResult : [];
 $healthcheckChecks = is_array($healthcheckResult['checks'] ?? null) ? $healthcheckResult['checks'] : [];
@@ -44,6 +45,8 @@ $schemaSyncAlertClass = match ($schemaSyncStatus) {
 $isNonProduction = !defined('ENVIRONMENT') || ENVIRONMENT !== 'production';
 $showSchemaRepairTools = $isNonProduction;
 $showHealthcheckTechnicalChecks = $isNonProduction || $healthcheckErrors !== [];
+$billingEnabled = !empty($moduleStatus['billing_enabled']);
+$integratedEnabled = !empty($moduleStatus['integrated_enabled']);
 
 $fieldValue = static function (string $key, $default = '') use ($profile): string {
     $old = old($key);
@@ -96,7 +99,7 @@ if (!is_string($testPresetsJson) || $testPresetsJson === '') {
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>AmbulatorioFacile | Configura Fatturazione TS</title>
+  <title>AmbulatorioFacile | Configura Sistema TS</title>
   <meta content="width=device-width, initial-scale=1" name="viewport">
   <link rel="icon" href="<?= base_url('public/assets/images/logonew.jpg') ?>" type="image/x-icon" sizes="any">
   <link href="<?= base_url('public/bootstrap/css/bootstrap.min.css') ?>" rel="stylesheet" />
@@ -127,9 +130,9 @@ if (!is_string($testPresetsJson) || $testPresetsJson === '') {
 
   <div class="content-wrapper">
     <section class="content-header">
-      <h1>Configura Fatturazione TS</h1>
+      <h1>Configura Sistema TS</h1>
       <p class="text-muted" style="margin:8px 0 0 0;">
-        Qui il responsabile dello studio salva il profilo tecnico del Sistema Tessera Sanitaria e lancia il primo healthcheck locale del modulo.
+        Qui il responsabile dello studio salva il profilo tecnico del Sistema Tessera Sanitaria e lancia il primo healthcheck locale del modulo, separato dalla Fatturazione cliente.
       </p>
     </section>
 
@@ -155,6 +158,8 @@ if (!is_string($testPresetsJson) || $testPresetsJson === '') {
               In questa fase salviamo il profilo TS dello studio e controlliamo se la base tecnica locale e pronta. L healthcheck qui sotto non invia nulla all esterno: verifica solo configurazione, asset e runtime.
             </p>
             <span class="status-chip">Feature: TS attiva</span>
+            <span class="status-chip">Fatturazione: <?= $billingEnabled ? 'attiva' : 'spenta' ?></span>
+            <span class="status-chip">Modalita: <?= $integratedEnabled ? 'integrata' : 'TS standalone' ?></span>
             <span class="status-chip">Tipi spesa abilitati: <?= esc(implode(', ', array_keys($supportedExpenseTypes))) ?></span>
             <span class="status-chip">Ambienti: <?= esc(implode(', ', $supportedEnvironments)) ?></span>
             <?php if ($currentCredentialMode === 'official_test_preset' && $currentTestPresetLabel !== ''): ?>
@@ -164,12 +169,17 @@ if (!is_string($testPresetsJson) || $testPresetsJson === '') {
               <a class="btn btn-default" href="<?= portal_tenant_space_url('funzioni') ?>">
                 <i class="fa fa-arrow-left"></i> Torna alle funzioni dello spazio
               </a>
-              <a class="btn btn-primary" href="<?= site_url('admin/fatturazione-ts') ?>" style="margin-left:8px;">
+              <a class="btn btn-primary" href="<?= site_url('admin/sistema-ts') ?>" style="margin-left:8px;">
                 <i class="fa fa-flask"></i> Apri console test TS
               </a>
-              <a class="btn btn-success" href="<?= site_url('admin/fatturazione-ts/documenti/nuovo') ?>" style="margin-left:8px;">
+              <a class="btn btn-success" href="<?= site_url('admin/sistema-ts/documenti/nuovo') ?>" style="margin-left:8px;">
                 <i class="fa fa-plus"></i> Nuovo documento TS
               </a>
+              <?php if ($billingEnabled): ?>
+                <a class="btn btn-default" href="<?= site_url('admin/fatturazione') ?>" style="margin-left:8px;">
+                  <i class="fa fa-calculator"></i> Apri modulo Fatturazione
+                </a>
+              <?php endif; ?>
             </div>
           </div>
 
@@ -202,7 +212,7 @@ if (!is_string($testPresetsJson) || $testPresetsJson === '') {
             <div class="box-header with-border">
               <h3 class="box-title">Profilo TS dello studio</h3>
             </div>
-            <form method="post" action="<?= portal_tenant_space_url('fatturazione-ts/save') ?>">
+            <form method="post" action="<?= portal_tenant_space_url('sistema-ts/save') ?>">
               <?= csrf_field() ?>
               <div class="box-body">
                 <div class="ts-panel" style="background:#f8fcff;">
@@ -394,7 +404,7 @@ if (!is_string($testPresetsJson) || $testPresetsJson === '') {
                 Questo controllo non contatta il Sistema TS. Verifica se profilo, credenziali, asset tecnici e schema TS dello spazio sono pronti.
               </p>
 
-              <form method="post" action="<?= portal_tenant_space_url('fatturazione-ts/healthcheck') ?>" style="margin-bottom:16px;">
+              <form method="post" action="<?= portal_tenant_space_url('sistema-ts/healthcheck') ?>" style="margin-bottom:16px;">
                 <?= csrf_field() ?>
                 <button class="btn btn-primary" type="submit">
                   <i class="fa fa-stethoscope"></i> Verifica configurazione TS
@@ -408,7 +418,7 @@ if (!is_string($testPresetsJson) || $testPresetsJson === '') {
                     Da usare solo in locale o test se il tenant segnala schema TS mancante o non allineato.
                   </p>
 
-                  <form method="post" action="<?= portal_tenant_space_url('fatturazione-ts/repair-schema') ?>" style="margin-bottom:0;">
+                  <form method="post" action="<?= portal_tenant_space_url('sistema-ts/repair-schema') ?>" style="margin-bottom:0;">
                     <?= csrf_field() ?>
                     <button class="btn btn-default" type="submit">
                       <i class="fa fa-wrench"></i> Ripara installazione locale TS

@@ -226,7 +226,7 @@ class TsDocumentService
         $normalized = $this->normalizeDraftPayload($payload, $profile, $current);
         $duplicateFound = false;
         $existing = null;
-        if ($sourceType === 'manual') {
+        if ($this->isPrimarySourceType($sourceType)) {
             $existing = $documents->findByIdentifierHash((string) ($normalized['document_identifier_hash'] ?? ''));
             $duplicateFound = $existing !== null && (int) ($existing['id_ts_document'] ?? 0) !== $currentId;
         }
@@ -540,6 +540,11 @@ class TsDocumentService
             return null;
         }
 
+        $sourceType = trim((string) ($document['source_type'] ?? 'manual'));
+        if (!in_array($sourceType, ['ts_variation', 'ts_cancellation'], true)) {
+            return null;
+        }
+
         $parentId = (int) ($document['source_ref_id'] ?? 0);
         if ($parentId <= 0) {
             return null;
@@ -560,7 +565,7 @@ class TsDocumentService
             return [];
         }
 
-        if (trim((string) ($document['source_type'] ?? 'manual')) !== 'manual') {
+        if (!$this->isPrimarySourceType((string) ($document['source_type'] ?? 'manual'))) {
             return [];
         }
 
@@ -619,7 +624,7 @@ class TsDocumentService
             throw new \RuntimeException('Documento TS di origine non trovato.');
         }
 
-        if (trim((string) ($source['source_type'] ?? 'manual')) !== 'manual') {
+        if (!$this->isPrimarySourceType((string) ($source['source_type'] ?? 'manual'))) {
             throw new \RuntimeException('Puoi creare variazioni o cancellazioni solo a partire dal documento principale inviato.');
         }
 
@@ -778,8 +783,8 @@ class TsDocumentService
     private function normalizeDraftPayload(array $payload, array $profile, ?array $current): array
     {
         $sourceType = trim((string) ($current['source_type'] ?? 'manual'));
-        $lockIdentity = in_array($sourceType, ['ts_variation', 'ts_cancellation'], true);
-        $lockAllFields = $sourceType === 'ts_cancellation';
+        $lockIdentity = in_array($sourceType, ['ts_variation', 'ts_cancellation', 'billing'], true);
+        $lockAllFields = in_array($sourceType, ['ts_cancellation', 'billing'], true);
 
         $documentNumber = $lockIdentity
             ? trim((string) ($current['document_number'] ?? ''))
@@ -1014,6 +1019,11 @@ class TsDocumentService
         ];
 
         return hash('sha256', implode('|', $parts));
+    }
+
+    private function isPrimarySourceType(string $sourceType): bool
+    {
+        return in_array(trim(strtolower($sourceType)), ['manual', 'billing'], true);
     }
 
     /**

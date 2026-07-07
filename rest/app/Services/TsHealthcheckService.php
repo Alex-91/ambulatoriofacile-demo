@@ -68,16 +68,16 @@ class TsHealthcheckService
 
         $featureEnabled = $this->featureService->isEnabledForTenant($tenantId);
         $checks[] = [
-            'label' => 'Feature ts_billing attiva per lo studio',
+            'label' => 'Feature Sistema TS attiva per lo studio',
             'status' => $featureEnabled ? 'ok' : 'error',
             'message' => $featureEnabled
                 ? 'Lo studio ha il modulo TS attivo.'
-                : 'Lo studio non ha la feature ts_billing attiva.',
+                : 'Lo studio non ha la feature Sistema TS attiva.',
         ];
         if (!$featureEnabled) {
-            $errors[] = 'Lo studio non ha la feature ts_billing attiva.';
+            $errors[] = 'Lo studio non ha la feature Sistema TS attiva.';
         }
-        $supportLog->step('feature_checked', 'Controllo feature ts_billing completato.', [
+        $supportLog->step('feature_checked', 'Controllo feature Sistema TS completato.', [
             'feature_enabled' => $featureEnabled,
         ], $featureEnabled ? 'info' : 'warning');
 

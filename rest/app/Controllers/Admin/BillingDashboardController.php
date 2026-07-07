@@ -3,18 +3,21 @@
 namespace App\Controllers\Admin;
 
 use App\Services\BillingTsModuleStatusService;
-use App\Services\TsDocumentService;
+use App\Services\BillingDocumentSettingsService;
+use App\Services\BillingDocumentService;
 
-class TsDashboardController extends TsAdminBaseController
+class BillingDashboardController extends BillingAdminBaseController
 {
-    private TsDocumentService $documents;
     private BillingTsModuleStatusService $moduleStatus;
+    private BillingDocumentSettingsService $documentSettings;
+    private BillingDocumentService $documents;
 
     public function __construct()
     {
         parent::__construct();
-        $this->documents = new TsDocumentService();
         $this->moduleStatus = new BillingTsModuleStatusService();
+        $this->documentSettings = new BillingDocumentSettingsService();
+        $this->documents = new BillingDocumentService();
     }
 
     public function index()
@@ -25,12 +28,17 @@ class TsDashboardController extends TsAdminBaseController
 
         $tenantScope = $this->resolveTenantScope();
 
-        return view('admin/ts/dashboard', [
+        return view('admin/billing/dashboard', [
             'menu_items' => $this->adminMenuItems(),
             'tenantScope' => $tenantScope,
-            'dashboard' => $this->documents->buildDashboardForTenant((int) ($tenantScope['tenant_id'] ?? 0)),
             'moduleStatus' => $this->moduleStatus->describe(
                 $this->currentTenantContext(),
+                (int) ($tenantScope['tenant_id'] ?? 0)
+            ),
+            'documentSettings' => $this->documentSettings->resolveTenantSettings(
+                (int) ($tenantScope['tenant_id'] ?? 0)
+            ),
+            'documentsDashboard' => $this->documents->buildDashboardForTenant(
                 (int) ($tenantScope['tenant_id'] ?? 0)
             ),
         ]);

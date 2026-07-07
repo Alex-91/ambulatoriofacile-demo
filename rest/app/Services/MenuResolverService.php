@@ -206,7 +206,10 @@ class MenuResolverService
         $tenantId = (int) ($tenantContext['tenant_id'] ?? 0);
         $tenantRole = trim((string) ($tenantContext['tenant_role'] ?? ''));
         $tenantContextObject = $tenantContext !== [] ? TenantContext::fromArray($tenantContext) : null;
+        $billingFeatureService = new BillingFeatureService();
         $tsFeatureService = new TsFeatureService();
+        $billingAccessible = !empty($tenantFeatureFlags['billing'])
+            || $billingFeatureService->isEnabledForContext($tenantContextObject);
         $tsBillingAccessible = !empty($tenantFeatureFlags['ts_billing'])
             || $tsFeatureService->allowsLocalTestingBypass($tenantContextObject);
         $canAccessPlatformConsole = (bool) ($session->get('platform_is_admin') ?? false) === true;
@@ -238,6 +241,10 @@ class MenuResolverService
             'can_manage_tenant_features' => $tenantId > 0
                 && $tenantRole === 'tenant_master'
                 && (int) ($session->get('platform_user_id') ?? 0) > 0,
+            'can_manage_billing' => $tenantId > 0
+                && $tenantRole === 'tenant_master'
+                && (int) ($session->get('platform_user_id') ?? 0) > 0
+                && $billingAccessible,
             'can_manage_ts_billing' => $tenantId > 0
                 && $tenantRole === 'tenant_master'
                 && (int) ($session->get('platform_user_id') ?? 0) > 0
@@ -398,6 +405,7 @@ class MenuResolverService
             'spazio/utenti' => !empty($context['can_manage_tenant_users']),
             'spazio/dispositivi-otp' => !empty($context['can_manage_otp_devices']),
             'spazio/funzioni' => !empty($context['can_manage_tenant_features']),
+            'spazio/fatturazione' => !empty($context['can_manage_billing']),
             'spazio/fatturazione-ts' => !empty($context['can_manage_ts_billing']),
             'spazio/notifiche-appuntamenti' => !empty($context['can_manage_appointment_notifications']),
         ];
@@ -433,9 +441,12 @@ class MenuResolverService
     private function injectFeatureAwareAdminMenus(array $menuItems, int $tenantId): array
     {
         $menuItems = $this->injectVisitTypesMenu($menuItems, $tenantId);
+        $menuItems = $this->injectBillingMenu($menuItems, $tenantId);
+        $menuItems = $this->injectBillingDocumentsMenu($menuItems, $tenantId);
         $menuItems = $this->injectTsBillingMenu($menuItems, $tenantId);
+        $menuItems = $this->injectBillingDocumentSettingsMenu($menuItems, $tenantId);
 
-        return $menuItems;
+        return $this->reorderOperationalMenuItems($menuItems);
     }
 
     /**
@@ -476,18 +487,153 @@ class MenuResolverService
 
         foreach ($menuItems as $menuRow) {
             $menuLink = strtolower($this->normalizePath((string) ($menuRow['link'] ?? '')));
-            if ($menuLink === 'fatturazione-ts') {
+            if ($menuLink === 'sistema-ts' || $menuLink === 'fatturazione-ts') {
                 return $menuItems;
             }
         }
 
         $menuItems[] = [
-            'titolo_menu' => 'Fatturazione TS',
-            'link' => 'fatturazione-ts',
+            'titolo_menu' => 'Sistema TS',
+            'link' => 'sistema-ts',
             'class_icon' => 'fa-file-text-o',
         ];
 
         return $menuItems;
+    }
+
+    /**
+     * @param list<array<string, mixed>> $menuItems
+     * @return list<array<string, mixed>>
+     */
+    private function injectBillingMenu(array $menuItems, int $tenantId): array
+    {
+        if (!$this->isAdminBillingFeatureEnabled($tenantId)) {
+            return $menuItems;
+        }
+
+        foreach ($menuItems as $menuRow) {
+            $menuLink = strtolower($this->normalizePath((string) ($menuRow['link'] ?? '')));
+            if ($menuLink === 'fatturazione') {
+                return $menuItems;
+            }
+        }
+
+        $menuItems[] = [
+            'titolo_menu' => 'Fatturazione',
+            'link' => 'fatturazione',
+            'class_icon' => 'fa-calculator',
+        ];
+
+        return $menuItems;
+    }
+
+    /**
+     * @param list<array<string, mixed>> $menuItems
+     * @return list<array<string, mixed>>
+     */
+    private function injectBillingDocumentSettingsMenu(array $menuItems, int $tenantId): array
+    {
+        if (!$this->isAdminBillingFeatureEnabled($tenantId)) {
+            return $menuItems;
+        }
+
+        foreach ($menuItems as $menuRow) {
+            $menuLink = strtolower($this->normalizePath((string) ($menuRow['link'] ?? '')));
+            if ($menuLink === 'fatturazione-documento') {
+                return $menuItems;
+            }
+        }
+
+        $menuItems[] = [
+            'titolo_menu' => 'Documento fatturazione',
+            'link' => 'fatturazione-documento',
+            'class_icon' => 'fa-file-text-o',
+        ];
+
+        return $menuItems;
+    }
+
+    /**
+     * @param list<array<string, mixed>> $menuItems
+     * @return list<array<string, mixed>>
+     */
+    private function injectBillingDocumentsMenu(array $menuItems, int $tenantId): array
+    {
+        if (!$this->isAdminBillingFeatureEnabled($tenantId)) {
+            return $menuItems;
+        }
+
+        foreach ($menuItems as $menuRow) {
+            $menuLink = strtolower($this->normalizePath((string) ($menuRow['link'] ?? '')));
+            if ($menuLink === 'fatturazione-documenti') {
+                return $menuItems;
+            }
+        }
+
+        $menuItems[] = [
+            'titolo_menu' => 'Lista fatture',
+            'link' => 'fatturazione-documenti',
+            'class_icon' => 'fa-folder-open-o',
+        ];
+
+        return $menuItems;
+    }
+
+    /**
+     * @param list<array<string, mixed>> $menuItems
+     * @return list<array<string, mixed>>
+     */
+    private function reorderOperationalMenuItems(array $menuItems): array
+    {
+        $catalogByLink = [];
+        foreach ($this->menuRegistry->tenantAdminCatalog() as $item) {
+            $catalogLink = $this->adminMenuVisibility->normalizeMenuLink((string) ($item['link'] ?? ''));
+            if ($catalogLink !== '' && !isset($catalogByLink[$catalogLink])) {
+                $catalogByLink[$catalogLink] = $item;
+            }
+        }
+
+        $orderedItems = [];
+        foreach ($menuItems as $index => $menuItem) {
+            if (!is_array($menuItem)) {
+                continue;
+            }
+
+            $normalizedLink = $this->adminMenuVisibility->normalizeMenuLink((string) ($menuItem['link'] ?? ''));
+            $catalogItem = $normalizedLink !== '' ? ($catalogByLink[$normalizedLink] ?? null) : null;
+
+            if (is_array($catalogItem)) {
+                $menuItem['titolo_menu'] = (string) ($catalogItem['title'] ?? ($menuItem['titolo_menu'] ?? ''));
+                $menuItem['class_icon'] = (string) ($catalogItem['icon'] ?? ($menuItem['class_icon'] ?? ''));
+                $menuItem['link'] = (string) ($catalogItem['link'] ?? ($menuItem['link'] ?? ''));
+                $menuItem['_runtime_order'] = (int) ($catalogItem['order'] ?? 5000);
+            } elseif ($normalizedLink === 'agenda/gestione-tipi-visita') {
+                $menuItem['titolo_menu'] = 'Tipi visita';
+                $menuItem['class_icon'] = 'fa-list-alt';
+                $menuItem['_runtime_order'] = 500;
+            } else {
+                $menuItem['_runtime_order'] = 5000 + $index;
+            }
+
+            $menuItem['_runtime_index'] = $index;
+            $orderedItems[] = $menuItem;
+        }
+
+        usort($orderedItems, static function (array $left, array $right): int {
+            $orderCompare = ((int) ($left['_runtime_order'] ?? 0)) <=> ((int) ($right['_runtime_order'] ?? 0));
+            if ($orderCompare !== 0) {
+                return $orderCompare;
+            }
+
+            return ((int) ($left['_runtime_index'] ?? 0)) <=> ((int) ($right['_runtime_index'] ?? 0));
+        });
+
+        foreach ($orderedItems as &$menuItem) {
+            unset($menuItem['_runtime_order'], $menuItem['_runtime_index']);
+        }
+        unset($menuItem);
+
+        return $orderedItems;
     }
 
     private function isAdminVisitTypesFeatureEnabled(int $tenantId): bool
@@ -504,6 +650,30 @@ class MenuResolverService
         try {
             $featureMap = (new TenantCatalogService())->resolveFeatureMapForCurrentRuntimeTenant();
             return !empty($featureMap['agenda_visit_types']);
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    private function isAdminBillingFeatureEnabled(int $tenantId): bool
+    {
+        $context = (new TenantContextService())->getCurrentTenant();
+        if ($context !== null && $context->isValid() && $context->tenantId === $tenantId) {
+            return (new BillingFeatureService())->isEnabledForContext($context);
+        }
+
+        if ($tenantId > 0) {
+            try {
+                $featureMap = (new TenantFeatureService())->resolveEffectiveFeatureMapForTenant($tenantId);
+                return !empty($featureMap['billing']);
+            } catch (\Throwable $e) {
+                return false;
+            }
+        }
+
+        try {
+            $featureMap = (new TenantCatalogService())->resolveFeatureMapForCurrentRuntimeTenant();
+            return !empty($featureMap['billing']);
         } catch (\Throwable $e) {
             return false;
         }

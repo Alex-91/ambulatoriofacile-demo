@@ -3,6 +3,7 @@
 namespace App\Controllers\Tenant;
 
 use App\Controllers\BaseController;
+use App\Services\BillingTsModuleStatusService;
 use App\Services\TenantContextService;
 use App\Services\TsFeatureService;
 use App\Services\TsHealthcheckService;
@@ -16,6 +17,7 @@ class TsSettingsController extends BaseController
     private TsProfileService $profileService;
     private TsHealthcheckService $healthcheckService;
     private TsMigrationSafetyService $migrationSafety;
+    private BillingTsModuleStatusService $moduleStatus;
 
     public function __construct()
     {
@@ -25,6 +27,7 @@ class TsSettingsController extends BaseController
         $this->profileService = new TsProfileService();
         $this->healthcheckService = new TsHealthcheckService();
         $this->migrationSafety = new TsMigrationSafetyService();
+        $this->moduleStatus = new BillingTsModuleStatusService();
     }
 
     public function index()
@@ -33,8 +36,8 @@ class TsSettingsController extends BaseController
             return $guard;
         }
 
-        if (!portal_current_path_matches('login/spazio/fatturazione-ts')) {
-            return redirect()->to(portal_tenant_space_url('fatturazione-ts'));
+        if (!portal_current_path_matches('login/spazio/sistema-ts')) {
+            return redirect()->to(portal_tenant_space_url('sistema-ts'));
         }
 
         $context = $this->tenantContext->getCurrentTenant();
@@ -45,6 +48,7 @@ class TsSettingsController extends BaseController
         return view('tenant/ts_settings', [
             'tenantContext' => $context,
             'settings' => $this->profileService->resolveTenantSettings($context->tenantId),
+            'moduleStatus' => $this->moduleStatus->describe($context, $context->tenantId),
             'success' => session()->getFlashdata('success'),
             'errors' => session()->getFlashdata('errors') ?? [],
             'healthcheckResult' => session()->getFlashdata('healthcheck_result') ?? null,
@@ -88,7 +92,7 @@ class TsSettingsController extends BaseController
             if ($triggerHealthcheck) {
                 $result = $this->healthcheckService->runForTenant($context->tenantId);
                 $redirect = redirect()
-                    ->to(portal_tenant_space_url('fatturazione-ts'))
+                    ->to(portal_tenant_space_url('sistema-ts'))
                     ->with('healthcheck_result', $result);
 
                 $status = trim((string) ($result['status'] ?? 'error'));
@@ -106,13 +110,13 @@ class TsSettingsController extends BaseController
             }
 
             return redirect()
-                ->to(portal_tenant_space_url('fatturazione-ts'))
-                ->with('success', 'Profilo TS salvato. Prossimo step: verifica la configurazione TS dello spazio.');
+                ->to(portal_tenant_space_url('sistema-ts'))
+                ->with('success', 'Profilo TS salvato. Prossimo step: verifica la configurazione Sistema TS dello spazio.');
         } catch (\Throwable $e) {
             log_message('error', 'Tenant\\TsSettingsController::save failed: ' . $e->getMessage());
 
             return redirect()
-                ->to(portal_tenant_space_url('fatturazione-ts'))
+                ->to(portal_tenant_space_url('sistema-ts'))
                 ->withInput()
                 ->with('errors', ['generic' => $e->getMessage()]);
         }
@@ -132,7 +136,7 @@ class TsSettingsController extends BaseController
         try {
             $result = $this->healthcheckService->runForTenant($context->tenantId);
             $redirect = redirect()
-                ->to(portal_tenant_space_url('fatturazione-ts'))
+                ->to(portal_tenant_space_url('sistema-ts'))
                 ->with('healthcheck_result', $result);
 
             if (($result['status'] ?? '') === 'ok') {
@@ -144,7 +148,7 @@ class TsSettingsController extends BaseController
             log_message('error', 'Tenant\\TsSettingsController::healthcheck failed: ' . $e->getMessage());
 
             return redirect()
-                ->to(portal_tenant_space_url('fatturazione-ts'))
+                ->to(portal_tenant_space_url('sistema-ts'))
                 ->with('errors', ['generic' => 'Healthcheck TS non riuscito: ' . $e->getMessage()]);
         }
     }
@@ -157,7 +161,7 @@ class TsSettingsController extends BaseController
 
         if (defined('ENVIRONMENT') && ENVIRONMENT === 'production') {
             return redirect()
-                ->to(portal_tenant_space_url('fatturazione-ts'))
+                ->to(portal_tenant_space_url('sistema-ts'))
                 ->with('errors', ['generic' => 'Lo strumento di riallineamento schema locale e disponibile solo in ambienti non production.']);
         }
 
@@ -172,7 +176,7 @@ class TsSettingsController extends BaseController
             $schemaStatus = trim((string) ($schemaSyncResult['status'] ?? 'error'));
 
             $redirect = redirect()
-                ->to(portal_tenant_space_url('fatturazione-ts'))
+                ->to(portal_tenant_space_url('sistema-ts'))
                 ->with('schema_sync_result', $schemaSyncResult);
 
             if (in_array($schemaStatus, ['ok', 'warning'], true)) {
@@ -207,7 +211,7 @@ class TsSettingsController extends BaseController
             log_message('error', 'Tenant\\TsSettingsController::repairSchema failed: ' . $e->getMessage());
 
             return redirect()
-                ->to(portal_tenant_space_url('fatturazione-ts'))
+                ->to(portal_tenant_space_url('sistema-ts'))
                 ->with('errors', ['generic' => 'Allineamento schema locale TS non riuscito: ' . $e->getMessage()]);
         }
     }
@@ -224,7 +228,7 @@ class TsSettingsController extends BaseController
         }
 
         if ($context->tenantRole !== 'tenant_master') {
-            return redirect()->to(site_url('/'))->with('error', 'Solo il responsabile dello studio puo configurare la Fatturazione TS.');
+            return redirect()->to(site_url('/'))->with('error', 'Solo il responsabile dello studio puo configurare il Sistema TS.');
         }
 
         if ((int) (session()->get('platform_user_id') ?? 0) <= 0) {
@@ -234,7 +238,7 @@ class TsSettingsController extends BaseController
         if (!$this->featureService->isEnabledForContext($context)
             && !$this->featureService->allowsLocalTestingBypass($context)) {
             return redirect()->to(portal_tenant_space_url('funzioni'))
-                ->with('error', 'La Fatturazione TS non e attiva per questo spazio cliente. Deve essere abilitata dal master piattaforma nella scheda dello spazio.');
+                ->with('error', 'Il Sistema TS non e attivo per questo spazio cliente. Deve essere abilitato dal master piattaforma nella scheda dello spazio.');
         }
 
         return null;

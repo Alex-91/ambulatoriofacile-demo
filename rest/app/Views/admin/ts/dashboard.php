@@ -2,16 +2,19 @@
 $menu_items = $menu_items ?? ((session()->get('menuDataAdmin')['result'] ?? []));
 $tenantScope = is_array($tenantScope ?? null) ? $tenantScope : [];
 $dashboard = is_array($dashboard ?? null) ? $dashboard : [];
+$moduleStatus = is_array($moduleStatus ?? null) ? $moduleStatus : [];
 $summary = is_array($dashboard['summary'] ?? null) ? $dashboard['summary'] : [];
 $recentDocuments = is_array($dashboard['recent_documents'] ?? null) ? $dashboard['recent_documents'] : [];
 $uiStateLabels = is_array($dashboard['ui_state_labels'] ?? null) ? $dashboard['ui_state_labels'] : [];
 $tableAvailable = !empty($dashboard['table_available']);
+$billingEnabled = !empty($moduleStatus['billing_enabled']);
+$integratedEnabled = !empty($moduleStatus['integrated_enabled']);
 ?>
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>AmbulatorioFacile | Fatturazione TS</title>
+  <title>AmbulatorioFacile | Sistema TS</title>
   <meta content="width=device-width, initial-scale=1" name="viewport">
   <link rel="icon" href="<?= base_url('public/assets/images/logonew.jpg') ?>" type="image/x-icon" sizes="any">
   <link href="<?= base_url('public/bootstrap/css/bootstrap.min.css') ?>" rel="stylesheet" />
@@ -35,7 +38,7 @@ $tableAvailable = !empty($dashboard['table_available']);
 
   <div class="content-wrapper">
     <section class="content-header">
-      <h1>Fatturazione TS</h1>
+      <h1>Sistema TS</h1>
       <p class="text-muted" style="margin:8px 0 0 0;">
         Dashboard iniziale del modulo Sistema Tessera Sanitaria per lo spazio <?= esc((string) ($tenantScope['tenant_name'] ?? 'attivo')) ?>.
       </p>
@@ -51,20 +54,30 @@ $tableAvailable = !empty($dashboard['table_available']);
           <div class="hero-box">
             <h3 style="margin-top:0; margin-bottom:8px;">Modulo TS operativo</h3>
             <p style="margin:0 0 12px 0; color:#556b70;">
-              Questa area raccoglie i documenti TS dello studio, il loro stato locale e il prossimo punto di lavoro. In questa fase la dashboard si appoggia alla nuova persistence locale e resta sicura anche se le migration non sono ancora state eseguite sul DB attuale.
+              Questa area raccoglie i documenti TS dello studio, il loro stato locale e il prossimo punto di lavoro. Il modulo resta autonomo, ma quando anche la Fatturazione e attiva puo convivere con il flusso documento cliente senza fondersi con esso.
             </p>
-            <a class="btn btn-primary" href="<?= site_url('admin/fatturazione-ts/documenti') ?>">
+            <span class="state-chip">Sistema TS: attivo</span>
+            <span class="state-chip">Fatturazione: <?= $billingEnabled ? 'attiva' : 'spenta' ?></span>
+            <span class="state-chip">Modalita: <?= $integratedEnabled ? 'integrata' : 'TS standalone' ?></span>
+            <div style="margin-top:12px;">
+            <a class="btn btn-primary" href="<?= site_url('admin/sistema-ts/documenti') ?>">
               <i class="fa fa-list"></i> Apri lista documenti TS
             </a>
-            <a class="btn btn-success" href="<?= site_url('admin/fatturazione-ts/documenti/nuovo') ?>" style="margin-left:8px;">
+            <a class="btn btn-success" href="<?= site_url('admin/sistema-ts/documenti/nuovo') ?>" style="margin-left:8px;">
               <i class="fa fa-plus"></i> Nuovo documento TS
             </a>
-            <a class="btn btn-default" href="<?= site_url('admin/fatturazione-ts/diagnostica') ?>" style="margin-left:8px;">
+            <a class="btn btn-default" href="<?= site_url('admin/sistema-ts/diagnostica') ?>" style="margin-left:8px;">
               <i class="fa fa-search"></i> Apri diagnostica TS
             </a>
-            <a class="btn btn-default" href="<?= portal_tenant_space_url('fatturazione-ts') ?>" style="margin-left:8px;">
+            <a class="btn btn-default" href="<?= portal_tenant_space_url('sistema-ts') ?>" style="margin-left:8px;">
               <i class="fa fa-cog"></i> Configura profilo TS
             </a>
+            <?php if ($billingEnabled): ?>
+              <a class="btn btn-default" href="<?= site_url('admin/fatturazione') ?>" style="margin-left:8px;">
+                <i class="fa fa-calculator"></i> Apri modulo Fatturazione
+              </a>
+            <?php endif; ?>
+            </div>
           </div>
 
           <?php if (!$tableAvailable): ?>
