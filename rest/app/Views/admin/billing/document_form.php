@@ -92,6 +92,14 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
     .intro-box { border:1px solid #dce9ec; border-radius:16px; padding:20px 22px; background:linear-gradient(135deg, #fffdf8 0%, #f6f0e0 52%, #edf7f8 100%); margin-bottom:16px; }
     .status-chip { display:inline-block; margin:0 8px 8px 0; padding:6px 10px; border-radius:999px; background:#eef5f6; color:#1d6770; font-size:12px; font-weight:700; }
     .item-total { font-weight:700; color:#8a5b10; }
+    .patient-autocomplete-menu { display:none; margin-top:6px; border:1px solid #dce7eb; border-radius:12px; background:#fff; box-shadow:0 8px 24px rgba(44, 136, 149, 0.08); max-height:240px; overflow:auto; }
+    .patient-autocomplete-item { display:block; width:100%; padding:10px 12px; border:0; border-bottom:1px solid #edf3f5; background:#fff; text-align:left; }
+    .patient-autocomplete-item:last-child { border-bottom:0; }
+    .patient-autocomplete-item:hover, .patient-autocomplete-item:focus { background:#f5fafb; outline:none; }
+    .patient-autocomplete-meta { display:block; margin-top:4px; color:#70848b; font-size:12px; }
+    .patient-autocomplete-help { display:block; margin-top:8px; color:#70848b; }
+    .patient-autocomplete-help.is-success { color:#1f7a3f; }
+    .patient-autocomplete-help.is-warning { color:#9a6a06; }
   </style>
 </head>
 <body class="skin-blue sidebar-mini">
@@ -164,6 +172,7 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
           <form method="post" action="<?= site_url('admin/fatturazione-documenti/save') ?>">
             <?= csrf_field() ?>
             <input type="hidden" name="id_billing_document" value="<?= $documentId ?>">
+            <input type="hidden" name="id_client" value="<?= esc($fieldValue('id_client', '0')) ?>">
 
             <div class="box box-default">
               <div class="box-header with-border">
@@ -201,18 +210,24 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
                   </div>
                 </div>
 
-                <div class="row">
+                <div class="row js-patient-autocomplete" data-autocomplete-url="<?= esc(site_url('admin/fatturazione-documenti/pazienti/search')) ?>">
                   <div class="col-md-7">
                     <div class="form-group">
                       <label>Nome cliente o paziente *</label>
-                      <input class="form-control" type="text" name="patient_name" maxlength="190" value="<?= esc($fieldValue('patient_name')) ?>" placeholder="Es. Mario Rossi">
+                      <input class="form-control" type="text" name="patient_name" maxlength="190" value="<?= esc($fieldValue('patient_name')) ?>" placeholder="Es. Mario Rossi" autocomplete="off">
                     </div>
                   </div>
                   <div class="col-md-5">
                     <div class="form-group">
                       <label>Codice fiscale</label>
-                      <input class="form-control" type="text" name="patient_tax_code" maxlength="16" value="<?= esc($fieldValue('patient_tax_code')) ?>" placeholder="RSSMRA80A01H501Z">
+                      <input class="form-control" type="text" name="patient_tax_code" maxlength="16" value="<?= esc($fieldValue('patient_tax_code')) ?>" placeholder="RSSMRA80A01H501Z" autocomplete="off">
                     </div>
+                  </div>
+                  <div class="col-md-12">
+                    <div class="patient-autocomplete-menu" data-role="patient-results"></div>
+                    <small class="patient-autocomplete-help" data-role="patient-help">
+                      Cerca un paziente gia presente nello spazio oppure compila i campi manualmente.
+                    </small>
                   </div>
                 </div>
 
@@ -364,5 +379,161 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
 </div>
 <script src="<?= base_url('public/plugins/jQuery/jQuery-2.1.4.min.js') ?>"></script>
 <script src="<?= base_url('public/bootstrap/js/bootstrap.min.js') ?>"></script>
+<script>
+  (function ($) {
+    function initPatientAutocomplete($root) {
+      if (!$root.length) {
+        return;
+      }
+
+      var endpoint = $.trim($root.data('autocomplete-url') || '');
+      var $name = $root.find('input[name="patient_name"]');
+      var $taxCode = $root.find('input[name="patient_tax_code"]');
+      var $clientId = $('input[name="id_client"]');
+      var $results = $root.find('[data-role="patient-results"]');
+      var $help = $root.find('[data-role="patient-help"]');
+      var debounceTimer = null;
+      var pendingRequest = null;
+      var selectedSignature = buildSignature();
+
+      if (!$name.length || !$taxCode.length || !$clientId.length || endpoint === '') {
+        return;
+      }
+
+      function buildSignature() {
+        return [
+          $.trim($clientId.val() || '0'),
+          $.trim($name.val() || ''),
+          $.trim($taxCode.val() || '')
+        ].join('|');
+      }
+
+      function setHelp(message, level) {
+        $help.removeClass('is-success is-warning').text(message);
+        if (level === 'success') {
+          $help.addClass('is-success');
+        } else if (level === 'warning') {
+          $help.addClass('is-warning');
+        }
+      }
+
+      function hideResults() {
+        $results.hide().empty();
+      }
+
+      function clearSelectedLink(showManualMessage) {
+        if (parseInt($clientId.val() || '0', 10) > 0) {
+          $clientId.val('0');
+        }
+
+        selectedSignature = buildSignature();
+        if (showManualMessage) {
+          setHelp('Compilazione manuale attiva. Seleziona un paziente dalla lista solo se vuoi agganciare la fattura all anagrafica dello spazio.', 'warning');
+        }
+      }
+
+      function applySelection(patient) {
+        $clientId.val(String(patient.id_client || 0));
+        $name.val($.trim(patient.patient_name || ''));
+        $taxCode.val($.trim(patient.patient_tax_code || ''));
+        selectedSignature = buildSignature();
+        hideResults();
+        setHelp('Paziente collegato all anagrafica dello spazio. Se modifichi i campi torni in modalita manuale.', 'success');
+      }
+
+      function renderResults(items) {
+        hideResults();
+
+        if (!items.length) {
+          setHelp('Nessun paziente trovato nello spazio. Puoi continuare con inserimento manuale.', 'warning');
+          return;
+        }
+
+        $.each(items, function (_, patient) {
+          var label = $.trim(patient.label || patient.patient_name || '');
+          var meta = $.trim(patient.meta || '');
+          var $button = $('<button type="button" class="patient-autocomplete-item"></button>');
+          $button.append($('<strong></strong>').text(label !== '' ? label : ('Paziente #' + (patient.id_client || 0))));
+          if (meta !== '') {
+            $button.append($('<span class="patient-autocomplete-meta"></span>').text(meta));
+          }
+          $button.data('patient', patient);
+          $results.append($button);
+        });
+
+        $results.show();
+      }
+
+      function search(term) {
+        if (pendingRequest && typeof pendingRequest.abort === 'function') {
+          pendingRequest.abort();
+        }
+
+        pendingRequest = $.getJSON(endpoint, { term: term })
+          .done(function (response) {
+            if (!response || response.ok !== true) {
+              setHelp('Ricerca pazienti momentaneamente non disponibile. Puoi comunque compilare la fattura manualmente.', 'warning');
+              hideResults();
+              return;
+            }
+
+            renderResults($.isArray(response.results) ? response.results : []);
+          })
+          .fail(function () {
+            setHelp('Ricerca pazienti momentaneamente non disponibile. Puoi comunque compilare la fattura manualmente.', 'warning');
+            hideResults();
+          })
+          .always(function () {
+            pendingRequest = null;
+          });
+      }
+
+      function handleInput($source) {
+        var term = $.trim($source.val() || '');
+
+        if (buildSignature() !== selectedSignature) {
+          clearSelectedLink(false);
+        }
+
+        if (term.length < 2) {
+          hideResults();
+          if (parseInt($clientId.val() || '0', 10) <= 0) {
+            setHelp('Cerca un paziente gia presente nello spazio oppure compila i campi manualmente.', '');
+          }
+          return;
+        }
+
+        window.clearTimeout(debounceTimer);
+        debounceTimer = window.setTimeout(function () {
+          search(term);
+        }, 220);
+      }
+
+      $name.on('input', function () {
+        handleInput($name);
+      });
+
+      $taxCode.on('input', function () {
+        handleInput($taxCode);
+      });
+
+      $results.on('mousedown', '.patient-autocomplete-item', function (event) {
+        event.preventDefault();
+      });
+
+      $results.on('click', '.patient-autocomplete-item', function () {
+        applySelection($(this).data('patient') || {});
+      });
+
+      if (parseInt($clientId.val() || '0', 10) > 0) {
+        setHelp('Paziente gia collegato all anagrafica dello spazio. Puoi modificarlo o continuare cosi.', 'success');
+      }
+    }
+
+    $(function () {
+      initPatientAutocomplete($('.js-patient-autocomplete'));
+    });
+  })(jQuery);
+</script>
 </body>
 </html>

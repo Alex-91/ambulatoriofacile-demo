@@ -3,6 +3,7 @@
 namespace App\Controllers\Admin;
 
 use App\Services\BillingTsBridgeService;
+use App\Services\TenantPatientLookupService;
 use App\Services\TsDispatchService;
 use App\Services\TsDocumentService;
 use App\Services\TsReceiptService;
@@ -15,6 +16,7 @@ class TsDocumentsController extends TsAdminBaseController
     private TsDocumentService $documents;
     private TsReceiptService $receipts;
     private TsTenantDatabaseContextService $tenantDbContext;
+    private TenantPatientLookupService $patientLookup;
 
     public function __construct()
     {
@@ -24,6 +26,7 @@ class TsDocumentsController extends TsAdminBaseController
         $this->documents = new TsDocumentService();
         $this->receipts = new TsReceiptService();
         $this->tenantDbContext = new TsTenantDatabaseContextService();
+        $this->patientLookup = new TenantPatientLookupService();
     }
 
     public function index()
@@ -115,6 +118,46 @@ class TsDocumentsController extends TsAdminBaseController
 
             return redirect()->to($targetUrl)->with('errors', [
                 'generic' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    public function searchPatients()
+    {
+        if ($this->ensureAccess() !== null) {
+            return $this->response->setStatusCode(403)->setJSON([
+                'ok' => false,
+                'results' => [],
+                'error' => 'Accesso non autorizzato.',
+            ]);
+        }
+
+        $tenantScope = $this->resolveTenantScope();
+        $tenantId = (int) ($tenantScope['tenant_id'] ?? 0);
+        $term = trim((string) ($this->request->getGet('term') ?? ''));
+
+        if (mb_strlen($term) < 2) {
+            return $this->response->setJSON([
+                'ok' => true,
+                'results' => [],
+            ]);
+        }
+
+        try {
+            return $this->response->setJSON([
+                'ok' => true,
+                'results' => $this->patientLookup->searchPatientsForTenant($tenantId, $term, 12),
+            ]);
+        } catch (\Throwable $e) {
+            log_message('error', 'Admin\\TsDocumentsController::searchPatients failed: ' . $e->getMessage(), [
+                'tenant_id' => $tenantId,
+                'term' => $term,
+            ]);
+
+            return $this->response->setStatusCode(500)->setJSON([
+                'ok' => false,
+                'results' => [],
+                'error' => 'Ricerca pazienti non disponibile al momento.',
             ]);
         }
     }

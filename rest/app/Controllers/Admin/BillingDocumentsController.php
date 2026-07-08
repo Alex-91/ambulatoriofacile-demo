@@ -4,6 +4,7 @@ namespace App\Controllers\Admin;
 
 use App\Services\BillingDocumentService;
 use App\Services\BillingTsBridgeService;
+use App\Services\TenantPatientLookupService;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 
@@ -11,12 +12,14 @@ class BillingDocumentsController extends BillingAdminBaseController
 {
     private BillingDocumentService $documents;
     private BillingTsBridgeService $billingTsBridge;
+    private TenantPatientLookupService $patientLookup;
 
     public function __construct()
     {
         parent::__construct();
         $this->documents = new BillingDocumentService();
         $this->billingTsBridge = new BillingTsBridgeService();
+        $this->patientLookup = new TenantPatientLookupService();
     }
 
     public function index()
@@ -151,6 +154,7 @@ class BillingDocumentsController extends BillingAdminBaseController
                 $tenantId,
                 [
                     'id_billing_document' => $documentId,
+                    'id_client' => $this->request->getPost('id_client'),
                     'document_number' => $this->request->getPost('document_number'),
                     'document_type' => $this->request->getPost('document_type'),
                     'issue_date' => $this->request->getPost('issue_date'),
@@ -215,6 +219,46 @@ class BillingDocumentsController extends BillingAdminBaseController
 
             return redirect()->to($redirectUrl)->withInput()->with('errors', [
                 'generic' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    public function searchPatients()
+    {
+        if ($this->ensureAccess() !== null) {
+            return $this->response->setStatusCode(403)->setJSON([
+                'ok' => false,
+                'results' => [],
+                'error' => 'Accesso non autorizzato.',
+            ]);
+        }
+
+        $tenantScope = $this->resolveTenantScope();
+        $tenantId = (int) ($tenantScope['tenant_id'] ?? 0);
+        $term = trim((string) ($this->request->getGet('term') ?? ''));
+
+        if (mb_strlen($term) < 2) {
+            return $this->response->setJSON([
+                'ok' => true,
+                'results' => [],
+            ]);
+        }
+
+        try {
+            return $this->response->setJSON([
+                'ok' => true,
+                'results' => $this->patientLookup->searchPatientsForTenant($tenantId, $term, 12),
+            ]);
+        } catch (\Throwable $e) {
+            log_message('error', 'Admin\\BillingDocumentsController::searchPatients failed: ' . $e->getMessage(), [
+                'tenant_id' => $tenantId,
+                'term' => $term,
+            ]);
+
+            return $this->response->setStatusCode(500)->setJSON([
+                'ok' => false,
+                'results' => [],
+                'error' => 'Ricerca pazienti non disponibile al momento.',
             ]);
         }
     }

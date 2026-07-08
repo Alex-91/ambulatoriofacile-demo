@@ -190,6 +190,7 @@ $routes->group('admin', static function($routes){
     $routes->get('fatturazione-documenti', 'Admin\BillingDocumentsController::index');
     $routes->get('fatturazione-documenti/nuovo', 'Admin\BillingDocumentsController::create');
     $routes->get('fatturazione-documenti/modifica/(:num)', 'Admin\BillingDocumentsController::edit/$1');
+    $routes->get('fatturazione-documenti/pazienti/search', 'Admin\BillingDocumentsController::searchPatients');
     $routes->post('fatturazione-documenti/save', 'Admin\BillingDocumentsController::save');
     $routes->post('fatturazione-documenti/elimina/(:num)', 'Admin\BillingDocumentsController::delete/$1');
     $routes->get('fatturazione-documenti/preview/(:num)', 'Admin\BillingDocumentsController::preview/$1');
@@ -200,6 +201,7 @@ $routes->group('admin', static function($routes){
     $routes->get('sistema-ts/documenti', 'Admin\TsDocumentsController::index');
     $routes->get('sistema-ts/documenti/nuovo', 'Admin\TsDocumentsController::create');
     $routes->get('sistema-ts/documenti/modifica/(:num)', 'Admin\TsDocumentsController::edit/$1');
+    $routes->get('sistema-ts/documenti/pazienti/search', 'Admin\TsDocumentsController::searchPatients');
     $routes->post('sistema-ts/documenti/save', 'Admin\TsDocumentsController::save');
     $routes->post('sistema-ts/documenti/send', 'Admin\TsDocumentsController::send');
     $routes->post('sistema-ts/documenti/send-bulk-billing', 'Admin\TsDocumentsController::sendBillingBulk');
@@ -215,6 +217,7 @@ $routes->group('admin', static function($routes){
     $routes->get('fatturazione-ts/documenti', 'Admin\TsDocumentsController::index');
     $routes->get('fatturazione-ts/documenti/nuovo', 'Admin\TsDocumentsController::create');
     $routes->get('fatturazione-ts/documenti/modifica/(:num)', 'Admin\TsDocumentsController::edit/$1');
+    $routes->get('fatturazione-ts/documenti/pazienti/search', 'Admin\TsDocumentsController::searchPatients');
     $routes->post('fatturazione-ts/documenti/save', 'Admin\TsDocumentsController::save');
     $routes->post('fatturazione-ts/documenti/send', 'Admin\TsDocumentsController::send');
     $routes->post('fatturazione-ts/documenti/send-bulk-billing', 'Admin\TsDocumentsController::sendBillingBulk');
