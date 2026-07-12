@@ -18,6 +18,7 @@ use App\Models\PazientiModel;
 use App\Services\AgendaAppointmentNotificationService;
 use App\Services\AgendaProfessionalOrderService;
 use App\Services\AgendaTeamColumnColorService;
+use App\Services\BillingTsModuleStatusService;
 use App\Services\NotificationService;
 use App\Services\SmsReminderDashboardService;
 use App\Services\StaffDoctorAccessService;
@@ -50,6 +51,7 @@ class Agenda extends BaseController
     protected NotificationService $notificationService;
     protected AgendaProfessionalOrderService $agendaProfessionalOrderService;
     protected AgendaTeamColumnColorService $agendaTeamColumnColorService;
+    protected BillingTsModuleStatusService $billingTsModuleStatusService;
     protected TenantContextService $tenantContextService;
     protected TenantFeatureService $tenantFeatureService;
     protected $db;
@@ -73,6 +75,7 @@ class Agenda extends BaseController
         $this->notificationService = new NotificationService();
         $this->agendaProfessionalOrderService = new AgendaProfessionalOrderService();
         $this->agendaTeamColumnColorService = new AgendaTeamColumnColorService();
+        $this->billingTsModuleStatusService = new BillingTsModuleStatusService();
         $this->tenantContextService = new TenantContextService();
         $this->tenantFeatureService = new TenantFeatureService();
 
@@ -1439,6 +1442,74 @@ public function eseguiRepairRecurringExtraSlots()
         return (int)($row['id_dot'] ?? 0);
     }
 
+    /**
+     * @return array<string, mixed>
+     */
+    protected function resolveAppointmentDocumentActionsState(): array
+    {
+        $context = $this->tenantContextService->getCurrentTenant();
+        $tenantId = $this->resolveCurrentSessionTenantId($context);
+        $status = $this->billingTsModuleStatusService->describe($context, $tenantId);
+        $canUseModules = $this->canCurrentSessionUseAppointmentDocumentWorkflow($context);
+
+        return [
+            'billing_enabled' => $canUseModules && !empty($status['billing_enabled']),
+            'ts_enabled' => $canUseModules && !empty($status['ts_enabled']),
+            'integrated_enabled' => $canUseModules && !empty($status['integrated_enabled']),
+        ];
+    }
+
+    protected function canCurrentSessionUseAppointmentDocumentWorkflow($context = null): bool
+    {
+        if ($this->isCurrentSessionPlatformAdmin()) {
+            return true;
+        }
+
+        $tenantRole = session_current_tenant_role();
+        if (in_array($tenantRole, ['tenant_master', 'tenant_admin'], true)) {
+            return true;
+        }
+
+        if (!$context || !method_exists($context, 'isValid') || !$context->isValid()) {
+            return false;
+        }
+
+        $tenantRole = strtolower(trim((string) ($context->tenantRole ?? '')));
+
+        return in_array($tenantRole, ['tenant_master', 'tenant_admin'], true);
+    }
+
+    protected function resolveCurrentSessionTenantId($context = null): int
+    {
+        if ($context && method_exists($context, 'isValid') && $context->isValid()) {
+            return (int) ($context->tenantId ?? 0);
+        }
+
+        $rawTenantContext = session()->get(TenantContextService::SESSION_KEY);
+        $rawTenantContext = is_array($rawTenantContext) ? $rawTenantContext : [];
+        $tenantId = (int) ($rawTenantContext['tenant_id'] ?? 0);
+        if ($tenantId > 0) {
+            return $tenantId;
+        }
+
+        try {
+            $runtimeTenant = (new TenantCatalogService())->resolveCurrentRuntimeTenant();
+        } catch (\Throwable) {
+            return 0;
+        }
+
+        return (int) ($runtimeTenant['id_tenant'] ?? 0);
+    }
+
+    protected function isCurrentSessionPlatformAdmin(): bool
+    {
+        $me = session()->get('utente_sess');
+
+        return session()->get('is_admin') === true
+            || (bool) (session()->get('platform_is_admin') ?? false) === true
+            || (is_object($me) && (int) ($me->tipo ?? 0) === 1);
+    }
+
     protected function isDomiciliareAbilitatoPerDottore(array $medici, int $selectedDot): bool
     {
         foreach ($medici as $m) {
@@ -1518,6 +1589,7 @@ public function eseguiRepairRecurringExtraSlots()
         }
 
         $domiciliariAbilitati = $this->isDomiciliareAbilitatoPerDottore($medici, $selectedDot);
+        $appointmentDocumentActions = $this->resolveAppointmentDocumentActionsState();
 
         $data = [
             'pageTitle'            => 'Agenda',
@@ -1534,6 +1606,7 @@ public function eseguiRepairRecurringExtraSlots()
             'visitTypesFeatureEnabled' => $visitTypesFeatureEnabled,
             'visitTypes'           => $visitTypes,
             'domiciliariAbilitati' => $domiciliariAbilitati,
+            'appointmentDocumentActions' => $appointmentDocumentActions,
             'locationCatalog'      => $this->locationModel->getCatalog(true),
             'menuAgenda'           => method_exists($this->agendaModel, 'getMenuVisibleByUser')
                 ? $this->agendaModel->getMenuVisibleByUser($this->getCurrentUserId())
@@ -3438,6 +3511,16 @@ public function eseguiRepairRecurringExtraSlots()
         }
     }
 
+    public function apriFatturazioneDaAppuntamento(int $idAppuntamento)
+    {
+        return $this->redirectToAppointmentDocumentWorkflow($idAppuntamento, 'billing');
+    }
+
+    public function apriTsDaAppuntamento(int $idAppuntamento)
+    {
+        return $this->redirectToAppointmentDocumentWorkflow($idAppuntamento, 'ts');
+    }
+
     public function eliminaAppuntamento()
     {
         try {
@@ -3460,6 +3543,610 @@ public function eseguiRepairRecurringExtraSlots()
                 'message' => $e->getMessage()
             ]);
         }
+    }
+
+    /**
+     * @param 'billing'|'ts' $workflow
+     */
+    private function redirectToAppointmentDocumentWorkflow(int $idAppuntamento, string $workflow)
+    {
+        $fallbackUrl = $this->fallbackAppointmentDocumentReturnUrl($idAppuntamento);
+
+        try {
+            $actions = $this->resolveAppointmentDocumentActionsState();
+            if ($workflow === 'billing' && empty($actions['billing_enabled'])) {
+                throw new \Exception('Il modulo Fatturazione non e disponibile per questa sessione agenda.');
+            }
+
+            if ($workflow === 'ts' && empty($actions['ts_enabled'])) {
+                throw new \Exception('Il modulo Sistema TS non e disponibile per questa sessione agenda.');
+            }
+
+            $snapshot = $this->loadAppointmentDocumentWorkflowSnapshot($idAppuntamento);
+            $snapshot = $this->applyAppointmentDocumentDraftSnapshot($snapshot);
+            if (!empty($snapshot['is_special_patient'])) {
+                throw new \Exception('Il paziente speciale non puo generare documenti fiscali o TS. Collega prima un paziente reale all appuntamento.');
+            }
+
+            $returnUrl = $this->buildAppointmentDocumentReturnUrl($snapshot);
+            $warning = '';
+
+            if ($workflow === 'billing') {
+                $billingPrefill = $this->buildBillingAppointmentDocumentPrefill(
+                    $snapshot,
+                    !empty($actions['ts_enabled']),
+                    $returnUrl
+                );
+                session()->setFlashdata(
+                    'billing_document_prefill',
+                    $billingPrefill
+                );
+                $prefillKey = $this->storeAppointmentDocumentPrefill('billing', $billingPrefill);
+
+                if (!empty($actions['ts_enabled']) && trim((string) ($snapshot['patient_tax_code'] ?? '')) === '') {
+                    $warning = 'La fattura e pronta per il passaggio a TS, ma manca il codice fiscale del paziente: compilalo prima di usare "Salva e invia a TS".';
+                }
+
+                $redirectUrl = site_url('admin/fatturazione-documenti/nuovo');
+                if ($prefillKey !== '') {
+                    $redirectUrl .= '?prefill_key=' . rawurlencode($prefillKey);
+                }
+                $redirect = redirect()->to($redirectUrl);
+                return $warning !== '' ? $redirect->with('warning', $warning) : $redirect;
+            }
+
+            $tsPrefill = $this->buildTsAppointmentDocumentPrefill($snapshot, $returnUrl);
+            session()->setFlashdata(
+                'ts_document_prefill',
+                $tsPrefill
+            );
+            $prefillKey = $this->storeAppointmentDocumentPrefill('ts', $tsPrefill);
+
+            if (trim((string) ($snapshot['patient_tax_code'] ?? '')) === '') {
+                $warning = 'Il documento TS e stato precompilato dall appuntamento, ma manca il codice fiscale del paziente.';
+            }
+
+            $redirectUrl = site_url('admin/sistema-ts/documenti/nuovo');
+            if ($prefillKey !== '') {
+                $redirectUrl .= '?prefill_key=' . rawurlencode($prefillKey);
+            }
+            $redirect = redirect()->to($redirectUrl);
+            return $warning !== '' ? $redirect->with('warning', $warning) : $redirect;
+        } catch (\Throwable $e) {
+            return redirect()->to($fallbackUrl)->with('warning', $e->getMessage());
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     */
+    private function storeAppointmentDocumentPrefill(string $workflow, array $payload): string
+    {
+        $session = session();
+        $store = $session->get('appointment_document_prefills');
+        $store = is_array($store) ? $store : [];
+        $store = $this->cleanupStoredAppointmentDocumentPrefills($store);
+
+        try {
+            $key = bin2hex(random_bytes(16));
+        } catch (\Throwable $e) {
+            $key = sha1($workflow . '|' . microtime(true) . '|' . mt_rand());
+        }
+
+        $store[$key] = [
+            'workflow' => $workflow,
+            'payload' => $payload,
+            'created_at' => time(),
+        ];
+
+        $session->set('appointment_document_prefills', $store);
+
+        return $key;
+    }
+
+    /**
+     * @param array<string, mixed> $store
+     * @return array<string, mixed>
+     */
+    private function cleanupStoredAppointmentDocumentPrefills(array $store): array
+    {
+        if ($store === []) {
+            return [];
+        }
+
+        $now = time();
+        foreach ($store as $key => $entry) {
+            $createdAt = (int) ($entry['created_at'] ?? 0);
+            if ($createdAt > 0 && ($now - $createdAt) <= 3600) {
+                continue;
+            }
+
+            unset($store[$key]);
+        }
+
+        return $store;
+    }
+
+    /**
+     * @param array<string, mixed> $snapshot
+     * @return array<string, mixed>
+     */
+    private function applyAppointmentDocumentDraftSnapshot(array $snapshot): array
+    {
+        if (strtoupper((string) $this->request->getMethod()) !== 'POST') {
+            return $snapshot;
+        }
+
+        $idDot = (int) ($snapshot['id_dot'] ?? 0);
+        $draftClientId = max(0, (int) ($this->request->getPost('draft_id_client') ?? 0));
+        $draftSurname = trim((string) ($this->request->getPost('draft_cognome') ?? ''));
+        $draftName = trim((string) ($this->request->getPost('draft_nome') ?? ''));
+        $draftPatientLabel = trim((string) ($this->request->getPost('draft_patient_label') ?? ''));
+        $draftPhone = trim((string) ($this->request->getPost('draft_telefono') ?? ''));
+        $draftMobile = trim((string) ($this->request->getPost('draft_cellulare') ?? ''));
+        $draftEmail = trim((string) ($this->request->getPost('draft_email') ?? ''));
+        $draftNote = trim((string) ($this->request->getPost('draft_note') ?? ''));
+        $draftTaxCode = strtoupper(trim((string) ($this->request->getPost('draft_patient_tax_code') ?? '')));
+        $draftAddress = '';
+        $draftCity = '';
+
+        if ($draftClientId > 0 && $idDot > 0) {
+            $draftPatient = $this->resolveAppointmentDocumentPatient([
+                'id_client' => $draftClientId,
+                'id_paziente' => $draftClientId,
+            ], $idDot);
+
+            if (is_array($draftPatient)) {
+                if ($draftSurname === '') {
+                    $draftSurname = trim((string) ($draftPatient['cognome'] ?? ''));
+                }
+                if ($draftName === '') {
+                    $draftName = trim((string) ($draftPatient['nome'] ?? ''));
+                }
+                if ($draftTaxCode === '') {
+                    $draftTaxCode = strtoupper(trim((string) ($draftPatient['cod_fis'] ?? '')));
+                }
+                if ($draftPhone === '') {
+                    $draftPhone = trim((string) ($draftPatient['telefono'] ?? ''));
+                }
+                if ($draftMobile === '') {
+                    $draftMobile = trim((string) ($draftPatient['cellulare'] ?? ''));
+                }
+                if ($draftEmail === '') {
+                    $draftEmail = trim((string) ($draftPatient['email'] ?? ''));
+                }
+
+                $draftAddress = trim((string) ($draftPatient['indirizzo'] ?? ''));
+                $draftCity = trim((string) ($draftPatient['citta'] ?? ''));
+
+                $specialPatientLabel = trim((string) ($draftPatient['paz_spec'] ?? ''));
+                $snapshot['patient_special_label'] = $specialPatientLabel;
+                $snapshot['is_special_patient'] = $specialPatientLabel !== '' || $draftClientId === 33;
+            }
+
+            $snapshot['id_client'] = $draftClientId;
+        }
+
+        $draftPatientLabelFromParts = trim(preg_replace('/\s+/', ' ', $draftSurname . ' ' . $draftName) ?? '');
+        if ($draftPatientLabel === '') {
+            $draftPatientLabel = $draftPatientLabelFromParts;
+        }
+
+        if ($draftPatientLabel !== '') {
+            $snapshot['patient_label'] = $draftPatientLabel;
+        }
+        if ($draftSurname !== '') {
+            $snapshot['patient_last_name'] = $draftSurname;
+        }
+        if ($draftName !== '') {
+            $snapshot['patient_first_name'] = $draftName;
+        }
+
+        if ($draftTaxCode !== '') {
+            $snapshot['patient_tax_code'] = $draftTaxCode;
+        }
+        if ($draftPhone !== '') {
+            $snapshot['patient_phone'] = $draftPhone;
+        }
+        if ($draftMobile !== '') {
+            $snapshot['patient_mobile'] = $draftMobile;
+        }
+        if ($draftEmail !== '') {
+            $snapshot['patient_email'] = $draftEmail;
+        }
+        if ($draftAddress !== '') {
+            $snapshot['patient_address'] = $draftAddress;
+        }
+        if ($draftCity !== '') {
+            $snapshot['patient_city'] = $draftCity;
+        }
+        if ($draftNote !== '') {
+            $snapshot['appointment_note'] = $draftNote;
+        }
+
+        return $snapshot;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function loadAppointmentDocumentWorkflowSnapshot(int $idAppuntamento): array
+    {
+        if ($idAppuntamento <= 0) {
+            throw new \Exception('Appuntamento non valido.');
+        }
+
+        $hasAppointmentClientColumn = $this->db->fieldExists('id_client', 'dap12_agenda_appuntamenti');
+        $hasAppointmentVisitTypeLabelColumn = $this->db->fieldExists('tipo_visita_label', 'dap12_agenda_appuntamenti');
+        $hasAppointmentEndColumn = $this->db->fieldExists('ora_fine_appuntamento', 'dap12_agenda_appuntamenti');
+        $appointmentClientSelect = $hasAppointmentClientColumn ? 'a.id_client,' : 'NULL AS id_client,';
+        $appointmentVisitTypeLabelSelect = $hasAppointmentVisitTypeLabelColumn
+            ? 'COALESCE(a.tipo_visita_label, \'\') AS tipo_visita_label,'
+            : '\'\' AS tipo_visita_label,';
+        $appointmentEndExpr = $hasAppointmentEndColumn ? 'a.ora_fine_appuntamento' : 's.ora_fine';
+
+        $row = $this->db->table('dap12_agenda_appuntamenti a')
+            ->select("
+                a.id_appuntamento,
+                a.id_paziente,
+                {$appointmentClientSelect}
+                a.cognome,
+                a.nome,
+                a.telefono,
+                a.cellulare,
+                a.email,
+                COALESCE(a.note, '') AS note,
+                COALESCE(a.motivo_visita, '') AS motivo_visita,
+                {$appointmentVisitTypeLabelSelect}
+                s.id_dot,
+                s.data_slot,
+                s.ora_inizio,
+                {$appointmentEndExpr} AS ora_fine
+            ")
+            ->join('dap11_agenda_slot s', 's.id_slot = a.id_slot', 'inner')
+            ->where('a.id_appuntamento', $idAppuntamento)
+            ->where('a.stato <>', 'ANNULLATO')
+            ->get()
+            ->getRowArray();
+
+        if (!is_array($row)) {
+            throw new \Exception('Appuntamento non trovato.');
+        }
+
+        $idDot = (int) ($row['id_dot'] ?? 0);
+        if ($idDot <= 0) {
+            throw new \Exception('Dottore non trovato per questo appuntamento.');
+        }
+
+        $this->assertDoctorAllowed($idDot);
+
+        $patient = $this->resolveAppointmentDocumentPatient($row, $idDot);
+        $doctor = $this->agendaModel->getAgendaProfessionalByLegacyId($idDot) ?? [];
+        $doctorLabel = trim(implode(' ', array_filter([
+            trim((string) ($doctor['titolo'] ?? '')),
+            trim((string) ($doctor['nome'] ?? '')),
+            trim((string) ($doctor['cognome'] ?? '')),
+        ], static fn(string $value): bool => $value !== '')));
+        $patientLastName = trim((string) (($patient['cognome'] ?? '') ?: ($row['cognome'] ?? '')));
+        $patientFirstName = trim((string) (($patient['nome'] ?? '') ?: ($row['nome'] ?? '')));
+
+        $patientLabel = trim(implode(' ', array_filter([
+            $patientLastName,
+            $patientFirstName,
+        ], static fn(string $value): bool => $value !== '')));
+        if ($patientLabel === '') {
+            $patientLabel = trim((string) ($row['cognome'] ?? '') . ' ' . (string) ($row['nome'] ?? ''));
+        }
+        $patientLinkedId = (int) ($patient['id_paziente'] ?? ($row['id_client'] ?? 0));
+        $patientTaxCode = strtoupper(trim((string) ($patient['cod_fis'] ?? '')));
+        $patientPhone = trim((string) (($patient['telefono'] ?? '') ?: ($row['telefono'] ?? '')));
+        $patientMobile = trim((string) (($patient['cellulare'] ?? '') ?: ($row['cellulare'] ?? '')));
+        $patientEmail = trim((string) (($patient['email'] ?? '') ?: ($row['email'] ?? '')));
+        $patientAddress = trim((string) ($patient['indirizzo'] ?? ''));
+        $patientCity = trim((string) ($patient['citta'] ?? ''));
+        $specialPatientLabel = trim((string) ($patient['paz_spec'] ?? ''));
+        $dateValue = trim((string) ($row['data_slot'] ?? ''));
+        $startTime = trim((string) ($row['ora_inizio'] ?? ''));
+        $endTime = trim((string) ($row['ora_fine'] ?? ''));
+
+        return [
+            'id_appuntamento' => (int) ($row['id_appuntamento'] ?? 0),
+            'id_dot' => $idDot,
+            'id_client' => $patientLinkedId,
+            'patient_label' => $patientLabel !== '' ? $patientLabel : ('Appuntamento #' . $idAppuntamento),
+            'patient_last_name' => $patientLastName,
+            'patient_first_name' => $patientFirstName,
+            'patient_tax_code' => $patientTaxCode,
+            'patient_phone' => $patientPhone,
+            'patient_mobile' => $patientMobile,
+            'patient_email' => $patientEmail,
+            'patient_address' => $patientAddress,
+            'patient_city' => $patientCity,
+            'patient_special_label' => $specialPatientLabel,
+            'is_special_patient' => $specialPatientLabel !== '' || $patientLinkedId === 33 || (int) ($row['id_client'] ?? 0) === 33,
+            'doctor_label' => $doctorLabel,
+            'data_slot' => $dateValue,
+            'appointment_date_label' => $this->formatItalianDate($dateValue),
+            'ora_inizio' => $startTime,
+            'ora_fine' => $endTime,
+            'appointment_time_label' => $this->formatAppointmentWorkflowTime($startTime),
+            'appointment_end_time_label' => $this->formatAppointmentWorkflowTime($endTime),
+            'visit_type_label' => trim((string) ($row['tipo_visita_label'] ?? '')),
+            'motivo_visita' => trim((string) ($row['motivo_visita'] ?? '')),
+            'appointment_note' => trim((string) ($row['note'] ?? '')),
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $appointmentRow
+     * @return array<string, mixed>|null
+     */
+    private function resolveAppointmentDocumentPatient(array $appointmentRow, int $idDot): ?array
+    {
+        $actingUserId = $this->getCurrentUserIdSafe();
+        $directClientId = (int) ($appointmentRow['id_client'] ?? 0);
+        if ($directClientId > 0) {
+            $patient = $this->pazientiModel->getPazienteByDoctor($directClientId, $idDot, $actingUserId);
+            if (is_array($patient)) {
+                return $patient;
+            }
+        }
+
+        $appointmentPatientId = (int) ($appointmentRow['id_paziente'] ?? 0);
+        if ($appointmentPatientId <= 0) {
+            return null;
+        }
+
+        $patient = $this->pazientiModel->getPazienteByDoctor($appointmentPatientId, $idDot, $actingUserId);
+        if (is_array($patient)) {
+            return $patient;
+        }
+
+        $candidateRows = $this->db->table('dap02_clients')
+            ->select('id_client, COALESCE(legacy_id_paziente, 0) AS legacy_id_paziente')
+            ->groupStart()
+                ->where('id_client', $appointmentPatientId)
+                ->orWhere('legacy_id_paziente', $appointmentPatientId)
+            ->groupEnd()
+            ->get()
+            ->getResultArray();
+
+        if ($candidateRows === []) {
+            return null;
+        }
+
+        usort($candidateRows, static function (array $left, array $right) use ($appointmentPatientId): int {
+            $leftScore = (int) ($left['id_client'] ?? 0) === $appointmentPatientId ? 0 : 1;
+            $rightScore = (int) ($right['id_client'] ?? 0) === $appointmentPatientId ? 0 : 1;
+
+            if ($leftScore !== $rightScore) {
+                return $leftScore <=> $rightScore;
+            }
+
+            return ((int) ($left['id_client'] ?? 0)) <=> ((int) ($right['id_client'] ?? 0));
+        });
+
+        foreach ($candidateRows as $candidateRow) {
+            $candidateId = (int) ($candidateRow['id_client'] ?? 0);
+            if ($candidateId <= 0) {
+                continue;
+            }
+
+            $patient = $this->pazientiModel->getPazienteByDoctor($candidateId, $idDot, $actingUserId);
+            if (is_array($patient)) {
+                return $patient;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function buildBillingAppointmentDocumentPrefill(array $snapshot, bool $tsEnabled, string $returnUrl): array
+    {
+        $patientLabel = $this->buildAppointmentDocumentPatientLabel($snapshot);
+
+        return [
+            'page_title' => 'Nuova fattura da appuntamento',
+            'document' => [
+                'id_client' => (int) ($snapshot['id_client'] ?? 0),
+                'issue_date' => (string) ($snapshot['data_slot'] ?? date('Y-m-d')),
+                'payment_date' => (string) ($snapshot['data_slot'] ?? date('Y-m-d')),
+                'patient_name' => $patientLabel,
+                'patient_tax_code' => (string) ($snapshot['patient_tax_code'] ?? ''),
+                'ts_sync_enabled' => $tsEnabled ? 1 : 0,
+                'ts_expense_type_code' => 'SP',
+                'notes' => $this->buildAppointmentDocumentInternalNote($snapshot),
+            ],
+            'line_items' => [[
+                'description' => $this->buildAppointmentDocumentLineDescription($snapshot),
+                'quantity' => '1',
+                'unit_amount' => '',
+            ]],
+            'source_context' => $this->buildAppointmentDocumentSourceContext($snapshot, 'billing', $returnUrl, $tsEnabled),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function buildTsAppointmentDocumentPrefill(array $snapshot, string $returnUrl): array
+    {
+        $patientLabel = $this->buildAppointmentDocumentPatientLabel($snapshot);
+
+        return [
+            'page_title' => 'Nuovo documento TS da appuntamento',
+            'document' => [
+                'id_client' => (int) ($snapshot['id_client'] ?? 0),
+                'patient_label_plain' => $patientLabel,
+                'patient_cf_plain' => (string) ($snapshot['patient_tax_code'] ?? ''),
+                'issue_date' => (string) ($snapshot['data_slot'] ?? date('Y-m-d')),
+                'payment_date' => (string) ($snapshot['data_slot'] ?? date('Y-m-d')),
+                'expense_type_code' => 'SP',
+                'payment_mode' => 'tracciato',
+                'notes' => $this->buildAppointmentDocumentInternalNote($snapshot),
+            ],
+            'source_context' => $this->buildAppointmentDocumentSourceContext($snapshot, 'ts', $returnUrl, false),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function buildAppointmentDocumentSourceContext(array $snapshot, string $workflow, string $returnUrl, bool $tsEnabled): array
+    {
+        $appointmentReference = 'Appuntamento #' . (int) ($snapshot['id_appuntamento'] ?? 0);
+        $dateLabel = trim((string) ($snapshot['appointment_date_label'] ?? ''));
+        $timeLabel = trim((string) ($snapshot['appointment_time_label'] ?? ''));
+        $doctorLabel = trim((string) ($snapshot['doctor_label'] ?? ''));
+        $patientLabel = $this->buildAppointmentDocumentPatientLabel($snapshot);
+        $message = $workflow === 'billing'
+            ? 'Bozza fattura creata da appuntamento. Completa importi e dettagli del documento prima del salvataggio.'
+            : 'Bozza TS creata da appuntamento. Controlla codice fiscale, numero documento, dispositivo e importo prima di inviare.';
+
+        if ($workflow === 'billing' && $tsEnabled) {
+            $message = 'Bozza fattura creata da appuntamento. Il collegamento TS e gia attivo: puoi chiudere con Salva fattura oppure Salva e invia a TS.';
+        }
+
+        return [
+            'source_type' => 'agenda_appointment',
+            'appointment_id' => (int) ($snapshot['id_appuntamento'] ?? 0),
+            'title' => $appointmentReference,
+            'message' => $message,
+            'patient_label' => $patientLabel,
+            'patient_last_name' => (string) ($snapshot['patient_last_name'] ?? ''),
+            'patient_first_name' => (string) ($snapshot['patient_first_name'] ?? ''),
+            'patient_tax_code' => (string) ($snapshot['patient_tax_code'] ?? ''),
+            'patient_phone' => (string) ($snapshot['patient_phone'] ?? ''),
+            'patient_mobile' => (string) ($snapshot['patient_mobile'] ?? ''),
+            'patient_email' => (string) ($snapshot['patient_email'] ?? ''),
+            'patient_address' => (string) ($snapshot['patient_address'] ?? ''),
+            'patient_city' => (string) ($snapshot['patient_city'] ?? ''),
+            'appointment_date_label' => $dateLabel,
+            'appointment_time_label' => $timeLabel,
+            'doctor_label' => $doctorLabel,
+            'return_url' => $returnUrl,
+            'return_label' => 'Torna all appuntamento in agenda',
+        ];
+    }
+
+    private function buildAppointmentDocumentPatientLabel(array $snapshot): string
+    {
+        $patientLastName = trim((string) ($snapshot['patient_last_name'] ?? ''));
+        $patientFirstName = trim((string) ($snapshot['patient_first_name'] ?? ''));
+        $patientLabelFromParts = trim(preg_replace('/\s+/', ' ', $patientLastName . ' ' . $patientFirstName) ?? '');
+        if ($patientLabelFromParts !== '') {
+            return $patientLabelFromParts;
+        }
+
+        return trim((string) ($snapshot['patient_label'] ?? ''));
+    }
+
+    private function buildAppointmentDocumentLineDescription(array $snapshot): string
+    {
+        $visitLabel = trim((string) ($snapshot['visit_type_label'] ?? ''));
+        if ($visitLabel === '') {
+            $visitLabel = trim((string) ($snapshot['motivo_visita'] ?? ''));
+        }
+        if ($visitLabel === '') {
+            $visitLabel = 'Prestazione sanitaria';
+        }
+
+        $description = $visitLabel . ' del ' . trim((string) ($snapshot['appointment_date_label'] ?? ''));
+        $timeLabel = trim((string) ($snapshot['appointment_time_label'] ?? ''));
+        $doctorLabel = trim((string) ($snapshot['doctor_label'] ?? ''));
+
+        if ($timeLabel !== '') {
+            $description .= ' alle ' . $timeLabel;
+        }
+
+        if ($doctorLabel !== '') {
+            $description .= ' con ' . $doctorLabel;
+        }
+
+        return trim($description);
+    }
+
+    private function buildAppointmentDocumentInternalNote(array $snapshot): string
+    {
+        $parts = [];
+        $parts[] = 'Origine agenda: appuntamento #' . (int) ($snapshot['id_appuntamento'] ?? 0);
+
+        $dateLabel = trim((string) ($snapshot['appointment_date_label'] ?? ''));
+        if ($dateLabel !== '') {
+            $parts[] = 'del ' . $dateLabel;
+        }
+
+        $timeLabel = trim((string) ($snapshot['appointment_time_label'] ?? ''));
+        if ($timeLabel !== '') {
+            $parts[] = 'ore ' . $timeLabel;
+        }
+
+        $doctorLabel = trim((string) ($snapshot['doctor_label'] ?? ''));
+        if ($doctorLabel !== '') {
+            $parts[] = 'con ' . $doctorLabel;
+        }
+
+        $baseNote = implode(' ', $parts);
+        $appointmentNote = trim((string) ($snapshot['appointment_note'] ?? ''));
+
+        if ($appointmentNote === '') {
+            return $baseNote;
+        }
+
+        return $baseNote . '. Note agenda: ' . $appointmentNote;
+    }
+
+    private function buildAppointmentDocumentReturnUrl(array $snapshot): string
+    {
+        $params = [
+            'id_dot' => (int) ($snapshot['id_dot'] ?? 0),
+            'data' => trim((string) ($snapshot['data_slot'] ?? '')),
+            'focus_appointment' => (int) ($snapshot['id_appuntamento'] ?? 0),
+        ];
+
+        $viewMode = trim((string) ($this->request->getGet('view') ?? ''));
+        if ($viewMode !== '') {
+            $params['view'] = $viewMode;
+        }
+
+        return site_url('agenda' . '?' . http_build_query($params));
+    }
+
+    private function fallbackAppointmentDocumentReturnUrl(int $appointmentId = 0): string
+    {
+        $params = [];
+        $idDot = (int) ($this->request->getGet('id_dot') ?? 0);
+        $date = trim((string) ($this->request->getGet('data') ?? ''));
+        $viewMode = trim((string) ($this->request->getGet('view') ?? ''));
+
+        if ($idDot > 0) {
+            $params['id_dot'] = $idDot;
+        }
+        if ($date !== '') {
+            $params['data'] = $date;
+        }
+        if ($viewMode !== '') {
+            $params['view'] = $viewMode;
+        }
+        if ($appointmentId > 0) {
+            $params['focus_appointment'] = $appointmentId;
+        }
+
+        return site_url('agenda' . ($params !== [] ? ('?' . http_build_query($params)) : ''));
+    }
+
+    private function formatAppointmentWorkflowTime(string $value): string
+    {
+        $value = trim($value);
+        if ($value === '') {
+            return '';
+        }
+
+        $timestamp = strtotime($value);
+        return $timestamp ? date('H:i', $timestamp) : $value;
     }
 
     public function salvaNota()

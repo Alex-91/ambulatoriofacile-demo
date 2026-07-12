@@ -170,12 +170,18 @@ class TsDocumentsController extends TsAdminBaseController
 
         $tenantScope = $this->resolveTenantScope();
         $formContext = $this->documents->buildFormContext((int) ($tenantScope['tenant_id'] ?? 0));
+        $appointmentPrefill = $this->consumeAppointmentPrefill();
+        if ($appointmentPrefill !== []) {
+            $formContext = $this->applyAppointmentPrefill($formContext, $appointmentPrefill);
+        }
 
         return view('admin/ts/document_form', [
             'menu_items' => $this->adminMenuItems(),
             'tenantScope' => $tenantScope,
             'formContext' => $formContext,
-            'pageTitle' => 'Nuovo documento TS',
+            'pageTitle' => trim((string) ($appointmentPrefill['page_title'] ?? '')) !== ''
+                ? trim((string) ($appointmentPrefill['page_title'] ?? ''))
+                : 'Nuovo documento TS',
             'success' => session()->getFlashdata('success'),
             'warning' => session()->getFlashdata('warning'),
             'errors' => session()->getFlashdata('errors') ?? [],
@@ -533,5 +539,98 @@ class TsDocumentsController extends TsAdminBaseController
         return $documentId > 0
             ? site_url('admin/sistema-ts/documenti/modifica/' . $documentId)
             : $fallback;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function consumeAppointmentPrefill(): array
+    {
+        $prefillKey = trim((string) ($this->request->getGet('prefill_key') ?? ''));
+        if ($prefillKey !== '') {
+            $sessionPrefill = $this->loadSessionAppointmentPrefill($prefillKey, 'ts');
+            if ($sessionPrefill !== []) {
+                return $sessionPrefill;
+            }
+        }
+
+        $prefill = session()->getFlashdata('ts_document_prefill');
+
+        return is_array($prefill) ? $prefill : [];
+    }
+
+    /**
+     * @param array<string, mixed> $formContext
+     * @param array<string, mixed> $prefill
+     * @return array<string, mixed>
+     */
+    private function applyAppointmentPrefill(array $formContext, array $prefill): array
+    {
+        $document = is_array($formContext['document'] ?? null) ? $formContext['document'] : [];
+        $prefillDocument = is_array($prefill['document'] ?? null) ? $prefill['document'] : [];
+        $sourceContext = is_array($prefill['source_context'] ?? null) ? $prefill['source_context'] : [];
+
+        if ($prefillDocument !== []) {
+            $formContext['document'] = array_merge($document, $prefillDocument);
+        }
+
+        if ($sourceContext !== []) {
+            $formContext['source_context'] = $sourceContext;
+        }
+
+        return $formContext;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function loadSessionAppointmentPrefill(string $prefillKey, string $workflow): array
+    {
+        $store = session()->get('appointment_document_prefills');
+        $store = is_array($store) ? $store : [];
+        if ($store === []) {
+            return [];
+        }
+
+        $updatedStore = $this->cleanupStoredAppointmentDocumentPrefills($store);
+        if ($updatedStore !== $store) {
+            session()->set('appointment_document_prefills', $updatedStore);
+        }
+
+        $entry = $updatedStore[$prefillKey] ?? null;
+        if (!is_array($entry)) {
+            return [];
+        }
+
+        if (trim((string) ($entry['workflow'] ?? '')) !== $workflow) {
+            return [];
+        }
+
+        $payload = $entry['payload'] ?? [];
+
+        return is_array($payload) ? $payload : [];
+    }
+
+    /**
+     * @param array<string, mixed> $store
+     * @return array<string, mixed>
+     */
+    private function cleanupStoredAppointmentDocumentPrefills(array $store): array
+    {
+        if ($store === []) {
+            return [];
+        }
+
+        $now = time();
+        foreach ($store as $key => $entry) {
+            $createdAt = (int) ($entry['created_at'] ?? 0);
+            if ($createdAt > 0 && ($now - $createdAt) <= 3600) {
+                continue;
+            }
+
+            unset($store[$key]);
+        }
+
+        return $store;
     }
 }

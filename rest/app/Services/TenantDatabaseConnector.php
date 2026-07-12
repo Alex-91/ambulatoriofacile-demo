@@ -14,26 +14,27 @@ class TenantDatabaseConnector
         $databaseConfig = new \Config\Database();
         $platform = $databaseConfig->platform;
         $dbName = trim((string) ($tenant['db_name'] ?? ''));
+        $forceRuntimeOverride = $this->forceRuntimeOverrideEnabled();
 
         if ($dbName === '') {
             $dbName = $this->defaultTenantDatabaseName((string) ($tenant['tenant_key'] ?? ''));
         }
 
         return [
-            'db_host' => trim((string) ($tenant['db_host'] ?? '')) !== ''
+            'db_host' => !$forceRuntimeOverride && trim((string) ($tenant['db_host'] ?? '')) !== ''
                 ? trim((string) ($tenant['db_host'] ?? ''))
                 : $this->envValue('tenant.provisioning.runtimeHost', 'TENANT_PROVISIONING_RUNTIME_HOST', (string) ($platform['hostname'] ?? 'localhost')),
-            'db_port' => (int) ($tenant['db_port'] ?? 0) > 0
+            'db_port' => !$forceRuntimeOverride && (int) ($tenant['db_port'] ?? 0) > 0
                 ? (int) ($tenant['db_port'] ?? 3306)
                 : (int) $this->envValue('tenant.provisioning.runtimePort', 'TENANT_PROVISIONING_RUNTIME_PORT', (string) ($platform['port'] ?? 3306)),
             'db_name' => $dbName,
-            'db_username' => trim((string) ($tenant['db_username'] ?? '')) !== ''
+            'db_username' => !$forceRuntimeOverride && trim((string) ($tenant['db_username'] ?? '')) !== ''
                 ? trim((string) ($tenant['db_username'] ?? ''))
                 : $this->envValue('tenant.provisioning.runtimeUsername', 'TENANT_PROVISIONING_RUNTIME_USERNAME', (string) ($platform['username'] ?? '')),
-            'db_password_ref' => trim((string) ($tenant['db_password_ref'] ?? '')) !== ''
+            'db_password_ref' => !$forceRuntimeOverride && trim((string) ($tenant['db_password_ref'] ?? '')) !== ''
                 ? trim((string) ($tenant['db_password_ref'] ?? ''))
                 : $this->envValue('tenant.provisioning.runtimePasswordRef', 'TENANT_PROVISIONING_RUNTIME_PASSWORD_REF', ''),
-            'db_driver' => trim((string) ($tenant['db_driver'] ?? '')) !== ''
+            'db_driver' => !$forceRuntimeOverride && trim((string) ($tenant['db_driver'] ?? '')) !== ''
                 ? trim((string) ($tenant['db_driver'] ?? ''))
                 : $this->envValue('tenant.provisioning.runtimeDriver', 'TENANT_PROVISIONING_RUNTIME_DRIVER', (string) ($platform['DBDriver'] ?? 'MySQLi')),
             'db_prefix' => (string) ($tenant['db_prefix'] ?? ''),
@@ -140,5 +141,20 @@ class TenantDatabaseConnector
         }
 
         return $default;
+    }
+
+    private function forceRuntimeOverrideEnabled(): bool
+    {
+        $value = env('tenant.provisioning.forceRuntimeOverride');
+        if ($value === null || $value === '') {
+            $value = env('TENANT_PROVISIONING_FORCE_RUNTIME_OVERRIDE');
+        }
+
+        if ($value === null || $value === '') {
+            return false;
+        }
+
+        $normalized = strtolower(trim((string) $value));
+        return in_array($normalized, ['1', 'true', 'yes', 'on'], true);
     }
 }

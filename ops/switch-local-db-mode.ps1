@@ -435,6 +435,7 @@ function Build-TestModeEnvValues {
         'database.default.database' = $databaseName
         'database.default.username' = $connection.Username
         'database.default.password' = $connection.Password
+        'TENANT_PROVISIONING_FORCE_RUNTIME_OVERRIDE' = '1'
         'TENANT_PROVISIONING_RUNTIME_HOST' = $Settings.PublicHost
         'TENANT_PROVISIONING_RUNTIME_PORT' = [string]$publicPort
         'TENANT_PROVISIONING_RUNTIME_USERNAME' = $connection.Username

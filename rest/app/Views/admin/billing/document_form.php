@@ -13,6 +13,8 @@ $tsExpenseTypes = is_array($formContext['ts_expense_types'] ?? null) ? $formCont
 $tsEnabled = !empty($formContext['ts_enabled']);
 $tableAvailable = !array_key_exists('table_available', $formContext) || !empty($formContext['table_available']);
 $schemaMessage = trim((string) ($formContext['schema_message'] ?? ''));
+$sourceContext = is_array($formContext['source_context'] ?? null) ? $formContext['source_context'] : [];
+$linkedPatient = is_array($formContext['linked_patient'] ?? null) ? $formContext['linked_patient'] : [];
 $editLocked = !empty($formContext['edit_locked']);
 $editLockReason = trim((string) ($formContext['edit_lock_reason'] ?? ''));
 $actionState = is_array($formContext['action_state'] ?? null) ? $formContext['action_state'] : [];
@@ -23,6 +25,33 @@ $oldInput = session()->getFlashdata('_ci_old_input');
 $oldInput = is_array($oldInput) ? $oldInput : [];
 $documentId = (int) ($document['id_billing_document'] ?? 0);
 $saveDisabled = !$tableAvailable || $editLocked;
+$sourcePatientMetaParts = [];
+$sourcePatientLabel = trim((string) ($sourceContext['patient_label'] ?? ''));
+$sourcePatientLastName = trim((string) ($sourceContext['patient_last_name'] ?? ''));
+$sourcePatientFirstName = trim((string) ($sourceContext['patient_first_name'] ?? ''));
+$sourcePatientTaxCode = strtoupper(trim((string) ($sourceContext['patient_tax_code'] ?? '')));
+$sourcePatientPhone = trim((string) ($sourceContext['patient_phone'] ?? ''));
+$sourcePatientMobile = trim((string) ($sourceContext['patient_mobile'] ?? ''));
+$sourcePatientEmail = trim((string) ($sourceContext['patient_email'] ?? ''));
+$sourcePatientAddress = trim((string) ($sourceContext['patient_address'] ?? ''));
+$sourcePatientCity = trim((string) ($sourceContext['patient_city'] ?? ''));
+$sourcePatientPhoneLabel = $sourcePatientMobile !== '' ? $sourcePatientMobile : ($sourcePatientPhone !== '' ? $sourcePatientPhone : 'Non disponibile');
+$sourcePatientEmailLabel = $sourcePatientEmail !== '' ? $sourcePatientEmail : 'Non disponibile';
+$sourcePatientTaxCodeLabel = $sourcePatientTaxCode !== '' ? $sourcePatientTaxCode : 'Da completare';
+$sourcePatientAddressLabel = trim(preg_replace('/\s+/', ' ', $sourcePatientAddress . ' ' . $sourcePatientCity) ?? '');
+$sourcePatientAddressLabel = $sourcePatientAddressLabel !== '' ? $sourcePatientAddressLabel : 'Non disponibile';
+
+if ($sourcePatientTaxCode !== '') {
+    $sourcePatientMetaParts[] = 'CF ' . $sourcePatientTaxCode;
+}
+if ($sourcePatientMobile !== '') {
+    $sourcePatientMetaParts[] = 'Cell. ' . $sourcePatientMobile;
+} elseif ($sourcePatientPhone !== '') {
+    $sourcePatientMetaParts[] = 'Tel. ' . $sourcePatientPhone;
+}
+if ($sourcePatientEmail !== '') {
+    $sourcePatientMetaParts[] = $sourcePatientEmail;
+}
 
 $fieldValue = static function (string $key, $default = '') use ($document): string {
     $old = old($key);
@@ -49,6 +78,24 @@ $fieldBool = static function (string $key, bool $default = false) use ($document
 
     return ((int) ($document[$key] ?? ($default ? 1 : 0))) === 1;
 };
+
+$linkedPatientId = (int) $fieldValue('id_client', '0');
+$patientDisplayLabel = trim((string) (preg_replace(
+    '/\s+/',
+    ' ',
+    $fieldValue('patient_last_name') . ' ' . $fieldValue('patient_first_name')
+) ?? ''));
+if ($patientDisplayLabel === '') {
+    $patientDisplayLabel = trim((string) $fieldValue('patient_name'));
+}
+$patientSearchValue = old('patient_search_term');
+$patientSearchValue = $patientSearchValue !== null
+    ? trim((string) $patientSearchValue)
+    : ($patientDisplayLabel !== '' ? $patientDisplayLabel : trim((string) ($linkedPatient['label'] ?? '')));
+$patientLinkedBadgeLabel = $patientDisplayLabel !== '' ? $patientDisplayLabel : trim((string) ($linkedPatient['label'] ?? ''));
+$patientLinkedBadgeLabel = $patientLinkedBadgeLabel !== '' ? $patientLinkedBadgeLabel : 'Paziente collegato';
+$linkedPatientVisibleLabel = $patientLinkedBadgeLabel;
+$linkedPatientVisibleId = $linkedPatientId > 0 ? $linkedPatientId : (int) ($linkedPatient['id_client'] ?? 0);
 
 $oldDescriptions = is_array($oldInput['item_description'] ?? null) ? $oldInput['item_description'] : [];
 $oldQuantities = is_array($oldInput['item_qty'] ?? null) ? $oldInput['item_qty'] : [];
@@ -100,6 +147,14 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
     .patient-autocomplete-help { display:block; margin-top:8px; color:#70848b; }
     .patient-autocomplete-help.is-success { color:#1f7a3f; }
     .patient-autocomplete-help.is-warning { color:#9a6a06; }
+    .patient-link-state { display:flex; min-height:74px; align-items:center; justify-content:flex-end; }
+    .patient-link-pill { display:inline-flex; align-items:center; gap:8px; padding:10px 14px; border-radius:14px; background:#eef7f8; color:#1d6770; font-weight:700; font-size:12px; }
+    .patient-link-pill.is-manual { background:#f6f7f8; color:#607278; }
+    .patient-link-pill strong { font-size:13px; }
+    .patient-data-note { margin-top:8px; color:#5c7077; font-size:12px; }
+    .patient-linked-summary { margin:0 0 14px 0; border:1px solid #cfe4d7; border-radius:14px; padding:14px 16px; background:linear-gradient(135deg, #f4fcf7 0%, #eef8f9 100%); color:#204b35; }
+    .patient-linked-summary strong { color:#173d2b; }
+    .patient-linked-summary small { display:block; margin-top:4px; color:#517064; }
   </style>
 </head>
 <body class="skin-blue sidebar-mini">
@@ -141,12 +196,44 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
             <p style="margin:0 0 12px 0; color:#556b70;">
               Questo documento nasce nel modulo Fatturazione. L eventuale collegamento al Sistema TS resta separato e si attiva solo se richiesto.
             </p>
+            <?php if ($sourceContext !== []): ?>
+              <div class="alert alert-info" style="margin:0 0 12px 0;">
+                <strong><?= esc((string) ($sourceContext['title'] ?? 'Origine appuntamento')) ?></strong>
+                <?php if (trim((string) ($sourceContext['patient_label'] ?? '')) !== ''): ?>
+                  per <?= esc((string) ($sourceContext['patient_label'] ?? '')) ?>
+                <?php endif; ?>
+                <?php if (trim((string) ($sourceContext['appointment_date_label'] ?? '')) !== ''): ?>
+                  del <?= esc((string) ($sourceContext['appointment_date_label'] ?? '')) ?>
+                <?php endif; ?>
+                <?php if (trim((string) ($sourceContext['appointment_time_label'] ?? '')) !== ''): ?>
+                  alle <?= esc((string) ($sourceContext['appointment_time_label'] ?? '')) ?>
+                <?php endif; ?>
+                <?php if (trim((string) ($sourceContext['doctor_label'] ?? '')) !== ''): ?>
+                  con <?= esc((string) ($sourceContext['doctor_label'] ?? '')) ?>
+                <?php endif; ?>.
+                <div style="margin-top:6px;"><?= esc((string) ($sourceContext['message'] ?? '')) ?></div>
+                <div style="margin-top:10px; padding:10px 12px; border:1px solid #d8e6ee; border-radius:12px; background:#f9fcfd; font-size:12px; color:#425462;">
+                  <div><strong>Cliente collegato:</strong> <?= esc($sourcePatientLabel !== '' ? $sourcePatientLabel : 'Anagrafica dello spazio') ?></div>
+                  <div style="margin-top:4px;"><strong>Cognome:</strong> <?= esc($sourcePatientLastName !== '' ? $sourcePatientLastName : 'Non disponibile') ?></div>
+                  <div style="margin-top:4px;"><strong>Nome:</strong> <?= esc($sourcePatientFirstName !== '' ? $sourcePatientFirstName : 'Non disponibile') ?></div>
+                  <div style="margin-top:4px;"><strong>Codice fiscale:</strong> <?= esc($sourcePatientTaxCodeLabel) ?></div>
+                  <div style="margin-top:4px;"><strong>Recapito:</strong> <?= esc($sourcePatientPhoneLabel) ?></div>
+                  <div style="margin-top:4px;"><strong>Email:</strong> <?= esc($sourcePatientEmailLabel) ?></div>
+                  <div style="margin-top:4px;"><strong>Indirizzo:</strong> <?= esc($sourcePatientAddressLabel) ?></div>
+                </div>
+              </div>
+            <?php endif; ?>
             <span class="status-chip">Stato: <?= esc((string) ($localStateLabels[(string) ($document['local_state'] ?? '')] ?? $document['local_state'] ?? 'Bozza')) ?></span>
             <span class="status-chip">TS: <?= esc((string) ($tsSyncLabels[(string) ($document['ts_sync_state'] ?? '')] ?? $document['ts_sync_state'] ?? 'Non richiesto')) ?></span>
             <div style="margin-top:12px;">
               <a class="btn btn-default" href="<?= site_url('admin/fatturazione-documenti') ?>">
                 <i class="fa fa-arrow-left"></i> Torna alla lista fatture
               </a>
+              <?php if (trim((string) ($sourceContext['return_url'] ?? '')) !== ''): ?>
+                <a class="btn btn-default" href="<?= esc((string) ($sourceContext['return_url'] ?? '')) ?>" style="margin-left:8px;">
+                  <i class="fa fa-calendar"></i> <?= esc((string) ($sourceContext['return_label'] ?? 'Torna all agenda')) ?>
+                </a>
+              <?php endif; ?>
               <?php if ($documentId > 0 && $tableAvailable): ?>
                 <a class="btn btn-info" href="<?= site_url('admin/fatturazione-documenti/preview/' . $documentId) ?>" style="margin-left:8px;">
                   <i class="fa fa-eye"></i> Preview
@@ -211,16 +298,87 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
                 </div>
 
                 <div class="row js-patient-autocomplete" data-autocomplete-url="<?= esc(site_url('admin/fatturazione-documenti/pazienti/search')) ?>">
-                  <div class="col-md-7">
+                  <input type="hidden" name="patient_name" value="<?= esc($fieldValue('patient_name')) ?>">
+                  <?php if ($linkedPatientVisibleId > 0): ?>
+                    <div class="col-md-12">
+                      <div class="patient-linked-summary">
+                        <strong><i class="fa fa-link"></i> Paziente collegato all appuntamento:</strong>
+                        <?= esc($linkedPatientVisibleLabel) ?>
+                        <small>ID anagrafica spazio: <?= (int) $linkedPatientVisibleId ?>. Se salvi la fattura con questo collegamento attivo, aggiorni anche la sua anagrafica.</small>
+                      </div>
+                    </div>
+                  <?php endif; ?>
+                  <div class="col-md-8">
                     <div class="form-group">
-                      <label>Nome cliente o paziente *</label>
-                      <input class="form-control" type="text" name="patient_name" maxlength="190" value="<?= esc($fieldValue('patient_name')) ?>" placeholder="Es. Mario Rossi" autocomplete="off">
+                      <label>Cerca paziente nello spazio</label>
+                      <div class="input-group">
+                        <input class="form-control" type="text" name="patient_search_term" maxlength="190" value="<?= esc($patientSearchValue) ?>" placeholder="Scrivi nome, cognome, CF, email o telefono" autocomplete="off" data-role="patient-search">
+                        <span class="input-group-btn">
+                          <button class="btn btn-default" type="button" data-role="patient-unlink"<?= $linkedPatientId > 0 ? '' : ' disabled' ?>>
+                            <i class="fa fa-unlink"></i> Scollega
+                          </button>
+                        </span>
+                      </div>
                     </div>
                   </div>
-                  <div class="col-md-5">
+                  <div class="col-md-4">
+                    <div class="patient-link-state">
+                      <div class="patient-link-pill<?= $linkedPatientId > 0 ? '' : ' is-manual' ?>" data-role="patient-link-pill">
+                        <?php if ($linkedPatientId > 0): ?>
+                          <span><i class="fa fa-link"></i> Collegato</span>
+                          <strong><?= esc($patientLinkedBadgeLabel) ?></strong>
+                        <?php else: ?>
+                          <span><i class="fa fa-user-o"></i> Fattura manuale</span>
+                        <?php endif; ?>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-md-6">
+                    <div class="form-group">
+                      <label>Cognome</label>
+                      <input class="form-control" type="text" name="patient_last_name" maxlength="120" value="<?= esc($fieldValue('patient_last_name')) ?>" placeholder="Es. Rossi" autocomplete="off">
+                    </div>
+                  </div>
+                  <div class="col-md-6">
+                    <div class="form-group">
+                      <label>Nome</label>
+                      <input class="form-control" type="text" name="patient_first_name" maxlength="120" value="<?= esc($fieldValue('patient_first_name')) ?>" placeholder="Es. Mario" autocomplete="off">
+                    </div>
+                  </div>
+                  <div class="col-md-4">
                     <div class="form-group">
                       <label>Codice fiscale</label>
                       <input class="form-control" type="text" name="patient_tax_code" maxlength="16" value="<?= esc($fieldValue('patient_tax_code')) ?>" placeholder="RSSMRA80A01H501Z" autocomplete="off">
+                    </div>
+                  </div>
+                  <div class="col-md-4">
+                    <div class="form-group">
+                      <label>Telefono</label>
+                      <input class="form-control" type="text" name="patient_phone" maxlength="40" value="<?= esc($fieldValue('patient_phone')) ?>" placeholder="Telefono fisso" autocomplete="off">
+                    </div>
+                  </div>
+                  <div class="col-md-4">
+                    <div class="form-group">
+                      <label>Cellulare</label>
+                      <input class="form-control" type="text" name="patient_mobile" maxlength="40" value="<?= esc($fieldValue('patient_mobile')) ?>" placeholder="Cellulare" autocomplete="off">
+                    </div>
+                  </div>
+                  <div class="col-md-6">
+                    <div class="form-group">
+                      <label>Email</label>
+                      <input class="form-control" type="email" name="patient_email" maxlength="190" value="<?= esc($fieldValue('patient_email')) ?>" placeholder="paziente@email.it" autocomplete="off">
+                    </div>
+                  </div>
+                  <div class="col-md-6">
+                    <div class="form-group">
+                      <label>Indirizzo</label>
+                      <input class="form-control" type="text" name="patient_address" maxlength="190" value="<?= esc($fieldValue('patient_address')) ?>" placeholder="Via Roma 10" autocomplete="off">
+                    </div>
+                  </div>
+                  <div class="col-md-6">
+                    <div class="form-group">
+                      <label>Citta</label>
+                      <input class="form-control" type="text" name="patient_city" maxlength="120" value="<?= esc($fieldValue('patient_city')) ?>" placeholder="Es. Bologna" autocomplete="off">
                     </div>
                   </div>
                   <div class="col-md-12">
@@ -228,7 +386,25 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
                     <small class="patient-autocomplete-help" data-role="patient-help">
                       Cerca un paziente gia presente nello spazio oppure compila i campi manualmente.
                     </small>
+                    <div class="patient-data-note">
+                      Se la fattura resta collegata a un paziente dello spazio, ogni modifica a questi dati aggiorna anche la sua anagrafica.
+                    </div>
                   </div>
+                  <?php if ($sourceContext !== []): ?>
+                    <div class="col-md-12">
+                      <div class="alert alert-info" style="margin-top:4px; margin-bottom:8px; padding:12px 14px;">
+                        <strong>Dati cliente importati dall appuntamento</strong>
+                        <div style="margin-top:6px; font-size:12px; color:#425462;">
+                          <?= esc($sourcePatientLabel !== '' ? $sourcePatientLabel : 'Anagrafica collegata') ?>
+                          | Cognome: <?= esc($sourcePatientLastName !== '' ? $sourcePatientLastName : '-') ?>
+                          | Nome: <?= esc($sourcePatientFirstName !== '' ? $sourcePatientFirstName : '-') ?>
+                          | CF: <?= esc($sourcePatientTaxCodeLabel) ?>
+                          | Recapito: <?= esc($sourcePatientPhoneLabel) ?>
+                          | Email: <?= esc($sourcePatientEmailLabel) ?>
+                        </div>
+                      </div>
+                    </div>
+                  <?php endif; ?>
                 </div>
 
                 <div class="row">
@@ -387,25 +563,42 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
       }
 
       var endpoint = $.trim($root.data('autocomplete-url') || '');
-      var $name = $root.find('input[name="patient_name"]');
+      var $search = $root.find('input[name="patient_search_term"]');
+      var $hiddenName = $root.find('input[name="patient_name"]');
+      var $lastName = $root.find('input[name="patient_last_name"]');
+      var $firstName = $root.find('input[name="patient_first_name"]');
       var $taxCode = $root.find('input[name="patient_tax_code"]');
+      var $phone = $root.find('input[name="patient_phone"]');
+      var $mobile = $root.find('input[name="patient_mobile"]');
+      var $email = $root.find('input[name="patient_email"]');
+      var $address = $root.find('input[name="patient_address"]');
+      var $city = $root.find('input[name="patient_city"]');
       var $clientId = $('input[name="id_client"]');
       var $results = $root.find('[data-role="patient-results"]');
       var $help = $root.find('[data-role="patient-help"]');
+      var $unlinkButton = $root.find('[data-role="patient-unlink"]');
+      var $linkPill = $root.find('[data-role="patient-link-pill"]');
       var debounceTimer = null;
       var pendingRequest = null;
-      var selectedSignature = buildSignature();
 
-      if (!$name.length || !$taxCode.length || !$clientId.length || endpoint === '') {
+      if (!$search.length || !$hiddenName.length || !$lastName.length || !$firstName.length || !$taxCode.length || !$clientId.length || endpoint === '') {
         return;
       }
 
-      function buildSignature() {
-        return [
-          $.trim($clientId.val() || '0'),
-          $.trim($name.val() || ''),
-          $.trim($taxCode.val() || '')
-        ].join('|');
+      function buildPatientLabel() {
+        return $.trim((
+          $.trim($lastName.val() || '') + ' ' + $.trim($firstName.val() || '')
+        ).replace(/\s+/g, ' '));
+      }
+
+      function syncHiddenPatientName() {
+        var label = buildPatientLabel();
+        if (label === '') {
+          label = $.trim($search.val() || '');
+        }
+
+        $hiddenName.val(label);
+        return label;
       }
 
       function setHelp(message, level) {
@@ -421,24 +614,51 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
         $results.hide().empty();
       }
 
-      function clearSelectedLink(showManualMessage) {
-        if (parseInt($clientId.val() || '0', 10) > 0) {
-          $clientId.val('0');
+      function refreshLinkedState(forceMessage) {
+        var linkedId = parseInt($clientId.val() || '0', 10) || 0;
+        var label = syncHiddenPatientName();
+
+        if (linkedId > 0) {
+          if (label === '') {
+            label = 'Paziente #' + linkedId;
+          }
+
+          $linkPill
+            .removeClass('is-manual')
+            .html('<span><i class="fa fa-link"></i> Collegato</span><strong>' + $('<div>').text(label).html() + '</strong>');
+          $unlinkButton.prop('disabled', false);
+
+          if (forceMessage !== false) {
+            setHelp('Paziente collegato allo spazio. Se modifichi questi campi, al salvataggio aggiorni anche la sua anagrafica.', 'success');
+          }
+
+          return;
         }
 
-        selectedSignature = buildSignature();
-        if (showManualMessage) {
+        $linkPill
+          .addClass('is-manual')
+          .html('<span><i class="fa fa-user-o"></i> Fattura manuale</span>');
+        $unlinkButton.prop('disabled', true);
+
+        if (forceMessage !== false) {
           setHelp('Compilazione manuale attiva. Seleziona un paziente dalla lista solo se vuoi agganciare la fattura all anagrafica dello spazio.', 'warning');
         }
       }
 
       function applySelection(patient) {
         $clientId.val(String(patient.id_client || 0));
-        $name.val($.trim(patient.patient_name || ''));
+        $search.val($.trim(patient.label || patient.patient_name || ''));
+        $lastName.val($.trim(patient.patient_last_name || ''));
+        $firstName.val($.trim(patient.patient_first_name || ''));
         $taxCode.val($.trim(patient.patient_tax_code || ''));
-        selectedSignature = buildSignature();
+        $phone.val($.trim(patient.patient_phone || patient.phone || ''));
+        $mobile.val($.trim(patient.patient_mobile || patient.mobile || ''));
+        $email.val($.trim(patient.patient_email || patient.email || ''));
+        $address.val($.trim(patient.patient_address || patient.address || ''));
+        $city.val($.trim(patient.patient_city || patient.city || ''));
+        syncHiddenPatientName();
         hideResults();
-        setHelp('Paziente collegato all anagrafica dello spazio. Se modifichi i campi torni in modalita manuale.', 'success');
+        refreshLinkedState(true);
       }
 
       function renderResults(items) {
@@ -488,16 +708,17 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
           });
       }
 
-      function handleInput($source) {
-        var term = $.trim($source.val() || '');
+      function handleSearchInput() {
+        var term = $.trim($search.val() || '');
+        syncHiddenPatientName();
 
-        if (buildSignature() !== selectedSignature) {
-          clearSelectedLink(false);
+        if ((parseInt($clientId.val() || '0', 10) || 0) <= 0) {
+          refreshLinkedState(false);
         }
 
         if (term.length < 2) {
           hideResults();
-          if (parseInt($clientId.val() || '0', 10) <= 0) {
+          if ((parseInt($clientId.val() || '0', 10) || 0) <= 0) {
             setHelp('Cerca un paziente gia presente nello spazio oppure compila i campi manualmente.', '');
           }
           return;
@@ -509,12 +730,30 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
         }, 220);
       }
 
-      $name.on('input', function () {
-        handleInput($name);
+      function unlinkPatient() {
+        $clientId.val('0');
+        hideResults();
+        refreshLinkedState(true);
+      }
+
+      $search.on('input', function () {
+        handleSearchInput();
       });
 
-      $taxCode.on('input', function () {
-        handleInput($taxCode);
+      $unlinkButton.on('click', function () {
+        unlinkPatient();
+      });
+
+      $lastName.add($firstName).on('input', function () {
+        var label = syncHiddenPatientName();
+        if ((parseInt($clientId.val() || '0', 10) || 0) > 0 && label !== '') {
+          $search.val(label);
+        }
+        refreshLinkedState(false);
+      });
+
+      $taxCode.add($phone).add($mobile).add($email).add($address).add($city).on('input', function () {
+        refreshLinkedState(false);
       });
 
       $results.on('mousedown', '.patient-autocomplete-item', function (event) {
@@ -525,8 +764,17 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
         applySelection($(this).data('patient') || {});
       });
 
-      if (parseInt($clientId.val() || '0', 10) > 0) {
-        setHelp('Paziente gia collegato all anagrafica dello spazio. Puoi modificarlo o continuare cosi.', 'success');
+      $(document).on('click', function (event) {
+        if (!$(event.target).closest($root).length) {
+          hideResults();
+        }
+      });
+
+      syncHiddenPatientName();
+      if ((parseInt($clientId.val() || '0', 10) || 0) > 0) {
+        refreshLinkedState(true);
+      } else {
+        refreshLinkedState(false);
       }
     }
 

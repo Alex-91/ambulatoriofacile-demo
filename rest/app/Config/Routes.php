@@ -440,6 +440,10 @@ $routes->group('agenda', function($routes) {
     $routes->post('salva-appuntamento', 'Agenda::salvaAppuntamento');
     $routes->post('aggiorna-appuntamento', 'Agenda::aggiornaAppuntamento');
     $routes->post('elimina-appuntamento', 'Agenda::eliminaAppuntamento');
+    $routes->get('fatturazione-da-appuntamento/(:num)', 'Agenda::apriFatturazioneDaAppuntamento/$1');
+    $routes->post('fatturazione-da-appuntamento/(:num)', 'Agenda::apriFatturazioneDaAppuntamento/$1');
+    $routes->get('ts-da-appuntamento/(:num)', 'Agenda::apriTsDaAppuntamento/$1');
+    $routes->post('ts-da-appuntamento/(:num)', 'Agenda::apriTsDaAppuntamento/$1');
 
     $routes->post('salva-nota', 'Agenda::salvaNota');
     $routes->post('elimina-nota', 'Agenda::eliminaNota');

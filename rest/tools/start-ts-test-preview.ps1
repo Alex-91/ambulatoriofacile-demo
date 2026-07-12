@@ -20,6 +20,21 @@ $pidPath = Join-Path $logDirectory "ts_test_preview_${Port}.pid"
 $previewUrl = "http://127.0.0.1:${Port}/"
 $router = Join-Path $repoRoot 'router.php'
 
+function Get-PreviewListenerPids {
+    param(
+        [int]$TargetPort
+    )
+
+    $pids = @()
+    foreach ($line in (netstat -ano)) {
+        if ($line -match "127\\.0\\.0\\.1:$TargetPort" -and $line -match 'LISTENING\s+(\d+)$') {
+            $pids += [int]$Matches[1]
+        }
+    }
+
+    return @($pids | Select-Object -Unique)
+}
+
 if (-not (Test-Path -LiteralPath $EnvFile)) {
     throw "File env non trovato: $EnvFile"
 }
@@ -82,16 +97,12 @@ if ($existingPid -gt 0) {
     }
 }
 
-$listenerPid = 0
-foreach ($line in (netstat -ano)) {
-    if ($line -match "127\\.0\\.0\\.1:$Port" -and $line -match 'LISTENING\s+(\d+)$') {
-        $listenerPid = [int]$Matches[1]
-        break
-    }
-}
+$listenerPids = Get-PreviewListenerPids -TargetPort $Port
+$blockingListenerPids = @($listenerPids | Where-Object { $_ -gt 0 -and $_ -ne $existingPid })
 
-if ($listenerPid -gt 0 -and $listenerPid -ne $existingPid) {
-    throw "La porta $Port e gia occupata dal pid $listenerPid. Ferma prima l altra preview oppure usa un altra porta."
+if ($blockingListenerPids.Count -gt 0) {
+    $blockingLabel = ($blockingListenerPids -join ', ')
+    throw "La porta $Port e gia occupata dai pid $blockingLabel. Ferma prima l altra preview oppure usa un altra porta."
 }
 
 [System.Environment]::SetEnvironmentVariable('PATH', $null, 'Process')
@@ -115,11 +126,36 @@ $process = Start-Process -FilePath $phpExe `
 
 Start-Sleep -Seconds 2
 
-if (-not (Get-Process -Id $process.Id -ErrorAction SilentlyContinue)) {
+$listenerPidsAfterStart = @()
+for ($attempt = 0; $attempt -lt 10; $attempt++) {
+    $listenerPidsAfterStart = Get-PreviewListenerPids -TargetPort $Port
+    if ($listenerPidsAfterStart.Count -gt 0) {
+        break
+    }
+
+    Start-Sleep -Milliseconds 500
+}
+
+if (-not (Get-Process -Id $process.Id -ErrorAction SilentlyContinue) -and $listenerPidsAfterStart.Count -le 0) {
     Remove-Item -LiteralPath $pidPath -Force -ErrorAction SilentlyContinue
     throw "La preview TS su $previewUrl si e chiusa subito. Controlla $stderrLogPath"
 }
 
-"[$(Get-Date -Format s)] TS test preview avviata su $previewUrl con $phpExe (pid $($process.Id))" | Out-File -FilePath $metaLogPath -Encoding utf8 -Append
-$process.Id | Out-File -FilePath $pidPath -Encoding ascii
+$trackedPid = if ($listenerPidsAfterStart.Count -gt 0) {
+    if ($listenerPidsAfterStart -contains $process.Id) {
+        $process.Id
+    } else {
+        $listenerPidsAfterStart[0]
+    }
+} else {
+    $process.Id
+}
+$pidMessage = if ($trackedPid -ne $process.Id) {
+    "wrapper pid $($process.Id), listener pid $trackedPid"
+} else {
+    "pid $trackedPid"
+}
+
+"[$(Get-Date -Format s)] TS test preview avviata su $previewUrl con $phpExe ($pidMessage)" | Out-File -FilePath $metaLogPath -Encoding utf8 -Append
+$trackedPid | Out-File -FilePath $pidPath -Encoding ascii
 Write-Output "TS test preview avviata su $previewUrl"

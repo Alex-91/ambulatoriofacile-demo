@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Config\TsBilling;
+use App\Libraries\DatabaseConfig;
 use App\Models\BillingDocumentModel;
 use Config\Database;
 
@@ -14,13 +15,15 @@ class BillingDocumentService
     private TsFeatureService $tsFeatures;
     private TsBilling $tsConfig;
     private BillingTenantSchemaService $schema;
+    private DatabaseConfig $databaseConfig;
 
     public function __construct(
         ?BillingDocumentSettingsService $settings = null,
         ?BillingTenantDatabaseContextService $tenantDbContext = null,
         ?TsFeatureService $tsFeatures = null,
         ?TsBilling $tsConfig = null,
-        ?BillingTenantSchemaService $schema = null
+        ?BillingTenantSchemaService $schema = null,
+        ?DatabaseConfig $databaseConfig = null
     ) {
         $this->db = Database::connect();
         $this->settings = $settings ?? new BillingDocumentSettingsService();
@@ -28,6 +31,7 @@ class BillingDocumentService
         $this->tsFeatures = $tsFeatures ?? new TsFeatureService();
         $this->tsConfig = $tsConfig ?? config(TsBilling::class);
         $this->schema = $schema ?? new BillingTenantSchemaService();
+        $this->databaseConfig = $databaseConfig ?? new DatabaseConfig();
     }
 
     /**
@@ -266,6 +270,10 @@ class BillingDocumentService
                 throw new \RuntimeException('Salvataggio documento fatturazione non riuscito.');
             }
 
+            if ((int) ($normalized['id_client'] ?? 0) > 0) {
+                $this->syncLinkedPatientFromDocument($db, (int) ($normalized['id_client'] ?? 0), $normalized);
+            }
+
             if (!$db->transStatus()) {
                 throw new \RuntimeException('Persistenza documento fatturazione non riuscita.');
             }
@@ -352,6 +360,7 @@ class BillingDocumentService
     {
         return [
             'id_billing_document' => 0,
+            'id_client' => 0,
             'document_number' => $documents instanceof BillingDocumentModel
                 ? $this->suggestDocumentNumber($documents, $template)
                 : $this->fallbackDocumentNumber($template),
@@ -359,7 +368,14 @@ class BillingDocumentService
             'issue_date' => date('Y-m-d'),
             'payment_date' => date('Y-m-d'),
             'patient_name' => '',
+            'patient_last_name' => '',
+            'patient_first_name' => '',
             'patient_tax_code' => '',
+            'patient_phone' => '',
+            'patient_mobile' => '',
+            'patient_email' => '',
+            'patient_address' => '',
+            'patient_city' => '',
             'payment_method' => 'bank_transfer',
             'subtotal_amount' => 0,
             'stamp_duty_amount' => 0,
@@ -532,6 +548,13 @@ class BillingDocumentService
             $paymentMethod = 'bank_transfer';
         }
 
+        $patientLastName = trim((string) ($payload['patient_last_name'] ?? ''));
+        $patientFirstName = trim((string) ($payload['patient_first_name'] ?? ''));
+        $patientName = trim((string) (preg_replace('/\s+/', ' ', $patientLastName . ' ' . $patientFirstName) ?? ''));
+        if ($patientName === '') {
+            $patientName = trim((string) ($payload['patient_name'] ?? ''));
+        }
+
         $vatNature = strtoupper(trim((string) ($payload['vat_nature'] ?? '')));
         $lineItems = $this->normalizeLineItems(
             $payload['item_description'] ?? [],
@@ -555,8 +578,15 @@ class BillingDocumentService
             'document_type' => $documentType,
             'issue_date' => trim((string) ($payload['issue_date'] ?? '')),
             'payment_date' => trim((string) ($payload['payment_date'] ?? '')),
-            'patient_name' => trim((string) ($payload['patient_name'] ?? '')),
+            'patient_name' => $patientName,
+            'patient_last_name' => $patientLastName,
+            'patient_first_name' => $patientFirstName,
             'patient_tax_code' => strtoupper(trim((string) ($payload['patient_tax_code'] ?? ''))),
+            'patient_phone' => trim((string) ($payload['patient_phone'] ?? '')),
+            'patient_mobile' => trim((string) ($payload['patient_mobile'] ?? '')),
+            'patient_email' => trim((string) ($payload['patient_email'] ?? '')),
+            'patient_address' => trim((string) ($payload['patient_address'] ?? '')),
+            'patient_city' => trim((string) ($payload['patient_city'] ?? '')),
             'payment_method' => $paymentMethod,
             'line_items' => $lineItems,
             'subtotal_amount' => round($subtotal, 2),
@@ -706,6 +736,64 @@ class BillingDocumentService
         $decoded = json_decode($json, true);
 
         return is_array($decoded) ? $decoded : [];
+    }
+
+    /**
+     * @param array<string, mixed> $normalized
+     */
+    private function syncLinkedPatientFromDocument(\CodeIgniter\Database\BaseConnection $db, int $idClient, array $normalized): void
+    {
+        $idClient = max(0, $idClient);
+        if ($idClient <= 0) {
+            return;
+        }
+
+        if (!$db->tableExists('dap02_clients')) {
+            throw new \RuntimeException('Anagrafica pazienti non disponibile nello spazio corrente.');
+        }
+
+        $patientExists = $db->table('dap02_clients')
+            ->select('id_client')
+            ->where('id_client', $idClient)
+            ->get()
+            ->getRowArray();
+
+        if (!is_array($patientExists)) {
+            throw new \RuntimeException('Paziente collegato non trovato nello spazio corrente.');
+        }
+
+        $this->databaseConfig->setEncryptionConfig($db, 'utf8mb4');
+        $db->query('SET @sync_vector = RANDOM_BYTES(16)');
+
+        $fieldMap = [
+            'nome' => trim((string) ($normalized['patient_first_name'] ?? '')),
+            'cognome' => trim((string) ($normalized['patient_last_name'] ?? '')),
+            'codice_fiscale' => strtoupper(trim((string) ($normalized['patient_tax_code'] ?? ''))),
+            'telefono' => trim((string) ($normalized['patient_phone'] ?? '')),
+            'cellulare' => trim((string) ($normalized['patient_mobile'] ?? '')),
+            'email' => trim((string) ($normalized['patient_email'] ?? '')),
+            'indirizzo' => trim((string) ($normalized['patient_address'] ?? '')),
+            'citta' => trim((string) ($normalized['patient_city'] ?? '')),
+        ];
+
+        $set = ['vector_id = COALESCE(vector_id, @sync_vector)'];
+        foreach ($fieldMap as $column => $value) {
+            $set[] = $column . ' = ' . $this->encryptWithTenantVectorSql($db, $value);
+        }
+
+        $sql = 'UPDATE dap02_clients SET '
+            . implode(', ', $set)
+            . ' WHERE id_client = ' . $idClient
+            . ' LIMIT 1';
+
+        $db->query($sql);
+    }
+
+    private function encryptWithTenantVectorSql(\CodeIgniter\Database\BaseConnection $db, string $value): string
+    {
+        return 'HEX(AES_ENCRYPT('
+            . $db->escape($value)
+            . ', @key_str, COALESCE(vector_id, @sync_vector)))';
     }
 
     /**

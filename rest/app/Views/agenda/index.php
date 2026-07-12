@@ -27,6 +27,10 @@
         }
         $visitTypesPageUrl = base_url('agenda/gestione-tipi-visita');
         $memoDoctorOptions = is_array($memoDoctorOptions ?? null) ? $memoDoctorOptions : [];
+        $appointmentDocumentActions = is_array($appointmentDocumentActions ?? null) ? $appointmentDocumentActions : [];
+        $appointmentBillingWorkflowEnabled = !empty($appointmentDocumentActions['billing_enabled']);
+        $appointmentTsWorkflowEnabled = !empty($appointmentDocumentActions['ts_enabled']);
+        $appointmentDocumentWorkflowVisible = $appointmentBillingWorkflowEnabled || $appointmentTsWorkflowEnabled;
         $memoDoctorSelectOptions = [];
 
         foreach ($memoDoctorOptions as $doctorOption) {
@@ -83,6 +87,195 @@
     display: inline-block;
     min-height: 16px;
 }
+        .appointment-document-workflow-panel {
+            display: block;
+            padding: 14px 16px;
+            border: 1px solid #d8e5ec;
+            border-radius: 18px;
+            background: linear-gradient(135deg, #f8fbfc 0%, #eef5f8 100%);
+            margin-top: 4px;
+        }
+
+        .appointment-document-workflow-copy {
+            margin-bottom: 14px;
+        }
+
+        .appointment-document-workflow-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #234357;
+            margin-bottom: 4px;
+        }
+
+        .appointment-document-workflow-note {
+            color: #647987;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        .appointment-document-workflow-buttons {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .appointment-document-workflow-action {
+            display: flex !important;
+            align-items: flex-start;
+            gap: 12px;
+            width: 100%;
+            min-height: 92px;
+            padding: 16px 18px !important;
+            border-radius: 18px !important;
+            border: 1px solid transparent !important;
+            text-align: left;
+            box-shadow: 0 10px 24px rgba(35, 67, 87, 0.08);
+            transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+        }
+
+        .appointment-document-workflow-action:hover,
+        .appointment-document-workflow-action:focus {
+            transform: translateY(-1px);
+            box-shadow: 0 14px 28px rgba(35, 67, 87, 0.14);
+        }
+
+        .appointment-document-workflow-action:disabled {
+            opacity: 0.7;
+            box-shadow: none;
+            transform: none;
+        }
+
+        .appointment-document-workflow-action-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 14px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex: 0 0 42px;
+            background: rgba(255, 255, 255, 0.22);
+            font-size: 18px;
+        }
+
+        .appointment-document-workflow-action-copy {
+            display: block;
+            min-width: 0;
+            white-space: normal;
+        }
+
+        .appointment-document-workflow-action-title {
+            display: block;
+            font-size: 16px;
+            font-weight: 700;
+            line-height: 1.25;
+        }
+
+        .appointment-document-workflow-action-text {
+            display: block;
+            margin-top: 4px;
+            font-size: 12px;
+            line-height: 1.5;
+            opacity: 0.92;
+        }
+
+        .appointment-document-workflow-action-billing {
+            background: linear-gradient(135deg, #14a85a 0%, #0f8a4a 100%);
+            border-color: #10884a !important;
+            color: #fff !important;
+        }
+
+        .appointment-document-workflow-action-ts {
+            background: linear-gradient(135deg, #f6ad1a 0%, #ea8f04 100%);
+            border-color: #da8504 !important;
+            color: #fff !important;
+        }
+
+        .appointment-modal-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            flex-wrap: wrap;
+        }
+
+        .appointment-modal-footer-left,
+        .appointment-modal-footer-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .appointment-modal-footer-right {
+            margin-left: auto;
+        }
+
+        .appointment-modal-footer .btn {
+            border-radius: 14px;
+            font-weight: 700;
+            padding: 10px 18px;
+        }
+
+        .appointment-modal-footer .btn .fa {
+            margin-right: 6px;
+        }
+
+        #btnDeleteAppointment,
+        #btnDeleteExtraSlot {
+            min-width: 200px;
+        }
+
+        #btnAppointmentBillingWorkflow,
+        #btnAppointmentTsWorkflow {
+            min-width: 0;
+        }
+
+        #btnCancelAppointmentModal {
+            min-width: 120px;
+            background: #f8f8f8;
+            border-color: #d6dbe1;
+            color: #435466;
+        }
+
+        #btnSaveAppointment {
+            min-width: 170px;
+        }
+
+        #appointmentDocumentWorkflowHint {
+            max-width: 520px;
+            margin-top: 8px;
+            color: #667683;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        @media (max-width: 991px) {
+            .appointment-modal-footer {
+                align-items: stretch;
+            }
+
+            .appointment-document-workflow-buttons,
+            .appointment-modal-footer-left,
+            .appointment-modal-footer-right {
+                width: 100%;
+                margin-left: 0;
+            }
+
+            .appointment-document-workflow-buttons {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 767px) {
+            .appointment-modal-footer-left .btn,
+            .appointment-modal-footer-right .btn {
+                width: 100%;
+            }
+
+            .appointment-document-workflow-action {
+                min-height: 0;
+            }
+        }
         .agenda-calendar-shell {
             position: relative;
             min-height: 620px;
@@ -2601,25 +2794,61 @@
                         <label for="app_note">Note</label>
                         <textarea id="app_note" rows="4" class="form-control"></textarea>
                     </div>
+
+                    <div class="col-md-12">
+                        <div id="appointmentDocumentWorkflow" class="appointment-document-workflow-panel" style="<?= $appointmentDocumentWorkflowVisible ? 'display:block;' : 'display:none;' ?>">
+                            <div class="appointment-document-workflow-copy">
+                                <div class="appointment-document-workflow-title">Azioni documento</div>
+                                <div class="appointment-document-workflow-note">
+                                    Da qui apri subito il flusso giusto senza reinserire il paziente: nome, recapiti e collegamento allo spazio vengono riportati automaticamente.
+                                </div>
+                                <div id="appointmentDocumentWorkflowHint"></div>
+                            </div>
+                            <div class="appointment-document-workflow-buttons">
+                                <button type="button" class="btn appointment-document-workflow-action appointment-document-workflow-action-billing" id="btnAppointmentBillingWorkflow" style="<?= $appointmentBillingWorkflowEnabled ? '' : 'display:none;' ?>"<?= $appointmentBillingWorkflowEnabled ? ' disabled' : '' ?>>
+                                    <span class="appointment-document-workflow-action-icon">
+                                        <i class="fa fa-file-text-o"></i>
+                                    </span>
+                                    <span class="appointment-document-workflow-action-copy">
+                                        <span class="appointment-document-workflow-action-title">Apri fattura</span>
+                                        <span class="appointment-document-workflow-action-text">Crea il documento di fatturazione gia precompilato e pronto anche per l eventuale invio a TS.</span>
+                                    </span>
+                                </button>
+                                <button type="button" class="btn appointment-document-workflow-action appointment-document-workflow-action-ts" id="btnAppointmentTsWorkflow" style="<?= $appointmentTsWorkflowEnabled ? '' : 'display:none;' ?>"<?= $appointmentTsWorkflowEnabled ? ' disabled' : '' ?>>
+                                    <span class="appointment-document-workflow-action-icon">
+                                        <i class="fa fa-paper-plane-o"></i>
+                                    </span>
+                                    <span class="appointment-document-workflow-action-copy">
+                                        <span class="appointment-document-workflow-action-title">Apri solo TS</span>
+                                        <span class="appointment-document-workflow-action-text">Salta la fattura e prepara subito il documento TS con il paziente gia agganciato.</span>
+                                    </span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <div class="modal-footer">
-                <button type="button" class="btn btn-danger pull-left" id="btnDeleteExtraSlot" style="display:none; margin-right:8px;">
-                    <i class="fa fa-trash"></i> Elimina slot extra
-                </button>
+            <div class="modal-footer appointment-modal-footer">
+                <div class="appointment-modal-footer-left">
+                    <button type="button" class="btn btn-danger" id="btnDeleteExtraSlot" style="display:none;">
+                        <i class="fa fa-trash"></i> Elimina slot extra
+                    </button>
 
-                <button type="button" class="btn btn-danger pull-left" id="btnDeleteAppointment" style="display:none;">
-                    <i class="fa fa-trash"></i> Elimina appuntamento
-                </button>
+                    <button type="button" class="btn btn-danger" id="btnDeleteAppointment" style="display:none;">
+                        <i class="fa fa-trash"></i> Elimina appuntamento
+                    </button>
+                </div>
 
-                <button type="button" class="btn btn-default" id="btnCancelAppointmentModal">
-                    <i class="fa fa-times"></i> Chiudi
-                </button>
+                <div class="appointment-modal-footer-right">
+                    <button type="button" class="btn btn-default" id="btnCancelAppointmentModal">
+                        <i class="fa fa-times"></i> Chiudi
+                    </button>
 
-                <button type="button" class="btn btn-primary" id="btnSaveAppointment">
-                    <i class="fa fa-check"></i> Conferma prenotazione
-                </button>
+                    <button type="button" class="btn btn-primary" id="btnSaveAppointment">
+                        <i class="fa fa-check"></i> Conferma prenotazione
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -2859,7 +3088,13 @@ window.AGENDA_CONFIG = {
     domiciliariAbilitati: <?= !empty($domiciliariAbilitati) ? 'true' : 'false' ?>,
     teamDayViewEnabled: <?= !empty($teamDayViewEnabled) ? 'true' : 'false' ?>,
     sharedMemoManagementEnabled: <?= $sharedMemoManagementEnabled ? 'true' : 'false' ?>,
-    visitTypesFeatureEnabled: <?= !empty($visitTypesFeatureEnabled) ? 'true' : 'false' ?>
+    visitTypesFeatureEnabled: <?= !empty($visitTypesFeatureEnabled) ? 'true' : 'false' ?>,
+    appointmentBillingWorkflowEnabled: <?= !empty($appointmentDocumentActions['billing_enabled']) ? 'true' : 'false' ?>,
+    appointmentTsWorkflowEnabled: <?= !empty($appointmentDocumentActions['ts_enabled']) ? 'true' : 'false' ?>,
+    appointmentBillingWorkflowUrlBase: "<?= site_url('agenda/fatturazione-da-appuntamento') ?>",
+    appointmentTsWorkflowUrlBase: "<?= site_url('agenda/ts-da-appuntamento') ?>",
+    csrfTokenName: "<?= esc(csrf_token()) ?>",
+    csrfTokenValue: "<?= esc(csrf_hash()) ?>"
 };
 </script>
 
@@ -5552,11 +5787,148 @@ function resetAppointmentModal() {
     setAppointmentExtraSlotState(null);
     setAppointmentLinkedPatient('', '');
     setAppointmentSavingState(false);
+    refreshAppointmentDocumentWorkflowState();
 }
 
 function setAppointmentModalActionsDisabled(isDisabled) {
-    $('#btnDeleteAppointment, #btnDeleteExtraSlot, #btnCancelAppointmentModal, .btn-close-appointment-modal, #btnSaveAppointment')
+    $('#btnDeleteAppointment, #btnDeleteExtraSlot, #btnAppointmentBillingWorkflow, #btnAppointmentTsWorkflow, #btnCancelAppointmentModal, .btn-close-appointment-modal, #btnSaveAppointment')
         .prop('disabled', !!isDisabled);
+}
+
+function supportsAppointmentBillingWorkflow() {
+    return !!window.AGENDA_CONFIG.appointmentBillingWorkflowEnabled;
+}
+
+function supportsAppointmentTsWorkflow() {
+    return !!window.AGENDA_CONFIG.appointmentTsWorkflowEnabled;
+}
+
+function buildAppointmentDocumentWorkflowUrl(mode, appointmentId) {
+    appointmentId = parseInt(appointmentId || 0, 10) || 0;
+    if (appointmentId <= 0) {
+        return '';
+    }
+
+    var base = mode === 'billing'
+        ? $.trim(window.AGENDA_CONFIG.appointmentBillingWorkflowUrlBase || '')
+        : $.trim(window.AGENDA_CONFIG.appointmentTsWorkflowUrlBase || '');
+
+    if (base === '') {
+        return '';
+    }
+
+    var query = $.param({
+        id_dot: $('#id_dot').val() || window.AGENDA_CONFIG.selectedDot || 0,
+        data: $('#agenda_date').val() || window.AGENDA_CONFIG.selectedDate || '',
+        view: normalizeAgendaViewModeValue($('#view_mode').val()),
+        focus_appointment: appointmentId
+    });
+
+    return base.replace(/\/$/, '') + '/' + encodeURIComponent(appointmentId) + (query ? ('?' + query) : '');
+}
+
+function buildAppointmentDocumentWorkflowPayload() {
+    var payload = {
+        draft_id_client: $('#app_id_paziente').val() || '',
+        draft_cognome: $('#app_cognome').val() || '',
+        draft_nome: $('#app_nome').val() || '',
+        draft_patient_label: getAppointmentPatientLabel($('#app_cognome').val(), $('#app_nome').val()),
+        draft_telefono: $('#app_telefono').val() || '',
+        draft_cellulare: $('#app_cellulare').val() || '',
+        draft_email: $('#app_email').val() || '',
+        draft_note: $('#app_note').val() || '',
+        id_dot: $('#id_dot').val() || window.AGENDA_CONFIG.selectedDot || 0,
+        data: $('#agenda_date').val() || window.AGENDA_CONFIG.selectedDate || '',
+        view: normalizeAgendaViewModeValue($('#view_mode').val())
+    };
+
+    var csrfTokenName = $.trim(window.AGENDA_CONFIG.csrfTokenName || '');
+    var csrfTokenValue = $.trim(window.AGENDA_CONFIG.csrfTokenValue || '');
+    if (csrfTokenName !== '' && csrfTokenValue !== '') {
+        payload[csrfTokenName] = csrfTokenValue;
+    }
+
+    return payload;
+}
+
+function submitAppointmentDocumentWorkflow(mode) {
+    var appointmentId = parseInt($('#app_id_appuntamento').val() || 0, 10) || 0;
+    var targetUrl = buildAppointmentDocumentWorkflowUrl(mode, appointmentId);
+
+    if (targetUrl === '') {
+        alert(mode === 'billing'
+            ? 'Salva prima l appuntamento per aprire la fatturazione da questo slot.'
+            : 'Salva prima l appuntamento per aprire il documento TS da questo slot.');
+        return;
+    }
+
+    var payload = buildAppointmentDocumentWorkflowPayload();
+    payload.focus_appointment = appointmentId;
+
+    var $form = $('<form method="post" style="display:none;"></form>').attr('action', targetUrl);
+    $.each(payload, function(key, value) {
+        $('<input type="hidden">')
+            .attr('name', key)
+            .val(value == null ? '' : String(value))
+            .appendTo($form);
+    });
+
+    $('body').append($form);
+    $form.trigger('submit');
+}
+
+function refreshAppointmentDocumentWorkflowState() {
+    var billingEnabled = supportsAppointmentBillingWorkflow();
+    var tsEnabled = supportsAppointmentTsWorkflow();
+    var appointmentId = parseInt($('#app_id_appuntamento').val() || 0, 10) || 0;
+    var linkedPatientId = parseInt($('#app_id_paziente').val() || 0, 10) || 0;
+    var hasSpecialPatient = linkedPatientId === 33;
+    var $wrapper = $('#appointmentDocumentWorkflow');
+    var $billingButton = $('#btnAppointmentBillingWorkflow');
+    var $tsButton = $('#btnAppointmentTsWorkflow');
+    var $hint = $('#appointmentDocumentWorkflowHint');
+
+    if (!$wrapper.length) {
+        return;
+    }
+
+    if (!billingEnabled && !tsEnabled) {
+        $wrapper.hide();
+        return;
+    }
+
+    $wrapper.css('display', 'block');
+    $billingButton.toggle(billingEnabled);
+    $tsButton.toggle(tsEnabled);
+
+    if (appointmentId <= 0) {
+        $billingButton.prop('disabled', true);
+        $tsButton.prop('disabled', true);
+        $hint.text('Le azioni documento si attivano dopo il primo salvataggio dell appuntamento.');
+        return;
+    }
+
+    if (hasSpecialPatient) {
+        $billingButton.prop('disabled', true);
+        $tsButton.prop('disabled', true);
+        $hint.text('Il paziente speciale non puo generare documenti fiscali o TS. Collega prima un paziente reale.');
+        return;
+    }
+
+    $billingButton.prop('disabled', false);
+    $tsButton.prop('disabled', false);
+
+    if (billingEnabled && tsEnabled) {
+        $hint.text('I pulsanti aprono i moduli portando dietro i dati attuali del paziente da questo modal. Se qualche dato fiscale manca, lo completi nel passaggio successivo.');
+        return;
+    }
+
+    if (billingEnabled) {
+        $hint.text('Apri una nuova fattura gia precompilata con i dati attuali del paziente e dell appuntamento.');
+        return;
+    }
+
+    $hint.text('Apri un nuovo documento TS gia precompilato con i dati attuali del paziente e dell appuntamento.');
 }
 
 function setAppointmentSavingState(isSaving) {
@@ -5674,6 +6046,8 @@ function setAppointmentModalEditingState(isEditing) {
         .data('default-html', buttonHtml)
         .html(buttonHtml)
         .show();
+
+    refreshAppointmentDocumentWorkflowState();
 }
 
 function refreshAgendaAfterAppointmentChange() {
@@ -5906,6 +6280,8 @@ function riempiModaleDaEvento(slot) {
     if (slot.id_appuntamento) {
         setAppointmentModalEditingState(true);
     }
+
+    refreshAppointmentDocumentWorkflowState();
 }
 
 function caricaSlotCalendario(options) {
@@ -7809,6 +8185,7 @@ $('#nota_giorno_text').on('blur', function() {
     });
 
     $('#appointmentModal').on('shown.bs.modal', function() {
+        refreshAppointmentDocumentWorkflowState();
         if (!appointmentSearchFocusRequested) {
             return;
         }
@@ -8026,6 +8403,14 @@ $('#nota_giorno_text').on('blur', function() {
                 caricaTutto();
             }
         }, 'json');
+    });
+
+    $('#btnAppointmentBillingWorkflow').on('click', function() {
+        submitAppointmentDocumentWorkflow('billing');
+    });
+
+    $('#btnAppointmentTsWorkflow').on('click', function() {
+        submitAppointmentDocumentWorkflow('ts');
     });
 
     $('#btnDeleteExtraSlot').on('click', function() {

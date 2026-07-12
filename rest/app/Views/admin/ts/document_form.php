@@ -12,6 +12,7 @@ $relatedOperations = is_array($formContext['related_operations'] ?? null) ? $for
 $requestSnapshot = is_array($formContext['request_snapshot'] ?? null) ? $formContext['request_snapshot'] : [];
 $responseSnapshot = is_array($formContext['response_snapshot'] ?? null) ? $formContext['response_snapshot'] : [];
 $sourceTypeLabels = is_array($formContext['source_type_labels'] ?? null) ? $formContext['source_type_labels'] : [];
+$sourceContext = is_array($formContext['source_context'] ?? null) ? $formContext['source_context'] : [];
 $supportedExpenseTypes = is_array($formContext['supported_expense_types'] ?? null) ? $formContext['supported_expense_types'] : [];
 $supportedExpenseDetails = is_array($formContext['supported_expense_details'] ?? null) ? $formContext['supported_expense_details'] : [];
 $supportedDocumentTypes = is_array($formContext['supported_document_types'] ?? null) ? $formContext['supported_document_types'] : [];
@@ -46,6 +47,33 @@ $latestReceiptId = (int) ($latestReceipt['id_ts_receipt'] ?? 0);
 $lastErrorMessage = trim((string) ($document['last_error_message'] ?? ''));
 $responseMessages = is_array($responseSnapshot['messages'] ?? null) ? $responseSnapshot['messages'] : [];
 $supportLog = is_array($responseSnapshot['support_log'] ?? null) ? $responseSnapshot['support_log'] : [];
+$sourcePatientMetaParts = [];
+$sourcePatientLabel = trim((string) ($sourceContext['patient_label'] ?? ''));
+$sourcePatientLastName = trim((string) ($sourceContext['patient_last_name'] ?? ''));
+$sourcePatientFirstName = trim((string) ($sourceContext['patient_first_name'] ?? ''));
+$sourcePatientTaxCode = strtoupper(trim((string) ($sourceContext['patient_tax_code'] ?? '')));
+$sourcePatientPhone = trim((string) ($sourceContext['patient_phone'] ?? ''));
+$sourcePatientMobile = trim((string) ($sourceContext['patient_mobile'] ?? ''));
+$sourcePatientEmail = trim((string) ($sourceContext['patient_email'] ?? ''));
+$sourcePatientAddress = trim((string) ($sourceContext['patient_address'] ?? ''));
+$sourcePatientCity = trim((string) ($sourceContext['patient_city'] ?? ''));
+$sourcePatientPhoneLabel = $sourcePatientMobile !== '' ? $sourcePatientMobile : ($sourcePatientPhone !== '' ? $sourcePatientPhone : 'Non disponibile');
+$sourcePatientEmailLabel = $sourcePatientEmail !== '' ? $sourcePatientEmail : 'Non disponibile';
+$sourcePatientTaxCodeLabel = $sourcePatientTaxCode !== '' ? $sourcePatientTaxCode : 'Da completare';
+$sourcePatientAddressLabel = trim((string) (preg_replace('/\s+/', ' ', $sourcePatientAddress . ' ' . $sourcePatientCity) ?? ''));
+$sourcePatientAddressLabel = $sourcePatientAddressLabel !== '' ? $sourcePatientAddressLabel : 'Non disponibile';
+
+if ($sourcePatientTaxCode !== '') {
+    $sourcePatientMetaParts[] = 'CF ' . $sourcePatientTaxCode;
+}
+if ($sourcePatientMobile !== '') {
+    $sourcePatientMetaParts[] = 'Cell. ' . $sourcePatientMobile;
+} elseif ($sourcePatientPhone !== '') {
+    $sourcePatientMetaParts[] = 'Tel. ' . $sourcePatientPhone;
+}
+if ($sourcePatientEmail !== '') {
+    $sourcePatientMetaParts[] = $sourcePatientEmail;
+}
 
 $fieldValue = static function (string $key, $default = '') use ($document): string {
     $old = old($key);
@@ -161,6 +189,33 @@ if (!is_string($supportedExpenseDetailsJson) || $supportedExpenseDetailsJson ===
                 Il documento usa il profilo TS attivo dello studio come sorgente per Partita IVA e configurazione di invio. Se l invio va bene, da qui sotto puoi scaricare la ricevuta e passare subito al documento successivo.
               <?php endif; ?>
             </p>
+            <?php if ($sourceContext !== []): ?>
+              <div class="alert alert-info" style="margin:0 0 12px 0;">
+                <strong><?= esc((string) ($sourceContext['title'] ?? 'Origine appuntamento')) ?></strong>
+                <?php if (trim((string) ($sourceContext['patient_label'] ?? '')) !== ''): ?>
+                  per <?= esc((string) ($sourceContext['patient_label'] ?? '')) ?>
+                <?php endif; ?>
+                <?php if (trim((string) ($sourceContext['appointment_date_label'] ?? '')) !== ''): ?>
+                  del <?= esc((string) ($sourceContext['appointment_date_label'] ?? '')) ?>
+                <?php endif; ?>
+                <?php if (trim((string) ($sourceContext['appointment_time_label'] ?? '')) !== ''): ?>
+                  alle <?= esc((string) ($sourceContext['appointment_time_label'] ?? '')) ?>
+                <?php endif; ?>
+                <?php if (trim((string) ($sourceContext['doctor_label'] ?? '')) !== ''): ?>
+                  con <?= esc((string) ($sourceContext['doctor_label'] ?? '')) ?>
+                <?php endif; ?>.
+                <div style="margin-top:6px;"><?= esc((string) ($sourceContext['message'] ?? '')) ?></div>
+                <div style="margin-top:10px; padding:10px 12px; border:1px solid #d8e6ee; border-radius:12px; background:#f9fcfd; font-size:12px; color:#425462;">
+                  <div><strong>Paziente collegato:</strong> <?= esc($sourcePatientLabel !== '' ? $sourcePatientLabel : 'Anagrafica dello spazio') ?></div>
+                  <div style="margin-top:4px;"><strong>Cognome:</strong> <?= esc($sourcePatientLastName !== '' ? $sourcePatientLastName : 'Non disponibile') ?></div>
+                  <div style="margin-top:4px;"><strong>Nome:</strong> <?= esc($sourcePatientFirstName !== '' ? $sourcePatientFirstName : 'Non disponibile') ?></div>
+                  <div style="margin-top:4px;"><strong>Codice fiscale:</strong> <?= esc($sourcePatientTaxCodeLabel) ?></div>
+                  <div style="margin-top:4px;"><strong>Recapito:</strong> <?= esc($sourcePatientPhoneLabel) ?></div>
+                  <div style="margin-top:4px;"><strong>Email:</strong> <?= esc($sourcePatientEmailLabel) ?></div>
+                  <div style="margin-top:4px;"><strong>Indirizzo:</strong> <?= esc($sourcePatientAddressLabel) ?></div>
+                </div>
+              </div>
+            <?php endif; ?>
             <span class="status-chip">Tipo record: <?= esc($sourceTypeLabel) ?></span>
             <span class="status-chip">Profilo TS: <?= esc(trim((string) ($profile['profile_name'] ?? 'Non configurato')) !== '' ? (string) ($profile['profile_name'] ?? '') : 'Non configurato') ?></span>
             <span class="status-chip">P.IVA erogatore: <?= esc((string) ($profile['owner_piva'] ?? '-')) ?></span>
@@ -192,6 +247,11 @@ if (!is_string($supportedExpenseDetailsJson) || $supportedExpenseDetailsJson ===
               <a class="btn btn-default" href="<?= site_url('admin/sistema-ts/documenti') ?>">
                 <i class="fa fa-arrow-left"></i> Torna alla lista documenti TS
               </a>
+              <?php if (trim((string) ($sourceContext['return_url'] ?? '')) !== ''): ?>
+                <a class="btn btn-default" href="<?= esc((string) ($sourceContext['return_url'] ?? '')) ?>" style="margin-left:8px;">
+                  <i class="fa fa-calendar"></i> <?= esc((string) ($sourceContext['return_label'] ?? 'Torna all agenda')) ?>
+                </a>
+              <?php endif; ?>
             </div>
           </div>
 
@@ -266,6 +326,21 @@ if (!is_string($supportedExpenseDetailsJson) || $supportedExpenseDetailsJson ===
                       Cerca un paziente gia presente nello spazio oppure compila i campi manualmente.
                     </small>
                   </div>
+                  <?php if ($sourceContext !== []): ?>
+                    <div class="col-md-12">
+                      <div class="alert alert-info" style="margin-top:4px; margin-bottom:8px; padding:12px 14px;">
+                        <strong>Dati paziente importati dall appuntamento</strong>
+                        <div style="margin-top:6px; font-size:12px; color:#425462;">
+                          <?= esc($sourcePatientLabel !== '' ? $sourcePatientLabel : 'Anagrafica collegata') ?>
+                          | Cognome: <?= esc($sourcePatientLastName !== '' ? $sourcePatientLastName : '-') ?>
+                          | Nome: <?= esc($sourcePatientFirstName !== '' ? $sourcePatientFirstName : '-') ?>
+                          | CF: <?= esc($sourcePatientTaxCodeLabel) ?>
+                          | Recapito: <?= esc($sourcePatientPhoneLabel) ?>
+                          | Email: <?= esc($sourcePatientEmailLabel) ?>
+                        </div>
+                      </div>
+                    </div>
+                  <?php endif; ?>
                 </div>
 
                 <div class="row">
