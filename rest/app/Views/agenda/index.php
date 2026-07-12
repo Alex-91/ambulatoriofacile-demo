@@ -1565,6 +1565,61 @@
             vertical-align: middle;
         }
 
+        .agenda-layout {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: flex-start;
+        }
+
+        .agenda-layout > .agenda-sidebar-col,
+        .agenda-layout > .agenda-main-col {
+            flex: 0 0 100%;
+            width: 100%;
+            max-width: 100%;
+            transition: width .22s ease, max-width .22s ease, flex-basis .22s ease;
+        }
+
+        .agenda-sidebar-shell {
+            position: relative;
+        }
+
+        .agenda-sidebar-toggle-wrap {
+            margin-bottom: 14px;
+        }
+
+        .agenda-sidebar-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid #d2e3ee;
+            border-radius: 12px !important;
+            background: linear-gradient(135deg, #fdfefe 0%, #f4f9fc 55%, #ebf5fb 100%);
+            color: #23485c;
+            font-size: 12px;
+            font-weight: 700;
+            box-shadow: 0 10px 22px rgba(31, 45, 61, 0.08);
+            transition: all .18s ease;
+        }
+
+        .agenda-sidebar-toggle:hover,
+        .agenda-sidebar-toggle:focus {
+            border-color: #b7d1e2;
+            background: linear-gradient(135deg, #ffffff 0%, #eef6fb 100%);
+            color: #16394c;
+            outline: none;
+        }
+
+        .agenda-sidebar-toggle-icon {
+            font-size: 15px;
+        }
+
+        .agenda-sidebar-panels {
+            transition: opacity .18s ease, visibility .18s ease, max-height .22s ease;
+        }
+
         .agenda-view-switch {
             display: grid;
             gap: 6px;
@@ -2060,6 +2115,71 @@
             line-height: 1.55;
         }
 
+        @media (min-width: 992px) {
+            .agenda-layout {
+                flex-wrap: nowrap;
+            }
+
+            .agenda-layout::before,
+            .agenda-layout::after {
+                display: none;
+            }
+
+            .agenda-layout > .agenda-sidebar-col,
+            .agenda-layout > .agenda-main-col {
+                float: none;
+            }
+
+            .agenda-layout > .agenda-sidebar-col {
+                flex: 0 0 320px;
+                width: 320px;
+                max-width: 320px;
+            }
+
+            .agenda-layout > .agenda-main-col {
+                flex: 1 1 auto;
+                width: auto;
+                max-width: none;
+                min-width: 0;
+            }
+
+            .agenda-layout.is-sidebar-collapsed > .agenda-sidebar-col {
+                flex-basis: 86px;
+                width: 86px;
+                max-width: 86px;
+            }
+
+            .agenda-layout.is-sidebar-collapsed .agenda-sidebar-panels {
+                opacity: 0;
+                visibility: hidden;
+                pointer-events: none;
+                max-height: 0;
+                overflow: hidden;
+                margin: 0;
+            }
+
+            .agenda-layout.is-sidebar-collapsed .agenda-sidebar-toggle {
+                min-height: 160px;
+                flex-direction: column;
+                gap: 10px;
+                padding: 16px 8px;
+            }
+
+            .agenda-layout.is-sidebar-collapsed .agenda-sidebar-toggle-text {
+                writing-mode: vertical-rl;
+                transform: rotate(180deg);
+                letter-spacing: 0.08em;
+                text-transform: uppercase;
+                font-size: 11px;
+            }
+        }
+
+        @media (max-width: 991px) {
+            .agenda-layout.is-sidebar-collapsed .agenda-sidebar-panels {
+                display: none;
+            }
+        }
+
         @media (max-width: 767px) {
             .agenda-visit-type-color-footer {
                 align-items: stretch;
@@ -2236,9 +2356,25 @@
                 <?php endif; ?>
             </div>
 
-            <div class="row">
+            <div class="row agenda-layout" id="agendaLayout">
 
-                <div class="col-md-2">
+                <div class="col-md-2 agenda-sidebar-col" id="agendaSidebarCol">
+                    <div class="agenda-sidebar-shell">
+                        <div class="agenda-sidebar-toggle-wrap">
+                            <button
+                                type="button"
+                                class="btn btn-default agenda-sidebar-toggle"
+                                id="btnToggleAgendaSidebar"
+                                aria-expanded="true"
+                                aria-controls="agendaSidebarPanels"
+                                title="Chiudi il pannello agenda"
+                            >
+                                <i class="fa fa-angle-double-left agenda-sidebar-toggle-icon" id="btnToggleAgendaSidebarIcon" aria-hidden="true"></i>
+                                <span class="agenda-sidebar-toggle-text" id="btnToggleAgendaSidebarText">Riduci menu</span>
+                            </button>
+                        </div>
+
+                        <div id="agendaSidebarPanels" class="agenda-sidebar-panels">
                     <div class="box box-solid" style="margin-bottom:0!important">
                         <div class="box-header with-border">
                             <h3 class="box-title">Menu</h3>
@@ -2415,9 +2551,11 @@
                         </div>
                     </div>
                     <?php endif; ?>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="col-md-10">
+                <div class="col-md-10 agenda-main-col" id="agendaMainCol">
                     <div class="box box-info agenda-patient-lookup-box">
                         <div class="box-header with-border">
                             <h3 class="box-title"><i class="fa fa-search"></i> Cerca paziente nell'agenda</h3>
@@ -3950,6 +4088,47 @@ function syncAgendaPrintButtonLabel(activeView) {
     }
 
     $('#btnPrintDayAgendaLabel').text(label);
+}
+
+function setAgendaSidebarCollapsed(isCollapsed, options) {
+    var $layout = $('#agendaLayout');
+    var $button = $('#btnToggleAgendaSidebar');
+    var $icon = $('#btnToggleAgendaSidebarIcon');
+    var $text = $('#btnToggleAgendaSidebarText');
+
+    if (!$layout.length || !$button.length) {
+        return;
+    }
+
+    options = options || {};
+    isCollapsed = !!isCollapsed;
+
+    $layout.toggleClass('is-sidebar-collapsed', isCollapsed);
+    $button
+        .attr('aria-expanded', isCollapsed ? 'false' : 'true')
+        .attr('title', isCollapsed ? 'Apri il pannello agenda' : 'Chiudi il pannello agenda');
+
+    if ($text.length) {
+        $text.text(isCollapsed ? 'Apri menu' : 'Riduci menu');
+    }
+
+    if ($icon.length) {
+        $icon
+            .removeClass('fa-angle-double-left fa-angle-double-right')
+            .addClass(isCollapsed ? 'fa-angle-double-right' : 'fa-angle-double-left');
+    }
+
+    if (options.realign === false) {
+        return;
+    }
+
+    setTimeout(function() {
+        riallineaRenderingCalendario();
+    }, 240);
+}
+
+function toggleAgendaSidebar() {
+    setAgendaSidebarCollapsed(!$('#agendaLayout').hasClass('is-sidebar-collapsed'));
 }
 
 function toggleAgendaTeamDayLayout(isTeamDay) {
@@ -8157,6 +8336,7 @@ function caricaTutto(options) {
 $(function () {
     moment.locale('it');
     syncAgendaTeamDayToolbar();
+    setAgendaSidebarCollapsed(false, { realign: false });
 
     window.addEventListener('pagehide', function() {
         inviaUnlockBeaconSePresente();
@@ -8449,6 +8629,10 @@ $('#nota_giorno_text').on('blur', function() {
                   "&view=" + encodeURIComponent($('#view_mode').val());
 
         window.location.href = url;
+    });
+
+    $('#btnToggleAgendaSidebar').on('click', function() {
+        toggleAgendaSidebar();
     });
 
     $('.agenda-view-btn').on('click', function() {
