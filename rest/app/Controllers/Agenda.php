@@ -2944,6 +2944,112 @@ public function eseguiRepairRecurringExtraSlots()
         }
     }
 
+    public function prossimoGiornoDisponibile()
+    {
+        $selectedDot = (int)$this->request->getGet('id_dot');
+        $data = $this->resolveAgendaDateFromPayload(
+            ['agenda_data' => (string)($this->request->getGet('data') ?? '')],
+            date('Y-m-d')
+        );
+        $requestedView = (string)($this->request->getGet('view') ?? 'day');
+        $direction = $this->normalizeAgendaAvailabilityDirection((string)($this->request->getGet('direction') ?? 'next'));
+
+        try {
+            $teamDayDoctors = $this->getTeamDayDoctorsForCurrentUser();
+            $view = $this->normalizeAgendaViewMode($requestedView, $this->canUseTeamDayView($teamDayDoctors));
+            $searchStartDate = $this->resolveAgendaAvailabilitySearchStartDate($data, $view, $direction);
+
+            if ($view === 'team_day') {
+                if (!$this->canUseTeamDayView($teamDayDoctors)) {
+                    throw new \Exception('La vista giorno team non e disponibile per questo spazio.');
+                }
+
+                $doctorIds = $this->extractAgendaDoctorIds($teamDayDoctors);
+            } else {
+                $this->assertDoctorAllowed($selectedDot);
+                $doctorIds = [$selectedDot];
+            }
+
+            $agendaDay = $this->slotModel->findNearestAgendaDateForDoctors(
+                $doctorIds,
+                $searchStartDate,
+                $direction
+            );
+
+            if ($agendaDay === null) {
+                return $this->respondJsonSafe([
+                    'status' => true,
+                    'found' => false,
+                    'date' => null,
+                    'slot_totali' => 0,
+                    'message' => 'Non ci sono altri giorni con agenda in questa direzione.',
+                ]);
+            }
+
+            return $this->respondJsonSafe([
+                'status' => true,
+                'found' => true,
+                'date' => (string)($agendaDay['data_slot'] ?? ''),
+                'slot_totali' => (int)($agendaDay['slot_totali'] ?? 0),
+                'message' => '',
+            ]);
+        } catch (\Throwable $e) {
+            return $this->respondJsonSafe([
+                'status' => false,
+                'found' => false,
+                'date' => null,
+                'slot_totali' => 0,
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    private function normalizeAgendaAvailabilityDirection(string $direction): string
+    {
+        return strtolower(trim($direction)) === 'prev' ? 'prev' : 'next';
+    }
+
+    private function resolveAgendaAvailabilitySearchStartDate(string $date, string $view, string $direction): string
+    {
+        $anchorDate = $date;
+
+        if ($view === 'week') {
+            $weekRange = $this->resolveAgendaWeekRange($date);
+            $anchorDate = $direction === 'prev'
+                ? (string)($weekRange['start'] ?? $date)
+                : (string)($weekRange['end'] ?? $date);
+        }
+
+        $anchor = \DateTimeImmutable::createFromFormat('Y-m-d', $anchorDate)
+            ?: \DateTimeImmutable::createFromFormat('Y-m-d', $date)
+            ?: new \DateTimeImmutable();
+
+        return $anchor
+            ->modify($direction === 'prev' ? '-1 day' : '+1 day')
+            ->format('Y-m-d');
+    }
+
+    /**
+     * @param array<int, mixed> $doctors
+     * @return array<int, int>
+     */
+    private function extractAgendaDoctorIds(array $doctors): array
+    {
+        $doctorIds = [];
+
+        foreach ($doctors as $doctorRow) {
+            $doctor = $this->normalizeAgendaProfessionalRow($doctorRow);
+            $doctorId = (int)($doctor['id_dot'] ?? 0);
+            if ($doctorId <= 0) {
+                continue;
+            }
+
+            $doctorIds[$doctorId] = $doctorId;
+        }
+
+        return array_values($doctorIds);
+    }
+
     private function calcolaStepCalendario(array $slots): int
     {
         $durateConfigurate = [];

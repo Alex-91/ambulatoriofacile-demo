@@ -183,6 +183,88 @@ public function getSlotsCalendario(int $idDot, string $date, string $view = 'day
 
 public function getAvailabilityDaysForRange(int $idDot, string $fromDate, string $toDate): array
 {
+    return $this->mapAvailabilityDays(
+        $this->buildAvailabilityDaysQuery([$idDot], $fromDate, $toDate, 'ASC')
+            ->get()
+            ->getResultArray()
+    );
+}
+
+/**
+ * @param array<int, int> $doctorIds
+ * @return array<string, mixed>|null
+ */
+public function findNearestAgendaDateForDoctors(array $doctorIds, string $date, string $direction = 'next'): ?array
+{
+    $doctorIds = $this->normalizeAvailabilityDoctorIds($doctorIds);
+    if ($doctorIds === []) {
+        return null;
+    }
+
+    $normalizedDirection = strtolower(trim($direction)) === 'prev' ? 'prev' : 'next';
+    $operator = $normalizedDirection === 'prev' ? '<=' : '>=';
+    $sortDirection = $normalizedDirection === 'prev' ? 'DESC' : 'ASC';
+
+    $builder = $this->buildAgendaDaysBaseQuery($doctorIds);
+    $builder->where('s.data_slot ' . $operator, $date);
+    $builder->groupBy('s.data_slot');
+    $builder->orderBy('s.data_slot', $sortDirection);
+    $builder->limit(1);
+
+    $row = $builder->get()->getRowArray();
+    if (!$row) {
+        return null;
+    }
+
+    $dataSlot = trim((string)($row['data_slot'] ?? ''));
+    if ($dataSlot === '') {
+        return null;
+    }
+
+    return [
+        'data_slot' => $dataSlot,
+        'slot_totali' => (int)($row['slot_totali'] ?? 0),
+    ];
+}
+
+/**
+ * @param array<int, int> $doctorIds
+ * @return array<int, int>
+ */
+private function normalizeAvailabilityDoctorIds(array $doctorIds): array
+{
+    $normalized = [];
+
+    foreach ($doctorIds as $doctorId) {
+        $doctorId = (int)$doctorId;
+        if ($doctorId <= 0) {
+            continue;
+        }
+
+        $normalized[$doctorId] = $doctorId;
+    }
+
+    return array_values($normalized);
+}
+
+/**
+ * @param array<int, int> $doctorIds
+ */
+private function applyAvailabilityDoctorFilter($builder, array $doctorIds): void
+{
+    if (count($doctorIds) === 1) {
+        $builder->where('s.id_dot', $doctorIds[0]);
+        return;
+    }
+
+    $builder->whereIn('s.id_dot', $doctorIds);
+}
+
+/**
+ * @param array<int, int> $doctorIds
+ */
+private function buildAvailabilityBaseQuery(array $doctorIds)
+{
     $builder = $this->db->table('dap11_agenda_slot s');
 
     $builder->select('s.data_slot, COUNT(*) AS slot_liberi', false);
@@ -197,17 +279,49 @@ public function getAvailabilityDaysForRange(int $idDot, string $fromDate, string
         'left'
     );
 
-    $builder->where('s.id_dot', $idDot);
-    $builder->where('s.data_slot >=', $fromDate);
-    $builder->where('s.data_slot <=', $toDate);
+    $this->applyAvailabilityDoctorFilter($builder, $doctorIds);
     $builder->where('s.stato', 'LIBERO');
     $builder->where('a.id_appuntamento IS NULL', null, false);
     $builder->where('gb.id_dot IS NULL', null, false);
     $builder->where($this->buildConfiguredOrBookedSlotSql('s'), null, false);
-    $builder->groupBy('s.data_slot');
-    $builder->orderBy('s.data_slot', 'ASC');
 
-    $rows = $builder->get()->getResultArray();
+    return $builder;
+}
+
+/**
+ * @param array<int, int> $doctorIds
+ */
+private function buildAgendaDaysBaseQuery(array $doctorIds)
+{
+    $builder = $this->db->table('dap11_agenda_slot s');
+
+    $builder->select('s.data_slot, COUNT(*) AS slot_totali', false);
+    $this->applyAvailabilityDoctorFilter($builder, $doctorIds);
+    $builder->where($this->buildConfiguredOrBookedSlotSql('s'), null, false);
+
+    return $builder;
+}
+
+/**
+ * @param array<int, int> $doctorIds
+ */
+private function buildAvailabilityDaysQuery(array $doctorIds, string $fromDate, string $toDate, string $sortDirection = 'ASC')
+{
+    $builder = $this->buildAvailabilityBaseQuery($this->normalizeAvailabilityDoctorIds($doctorIds));
+    $builder->where('s.data_slot >=', $fromDate);
+    $builder->where('s.data_slot <=', $toDate);
+    $builder->groupBy('s.data_slot');
+    $builder->orderBy('s.data_slot', strtoupper($sortDirection) === 'DESC' ? 'DESC' : 'ASC');
+
+    return $builder;
+}
+
+/**
+ * @param array<int, array<string, mixed>> $rows
+ * @return array<int, array<string, mixed>>
+ */
+private function mapAvailabilityDays(array $rows): array
+{
     $days = [];
 
     foreach ($rows as $row) {
@@ -217,8 +331,8 @@ public function getAvailabilityDaysForRange(int $idDot, string $fromDate, string
         }
 
         $days[] = [
-            'data_slot'    => $dataSlot,
-            'slot_liberi'  => (int)($row['slot_liberi'] ?? 0),
+            'data_slot' => $dataSlot,
+            'slot_liberi' => (int)($row['slot_liberi'] ?? 0),
         ];
     }
 

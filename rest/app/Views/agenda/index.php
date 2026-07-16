@@ -3530,6 +3530,7 @@ var agendaTeamDayXhr = null;
 var agendaTeamDayRequestSeq = 0;
 var agendaTeamSlotIndex = {};
 var agendaTeamAllSlots = [];
+var agendaAvailabilityJumpXhr = null;
 var agendaMiniCalendarMonth = null;
 var agendaMiniCalendarAvailabilityMap = {};
 var agendaMiniCalendarAvailabilityCounts = {};
@@ -3592,10 +3593,92 @@ function syncAgendaTeamDayToolbar() {
     $year.text(yearLabel || '-');
 }
 
+function buildAgendaAvailabilityNavigationMessage(direction, view) {
+    var normalizedDirection = direction === 'prev' ? 'prev' : 'next';
+    var normalizedView = normalizeAgendaViewModeValue(view);
+
+    if (normalizedView === 'week') {
+        return normalizedDirection === 'prev'
+            ? 'Sto cercando la settimana precedente con agenda.'
+            : 'Sto cercando la settimana successiva con agenda.';
+    }
+
+    if (normalizedView === 'team_day') {
+        return normalizedDirection === 'prev'
+            ? 'Sto cercando il giorno precedente del team con agenda.'
+            : 'Sto cercando il giorno successivo del team con agenda.';
+    }
+
+    return normalizedDirection === 'prev'
+        ? 'Sto cercando il giorno precedente con agenda.'
+        : 'Sto cercando il giorno successivo con agenda.';
+}
+
+function navigateAgendaToNearestAvailableDay(direction) {
+    direction = direction === 'prev' ? 'prev' : 'next';
+
+    var filtri = leggiFiltriAgenda();
+    var currentDate = $.trim(filtri.data || '');
+    var idDot = parseInt($('#id_dot').val(), 10) || 0;
+
+    if (!moment(currentDate, 'YYYY-MM-DD', true).isValid()) {
+        showAgendaToast('La data selezionata non e valida.', 'error');
+        return;
+    }
+
+    if (filtri.view !== 'team_day' && idDot <= 0) {
+        showAgendaToast('Seleziona un professionista per continuare.', 'error');
+        return;
+    }
+
+    if (agendaAvailabilityJumpXhr && agendaAvailabilityJumpXhr.readyState !== 4) {
+        agendaAvailabilityJumpXhr.abort();
+    }
+
+    setAgendaCalendarLoading(true, buildAgendaAvailabilityNavigationMessage(direction, filtri.view));
+
+    agendaAvailabilityJumpXhr = $.get("<?= base_url('agenda/prossimo-giorno-disponibile') ?>", {
+        id_dot: idDot,
+        data: currentDate,
+        view: filtri.view,
+        direction: direction
+    }, function(res) {
+        agendaAvailabilityJumpXhr = null;
+
+        if (!res || !res.status) {
+            setAgendaCalendarLoading(false);
+            showAgendaToast((res && res.message) ? res.message : 'Impossibile cercare il prossimo giorno con agenda.', 'error');
+            return;
+        }
+
+        if (!res.found || !moment(res.date, 'YYYY-MM-DD', true).isValid()) {
+            setAgendaCalendarLoading(false);
+            showAgendaToast(res.message || 'Non ci sono altri giorni con agenda in questa direzione.', 'error');
+            return;
+        }
+
+        $('#agenda_date').val(res.date);
+        caricaTutto();
+    }, 'json').fail(function(xhr, textStatus) {
+        agendaAvailabilityJumpXhr = null;
+
+        if (textStatus === 'abort') {
+            return;
+        }
+
+        setAgendaCalendarLoading(false);
+
+        var message = 'Impossibile cercare il prossimo giorno con agenda.';
+        if (xhr && xhr.responseJSON && xhr.responseJSON.message) {
+            message = xhr.responseJSON.message;
+        }
+
+        showAgendaToast(message, 'error');
+    });
+}
+
 function navigateAgendaSelectedDay(dayOffset) {
-    var selected = getSelectedAgendaMoment();
-    $('#agenda_date').val(selected.add(dayOffset, 'days').format('YYYY-MM-DD'));
-    caricaTutto();
+    navigateAgendaToNearestAvailableDay(dayOffset < 0 ? 'prev' : 'next');
 }
 
 function navigateAgendaToday() {
@@ -8810,7 +8893,7 @@ $('#nota_giorno_text').on('blur', function() {
         riallineaRenderingCalendario();
     });
 
-    $('#calendar').on('click', '.fc-prev-button, .fc-next-button, .fc-today-button, .fc-agendaDay-button, .fc-agendaWeek-button', function() {
+    $('#calendar').on('click', '.fc-today-button, .fc-agendaDay-button, .fc-agendaWeek-button', function() {
         setTimeout(syncCalendarDateAndReload, 0);
     });
 
@@ -8883,37 +8966,11 @@ $('#nota_giorno_text').on('blur', function() {
     });
 
     $('#btnPrevDay').on('click', function() {
-        if (isTeamDayViewActive()) {
-            navigateAgendaSelectedDay(-1);
-            return;
-        }
-
-        if ($('#calendar').data('fullCalendar')) {
-            $('#calendar').fullCalendar('prev');
-            setTimeout(syncCalendarDateAndReload, 0);
-            return;
-        }
-
-        var d = moment($('#agenda_date').val()).subtract(1, 'days').format('YYYY-MM-DD');
-        $('#agenda_date').val(d);
-        caricaTutto();
+        navigateAgendaSelectedDay(-1);
     });
 
     $('#btnNextDay').on('click', function() {
-        if (isTeamDayViewActive()) {
-            navigateAgendaSelectedDay(1);
-            return;
-        }
-
-        if ($('#calendar').data('fullCalendar')) {
-            $('#calendar').fullCalendar('next');
-            setTimeout(syncCalendarDateAndReload, 0);
-            return;
-        }
-
-        var d = moment($('#agenda_date').val()).add(1, 'days').format('YYYY-MM-DD');
-        $('#agenda_date').val(d);
-        caricaTutto();
+        navigateAgendaSelectedDay(1);
     });
 
     $('#btnTeamDayToday').on('click', function() {

@@ -420,6 +420,7 @@ $routes->group('agenda', function($routes) {
     $routes->get('calendario', 'Agenda::calendario');
     $routes->get('calendario-team-day', 'Agenda::calendarioTeamDay');
     $routes->get('disponibilita-mese', 'Agenda::disponibilitaMese');
+    $routes->get('prossimo-giorno-disponibile', 'Agenda::prossimoGiornoDisponibile');
     $routes->get('refresh', 'Agenda::refresh');
     $routes->get('domiciliari', 'Agenda::domiciliari');
     $routes->get('note', 'Agenda::note');
