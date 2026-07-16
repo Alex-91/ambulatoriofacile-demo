@@ -3327,6 +3327,7 @@ window.AGENDA_CONFIG = {
     notificationContext: "<?= esc((string)($notificationContext ?? '')) ?>",
     domiciliariAbilitati: <?= !empty($domiciliariAbilitati) ? 'true' : 'false' ?>,
     teamDayViewEnabled: <?= !empty($teamDayViewEnabled) ? 'true' : 'false' ?>,
+    skipEmptyAgendaDaysEnabled: <?= !empty($skipEmptyAgendaDaysEnabled) ? 'true' : 'false' ?>,
     sharedMemoManagementEnabled: <?= $sharedMemoManagementEnabled ? 'true' : 'false' ?>,
     visitTypesFeatureEnabled: <?= !empty($visitTypesFeatureEnabled) ? 'true' : 'false' ?>,
     appointmentBillingWorkflowEnabled: <?= !empty($appointmentDocumentActions['billing_enabled']) ? 'true' : 'false' ?>,
@@ -3548,6 +3549,10 @@ function supportsTeamDayView() {
     return !!window.AGENDA_CONFIG.teamDayViewEnabled;
 }
 
+function supportsAgendaSkipEmptyDaysNavigation() {
+    return !!window.AGENDA_CONFIG.skipEmptyAgendaDaysEnabled;
+}
+
 function getSelectedAgendaMoment() {
     var rawValue = $.trim($('#agenda_date').val() || window.AGENDA_CONFIG.selectedDate || '');
     var selected = moment(rawValue, 'YYYY-MM-DD', true);
@@ -3678,6 +3683,28 @@ function navigateAgendaToNearestAvailableDay(direction) {
 }
 
 function navigateAgendaSelectedDay(dayOffset) {
+    if (!supportsAgendaSkipEmptyDaysNavigation()) {
+        if (isTeamDayViewActive()) {
+            var selected = getSelectedAgendaMoment();
+            $('#agenda_date').val(selected.add(dayOffset, 'days').format('YYYY-MM-DD'));
+            caricaTutto();
+            return;
+        }
+
+        if ($('#calendar').data('fullCalendar')) {
+            $('#calendar').fullCalendar(dayOffset < 0 ? 'prev' : 'next');
+            setTimeout(syncCalendarDateAndReload, 0);
+            return;
+        }
+
+        var fallbackDate = dayOffset < 0
+            ? moment($('#agenda_date').val()).subtract(1, 'days').format('YYYY-MM-DD')
+            : moment($('#agenda_date').val()).add(1, 'days').format('YYYY-MM-DD');
+        $('#agenda_date').val(fallbackDate);
+        caricaTutto();
+        return;
+    }
+
     navigateAgendaToNearestAvailableDay(dayOffset < 0 ? 'prev' : 'next');
 }
 

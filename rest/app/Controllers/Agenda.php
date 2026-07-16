@@ -35,6 +35,7 @@ class Agenda extends BaseController
     private const BACKUP_PDF_MAX_ROWS = 1200;
     private const DEMO_DEFAULT_DATE = '2026-06-01';
     private const TEAM_DAY_VIEW_FEATURE = 'agenda_team_day_view';
+    private const SKIP_EMPTY_AGENDA_DAYS_FEATURE = 'agenda_skip_empty_days';
     private const SHARED_AGENDA_MEMOS_FEATURE = 'shared_agenda_memos';
     private const VISIT_TYPES_FEATURE = 'agenda_visit_types';
 
@@ -731,6 +732,11 @@ public function eseguiRepairRecurringExtraSlots()
     protected function isSharedAgendaMemosFeatureEnabled(): bool
     {
         return $this->tenantFeatureEnabled(self::SHARED_AGENDA_MEMOS_FEATURE);
+    }
+
+    protected function isSkipEmptyAgendaDaysFeatureEnabled(): bool
+    {
+        return $this->tenantFeatureEnabled(self::SKIP_EMPTY_AGENDA_DAYS_FEATURE);
     }
 
     protected function isVisitTypesFeatureEnabled(): bool
@@ -1572,6 +1578,7 @@ public function eseguiRepairRecurringExtraSlots()
         $medici = $this->getOrderedVisibleDoctorsForCurrentUser();
         $teamDayDoctors = $this->getTeamDayDoctorsForCurrentUser();
         $teamDayViewEnabled = $this->canUseTeamDayView($teamDayDoctors);
+        $skipEmptyAgendaDaysEnabled = $this->isSkipEmptyAgendaDaysFeatureEnabled();
         $visitTypesFeatureEnabled = $this->isVisitTypesFeatureEnabled();
         $visitTypes = [];
 
@@ -1619,6 +1626,7 @@ public function eseguiRepairRecurringExtraSlots()
             'memoDoctorOptions'    => $this->getMemoDoctorOptions($medici),
             'selectedDot'          => $selectedDot,
             'teamDayViewEnabled'   => $teamDayViewEnabled,
+            'skipEmptyAgendaDaysEnabled' => $skipEmptyAgendaDaysEnabled,
             'sharedMemoManagementEnabled' => $this->isSharedAgendaMemosFeatureEnabled(),
             'visitTypesFeatureEnabled' => $visitTypesFeatureEnabled,
             'visitTypes'           => $visitTypes,
@@ -2955,6 +2963,16 @@ public function eseguiRepairRecurringExtraSlots()
         $direction = $this->normalizeAgendaAvailabilityDirection((string)($this->request->getGet('direction') ?? 'next'));
 
         try {
+            if (!$this->isSkipEmptyAgendaDaysFeatureEnabled()) {
+                return $this->respondJsonSafe([
+                    'status' => false,
+                    'found' => false,
+                    'date' => null,
+                    'slot_totali' => 0,
+                    'message' => 'La navigazione che salta i giorni senza agenda non e attiva per questo spazio.',
+                ], 403);
+            }
+
             $teamDayDoctors = $this->getTeamDayDoctorsForCurrentUser();
             $view = $this->normalizeAgendaViewMode($requestedView, $this->canUseTeamDayView($teamDayDoctors));
             $searchStartDate = $this->resolveAgendaAvailabilitySearchStartDate($data, $view, $direction);
