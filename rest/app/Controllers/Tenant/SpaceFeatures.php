@@ -3,6 +3,7 @@
 namespace App\Controllers\Tenant;
 
 use App\Controllers\BaseController;
+use App\Services\AgendaDefaultViewService;
 use App\Services\AgendaHomeBlockOrderService;
 use App\Services\BillingFeatureService;
 use App\Models\AgendaModel;
@@ -44,6 +45,8 @@ class SpaceFeatures extends BaseController
             ->resolveTenantSettings($context->tenantId);
         $agendaProfessionalOrderSettings = $professionalOrderService
             ->resolveTenantSettings($context->tenantId, $agendaProfessionals);
+        $agendaDefaultViewSettings = (new AgendaDefaultViewService())
+            ->resolveTenantSettings($context->tenantId);
         $orderedAgendaProfessionals = $professionalOrderService
             ->sortProfessionals($context->tenantId, $agendaProfessionals, false);
         $teamDayColumnColorSettings = (new AgendaTeamColumnColorService())
@@ -57,6 +60,7 @@ class SpaceFeatures extends BaseController
             'billingWorkspaceAccessible' => $billingFeatureService->isEnabledForContext($context),
             'tsConfigurationAccessible' => $tsFeatureService->isEnabledForContext($context)
                 || $tsFeatureService->allowsLocalTestingBypass($context),
+            'agendaDefaultViewSettings' => $agendaDefaultViewSettings,
             'agendaHomeBlockOrderSettings' => $agendaHomeBlockOrderSettings,
             'agendaProfessionalOrderSettings' => $agendaProfessionalOrderSettings,
             'teamDayColumnColorSettings' => $teamDayColumnColorSettings,
@@ -89,6 +93,9 @@ class SpaceFeatures extends BaseController
                 (array) $this->request->getPost('agenda_home_block_order_keys')
             ), static fn(string $value): bool => $value !== ''));
             $agendaHomeBlockOrderColumns = (array) $this->request->getPost('agenda_home_block_columns');
+            $agendaDefaultViewForm = (int) ($this->request->getPost('agenda_default_view_form') ?? 0) === 1;
+            $agendaDefaultViewEnabled = (int) ($this->request->getPost('agenda_default_view_enabled') ?? 0) === 1;
+            $agendaDefaultView = trim(strtolower((string) ($this->request->getPost('agenda_default_view') ?? '')));
             $teamDayColumnColorForm = (int) ($this->request->getPost('team_day_column_color_form') ?? 0) === 1;
             $teamDayColumnColorsEnabled = (int) ($this->request->getPost('team_day_column_colors_enabled') ?? 0) === 1;
             $agendaProfessionalOrderForm = (int) ($this->request->getPost('agenda_professional_order_form') ?? 0) === 1;
@@ -125,6 +132,15 @@ class SpaceFeatures extends BaseController
                     $agendaHomeBlockOrderKeys,
                     $platformUserId,
                     $agendaHomeBlockOrderColumns
+                );
+            }
+
+            if ($agendaDefaultViewForm) {
+                (new AgendaDefaultViewService())->saveTenantPreferences(
+                    $context->tenantId,
+                    $agendaDefaultViewEnabled,
+                    $agendaDefaultView,
+                    $platformUserId
                 );
             }
 

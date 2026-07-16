@@ -16,6 +16,7 @@ use App\Models\AgendaSlotModel;
 use App\Models\AgendaVisitTypeModel;
 use App\Models\PazientiModel;
 use App\Services\AgendaAppointmentNotificationService;
+use App\Services\AgendaDefaultViewService;
 use App\Services\AgendaHomeBlockOrderService;
 use App\Services\AgendaProfessionalOrderService;
 use App\Services\AgendaTeamColumnColorService;
@@ -52,6 +53,7 @@ class Agenda extends BaseController
     protected AgendaVisitTypeModel $visitTypeModel;
     protected NotificationService $notificationService;
     protected AgendaHomeBlockOrderService $agendaHomeBlockOrderService;
+    protected AgendaDefaultViewService $agendaDefaultViewService;
     protected AgendaProfessionalOrderService $agendaProfessionalOrderService;
     protected AgendaTeamColumnColorService $agendaTeamColumnColorService;
     protected BillingTsModuleStatusService $billingTsModuleStatusService;
@@ -77,6 +79,7 @@ class Agenda extends BaseController
         $this->visitTypeModel    = new AgendaVisitTypeModel();
         $this->notificationService = new NotificationService();
         $this->agendaHomeBlockOrderService = new AgendaHomeBlockOrderService();
+        $this->agendaDefaultViewService = new AgendaDefaultViewService();
         $this->agendaProfessionalOrderService = new AgendaProfessionalOrderService();
         $this->agendaTeamColumnColorService = new AgendaTeamColumnColorService();
         $this->billingTsModuleStatusService = new BillingTsModuleStatusService();
@@ -971,6 +974,27 @@ public function eseguiRepairRecurringExtraSlots()
         return 'day';
     }
 
+    protected function resolveAgendaInitialViewMode(bool $teamDayEnabled, int $tenantId = 0): string
+    {
+        $requestedView = trim((string) ($this->request->getGet('view') ?? ''));
+        if ($requestedView !== '') {
+            return $this->normalizeAgendaViewMode($requestedView, $teamDayEnabled);
+        }
+
+        if ($tenantId > 0) {
+            try {
+                return $this->agendaDefaultViewService->resolveInitialView($tenantId, $teamDayEnabled);
+            } catch (\Throwable $e) {
+                log_message('warning', 'Agenda::resolveAgendaInitialViewMode default view fallback failed: {message}', [
+                    'message' => $e->getMessage(),
+                    'tenant_id' => $tenantId,
+                ]);
+            }
+        }
+
+        return 'day';
+    }
+
     /**
      * @param object|array<string, mixed> $medico
      * @return array<string, mixed>
@@ -1619,7 +1643,7 @@ public function eseguiRepairRecurringExtraSlots()
             'pageTitle'            => 'Agenda',
             'today'                => date('Y-m-d'),
             'selectedDate'         => $this->getDefaultAgendaDate(),
-            'viewMode'             => $this->normalizeAgendaViewMode((string)($this->request->getGet('view') ?? 'day'), $teamDayViewEnabled),
+            'viewMode'             => $this->resolveAgendaInitialViewMode($teamDayViewEnabled, $agendaTenantId),
             'focusedAppointmentId' => max(0, (int) ($this->request->getGet('focus_appointment') ?? 0)),
             'notificationContext'  => trim((string) ($this->request->getGet('notification_context') ?? '')),
             'medici'               => $medici,

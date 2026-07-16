@@ -43,6 +43,29 @@ $agendaProfessionalDefaultOrderIds = array_values(array_filter(array_map(
     'intval',
     (array) ($agendaProfessionalOrderSettings['default_order_ids'] ?? [])
 ), static fn(int $value): bool => $value > 0));
+$agendaDefaultViewSettings = is_array($agendaDefaultViewSettings ?? null) ? $agendaDefaultViewSettings : [];
+$agendaDefaultViewRows = is_array($agendaDefaultViewSettings['view_rows'] ?? null)
+    ? $agendaDefaultViewSettings['view_rows']
+    : [];
+$agendaDefaultViewAvailable = !empty($agendaDefaultViewSettings['default_view_management_available']);
+$agendaDefaultViewActive = !empty($agendaDefaultViewSettings['default_view_active']);
+$agendaDefaultViewTeamDayAvailable = !empty($agendaDefaultViewSettings['team_day_available']);
+$agendaDefaultViewSavedViewUnavailable = !empty($agendaDefaultViewSettings['saved_view_unavailable']);
+$oldAgendaDefaultViewEnabled = old('agenda_default_view_enabled');
+$oldAgendaDefaultView = trim((string) old('agenda_default_view'));
+$agendaDefaultViewSelected = $oldAgendaDefaultView !== ''
+    ? $oldAgendaDefaultView
+    : (string) ($agendaDefaultViewSettings['selected_default_view'] ?? 'day');
+$agendaDefaultViewOptionMap = [];
+foreach ($agendaDefaultViewRows as $agendaDefaultViewRow) {
+    $agendaDefaultViewKey = trim((string) ($agendaDefaultViewRow['key'] ?? ''));
+    if ($agendaDefaultViewKey !== '') {
+        $agendaDefaultViewOptionMap[$agendaDefaultViewKey] = true;
+    }
+}
+if ($agendaDefaultViewRows !== [] && !isset($agendaDefaultViewOptionMap[$agendaDefaultViewSelected])) {
+    $agendaDefaultViewSelected = (string) ($agendaDefaultViewRows[0]['key'] ?? 'day');
+}
 $teamDayColumnColorSettings = is_array($teamDayColumnColorSettings ?? null) ? $teamDayColumnColorSettings : [];
 $appointmentNotificationsAvailable = false;
 $appointmentNotificationsEntitled = false;
@@ -150,6 +173,7 @@ foreach ($featureStates as $row) {
 }
 
 $hasSupplementalSpaceControls = ($agendaHomeBlockOrderAvailable && $agendaHomeBlockOrderRows !== [])
+    || ($agendaDefaultViewAvailable && $agendaDefaultViewRows !== [])
     || ($agendaProfessionalOrderAvailable && $agendaProfessionalOrderRows !== [])
     || ($teamDayColorsAvailable && $teamDayColorRows !== []);
 $showGenericEmptyMessage = ($manageableRows === []) && !$hasSupplementalSpaceControls;
@@ -691,6 +715,77 @@ $canSubmitSpaceSettings = ($manageableRows !== []) || $hasSupplementalSpaceContr
                   </div>
                 <?php endif; ?>
 
+                <?php if ($agendaDefaultViewAvailable && $agendaDefaultViewRows !== []): ?>
+                  <?php
+                    $agendaDefaultViewEnabledChecked = ((string) $oldAgendaDefaultViewEnabled === '1')
+                        || ($oldAgendaDefaultViewEnabled === null && !empty($agendaDefaultViewSettings['tenant_default_enabled']));
+                  ?>
+                  <div class="agenda-order-box">
+                    <input type="hidden" name="agenda_default_view_form" value="1">
+                    <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+                      <div>
+                        <h4 style="margin:0 0 6px 0;">Vista iniziale agenda</h4>
+                        <p style="margin:0; color:#587075;">
+                          Qui decidi con quale vista si apre l agenda dello studio quando l utente entra in agenda senza forzare gia una vista specifica dal link.
+                        </p>
+                      </div>
+                      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                        <span class="label label-<?= $agendaDefaultViewActive ? 'success' : 'default' ?>">
+                          <?= $agendaDefaultViewActive ? 'default personalizzato attivo' : 'usa ancora la partenza standard' ?>
+                        </span>
+                        <span class="label label-<?= $agendaDefaultViewTeamDayAvailable ? 'info' : 'default' ?>">
+                          <?= $agendaDefaultViewTeamDayAvailable ? 'Giorno Team selezionabile' : 'Giorno Team non disponibile ora' ?>
+                        </span>
+                      </div>
+                    </div>
+
+                    <div class="checkbox" style="margin:14px 0 0 0;">
+                      <label>
+                        <input
+                          type="checkbox"
+                          name="agenda_default_view_enabled"
+                          value="1"
+                          class="js-agenda-default-view-toggle"
+                          data-target="agenda-default-view-select"
+                          <?= $agendaDefaultViewEnabledChecked ? 'checked' : '' ?>
+                        >
+                        Usa una vista iniziale personalizzata per questo studio
+                      </label>
+                    </div>
+
+                    <div class="form-group" style="max-width:360px; margin:14px 0 0 0;">
+                      <label for="agenda-default-view-select">Vista di apertura</label>
+                      <select
+                        class="form-control"
+                        id="agenda-default-view-select"
+                        name="agenda_default_view"
+                        <?= $agendaDefaultViewEnabledChecked ? '' : 'disabled' ?>
+                      >
+                        <?php foreach ($agendaDefaultViewRows as $row): ?>
+                          <?php $rowKey = trim((string) ($row['key'] ?? '')); ?>
+                          <?php if ($rowKey === '') { continue; } ?>
+                          <option value="<?= esc($rowKey) ?>" <?= $agendaDefaultViewSelected === $rowKey ? 'selected' : '' ?>>
+                            <?= esc((string) ($row['label'] ?? $rowKey)) ?>
+                          </option>
+                        <?php endforeach; ?>
+                      </select>
+                      <p class="text-muted" style="margin:8px 0 0 0; line-height:1.5;">
+                        Se l utente apre un link agenda con `?view=...`, quel link continua ad avere priorita e non viene sovrascritto da questa preferenza.
+                      </p>
+                    </div>
+
+                    <?php if ($agendaDefaultViewSavedViewUnavailable): ?>
+                      <div class="alert alert-info" style="margin:12px 0 0 0;">
+                        La vista salvata in precedenza non e al momento disponibile nello spazio. Finche non riattivi quella vista, l agenda riparte da Giorno.
+                      </div>
+                    <?php elseif (!$agendaDefaultViewTeamDayAvailable): ?>
+                      <div class="alert alert-info" style="margin:12px 0 0 0;">
+                        Giorno Team comparira automaticamente tra le scelte appena la relativa funzione verra attivata nello spazio.
+                      </div>
+                    <?php endif; ?>
+                  </div>
+                <?php endif; ?>
+
                 <?php if ($teamDayColorsAvailable && $teamDayColorRows !== []): ?>
                   <div class="team-day-colors-box">
                     <input type="hidden" name="team_day_column_color_form" value="1">
@@ -1063,11 +1158,33 @@ $canSubmitSpaceSettings = ($manageableRows !== []) || $hasSupplementalSpaceContr
       }
     }
 
+    function syncAgendaDefaultViewToggle(toggle) {
+      var targetId = toggle.getAttribute('data-target');
+      if (!targetId) {
+        return;
+      }
+
+      var select = document.getElementById(targetId);
+      if (!select) {
+        return;
+      }
+
+      select.disabled = !toggle.checked;
+    }
+
     var toggles = document.querySelectorAll('.js-team-day-custom-toggle');
     for (var i = 0; i < toggles.length; i++) {
       syncTeamDayColorToggle(toggles[i]);
       toggles[i].addEventListener('change', function() {
         syncTeamDayColorToggle(this);
+      });
+    }
+
+    var defaultViewToggles = document.querySelectorAll('.js-agenda-default-view-toggle');
+    for (var k = 0; k < defaultViewToggles.length; k++) {
+      syncAgendaDefaultViewToggle(defaultViewToggles[k]);
+      defaultViewToggles[k].addEventListener('change', function() {
+        syncAgendaDefaultViewToggle(this);
       });
     }
 
