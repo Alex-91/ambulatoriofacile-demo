@@ -16,6 +16,7 @@ use App\Models\AgendaSlotModel;
 use App\Models\AgendaVisitTypeModel;
 use App\Models\PazientiModel;
 use App\Services\AgendaAppointmentNotificationService;
+use App\Services\AgendaHomeBlockOrderService;
 use App\Services\AgendaProfessionalOrderService;
 use App\Services\AgendaTeamColumnColorService;
 use App\Services\BillingTsModuleStatusService;
@@ -49,6 +50,7 @@ class Agenda extends BaseController
     protected AgendaLocationModel $locationModel;
     protected AgendaVisitTypeModel $visitTypeModel;
     protected NotificationService $notificationService;
+    protected AgendaHomeBlockOrderService $agendaHomeBlockOrderService;
     protected AgendaProfessionalOrderService $agendaProfessionalOrderService;
     protected AgendaTeamColumnColorService $agendaTeamColumnColorService;
     protected BillingTsModuleStatusService $billingTsModuleStatusService;
@@ -73,6 +75,7 @@ class Agenda extends BaseController
         $this->locationModel     = new AgendaLocationModel();
         $this->visitTypeModel    = new AgendaVisitTypeModel();
         $this->notificationService = new NotificationService();
+        $this->agendaHomeBlockOrderService = new AgendaHomeBlockOrderService();
         $this->agendaProfessionalOrderService = new AgendaProfessionalOrderService();
         $this->agendaTeamColumnColorService = new AgendaTeamColumnColorService();
         $this->billingTsModuleStatusService = new BillingTsModuleStatusService();
@@ -1590,6 +1593,20 @@ public function eseguiRepairRecurringExtraSlots()
 
         $domiciliariAbilitati = $this->isDomiciliareAbilitatoPerDottore($medici, $selectedDot);
         $appointmentDocumentActions = $this->resolveAppointmentDocumentActionsState();
+        $agendaHomeBlockOrderSettings = [];
+        $agendaTenantId = $this->resolveCurrentAgendaTenantId();
+
+        if ($agendaTenantId > 0) {
+            try {
+                $agendaHomeBlockOrderSettings = $this->agendaHomeBlockOrderService
+                    ->resolveTenantSettings($agendaTenantId);
+            } catch (\Throwable $e) {
+                log_message('warning', 'Agenda::index agenda home block order bootstrap failed: {message}', [
+                    'message' => $e->getMessage(),
+                    'tenant_id' => $agendaTenantId,
+                ]);
+            }
+        }
 
         $data = [
             'pageTitle'            => 'Agenda',
@@ -1605,6 +1622,7 @@ public function eseguiRepairRecurringExtraSlots()
             'sharedMemoManagementEnabled' => $this->isSharedAgendaMemosFeatureEnabled(),
             'visitTypesFeatureEnabled' => $visitTypesFeatureEnabled,
             'visitTypes'           => $visitTypes,
+            'agendaHomeBlockOrderSettings' => $agendaHomeBlockOrderSettings,
             'domiciliariAbilitati' => $domiciliariAbilitati,
             'appointmentDocumentActions' => $appointmentDocumentActions,
             'locationCatalog'      => $this->locationModel->getCatalog(true),

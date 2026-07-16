@@ -12,6 +12,25 @@ $errors = is_array($errors ?? null) ? $errors : [];
 $success = $success ?? null;
 $featureStates = is_array($featureStates ?? null) ? $featureStates : [];
 $tenantContext = $tenantContext ?? null;
+$agendaHomeBlockOrderSettings = is_array($agendaHomeBlockOrderSettings ?? null) ? $agendaHomeBlockOrderSettings : [];
+$agendaHomeBlockOrderRows = is_array($agendaHomeBlockOrderSettings['block_rows'] ?? null)
+    ? $agendaHomeBlockOrderSettings['block_rows']
+    : [];
+$agendaHomeBlockOrderAvailable = !empty($agendaHomeBlockOrderSettings['order_management_available']);
+$oldAgendaHomeBlockOrderEnabled = old('agenda_home_block_order_enabled');
+$oldAgendaHomeBlockOrderKeys = old('agenda_home_block_order_keys');
+$oldAgendaHomeBlockOrderKeys = is_array($oldAgendaHomeBlockOrderKeys) ? $oldAgendaHomeBlockOrderKeys : [];
+$oldAgendaHomeBlockOrderColumns = old('agenda_home_block_columns');
+$oldAgendaHomeBlockOrderColumns = is_array($oldAgendaHomeBlockOrderColumns) ? $oldAgendaHomeBlockOrderColumns : [];
+$agendaHomeBlockDefaultOrderKeys = array_values(array_filter(array_map(
+    static fn($value): string => trim((string) $value),
+    (array) ($agendaHomeBlockOrderSettings['default_order_keys'] ?? [])
+), static fn(string $value): bool => $value !== ''));
+$agendaHomeBlockColumnLabels = [
+    'main' => 'colonna principale',
+    'left' => 'colonna sinistra con menu',
+    'hidden' => 'nascosto',
+];
 $agendaProfessionalOrderSettings = is_array($agendaProfessionalOrderSettings ?? null) ? $agendaProfessionalOrderSettings : [];
 $agendaProfessionalOrderRows = is_array($agendaProfessionalOrderSettings['doctor_rows'] ?? null)
     ? $agendaProfessionalOrderSettings['doctor_rows']
@@ -41,33 +60,35 @@ $oldTeamDayCustomEnabledMap = is_array($oldTeamDayCustomEnabledMap) ? $oldTeamDa
 $oldTeamDayColorValueMap = old('team_day_column_color_value');
 $oldTeamDayColorValueMap = is_array($oldTeamDayColorValueMap) ? $oldTeamDayColorValueMap : [];
 
-$reorderDoctorRows = static function (array $rows, array $orderedIds): array {
-    $orderedIds = array_values(array_filter(array_map('intval', $orderedIds), static fn(int $value): bool => $value > 0));
-    if ($rows === [] || $orderedIds === []) {
+$reorderRowsByScalarKey = static function (array $rows, array $orderedValues, string $keyField, callable $normalize): array {
+    $orderedValues = array_values(array_filter(array_map($normalize, $orderedValues), static fn($value): bool => $value !== null));
+    if ($rows === [] || $orderedValues === []) {
         return $rows;
     }
 
-    $rowsByDoctorId = [];
+    $rowsByKey = [];
     $remainingRows = [];
 
     foreach ($rows as $row) {
-        $doctorId = (int) ($row['id_dot'] ?? 0);
-        if ($doctorId <= 0) {
+        $rowValue = $normalize($row[$keyField] ?? null);
+        if ($rowValue === null) {
             continue;
         }
 
-        $rowsByDoctorId[$doctorId] = $row;
-        $remainingRows[$doctorId] = $row;
+        $rowKey = (string) $rowValue;
+        $rowsByKey[$rowKey] = $row;
+        $remainingRows[$rowKey] = $row;
     }
 
     $sortedRows = [];
-    foreach ($orderedIds as $doctorId) {
-        if (!isset($rowsByDoctorId[$doctorId])) {
+    foreach ($orderedValues as $orderedValue) {
+        $orderedKey = (string) $orderedValue;
+        if (!isset($rowsByKey[$orderedKey])) {
             continue;
         }
 
-        $sortedRows[] = $rowsByDoctorId[$doctorId];
-        unset($remainingRows[$doctorId]);
+        $sortedRows[] = $rowsByKey[$orderedKey];
+        unset($remainingRows[$orderedKey]);
     }
 
     foreach ($remainingRows as $row) {
@@ -78,7 +99,27 @@ $reorderDoctorRows = static function (array $rows, array $orderedIds): array {
 };
 
 if ($oldAgendaProfessionalOrderIds !== []) {
-    $agendaProfessionalOrderRows = $reorderDoctorRows($agendaProfessionalOrderRows, $oldAgendaProfessionalOrderIds);
+    $agendaProfessionalOrderRows = $reorderRowsByScalarKey(
+        $agendaProfessionalOrderRows,
+        $oldAgendaProfessionalOrderIds,
+        'id_dot',
+        static function ($value): ?int {
+            $normalized = (int) $value;
+            return $normalized > 0 ? $normalized : null;
+        }
+    );
+}
+
+if ($oldAgendaHomeBlockOrderKeys !== []) {
+    $agendaHomeBlockOrderRows = $reorderRowsByScalarKey(
+        $agendaHomeBlockOrderRows,
+        $oldAgendaHomeBlockOrderKeys,
+        'key',
+        static function ($value): ?string {
+            $normalized = trim((string) $value);
+            return $normalized !== '' ? $normalized : null;
+        }
+    );
 }
 
 $manageableRows = [];
@@ -108,7 +149,8 @@ foreach ($featureStates as $row) {
     $lockedRows[] = $row;
 }
 
-$hasSupplementalSpaceControls = ($agendaProfessionalOrderAvailable && $agendaProfessionalOrderRows !== [])
+$hasSupplementalSpaceControls = ($agendaHomeBlockOrderAvailable && $agendaHomeBlockOrderRows !== [])
+    || ($agendaProfessionalOrderAvailable && $agendaProfessionalOrderRows !== [])
     || ($teamDayColorsAvailable && $teamDayColorRows !== []);
 $showGenericEmptyMessage = ($manageableRows === []) && !$hasSupplementalSpaceControls;
 $canSubmitSpaceSettings = ($manageableRows !== []) || $hasSupplementalSpaceControls;
@@ -298,6 +340,19 @@ $canSubmitSpaceSettings = ($manageableRows !== []) || $hasSupplementalSpaceContr
       flex-wrap: wrap;
       justify-content: flex-end;
     }
+    .agenda-order-column-picker {
+      min-width: 180px;
+      text-align: left;
+    }
+    .agenda-order-column-picker-label {
+      display: block;
+      margin: 0 0 4px;
+      color: #60777c;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
     .agenda-order-actions .btn {
       min-width: 40px;
     }
@@ -319,6 +374,9 @@ $canSubmitSpaceSettings = ($manageableRows !== []) || $hasSupplementalSpaceContr
       .agenda-order-row {
         align-items: flex-start;
         flex-wrap: wrap;
+      }
+      .agenda-order-column-picker {
+        width: 100%;
       }
       .agenda-order-actions {
         width: 100%;
@@ -431,6 +489,123 @@ $canSubmitSpaceSettings = ($manageableRows !== []) || $hasSupplementalSpaceContr
                   </div>
                 <?php endif; ?>
 
+                <?php if ($agendaHomeBlockOrderAvailable && $agendaHomeBlockOrderRows !== []): ?>
+                  <div class="agenda-order-box">
+                    <input type="hidden" name="agenda_home_block_order_form" value="1">
+                    <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+                      <div>
+                        <h4 style="margin:0 0 6px 0;">Ordine blocchi home agenda</h4>
+                        <p style="margin:0; color:#587075;">
+                          Qui decidi in quale sequenza mostrare i blocchi principali della home agenda dello studio: scelta professionista, ricerca visite del paziente, note del giorno, agenda e memo. Per ogni blocco puoi anche scegliere se lasciarlo nella colonna principale, spostarlo nella colonna sinistra dove si trovano gia menu e filtri, oppure nasconderlo del tutto.
+                        </p>
+                      </div>
+                      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                        <span class="label label-<?= (((string) $oldAgendaHomeBlockOrderEnabled === '1') || ($oldAgendaHomeBlockOrderEnabled === null && !empty($agendaHomeBlockOrderSettings['tenant_order_enabled']))) ? 'success' : 'default' ?>">
+                          <?= (((string) $oldAgendaHomeBlockOrderEnabled === '1') || ($oldAgendaHomeBlockOrderEnabled === null && !empty($agendaHomeBlockOrderSettings['tenant_order_enabled']))) ? 'ordine personalizzato attivo' : 'ordine standard attivo' ?>
+                        </span>
+                        <span class="label label-info">concesso dalla piattaforma</span>
+                      </div>
+                    </div>
+
+                    <div class="checkbox" style="margin:14px 0 0 0;">
+                      <label>
+                        <input
+                          type="checkbox"
+                          name="agenda_home_block_order_enabled"
+                          value="1"
+                          <?= (((string) $oldAgendaHomeBlockOrderEnabled === '1') || ($oldAgendaHomeBlockOrderEnabled === null && !empty($agendaHomeBlockOrderSettings['tenant_order_enabled']))) ? 'checked' : '' ?>
+                        >
+                        Usa questo ordine personalizzato nella home agenda dello studio
+                      </label>
+                    </div>
+
+                    <div class="agenda-order-toolbar">
+                      <div class="text-muted" style="font-size:12px;">
+                        Usa le frecce per spostare ogni blocco su e giu, poi scegli se deve stare nella colonna principale, nella colonna sinistra del menu oppure restare nascosto.
+                      </div>
+                      <button type="button" class="btn btn-default btn-sm js-order-reset" id="agendaHomeBlockOrderReset">
+                        <i class="fa fa-refresh"></i> Ripristina ordine standard
+                      </button>
+                    </div>
+
+                    <div
+                      class="agenda-order-list js-order-list"
+                      id="agendaHomeBlockOrderList"
+                      data-default-order="<?= esc(implode(',', $agendaHomeBlockDefaultOrderKeys), 'attr') ?>"
+                      data-input-name="agenda_home_block_order_keys[]"
+                      data-input-container-id="agendaHomeBlockOrderInputs"
+                      data-reset-button-id="agendaHomeBlockOrderReset"
+                    >
+                      <?php foreach ($agendaHomeBlockOrderRows as $row): ?>
+                        <?php
+                          $blockKey = trim((string) ($row['key'] ?? ''));
+                          $defaultPosition = (int) ($row['default_position'] ?? 0);
+                          $savedPosition = (int) ($row['saved_position'] ?? 0);
+                          $defaultColumn = trim((string) ($row['default_column'] ?? 'main'));
+                          $savedColumn = trim((string) ($row['saved_column'] ?? $defaultColumn));
+                          $selectedColumn = trim((string) ($oldAgendaHomeBlockOrderColumns[$blockKey] ?? $savedColumn));
+                          if (!isset($agendaHomeBlockColumnLabels[$defaultColumn])) {
+                              $defaultColumn = 'main';
+                          }
+                          if (!isset($agendaHomeBlockColumnLabels[$savedColumn])) {
+                              $savedColumn = $defaultColumn;
+                          }
+                          if (!isset($agendaHomeBlockColumnLabels[$selectedColumn])) {
+                              $selectedColumn = $savedColumn;
+                          }
+                          $defaultColumnLabel = (string) ($agendaHomeBlockColumnLabels[$defaultColumn] ?? 'colonna principale');
+                          $savedColumnLabel = (string) ($agendaHomeBlockColumnLabels[$savedColumn] ?? $defaultColumnLabel);
+                        ?>
+                        <div class="agenda-order-row" data-order-value="<?= esc($blockKey, 'attr') ?>">
+                          <span class="agenda-order-rank js-order-rank"><?= esc((string) $savedPosition) ?></span>
+                          <div class="agenda-order-main">
+                            <div class="agenda-order-title">
+                              <?= esc((string) ($row['label'] ?? $blockKey)) ?>
+                            </div>
+                            <div class="agenda-order-meta">
+                              <?= ($savedPosition !== $defaultPosition || $savedColumn !== $defaultColumn)
+                                  ? 'Layout standard #' . $defaultPosition . ' in ' . $defaultColumnLabel . '. Layout personalizzato salvato #' . $savedPosition . ' in ' . $savedColumnLabel . '.'
+                                  : 'Al momento coincide con il layout standard (#' . $defaultPosition . ' in ' . $defaultColumnLabel . ').' ?>
+                              <?php if (trim((string) ($row['description'] ?? '')) !== ''): ?>
+                                <br><?= esc((string) $row['description']) ?>
+                              <?php endif; ?>
+                            </div>
+                          </div>
+                          <div class="agenda-order-actions">
+                            <div class="agenda-order-column-picker">
+                              <label class="agenda-order-column-picker-label" for="agenda-home-block-column-<?= esc($blockKey, 'attr') ?>">
+                                Colonna
+                              </label>
+                              <select
+                                class="form-control input-sm js-order-column"
+                                id="agenda-home-block-column-<?= esc($blockKey, 'attr') ?>"
+                                name="agenda_home_block_columns[<?= esc($blockKey, 'attr') ?>]"
+                                data-default-column="<?= esc($defaultColumn, 'attr') ?>"
+                              >
+                                <option value="main" <?= $selectedColumn === 'main' ? 'selected' : '' ?>>Principale</option>
+                                <option value="left" <?= $selectedColumn === 'left' ? 'selected' : '' ?>>Sinistra menu</option>
+                                <option value="hidden" <?= $selectedColumn === 'hidden' ? 'selected' : '' ?>>Nascosto</option>
+                              </select>
+                            </div>
+                            <button type="button" class="btn btn-default btn-sm js-order-up" title="Sposta su">
+                              <i class="fa fa-arrow-up"></i>
+                            </button>
+                            <button type="button" class="btn btn-default btn-sm js-order-down" title="Sposta giu">
+                              <i class="fa fa-arrow-down"></i>
+                            </button>
+                          </div>
+                        </div>
+                      <?php endforeach; ?>
+                    </div>
+
+                    <div id="agendaHomeBlockOrderInputs"></div>
+
+                    <div class="agenda-order-note">
+                      Se lasci l opzione spenta, la home agenda continua a usare la disposizione standard. La sequenza, le colonne e gli eventuali blocchi nascosti che prepari qui restano comunque salvati e pronti da riattivare quando vuoi.
+                    </div>
+                  </div>
+                <?php endif; ?>
+
                 <?php if ($agendaProfessionalOrderAvailable && $agendaProfessionalOrderRows !== []): ?>
                   <div class="agenda-order-box">
                     <input type="hidden" name="agenda_professional_order_form" value="1">
@@ -465,14 +640,18 @@ $canSubmitSpaceSettings = ($manageableRows !== []) || $hasSupplementalSpaceContr
                       <div class="text-muted" style="font-size:12px;">
                         Usa le frecce per spostare ogni professionista su e giu.
                       </div>
-                      <button type="button" class="btn btn-default btn-sm js-agenda-order-reset">
+                      <button type="button" class="btn btn-default btn-sm js-order-reset" id="agendaProfessionalOrderReset">
                         <i class="fa fa-refresh"></i> Ripristina ordine base
                       </button>
                     </div>
 
                     <div
-                      class="agenda-order-list js-agenda-order-list"
+                      class="agenda-order-list js-order-list"
+                      id="agendaProfessionalOrderList"
                       data-default-order="<?= esc(implode(',', $agendaProfessionalDefaultOrderIds), 'attr') ?>"
+                      data-input-name="agenda_professional_order_ids[]"
+                      data-input-container-id="agendaProfessionalOrderInputs"
+                      data-reset-button-id="agendaProfessionalOrderReset"
                     >
                       <?php foreach ($agendaProfessionalOrderRows as $row): ?>
                         <?php
@@ -480,8 +659,8 @@ $canSubmitSpaceSettings = ($manageableRows !== []) || $hasSupplementalSpaceContr
                           $defaultPosition = (int) ($row['default_position'] ?? 0);
                           $savedPosition = (int) ($row['saved_position'] ?? 0);
                         ?>
-                        <div class="agenda-order-row" data-doctor-id="<?= esc((string) $doctorId, 'attr') ?>">
-                          <span class="agenda-order-rank js-agenda-order-rank"><?= esc((string) $savedPosition) ?></span>
+                        <div class="agenda-order-row" data-order-value="<?= esc((string) $doctorId, 'attr') ?>">
+                          <span class="agenda-order-rank js-order-rank"><?= esc((string) $savedPosition) ?></span>
                           <div class="agenda-order-main">
                             <div class="agenda-order-title">
                               <?= esc((string) ($row['label'] ?? ('Professionista ' . $doctorId))) ?>
@@ -493,10 +672,10 @@ $canSubmitSpaceSettings = ($manageableRows !== []) || $hasSupplementalSpaceContr
                             </div>
                           </div>
                           <div class="agenda-order-actions">
-                            <button type="button" class="btn btn-default btn-sm js-agenda-order-up" title="Sposta su">
+                            <button type="button" class="btn btn-default btn-sm js-order-up" title="Sposta su">
                               <i class="fa fa-arrow-up"></i>
                             </button>
-                            <button type="button" class="btn btn-default btn-sm js-agenda-order-down" title="Sposta giu">
+                            <button type="button" class="btn btn-default btn-sm js-order-down" title="Sposta giu">
                               <i class="fa fa-arrow-down"></i>
                             </button>
                           </div>
@@ -504,7 +683,7 @@ $canSubmitSpaceSettings = ($manageableRows !== []) || $hasSupplementalSpaceContr
                       <?php endforeach; ?>
                     </div>
 
-                    <div class="js-agenda-order-inputs"></div>
+                    <div id="agendaProfessionalOrderInputs"></div>
 
                     <div class="agenda-order-note">
                       Se lasci l opzione spenta, l agenda continua a usare l ordine standard. La sequenza che prepari qui resta comunque salvata e pronta da riattivare quando vuoi.
@@ -723,29 +902,35 @@ $canSubmitSpaceSettings = ($manageableRows !== []) || $hasSupplementalSpaceContr
 <script src="<?= base_url('public/bootstrap/js/bootstrap.min.js') ?>"></script>
 <script>
   (function() {
-    function initAgendaOrderList() {
-      var list = document.querySelector('.js-agenda-order-list');
-      var inputsContainer = document.querySelector('.js-agenda-order-inputs');
-      if (!list || !inputsContainer) {
+    function initOrderedList(list) {
+      if (!list) {
         return;
       }
 
-      var resetButton = document.querySelector('.js-agenda-order-reset');
+      var inputsContainerId = list.getAttribute('data-input-container-id') || '';
+      var inputName = list.getAttribute('data-input-name') || '';
+      var inputsContainer = inputsContainerId !== '' ? document.getElementById(inputsContainerId) : null;
+      if (!inputsContainer || inputName === '') {
+        return;
+      }
+
+      var resetButtonId = list.getAttribute('data-reset-button-id') || '';
+      var resetButton = resetButtonId !== '' ? document.getElementById(resetButtonId) : null;
 
       function getRows() {
         return Array.prototype.slice.call(list.querySelectorAll('.agenda-order-row'));
       }
 
-      function syncAgendaOrderState() {
+      function syncOrderState() {
         var rows = getRows();
         inputsContainer.innerHTML = '';
 
         for (var i = 0; i < rows.length; i++) {
           var row = rows[i];
-          var doctorId = parseInt(row.getAttribute('data-doctor-id') || '0', 10);
-          var rank = row.querySelector('.js-agenda-order-rank');
-          var upButton = row.querySelector('.js-agenda-order-up');
-          var downButton = row.querySelector('.js-agenda-order-down');
+          var orderValue = (row.getAttribute('data-order-value') || '').trim();
+          var rank = row.querySelector('.js-order-rank');
+          var upButton = row.querySelector('.js-order-up');
+          var downButton = row.querySelector('.js-order-down');
 
           if (rank) {
             rank.textContent = String(i + 1);
@@ -759,11 +944,11 @@ $canSubmitSpaceSettings = ($manageableRows !== []) || $hasSupplementalSpaceContr
             downButton.disabled = i === rows.length - 1;
           }
 
-          if (doctorId > 0) {
+          if (orderValue !== '') {
             var input = document.createElement('input');
             input.type = 'hidden';
-            input.name = 'agenda_professional_order_ids[]';
-            input.value = String(doctorId);
+            input.name = inputName;
+            input.value = orderValue;
             inputsContainer.appendChild(input);
           }
         }
@@ -786,7 +971,7 @@ $canSubmitSpaceSettings = ($manageableRows !== []) || $hasSupplementalSpaceContr
           }
         }
 
-        syncAgendaOrderState();
+        syncOrderState();
       }
 
       list.addEventListener('click', function(event) {
@@ -795,11 +980,11 @@ $canSubmitSpaceSettings = ($manageableRows !== []) || $hasSupplementalSpaceContr
           return;
         }
 
-        if (button.classList.contains('js-agenda-order-up')) {
+        if (button.classList.contains('js-order-up')) {
           moveRow(button.closest('.agenda-order-row'), -1);
         }
 
-        if (button.classList.contains('js-agenda-order-down')) {
+        if (button.classList.contains('js-order-down')) {
           moveRow(button.closest('.agenda-order-row'), 1);
         }
       });
@@ -809,42 +994,54 @@ $canSubmitSpaceSettings = ($manageableRows !== []) || $hasSupplementalSpaceContr
           var defaultOrder = (list.getAttribute('data-default-order') || '')
             .split(',')
             .map(function(value) {
-              return parseInt(value, 10);
+              return value.trim();
             })
             .filter(function(value) {
-              return value > 0;
+              return value !== '';
             });
 
           if (defaultOrder.length === 0) {
             return;
           }
 
-          var rowsByDoctorId = {};
+          var rowsByValue = {};
           getRows().forEach(function(row) {
-            var doctorId = parseInt(row.getAttribute('data-doctor-id') || '0', 10);
-            if (doctorId > 0) {
-              rowsByDoctorId[doctorId] = row;
+            var orderValue = (row.getAttribute('data-order-value') || '').trim();
+            if (orderValue !== '') {
+              rowsByValue[orderValue] = row;
             }
           });
 
-          defaultOrder.forEach(function(doctorId) {
-            if (!rowsByDoctorId[doctorId]) {
+          defaultOrder.forEach(function(orderValue) {
+            if (!rowsByValue[orderValue]) {
               return;
             }
 
-            list.appendChild(rowsByDoctorId[doctorId]);
-            delete rowsByDoctorId[doctorId];
+            list.appendChild(rowsByValue[orderValue]);
+            delete rowsByValue[orderValue];
           });
 
-          Object.keys(rowsByDoctorId).forEach(function(doctorId) {
-            list.appendChild(rowsByDoctorId[doctorId]);
+          Object.keys(rowsByValue).forEach(function(orderValue) {
+            list.appendChild(rowsByValue[orderValue]);
           });
 
-          syncAgendaOrderState();
+          getRows().forEach(function(row) {
+            var columnSelect = row.querySelector('.js-order-column');
+            if (!columnSelect) {
+              return;
+            }
+
+            var defaultColumn = (columnSelect.getAttribute('data-default-column') || '').trim();
+            if (defaultColumn !== '') {
+              columnSelect.value = defaultColumn;
+            }
+          });
+
+          syncOrderState();
         });
       }
 
-      syncAgendaOrderState();
+      syncOrderState();
     }
 
     function syncTeamDayColorToggle(toggle) {
@@ -874,7 +1071,10 @@ $canSubmitSpaceSettings = ($manageableRows !== []) || $hasSupplementalSpaceContr
       });
     }
 
-    initAgendaOrderList();
+    var orderedLists = document.querySelectorAll('.js-order-list');
+    for (var j = 0; j < orderedLists.length; j++) {
+      initOrderedList(orderedLists[j]);
+    }
   })();
 </script>
 </body>

@@ -25,13 +25,85 @@
         if (session_has_operational_profile_access()) {
             $agendaConsoleUrl = portal_operational_home_url();
         }
-        $visitTypesPageUrl = base_url('agenda/gestione-tipi-visita');
         $memoDoctorOptions = is_array($memoDoctorOptions ?? null) ? $memoDoctorOptions : [];
+        $agendaHomeBlockOrderSettings = is_array($agendaHomeBlockOrderSettings ?? null) ? $agendaHomeBlockOrderSettings : [];
         $appointmentDocumentActions = is_array($appointmentDocumentActions ?? null) ? $appointmentDocumentActions : [];
         $appointmentBillingWorkflowEnabled = !empty($appointmentDocumentActions['billing_enabled']);
         $appointmentTsWorkflowEnabled = !empty($appointmentDocumentActions['ts_enabled']);
         $appointmentDocumentWorkflowVisible = $appointmentBillingWorkflowEnabled || $appointmentTsWorkflowEnabled;
         $memoDoctorSelectOptions = [];
+        $agendaHomeFallbackLayoutItems = [
+            ['key' => 'doctor_selector', 'column' => 'main'],
+            ['key' => 'patient_search', 'column' => 'main'],
+            ['key' => 'day_note', 'column' => 'main'],
+            ['key' => 'calendar', 'column' => 'main'],
+            ['key' => 'memo', 'column' => 'main'],
+        ];
+        $agendaHomeEffectiveLayoutItems = [];
+        $agendaHomeEffectivePlacementMap = [];
+        foreach ((array) ($agendaHomeBlockOrderSettings['effective_layout_items'] ?? []) as $layoutItem) {
+            if (!is_array($layoutItem)) {
+                continue;
+            }
+
+            $blockKey = trim((string) ($layoutItem['key'] ?? ''));
+            if ($blockKey === '') {
+                continue;
+            }
+
+            $columnKey = strtolower(trim((string) ($layoutItem['column'] ?? 'main')));
+            if (!in_array($columnKey, ['main', 'left', 'hidden'], true)) {
+                $columnKey = 'main';
+            }
+
+            $agendaHomeEffectiveLayoutItems[] = [
+                'key' => $blockKey,
+                'column' => $columnKey,
+            ];
+            $agendaHomeEffectivePlacementMap[$blockKey] = $columnKey;
+        }
+
+        if ($agendaHomeEffectiveLayoutItems === []) {
+            $agendaHomeEffectiveLayoutItems = $agendaHomeFallbackLayoutItems;
+            foreach ($agendaHomeFallbackLayoutItems as $layoutItem) {
+                $agendaHomeEffectivePlacementMap[(string) ($layoutItem['key'] ?? '')] = (string) ($layoutItem['column'] ?? 'main');
+            }
+        }
+
+        $agendaHomeLayoutMetaJson = json_encode($agendaHomeEffectiveLayoutItems, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        if (!is_string($agendaHomeLayoutMetaJson) || $agendaHomeLayoutMetaJson === '') {
+            $agendaHomeLayoutMetaJson = '[]';
+        }
+
+        $agendaHomeLeftColumnHasBlocks = false;
+        $agendaHomeMainColumnHasBlocks = false;
+        foreach ($agendaHomeEffectiveLayoutItems as $layoutItem) {
+            $layoutColumn = (string) ($layoutItem['column'] ?? 'main');
+            if ($layoutColumn === 'hidden') {
+                continue;
+            }
+
+            if ($layoutColumn === 'left') {
+                $agendaHomeLeftColumnHasBlocks = true;
+                continue;
+            }
+
+            $agendaHomeMainColumnHasBlocks = true;
+        }
+        $agendaHomeHasVisibleBlocks = $agendaHomeLeftColumnHasBlocks || $agendaHomeMainColumnHasBlocks;
+
+        $agendaLayoutClasses = ['row', 'agenda-layout'];
+        if ($agendaHomeLeftColumnHasBlocks) {
+            $agendaLayoutClasses[] = 'has-sidebar-custom-blocks';
+        }
+
+        $agendaHomeBlockPlacement = static function (string $blockKey) use ($agendaHomeEffectivePlacementMap): string {
+            $placement = strtolower(trim((string) ($agendaHomeEffectivePlacementMap[$blockKey] ?? 'main')));
+            return in_array($placement, ['main', 'left', 'hidden'], true) ? $placement : 'main';
+        };
+        $agendaHomeBlockHiddenStyle = static function (string $blockKey) use ($agendaHomeBlockPlacement): string {
+            return $agendaHomeBlockPlacement($blockKey) === 'hidden' ? 'display:none;' : '';
+        };
 
         foreach ($memoDoctorOptions as $doctorOption) {
             $doctorRow = is_object($doctorOption) ? get_object_vars($doctorOption) : (array) $doctorOption;
@@ -1556,6 +1628,51 @@
             font-size: 14px;
         }
 
+        .agenda-home-block + .agenda-home-block {
+            margin-top: 18px;
+        }
+
+        .agenda-day-note-box .box-title {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .agenda-sidebar-custom-blocks {
+            margin-top: 15px;
+        }
+
+        .agenda-sidebar-custom-blocks:empty {
+            display: none;
+        }
+
+        .agenda-sidebar-custom-blocks .agenda-doctor-hero {
+            margin-bottom: 0;
+            padding: 16px 18px;
+            text-align: left;
+        }
+
+        .agenda-sidebar-custom-blocks .agenda-doctor-label {
+            font-size: 20px;
+            margin-bottom: 8px;
+        }
+
+        .agenda-sidebar-custom-blocks .agenda-doctor-help {
+            max-width: none;
+            margin: 0 0 12px 0;
+        }
+
+        .agenda-sidebar-custom-blocks .agenda-doctor-select {
+            max-width: none;
+            margin: 0;
+            font-size: 16px;
+            height: 44px;
+        }
+
+        .agenda-home-empty-state {
+            margin-top: 10px;
+        }
+
         .agenda-box-subtitle {
             display: inline-block;
             margin-left: 8px;
@@ -2131,9 +2248,15 @@
             }
 
             .agenda-layout > .agenda-sidebar-col {
-                flex: 0 0 320px;
-                width: 320px;
-                max-width: 320px;
+                flex: 0 0 280px;
+                width: 280px;
+                max-width: 280px;
+            }
+
+            .agenda-layout.has-sidebar-custom-blocks > .agenda-sidebar-col {
+                flex-basis: 360px;
+                width: 360px;
+                max-width: 360px;
             }
 
             .agenda-layout > .agenda-main-col {
@@ -2328,35 +2451,7 @@
             }
             ?>
 
-            <div class="agenda-doctor-hero">
-                <div class="agenda-doctor-kicker">
-                    <i class="fa fa-user-md"></i> Professionista
-                </div>
-                <label class="agenda-doctor-label" for="id_dot">Seleziona il dottore o infermiere da visualizzare in agenda</label>
-                <p class="agenda-doctor-help">
-                    Calendario, note e operazioni dell'agenda si aggiornano in base al professionista selezionato.
-                </p>
-                <select id="id_dot" class="form-control agenda-doctor-select">
-                    <?php foreach (($medici ?? []) as $m): ?>
-                        <?php
-                            $idDot = is_object($m) ? $m->id_dot : $m['id_dot'];
-                            $label = is_object($m)
-                                ? ($m->label ?? (($m->cognome ?? '') . ' ' . ($m->nome ?? '')))
-                                : ($m['label'] ?? (($m['cognome'] ?? '') . ' ' . ($m['nome'] ?? '')));
-                        ?>
-                        <option value="<?= esc($idDot) ?>" <?= ((int)($selectedDot ?? 0) === (int)$idDot ? 'selected' : '') ?>>
-                            <?= esc($label) ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-                <?php if ($selectedDoctorLabel !== ''): ?>
-                    <div class="agenda-doctor-current">
-                        In visualizzazione: <strong><?= esc($selectedDoctorLabel) ?></strong>
-                    </div>
-                <?php endif; ?>
-            </div>
-
-            <div class="row agenda-layout" id="agendaLayout">
+            <div class="<?= esc(implode(' ', $agendaLayoutClasses)) ?>" id="agendaLayout">
 
                 <div class="col-md-2 agenda-sidebar-col" id="agendaSidebarCol">
                     <div class="agenda-sidebar-shell">
@@ -2498,64 +2593,50 @@
                         </div>
                     </div>
 
-                    <?php if (!empty($visitTypesFeatureEnabled)): ?>
-                    <div class="box box-success agenda-visit-types-box" style="margin-top:15px;">
-                        <div class="box-header with-border">
-                            <h3 class="box-title"><i class="fa fa-list-alt"></i> Tipi visita</h3>
-                            <div class="box-tools">
-                                <a href="<?= esc($visitTypesPageUrl) ?>" class="btn btn-success btn-xs">
-                                    <i class="fa fa-external-link"></i> Pagina dedicata
-                                </a>
-                            </div>
-                        </div>
-                        <div class="box-body">
-                            <p class="help-block">
-                                Crea e aggiorna i tipi visita con la loro durata. Quando prenoti un appuntamento il sistema usera questi dati per occupare automaticamente gli slot consecutivi necessari.
-                            </p>
-                            <div id="agendaVisitTypesList"></div>
-                            <hr style="margin:14px 0;">
-                            <input type="hidden" id="visitTypeId" value="">
-                            <div class="form-group">
-                                <label for="visitTypeName">Nome tipo visita</label>
-                                <input type="text" id="visitTypeName" class="form-control" placeholder="Es. Controllo 45 minuti">
-                            </div>
-                            <div class="form-group">
-                                <label for="visitTypeDuration">Durata in minuti</label>
-                                <input type="number" id="visitTypeDuration" class="form-control" min="5" step="5" placeholder="45">
-                            </div>
-                            <div class="form-group">
-                                <label for="visitTypeColorCustom">Colore slot agenda</label>
-                                <div class="agenda-visit-type-color-picker">
-                                    <input type="hidden" id="visitTypeColor" value="">
-                                    <div id="visitTypeColorPalette" class="agenda-visit-type-color-palette"></div>
-                                    <div class="agenda-visit-type-color-footer">
-                                        <div class="agenda-visit-type-color-current">
-                                            <span id="visitTypeColorSample" class="agenda-visit-type-color-current-sample"></span>
-                                            <span>Colore selezionato <strong id="visitTypeColorValue">#3C8DBC</strong></span>
-                                        </div>
-                                        <label class="agenda-visit-type-color-custom" for="visitTypeColorCustom">
-                                            <span class="agenda-visit-type-color-custom-label">Personalizza</span>
-                                            <input type="color" id="visitTypeColorCustom" class="agenda-visit-type-color-native" value="#3c8dbc">
-                                        </label>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="form-group" style="margin-bottom:0;">
-                                <button type="button" class="btn btn-success btn-block" id="btnSaveVisitType">
-                                    <i class="fa fa-save"></i> Salva tipo visita
-                                </button>
-                                <button type="button" class="btn btn-default btn-block" id="btnCancelVisitTypeEdit" style="display:none; margin-top:8px;">
-                                    <i class="fa fa-times"></i> Annulla modifica
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                    <?php endif; ?>
+                    <div id="agendaSidebarCustomBlocks" class="agenda-sidebar-custom-blocks"></div>
                         </div>
                     </div>
                 </div>
 
                 <div class="col-md-10 agenda-main-col" id="agendaMainCol">
+                    <div
+                        id="agendaHomeBlockOrderMeta"
+                        data-layout-items="<?= esc($agendaHomeLayoutMetaJson, 'attr') ?>"
+                        style="display:none;"
+                    ></div>
+
+                    <div id="agendaHomeMainColumn">
+                    <div id="agendaHomeBlock-doctor_selector" data-home-block-key="doctor_selector" data-home-placement="<?= esc($agendaHomeBlockPlacement('doctor_selector'), 'attr') ?>" class="agenda-home-block" style="<?= esc($agendaHomeBlockHiddenStyle('doctor_selector'), 'attr') ?>">
+                        <div class="agenda-doctor-hero">
+                            <div class="agenda-doctor-kicker">
+                                <i class="fa fa-user-md"></i> Professionista
+                            </div>
+                            <label class="agenda-doctor-label" for="id_dot">Seleziona il dottore o infermiere da visualizzare in agenda</label>
+                            <p class="agenda-doctor-help">
+                                Calendario, note e operazioni dell'agenda si aggiornano in base al professionista selezionato.
+                            </p>
+                            <select id="id_dot" class="form-control agenda-doctor-select">
+                                <?php foreach (($medici ?? []) as $m): ?>
+                                    <?php
+                                        $idDot = is_object($m) ? $m->id_dot : $m['id_dot'];
+                                        $label = is_object($m)
+                                            ? ($m->label ?? (($m->cognome ?? '') . ' ' . ($m->nome ?? '')))
+                                            : ($m['label'] ?? (($m['cognome'] ?? '') . ' ' . ($m['nome'] ?? '')));
+                                    ?>
+                                    <option value="<?= esc($idDot) ?>" <?= ((int)($selectedDot ?? 0) === (int)$idDot ? 'selected' : '') ?>>
+                                        <?= esc($label) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <?php if ($selectedDoctorLabel !== ''): ?>
+                                <div class="agenda-doctor-current">
+                                    In visualizzazione: <strong><?= esc($selectedDoctorLabel) ?></strong>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+
+                    <div id="agendaHomeBlock-patient_search" data-home-block-key="patient_search" data-home-placement="<?= esc($agendaHomeBlockPlacement('patient_search'), 'attr') ?>" class="agenda-home-block" style="<?= esc($agendaHomeBlockHiddenStyle('patient_search'), 'attr') ?>">
                     <div class="box box-info agenda-patient-lookup-box">
                         <div class="box-header with-border">
                             <h3 class="box-title"><i class="fa fa-search"></i> Cerca paziente nell'agenda</h3>
@@ -2603,7 +2684,33 @@
                             </div>
                         </div>
                     </div>
+                    </div>
 
+                    <div id="agendaHomeBlock-day_note" data-home-block-key="day_note" data-home-placement="<?= esc($agendaHomeBlockPlacement('day_note'), 'attr') ?>" class="agenda-home-block" style="<?= esc($agendaHomeBlockHiddenStyle('day_note'), 'attr') ?>">
+                    <div class="box box-default agenda-day-note-box">
+                        <div class="box-header with-border">
+                            <h3 class="box-title">
+                                <i class="fa fa-pencil-square-o"></i> Note del giorno
+                            </h3>
+                        </div>
+                        <div class="box-body">
+                            <div class="form-group" style="margin-bottom:0;">
+                                <label for="nota_giorno_text" class="sr-only">Note del giorno</label>
+                                <textarea
+                                    id="nota_giorno_text"
+                                    class="form-control"
+                                    rows="3"
+                                    placeholder="Scrivi qui una nota libera per il giorno selezionato. Si salva automaticamente quando esci dal campo."
+                                ></textarea>
+                                <div style="margin-top:6px;">
+                                    <small id="nota_giorno_status" class="text-muted"></small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    </div>
+
+                    <div id="agendaHomeBlock-calendar" data-home-block-key="calendar" data-home-placement="<?= esc($agendaHomeBlockPlacement('calendar'), 'attr') ?>" class="agenda-home-block" style="<?= esc($agendaHomeBlockHiddenStyle('calendar'), 'attr') ?>">
                     <div class="row">
                         <div id="agendaCalendarPrimaryCol" class="<?= !empty($domiciliariAbilitati) ? 'col-lg-7 col-md-6 col-sm-12' : 'col-lg-12 col-md-12 col-sm-12' ?>">
                             <div class="box box-primary">
@@ -2619,24 +2726,8 @@
                                             <i class="fa fa-minus"></i>
                                         </button>
                                     </div>
-                                </div>
+                               </div>
                                <div class="box-body">
-
-    <div class="form-group" style="margin-bottom:15px;">
-        <label for="nota_giorno_text">
-            <i class="fa fa-pencil-square-o"></i> Note del giorno
-        </label>
-        <textarea
-            id="nota_giorno_text"
-            class="form-control"
-            rows="3"
-            placeholder="Scrivi qui una nota libera per il giorno selezionato. Si salva automaticamente quando esci dal campo."
-        ></textarea>
-        <div style="margin-top:6px;">
-            <small id="nota_giorno_status" class="text-muted"></small>
-        </div>
-    </div>
-
     <div class="row" style="margin-bottom:15px;">
         <div class="col-sm-12 text-right">
             <button type="button" class="btn btn-default" id="btnPrintDayAgenda">
@@ -2786,7 +2877,9 @@
                             </div>
                         <?php endif; ?>
                     </div>
+                    </div>
 
+                    <div id="agendaHomeBlock-memo" data-home-block-key="memo" data-home-placement="<?= esc($agendaHomeBlockPlacement('memo'), 'attr') ?>" class="agenda-home-block" style="<?= esc($agendaHomeBlockHiddenStyle('memo'), 'attr') ?>">
                     <div class="row">
                         <div class="col-xs-12">
                             <div class="box box-primary">
@@ -2823,6 +2916,15 @@
                                 </div>
                             </div>
                         </div>
+                    </div>
+                    </div>
+                    <div
+                        id="agendaHomeEmptyState"
+                        class="alert alert-info agenda-home-empty-state"
+                        style="<?= $agendaHomeHasVisibleBlocks ? 'display:none;' : '' ?>"
+                    >
+                        Tutti i blocchi della home agenda sono nascosti. Puoi riattivarli da Spazio &gt; Funzioni.
+                    </div>
                     </div>
                 </div>
             </div>
@@ -3243,6 +3345,95 @@ window.AGENDA_CONFIG = {
 
 <script src="<?= base_url('public/plugins/daterangepicker/moment.min.js') . $assetVersion('public/plugins/daterangepicker/moment.min.js') ?>"></script>
 <script src="<?= base_url('public/plugins/fullcalendar/fullcalendar.min.js') . $assetVersion('public/plugins/fullcalendar/fullcalendar.min.js') ?>"></script>
+<script>
+(function() {
+    var layout = document.getElementById('agendaLayout');
+    var meta = document.getElementById('agendaHomeBlockOrderMeta');
+    var leftColumn = document.getElementById('agendaSidebarCustomBlocks');
+    var mainColumn = document.getElementById('agendaHomeMainColumn');
+    var emptyState = document.getElementById('agendaHomeEmptyState');
+
+    if (!layout || !meta || !leftColumn || !mainColumn) {
+        return;
+    }
+
+    var fallbackLayout = [
+        { key: 'doctor_selector', column: 'main' },
+        { key: 'patient_search', column: 'main' },
+        { key: 'day_note', column: 'main' },
+        { key: 'calendar', column: 'main' },
+        { key: 'memo', column: 'main' }
+    ];
+    var layoutItems = [];
+
+    try {
+        layoutItems = JSON.parse(meta.getAttribute('data-layout-items') || '[]');
+    } catch (error) {
+        layoutItems = [];
+    }
+
+    if (!Array.isArray(layoutItems) || layoutItems.length === 0) {
+        layoutItems = fallbackLayout;
+    }
+
+    var blocksByKey = {
+        doctor_selector: document.getElementById('agendaHomeBlock-doctor_selector'),
+        day_note: document.getElementById('agendaHomeBlock-day_note'),
+        patient_search: document.getElementById('agendaHomeBlock-patient_search'),
+        calendar: document.getElementById('agendaHomeBlock-calendar'),
+        memo: document.getElementById('agendaHomeBlock-memo')
+    };
+    var placedBlocks = {};
+
+    layoutItems.forEach(function(layoutItem) {
+        if (!layoutItem || typeof layoutItem !== 'object') {
+            return;
+        }
+
+        var blockKey = String(layoutItem.key || '').trim();
+        if (blockKey === '' || !blocksByKey[blockKey]) {
+            return;
+        }
+
+        var columnKey = String(layoutItem.column || 'main').trim().toLowerCase();
+        if (['main', 'left', 'hidden'].indexOf(columnKey) === -1) {
+            columnKey = 'main';
+        }
+
+        if (columnKey === 'hidden') {
+            blocksByKey[blockKey].style.display = 'none';
+            mainColumn.appendChild(blocksByKey[blockKey]);
+            placedBlocks[blockKey] = true;
+            return;
+        }
+
+        var targetColumn = columnKey === 'left' ? leftColumn : mainColumn;
+        blocksByKey[blockKey].style.display = '';
+        targetColumn.appendChild(blocksByKey[blockKey]);
+        placedBlocks[blockKey] = true;
+    });
+
+    Object.keys(blocksByKey).forEach(function(blockKey) {
+        if (!placedBlocks[blockKey] && blocksByKey[blockKey]) {
+            blocksByKey[blockKey].style.display = '';
+            mainColumn.appendChild(blocksByKey[blockKey]);
+        }
+    });
+
+    var hasVisibleLeftBlocks = Array.prototype.some.call(leftColumn.children, function(node) {
+        return node && node.style.display !== 'none';
+    });
+    var hasVisibleMainBlocks = Array.prototype.some.call(mainColumn.children, function(node) {
+        return node && node.id !== 'agendaHomeEmptyState' && node.style.display !== 'none';
+    });
+
+    layout.classList.toggle('has-sidebar-custom-blocks', hasVisibleLeftBlocks);
+
+    if (emptyState) {
+        emptyState.style.display = hasVisibleLeftBlocks || hasVisibleMainBlocks ? 'none' : '';
+    }
+})();
+</script>
 <script>
 if (window.moment && window.moment.fn) {
     if (typeof window.moment.fn.isSameOrBefore !== 'function') {
