@@ -322,6 +322,18 @@
                                         </div>
                                     </div>
 
+                                    <div class="form-group">
+                                        <div class="checkbox" style="margin:0;">
+                                            <label for="visitTypeUseOwnColor">
+                                                <input type="checkbox" id="visitTypeUseOwnColor" value="1" checked>
+                                                Applica agli slot il colore del tipo visita
+                                            </label>
+                                        </div>
+                                        <p class="help-block" style="margin:8px 0 0;">
+                                            Se la disattivi, gli appuntamenti manterranno il colore standard dello slot.
+                                        </p>
+                                    </div>
+
                                     <div class="form-group" style="margin-bottom:0;">
                                         <button type="button" class="btn btn-success btn-block" id="btnSaveVisitType">
                                             <i class="fa fa-save"></i> Salva tipo visita
@@ -359,6 +371,54 @@ function escapeHtmlVisitTypes(value) {
 function normalizeVisitTypeColor(value) {
     var normalized = $.trim(String(value || '')).toUpperCase();
     return /^#[0-9A-F]{6}$/.test(normalized) ? normalized : '';
+}
+
+function visitTypeUsesOwnColor(row) {
+    if (!row || typeof row !== 'object') {
+        return true;
+    }
+
+    if (!Object.prototype.hasOwnProperty.call(row, 'usa_colore_tipo_visita_slot')) {
+        return true;
+    }
+
+    var parsed = parseInt(row.usa_colore_tipo_visita_slot, 10);
+    return isNaN(parsed) ? true : parsed !== 0;
+}
+
+function normalizeVisitTypesRows(rows) {
+    var normalized = [];
+
+    $.each(rows || [], function(_, row) {
+        var id = parseInt((row && row.id_tipo_visita) || 0, 10) || 0;
+        if (id <= 0) {
+            return true;
+        }
+
+        normalized.push({
+            id_tipo_visita: id,
+            nome: $.trim((row && row.nome) || ''),
+            durata_minuti: parseInt((row && row.durata_minuti) || 0, 10) || 0,
+            colore: normalizeVisitTypeColor(row && row.colore ? row.colore : ''),
+            usa_colore_tipo_visita_slot: visitTypeUsesOwnColor(row) ? 1 : 0,
+            attivo: parseInt((row && row.attivo) || 0, 10) === 1 ? 1 : 0,
+            ordinamento: parseInt((row && row.ordinamento) || 0, 10) || 0
+        });
+
+        return true;
+    });
+
+    normalized.sort(function(leftRow, rightRow) {
+        if (leftRow.attivo !== rightRow.attivo) {
+            return rightRow.attivo - leftRow.attivo;
+        }
+        if (leftRow.ordinamento !== rightRow.ordinamento) {
+            return leftRow.ordinamento - rightRow.ordinamento;
+        }
+        return String(leftRow.nome || '').localeCompare(String(rightRow.nome || ''), 'it');
+    });
+
+    return normalized;
 }
 
 function getSuggestedVisitTypeColor() {
@@ -414,6 +474,7 @@ function resetVisitTypeForm() {
     $('#visitTypeName').val('');
     $('#visitTypeDuration').val('');
     setVisitTypeColor(getSuggestedVisitTypeColor());
+    $('#visitTypeUseOwnColor').prop('checked', true);
     $('#btnCancelVisitTypeEdit').hide();
 }
 
@@ -422,6 +483,7 @@ function fillVisitTypeForm(row) {
     $('#visitTypeName').val((row && row.nome) || '');
     $('#visitTypeDuration').val((row && row.durata_minuti) || '');
     setVisitTypeColor((row && row.colore) || '');
+    $('#visitTypeUseOwnColor').prop('checked', visitTypeUsesOwnColor(row));
     $('#btnCancelVisitTypeEdit').show();
     $('#visitTypeName').trigger('focus');
 }
@@ -442,6 +504,9 @@ function renderVisitTypesList() {
         var row = visitTypesRows[i] || {};
         var isActive = parseInt(row.attivo || 0, 10) === 1;
         var rowColor = normalizeVisitTypeColor(row.colore) || getSuggestedVisitTypeColor();
+        var slotColorModeLabel = visitTypeUsesOwnColor(row)
+            ? 'Gli slot usano il colore del tipo visita'
+            : 'Gli slot tengono il colore standard';
         html += '<div class="visit-types-card' + (isActive ? '' : ' is-inactive') + '">';
         html += '  <div class="visit-types-card-header">';
         html += '    <div>';
@@ -449,7 +514,7 @@ function renderVisitTypesList() {
         html += '          <span class="visit-types-card-color" style="background:' + escapeHtmlVisitTypes(rowColor) + ';"></span>';
         html += '          <h4 class="visit-types-card-title">' + escapeHtmlVisitTypes(row.nome || '') + '</h4>';
         html += '      </div>';
-        html += '      <div class="visit-types-card-meta">' + escapeHtmlVisitTypes((row.durata_minuti || 0) + ' minuti consecutivi') + '</div>';
+        html += '      <div class="visit-types-card-meta">' + escapeHtmlVisitTypes((row.durata_minuti || 0) + ' minuti consecutivi - ' + slotColorModeLabel) + '</div>';
         html += '    </div>';
         html += '    <span class="visit-types-status ' + (isActive ? 'is-active' : 'is-inactive') + '">'
             + (isActive ? 'Attivo' : 'Disattivo') + '</span>';
@@ -479,11 +544,12 @@ function findVisitTypeById(id) {
 }
 
 function updateVisitTypesRows(rows) {
-    visitTypesRows = $.isArray(rows) ? rows : [];
+    visitTypesRows = normalizeVisitTypesRows(rows);
     renderVisitTypesList();
 }
 
 $(function() {
+    visitTypesRows = normalizeVisitTypesRows(visitTypesRows);
     renderVisitTypeColorPalette();
     renderVisitTypesList();
     setVisitTypeColor(getSuggestedVisitTypeColor());
@@ -515,6 +581,7 @@ $(function() {
             nome: nome,
             durata_minuti: durata,
             colore: colore,
+            usa_colore_tipo_visita_slot: $('#visitTypeUseOwnColor').is(':checked') ? 1 : 0,
             attivo: 1
         }, function(res) {
             if (!res || res.status !== true) {

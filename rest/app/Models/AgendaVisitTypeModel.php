@@ -29,6 +29,7 @@ class AgendaVisitTypeModel extends Model
         'nome',
         'durata_minuti',
         'colore',
+        'usa_colore_tipo_visita_slot',
         'attivo',
         'ordinamento',
         'created_by',
@@ -103,6 +104,9 @@ class AgendaVisitTypeModel extends Model
         $nome = trim((string) ($data['nome'] ?? ''));
         $durataMinuti = (int) ($data['durata_minuti'] ?? 0);
         $coloreInput = trim((string) ($data['colore'] ?? ''));
+        $usaColoreTipoVisitaSlot = array_key_exists('usa_colore_tipo_visita_slot', $data)
+            ? ((int) $data['usa_colore_tipo_visita_slot'] === 1 ? 1 : 0)
+            : 1;
         $attivo = array_key_exists('attivo', $data)
             ? ((int) $data['attivo'] === 1 ? 1 : 0)
             : 1;
@@ -135,6 +139,7 @@ class AgendaVisitTypeModel extends Model
             'nome' => $nome,
             'durata_minuti' => $durataMinuti,
             'colore' => $this->resolveColorValue($coloreInput, $existing),
+            'usa_colore_tipo_visita_slot' => $usaColoreTipoVisitaSlot,
             'attivo' => $attivo,
             'updated_by' => $userId > 0 ? $userId : null,
         ];
@@ -192,6 +197,10 @@ class AgendaVisitTypeModel extends Model
     {
         $row['id_tipo_visita'] = (int) ($row['id_tipo_visita'] ?? 0);
         $row['durata_minuti'] = (int) ($row['durata_minuti'] ?? 0);
+        $row['usa_colore_tipo_visita_slot'] = (
+            array_key_exists('usa_colore_tipo_visita_slot', $row)
+            && (int) ($row['usa_colore_tipo_visita_slot'] ?? 1) === 0
+        ) ? 0 : 1;
         $row['attivo'] = (int) ($row['attivo'] ?? 0);
         $row['ordinamento'] = (int) ($row['ordinamento'] ?? 0);
         $row['colore'] = $this->resolveNormalizedRowColor($row);

@@ -30,6 +30,7 @@ class AgendaAppointmentModel extends Model
         $tokenLock = trim((string) ($data['token_lock'] ?? ''));
         $createdBy = !empty($data['created_by']) ? (int) $data['created_by'] : 0;
         $visitTypesFeatureEnabled = !empty($data['visit_types_feature_enabled']);
+        $visitTypeRequired = !array_key_exists('visit_type_required', $data) || !empty($data['visit_type_required']);
 
         if ($idSlot <= 0 || $idDot <= 0) {
             throw new Exception('Slot o dottore non valorizzati.');
@@ -66,7 +67,7 @@ class AgendaAppointmentModel extends Model
         }
 
         $slotDuration = $this->getSlotDurationMinutes($slot);
-        $plan = $this->resolveVisitPlan($data, $slot, null, $visitTypesFeatureEnabled);
+        $plan = $this->resolveVisitPlan($data, $slot, null, $visitTypesFeatureEnabled, $visitTypeRequired);
         $this->assertVisitTypeSchemaReady($plan, $slotDuration, $visitTypesFeatureEnabled);
 
         $coveredSlots = $this->resolveCoveredSlots(
@@ -115,6 +116,7 @@ class AgendaAppointmentModel extends Model
     {
         $idAppuntamento = (int) ($data['id_appuntamento'] ?? 0);
         $visitTypesFeatureEnabled = !empty($data['visit_types_feature_enabled']);
+        $visitTypeRequired = !array_key_exists('visit_type_required', $data) || !empty($data['visit_type_required']);
 
         if ($idAppuntamento <= 0) {
             throw new Exception('ID appuntamento mancante.');
@@ -131,7 +133,7 @@ class AgendaAppointmentModel extends Model
         }
 
         $slotDuration = $this->getSlotDurationMinutes($slot);
-        $plan = $this->resolveVisitPlan($data, $slot, $appointment, $visitTypesFeatureEnabled);
+        $plan = $this->resolveVisitPlan($data, $slot, $appointment, $visitTypesFeatureEnabled, $visitTypeRequired);
         $this->assertVisitTypeSchemaReady($plan, $slotDuration, $visitTypesFeatureEnabled);
 
         $coveredSlots = $this->resolveCoveredSlots(
@@ -288,18 +290,37 @@ class AgendaAppointmentModel extends Model
         return $payload;
     }
 
-    private function resolveVisitPlan(array $data, array $slot, ?array $existingAppointment, bool $visitTypesFeatureEnabled): array
+    private function resolveVisitPlan(
+        array $data,
+        array $slot,
+        ?array $existingAppointment,
+        bool $visitTypesFeatureEnabled,
+        bool $visitTypeRequired = true
+    ): array
     {
         $slotDuration = $this->getSlotDurationMinutes($slot);
 
         if ($visitTypesFeatureEnabled) {
+            $hasVisitTypeInput = array_key_exists('id_tipo_visita', $data);
             $selectedTypeId = (int) ($data['id_tipo_visita'] ?? 0);
-            if ($selectedTypeId <= 0 && $existingAppointment !== null) {
+            if (
+                $selectedTypeId <= 0
+                && $existingAppointment !== null
+                && (!$hasVisitTypeInput || $visitTypeRequired)
+            ) {
                 $selectedTypeId = (int) ($existingAppointment['id_tipo_visita'] ?? 0);
             }
 
             if ($selectedTypeId <= 0) {
-                throw new Exception('Seleziona il tipo visita.');
+                if ($visitTypeRequired) {
+                    throw new Exception('Seleziona il tipo visita.');
+                }
+
+                return [
+                    'visit_type_id' => 0,
+                    'type_label' => '',
+                    'duration_minutes' => $slotDuration,
+                ];
             }
 
             $typeRow = (new AgendaVisitTypeModel())->findType($selectedTypeId);

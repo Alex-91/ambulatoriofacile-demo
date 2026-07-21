@@ -39,6 +39,7 @@ class Agenda extends BaseController
     private const SKIP_EMPTY_AGENDA_DAYS_FEATURE = 'agenda_skip_empty_days';
     private const SHARED_AGENDA_MEMOS_FEATURE = 'shared_agenda_memos';
     private const VISIT_TYPES_FEATURE = 'agenda_visit_types';
+    private const OPTIONAL_VISIT_TYPE_FEATURE = 'agenda_visit_type_optional';
 
     protected AgendaModel $agendaModel;
     protected AgendaSlotModel $slotModel;
@@ -745,6 +746,18 @@ public function eseguiRepairRecurringExtraSlots()
     protected function isVisitTypesFeatureEnabled(): bool
     {
         return $this->tenantFeatureEnabled(self::VISIT_TYPES_FEATURE);
+    }
+
+    protected function isVisitTypeSelectionOptionalEnabled(): bool
+    {
+        return $this->isVisitTypesFeatureEnabled()
+            && $this->tenantFeatureEnabled(self::OPTIONAL_VISIT_TYPE_FEATURE);
+    }
+
+    protected function isVisitTypeSelectionRequired(): bool
+    {
+        return $this->isVisitTypesFeatureEnabled()
+            && !$this->isVisitTypeSelectionOptionalEnabled();
     }
 
     protected function assertVisitTypesFeatureEnabled(): void
@@ -1604,6 +1617,7 @@ public function eseguiRepairRecurringExtraSlots()
         $teamDayViewEnabled = $this->canUseTeamDayView($teamDayDoctors);
         $skipEmptyAgendaDaysEnabled = $this->isSkipEmptyAgendaDaysFeatureEnabled();
         $visitTypesFeatureEnabled = $this->isVisitTypesFeatureEnabled();
+        $visitTypeSelectionOptionalEnabled = $this->isVisitTypeSelectionOptionalEnabled();
         $visitTypes = [];
 
         if ($visitTypesFeatureEnabled) {
@@ -1653,6 +1667,7 @@ public function eseguiRepairRecurringExtraSlots()
             'skipEmptyAgendaDaysEnabled' => $skipEmptyAgendaDaysEnabled,
             'sharedMemoManagementEnabled' => $this->isSharedAgendaMemosFeatureEnabled(),
             'visitTypesFeatureEnabled' => $visitTypesFeatureEnabled,
+            'visitTypeSelectionOptionalEnabled' => $visitTypeSelectionOptionalEnabled,
             'visitTypes'           => $visitTypes,
             'agendaHomeBlockOrderSettings' => $agendaHomeBlockOrderSettings,
             'domiciliariAbilitati' => $domiciliariAbilitati,
@@ -3471,6 +3486,7 @@ public function eseguiRepairRecurringExtraSlots()
                 'nome' => (string) ($this->request->getPost('nome') ?? ''),
                 'durata_minuti' => (int) ($this->request->getPost('durata_minuti') ?? 0),
                 'colore' => (string) ($this->request->getPost('colore') ?? ''),
+                'usa_colore_tipo_visita_slot' => (int) ($this->request->getPost('usa_colore_tipo_visita_slot') ?? 1),
                 'attivo' => (int) ($this->request->getPost('attivo') ?? 1),
             ], $this->getCurrentUserId());
 
@@ -3599,6 +3615,7 @@ public function eseguiRepairRecurringExtraSlots()
             $payload = $this->normalizeAppointmentPatientPayload($this->request->getPost());
             $payload['created_by'] = $this->getCurrentUserId();
             $payload['visit_types_feature_enabled'] = $this->isVisitTypesFeatureEnabled();
+            $payload['visit_type_required'] = $this->isVisitTypeSelectionRequired();
 
             $idSlot = (int)($payload['id_slot'] ?? 0);
 
@@ -3649,6 +3666,7 @@ public function eseguiRepairRecurringExtraSlots()
         try {
             $payload = $this->normalizeAppointmentPatientPayload($this->request->getPost());
             $payload['visit_types_feature_enabled'] = $this->isVisitTypesFeatureEnabled();
+            $payload['visit_type_required'] = $this->isVisitTypeSelectionRequired();
 
             $idAppuntamento = (int)($payload['id_appuntamento'] ?? 0);
             if ($idAppuntamento > 0) {

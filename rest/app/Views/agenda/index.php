@@ -2975,11 +2975,20 @@
                         <select id="app_id_tipo_visita" class="form-control">
                             <option value="">Seleziona tipo visita</option>
                         </select>
+                        <p id="app_visit_type_help" class="help-block" style="margin:6px 0 0;">
+                            <?= !empty($visitTypeSelectionOptionalEnabled)
+                                ? 'Facoltativo: se lo lasci vuoto, l appuntamento occupa solo lo slot cliccato.'
+                                : 'Selezionalo per applicare durata automatica e regole del tipo visita.' ?>
+                        </p>
                         <div id="app_visit_type_preview" class="agenda-visit-type-select-preview is-empty">
                             <span id="app_visit_type_preview_sample" class="agenda-visit-type-select-sample"></span>
                             <div class="agenda-visit-type-select-copy">
                                 <span id="app_visit_type_preview_label" class="agenda-visit-type-select-label">Nessun tipo visita selezionato</span>
-                                <span id="app_visit_type_preview_meta" class="agenda-visit-type-select-meta">Il colore degli slot seguira il tipo visita scelto.</span>
+                                <span id="app_visit_type_preview_meta" class="agenda-visit-type-select-meta">
+                                    <?= !empty($visitTypeSelectionOptionalEnabled)
+                                        ? 'Se non selezioni un tipo visita, l appuntamento usera solo lo slot cliccato.'
+                                        : 'Seleziona un tipo visita per definire durata e copertura dell appuntamento.' ?>
+                                </span>
                             </div>
                         </div>
                     </div>
@@ -3330,6 +3339,7 @@ window.AGENDA_CONFIG = {
     skipEmptyAgendaDaysEnabled: <?= !empty($skipEmptyAgendaDaysEnabled) ? 'true' : 'false' ?>,
     sharedMemoManagementEnabled: <?= $sharedMemoManagementEnabled ? 'true' : 'false' ?>,
     visitTypesFeatureEnabled: <?= !empty($visitTypesFeatureEnabled) ? 'true' : 'false' ?>,
+    visitTypeSelectionOptionalEnabled: <?= !empty($visitTypeSelectionOptionalEnabled) ? 'true' : 'false' ?>,
     appointmentBillingWorkflowEnabled: <?= !empty($appointmentDocumentActions['billing_enabled']) ? 'true' : 'false' ?>,
     appointmentTsWorkflowEnabled: <?= !empty($appointmentDocumentActions['ts_enabled']) ? 'true' : 'false' ?>,
     appointmentBillingWorkflowUrlBase: "<?= site_url('agenda/fatturazione-da-appuntamento') ?>",
@@ -3545,6 +3555,14 @@ function supportsAgendaVisitTypes() {
     return !!window.AGENDA_CONFIG.visitTypesFeatureEnabled;
 }
 
+function isAgendaVisitTypeSelectionOptional() {
+    return supportsAgendaVisitTypes() && !!window.AGENDA_CONFIG.visitTypeSelectionOptionalEnabled;
+}
+
+function isAgendaVisitTypeSelectionRequired() {
+    return supportsAgendaVisitTypes() && !isAgendaVisitTypeSelectionOptional();
+}
+
 function supportsTeamDayView() {
     return !!window.AGENDA_CONFIG.teamDayViewEnabled;
 }
@@ -3730,6 +3748,7 @@ function normalizeAgendaVisitTypesRows(rows) {
             id_tipo_visita: id,
             nome: $.trim((row && row.nome) || ''),
             durata_minuti: parseInt((row && row.durata_minuti) || 0, 10) || 0,
+            usa_colore_tipo_visita_slot: agendaVisitTypeUsesOwnColor(row) ? 1 : 0,
             attivo: parseInt((row && row.attivo) || 0, 10) === 1 ? 1 : 0,
             ordinamento: parseInt((row && row.ordinamento) || 0, 10) || 0,
             colore: normalizeAgendaVisitTypeColor(row && row.colore ? row.colore : '')
@@ -3754,6 +3773,28 @@ function normalizeAgendaVisitTypesRows(rows) {
 function normalizeAgendaVisitTypeColor(value) {
     var normalized = $.trim(String(value || '')).toUpperCase();
     return /^#[0-9A-F]{6}$/.test(normalized) ? normalized : '';
+}
+
+function agendaVisitTypeUsesOwnColor(row) {
+    if (!row || typeof row !== 'object') {
+        return true;
+    }
+
+    if (!Object.prototype.hasOwnProperty.call(row, 'usa_colore_tipo_visita_slot')) {
+        return true;
+    }
+
+    var parsed = parseInt(row.usa_colore_tipo_visita_slot, 10);
+    return isNaN(parsed) ? true : parsed !== 0;
+}
+
+function getAgendaVisitTypeUseOwnColorInputValue() {
+    var $field = $('#visitTypeUseOwnColor');
+    if (!$field.length) {
+        return 1;
+    }
+
+    return $field.is(':checked') ? 1 : 0;
 }
 
 function getSuggestedAgendaVisitTypeColor() {
@@ -3873,6 +3914,9 @@ function buildAgendaVisitTypeVisualStyle(color) {
 
 function getAgendaVisitTypeColorById(idTipoVisita) {
     var row = getAgendaVisitTypeById(idTipoVisita);
+    if (!agendaVisitTypeUsesOwnColor(row)) {
+        return '';
+    }
     return normalizeAgendaVisitTypeColor(row && row.colore ? row.colore : '');
 }
 
@@ -3923,17 +3967,23 @@ function updateAppointmentVisitTypePreview(row) {
         $preview.addClass('is-empty');
         $sample.css('background', '#dbe7ef');
         $label.text('Nessun tipo visita selezionato');
-        $meta.text('Il colore degli slot seguira il tipo visita scelto.');
+        $meta.text(isAgendaVisitTypeSelectionOptional()
+            ? 'Se non selezioni un tipo visita, l appuntamento usera solo lo slot cliccato.'
+            : 'Seleziona un tipo visita per definire durata e copertura dell appuntamento.');
         return;
     }
 
     var color = normalizeAgendaVisitTypeColor(row.colore) || getSuggestedAgendaVisitTypeColor();
     var duration = parseInt((row && row.durata_minuti) || 0, 10) || 0;
+    var usesOwnColor = agendaVisitTypeUsesOwnColor(row);
+    var durationLabel = duration > 0 ? (duration + ' minuti') : 'Durata non definita';
 
     $preview.removeClass('is-empty');
-    $sample.css('background', color);
+    $sample.css('background', usesOwnColor ? color : '#dbe7ef');
     $label.text($.trim((row && row.nome) || 'Tipo visita'));
-    $meta.text((duration > 0 ? (duration + ' minuti') : 'Durata non definita') + ' - Colore slot ' + color);
+    $meta.text(usesOwnColor
+        ? (durationLabel + ' - Gli slot useranno il colore ' + color)
+        : (durationLabel + ' - Gli slot manterranno il colore standard'));
 }
 
 function getAgendaVisitTypeById(idTipoVisita) {
@@ -4081,13 +4131,16 @@ function renderAgendaVisitTypesBox() {
     $.each(agendaVisitTypes, function(_, row) {
         var active = parseInt((row && row.attivo) || 0, 10) === 1;
         var rowColor = normalizeAgendaVisitTypeColor(row && row.colore ? row.colore : '') || getSuggestedAgendaVisitTypeColor();
+        var slotColorModeLabel = agendaVisitTypeUsesOwnColor(row)
+            ? 'colore tipo visita'
+            : 'colore slot standard';
         html += '<div class="agenda-visit-type-row">';
         html += '  <div>';
         html += '    <div class="agenda-visit-type-title-row">';
         html += '      <span class="agenda-visit-type-color" style="background:' + escapeHtml(rowColor) + ';"></span>';
         html += '      <div class="agenda-visit-type-title">' + escapeHtml((row && row.nome) || '') + '</div>';
         html += '    </div>';
-        html += '    <div class="agenda-visit-type-meta">' + escapeHtml(String((row && row.durata_minuti) || 0) + ' minuti') + '</div>';
+        html += '    <div class="agenda-visit-type-meta">' + escapeHtml(String((row && row.durata_minuti) || 0) + ' minuti - ' + slotColorModeLabel) + '</div>';
         html += '  </div>';
         html += '  <div class="agenda-visit-type-actions text-right">';
         html += '    <span class="label label-' + (active ? 'success' : 'default') + '">' + (active ? 'attivo' : 'spento') + '</span>';
@@ -4107,6 +4160,7 @@ function resetAgendaVisitTypeForm() {
     $('#visitTypeName').val('');
     $('#visitTypeDuration').val('');
     setAgendaVisitTypeColor(getSuggestedAgendaVisitTypeColor());
+    $('#visitTypeUseOwnColor').prop('checked', true);
     $('#btnSaveVisitType').html('<i class="fa fa-save"></i> Salva tipo visita');
     $('#btnCancelVisitTypeEdit').hide();
 }
@@ -4121,6 +4175,7 @@ function populateAgendaVisitTypeForm(row) {
     $('#visitTypeName').val((row && row.nome) || '');
     $('#visitTypeDuration').val((row && row.durata_minuti) || '');
     setAgendaVisitTypeColor((row && row.colore) || '');
+    $('#visitTypeUseOwnColor').prop('checked', agendaVisitTypeUsesOwnColor(row));
     $('#btnSaveVisitType').html('<i class="fa fa-save"></i> Salva modifica');
     $('#btnCancelVisitTypeEdit').show();
     $('#visitTypeName').trigger('focus');
@@ -4138,7 +4193,12 @@ function fillAppointmentVisitTypeSelect(selectedId) {
     var activeRows = getActiveAgendaVisitTypes();
     var currentRow = currentId > 0 ? getAgendaVisitTypeById(currentId) : null;
 
-    if (currentId <= 0 && appointmentModalSlot && !($.trim($('#app_id_appuntamento').val() || ''))) {
+    if (
+        currentId <= 0
+        && !isAgendaVisitTypeSelectionOptional()
+        && appointmentModalSlot
+        && !($.trim($('#app_id_appuntamento').val() || ''))
+    ) {
         if (activeRows.length === 1) {
             currentId = parseInt((activeRows[0] && activeRows[0].id_tipo_visita) || 0, 10) || 0;
             currentRow = getAgendaVisitTypeById(currentId);
@@ -4150,7 +4210,11 @@ function fillAppointmentVisitTypeSelect(selectedId) {
         rows.push(currentRow);
     }
 
-    var html = '<option value="">Seleziona tipo visita</option>';
+    var html = '<option value="">' + escapeHtml(
+        isAgendaVisitTypeSelectionOptional()
+            ? 'Nessun tipo visita (usa solo questo slot)'
+            : 'Seleziona tipo visita'
+    ) + '</option>';
     $.each(rows, function(_, row) {
         var duration = parseInt((row && row.durata_minuti) || 0, 10) || 0;
         var label = $.trim((row && row.nome) || '');
@@ -4300,6 +4364,30 @@ function computeAppointmentCoverageForSlot(slot, durationMinutes, currentAppoint
     };
 }
 
+function buildSingleSlotAppointmentCoverage(slot) {
+    var baseSlot = slot || appointmentModalSlot;
+    var startMoment = getAgendaSlotVisualStartMoment(baseSlot);
+    var endMoment = parseAgendaMoment(baseSlot && baseSlot.ora_fine ? baseSlot.ora_fine : '');
+    var slotId = parseInt((baseSlot && baseSlot.id_slot) || 0, 10) || 0;
+    var slotDuration = getAgendaSlotActualDurationMinutes(baseSlot);
+
+    if (!baseSlot || slotId <= 0 || !startMoment || !startMoment.isValid() || !endMoment || !endMoment.isValid() || slotDuration <= 0) {
+        return {
+            ok: false,
+            message: 'Slot iniziale non valido.'
+        };
+    }
+
+    return {
+        ok: true,
+        slotIds: [slotId],
+        count: 1,
+        startMoment: startMoment,
+        endMoment: endMoment,
+        message: 'Occupa solo lo slot selezionato fino alle ' + endMoment.format('HH:mm') + '.'
+    };
+}
+
 function refreshAppointmentVisitTypePreview() {
     if (!supportsAgendaVisitTypes()) {
         return null;
@@ -4313,10 +4401,28 @@ function refreshAppointmentVisitTypePreview() {
     updateAppointmentVisitTypePreview(selectedType);
 
     if (!selectedType) {
-        $duration.val('');
-        $coverage.removeClass('is-error is-ok').text('');
-        setAppointmentSlotTimeSummary(appointmentModalSlot || null, null);
-        return null;
+        if (!isAgendaVisitTypeSelectionOptional()) {
+            $duration.val('');
+            $coverage.removeClass('is-ok').addClass('is-error').text('Seleziona il tipo visita.');
+            setAppointmentSlotTimeSummary(appointmentModalSlot || null, null);
+            return {
+                ok: false,
+                message: 'Seleziona il tipo visita.'
+            };
+        }
+
+        var fallbackCoverage = buildSingleSlotAppointmentCoverage(appointmentModalSlot);
+        var fallbackDuration = getAgendaSlotActualDurationMinutes(appointmentModalSlot);
+        $duration.val(fallbackDuration > 0 ? (fallbackDuration + ' minuti') : '');
+        setAppointmentSlotTimeSummary(appointmentModalSlot || null, fallbackCoverage);
+
+        if (!fallbackCoverage || !fallbackCoverage.ok) {
+            $coverage.removeClass('is-ok').addClass('is-error').text((fallbackCoverage && fallbackCoverage.message) || 'Slot iniziale non valido.');
+            return fallbackCoverage;
+        }
+
+        $coverage.removeClass('is-error').addClass('is-ok').text(fallbackCoverage.message || '');
+        return fallbackCoverage;
     }
 
     var durationMinutes = parseInt((selectedType && selectedType.durata_minuti) || 0, 10) || 0;
@@ -8778,6 +8884,7 @@ $('#nota_giorno_text').on('blur', function() {
             nome: nome,
             durata_minuti: durata,
             colore: colore,
+            usa_colore_tipo_visita_slot: getAgendaVisitTypeUseOwnColorInputValue(),
             attivo: 1
         }, function(res) {
             if (!res || !res.status) {
@@ -9263,15 +9370,12 @@ $('#nota_giorno_text').on('blur', function() {
         var coverage = null;
 
         if (supportsAgendaVisitTypes()) {
-            if ($.trim($('#app_id_tipo_visita').val() || '') === '') {
-                alert('Seleziona il tipo visita.');
-                $('#app_id_tipo_visita').trigger('focus');
-                return;
-            }
-
             coverage = refreshAppointmentVisitTypePreview();
             if (!coverage || !coverage.ok) {
                 alert((coverage && coverage.message) ? coverage.message : 'La durata selezionata non e compatibile con gli slot disponibili.');
+                if (isAgendaVisitTypeSelectionRequired() && $.trim($('#app_id_tipo_visita').val() || '') === '') {
+                    $('#app_id_tipo_visita').trigger('focus');
+                }
                 return;
             }
         }

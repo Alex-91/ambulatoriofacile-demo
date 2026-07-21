@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Database\Migrations\AddColorToAgendaVisitTypes;
+use App\Database\Migrations\AddSlotColorPreferenceToAgendaVisitTypes;
 use App\Database\Migrations\CreateAgendaVisitTypesAndAppointmentSpan;
 use CodeIgniter\Database\BaseConnection;
 use Config\Database;
@@ -19,6 +20,7 @@ class AgendaVisitTypeSchemaService
         'nome',
         'durata_minuti',
         'colore',
+        'usa_colore_tipo_visita_slot',
         'attivo',
         'ordinamento',
         'created_by',
@@ -99,6 +101,9 @@ class AgendaVisitTypeSchemaService
 
             $colorMigration = new AddColorToAgendaVisitTypes($forge);
             $colorMigration->up();
+
+            $slotColorPreferenceMigration = new AddSlotColorPreferenceToAgendaVisitTypes($forge);
+            $slotColorPreferenceMigration->up();
         } catch (\Throwable $e) {
             log_message('error', 'AgendaVisitTypeSchemaService runtime migration failed: {message}', [
                 'message' => $e->getMessage(),

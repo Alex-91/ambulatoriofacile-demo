@@ -255,6 +255,16 @@ class TenantFeatureService
                 'tenant_default_enabled' => 0,
                 'sort_order' => 136,
             ],
+            'agenda_visit_type_optional' => [
+                'feature_name' => 'Tipo visita facoltativo in appuntamento',
+                'feature_scope' => 'workflow',
+                'description' => 'Il master piattaforma puo attivare per il singolo studio l uso facoltativo del tipo visita nel popup appuntamento. Se il campo resta vuoto, l appuntamento occupa solo lo slot cliccato.',
+                'default_enabled' => 0,
+                'icon_class' => 'fa-toggle-off',
+                'is_tenant_managed' => 0,
+                'tenant_default_enabled' => 0,
+                'sort_order' => 69,
+            ],
         ];
     }
 
