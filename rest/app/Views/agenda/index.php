@@ -1830,6 +1830,12 @@
             margin-bottom: 15px;
         }
 
+        .agenda-calendar-header-compact {
+            padding-top: 6px;
+            padding-bottom: 6px;
+            min-height: 0;
+        }
+
         .agenda-calendar-actions-buttons {
             display: flex;
             justify-content: flex-end;
@@ -2860,13 +2866,15 @@
                     <div class="row">
                         <div id="agendaCalendarPrimaryCol" class="<?= !empty($domiciliariAbilitati) ? 'col-lg-7 col-md-6 col-sm-12' : 'col-lg-12 col-md-12 col-sm-12' ?>">
                             <div class="box box-primary">
-                                <div class="box-header with-border">
+                                <div class="box-header with-border<?= $agendaCompressedLayoutEnabled ? ' agenda-calendar-header-compact' : '' ?>">
+                                    <?php if (!$agendaCompressedLayoutEnabled): ?>
                                     <h3 class="box-title">
                                         <i class="fa fa-calendar"></i> Calendario
                                         <?php if ($selectedDoctorLabel !== ''): ?>
                                             <span class="agenda-box-subtitle"><?= esc($selectedDoctorLabel) ?></span>
                                         <?php endif; ?>
                                     </h3>
+                                    <?php endif; ?>
                                     <div class="box-tools">
                                         <button type="button" class="btn btn-box-tool" data-widget="collapse">
                                             <i class="fa fa-minus"></i>
@@ -2986,9 +2994,11 @@
                         </button>
                     </div>
                 </div>
+                <?php if (!$agendaCompressedLayoutEnabled): ?>
                 <div class="agenda-team-summary">
                     <i class="fa fa-columns"></i> Vista giornaliera del team: qui vedi in parallelo tutti i professionisti visibili. Le azioni laterali restano riferite al professionista selezionato in alto.
                 </div>
+                <?php endif; ?>
                 <div class="agenda-team-board-wrap">
                     <div id="agendaTeamDayBoard" class="agenda-team-board"></div>
                 </div>
