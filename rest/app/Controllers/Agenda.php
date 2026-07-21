@@ -5785,6 +5785,10 @@ public function eseguiRepairRecurringExtraSlots()
 
             $this->assertDoctorAllowed($idDot);
 
+            if ($this->agendaModel->isGiornoBloccato($idDot, $data)) {
+                throw new \Exception('La giornata e bloccata. Non puoi aggiungere slot extra.');
+            }
+
             $result = $this->noteModel->insertExtraSlotsForSingleDay($payload);
 
             if ((int)($result['inserted'] ?? 0) <= 0) {

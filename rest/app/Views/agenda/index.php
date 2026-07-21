@@ -3398,6 +3398,27 @@
                     Inserisci solo ora di inizio e ora di fine. La durata dello slot verrÃ  calcolata automaticamente.
                 </p>
 
+                <div class="form-group" id="extra_slot_doctor_group" style="display:none;">
+                    <label for="extra_slot_id_dot">Professionista</label>
+                    <select id="extra_slot_id_dot" class="form-control">
+                        <option value="">Seleziona il professionista</option>
+                        <?php foreach (($medici ?? []) as $m): ?>
+                            <?php
+                                $extraSlotDoctorId = is_object($m) ? $m->id_dot : $m['id_dot'];
+                                $extraSlotDoctorLabel = is_object($m)
+                                    ? ($m->label ?? (($m->cognome ?? '') . ' ' . ($m->nome ?? '')))
+                                    : ($m['label'] ?? (($m['cognome'] ?? '') . ' ' . ($m['nome'] ?? '')));
+                            ?>
+                            <option value="<?= esc($extraSlotDoctorId) ?>">
+                                <?= esc($extraSlotDoctorLabel) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                    <p class="help-block" style="margin-bottom:0;">
+                        In Giorno Team lo slot extra viene aggiunto al professionista scelto qui, anche se in alto e selezionato un altro medico.
+                    </p>
+                </div>
+
                 <div class="row">
                     <div class="col-sm-6 form-group">
                         <label for="extra_slot_ora_inizio">Ora inizio</label>
@@ -5047,9 +5068,74 @@ function setExtraSlotModalError(message) {
     $error.text(message).show();
 }
 
+function shouldUseExtraSlotDoctorSelector() {
+    return isTeamDayViewActive();
+}
+
+function syncExtraSlotTargetDoctorField() {
+    var requiresDoctorSelection = shouldUseExtraSlotDoctorSelector();
+    var $group = $('#extra_slot_doctor_group');
+    var $select = $('#extra_slot_id_dot');
+
+    if (!$group.length || !$select.length) {
+        return;
+    }
+
+    $group.toggle(requiresDoctorSelection);
+    $select.prop('required', requiresDoctorSelection);
+
+    if (!requiresDoctorSelection) {
+        $select.val('');
+    }
+}
+
+function getExtraSlotTargetDoctorId() {
+    if (shouldUseExtraSlotDoctorSelector()) {
+        return parseInt($('#extra_slot_id_dot').val(), 10) || 0;
+    }
+
+    return parseInt($('#id_dot').val(), 10) || 0;
+}
+
+var extraSlotTeamDayDoctorContext = null;
+
+function prepareExtraSlotTeamDayDoctorContext() {
+    if (!shouldUseExtraSlotDoctorSelector()) {
+        extraSlotTeamDayDoctorContext = null;
+        return true;
+    }
+
+    var targetDoctorId = getExtraSlotTargetDoctorId();
+    if (targetDoctorId <= 0) {
+        setExtraSlotModalError('Seleziona il professionista a cui aggiungere lo slot extra.');
+        return false;
+    }
+
+    extraSlotTeamDayDoctorContext = {
+        idDot: $('#id_dot').val(),
+        giornoBloccato: giornoBloccato
+    };
+
+    $('#id_dot').val(String(targetDoctorId));
+    giornoBloccato = false;
+    return true;
+}
+
+function restoreExtraSlotTeamDayDoctorContext() {
+    if (!extraSlotTeamDayDoctorContext) {
+        return;
+    }
+
+    $('#id_dot').val(extraSlotTeamDayDoctorContext.idDot);
+    giornoBloccato = extraSlotTeamDayDoctorContext.giornoBloccato;
+    extraSlotTeamDayDoctorContext = null;
+}
+
 function resetExtraSlotModal() {
+    $('#extra_slot_id_dot').val('');
     $('#extra_slot_ora_inizio').val('');
     $('#extra_slot_ora_fine').val('');
+    syncExtraSlotTargetDoctorField();
     setExtraSlotModalError('');
     setExtraSlotSavingState(false);
 }
@@ -6299,7 +6385,8 @@ function applicaStatoGiornoBloccato() {
         $('#calendar').removeClass('agenda-day-locked');
     }
 
-    $('#btnAddExtraSlot, #btnCompressedAddExtraSlot').prop('disabled', giornoBloccato);
+    var disableExtraSlotButtons = !shouldUseExtraSlotDoctorSelector() && giornoBloccato;
+    $('#btnAddExtraSlot, #btnCompressedAddExtraSlot').prop('disabled', disableExtraSlotButtons);
 
     var sharedMemoEnabled = isSharedMemoManagementEnabled();
     var memoDisabled = isMemoActionBlocked();
@@ -9846,19 +9933,41 @@ $('#nota_giorno_text').on('blur', function() {
     });
 
     $('#btnAddExtraSlot').on('click', function() {
-        if (giornoBloccato) {
+        if (!shouldUseExtraSlotDoctorSelector() && giornoBloccato) {
             return;
         }
 
         resetExtraSlotModal();
         $('#extraSlotModal').modal('show');
         window.setTimeout(function() {
+            if (shouldUseExtraSlotDoctorSelector()) {
+                $('#extra_slot_id_dot').trigger('focus');
+                return;
+            }
+
             $('#extra_slot_ora_inizio').trigger('focus');
         }, 200);
     });
 
     $('#btnCompressedAddExtraSlot').on('click', function() {
         $('#btnAddExtraSlot').trigger('click');
+    });
+
+    $('#extra_slot_id_dot').on('change', function() {
+        setExtraSlotModalError('');
+    });
+
+    $('#btnSaveExtraSlotModal').on('click.extraSlotTeamDayPrepare', function(e) {
+        if (!prepareExtraSlotTeamDayDoctorContext()) {
+            e.stopImmediatePropagation();
+            return false;
+        }
+
+        window.setTimeout(function() {
+            restoreExtraSlotTeamDayDoctorContext();
+        }, 0);
+
+        return true;
     });
 
     $('#btnSaveExtraSlotModal').on('click', function() {
