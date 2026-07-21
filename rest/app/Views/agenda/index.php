@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <?php $agendaTitle = (string)($pageTitle ?? 'Agenda'); ?>
     <?php
-        helper(['portal', 'session_auth']);
+        helper(['portal', 'session_auth', 'tenant_feature']);
+        $agendaCompressedLayoutEnabled = tenant_feature_enabled('agenda_compressed_layout', false);
         $sharedMemoManagementEnabled = !empty($sharedMemoManagementEnabled);
         $agendaConsoleUrl = null;
         $assetVersion = static function (string $relativePath): string {
@@ -93,6 +94,9 @@
         $agendaHomeHasVisibleBlocks = $agendaHomeLeftColumnHasBlocks || $agendaHomeMainColumnHasBlocks;
 
         $agendaLayoutClasses = ['row', 'agenda-layout'];
+        if ($agendaCompressedLayoutEnabled) {
+            $agendaLayoutClasses[] = 'is-sidebar-collapsed';
+        }
         if ($agendaHomeLeftColumnHasBlocks) {
             $agendaLayoutClasses[] = 'has-sidebar-custom-blocks';
         }
@@ -1818,6 +1822,77 @@
             font-size: 13px;
         }
 
+        .agenda-calendar-control-stack {
+            position: relative;
+        }
+
+        .agenda-calendar-actions {
+            margin-bottom: 15px;
+        }
+
+        .agenda-calendar-actions-buttons {
+            display: flex;
+            justify-content: flex-end;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .agenda-calendar-shell-main {
+            min-width: 0;
+        }
+
+        .agenda-compressed-daybar {
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 12px 14px;
+            border: 1px solid #d8e5ef;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #f8fbfe 0%, #eef6fd 100%);
+            box-shadow: 0 10px 20px rgba(31, 45, 61, 0.06);
+            flex-wrap: wrap;
+        }
+
+        .agenda-compressed-daybar-nav,
+        .agenda-compressed-daybar-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .agenda-compressed-daybar-copy {
+            min-width: 0;
+            flex: 1 1 260px;
+        }
+
+        .agenda-compressed-daybar-kicker {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 4px;
+            color: #527086;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .agenda-compressed-daybar-label {
+            color: #1f2d3d;
+            font-size: 20px;
+            font-weight: 800;
+            line-height: 1.2;
+            text-transform: capitalize;
+        }
+
+        .agenda-compressed-daybar .btn {
+            min-height: 40px;
+            border-radius: 10px !important;
+            font-weight: 700;
+        }
+
         .agenda-view-help {
             margin: 8px 0 0;
             color: #6b7886;
@@ -1914,6 +1989,58 @@
         .agenda-team-day-toolbar-btn.btn-primary {
             padding-left: 16px;
             padding-right: 16px;
+        }
+
+        .agenda-compressed-layout-enabled .agenda-calendar-control-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .agenda-compressed-layout-enabled .agenda-compressed-daybar {
+            display: flex;
+            order: 1;
+        }
+
+        .agenda-compressed-layout-enabled .agenda-calendar-shell-main {
+            order: 2;
+        }
+
+        .agenda-compressed-layout-enabled .agenda-calendar-viewbar {
+            order: 3;
+            margin-bottom: 0;
+            padding: 12px 14px;
+            justify-content: flex-start;
+        }
+
+        .agenda-compressed-layout-enabled .agenda-calendar-viewbar-copy {
+            display: none;
+        }
+
+        .agenda-compressed-layout-enabled .agenda-view-switch--calendar {
+            justify-content: flex-start;
+            width: 100%;
+        }
+
+        .agenda-compressed-layout-enabled .agenda-calendar-actions {
+            order: 4;
+            margin-bottom: 0;
+        }
+
+        .agenda-compressed-layout-enabled .agenda-calendar-actions-buttons {
+            justify-content: flex-start;
+        }
+
+        .agenda-compressed-layout-enabled #agendaCalendarActionsRow #btnAddExtraSlot {
+            display: none !important;
+        }
+
+        .agenda-compressed-layout-enabled #agendaCalendarShell .fc-toolbar {
+            display: none !important;
+        }
+
+        .agenda-compressed-layout-enabled .agenda-team-day-toolbar {
+            display: none;
         }
 
         .agenda-team-summary {
@@ -2414,10 +2541,29 @@
             .agenda-team-entry-note {
                 font-size: 11px;
             }
+
+            .agenda-compressed-daybar {
+                align-items: stretch;
+            }
+
+            .agenda-compressed-daybar-nav,
+            .agenda-compressed-daybar-actions {
+                width: 100%;
+                justify-content: space-between;
+            }
+
+            .agenda-compressed-daybar-nav .btn,
+            .agenda-compressed-daybar-actions .btn {
+                flex: 1 1 0;
+            }
+
+            .agenda-compressed-daybar-label {
+                font-size: 18px;
+            }
         }
     </style>
 </head>
-<body class="skin-blue sidebar-mini">
+<body class="skin-blue sidebar-mini<?= $agendaCompressedLayoutEnabled ? ' agenda-compressed-layout-enabled' : '' ?>">
 <div class="wrapper">
 
     <?= view('partials/header', ['menu_items' => $menu_items ?? []]) ?>
@@ -2460,12 +2606,12 @@
                                 type="button"
                                 class="btn btn-default agenda-sidebar-toggle"
                                 id="btnToggleAgendaSidebar"
-                                aria-expanded="true"
+                                aria-expanded="<?= $agendaCompressedLayoutEnabled ? 'false' : 'true' ?>"
                                 aria-controls="agendaSidebarPanels"
-                                title="Chiudi il pannello agenda"
+                                title="<?= $agendaCompressedLayoutEnabled ? 'Apri il pannello agenda' : 'Chiudi il pannello agenda' ?>"
                             >
-                                <i class="fa fa-angle-double-left agenda-sidebar-toggle-icon" id="btnToggleAgendaSidebarIcon" aria-hidden="true"></i>
-                                <span class="agenda-sidebar-toggle-text" id="btnToggleAgendaSidebarText">Riduci menu</span>
+                                <i class="fa <?= $agendaCompressedLayoutEnabled ? 'fa-angle-double-right' : 'fa-angle-double-left' ?> agenda-sidebar-toggle-icon" id="btnToggleAgendaSidebarIcon" aria-hidden="true"></i>
+                                <span class="agenda-sidebar-toggle-text" id="btnToggleAgendaSidebarText"><?= $agendaCompressedLayoutEnabled ? 'Apri menu' : 'Riduci menu' ?></span>
                             </button>
                         </div>
 
@@ -2728,106 +2874,138 @@
                                     </div>
                                </div>
                                <div class="box-body">
-    <div class="row" style="margin-bottom:15px;">
-        <div class="col-sm-12 text-right">
-            <button type="button" class="btn btn-default" id="btnPrintDayAgenda">
-                <i class="fa fa-file-pdf-o"></i> <span id="btnPrintDayAgendaLabel">Stampa PDF giorno</span>
-            </button>
+    <div class="agenda-calendar-control-stack">
+        <div class="row agenda-calendar-actions" id="agendaCalendarActionsRow">
+            <div class="col-sm-12">
+                <div class="agenda-calendar-actions-buttons">
+                    <button type="button" class="btn btn-default" id="btnPrintDayAgenda">
+                        <i class="fa fa-file-pdf-o"></i> <span id="btnPrintDayAgendaLabel">Stampa PDF giorno</span>
+                    </button>
 
-            <button type="button" class="btn btn-warning" id="btnAddExtraSlot">
-                <i class="fa fa-plus"></i> Aggiungi slot extra
-            </button>
+                    <button type="button" class="btn btn-warning" id="btnAddExtraSlot">
+                        <i class="fa fa-plus"></i> Aggiungi slot extra
+                    </button>
 
-            <?php if (!empty($domiciliariAbilitati)): ?>
-            <button type="button" class="btn btn-warning" id="btnBlockDayDomiciliari" style="display:none;">
-                <i class="fa fa-home"></i> Blocca domiciliari
-            </button>
-            <?php endif; ?>
+                    <?php if (!empty($domiciliariAbilitati)): ?>
+                    <button type="button" class="btn btn-warning" id="btnBlockDayDomiciliari" style="display:none;">
+                        <i class="fa fa-home"></i> Blocca domiciliari
+                    </button>
+                    <?php endif; ?>
 
-            <button type="button" class="btn btn-danger" id="btnBlockDayAgenda" style="display:none;">
-                <i class="fa fa-lock"></i> Blocca giornata
-            </button>
-        </div>
-    </div>
-
-    <div class="agenda-calendar-viewbar">
-        <div class="agenda-calendar-viewbar-copy">
-            <span class="agenda-calendar-viewbar-kicker">
-                <i class="fa fa-eye"></i> Vista agenda
-            </span>
-        </div>
-        <div class="agenda-view-switch agenda-view-switch--calendar" role="group" aria-label="Vista agenda rapida sopra il calendario">
-            <button type="button" class="btn btn-default agenda-view-btn" data-view-mode="day">
-                <i class="fa fa-sun-o"></i> Giorno
-            </button>
-            <button type="button" class="btn btn-default agenda-view-btn" data-view-mode="week">
-                <i class="fa fa-calendar"></i> Settimana
-            </button>
-            <?php if (!empty($teamDayViewEnabled)): ?>
-                <button type="button" class="btn btn-default agenda-view-btn" data-view-mode="team_day">
-                    <i class="fa fa-columns"></i> Giorno Team
-                </button>
-            <?php endif; ?>
-        </div>
-    </div>
-
-    <div id="agendaCalendarShell" class="agenda-calendar-shell">
-        <div id="calendar"></div>
-        <div id="agendaCalendarLoading" class="agenda-calendar-loading" aria-hidden="true">
-            <div class="agenda-calendar-loading-box">
-                <i class="fa fa-spinner fa-spin" aria-hidden="true"></i>
-                <div class="agenda-calendar-loading-title">Caricamento agenda</div>
-                <div class="agenda-calendar-loading-note" id="agendaCalendarLoadingText">
-                    Sto aggiornando il calendario del professionista selezionato.
+                    <button type="button" class="btn btn-danger" id="btnBlockDayAgenda" style="display:none;">
+                        <i class="fa fa-lock"></i> Blocca giornata
+                    </button>
                 </div>
             </div>
         </div>
-    </div>
-    <div id="agendaTeamDayShell" class="agenda-calendar-shell agenda-team-shell">
-        <div class="agenda-team-day-toolbar">
-            <div class="agenda-team-day-toolbar-actions">
-                <button type="button" class="btn btn-primary agenda-team-day-toolbar-btn" id="btnTeamDayToday">
-                    Oggi
-                </button>
+
+        <div class="agenda-calendar-viewbar" id="agendaCalendarViewbar">
+            <div class="agenda-calendar-viewbar-copy">
+                <span class="agenda-calendar-viewbar-kicker">
+                    <i class="fa fa-eye"></i> Vista agenda
+                </span>
             </div>
-            <div class="agenda-team-day-toolbar-main">
-                <button type="button" class="btn btn-default agenda-team-day-toolbar-btn" id="btnTeamDayPrev" aria-label="Giorno precedente">
+            <div class="agenda-view-switch agenda-view-switch--calendar" role="group" aria-label="Vista agenda rapida sopra il calendario">
+                <button type="button" class="btn btn-default agenda-view-btn" data-view-mode="day">
+                    <i class="fa fa-sun-o"></i> Giorno
+                </button>
+                <button type="button" class="btn btn-default agenda-view-btn" data-view-mode="week">
+                    <i class="fa fa-calendar"></i> Settimana
+                </button>
+                <?php if (!empty($teamDayViewEnabled)): ?>
+                    <button type="button" class="btn btn-default agenda-view-btn" data-view-mode="team_day">
+                        <i class="fa fa-columns"></i> Giorno Team
+                    </button>
+                <?php endif; ?>
+            </div>
+        </div>
+
+        <div class="agenda-compressed-daybar" id="agendaCompressedDaybar">
+            <div class="agenda-compressed-daybar-nav" role="group" aria-label="Cambia giorno agenda">
+                <button type="button" class="btn btn-default" id="btnCompressedPrevDay" aria-label="Giorno precedente">
                     <i class="fa fa-chevron-left"></i>
                 </button>
-                <div class="agenda-team-day-toolbar-copy">
-                    <div class="agenda-team-day-toolbar-kicker">
-                        <i class="fa fa-calendar-o"></i> Agenda del team
-                    </div>
-                    <div class="agenda-team-day-toolbar-headline">
-                        <span class="agenda-team-day-toolbar-piece" id="agendaTeamDayCurrentWeekday">-</span>
-                        <span class="agenda-team-day-toolbar-piece" id="agendaTeamDayCurrentDayNumber">-</span>
-                        <span class="agenda-team-day-toolbar-piece" id="agendaTeamDayCurrentMonth">-</span>
-                    </div>
-                    <div class="agenda-team-day-toolbar-year" id="agendaTeamDayCurrentYear">-</div>
-                </div>
-                <button type="button" class="btn btn-default agenda-team-day-toolbar-btn" id="btnTeamDayNext" aria-label="Giorno successivo">
+                <button type="button" class="btn btn-primary" id="btnCompressedToday">
+                    Oggi
+                </button>
+                <button type="button" class="btn btn-default" id="btnCompressedNextDay" aria-label="Giorno successivo">
                     <i class="fa fa-chevron-right"></i>
                 </button>
             </div>
-        </div>
-        <div class="agenda-team-summary">
-            <i class="fa fa-columns"></i> Vista giornaliera del team: qui vedi in parallelo tutti i professionisti visibili. Le azioni laterali restano riferite al professionista selezionato in alto.
-        </div>
-        <div class="agenda-team-board-wrap">
-            <div id="agendaTeamDayBoard" class="agenda-team-board"></div>
-        </div>
-        <div id="agendaTeamDayLoading" class="agenda-calendar-loading" aria-hidden="true">
-            <div class="agenda-calendar-loading-box">
-                <i class="fa fa-spinner fa-spin" aria-hidden="true"></i>
-                <div class="agenda-calendar-loading-title">Caricamento vista team</div>
-                <div class="agenda-calendar-loading-note" id="agendaTeamDayLoadingText">
-                    Sto aggiornando la vista giornaliera del team.
+            <div class="agenda-compressed-daybar-copy">
+                <div class="agenda-compressed-daybar-kicker">
+                    <i class="fa fa-calendar-o" id="agendaCompressedDaybarKickerIcon"></i>
+                    <span id="agendaCompressedDaybarKickerText">Giorno agenda</span>
                 </div>
+                <div class="agenda-compressed-daybar-label" id="agendaCompressedDaybarLabel">-</div>
+            </div>
+            <div class="agenda-compressed-daybar-actions">
+                <button type="button" class="btn btn-warning" id="btnCompressedAddExtraSlot">
+                    <i class="fa fa-plus"></i> Aggiungi slot extra
+                </button>
             </div>
         </div>
-    </div>
-    <div id="agendaNoSlotsMessage" class="alert alert-info" style="display:none; margin-top:10px; margin-bottom:0;">
-        Nessuna agenda impostata per il giorno selezionato.
+
+        <div class="agenda-calendar-shell-main" id="agendaCalendarShellMain">
+            <div id="agendaCalendarShell" class="agenda-calendar-shell">
+                <div id="calendar"></div>
+                <div id="agendaCalendarLoading" class="agenda-calendar-loading" aria-hidden="true">
+                    <div class="agenda-calendar-loading-box">
+                        <i class="fa fa-spinner fa-spin" aria-hidden="true"></i>
+                        <div class="agenda-calendar-loading-title">Caricamento agenda</div>
+                        <div class="agenda-calendar-loading-note" id="agendaCalendarLoadingText">
+                            Sto aggiornando il calendario del professionista selezionato.
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id="agendaTeamDayShell" class="agenda-calendar-shell agenda-team-shell">
+                <div class="agenda-team-day-toolbar">
+                    <div class="agenda-team-day-toolbar-actions">
+                        <button type="button" class="btn btn-primary agenda-team-day-toolbar-btn" id="btnTeamDayToday">
+                            Oggi
+                        </button>
+                    </div>
+                    <div class="agenda-team-day-toolbar-main">
+                        <button type="button" class="btn btn-default agenda-team-day-toolbar-btn" id="btnTeamDayPrev" aria-label="Giorno precedente">
+                            <i class="fa fa-chevron-left"></i>
+                        </button>
+                        <div class="agenda-team-day-toolbar-copy">
+                            <div class="agenda-team-day-toolbar-kicker">
+                                <i class="fa fa-calendar-o"></i> Agenda del team
+                            </div>
+                            <div class="agenda-team-day-toolbar-headline">
+                                <span class="agenda-team-day-toolbar-piece" id="agendaTeamDayCurrentWeekday">-</span>
+                                <span class="agenda-team-day-toolbar-piece" id="agendaTeamDayCurrentDayNumber">-</span>
+                                <span class="agenda-team-day-toolbar-piece" id="agendaTeamDayCurrentMonth">-</span>
+                            </div>
+                            <div class="agenda-team-day-toolbar-year" id="agendaTeamDayCurrentYear">-</div>
+                        </div>
+                        <button type="button" class="btn btn-default agenda-team-day-toolbar-btn" id="btnTeamDayNext" aria-label="Giorno successivo">
+                            <i class="fa fa-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="agenda-team-summary">
+                    <i class="fa fa-columns"></i> Vista giornaliera del team: qui vedi in parallelo tutti i professionisti visibili. Le azioni laterali restano riferite al professionista selezionato in alto.
+                </div>
+                <div class="agenda-team-board-wrap">
+                    <div id="agendaTeamDayBoard" class="agenda-team-board"></div>
+                </div>
+                <div id="agendaTeamDayLoading" class="agenda-calendar-loading" aria-hidden="true">
+                    <div class="agenda-calendar-loading-box">
+                        <i class="fa fa-spinner fa-spin" aria-hidden="true"></i>
+                        <div class="agenda-calendar-loading-title">Caricamento vista team</div>
+                        <div class="agenda-calendar-loading-note" id="agendaTeamDayLoadingText">
+                            Sto aggiornando la vista giornaliera del team.
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id="agendaNoSlotsMessage" class="alert alert-info" style="display:none; margin-top:10px; margin-bottom:0;">
+                Nessuna agenda impostata per il giorno selezionato.
+            </div>
+        </div>
     </div>
 </div>
                             </div>
@@ -3337,6 +3515,7 @@ window.AGENDA_CONFIG = {
     domiciliariAbilitati: <?= !empty($domiciliariAbilitati) ? 'true' : 'false' ?>,
     teamDayViewEnabled: <?= !empty($teamDayViewEnabled) ? 'true' : 'false' ?>,
     skipEmptyAgendaDaysEnabled: <?= !empty($skipEmptyAgendaDaysEnabled) ? 'true' : 'false' ?>,
+    compressedLayoutEnabled: <?= $agendaCompressedLayoutEnabled ? 'true' : 'false' ?>,
     sharedMemoManagementEnabled: <?= $sharedMemoManagementEnabled ? 'true' : 'false' ?>,
     visitTypesFeatureEnabled: <?= !empty($visitTypesFeatureEnabled) ? 'true' : 'false' ?>,
     visitTypeSelectionOptionalEnabled: <?= !empty($visitTypeSelectionOptionalEnabled) ? 'true' : 'false' ?>,
@@ -3614,6 +3793,47 @@ function syncAgendaTeamDayToolbar() {
     $dayNumber.text(dayNumberLabel || '-');
     $month.text(monthLabel || '-');
     $year.text(yearLabel || '-');
+}
+
+function syncAgendaCompressedDaybar() {
+    var $label = $('#agendaCompressedDaybarLabel');
+    var $kickerText = $('#agendaCompressedDaybarKickerText');
+    var $kickerIcon = $('#agendaCompressedDaybarKickerIcon');
+
+    if (!$label.length || !$kickerText.length || !$kickerIcon.length) {
+        return;
+    }
+
+    var selected = getSelectedAgendaMoment();
+    var activeView = normalizeAgendaViewModeValue($('#view_mode').val());
+    var label = '';
+    var kickerText = 'Giorno agenda';
+    var kickerIcon = 'fa-calendar-o';
+
+    if (activeView === 'team_day') {
+        kickerText = 'Agenda del team';
+        kickerIcon = 'fa-columns';
+    } else if (activeView === 'week') {
+        kickerText = 'Settimana agenda';
+        kickerIcon = 'fa-calendar';
+    }
+
+    if (activeView === 'week') {
+        var weekStart = selected.clone().startOf('isoWeek');
+        var weekEnd = selected.clone().endOf('isoWeek');
+        label = 'Dal ' + weekStart.format('D MMMM') + ' al ' + weekEnd.format('D MMMM YYYY');
+    } else {
+        var weekdayLabel = selected.format('dddd');
+        if (weekdayLabel) {
+            weekdayLabel = weekdayLabel.charAt(0).toUpperCase() + weekdayLabel.slice(1);
+        }
+
+        label = weekdayLabel + ' ' + selected.format('D MMMM YYYY');
+    }
+
+    $kickerText.text(kickerText);
+    $kickerIcon.attr('class', 'fa ' + kickerIcon);
+    $label.text(label);
 }
 
 function buildAgendaAvailabilityNavigationMessage(direction, view) {
@@ -4482,6 +4702,7 @@ function syncAgendaViewButtons() {
     });
 
     syncAgendaPrintButtonLabel(activeView);
+    syncAgendaCompressedDaybar();
 }
 
 function syncAgendaPrintButtonLabel(activeView) {
@@ -6068,7 +6289,7 @@ function applicaStatoGiornoBloccato() {
         $('#calendar').removeClass('agenda-day-locked');
     }
 
-    $('#btnAddExtraSlot').prop('disabled', giornoBloccato);
+    $('#btnAddExtraSlot, #btnCompressedAddExtraSlot').prop('disabled', giornoBloccato);
 
     var sharedMemoEnabled = isSharedMemoManagementEnabled();
     var memoDisabled = isMemoActionBlocked();
@@ -6271,6 +6492,7 @@ function leggiFiltriAgenda() {
     window.AGENDA_CONFIG.selectedDate = data;
     window.AGENDA_CONFIG.viewMode = view;
     syncAgendaTeamDayToolbar();
+    syncAgendaCompressedDaybar();
 
     return {
         data: data,
@@ -7140,9 +7362,13 @@ function buildAgendaTeamColumnInlineStyle(column) {
     return cssText;
 }
 
-function renderAgendaTeamDayHeader(column) {
+function renderAgendaTeamDayHeader(column, extraStyle) {
     var chips = '';
     var columnStyle = buildAgendaTeamColumnInlineStyle(column);
+    extraStyle = $.trim(String(extraStyle || ''));
+    if (extraStyle !== '') {
+        columnStyle += extraStyle;
+    }
     var styleAttr = columnStyle !== '' ? ' style="' + columnStyle + '"' : '';
 
     if (column.is_selected) {
@@ -7337,29 +7563,38 @@ function renderAgendaTeamDay(res) {
     var totalHeight = Math.max(Math.round(bounds.totalMinutes * pixelsPerMinute), 640);
     var stepHeight = Math.max(Math.round(stepMinutes * pixelsPerMinute), 60);
     var entryHeight = Math.max(stepHeight - 6, 54);
-    var templateColumns = '82px';
+    var compressedLayoutEnabled = !!window.AGENDA_CONFIG.compressedLayoutEnabled;
+    var templateColumns = compressedLayoutEnabled ? '' : '82px';
     var html = '';
 
     $.each(columns, function() {
-        templateColumns += ' minmax(220px, 1fr)';
+        templateColumns += (templateColumns !== '' ? ' ' : '') + 'minmax(220px, 1fr)';
     });
 
     html += '<div class="agenda-team-grid" style="grid-template-columns:' + templateColumns + ';">';
-    html += '<div class="agenda-team-corner">Orario</div>';
+    if (!compressedLayoutEnabled) {
+        html += '<div class="agenda-team-corner">Orario</div>';
+    }
 
-    $.each(columns, function(_, column) {
-        html += renderAgendaTeamDayHeader(column);
+    $.each(columns, function(index, column) {
+        var headerExtraStyle = compressedLayoutEnabled && index === 0 ? 'border-left:0;' : '';
+        html += renderAgendaTeamDayHeader(column, headerExtraStyle);
     });
 
-    html += '<div class="agenda-team-time-axis" style="height:' + totalHeight + 'px;">'
-        + renderAgendaTeamDayTimeMarkers(bounds, pixelsPerMinute)
-        + '</div>';
+    if (!compressedLayoutEnabled) {
+        html += '<div class="agenda-team-time-axis" style="height:' + totalHeight + 'px;">'
+            + renderAgendaTeamDayTimeMarkers(bounds, pixelsPerMinute)
+            + '</div>';
+    }
 
-    $.each(columns, function(_, column) {
+    $.each(columns, function(index, column) {
         var columnStyle = buildAgendaTeamColumnInlineStyle(column);
         var columnBodyStyle = 'height:' + totalHeight + 'px;--agenda-team-step-height:' + stepHeight + 'px;';
         if (columnStyle !== '') {
             columnBodyStyle += columnStyle;
+        }
+        if (compressedLayoutEnabled && index === 0) {
+            columnBodyStyle += 'border-left:0;';
         }
 
         if ($.isArray(column && column.slots)) {
@@ -8743,7 +8978,8 @@ function caricaTutto(options) {
 $(function () {
     moment.locale('it');
     syncAgendaTeamDayToolbar();
-    setAgendaSidebarCollapsed(false, { realign: false });
+    syncAgendaCompressedDaybar();
+    setAgendaSidebarCollapsed(!!window.AGENDA_CONFIG.compressedLayoutEnabled, { realign: false });
 
     window.addEventListener('pagehide', function() {
         inviaUnlockBeaconSePresente();
@@ -9105,6 +9341,18 @@ $('#nota_giorno_text').on('blur', function() {
 
     $('#btnNextDay').on('click', function() {
         navigateAgendaSelectedDay(1);
+    });
+
+    $('#btnCompressedToday').on('click', function() {
+        $('#btnToday').trigger('click');
+    });
+
+    $('#btnCompressedPrevDay').on('click', function() {
+        $('#btnPrevDay').trigger('click');
+    });
+
+    $('#btnCompressedNextDay').on('click', function() {
+        $('#btnNextDay').trigger('click');
     });
 
     $('#btnTeamDayToday').on('click', function() {
@@ -9597,6 +9845,10 @@ $('#nota_giorno_text').on('blur', function() {
         window.setTimeout(function() {
             $('#extra_slot_ora_inizio').trigger('focus');
         }, 200);
+    });
+
+    $('#btnCompressedAddExtraSlot').on('click', function() {
+        $('#btnAddExtraSlot').trigger('click');
     });
 
     $('#btnSaveExtraSlotModal').on('click', function() {

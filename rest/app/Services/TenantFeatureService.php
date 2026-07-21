@@ -265,6 +265,16 @@ class TenantFeatureService
                 'tenant_default_enabled' => 0,
                 'sort_order' => 69,
             ],
+            'agenda_compressed_layout' => [
+                'feature_name' => 'Versione compressa agenda',
+                'feature_scope' => 'workflow',
+                'description' => 'Il tenant master puo attivare per il singolo studio un layout agenda piu compatto: barra giorno con frecce e slot extra in alto, mentre stampa PDF e scelta vista scendono sotto il calendario.',
+                'default_enabled' => 0,
+                'icon_class' => 'fa-compress',
+                'is_tenant_managed' => 1,
+                'tenant_default_enabled' => 0,
+                'sort_order' => 70,
+            ],
         ];
     }
 
