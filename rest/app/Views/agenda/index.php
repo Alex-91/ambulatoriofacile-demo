@@ -3227,6 +3227,20 @@
                         <input type="email" id="app_email" class="form-control">
                     </div>
 
+                    <?php if (!empty($patientSmsReminderPreferenceAvailable)): ?>
+                    <div class="col-md-12">
+                        <div class="checkbox" style="margin:0 0 4px;">
+                            <label>
+                                <input type="checkbox" id="app_appointment_reminder_sms_enabled" value="1">
+                                Attiva promemoria appuntamento via SMS per questo paziente
+                            </label>
+                        </div>
+                        <p class="help-block" style="margin:0 0 12px;">
+                            La preferenza resta salvata sul paziente e la ritrovi nei prossimi appuntamenti.
+                        </p>
+                    </div>
+                    <?php endif; ?>
+
                     <div class="col-md-12 form-group">
                         <label for="app_note">Note</label>
                         <textarea id="app_note" rows="4" class="form-control"></textarea>
@@ -3552,6 +3566,7 @@ window.AGENDA_CONFIG = {
     visitTypeSelectionOptionalEnabled: <?= !empty($visitTypeSelectionOptionalEnabled) ? 'true' : 'false' ?>,
     appointmentBillingWorkflowEnabled: <?= !empty($appointmentDocumentActions['billing_enabled']) ? 'true' : 'false' ?>,
     appointmentTsWorkflowEnabled: <?= !empty($appointmentDocumentActions['ts_enabled']) ? 'true' : 'false' ?>,
+    patientSmsReminderPreferenceAvailable: <?= !empty($patientSmsReminderPreferenceAvailable) ? 'true' : 'false' ?>,
     appointmentBillingWorkflowUrlBase: "<?= site_url('agenda/fatturazione-da-appuntamento') ?>",
     appointmentTsWorkflowUrlBase: "<?= site_url('agenda/ts-da-appuntamento') ?>",
     csrfTokenName: "<?= esc(csrf_token()) ?>",
@@ -6681,6 +6696,7 @@ function resetAppointmentModal() {
     $('#app_cellulare').val('');
     $('#app_email').val('');
     $('#app_note').val('');
+    setAppointmentReminderSmsPreference(false);
     $('#app_id_tipo_visita').val('');
     $('#app_durata_visita').val('');
     $('#app_slot_copertura_info').removeClass('is-error is-ok').text('');
@@ -6706,6 +6722,18 @@ function supportsAppointmentBillingWorkflow() {
 
 function supportsAppointmentTsWorkflow() {
     return !!window.AGENDA_CONFIG.appointmentTsWorkflowEnabled;
+}
+
+function supportsPatientSmsReminderPreference() {
+    return !!window.AGENDA_CONFIG.patientSmsReminderPreferenceAvailable;
+}
+
+function setAppointmentReminderSmsPreference(enabled) {
+    if (!supportsPatientSmsReminderPreference()) {
+        return;
+    }
+
+    $('#app_appointment_reminder_sms_enabled').prop('checked', !!enabled);
 }
 
 function buildAppointmentDocumentWorkflowUrl(mode, appointmentId) {
@@ -7176,6 +7204,7 @@ function riempiModaleDaEvento(slot) {
     $('#app_cellulare').val(slot.cellulare || '');
     $('#app_email').val(slot.email || '');
     $('#app_note').val(slot.note || '');
+    setAppointmentReminderSmsPreference(parseInt(slot.appointment_reminder_sms_enabled || 0, 10) === 1);
     $('#searchPatient').val('');
     setAppointmentExtraSlotState(slot);
     setAppointmentLinkedPatient(linkedPatientId, patientLabel);
@@ -8769,6 +8798,7 @@ function cercaPazientiAutocomplete(term) {
                 'data-nome="' + escapeHtml(row.nome || '') + '" ' +
                     'data-telefono="' + escapeHtml(row.telefono || '') + '" ' +
                     'data-cellulare="' + escapeHtml(row.cellulare || '') + '" ' +
+                    'data-reminder-sms-enabled="' + escapeHtml(row.appointment_reminder_sms_enabled || 0) + '" ' +
                     'data-email="' + escapeHtml(row.email || '') + '">' +
                     '<strong>' + escapeHtml((row.cognome || '') + ' ' + (row.nome || '')) + '</strong>' +
                     '</div>';
@@ -9649,6 +9679,7 @@ $('#nota_giorno_text').on('blur', function() {
         $('#app_telefono').val('');
         $('#app_cellulare').val('');
         $('#app_email').val('');
+        setAppointmentReminderSmsPreference(false);
         $('#patientAutocomplete').addClass('d-none').html('');
         $('#app_cognome').trigger('focus');
     });
@@ -9668,6 +9699,7 @@ $('#nota_giorno_text').on('blur', function() {
         $('#app_telefono').val($(this).data('telefono') || '');
         $('#app_cellulare').val($(this).data('cellulare') || '');
         $('#app_email').val($(this).data('email') || '');
+        setAppointmentReminderSmsPreference(parseInt($(this).data('reminderSmsEnabled') || 0, 10) === 1);
         $('#searchPatient').val(getAppointmentPatientLabel(cognome, nome));
 
         $('#patientAutocomplete').addClass('d-none').html('');
@@ -9747,6 +9779,7 @@ $('#nota_giorno_text').on('blur', function() {
                 telefono: $('#app_telefono').val(),
                 cellulare: $('#app_cellulare').val(),
                 email: $('#app_email').val(),
+                appointment_reminder_sms_enabled: supportsPatientSmsReminderPreference() && $('#app_appointment_reminder_sms_enabled').is(':checked') ? 1 : 0,
                 note: $('#app_note').val(),
                 id_tipo_visita: $('#app_id_tipo_visita').val()
             }

@@ -6,6 +6,8 @@ use Config\Database;
 
 class AppointmentReminderDispatchService
 {
+    private const PATIENT_REMINDER_SMS_COLUMN = 'appointment_reminder_sms_enabled';
+
     private \CodeIgniter\Database\BaseConnection $platformDb;
     private TenantDatabaseConnector $tenantDbConnector;
     private AppointmentNotificationSettingsService $settingsService;
@@ -112,6 +114,11 @@ class AppointmentReminderDispatchService
                     $appointmentId = (int) ($row['id_appuntamento'] ?? 0);
                     $patientLabel = trim((string) ($row['patient_cognome'] ?? '') . ' ' . (string) ($row['patient_nome'] ?? ''));
                     $recipient = $hasForcedRecipient ? $forceRecipient : $this->buildRecipientContext($row, $patientLabel);
+                    $rowChannels = $this->filterReminderChannelsForRow($channels, $row);
+
+                    if ($rowChannels === []) {
+                        continue;
+                    }
 
                     if (!$this->hasAnyRecipientTarget($recipient)) {
                         $tenantSummary['invalid_recipient']++;
@@ -127,14 +134,14 @@ class AppointmentReminderDispatchService
                         $tenantSummary['preview'][] = [
                             'appointment_id' => $appointmentId,
                             'patient_label' => $patientLabel,
-                            'recipient' => $this->describeRecipients($recipient, $channels),
-                            'channels' => $channels,
+                            'recipient' => $this->describeRecipients($recipient, $rowChannels),
+                            'channels' => $rowChannels,
                             'scheduled_for' => $targetDate . ' ' . (string) ($row['ora_label'] ?? ''),
                         ];
                         continue;
                     }
 
-                    foreach ($channels as $channel) {
+                    foreach ($rowChannels as $channel) {
                         if (isset($states[$channel]['sent'][(string) $appointmentId])) {
                             $tenantSummary['already_sent']++;
                             $summary['already_sent']++;
@@ -265,10 +272,14 @@ class AppointmentReminderDispatchService
             ? "LEFT JOIN dap39_sms_dot conf ON conf.id_dot = s.id_dot"
             : "LEFT JOIN (SELECT NULL AS id_dot, 0 AS conferma) conf ON 1 = 0";
         $hasIdClientColumn = $db->fieldExists('id_client', 'dap12_agenda_appuntamenti');
+        $hasPatientReminderSmsColumn = $db->fieldExists(self::PATIENT_REMINDER_SMS_COLUMN, 'dap02_clients');
         $clientJoinOn = $hasIdClientColumn
             ? 'c.id_client = COALESCE(NULLIF(a.id_client, 0), NULLIF(a.id_paziente, 0))'
             : 'c.id_client = NULLIF(a.id_paziente, 0)';
         $patientEmailExpr = $this->decryptExpr('c.email', 'c.vector_id');
+        $patientReminderSmsSelect = $hasPatientReminderSmsColumn
+            ? 'COALESCE(c.' . self::PATIENT_REMINDER_SMS_COLUMN . ', 0) AS appointment_reminder_sms_enabled,'
+            : '1 AS appointment_reminder_sms_enabled,';
 
         $sql = "
             SELECT
@@ -293,6 +304,7 @@ class AppointmentReminderDispatchService
                 COALESCE(amb.indirizzo, '') AS indirizzo,
                 COALESCE(amb.citta, '') AS citta,
                 COALESCE(amb.telefono, '') AS amb_tel,
+                {$patientReminderSmsSelect}
                 COALESCE(NULLIF(TRIM(a.email), ''), NULLIF(TRIM(" . $patientEmailExpr . "), ''), '') AS patient_email,
                 " . $this->decryptExpr('p.qualifica', 'p.vector_id') . " AS doc_qualifica,
                 " . $this->decryptExpr('p.nome', 'p.vector_id') . " AS doc_nome,
@@ -334,6 +346,23 @@ class AppointmentReminderDispatchService
             'email' => (string) (($row['patient_email'] ?? '') ?: ($row['appointment_email'] ?? '')),
             'label' => $patientLabel,
         ];
+    }
+
+    /**
+     * @param array<int, string> $channels
+     * @param array<string, mixed> $row
+     * @return array<int, string>
+     */
+    private function filterReminderChannelsForRow(array $channels, array $row): array
+    {
+        if ((int) ($row[self::PATIENT_REMINDER_SMS_COLUMN] ?? 0) === 1) {
+            return $channels;
+        }
+
+        return array_values(array_filter(
+            $channels,
+            static fn(string $channel): bool => $channel !== AppointmentNotificationSettingsService::CHANNEL_SMS
+        ));
     }
 
     /**

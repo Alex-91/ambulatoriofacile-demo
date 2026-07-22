@@ -13,6 +13,7 @@ class PazientiModel extends Model
     private const CLIENTS_TABLE = 'dap02_clients';
     private const CLIENT_DOCTOR_TABLE = 'dap09_client_doctor';
     private const APPOINTMENTS_TABLE = 'dap12_agenda_appuntamenti';
+    private const APPOINTMENT_REMINDER_SMS_COLUMN = 'appointment_reminder_sms_enabled';
     private const SHARED_AGENDA_PATIENTS_FEATURE = 'shared_agenda_patients';
     private const SPECIAL_PATIENT_TOKENS = ['DDD', 'STOP', 'INFO', 'INF', 'URG', 'CER', 'DOT'];
 
@@ -24,6 +25,7 @@ class PazientiModel extends Model
     private array $doctorRoleByUserCache = [];
     private ?array $sharedDoctorScopeCache = null;
     private ?bool $sharedAgendaPatientsEnabledCache = null;
+    private ?bool $hasClientAppointmentReminderSmsColumn = null;
 
     public function __construct()
     {
@@ -81,6 +83,7 @@ class PazientiModel extends Model
                 {$this->dec('c.email')} AS email,
                 {$this->dec('c.codice_fiscale')} AS cod_fis,
                 {$this->dec('c.paz_spec')} AS paz_spec,
+                {$this->patientReminderSmsSelectSql('c')} AS appointment_reminder_sms_enabled,
                 {$this->dec('c.indirizzo')} AS indirizzo,
                 {$this->dec('c.citta')} AS citta,
                 CONCAT({$this->decExpr('c.cognome')}, ' ', {$this->decExpr('c.nome')}) AS label
@@ -682,6 +685,7 @@ class PazientiModel extends Model
                 {$this->dec('c.residenza_cap')} AS residenza_cap,
                 {$this->dec('c.residenza_provincia')} AS residenza_provincia,
                 {$this->dec('c.paz_spec')} AS paz_spec,
+                {$this->patientReminderSmsSelectSql('c')} AS appointment_reminder_sms_enabled,
                 COALESCE(c.bloccato, 0) AS bloccato
             FROM " . self::CLIENTS_TABLE . " c
             INNER JOIN (
@@ -816,6 +820,7 @@ class PazientiModel extends Model
                 {$this->dec('c.residenza_cap')} AS residenza_cap,
                 {$this->dec('c.residenza_provincia')} AS residenza_provincia,
                 {$this->dec('c.paz_spec')} AS paz_spec,
+                {$this->patientReminderSmsSelectSql('c')} AS appointment_reminder_sms_enabled,
                 COALESCE(c.bloccato, 0) AS bloccato
             {$baseFromSql}
             ORDER BY
@@ -939,6 +944,7 @@ class PazientiModel extends Model
                 {$this->dec('c.cellulare')} AS cellulare,
                 {$this->dec('c.email')} AS email,
                 {$this->dec('c.paz_spec')} AS paz_spec,
+                {$this->patientReminderSmsSelectSql('c')} AS appointment_reminder_sms_enabled,
                 COALESCE(c.bloccato, 0) AS bloccato,
                 COALESCE(c.id_personale, 0) AS id_dot
             FROM " . self::CLIENTS_TABLE . " c
@@ -994,6 +1000,7 @@ class PazientiModel extends Model
                 {$this->dec('c.cellulare')} AS cellulare,
                 {$this->dec('c.email')} AS email,
                 {$this->dec('c.paz_spec')} AS paz_spec,
+                {$this->patientReminderSmsSelectSql('c')} AS appointment_reminder_sms_enabled,
                 COALESCE(c.bloccato, 0) AS bloccato,
                 COALESCE(c.id_personale, 0) AS id_dot
             FROM " . self::CLIENTS_TABLE . " c
@@ -1146,6 +1153,7 @@ class PazientiModel extends Model
             'telefono' => trim((string)($payload['telefono'] ?? '')),
             'cellulare' => trim((string)($payload['cellulare'] ?? '')),
             'email' => trim((string)($payload['email'] ?? '')),
+            'appointment_reminder_sms_enabled' => (int)($payload['appointment_reminder_sms_enabled'] ?? 0),
             'bloccato' => (int)($payload['bloccato'] ?? 0),
             'paz_spec' => trim((string)($payload['paz_spec'] ?? '')),
         ];
@@ -1228,6 +1236,7 @@ class PazientiModel extends Model
                     {$this->dec('c.email')} AS email,
                     {$this->dec('c.codice_fiscale')} AS cod_fis,
                     {$this->dec('c.paz_spec')} AS paz_spec,
+                    {$this->patientReminderSmsSelectSql('c')} AS appointment_reminder_sms_enabled,
                     {$this->dec('c.indirizzo')} AS indirizzo,
                     {$this->dec('c.citta')} AS citta,
                     CONCAT({$this->decExpr('c.cognome')}, ' ', {$this->decExpr('c.nome')}) AS label
@@ -1257,6 +1266,7 @@ class PazientiModel extends Model
                     {$this->dec('c.residenza_cap')} AS residenza_cap,
                     {$this->dec('c.residenza_provincia')} AS residenza_provincia,
                     {$this->dec('c.paz_spec')} AS paz_spec,
+                    {$this->patientReminderSmsSelectSql('c')} AS appointment_reminder_sms_enabled,
                     COALESCE(c.bloccato, 0) AS bloccato
                 FROM " . self::CLIENTS_TABLE . " c
                 WHERE c.id_client IN ({$idListSql})
@@ -1272,6 +1282,12 @@ class PazientiModel extends Model
         $this->db->query('SET @init_vector = RANDOM_BYTES(16)');
 
         $primaryDoctorId = $this->isFamilyDoctor($idPersonale) ? $idPersonale : null;
+        $reminderColumn = $this->clientTableHasAppointmentReminderSmsColumn()
+            ? ', ' . self::APPOINTMENT_REMINDER_SMS_COLUMN
+            : '';
+        $reminderValue = $this->clientTableHasAppointmentReminderSmsColumn()
+            ? ', ' . (int)$data['appointment_reminder_sms_enabled']
+            : '';
         $sql = "
             INSERT INTO " . self::CLIENTS_TABLE . " (
                 id_user,
@@ -1295,7 +1311,7 @@ class PazientiModel extends Model
                 paz_spec,
                 bloccato,
                 id_personale,
-                avviso_mail,
+                avviso_mail{$reminderColumn},
                 vector_id
             ) VALUES (
                 NULL,
@@ -1319,7 +1335,7 @@ class PazientiModel extends Model
                 {$this->enc($data['paz_spec'])},
                 " . (int)$data['bloccato'] . ",
                 " . ($primaryDoctorId !== null ? (int)$primaryDoctorId : 'NULL') . ",
-                0,
+                0{$reminderValue},
                 @init_vector
             )
         ";
@@ -1359,6 +1375,10 @@ class PazientiModel extends Model
             'paz_spec' => 'paz_spec=' . $this->encWithVector($data['paz_spec']),
             'bloccato' => 'bloccato=' . (int)$data['bloccato'],
         ];
+
+        if ($this->clientTableHasAppointmentReminderSmsColumn()) {
+            $fieldSqlMap['appointment_reminder_sms_enabled'] = self::APPOINTMENT_REMINDER_SMS_COLUMN . '=' . (int)$data['appointment_reminder_sms_enabled'];
+        }
 
         foreach ($fieldSqlMap as $field => $sql) {
             if (!empty($providedFields[$field])) {
@@ -2042,9 +2062,32 @@ class PazientiModel extends Model
             'telefono' => array_key_exists('telefono', $payload),
             'cellulare' => array_key_exists('cellulare', $payload),
             'email' => array_key_exists('email', $payload),
+            'appointment_reminder_sms_enabled' => array_key_exists('appointment_reminder_sms_enabled', $payload),
             'bloccato' => array_key_exists('bloccato', $payload),
             'paz_spec' => array_key_exists('paz_spec', $payload),
         ];
+    }
+
+    private function patientReminderSmsSelectSql(string $alias): string
+    {
+        $alias = trim($alias);
+        if ($alias === '' || !$this->clientTableHasAppointmentReminderSmsColumn()) {
+            return '0';
+        }
+
+        return 'COALESCE(' . $alias . '.' . self::APPOINTMENT_REMINDER_SMS_COLUMN . ', 0)';
+    }
+
+    private function clientTableHasAppointmentReminderSmsColumn(): bool
+    {
+        if ($this->hasClientAppointmentReminderSmsColumn !== null) {
+            return $this->hasClientAppointmentReminderSmsColumn;
+        }
+
+        return $this->hasClientAppointmentReminderSmsColumn = $this->db->fieldExists(
+            self::APPOINTMENT_REMINDER_SMS_COLUMN,
+            self::CLIENTS_TABLE
+        );
     }
 
     private function dec(string $fieldExpr): string

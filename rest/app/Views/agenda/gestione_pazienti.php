@@ -201,6 +201,20 @@
                         <input type="text" id="indirizzo" class="form-control">
                     </div>
 
+                    <?php if (!empty($patientSmsReminderPreferenceAvailable)): ?>
+                    <div class="col-md-12">
+                        <div class="checkbox" style="margin:0 0 4px;">
+                            <label>
+                                <input type="checkbox" id="appointment_reminder_sms_enabled" value="1">
+                                Attiva promemoria appuntamento via SMS per questo paziente
+                            </label>
+                        </div>
+                        <p class="help-block" style="margin:0 0 12px;">
+                            La preferenza viene riutilizzata anche nei prossimi appuntamenti del paziente.
+                        </p>
+                    </div>
+                    <?php endif; ?>
+
                     <div class="col-md-4 form-group">
                         <label>Citta</label>
                         <input type="text" id="citta" class="form-control">
@@ -313,6 +327,7 @@ function resetFormPaziente() {
     $('#id_paziente').val('');
     $('#cognome,#nome,#data_nascita,#cod_fis,#comune_nascita,#provincia_nascita,#indirizzo,#citta,#cap,#provincia,#residenza_indirizzo,#residenza_comune,#residenza_cap,#residenza_provincia,#telefono,#cellulare,#email,#paz_spec').val('');
     $('#bloccato').val('0');
+    $('#appointment_reminder_sms_enabled').prop('checked', false);
     $('#btnEliminaPaziente').hide();
     $('#pazienteModalTitle').text('Nuovo paziente');
 }
@@ -351,6 +366,7 @@ function fillPazienteForm(row) {
     $('#email').val(row.email || '');
     $('#paz_spec').val(row.paz_spec || '');
     $('#bloccato').val(row.bloccato || 0);
+    $('#appointment_reminder_sms_enabled').prop('checked', parseInt(row.appointment_reminder_sms_enabled || 0, 10) === 1);
 
     $('#pazienteModalTitle').text('Modifica paziente');
     $('#btnEliminaPaziente').show();
@@ -475,6 +491,7 @@ function salvaPaziente() {
         telefono: $('#telefono').val(),
         cellulare: $('#cellulare').val(),
         email: $('#email').val(),
+        appointment_reminder_sms_enabled: $('#appointment_reminder_sms_enabled').is(':checked') ? 1 : 0,
         paz_spec: $('#paz_spec').val(),
         bloccato: $('#bloccato').val()
     }, function(res) {

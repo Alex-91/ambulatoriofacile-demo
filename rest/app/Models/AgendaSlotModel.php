@@ -12,6 +12,7 @@ use Exception;
 class AgendaSlotModel extends Model
 {
     private const CONFIG_INSERT_BATCH_SIZE = 250;
+    private const PATIENT_REMINDER_SMS_COLUMN = 'appointment_reminder_sms_enabled';
 
     protected $table = 'dap11_agenda_slot';
     protected $primaryKey = 'id_slot';
@@ -38,6 +39,7 @@ class AgendaSlotModel extends Model
     private ?bool $hasAppointmentSlotLinkTable = null;
     private ?bool $hasFasceTable = null;
     private ?bool $hasAmbulatoriTable = null;
+    private ?bool $hasPatientReminderSmsColumn = null;
     private ?bool $hasSlotRoomColumn = null;
     /** @var array<string, bool> */
     private array $appointmentFieldExistsCache = [];
@@ -63,6 +65,11 @@ public function getSlotsCalendario(int $idDot, string $date, string $view = 'day
     $linkedClientSelect = $hasAppointmentClientColumn
         ? 'COALESCE(a.id_client, c_by_id.id_client, c_by_legacy.id_client) AS id_cliente_collegato,'
         : 'c_by_legacy.id_client AS id_cliente_collegato,';
+    $patientReminderSmsSelect = $this->clientTableHasReminderSmsColumn()
+        ? ($hasAppointmentClientColumn
+            ? 'COALESCE(c_by_id.' . self::PATIENT_REMINDER_SMS_COLUMN . ', c_by_legacy.' . self::PATIENT_REMINDER_SMS_COLUMN . ', 0) AS appointment_reminder_sms_enabled,'
+            : 'COALESCE(c_by_legacy.' . self::PATIENT_REMINDER_SMS_COLUMN . ', 0) AS appointment_reminder_sms_enabled,')
+        : '0 AS appointment_reminder_sms_enabled,';
     $createdByUsernameSelect = $hasAppointmentCreatedByColumn
         ? "COALESCE(u_created.username, '') AS created_by_username,"
         : "'' AS created_by_username,";
@@ -98,6 +105,7 @@ public function getSlotsCalendario(int $idDot, string $date, string $view = 'day
     a.telefono,
     a.cellulare,
     a.email,
+    {$patientReminderSmsSelect}
     {$pazSpecExpr}
     a.note,
     {$createdByUsernameSelect}
@@ -355,6 +363,18 @@ private function mapAvailabilityDays(array $rows): array
         }
 
         return $this->hasAppointmentCreatedByColumn;
+    }
+
+    private function clientTableHasReminderSmsColumn(): bool
+    {
+        if ($this->hasPatientReminderSmsColumn === null) {
+            $this->hasPatientReminderSmsColumn = $this->db->fieldExists(
+                self::PATIENT_REMINDER_SMS_COLUMN,
+                'dap02_clients'
+            );
+        }
+
+        return $this->hasPatientReminderSmsColumn;
     }
 
     private function appointmentSlotLinkTableExists(): bool

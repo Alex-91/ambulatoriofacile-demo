@@ -20,6 +20,7 @@ use App\Services\AgendaDefaultViewService;
 use App\Services\AgendaHomeBlockOrderService;
 use App\Services\AgendaProfessionalOrderService;
 use App\Services\AgendaTeamColumnColorService;
+use App\Services\AppointmentNotificationSettingsService;
 use App\Services\BillingTsModuleStatusService;
 use App\Services\NotificationService;
 use App\Services\SmsReminderDashboardService;
@@ -741,6 +742,31 @@ public function eseguiRepairRecurringExtraSlots()
     protected function isSkipEmptyAgendaDaysFeatureEnabled(): bool
     {
         return $this->tenantFeatureEnabled(self::SKIP_EMPTY_AGENDA_DAYS_FEATURE);
+    }
+
+    protected function isPatientSmsReminderPreferenceAvailable(): bool
+    {
+        $tenantId = $this->resolveCurrentAgendaTenantId();
+        if ($tenantId <= 0) {
+            return false;
+        }
+
+        try {
+            $plan = (new AppointmentNotificationSettingsService())->resolveDispatchPlan(
+                $tenantId,
+                AppointmentNotificationSettingsService::TYPE_REMINDER
+            );
+        } catch (\Throwable $e) {
+            log_message('warning', 'Agenda::isPatientSmsReminderPreferenceAvailable failed: {message}', [
+                'message' => $e->getMessage(),
+                'tenant_id' => $tenantId,
+            ]);
+
+            return false;
+        }
+
+        return !empty($plan['enabled'])
+            && in_array(AppointmentNotificationSettingsService::CHANNEL_SMS, (array) ($plan['channels'] ?? []), true);
     }
 
     protected function isVisitTypesFeatureEnabled(): bool
@@ -1640,6 +1666,7 @@ public function eseguiRepairRecurringExtraSlots()
         $appointmentDocumentActions = $this->resolveAppointmentDocumentActionsState();
         $agendaHomeBlockOrderSettings = [];
         $agendaTenantId = $this->resolveCurrentAgendaTenantId();
+        $patientSmsReminderPreferenceAvailable = $this->isPatientSmsReminderPreferenceAvailable();
 
         if ($agendaTenantId > 0) {
             try {
@@ -1672,6 +1699,7 @@ public function eseguiRepairRecurringExtraSlots()
             'agendaHomeBlockOrderSettings' => $agendaHomeBlockOrderSettings,
             'domiciliariAbilitati' => $domiciliariAbilitati,
             'appointmentDocumentActions' => $appointmentDocumentActions,
+            'patientSmsReminderPreferenceAvailable' => $patientSmsReminderPreferenceAvailable,
             'locationCatalog'      => $this->locationModel->getCatalog(true),
             'menuAgenda'           => method_exists($this->agendaModel, 'getMenuVisibleByUser')
                 ? $this->agendaModel->getMenuVisibleByUser($this->getCurrentUserId())
@@ -4597,6 +4625,7 @@ public function eseguiRepairRecurringExtraSlots()
             'pageTitle'   => 'Gestione pazienti',
             'medici'      => $medici,
             'selectedDot' => $selectedDot,
+            'patientSmsReminderPreferenceAvailable' => $this->isPatientSmsReminderPreferenceAvailable(),
             'menuAgenda'  => method_exists($this->agendaModel, 'getMenuVisibleByUser')
                 ? $this->agendaModel->getMenuVisibleByUser($this->getCurrentUserId())
                 : $this->agendaModel->getMenuVisible(),
