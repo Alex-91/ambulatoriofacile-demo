@@ -43,6 +43,7 @@ class Agenda extends BaseController
     private const SHARED_AGENDA_MEMOS_FEATURE = 'shared_agenda_memos';
     private const VISIT_TYPES_FEATURE = 'agenda_visit_types';
     private const OPTIONAL_VISIT_TYPE_FEATURE = 'agenda_visit_type_optional';
+    private const SHOW_APPOINTMENT_CREATOR_FEATURE = 'agenda_show_appointment_creator';
 
     protected AgendaModel $agendaModel;
     protected AgendaSlotModel $slotModel;
@@ -751,6 +752,11 @@ public function eseguiRepairRecurringExtraSlots()
         return $this->tenantFeatureEnabled(self::SKIP_EMPTY_AGENDA_DAYS_FEATURE);
     }
 
+    protected function shouldShowAppointmentCreator(): bool
+    {
+        return $this->tenantFeatureEnabled(self::SHOW_APPOINTMENT_CREATOR_FEATURE);
+    }
+
     protected function isPatientSmsReminderPreferenceAvailable(): bool
     {
         $tenantId = $this->resolveCurrentAgendaTenantId();
@@ -856,6 +862,39 @@ public function eseguiRepairRecurringExtraSlots()
         }
 
         return $this->tenantFeatureMap;
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $rows
+     * @return array<int, array<string, mixed>>
+     */
+    protected function sanitizeAppointmentCreatorRows(array $rows): array
+    {
+        if ($rows === [] || $this->shouldShowAppointmentCreator()) {
+            return $rows;
+        }
+
+        foreach ($rows as $index => $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+
+            $rows[$index]['created_by_username'] = '';
+        }
+
+        return $rows;
+    }
+
+    /**
+     * @param array<string, mixed> $row
+     */
+    protected function resolveVisibleAppointmentCreatorUsername(array $row): string
+    {
+        if (!$this->shouldShowAppointmentCreator()) {
+            return '';
+        }
+
+        return trim((string)($row['created_by_username'] ?? ''));
     }
 
     protected function resolveCurrentAgendaTenantId(): int
@@ -1097,7 +1136,9 @@ public function eseguiRepairRecurringExtraSlots()
     protected function buildTeamDayColumnPayload(array $doctor, string $data, bool $isSelected, array $columnThemes = []): array
     {
         $idDot = (int)($doctor['id_dot'] ?? 0);
-        $slots = $idDot > 0 ? $this->slotModel->getSlotsCalendario($idDot, $data, 'day') : [];
+        $slots = $idDot > 0
+            ? $this->sanitizeAppointmentCreatorRows($this->slotModel->getSlotsCalendario($idDot, $data, 'day'))
+            : [];
         $hasSlots = !empty($slots);
         $message = '';
 
@@ -2753,7 +2794,7 @@ public function eseguiRepairRecurringExtraSlots()
             $this->lockModel->cleanupExpiredLocks();
 
             $step = 'load_slots';
-            $slots = $this->slotModel->getSlotsCalendario($idDot, $data, $view);
+            $slots = $this->sanitizeAppointmentCreatorRows($this->slotModel->getSlotsCalendario($idDot, $data, $view));
             $hasSlots = !empty($slots);
             $noAgendaMessage = '';
             $giornoBloccato = $this->agendaModel->isGiornoBloccato($idDot, $data);
@@ -3626,7 +3667,9 @@ public function eseguiRepairRecurringExtraSlots()
             return $this->respondJsonSafe([
                 'status'  => true,
                 'patient' => null,
-                'rows'    => $this->pazientiModel->getAppointmentsByDoctorAndPatient($idPaziente, $idDot, 200),
+                'rows'    => $this->sanitizeAppointmentCreatorRows(
+                    $this->pazientiModel->getAppointmentsByDoctorAndPatient($idPaziente, $idDot, 200)
+                ),
             ]);
         } catch (\Exception $e) {
             return $this->respondJsonSafe([
@@ -4925,7 +4968,7 @@ public function eseguiRepairRecurringExtraSlots()
         $this->ensureDompdfAvailable();
 
         $showWaConfirmationColumn = $this->shouldShowWaConfirmationColumn($idDot);
-        $slots = $this->slotModel->getSlotsCalendario($idDot, $data, 'day');
+        $slots = $this->sanitizeAppointmentCreatorRows($this->slotModel->getSlotsCalendario($idDot, $data, 'day'));
         $rows = $this->buildSingleDayPdfRows($slots, $showWaConfirmationColumn);
 
         $dot = $this->agendaModel->getAgendaProfessionalByLegacyId($idDot) ?? [];
@@ -5048,7 +5091,7 @@ public function eseguiRepairRecurringExtraSlots()
         $dot = $this->agendaModel->getAgendaProfessionalByLegacyId($idDot) ?? [];
         $doctorLabel = $this->resolveAgendaProfessionalDisplayLabel($dot, $idDot);
         $weekRange = $this->resolveAgendaWeekRange($data);
-        $slots = $this->slotModel->getSlotsCalendario($idDot, $data, 'week');
+        $slots = $this->sanitizeAppointmentCreatorRows($this->slotModel->getSlotsCalendario($idDot, $data, 'week'));
         $blockedMap = $this->agendaModel->getGiorniBloccatiMapForRange($idDot, $weekRange['start'], $weekRange['end']);
         $gridDuration = !empty($slots) ? $this->calcolaStepCalendario($slots) : 15;
         [$minTime, $maxTime] = $this->resolveTimelinePdfBounds($slots, $gridDuration);
@@ -5445,7 +5488,7 @@ public function eseguiRepairRecurringExtraSlots()
         $pieces = [];
         $visitType = $this->buildAgendaPdfVisitTypeLabel($slot);
         $note = trim((string)($slot['note'] ?? ''));
-        $createdByUsername = trim((string)($slot['created_by_username'] ?? ''));
+        $createdByUsername = $this->resolveVisibleAppointmentCreatorUsername($slot);
 
         if ($visitType !== '') {
             $pieces[] = $visitType;
@@ -6732,7 +6775,9 @@ public function eliminaGiorniFerieSelezionati()
 
             return $this->respondJsonSafe([
                 'status'      => true,
-                'slots'       => $this->slotModel->getSlotsCalendario($idDot, $data, $view),
+                'slots'       => $this->sanitizeAppointmentCreatorRows(
+                    $this->slotModel->getSlotsCalendario($idDot, $data, $view)
+                ),
                 'domiciliari' => $domiciliariAbilitati ? $this->slotModel->getDomiciliari($idDot, $data) : [],
                 'note'        => $this->enrichMemoRowsForResponse($noteRows, $data),
                 'server_time' => date('Y-m-d H:i:s')

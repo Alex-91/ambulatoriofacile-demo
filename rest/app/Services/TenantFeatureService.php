@@ -275,6 +275,16 @@ class TenantFeatureService
                 'tenant_default_enabled' => 0,
                 'sort_order' => 70,
             ],
+            'agenda_show_appointment_creator' => [
+                'feature_name' => 'Mostra creatore appuntamento',
+                'feature_scope' => 'workflow',
+                'description' => 'Il tenant master puo scegliere se mostrare o nascondere il nome dell utente che ha creato l appuntamento nel calendario, nello storico paziente e nei PDF agenda.',
+                'default_enabled' => 1,
+                'icon_class' => 'fa-eye',
+                'is_tenant_managed' => 1,
+                'tenant_default_enabled' => 1,
+                'sort_order' => 73,
+            ],
             AgendaAppointmentBlockLayoutService::FEATURE_KEY => [
                 'feature_name' => 'Layout popup appuntamento',
                 'feature_scope' => 'workflow',

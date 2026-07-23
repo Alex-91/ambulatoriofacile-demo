@@ -16,6 +16,23 @@ class PazientiModel extends Model
     private const APPOINTMENT_REMINDER_SMS_COLUMN = 'appointment_reminder_sms_enabled';
     private const SHARED_AGENDA_PATIENTS_FEATURE = 'shared_agenda_patients';
     private const SPECIAL_PATIENT_TOKENS = ['DDD', 'STOP', 'INFO', 'INF', 'URG', 'CER', 'DOT'];
+    private const EXTRA_PATIENT_FIELDS = [
+        'denominazione' => ['encrypted' => true, 'default' => "''"],
+        'partita_iva' => ['encrypted' => true, 'default' => "''"],
+        'email_pec' => ['encrypted' => true, 'default' => "''"],
+        'banca' => ['encrypted' => true, 'default' => "''"],
+        'condizioni_pagamento' => ['encrypted' => true, 'default' => "''"],
+        'codice_destinatario' => ['encrypted' => true, 'default' => "''"],
+        'iva_differita' => ['encrypted' => false, 'default' => '0'],
+        'note_cliente' => ['encrypted' => true, 'default' => "''"],
+        'nr_civico' => ['encrypted' => true, 'default' => "''"],
+        'indirizzo_secondario' => ['encrypted' => true, 'default' => "''"],
+        'nr_civico_secondario' => ['encrypted' => true, 'default' => "''"],
+        'comune_secondario' => ['encrypted' => true, 'default' => "''"],
+        'cap_secondario' => ['encrypted' => true, 'default' => "''"],
+        'provincia_secondaria' => ['encrypted' => true, 'default' => "''"],
+        'cliente_attivo' => ['encrypted' => false, 'default' => '1'],
+    ];
 
     protected $db;
     protected Crypto_helper $crypto;
@@ -26,6 +43,7 @@ class PazientiModel extends Model
     private ?array $sharedDoctorScopeCache = null;
     private ?bool $sharedAgendaPatientsEnabledCache = null;
     private ?bool $hasClientAppointmentReminderSmsColumn = null;
+    private array $clientColumnExistsCache = [];
 
     public function __construct()
     {
@@ -78,6 +96,7 @@ class PazientiModel extends Model
                 c.id_client AS id_paziente,
                 {$this->dec('c.nome')} AS nome,
                 {$this->dec('c.cognome')} AS cognome,
+                {$this->buildAdditionalPatientSelectSql('c')},
                 {$this->dec('c.telefono')} AS telefono,
                 {$this->dec('c.cellulare')} AS cellulare,
                 {$this->dec('c.email')} AS email,
@@ -669,6 +688,7 @@ class PazientiModel extends Model
                 c.id_client AS id_paziente,
                 {$this->dec('c.nome')} AS nome,
                 {$this->dec('c.cognome')} AS cognome,
+                {$this->buildAdditionalPatientSelectSql('c')},
                 {$this->dec('c.telefono')} AS telefono,
                 {$this->dec('c.cellulare')} AS cellulare,
                 {$this->dec('c.email')} AS email,
@@ -928,6 +948,7 @@ class PazientiModel extends Model
                 c.id_client AS id_paziente,
                 {$this->dec('c.nome')} AS nome,
                 {$this->dec('c.cognome')} AS cognome,
+                {$this->buildAdditionalPatientSelectSql('c')},
                 {$this->dec('c.data_nascita')} AS data_nascita,
                 {$this->dec('c.codice_fiscale')} AS cod_fis,
                 {$this->dec('c.comune_nascita')} AS comune_nascita,
@@ -984,6 +1005,7 @@ class PazientiModel extends Model
                 c.id_client AS id_paziente,
                 {$this->dec('c.nome')} AS nome,
                 {$this->dec('c.cognome')} AS cognome,
+                {$this->buildAdditionalPatientSelectSql('c')},
                 {$this->dec('c.data_nascita')} AS data_nascita,
                 {$this->dec('c.codice_fiscale')} AS cod_fis,
                 {$this->dec('c.comune_nascita')} AS comune_nascita,
@@ -1138,14 +1160,22 @@ class PazientiModel extends Model
         $data = [
             'cognome' => trim((string)($payload['cognome'] ?? '')),
             'nome' => trim((string)($payload['nome'] ?? '')),
+            'denominazione' => trim((string)($payload['denominazione'] ?? '')),
             'data_nascita' => trim((string)($payload['data_nascita'] ?? '')),
             'codice_fiscale' => $this->normalizeFiscalCode((string)($payload['cod_fis'] ?? ($payload['codice_fiscale'] ?? ''))),
+            'partita_iva' => $this->normalizeVatNumber((string)($payload['partita_iva'] ?? '')),
             'comune_nascita' => trim((string)($payload['comune_nascita'] ?? '')),
             'provincia_nascita' => trim((string)($payload['provincia_nascita'] ?? '')),
             'indirizzo' => trim((string)($payload['indirizzo'] ?? '')),
+            'nr_civico' => trim((string)($payload['nr_civico'] ?? '')),
             'citta' => trim((string)($payload['citta'] ?? '')),
             'cap' => trim((string)($payload['cap'] ?? '')),
             'provincia' => trim((string)($payload['provincia'] ?? '')),
+            'indirizzo_secondario' => trim((string)($payload['indirizzo_secondario'] ?? '')),
+            'nr_civico_secondario' => trim((string)($payload['nr_civico_secondario'] ?? '')),
+            'comune_secondario' => trim((string)($payload['comune_secondario'] ?? '')),
+            'cap_secondario' => trim((string)($payload['cap_secondario'] ?? '')),
+            'provincia_secondaria' => trim((string)($payload['provincia_secondaria'] ?? '')),
             'residenza_indirizzo' => trim((string)($payload['residenza_indirizzo'] ?? '')),
             'residenza_comune' => trim((string)($payload['residenza_comune'] ?? '')),
             'residenza_cap' => trim((string)($payload['residenza_cap'] ?? '')),
@@ -1153,12 +1183,29 @@ class PazientiModel extends Model
             'telefono' => trim((string)($payload['telefono'] ?? '')),
             'cellulare' => trim((string)($payload['cellulare'] ?? '')),
             'email' => trim((string)($payload['email'] ?? '')),
+            'email_pec' => trim((string)($payload['email_pec'] ?? '')),
+            'banca' => trim((string)($payload['banca'] ?? '')),
+            'condizioni_pagamento' => trim((string)($payload['condizioni_pagamento'] ?? '')),
+            'codice_destinatario' => trim((string)($payload['codice_destinatario'] ?? '')),
+            'iva_differita' => (int)($payload['iva_differita'] ?? 0),
+            'note_cliente' => trim((string)($payload['note_cliente'] ?? '')),
             'appointment_reminder_sms_enabled' => (int)($payload['appointment_reminder_sms_enabled'] ?? 0),
             'bloccato' => (int)($payload['bloccato'] ?? 0),
+            'cliente_attivo' => array_key_exists('cliente_attivo', $payload)
+                ? (int)($payload['cliente_attivo'] ?? 0)
+                : ((int)($payload['bloccato'] ?? 0) === 1 ? 0 : 1),
             'paz_spec' => trim((string)($payload['paz_spec'] ?? '')),
         ];
 
-        if ($data['cognome'] === '' || $data['nome'] === '') {
+        if ($data['denominazione'] === '') {
+            $data['denominazione'] = trim((string)(preg_replace('/\s+/', ' ', trim($data['cognome'] . ' ' . $data['nome'])) ?? ''));
+        }
+
+        if ($data['denominazione'] !== '' && $data['cognome'] === '' && $data['nome'] === '') {
+            $data['cognome'] = $data['denominazione'];
+        }
+
+        if ($data['denominazione'] === '' && ($data['cognome'] === '' || $data['nome'] === '')) {
             throw new Exception('Nome e cognome sono obbligatori.');
         }
 
@@ -1231,6 +1278,7 @@ class PazientiModel extends Model
                     c.id_client AS id_paziente,
                     {$this->dec('c.nome')} AS nome,
                     {$this->dec('c.cognome')} AS cognome,
+                    {$this->buildAdditionalPatientSelectSql('c')},
                     {$this->dec('c.telefono')} AS telefono,
                     {$this->dec('c.cellulare')} AS cellulare,
                     {$this->dec('c.email')} AS email,
@@ -1250,6 +1298,7 @@ class PazientiModel extends Model
                     c.id_client AS id_paziente,
                     {$this->dec('c.nome')} AS nome,
                     {$this->dec('c.cognome')} AS cognome,
+                    {$this->buildAdditionalPatientSelectSql('c')},
                     {$this->dec('c.telefono')} AS telefono,
                     {$this->dec('c.cellulare')} AS cellulare,
                     {$this->dec('c.email')} AS email,
@@ -1282,6 +1331,7 @@ class PazientiModel extends Model
         $this->db->query('SET @init_vector = RANDOM_BYTES(16)');
 
         $primaryDoctorId = $this->isFamilyDoctor($idPersonale) ? $idPersonale : null;
+        $extraInsert = $this->buildAdditionalPatientInsertFragments($data);
         $reminderColumn = $this->clientTableHasAppointmentReminderSmsColumn()
             ? ', ' . self::APPOINTMENT_REMINDER_SMS_COLUMN
             : '';
@@ -1311,7 +1361,7 @@ class PazientiModel extends Model
                 paz_spec,
                 bloccato,
                 id_personale,
-                avviso_mail{$reminderColumn},
+                avviso_mail{$reminderColumn}{$extraInsert['columns']},
                 vector_id
             ) VALUES (
                 NULL,
@@ -1335,7 +1385,7 @@ class PazientiModel extends Model
                 {$this->enc($data['paz_spec'])},
                 " . (int)$data['bloccato'] . ",
                 " . ($primaryDoctorId !== null ? (int)$primaryDoctorId : 'NULL') . ",
-                0{$reminderValue},
+                0{$reminderValue}{$extraInsert['values']},
                 @init_vector
             )
         ";
@@ -1378,6 +1428,10 @@ class PazientiModel extends Model
 
         if ($this->clientTableHasAppointmentReminderSmsColumn()) {
             $fieldSqlMap['appointment_reminder_sms_enabled'] = self::APPOINTMENT_REMINDER_SMS_COLUMN . '=' . (int)$data['appointment_reminder_sms_enabled'];
+        }
+
+        foreach ($this->buildAdditionalPatientUpdateMap($data) as $field => $sql) {
+            $fieldSqlMap[$field] = $sql;
         }
 
         foreach ($fieldSqlMap as $field => $sql) {
@@ -1680,6 +1734,14 @@ class PazientiModel extends Model
             'paz_spec',
         ];
 
+        foreach (array_keys(self::EXTRA_PATIENT_FIELDS) as $field) {
+            if (!$this->isAdditionalPatientEncryptedField($field) || !$this->clientTableHasColumn($field)) {
+                continue;
+            }
+
+            $fields[] = $field;
+        }
+
         $checks = array_map(function (string $field) use ($alias): string {
             return "COALESCE(TRIM({$this->decExpr($alias . '.' . $field)}), '') <> ''";
         }, $fields);
@@ -1712,7 +1774,12 @@ class PazientiModel extends Model
             }
 
             if ($autocompleteMode) {
-                $cleanRow['label'] = trim((string)($cleanRow['label'] ?? trim(($cleanRow['cognome'] ?? '') . ' ' . ($cleanRow['nome'] ?? ''))));
+                $label = trim((string)($cleanRow['label'] ?? trim(($cleanRow['cognome'] ?? '') . ' ' . ($cleanRow['nome'] ?? ''))));
+                if ($label === '' && trim((string)($cleanRow['denominazione'] ?? '')) !== '') {
+                    $label = trim((string)$cleanRow['denominazione']);
+                }
+
+                $cleanRow['label'] = $label;
             }
 
             $sanitized[] = $cleanRow;
@@ -1752,21 +1819,34 @@ class PazientiModel extends Model
         $fields = [
             'cognome',
             'nome',
+            'denominazione',
             'cod_fis',
+            'partita_iva',
             'telefono',
             'cellulare',
             'email',
+            'email_pec',
             'data_nascita',
             'comune_nascita',
             'provincia_nascita',
             'indirizzo',
+            'nr_civico',
             'citta',
             'cap',
             'provincia',
+            'indirizzo_secondario',
+            'nr_civico_secondario',
+            'comune_secondario',
+            'cap_secondario',
+            'provincia_secondaria',
             'residenza_indirizzo',
             'residenza_comune',
             'residenza_cap',
             'residenza_provincia',
+            'banca',
+            'condizioni_pagamento',
+            'codice_destinatario',
+            'note_cliente',
             'paz_spec',
         ];
 
@@ -1784,18 +1864,31 @@ class PazientiModel extends Model
         $fields = [
             'cognome',
             'nome',
+            'denominazione',
             'cod_fis',
+            'partita_iva',
             'telefono',
             'cellulare',
             'email',
+            'email_pec',
             'indirizzo',
+            'nr_civico',
             'citta',
             'comune_nascita',
             'provincia_nascita',
             'provincia',
+            'indirizzo_secondario',
+            'nr_civico_secondario',
+            'comune_secondario',
+            'cap_secondario',
+            'provincia_secondaria',
             'residenza_indirizzo',
             'residenza_comune',
             'residenza_provincia',
+            'banca',
+            'condizioni_pagamento',
+            'codice_destinatario',
+            'note_cliente',
             'paz_spec',
             'label',
         ];
@@ -2022,6 +2115,12 @@ class PazientiModel extends Model
         return preg_replace('/[^A-Z0-9]/', '', $value) ?? '';
     }
 
+    private function normalizeVatNumber(string $value): string
+    {
+        $value = strtoupper(trim($value));
+        return preg_replace('/[^A-Z0-9]/', '', $value) ?? '';
+    }
+
     private function resolvePersonaleIdFromLegacyDot(int $legacyIdDot): int
     {
         if ($legacyIdDot <= 0) {
@@ -2047,14 +2146,22 @@ class PazientiModel extends Model
         return [
             'cognome' => array_key_exists('cognome', $payload),
             'nome' => array_key_exists('nome', $payload),
+            'denominazione' => array_key_exists('denominazione', $payload),
             'data_nascita' => array_key_exists('data_nascita', $payload),
             'codice_fiscale' => array_key_exists('cod_fis', $payload) || array_key_exists('codice_fiscale', $payload),
+            'partita_iva' => array_key_exists('partita_iva', $payload),
             'comune_nascita' => array_key_exists('comune_nascita', $payload),
             'provincia_nascita' => array_key_exists('provincia_nascita', $payload),
             'indirizzo' => array_key_exists('indirizzo', $payload),
+            'nr_civico' => array_key_exists('nr_civico', $payload),
             'citta' => array_key_exists('citta', $payload),
             'cap' => array_key_exists('cap', $payload),
             'provincia' => array_key_exists('provincia', $payload),
+            'indirizzo_secondario' => array_key_exists('indirizzo_secondario', $payload),
+            'nr_civico_secondario' => array_key_exists('nr_civico_secondario', $payload),
+            'comune_secondario' => array_key_exists('comune_secondario', $payload),
+            'cap_secondario' => array_key_exists('cap_secondario', $payload),
+            'provincia_secondaria' => array_key_exists('provincia_secondaria', $payload),
             'residenza_indirizzo' => array_key_exists('residenza_indirizzo', $payload),
             'residenza_comune' => array_key_exists('residenza_comune', $payload),
             'residenza_cap' => array_key_exists('residenza_cap', $payload),
@@ -2062,10 +2169,94 @@ class PazientiModel extends Model
             'telefono' => array_key_exists('telefono', $payload),
             'cellulare' => array_key_exists('cellulare', $payload),
             'email' => array_key_exists('email', $payload),
+            'email_pec' => array_key_exists('email_pec', $payload),
+            'banca' => array_key_exists('banca', $payload),
+            'condizioni_pagamento' => array_key_exists('condizioni_pagamento', $payload),
+            'codice_destinatario' => array_key_exists('codice_destinatario', $payload),
+            'iva_differita' => array_key_exists('iva_differita', $payload),
+            'note_cliente' => array_key_exists('note_cliente', $payload),
             'appointment_reminder_sms_enabled' => array_key_exists('appointment_reminder_sms_enabled', $payload),
             'bloccato' => array_key_exists('bloccato', $payload),
+            'cliente_attivo' => array_key_exists('cliente_attivo', $payload),
             'paz_spec' => array_key_exists('paz_spec', $payload),
         ];
+    }
+
+    private function buildAdditionalPatientSelectSql(string $alias): string
+    {
+        $parts = [];
+
+        foreach (self::EXTRA_PATIENT_FIELDS as $field => $meta) {
+            $parts[] = $this->buildAdditionalPatientSelectFieldSql(
+                $alias,
+                $field,
+                (bool)($meta['encrypted'] ?? false),
+                (string)($meta['default'] ?? "''")
+            );
+        }
+
+        return implode(",\n                ", $parts);
+    }
+
+    private function buildAdditionalPatientInsertFragments(array $data): array
+    {
+        $columns = [];
+        $values = [];
+
+        foreach (self::EXTRA_PATIENT_FIELDS as $field => $meta) {
+            if (!$this->clientTableHasColumn($field)) {
+                continue;
+            }
+
+            $columns[] = $field;
+            $values[] = !empty($meta['encrypted'])
+                ? $this->enc((string)($data[$field] ?? ''))
+                : (string)((int)($data[$field] ?? (int)($meta['default'] ?? 0)));
+        }
+
+        return [
+            'columns' => $columns === [] ? '' : ', ' . implode(",\n                ", $columns),
+            'values' => $values === [] ? '' : ', ' . implode(",\n                ", $values),
+        ];
+    }
+
+    private function buildAdditionalPatientUpdateMap(array $data): array
+    {
+        $map = [];
+
+        foreach (self::EXTRA_PATIENT_FIELDS as $field => $meta) {
+            if (!$this->clientTableHasColumn($field)) {
+                continue;
+            }
+
+            $map[$field] = !empty($meta['encrypted'])
+                ? $field . '=' . $this->encWithVector((string)($data[$field] ?? ''))
+                : $field . '=' . (int)($data[$field] ?? (int)($meta['default'] ?? 0));
+        }
+
+        return $map;
+    }
+
+    private function buildAdditionalPatientSelectFieldSql(
+        string $alias,
+        string $field,
+        bool $encrypted,
+        string $defaultSql
+    ): string {
+        if (!$this->clientTableHasColumn($field)) {
+            return $defaultSql . ' AS ' . $field;
+        }
+
+        if ($encrypted) {
+            return $this->dec($alias . '.' . $field) . ' AS ' . $field;
+        }
+
+        return 'COALESCE(' . $alias . '.' . $field . ', ' . $defaultSql . ') AS ' . $field;
+    }
+
+    private function isAdditionalPatientEncryptedField(string $field): bool
+    {
+        return !empty(self::EXTRA_PATIENT_FIELDS[$field]['encrypted']);
     }
 
     private function patientReminderSmsSelectSql(string $alias): string
@@ -2084,10 +2275,18 @@ class PazientiModel extends Model
             return $this->hasClientAppointmentReminderSmsColumn;
         }
 
-        return $this->hasClientAppointmentReminderSmsColumn = $this->db->fieldExists(
-            self::APPOINTMENT_REMINDER_SMS_COLUMN,
-            self::CLIENTS_TABLE
+        return $this->hasClientAppointmentReminderSmsColumn = $this->clientTableHasColumn(
+            self::APPOINTMENT_REMINDER_SMS_COLUMN
         );
+    }
+
+    private function clientTableHasColumn(string $column): bool
+    {
+        if (array_key_exists($column, $this->clientColumnExistsCache)) {
+            return $this->clientColumnExistsCache[$column];
+        }
+
+        return $this->clientColumnExistsCache[$column] = $this->db->fieldExists($column, self::CLIENTS_TABLE);
     }
 
     private function dec(string $fieldExpr): string

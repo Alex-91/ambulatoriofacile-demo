@@ -29,6 +29,23 @@
             margin: 0;
         }
 
+        .patient-form-section-title {
+            margin: 8px 0 12px;
+            padding-top: 8px;
+            border-top: 1px solid #ecf0f5;
+            color: #607d8b;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+
+        .patient-form-section-title:first-child {
+            margin-top: 0;
+            padding-top: 0;
+            border-top: 0;
+        }
+
         @media (max-width: 767px) {
             .patient-list-summary,
             .pagination-wrapper {
@@ -113,7 +130,7 @@
                                 <table class="table table-bordered table-striped">
                                     <thead>
                                         <tr>
-                                            <th>Cognome</th>
+                                            <th>Cognome / Denominazione</th>
                                             <th>Nome</th>
                                             <th>Telefono</th>
                                             <th>Cellulare</th>
@@ -157,31 +174,56 @@
                 <input type="hidden" id="id_paziente">
 
                 <div class="row">
-                    <div class="col-md-6 form-group">
-                        <label>Cognome *</label>
-                        <input type="text" id="cognome" class="form-control">
+                    <div class="col-md-12">
+                        <div class="patient-form-section-title">Anagrafica</div>
                     </div>
                     <div class="col-md-6 form-group">
-                        <label>Nome *</label>
+                        <label>Denominazione</label>
+                        <input type="text" id="denominazione" class="form-control" placeholder="Utile per import Excel o persone giuridiche">
+                        <p class="help-block" style="margin-bottom:0;">
+                            Per persone fisiche compila nome e cognome. Per anagrafiche importate o soggetti giuridici puoi usare anche solo la denominazione.
+                        </p>
+                    </div>
+                    <div class="col-md-3 form-group">
+                        <label>Cognome</label>
+                        <input type="text" id="cognome" class="form-control">
+                    </div>
+                    <div class="col-md-3 form-group">
+                        <label>Nome</label>
                         <input type="text" id="nome" class="form-control">
                     </div>
 
-                    <div class="col-md-4 form-group">
-                        <label>Data nascita</label>
-                        <input type="date" id="data_nascita" class="form-control">
-                    </div>
                     <div class="col-md-4 form-group">
                         <label>Codice fiscale</label>
                         <input type="text" id="cod_fis" class="form-control">
                     </div>
                     <div class="col-md-4 form-group">
-                        <label>Comune nascita</label>
-                        <input type="text" id="comune_nascita" class="form-control">
+                        <label>Partita IVA</label>
+                        <input type="text" id="partita_iva" class="form-control">
+                    </div>
+                    <div class="col-md-4 form-group">
+                        <label>Data nascita</label>
+                        <input type="date" id="data_nascita" class="form-control">
                     </div>
 
                     <div class="col-md-4 form-group">
+                        <label>Comune nascita</label>
+                        <input type="text" id="comune_nascita" class="form-control">
+                    </div>
+                    <div class="col-md-4 form-group">
                         <label>Provincia nascita</label>
                         <input type="text" id="provincia_nascita" class="form-control">
+                    </div>
+                    <div class="col-md-4 form-group">
+                        <label>Cliente attivo (Excel)</label>
+                        <select id="cliente_attivo" class="form-control">
+                            <option value="1">Si</option>
+                            <option value="0">No</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-12">
+                        <div class="patient-form-section-title">Contatti E Amministrazione</div>
                     </div>
                     <div class="col-md-4 form-group">
                         <label>Telefono</label>
@@ -191,18 +233,38 @@
                         <label>Cellulare</label>
                         <input type="text" id="cellulare" class="form-control">
                     </div>
-
-                    <div class="col-md-6 form-group">
+                    <div class="col-md-4 form-group">
                         <label>Email</label>
                         <input type="email" id="email" class="form-control">
                     </div>
-                    <div class="col-md-6 form-group">
-                        <label>Indirizzo</label>
-                        <input type="text" id="indirizzo" class="form-control">
+
+                    <div class="col-md-4 form-group">
+                        <label>Email PEC</label>
+                        <input type="email" id="email_pec" class="form-control">
+                    </div>
+                    <div class="col-md-4 form-group">
+                        <label>Banca</label>
+                        <input type="text" id="banca" class="form-control">
+                    </div>
+                    <div class="col-md-4 form-group">
+                        <label>Condizioni di pagamento</label>
+                        <input type="text" id="condizioni_pagamento" class="form-control">
+                    </div>
+
+                    <div class="col-md-4 form-group">
+                        <label>Codice ufficio/destinatario</label>
+                        <input type="text" id="codice_destinatario" class="form-control">
+                    </div>
+                    <div class="col-md-4 form-group">
+                        <label>IVA differita</label>
+                        <select id="iva_differita" class="form-control">
+                            <option value="0">No</option>
+                            <option value="1">Si</option>
+                        </select>
                     </div>
 
                     <?php if (!empty($patientSmsReminderPreferenceAvailable)): ?>
-                    <div class="col-md-12">
+                    <div class="col-md-4">
                         <div class="checkbox" style="margin:0 0 4px;">
                             <label>
                                 <input type="checkbox" id="appointment_reminder_sms_enabled" value="1">
@@ -215,19 +277,62 @@
                     </div>
                     <?php endif; ?>
 
-                    <div class="col-md-4 form-group">
-                        <label>Citta</label>
+                    <div class="col-md-12 form-group">
+                        <label>Note cliente</label>
+                        <textarea id="note_cliente" class="form-control" rows="3"></textarea>
+                    </div>
+
+                    <div class="col-md-12">
+                        <div class="patient-form-section-title">Indirizzo Principale</div>
+                    </div>
+                    <div class="col-md-5 form-group">
+                        <label>Indirizzo</label>
+                        <input type="text" id="indirizzo" class="form-control">
+                    </div>
+                    <div class="col-md-2 form-group">
+                        <label>Nr. civico</label>
+                        <input type="text" id="nr_civico" class="form-control">
+                    </div>
+                    <div class="col-md-3 form-group">
+                        <label>Comune</label>
                         <input type="text" id="citta" class="form-control">
                     </div>
-                    <div class="col-md-4 form-group">
+                    <div class="col-md-2 form-group">
                         <label>CAP</label>
                         <input type="text" id="cap" class="form-control">
                     </div>
-                    <div class="col-md-4 form-group">
+                    <div class="col-md-2 form-group">
                         <label>Provincia</label>
                         <input type="text" id="provincia" class="form-control">
                     </div>
 
+                    <div class="col-md-12">
+                        <div class="patient-form-section-title">Secondo Indirizzo (Excel)</div>
+                    </div>
+                    <div class="col-md-5 form-group">
+                        <label>2o indirizzo</label>
+                        <input type="text" id="indirizzo_secondario" class="form-control">
+                    </div>
+                    <div class="col-md-2 form-group">
+                        <label>2o nr. civico</label>
+                        <input type="text" id="nr_civico_secondario" class="form-control">
+                    </div>
+                    <div class="col-md-3 form-group">
+                        <label>2o comune</label>
+                        <input type="text" id="comune_secondario" class="form-control">
+                    </div>
+                    <div class="col-md-1 form-group">
+                        <label>2o CAP</label>
+                        <input type="text" id="cap_secondario" class="form-control">
+                    </div>
+                    <div class="col-md-1 form-group">
+                        <label>2a prov.</label>
+                        <input type="text" id="provincia_secondaria" class="form-control">
+                    </div>
+
+                    <div class="col-md-12">
+                        <div class="patient-form-section-title">Residenza</div>
+                    </div>
                     <div class="col-md-6 form-group">
                         <label>Residenza indirizzo</label>
                         <input type="text" id="residenza_indirizzo" class="form-control">
@@ -241,7 +346,7 @@
                         <input type="text" id="residenza_cap" class="form-control">
                     </div>
 
-                    <div class="col-md-6 form-group">
+                    <div class="col-md-3 form-group">
                         <label>Residenza provincia</label>
                         <input type="text" id="residenza_provincia" class="form-control">
                     </div>
@@ -250,7 +355,7 @@
                         <input type="text" id="paz_spec" class="form-control">
                     </div>
                     <div class="col-md-3 form-group">
-                        <label>Bloccato</label>
+                        <label>Bloccato in agenda</label>
                         <select id="bloccato" class="form-control">
                             <option value="0">No</option>
                             <option value="1">Si</option>
@@ -325,8 +430,10 @@ function renderPagination(page, last) {
 
 function resetFormPaziente() {
     $('#id_paziente').val('');
-    $('#cognome,#nome,#data_nascita,#cod_fis,#comune_nascita,#provincia_nascita,#indirizzo,#citta,#cap,#provincia,#residenza_indirizzo,#residenza_comune,#residenza_cap,#residenza_provincia,#telefono,#cellulare,#email,#paz_spec').val('');
+    $('#denominazione,#cognome,#nome,#data_nascita,#cod_fis,#partita_iva,#comune_nascita,#provincia_nascita,#indirizzo,#nr_civico,#citta,#cap,#provincia,#indirizzo_secondario,#nr_civico_secondario,#comune_secondario,#cap_secondario,#provincia_secondaria,#residenza_indirizzo,#residenza_comune,#residenza_cap,#residenza_provincia,#telefono,#cellulare,#email,#email_pec,#banca,#condizioni_pagamento,#codice_destinatario,#note_cliente,#paz_spec').val('');
     $('#bloccato').val('0');
+    $('#cliente_attivo').val('1');
+    $('#iva_differita').val('0');
     $('#appointment_reminder_sms_enabled').prop('checked', false);
     $('#btnEliminaPaziente').hide();
     $('#pazienteModalTitle').text('Nuovo paziente');
@@ -347,16 +454,24 @@ function cachePatientRows(rows) {
 
 function fillPazienteForm(row) {
     $('#id_paziente').val(row.id_paziente || '');
+    $('#denominazione').val(row.denominazione || '');
     $('#cognome').val(row.cognome || '');
     $('#nome').val(row.nome || '');
     $('#data_nascita').val(row.data_nascita || '');
     $('#cod_fis').val(row.cod_fis || '');
+    $('#partita_iva').val(row.partita_iva || '');
     $('#comune_nascita').val(row.comune_nascita || '');
     $('#provincia_nascita').val(row.provincia_nascita || '');
     $('#indirizzo').val(row.indirizzo || '');
+    $('#nr_civico').val(row.nr_civico || '');
     $('#citta').val(row.citta || '');
     $('#cap').val(row.cap || '');
     $('#provincia').val(row.provincia || '');
+    $('#indirizzo_secondario').val(row.indirizzo_secondario || '');
+    $('#nr_civico_secondario').val(row.nr_civico_secondario || '');
+    $('#comune_secondario').val(row.comune_secondario || '');
+    $('#cap_secondario').val(row.cap_secondario || '');
+    $('#provincia_secondaria').val(row.provincia_secondaria || '');
     $('#residenza_indirizzo').val(row.residenza_indirizzo || '');
     $('#residenza_comune').val(row.residenza_comune || '');
     $('#residenza_cap').val(row.residenza_cap || '');
@@ -364,8 +479,15 @@ function fillPazienteForm(row) {
     $('#telefono').val(row.telefono || '');
     $('#cellulare').val(row.cellulare || '');
     $('#email').val(row.email || '');
+    $('#email_pec').val(row.email_pec || '');
+    $('#banca').val(row.banca || '');
+    $('#condizioni_pagamento').val(row.condizioni_pagamento || '');
+    $('#codice_destinatario').val(row.codice_destinatario || '');
+    $('#iva_differita').val((row.iva_differita || 0).toString());
+    $('#note_cliente').val(row.note_cliente || '');
     $('#paz_spec').val(row.paz_spec || '');
     $('#bloccato').val(row.bloccato || 0);
+    $('#cliente_attivo').val((row.cliente_attivo == null ? 1 : row.cliente_attivo).toString() === '0' ? '0' : '1');
     $('#appointment_reminder_sms_enabled').prop('checked', parseInt(row.appointment_reminder_sms_enabled || 0, 10) === 1);
 
     $('#pazienteModalTitle').text('Modifica paziente');
@@ -408,8 +530,9 @@ function caricaPazienti(page) {
         cachePatientRows(res.rows);
 
         $.each(res.rows, function(i, row) {
+            var primaryLabel = row.cognome || row.denominazione || '';
             html += '<tr>';
-            html += '<td>' + escapeHtml(row.cognome || '') + '</td>';
+            html += '<td>' + escapeHtml(primaryLabel) + '</td>';
             html += '<td>' + escapeHtml(row.nome || '') + '</td>';
             html += '<td>' + escapeHtml(row.telefono || '') + '</td>';
             html += '<td>' + escapeHtml(row.cellulare || '') + '</td>';
@@ -474,16 +597,24 @@ function salvaPaziente() {
     $.post("<?= base_url('agenda/salva-paziente-gestione') ?>", {
         id_paziente: $('#id_paziente').val(),
         id_dot: $('#id_dot').val(),
+        denominazione: $('#denominazione').val(),
         cognome: $('#cognome').val(),
         nome: $('#nome').val(),
         data_nascita: $('#data_nascita').val(),
         cod_fis: $('#cod_fis').val(),
+        partita_iva: $('#partita_iva').val(),
         comune_nascita: $('#comune_nascita').val(),
         provincia_nascita: $('#provincia_nascita').val(),
         indirizzo: $('#indirizzo').val(),
+        nr_civico: $('#nr_civico').val(),
         citta: $('#citta').val(),
         cap: $('#cap').val(),
         provincia: $('#provincia').val(),
+        indirizzo_secondario: $('#indirizzo_secondario').val(),
+        nr_civico_secondario: $('#nr_civico_secondario').val(),
+        comune_secondario: $('#comune_secondario').val(),
+        cap_secondario: $('#cap_secondario').val(),
+        provincia_secondaria: $('#provincia_secondaria').val(),
         residenza_indirizzo: $('#residenza_indirizzo').val(),
         residenza_comune: $('#residenza_comune').val(),
         residenza_cap: $('#residenza_cap').val(),
@@ -491,7 +622,14 @@ function salvaPaziente() {
         telefono: $('#telefono').val(),
         cellulare: $('#cellulare').val(),
         email: $('#email').val(),
+        email_pec: $('#email_pec').val(),
+        banca: $('#banca').val(),
+        condizioni_pagamento: $('#condizioni_pagamento').val(),
+        codice_destinatario: $('#codice_destinatario').val(),
+        iva_differita: $('#iva_differita').val(),
+        note_cliente: $('#note_cliente').val(),
         appointment_reminder_sms_enabled: $('#appointment_reminder_sms_enabled').is(':checked') ? 1 : 0,
+        cliente_attivo: $('#cliente_attivo').val(),
         paz_spec: $('#paz_spec').val(),
         bloccato: $('#bloccato').val()
     }, function(res) {
