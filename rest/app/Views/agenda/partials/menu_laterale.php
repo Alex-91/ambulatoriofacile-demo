@@ -18,22 +18,37 @@ if ($tenantId > 0 && in_array($tenantRole, ['tenant_master', 'tenant_admin'], tr
 $visitTypesFeatureEnabledResolved = isset($visitTypesFeatureEnabled)
     ? !empty($visitTypesFeatureEnabled)
     : false;
+$patientExcelImportFeatureEnabledResolved = isset($patientExcelImportEnabled)
+    ? !empty($patientExcelImportEnabled)
+    : false;
 
-if (!$visitTypesFeatureEnabledResolved && $tenantId > 0) {
+if ((!$visitTypesFeatureEnabledResolved || !$patientExcelImportFeatureEnabledResolved) && $tenantId > 0) {
     try {
         $featureMap = (new \App\Services\TenantFeatureService())->resolveEffectiveFeatureMapForTenant($tenantId);
-        $visitTypesFeatureEnabledResolved = !empty($featureMap['agenda_visit_types']);
+        if (!$visitTypesFeatureEnabledResolved) {
+            $visitTypesFeatureEnabledResolved = !empty($featureMap['agenda_visit_types']);
+        }
+        if (!$patientExcelImportFeatureEnabledResolved) {
+            $patientExcelImportFeatureEnabledResolved = !empty($featureMap['patient_excel_import']);
+        }
     } catch (\Throwable $e) {
         $visitTypesFeatureEnabledResolved = false;
+        $patientExcelImportFeatureEnabledResolved = false;
     }
 }
 
-if (!$visitTypesFeatureEnabledResolved && $tenantId <= 0) {
+if ((!$visitTypesFeatureEnabledResolved || !$patientExcelImportFeatureEnabledResolved) && $tenantId <= 0) {
     try {
         $featureMap = (new \App\Services\TenantCatalogService())->resolveFeatureMapForCurrentRuntimeTenant();
-        $visitTypesFeatureEnabledResolved = !empty($featureMap['agenda_visit_types']);
+        if (!$visitTypesFeatureEnabledResolved) {
+            $visitTypesFeatureEnabledResolved = !empty($featureMap['agenda_visit_types']);
+        }
+        if (!$patientExcelImportFeatureEnabledResolved) {
+            $patientExcelImportFeatureEnabledResolved = !empty($featureMap['patient_excel_import']);
+        }
     } catch (\Throwable $e) {
         $visitTypesFeatureEnabledResolved = false;
+        $patientExcelImportFeatureEnabledResolved = false;
     }
 }
 
@@ -161,6 +176,18 @@ if ($visitTypesFeatureEnabledResolved && !agenda_menu_has_route_shared($menuTree
         'label_menu' => 'Tipi visita',
         'icona' => 'fa fa-list-alt',
         'rotta' => 'agenda/gestione-tipi-visita',
+        'children' => [],
+    ];
+}
+
+if ($patientExcelImportFeatureEnabledResolved && !agenda_menu_has_route_shared($menuTree, 'agenda/importa-pazienti-excel')) {
+    $menuTree[] = [
+        'id_menu' => 'codex_import_pazienti_excel',
+        'id_menu_padre' => 0,
+        'tipo_voce' => 'ITEM',
+        'label_menu' => 'Importa pazienti Excel',
+        'icona' => 'fa fa-upload',
+        'rotta' => 'agenda/importa-pazienti-excel',
         'children' => [],
     ];
 }

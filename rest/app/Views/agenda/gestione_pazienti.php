@@ -90,6 +90,15 @@
                         <div class="box-header with-border">
                             <h3 class="box-title">Elenco pazienti</h3>
                             <div class="box-tools">
+                                <?php if (!empty($patientExcelImportEnabled)): ?>
+                                <a
+                                    href="<?= base_url('agenda/importa-pazienti-excel?id_dot=' . (int) $selectedDot) ?>"
+                                    class="btn btn-default btn-sm"
+                                    style="margin-right:6px;"
+                                >
+                                    <i class="fa fa-upload"></i> Importa Excel
+                                </a>
+                                <?php endif; ?>
                                 <button type="button" class="btn btn-success btn-sm" id="btnNuovoPaziente">
                                     <i class="fa fa-plus"></i> Nuovo paziente
                                 </button>

@@ -497,6 +497,9 @@ $routes->post('agenda/sblocca-domiciliari-giorno', 'Agenda::sbloccaDomiciliariGi
 $routes->get('agenda/get-nota-giorno', 'Agenda::getNotaGiorno');
 $routes->post('agenda/salva-nota-giorno', 'Agenda::salvaNotaGiorno');
 $routes->get('agenda/gestione-pazienti', 'Agenda::gestionePazienti');
+$routes->get('agenda/importa-pazienti-excel', 'Agenda::importaPazientiExcel');
+$routes->post('agenda/importa-pazienti-excel/preview', 'Agenda::importaPazientiExcelPreview');
+$routes->post('agenda/importa-pazienti-excel/conferma', 'Agenda::importaPazientiExcelConferma');
 $routes->get('agenda/lista-pazienti', 'Agenda::listaPazienti');
 $routes->post('agenda/salva-paziente-gestione', 'Agenda::salvaPazienteGestione');
 $routes->post('agenda/elimina-paziente', 'Agenda::eliminaPaziente');

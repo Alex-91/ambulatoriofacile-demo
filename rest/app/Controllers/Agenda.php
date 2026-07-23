@@ -25,6 +25,7 @@ use App\Services\AgendaTeamColumnColorService;
 use App\Services\AppointmentNotificationSettingsService;
 use App\Services\BillingTsModuleStatusService;
 use App\Services\NotificationService;
+use App\Services\PatientExcelImportService;
 use App\Services\SmsReminderDashboardService;
 use App\Services\StaffDoctorAccessService;
 use App\Services\TenantCatalogService;
@@ -44,6 +45,7 @@ class Agenda extends BaseController
     private const VISIT_TYPES_FEATURE = 'agenda_visit_types';
     private const OPTIONAL_VISIT_TYPE_FEATURE = 'agenda_visit_type_optional';
     private const SHOW_APPOINTMENT_CREATOR_FEATURE = 'agenda_show_appointment_creator';
+    private const PATIENT_EXCEL_IMPORT_FEATURE = PatientExcelImportService::FEATURE_KEY;
 
     protected AgendaModel $agendaModel;
     protected AgendaSlotModel $slotModel;
@@ -780,6 +782,18 @@ public function eseguiRepairRecurringExtraSlots()
 
         return !empty($plan['enabled'])
             && in_array(AppointmentNotificationSettingsService::CHANNEL_SMS, (array) ($plan['channels'] ?? []), true);
+    }
+
+    protected function isPatientExcelImportEnabled(): bool
+    {
+        return $this->tenantFeatureEnabled(self::PATIENT_EXCEL_IMPORT_FEATURE);
+    }
+
+    protected function assertPatientExcelImportEnabled(): void
+    {
+        if (!$this->isPatientExcelImportEnabled()) {
+            throw new \Exception('L importazione pazienti da Excel non e attiva per questo studio.');
+        }
     }
 
     protected function isVisitTypesFeatureEnabled(): bool
@@ -4717,11 +4731,161 @@ public function eseguiRepairRecurringExtraSlots()
             'medici'      => $medici,
             'selectedDot' => $selectedDot,
             'patientSmsReminderPreferenceAvailable' => $this->isPatientSmsReminderPreferenceAvailable(),
+            'patientExcelImportEnabled' => $this->isPatientExcelImportEnabled(),
             'menuAgenda'  => method_exists($this->agendaModel, 'getMenuVisibleByUser')
                 ? $this->agendaModel->getMenuVisibleByUser($this->getCurrentUserId())
                 : $this->agendaModel->getMenuVisible(),
             'menu_items'  => [],
         ]);
+    }
+
+    public function importaPazientiExcel()
+    {
+        try {
+            $this->assertPatientExcelImportEnabled();
+
+            $medici = $this->getOrderedVisibleDoctorsForCurrentUser();
+            $selectedDot = (int) ($this->request->getGet('id_dot') ?: $this->getFirstVisibleDoctorId($medici));
+
+            if ($selectedDot > 0 && !$this->agendaModel->canUserAccessDoctor($this->getCurrentUserId(), $selectedDot)) {
+                $selectedDot = $this->getFirstVisibleDoctorId($medici);
+            }
+
+            return view('agenda/importa_pazienti_excel', $this->buildPatientExcelImportViewData($selectedDot));
+        } catch (\Throwable $e) {
+            return redirect()->to(base_url('agenda/gestione-pazienti'))->with('error', $e->getMessage());
+        }
+    }
+
+    public function importaPazientiExcelPreview()
+    {
+        $selectedDot = (int) ($this->request->getPost('id_dot') ?? 0);
+        $previewContext = null;
+
+        if (!$this->isPatientExcelImportEnabled()) {
+            return redirect()->to(base_url('agenda/gestione-pazienti'))->with('error', 'L importazione pazienti da Excel non e attiva per questo studio.');
+        }
+
+        try {
+            if ($selectedDot <= 0) {
+                throw new \Exception('Seleziona il medico a cui collegare l importazione.');
+            }
+
+            $this->assertDoctorAllowed($selectedDot);
+
+            $file = $this->request->getFile('excel_file');
+            if (!$file) {
+                throw new \Exception('Seleziona un file Excel da caricare.');
+            }
+
+            $this->validateUploadedFilesMaxSize([$file]);
+            if ((int) $file->getError() === UPLOAD_ERR_NO_FILE) {
+                throw new \Exception('Seleziona un file Excel da caricare.');
+            }
+
+            $previewContext = (new PatientExcelImportService())->prepareUploadedWorkbook($file);
+
+            return view('agenda/importa_pazienti_excel', $this->buildPatientExcelImportViewData($selectedDot, [
+                'previewContext' => $previewContext,
+                'columnMapping' => (array) ($previewContext['default_mapping'] ?? []),
+            ]));
+        } catch (\Throwable $e) {
+            return view('agenda/importa_pazienti_excel', $this->buildPatientExcelImportViewData($selectedDot, [
+                'previewContext' => $previewContext,
+                'columnMapping' => is_array($previewContext['default_mapping'] ?? null)
+                    ? (array) $previewContext['default_mapping']
+                    : [],
+                'errors' => [$e->getMessage()],
+            ]));
+        }
+    }
+
+    public function importaPazientiExcelConferma()
+    {
+        $selectedDot = (int) ($this->request->getPost('id_dot') ?? 0);
+        $token = (string) ($this->request->getPost('import_token') ?? '');
+        $columnMapping = (array) $this->request->getPost('column_mapping');
+        $previewContext = null;
+
+        if (!$this->isPatientExcelImportEnabled()) {
+            return redirect()->to(base_url('agenda/gestione-pazienti'))->with('error', 'L importazione pazienti da Excel non e attiva per questo studio.');
+        }
+
+        try {
+            if ($selectedDot <= 0) {
+                throw new \Exception('Seleziona il medico a cui collegare l importazione.');
+            }
+
+            $this->assertDoctorAllowed($selectedDot);
+
+            $service = new PatientExcelImportService();
+            $previewContext = $service->loadPreparedUpload($token);
+            $mappingState = $service->validateColumnMapping($columnMapping, (array) ($previewContext['columns'] ?? []));
+
+            if ($mappingState['errors'] !== []) {
+                return view('agenda/importa_pazienti_excel', $this->buildPatientExcelImportViewData($selectedDot, [
+                    'previewContext' => $previewContext,
+                    'columnMapping' => (array) ($mappingState['mapping'] ?? []),
+                    'errors' => (array) ($mappingState['errors'] ?? []),
+                    'mappingWarnings' => (array) ($mappingState['warnings'] ?? []),
+                ]));
+            }
+
+            $importResult = $service->importPreparedWorkbook($token, $selectedDot, $columnMapping, $this->getCurrentUserId());
+
+            return view('agenda/importa_pazienti_excel', $this->buildPatientExcelImportViewData($selectedDot, [
+                'previewContext' => $previewContext,
+                'columnMapping' => (array) ($importResult['mapping'] ?? []),
+                'importResult' => $importResult,
+            ]));
+        } catch (\Throwable $e) {
+            if ($previewContext === null && trim($token) !== '') {
+                try {
+                    $previewContext = (new PatientExcelImportService())->loadPreparedUpload($token);
+                } catch (\Throwable $ignored) {
+                    $previewContext = null;
+                }
+            }
+
+            return view('agenda/importa_pazienti_excel', $this->buildPatientExcelImportViewData($selectedDot, [
+                'previewContext' => $previewContext,
+                'columnMapping' => $columnMapping,
+                'errors' => [$e->getMessage()],
+            ]));
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $overrides
+     * @return array<string, mixed>
+     */
+    private function buildPatientExcelImportViewData(int $selectedDot, array $overrides = []): array
+    {
+        $medici = $this->getOrderedVisibleDoctorsForCurrentUser();
+        $selectedDot = $selectedDot > 0 ? $selectedDot : $this->getFirstVisibleDoctorId($medici);
+
+        if ($selectedDot > 0 && !$this->agendaModel->canUserAccessDoctor($this->getCurrentUserId(), $selectedDot)) {
+            $selectedDot = $this->getFirstVisibleDoctorId($medici);
+        }
+
+        $data = [
+            'pageTitle' => 'Importa pazienti da Excel',
+            'medici' => $medici,
+            'selectedDot' => $selectedDot,
+            'previewContext' => null,
+            'columnMapping' => [],
+            'importResult' => null,
+            'errors' => [],
+            'mappingWarnings' => [],
+            'targetFieldDefinitions' => (new PatientExcelImportService())->getTargetFieldDefinitions(),
+            'maxUploadFileSizeLabel' => $this->maxUploadFileSizeLabel(),
+            'menuAgenda' => method_exists($this->agendaModel, 'getMenuVisibleByUser')
+                ? $this->agendaModel->getMenuVisibleByUser($this->getCurrentUserId())
+                : $this->agendaModel->getMenuVisible(),
+            'menu_items' => [],
+        ];
+
+        return array_merge($data, $overrides);
     }
 
     public function listaPazienti()

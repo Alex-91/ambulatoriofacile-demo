@@ -1145,6 +1145,150 @@ class PazientiModel extends Model
         return $this->db->query($sql, $params)->getResultArray();
     }
 
+    /**
+     * @param array<string, mixed> $payload
+     * @return array<string, mixed>
+     */
+    public function resolveImportPatientMatch(array $payload, int $idDot, int $actingUserId = 0): array
+    {
+        $result = [
+            'id_paziente' => 0,
+            'matched_by' => '',
+            'conflict' => false,
+            'message' => '',
+            'row' => null,
+            'candidates' => [],
+        ];
+
+        if ($idDot <= 0) {
+            return $result;
+        }
+
+        $codiceFiscale = $this->normalizeFiscalCode((string) ($payload['cod_fis'] ?? ($payload['codice_fiscale'] ?? '')));
+        $partitaIva = $this->normalizeVatNumber((string) ($payload['partita_iva'] ?? ''));
+
+        if ($codiceFiscale === '' && $partitaIva === '') {
+            return $result;
+        }
+
+        $scope = $this->resolveDoctorPatientScope($idDot, $actingUserId);
+        $idPersonale = (int) ($scope['selected_personale_id'] ?? 0);
+        if ($idPersonale <= 0) {
+            return $result;
+        }
+
+        $conditions = [];
+        $params = [];
+
+        if ($codiceFiscale !== '') {
+            $conditions[] = $this->buildNormalizedComparableSql($this->decExpr('c.codice_fiscale')) . ' = ?';
+            $params[] = $codiceFiscale;
+        }
+
+        if ($partitaIva !== '' && $this->clientTableHasColumn('partita_iva')) {
+            $conditions[] = $this->buildNormalizedComparableSql($this->decExpr('c.partita_iva')) . ' = ?';
+            $params[] = $partitaIva;
+        }
+
+        if ($conditions === []) {
+            return $result;
+        }
+
+        $sql = "
+            SELECT
+                c.id_client AS id_paziente,
+                {$this->dec('c.nome')} AS nome,
+                {$this->dec('c.cognome')} AS cognome,
+                {$this->buildAdditionalPatientSelectSql('c')},
+                {$this->dec('c.codice_fiscale')} AS cod_fis
+            FROM " . self::CLIENTS_TABLE . " c
+            INNER JOIN (
+                {$this->buildDoctorScopedPatientIdsSqlForScope((array) ($scope['personale_ids'] ?? []), (array) ($scope['legacy_dot_ids'] ?? []))}
+            ) scope
+                ON scope.id_client = c.id_client
+            WHERE " . implode(' OR ', $conditions) . "
+            ORDER BY c.id_client ASC
+            LIMIT 25
+        ";
+
+        $rows = $this->sanitizePatientRows($this->db->query($sql, $params)->getResultArray(), false);
+        if ($rows === []) {
+            return $result;
+        }
+
+        $matchesByCodiceFiscale = [];
+        $matchesByPartitaIva = [];
+
+        foreach ($rows as $row) {
+            $idPaziente = (int) ($row['id_paziente'] ?? 0);
+            if ($idPaziente <= 0) {
+                continue;
+            }
+
+            if (
+                $codiceFiscale !== ''
+                && $this->normalizeFiscalCode((string) ($row['cod_fis'] ?? '')) === $codiceFiscale
+            ) {
+                $matchesByCodiceFiscale[$idPaziente] = $row;
+            }
+
+            if (
+                $partitaIva !== ''
+                && $this->normalizeVatNumber((string) ($row['partita_iva'] ?? '')) === $partitaIva
+            ) {
+                $matchesByPartitaIva[$idPaziente] = $row;
+            }
+        }
+
+        if (count($matchesByCodiceFiscale) > 1) {
+            $result['conflict'] = true;
+            $result['message'] = 'Esistono piu pazienti con lo stesso codice fiscale.';
+            $result['candidates'] = array_values($matchesByCodiceFiscale);
+            return $result;
+        }
+
+        if (count($matchesByPartitaIva) > 1) {
+            $result['conflict'] = true;
+            $result['message'] = 'Esistono piu pazienti con la stessa partita IVA.';
+            $result['candidates'] = array_values($matchesByPartitaIva);
+            return $result;
+        }
+
+        if ($matchesByCodiceFiscale !== [] && $matchesByPartitaIva !== []) {
+            $cfId = (int) array_key_first($matchesByCodiceFiscale);
+            $pIvaId = (int) array_key_first($matchesByPartitaIva);
+
+            if ($cfId > 0 && $pIvaId > 0 && $cfId !== $pIvaId) {
+                $result['conflict'] = true;
+                $result['message'] = 'Codice fiscale e partita IVA puntano a due pazienti diversi.';
+                $result['candidates'] = array_values(array_replace($matchesByCodiceFiscale, $matchesByPartitaIva));
+                return $result;
+            }
+        }
+
+        $matchedRow = null;
+        $matchedBy = '';
+
+        if ($matchesByCodiceFiscale !== [] && $matchesByPartitaIva !== []) {
+            $matchedRow = reset($matchesByCodiceFiscale) ?: null;
+            $matchedBy = 'codice_fiscale+partita_iva';
+        } elseif ($matchesByCodiceFiscale !== []) {
+            $matchedRow = reset($matchesByCodiceFiscale) ?: null;
+            $matchedBy = 'codice_fiscale';
+        } elseif ($matchesByPartitaIva !== []) {
+            $matchedRow = reset($matchesByPartitaIva) ?: null;
+            $matchedBy = 'partita_iva';
+        }
+
+        if (is_array($matchedRow)) {
+            $result['id_paziente'] = (int) ($matchedRow['id_paziente'] ?? 0);
+            $result['matched_by'] = $matchedBy;
+            $result['row'] = $matchedRow;
+        }
+
+        return $result;
+    }
+
     public function savePatientAndLink(array $payload, int $idDot, int $actingUserId = 0): int
     {
         $scope = $this->resolveDoctorPatientScope($idDot, $actingUserId);
@@ -2119,6 +2263,11 @@ class PazientiModel extends Model
     {
         $value = strtoupper(trim($value));
         return preg_replace('/[^A-Z0-9]/', '', $value) ?? '';
+    }
+
+    private function buildNormalizedComparableSql(string $expr): string
+    {
+        return "REPLACE(REPLACE(REPLACE(REPLACE(TRIM(UPPER(COALESCE({$expr}, ''))), ' ', ''), '.', ''), '-', ''), '/', '')";
     }
 
     private function resolvePersonaleIdFromLegacyDot(int $legacyIdDot): int
