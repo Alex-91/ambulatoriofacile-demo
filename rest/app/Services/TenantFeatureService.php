@@ -275,6 +275,16 @@ class TenantFeatureService
                 'tenant_default_enabled' => 0,
                 'sort_order' => 70,
             ],
+            AgendaAppointmentBlockLayoutService::FEATURE_KEY => [
+                'feature_name' => 'Layout popup appuntamento',
+                'feature_scope' => 'workflow',
+                'description' => 'Il master piattaforma puo attivare per il singolo studio un layout personalizzato del popup appuntamento, con ordine dei blocchi e possibilita di nascondere quelli non obbligatori.',
+                'default_enabled' => 0,
+                'icon_class' => 'fa-columns',
+                'is_tenant_managed' => 0,
+                'tenant_default_enabled' => 0,
+                'sort_order' => 71,
+            ],
         ];
     }
 

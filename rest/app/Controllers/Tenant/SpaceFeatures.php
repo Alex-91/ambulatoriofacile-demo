@@ -3,6 +3,7 @@
 namespace App\Controllers\Tenant;
 
 use App\Controllers\BaseController;
+use App\Services\AgendaAppointmentBlockLayoutService;
 use App\Services\AgendaDefaultViewService;
 use App\Services\AgendaHomeBlockOrderService;
 use App\Services\BillingFeatureService;
@@ -39,8 +40,11 @@ class SpaceFeatures extends BaseController
         }
 
         $agendaProfessionals = (new AgendaModel())->getAllAgendaProfessionals();
+        $appointmentBlockLayoutService = new AgendaAppointmentBlockLayoutService();
         $homeBlockOrderService = new AgendaHomeBlockOrderService();
         $professionalOrderService = new AgendaProfessionalOrderService();
+        $agendaAppointmentBlockLayoutSettings = $appointmentBlockLayoutService
+            ->resolveTenantSettings($context->tenantId);
         $agendaHomeBlockOrderSettings = $homeBlockOrderService
             ->resolveTenantSettings($context->tenantId);
         $agendaProfessionalOrderSettings = $professionalOrderService
@@ -60,6 +64,7 @@ class SpaceFeatures extends BaseController
             'billingWorkspaceAccessible' => $billingFeatureService->isEnabledForContext($context),
             'tsConfigurationAccessible' => $tsFeatureService->isEnabledForContext($context)
                 || $tsFeatureService->allowsLocalTestingBypass($context),
+            'agendaAppointmentBlockLayoutSettings' => $agendaAppointmentBlockLayoutSettings,
             'agendaDefaultViewSettings' => $agendaDefaultViewSettings,
             'agendaHomeBlockOrderSettings' => $agendaHomeBlockOrderSettings,
             'agendaProfessionalOrderSettings' => $agendaProfessionalOrderSettings,
@@ -86,6 +91,13 @@ class SpaceFeatures extends BaseController
                 static fn($value): string => trim(strtolower((string) $value)),
                 (array) $this->request->getPost('enabled_features')
             )));
+            $agendaAppointmentBlockLayoutForm = (int) ($this->request->getPost('agenda_appointment_block_layout_form') ?? 0) === 1;
+            $agendaAppointmentBlockLayoutEnabled = (int) ($this->request->getPost('agenda_appointment_block_layout_enabled') ?? 0) === 1;
+            $agendaAppointmentBlockOrderKeys = array_values(array_filter(array_map(
+                static fn($value): string => trim((string) $value),
+                (array) $this->request->getPost('agenda_appointment_block_order_keys')
+            ), static fn(string $value): bool => $value !== ''));
+            $agendaAppointmentBlockVisibility = (array) $this->request->getPost('agenda_appointment_block_visibility');
             $agendaHomeBlockOrderForm = (int) ($this->request->getPost('agenda_home_block_order_form') ?? 0) === 1;
             $agendaHomeBlockOrderEnabled = (int) ($this->request->getPost('agenda_home_block_order_enabled') ?? 0) === 1;
             $agendaHomeBlockOrderKeys = array_values(array_filter(array_map(
@@ -122,8 +134,19 @@ class SpaceFeatures extends BaseController
                 (new TenantFeatureService())->saveTenantManagedFeatures($context->tenantId, $enabledFeatures, $platformUserId);
             }
             $agendaProfessionals = (new AgendaModel())->getAllAgendaProfessionals();
+            $appointmentBlockLayoutService = new AgendaAppointmentBlockLayoutService();
             $homeBlockOrderService = new AgendaHomeBlockOrderService();
             $professionalOrderService = new AgendaProfessionalOrderService();
+
+            if ($agendaAppointmentBlockLayoutForm) {
+                $appointmentBlockLayoutService->saveTenantPreferences(
+                    $context->tenantId,
+                    $agendaAppointmentBlockLayoutEnabled,
+                    $agendaAppointmentBlockOrderKeys,
+                    $agendaAppointmentBlockVisibility,
+                    $platformUserId
+                );
+            }
 
             if ($agendaHomeBlockOrderForm) {
                 $homeBlockOrderService->saveTenantPreferences(

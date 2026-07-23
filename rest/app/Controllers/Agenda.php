@@ -16,6 +16,7 @@ use App\Models\AgendaSlotModel;
 use App\Models\AgendaVisitTypeModel;
 use App\Models\PazientiModel;
 use App\Services\AgendaAppointmentNotificationService;
+use App\Services\AgendaAppointmentBlockLayoutService;
 use App\Services\AgendaDefaultViewService;
 use App\Services\AgendaHomeBlockOrderService;
 use App\Services\AgendaProfessionalOrderService;
@@ -54,6 +55,7 @@ class Agenda extends BaseController
     protected AgendaLocationModel $locationModel;
     protected AgendaVisitTypeModel $visitTypeModel;
     protected NotificationService $notificationService;
+    protected AgendaAppointmentBlockLayoutService $agendaAppointmentBlockLayoutService;
     protected AgendaHomeBlockOrderService $agendaHomeBlockOrderService;
     protected AgendaDefaultViewService $agendaDefaultViewService;
     protected AgendaProfessionalOrderService $agendaProfessionalOrderService;
@@ -80,6 +82,7 @@ class Agenda extends BaseController
         $this->locationModel     = new AgendaLocationModel();
         $this->visitTypeModel    = new AgendaVisitTypeModel();
         $this->notificationService = new NotificationService();
+        $this->agendaAppointmentBlockLayoutService = new AgendaAppointmentBlockLayoutService();
         $this->agendaHomeBlockOrderService = new AgendaHomeBlockOrderService();
         $this->agendaDefaultViewService = new AgendaDefaultViewService();
         $this->agendaProfessionalOrderService = new AgendaProfessionalOrderService();
@@ -1664,11 +1667,22 @@ public function eseguiRepairRecurringExtraSlots()
 
         $domiciliariAbilitati = $this->isDomiciliareAbilitatoPerDottore($medici, $selectedDot);
         $appointmentDocumentActions = $this->resolveAppointmentDocumentActionsState();
+        $agendaAppointmentBlockLayoutSettings = [];
         $agendaHomeBlockOrderSettings = [];
         $agendaTenantId = $this->resolveCurrentAgendaTenantId();
         $patientSmsReminderPreferenceAvailable = $this->isPatientSmsReminderPreferenceAvailable();
 
         if ($agendaTenantId > 0) {
+            try {
+                $agendaAppointmentBlockLayoutSettings = $this->agendaAppointmentBlockLayoutService
+                    ->resolveTenantSettings($agendaTenantId);
+            } catch (\Throwable $e) {
+                log_message('warning', 'Agenda::index agenda appointment block layout bootstrap failed: {message}', [
+                    'message' => $e->getMessage(),
+                    'tenant_id' => $agendaTenantId,
+                ]);
+            }
+
             try {
                 $agendaHomeBlockOrderSettings = $this->agendaHomeBlockOrderService
                     ->resolveTenantSettings($agendaTenantId);
@@ -1696,6 +1710,7 @@ public function eseguiRepairRecurringExtraSlots()
             'visitTypesFeatureEnabled' => $visitTypesFeatureEnabled,
             'visitTypeSelectionOptionalEnabled' => $visitTypeSelectionOptionalEnabled,
             'visitTypes'           => $visitTypes,
+            'agendaAppointmentBlockLayoutSettings' => $agendaAppointmentBlockLayoutSettings,
             'agendaHomeBlockOrderSettings' => $agendaHomeBlockOrderSettings,
             'domiciliariAbilitati' => $domiciliariAbilitati,
             'appointmentDocumentActions' => $appointmentDocumentActions,

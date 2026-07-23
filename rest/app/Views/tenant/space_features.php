@@ -12,6 +12,30 @@ $errors = is_array($errors ?? null) ? $errors : [];
 $success = $success ?? null;
 $featureStates = is_array($featureStates ?? null) ? $featureStates : [];
 $tenantContext = $tenantContext ?? null;
+$agendaAppointmentBlockLayoutSettings = is_array($agendaAppointmentBlockLayoutSettings ?? null)
+    ? $agendaAppointmentBlockLayoutSettings
+    : [];
+$agendaAppointmentBlockRows = is_array($agendaAppointmentBlockLayoutSettings['block_rows'] ?? null)
+    ? $agendaAppointmentBlockLayoutSettings['block_rows']
+    : [];
+$agendaAppointmentBlockLayoutAvailable = !empty($agendaAppointmentBlockLayoutSettings['layout_management_available']);
+$oldAgendaAppointmentBlockLayoutEnabled = old('agenda_appointment_block_layout_enabled');
+$oldAgendaAppointmentBlockOrderKeys = old('agenda_appointment_block_order_keys');
+$oldAgendaAppointmentBlockOrderKeys = is_array($oldAgendaAppointmentBlockOrderKeys)
+    ? $oldAgendaAppointmentBlockOrderKeys
+    : [];
+$oldAgendaAppointmentBlockVisibility = old('agenda_appointment_block_visibility');
+$oldAgendaAppointmentBlockVisibility = is_array($oldAgendaAppointmentBlockVisibility)
+    ? $oldAgendaAppointmentBlockVisibility
+    : [];
+$agendaAppointmentBlockDefaultOrderKeys = array_values(array_filter(array_map(
+    static fn($value): string => trim((string) $value),
+    (array) ($agendaAppointmentBlockLayoutSettings['default_order_keys'] ?? [])
+), static fn(string $value): bool => $value !== ''));
+$agendaAppointmentBlockVisibilityLabels = [
+    'visible' => 'visibile',
+    'hidden' => 'nascosto',
+];
 $agendaHomeBlockOrderSettings = is_array($agendaHomeBlockOrderSettings ?? null) ? $agendaHomeBlockOrderSettings : [];
 $agendaHomeBlockOrderRows = is_array($agendaHomeBlockOrderSettings['block_rows'] ?? null)
     ? $agendaHomeBlockOrderSettings['block_rows']
@@ -133,6 +157,18 @@ if ($oldAgendaProfessionalOrderIds !== []) {
     );
 }
 
+if ($oldAgendaAppointmentBlockOrderKeys !== []) {
+    $agendaAppointmentBlockRows = $reorderRowsByScalarKey(
+        $agendaAppointmentBlockRows,
+        $oldAgendaAppointmentBlockOrderKeys,
+        'key',
+        static function ($value): ?string {
+            $normalized = trim((string) $value);
+            return $normalized !== '' ? $normalized : null;
+        }
+    );
+}
+
 if ($oldAgendaHomeBlockOrderKeys !== []) {
     $agendaHomeBlockOrderRows = $reorderRowsByScalarKey(
         $agendaHomeBlockOrderRows,
@@ -173,6 +209,7 @@ foreach ($featureStates as $row) {
 }
 
 $hasSupplementalSpaceControls = ($agendaHomeBlockOrderAvailable && $agendaHomeBlockOrderRows !== [])
+    || ($agendaAppointmentBlockLayoutAvailable && $agendaAppointmentBlockRows !== [])
     || ($agendaDefaultViewAvailable && $agendaDefaultViewRows !== [])
     || ($agendaProfessionalOrderAvailable && $agendaProfessionalOrderRows !== [])
     || ($teamDayColorsAvailable && $teamDayColorRows !== []);
@@ -510,6 +547,139 @@ $canSubmitSpaceSettings = ($manageableRows !== []) || $hasSupplementalSpaceContr
                         </div>
                       </div>
                     <?php endforeach; ?>
+                  </div>
+                <?php endif; ?>
+
+                <?php if ($agendaAppointmentBlockLayoutAvailable && $agendaAppointmentBlockRows !== []): ?>
+                  <div class="agenda-order-box">
+                    <input type="hidden" name="agenda_appointment_block_layout_form" value="1">
+                    <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+                      <div>
+                        <h4 style="margin:0 0 6px 0;">Layout popup appuntamento</h4>
+                        <p style="margin:0; color:#587075;">
+                          Qui decidi in quale sequenza mostrare i blocchi principali del popup appuntamento. La stessa disposizione vale sia quando inserisci un nuovo appuntamento sia quando ne modifichi uno esistente. I blocchi che contengono campi obbligatori restano sempre visibili, mentre quelli facoltativi possono anche essere nascosti.
+                        </p>
+                      </div>
+                      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                        <span class="label label-<?= (((string) $oldAgendaAppointmentBlockLayoutEnabled === '1') || ($oldAgendaAppointmentBlockLayoutEnabled === null && !empty($agendaAppointmentBlockLayoutSettings['tenant_layout_enabled']))) ? 'success' : 'default' ?>">
+                          <?= (((string) $oldAgendaAppointmentBlockLayoutEnabled === '1') || ($oldAgendaAppointmentBlockLayoutEnabled === null && !empty($agendaAppointmentBlockLayoutSettings['tenant_layout_enabled']))) ? 'layout personalizzato attivo' : 'layout standard attivo' ?>
+                        </span>
+                        <span class="label label-info">stesso layout in inserimento e modifica</span>
+                      </div>
+                    </div>
+
+                    <div class="checkbox" style="margin:14px 0 0 0;">
+                      <label>
+                        <input
+                          type="checkbox"
+                          name="agenda_appointment_block_layout_enabled"
+                          value="1"
+                          <?= (((string) $oldAgendaAppointmentBlockLayoutEnabled === '1') || ($oldAgendaAppointmentBlockLayoutEnabled === null && !empty($agendaAppointmentBlockLayoutSettings['tenant_layout_enabled']))) ? 'checked' : '' ?>
+                        >
+                        Usa questo layout personalizzato nel popup appuntamento dello studio
+                      </label>
+                    </div>
+
+                    <div class="agenda-order-toolbar">
+                      <div class="text-muted" style="font-size:12px;">
+                        Usa le frecce per spostare ogni blocco su e giu. Dove consentito puoi anche scegliere se tenerlo visibile oppure nasconderlo.
+                      </div>
+                      <button type="button" class="btn btn-default btn-sm js-order-reset" id="agendaAppointmentBlockLayoutReset">
+                        <i class="fa fa-refresh"></i> Ripristina layout standard
+                      </button>
+                    </div>
+
+                    <div
+                      class="agenda-order-list js-order-list"
+                      id="agendaAppointmentBlockLayoutList"
+                      data-default-order="<?= esc(implode(',', $agendaAppointmentBlockDefaultOrderKeys), 'attr') ?>"
+                      data-input-name="agenda_appointment_block_order_keys[]"
+                      data-input-container-id="agendaAppointmentBlockLayoutInputs"
+                      data-reset-button-id="agendaAppointmentBlockLayoutReset"
+                    >
+                      <?php foreach ($agendaAppointmentBlockRows as $row): ?>
+                        <?php
+                          $blockKey = trim((string) ($row['key'] ?? ''));
+                          $defaultPosition = (int) ($row['default_position'] ?? 0);
+                          $savedPosition = (int) ($row['saved_position'] ?? 0);
+                          $defaultVisibility = trim((string) ($row['default_visibility'] ?? 'visible'));
+                          $savedVisibility = trim((string) ($row['saved_visibility'] ?? $defaultVisibility));
+                          $effectiveVisibility = trim((string) ($row['effective_visibility'] ?? $savedVisibility));
+                          $selectedVisibility = trim((string) ($oldAgendaAppointmentBlockVisibility[$blockKey] ?? $savedVisibility));
+                          $hideable = !empty($row['hideable']);
+                          $forceVisible = !empty($row['force_visible']);
+                          $runtimeAvailable = !empty($row['runtime_available']);
+                          $runtimeNote = trim((string) ($row['runtime_note'] ?? ''));
+                          if (!isset($agendaAppointmentBlockVisibilityLabels[$defaultVisibility])) {
+                              $defaultVisibility = 'visible';
+                          }
+                          if (!isset($agendaAppointmentBlockVisibilityLabels[$savedVisibility])) {
+                              $savedVisibility = $defaultVisibility;
+                          }
+                          if (!isset($agendaAppointmentBlockVisibilityLabels[$selectedVisibility])) {
+                              $selectedVisibility = $savedVisibility;
+                          }
+                          if (!$hideable) {
+                              $selectedVisibility = 'visible';
+                          }
+                          $defaultVisibilityLabel = (string) ($agendaAppointmentBlockVisibilityLabels[$defaultVisibility] ?? 'visibile');
+                          $savedVisibilityLabel = (string) ($agendaAppointmentBlockVisibilityLabels[$savedVisibility] ?? $defaultVisibilityLabel);
+                          $effectiveVisibilityLabel = (string) ($agendaAppointmentBlockVisibilityLabels[$effectiveVisibility] ?? $savedVisibilityLabel);
+                        ?>
+                        <div class="agenda-order-row" data-order-value="<?= esc($blockKey, 'attr') ?>">
+                          <span class="agenda-order-rank js-order-rank"><?= esc((string) $savedPosition) ?></span>
+                          <div class="agenda-order-main">
+                            <div class="agenda-order-title">
+                              <?= esc((string) ($row['label'] ?? $blockKey)) ?>
+                            </div>
+                            <div class="agenda-order-meta">
+                              <?= $savedPosition !== $defaultPosition || $savedVisibility !== $defaultVisibility
+                                  ? 'Layout standard #' . $defaultPosition . ' con blocco ' . $defaultVisibilityLabel . '. Layout personalizzato salvato #' . $savedPosition . ' con blocco ' . $savedVisibilityLabel . '.'
+                                  : 'Al momento coincide con il layout standard (#' . $defaultPosition . ' con blocco ' . $defaultVisibilityLabel . ').' ?>
+                              <?php if ($forceVisible && $effectiveVisibility !== $savedVisibility): ?>
+                                <br>Ora resta comunque <strong><?= esc($effectiveVisibilityLabel) ?></strong> perche in questo spazio contiene dati obbligatori o richiesti dalla configurazione attuale.
+                              <?php endif; ?>
+                              <?php if (!$runtimeAvailable && $runtimeNote !== ''): ?>
+                                <br><?= esc($runtimeNote) ?>
+                              <?php elseif ($runtimeNote !== ''): ?>
+                                <br><?= esc($runtimeNote) ?>
+                              <?php endif; ?>
+                              <?php if (trim((string) ($row['description'] ?? '')) !== ''): ?>
+                                <br><?= esc((string) $row['description']) ?>
+                              <?php endif; ?>
+                            </div>
+                          </div>
+                          <div class="agenda-order-actions">
+                            <div class="agenda-order-column-picker">
+                              <label class="agenda-order-column-picker-label" for="agenda-appointment-block-visibility-<?= esc($blockKey, 'attr') ?>">
+                                Visibilita
+                              </label>
+                              <select
+                                class="form-control input-sm"
+                                id="agenda-appointment-block-visibility-<?= esc($blockKey, 'attr') ?>"
+                                name="agenda_appointment_block_visibility[<?= esc($blockKey, 'attr') ?>]"
+                                <?= $hideable ? '' : 'disabled' ?>
+                              >
+                                <option value="visible" <?= $selectedVisibility === 'visible' ? 'selected' : '' ?>>Visibile</option>
+                                <option value="hidden" <?= $selectedVisibility === 'hidden' ? 'selected' : '' ?><?= $hideable ? '' : ' disabled' ?>>Nascosto</option>
+                              </select>
+                            </div>
+                            <button type="button" class="btn btn-default btn-sm js-order-up" title="Sposta su">
+                              <i class="fa fa-arrow-up"></i>
+                            </button>
+                            <button type="button" class="btn btn-default btn-sm js-order-down" title="Sposta giu">
+                              <i class="fa fa-arrow-down"></i>
+                            </button>
+                          </div>
+                        </div>
+                      <?php endforeach; ?>
+                    </div>
+
+                    <div id="agendaAppointmentBlockLayoutInputs"></div>
+
+                    <div class="agenda-order-note">
+                      Se lasci l opzione spenta, il popup appuntamento continua a usare la disposizione standard. L ordine e le visibilita che prepari qui restano comunque salvati e pronti da riattivare quando vuoi.
+                    </div>
                   </div>
                 <?php endif; ?>
 

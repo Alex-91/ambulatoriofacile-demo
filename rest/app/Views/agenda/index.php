@@ -27,11 +27,42 @@
             $agendaConsoleUrl = portal_operational_home_url();
         }
         $memoDoctorOptions = is_array($memoDoctorOptions ?? null) ? $memoDoctorOptions : [];
+        $agendaAppointmentBlockLayoutSettings = is_array($agendaAppointmentBlockLayoutSettings ?? null)
+            ? $agendaAppointmentBlockLayoutSettings
+            : [];
         $agendaHomeBlockOrderSettings = is_array($agendaHomeBlockOrderSettings ?? null) ? $agendaHomeBlockOrderSettings : [];
         $appointmentDocumentActions = is_array($appointmentDocumentActions ?? null) ? $appointmentDocumentActions : [];
         $appointmentBillingWorkflowEnabled = !empty($appointmentDocumentActions['billing_enabled']);
         $appointmentTsWorkflowEnabled = !empty($appointmentDocumentActions['ts_enabled']);
         $appointmentDocumentWorkflowVisible = $appointmentBillingWorkflowEnabled || $appointmentTsWorkflowEnabled;
+        $appointmentModalFallbackLayoutItems = [
+            ['key' => 'time'],
+        ];
+        if (!empty($visitTypesFeatureEnabled)) {
+            $appointmentModalFallbackLayoutItems[] = ['key' => 'visit_type'];
+        }
+        $appointmentModalFallbackLayoutItems[] = ['key' => 'patient_entry'];
+        if ($appointmentDocumentWorkflowVisible) {
+            $appointmentModalFallbackLayoutItems[] = ['key' => 'document_workflow'];
+        }
+        $appointmentModalEffectiveLayoutItems = [];
+        foreach ((array) ($agendaAppointmentBlockLayoutSettings['effective_render_items'] ?? []) as $layoutItem) {
+            if (!is_array($layoutItem)) {
+                continue;
+            }
+
+            $blockKey = trim((string) ($layoutItem['key'] ?? ''));
+            if ($blockKey === '') {
+                continue;
+            }
+
+            $appointmentModalEffectiveLayoutItems[] = [
+                'key' => $blockKey,
+            ];
+        }
+        if ($appointmentModalEffectiveLayoutItems === []) {
+            $appointmentModalEffectiveLayoutItems = $appointmentModalFallbackLayoutItems;
+        }
         $memoDoctorSelectOptions = [];
         $agendaHomeFallbackLayoutItems = [
             ['key' => 'doctor_selector', 'column' => 'main'],
@@ -264,6 +295,21 @@
             background: linear-gradient(135deg, #f6ad1a 0%, #ea8f04 100%);
             border-color: #da8504 !important;
             color: #fff !important;
+        }
+
+        .appointment-modal-layout {
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+        }
+
+        .appointment-modal-block {
+            position: relative;
+        }
+
+        .appointment-modal-block + .appointment-modal-block {
+            padding-top: 18px;
+            border-top: 1px solid #edf3f7;
         }
 
         .appointment-modal-footer {
@@ -3128,24 +3174,21 @@
     <div class="control-sidebar-bg"></div>
 </div>
 
-<div class="modal fade" id="appointmentModal" tabindex="-1" role="dialog" aria-hidden="true" data-backdrop="static" data-keyboard="false">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content border-0 shadow">
-            <div class="modal-header">
-                <button type="button" class="close btn-close-appointment-modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-                <h4 class="modal-title">Gestione appuntamento</h4>
-            </div>
+<?php
+$renderAppointmentModalBlock = static function (string $blockKey) use (
+    $visitTypesFeatureEnabled,
+    $visitTypeSelectionOptionalEnabled,
+    $patientSmsReminderPreferenceAvailable,
+    $appointmentDocumentWorkflowVisible,
+    $appointmentBillingWorkflowEnabled,
+    $appointmentTsWorkflowEnabled
+): string {
+    ob_start();
 
-            <div class="modal-body">
-                <input type="hidden" id="app_id_slot">
-                <input type="hidden" id="app_id_dot">
-                <input type="hidden" id="app_id_paziente">
-                <input type="hidden" id="app_token_lock">
-                <input type="hidden" id="app_id_appuntamento">
-                <input type="hidden" id="app_origine_slot">
-
+    switch ($blockKey) {
+        case 'time':
+            ?>
+            <div class="appointment-modal-block" data-appointment-block-key="time">
                 <div class="row">
                     <div class="col-md-6 form-group">
                         <label for="app_ora_inizio">Ora inizio</label>
@@ -3156,8 +3199,18 @@
                         <label for="app_ora_fine">Ora fine</label>
                         <input type="text" id="app_ora_fine" class="form-control" readonly>
                     </div>
+                </div>
+            </div>
+            <?php
+            break;
 
-                    <?php if (!empty($visitTypesFeatureEnabled)): ?>
+        case 'visit_type':
+            if (empty($visitTypesFeatureEnabled)) {
+                break;
+            }
+            ?>
+            <div class="appointment-modal-block" data-appointment-block-key="visit_type">
+                <div class="row">
                     <div class="col-md-8 form-group">
                         <label for="app_id_tipo_visita">Tipo visita</label>
                         <select id="app_id_tipo_visita" class="form-control">
@@ -3186,8 +3239,15 @@
                         <input type="text" id="app_durata_visita" class="form-control" readonly>
                         <div id="app_slot_copertura_info" class="agenda-appointment-coverage"></div>
                     </div>
-                    <?php endif; ?>
+                </div>
+            </div>
+            <?php
+            break;
 
+        case 'patient_entry':
+            ?>
+            <div class="appointment-modal-block" data-appointment-block-key="patient_entry">
+                <div class="row">
                     <div class="col-md-12 form-group" style="position:relative;">
                         <label for="searchPatient">Cerca o cambia paziente</label>
                         <div class="input-group">
@@ -3245,38 +3305,101 @@
                         <label for="app_note">Note</label>
                         <textarea id="app_note" rows="4" class="form-control"></textarea>
                     </div>
+                </div>
+            </div>
+            <?php
+            break;
 
-                    <div class="col-md-12">
-                        <div id="appointmentDocumentWorkflow" class="appointment-document-workflow-panel" style="<?= $appointmentDocumentWorkflowVisible ? 'display:block;' : 'display:none;' ?>">
-                            <div class="appointment-document-workflow-copy">
-                                <div class="appointment-document-workflow-title">Azioni documento</div>
-                                <div class="appointment-document-workflow-note">
-                                    Da qui apri subito il flusso giusto senza reinserire il paziente: nome, recapiti e collegamento allo spazio vengono riportati automaticamente.
-                                </div>
-                                <div id="appointmentDocumentWorkflowHint"></div>
-                            </div>
-                            <div class="appointment-document-workflow-buttons">
-                                <button type="button" class="btn appointment-document-workflow-action appointment-document-workflow-action-billing" id="btnAppointmentBillingWorkflow" style="<?= $appointmentBillingWorkflowEnabled ? '' : 'display:none;' ?>"<?= $appointmentBillingWorkflowEnabled ? ' disabled' : '' ?>>
-                                    <span class="appointment-document-workflow-action-icon">
-                                        <i class="fa fa-file-text-o"></i>
-                                    </span>
-                                    <span class="appointment-document-workflow-action-copy">
-                                        <span class="appointment-document-workflow-action-title">Apri fattura</span>
-                                        <span class="appointment-document-workflow-action-text">Crea il documento di fatturazione gia precompilato e pronto anche per l eventuale invio a TS.</span>
-                                    </span>
-                                </button>
-                                <button type="button" class="btn appointment-document-workflow-action appointment-document-workflow-action-ts" id="btnAppointmentTsWorkflow" style="<?= $appointmentTsWorkflowEnabled ? '' : 'display:none;' ?>"<?= $appointmentTsWorkflowEnabled ? ' disabled' : '' ?>>
-                                    <span class="appointment-document-workflow-action-icon">
-                                        <i class="fa fa-paper-plane-o"></i>
-                                    </span>
-                                    <span class="appointment-document-workflow-action-copy">
-                                        <span class="appointment-document-workflow-action-title">Apri solo TS</span>
-                                        <span class="appointment-document-workflow-action-text">Salta la fattura e prepara subito il documento TS con il paziente gia agganciato.</span>
-                                    </span>
-                                </button>
-                            </div>
+        case 'document_workflow':
+            if (!$appointmentDocumentWorkflowVisible) {
+                break;
+            }
+            ?>
+            <div class="appointment-modal-block" data-appointment-block-key="document_workflow">
+                <div id="appointmentDocumentWorkflow" class="appointment-document-workflow-panel">
+                    <div class="appointment-document-workflow-copy">
+                        <div class="appointment-document-workflow-title">Azioni documento</div>
+                        <div class="appointment-document-workflow-note">
+                            Da qui apri subito il flusso giusto senza reinserire il paziente: nome, recapiti e collegamento allo spazio vengono riportati automaticamente.
                         </div>
+                        <div id="appointmentDocumentWorkflowHint"></div>
                     </div>
+                    <div class="appointment-document-workflow-buttons">
+                        <button type="button" class="btn appointment-document-workflow-action appointment-document-workflow-action-billing" id="btnAppointmentBillingWorkflow" style="<?= $appointmentBillingWorkflowEnabled ? '' : 'display:none;' ?>"<?= $appointmentBillingWorkflowEnabled ? ' disabled' : '' ?>>
+                            <span class="appointment-document-workflow-action-icon">
+                                <i class="fa fa-file-text-o"></i>
+                            </span>
+                            <span class="appointment-document-workflow-action-copy">
+                                <span class="appointment-document-workflow-action-title">Apri fattura</span>
+                                <span class="appointment-document-workflow-action-text">Crea il documento di fatturazione gia precompilato e pronto anche per l eventuale invio a TS.</span>
+                            </span>
+                        </button>
+                        <button type="button" class="btn appointment-document-workflow-action appointment-document-workflow-action-ts" id="btnAppointmentTsWorkflow" style="<?= $appointmentTsWorkflowEnabled ? '' : 'display:none;' ?>"<?= $appointmentTsWorkflowEnabled ? ' disabled' : '' ?>>
+                            <span class="appointment-document-workflow-action-icon">
+                                <i class="fa fa-paper-plane-o"></i>
+                            </span>
+                            <span class="appointment-document-workflow-action-copy">
+                                <span class="appointment-document-workflow-action-title">Apri solo TS</span>
+                                <span class="appointment-document-workflow-action-text">Salta la fattura e prepara subito il documento TS con il paziente gia agganciato.</span>
+                            </span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <?php
+            break;
+    }
+
+    return trim((string) ob_get_clean());
+};
+
+$appointmentModalBlockHtmlByKey = [];
+foreach (['time', 'visit_type', 'patient_entry', 'document_workflow'] as $appointmentModalBlockKey) {
+    $blockHtml = $renderAppointmentModalBlock($appointmentModalBlockKey);
+    if ($blockHtml !== '') {
+        $appointmentModalBlockHtmlByKey[$appointmentModalBlockKey] = $blockHtml;
+    }
+}
+
+$appointmentModalRenderOrderKeys = [];
+foreach ($appointmentModalEffectiveLayoutItems as $layoutItem) {
+    $blockKey = trim((string) ($layoutItem['key'] ?? ''));
+    if (
+        $blockKey !== ''
+        && isset($appointmentModalBlockHtmlByKey[$blockKey])
+        && !in_array($blockKey, $appointmentModalRenderOrderKeys, true)
+    ) {
+        $appointmentModalRenderOrderKeys[] = $blockKey;
+    }
+}
+
+if ($appointmentModalRenderOrderKeys === []) {
+    $appointmentModalRenderOrderKeys = array_keys($appointmentModalBlockHtmlByKey);
+}
+?>
+
+<div class="modal fade" id="appointmentModal" tabindex="-1" role="dialog" aria-hidden="true" data-backdrop="static" data-keyboard="false">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header">
+                <button type="button" class="close btn-close-appointment-modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+                <h4 class="modal-title">Gestione appuntamento</h4>
+            </div>
+
+            <div class="modal-body">
+                <input type="hidden" id="app_id_slot">
+                <input type="hidden" id="app_id_dot">
+                <input type="hidden" id="app_id_paziente">
+                <input type="hidden" id="app_token_lock">
+                <input type="hidden" id="app_id_appuntamento">
+                <input type="hidden" id="app_origine_slot">
+
+                <div class="appointment-modal-layout" id="appointmentModalLayout">
+                    <?php foreach ($appointmentModalRenderOrderKeys as $appointmentModalRenderOrderKey): ?>
+                        <?= $appointmentModalBlockHtmlByKey[$appointmentModalRenderOrderKey] ?? '' ?>
+                    <?php endforeach; ?>
                 </div>
             </div>
 
