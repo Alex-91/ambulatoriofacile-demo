@@ -8,6 +8,7 @@ use App\Services\AgendaDefaultViewService;
 use App\Services\AgendaHomeBlockOrderService;
 use App\Services\BillingFeatureService;
 use App\Models\AgendaModel;
+use App\Services\AgendaTextColorThemeService;
 use App\Services\AgendaTeamColumnColorService;
 use App\Services\AgendaProfessionalOrderService;
 use App\Services\TenantContextService;
@@ -55,6 +56,8 @@ class SpaceFeatures extends BaseController
             ->sortProfessionals($context->tenantId, $agendaProfessionals, false);
         $teamDayColumnColorSettings = (new AgendaTeamColumnColorService())
             ->resolveTenantSettings($context->tenantId, $orderedAgendaProfessionals);
+        $agendaTextColorThemeSettings = (new AgendaTextColorThemeService())
+            ->resolveTenantSettings($context->tenantId);
         $billingFeatureService = new BillingFeatureService();
         $tsFeatureService = new TsFeatureService();
 
@@ -69,6 +72,7 @@ class SpaceFeatures extends BaseController
             'agendaHomeBlockOrderSettings' => $agendaHomeBlockOrderSettings,
             'agendaProfessionalOrderSettings' => $agendaProfessionalOrderSettings,
             'teamDayColumnColorSettings' => $teamDayColumnColorSettings,
+            'agendaTextColorThemeSettings' => $agendaTextColorThemeSettings,
             'success' => session()->getFlashdata('success'),
             'errors' => session()->getFlashdata('errors') ?? [],
         ]);
@@ -110,6 +114,8 @@ class SpaceFeatures extends BaseController
             $agendaDefaultView = trim(strtolower((string) ($this->request->getPost('agenda_default_view') ?? '')));
             $teamDayColumnColorForm = (int) ($this->request->getPost('team_day_column_color_form') ?? 0) === 1;
             $teamDayColumnColorsEnabled = (int) ($this->request->getPost('team_day_column_colors_enabled') ?? 0) === 1;
+            $agendaTextColorThemeForm = (int) ($this->request->getPost('agenda_text_color_theme_form') ?? 0) === 1;
+            $agendaTextColorThemeEnabled = (int) ($this->request->getPost('agenda_text_color_theme_enabled') ?? 0) === 1;
             $agendaProfessionalOrderForm = (int) ($this->request->getPost('agenda_professional_order_form') ?? 0) === 1;
             $agendaProfessionalOrderEnabled = (int) ($this->request->getPost('agenda_professional_order_enabled') ?? 0) === 1;
             $agendaProfessionalOrderIds = array_values(array_filter(array_map(
@@ -118,7 +124,10 @@ class SpaceFeatures extends BaseController
             ), static fn(int $value): bool => $value > 0));
             $teamDayCustomEnabledMap = (array) $this->request->getPost('team_day_column_color_custom_enabled');
             $teamDayColorValueMap = (array) $this->request->getPost('team_day_column_color_value');
+            $agendaTextCustomEnabledMap = (array) $this->request->getPost('agenda_text_color_custom_enabled');
+            $agendaTextColorValueMap = (array) $this->request->getPost('agenda_text_color_value');
             $teamDayCustomColors = [];
+            $agendaTextCustomColors = [];
 
             foreach ($teamDayCustomEnabledMap as $doctorId => $enabledFlag) {
                 $doctorId = (int) $doctorId;
@@ -127,6 +136,15 @@ class SpaceFeatures extends BaseController
                 }
 
                 $teamDayCustomColors[$doctorId] = (string) ($teamDayColorValueMap[$doctorId] ?? '');
+            }
+
+            foreach ($agendaTextCustomEnabledMap as $styleKey => $enabledFlag) {
+                $styleKey = trim((string) $styleKey);
+                if ($styleKey === '' || (int) $enabledFlag !== 1) {
+                    continue;
+                }
+
+                $agendaTextCustomColors[$styleKey] = (string) ($agendaTextColorValueMap[$styleKey] ?? '');
             }
 
             $platformUserId = (int) (session()->get('platform_user_id') ?? 0);
@@ -189,6 +207,15 @@ class SpaceFeatures extends BaseController
                     $teamDayColumnColorsEnabled,
                     $teamDayCustomColors,
                     $agendaProfessionals,
+                    $platformUserId
+                );
+            }
+
+            if ($agendaTextColorThemeForm) {
+                (new AgendaTextColorThemeService())->saveTenantPreferences(
+                    $context->tenantId,
+                    $agendaTextColorThemeEnabled,
+                    $agendaTextCustomColors,
                     $platformUserId
                 );
             }

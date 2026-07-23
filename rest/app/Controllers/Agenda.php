@@ -20,6 +20,7 @@ use App\Services\AgendaAppointmentBlockLayoutService;
 use App\Services\AgendaDefaultViewService;
 use App\Services\AgendaHomeBlockOrderService;
 use App\Services\AgendaProfessionalOrderService;
+use App\Services\AgendaTextColorThemeService;
 use App\Services\AgendaTeamColumnColorService;
 use App\Services\AppointmentNotificationSettingsService;
 use App\Services\BillingTsModuleStatusService;
@@ -59,6 +60,7 @@ class Agenda extends BaseController
     protected AgendaHomeBlockOrderService $agendaHomeBlockOrderService;
     protected AgendaDefaultViewService $agendaDefaultViewService;
     protected AgendaProfessionalOrderService $agendaProfessionalOrderService;
+    protected AgendaTextColorThemeService $agendaTextColorThemeService;
     protected AgendaTeamColumnColorService $agendaTeamColumnColorService;
     protected BillingTsModuleStatusService $billingTsModuleStatusService;
     protected TenantContextService $tenantContextService;
@@ -66,6 +68,7 @@ class Agenda extends BaseController
     protected $db;
     protected ?array $tenantFeatureMap = null;
     protected ?array $runtimeTenantFeatureMap = null;
+    protected ?array $agendaTextThemeCssVariables = null;
     protected ?array $agendaTeamColumnThemes = null;
 
     public function __construct()
@@ -86,6 +89,7 @@ class Agenda extends BaseController
         $this->agendaHomeBlockOrderService = new AgendaHomeBlockOrderService();
         $this->agendaDefaultViewService = new AgendaDefaultViewService();
         $this->agendaProfessionalOrderService = new AgendaProfessionalOrderService();
+        $this->agendaTextColorThemeService = new AgendaTextColorThemeService();
         $this->agendaTeamColumnColorService = new AgendaTeamColumnColorService();
         $this->billingTsModuleStatusService = new BillingTsModuleStatusService();
         $this->tenantContextService = new TenantContextService();
@@ -892,6 +896,34 @@ public function eseguiRepairRecurringExtraSlots()
         }
 
         return $this->agendaTeamColumnThemes;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    protected function getAgendaTextThemeCssVariables(): array
+    {
+        if ($this->agendaTextThemeCssVariables !== null) {
+            return $this->agendaTextThemeCssVariables;
+        }
+
+        $tenantId = $this->resolveCurrentAgendaTenantId();
+        if ($tenantId <= 0) {
+            return $this->agendaTextThemeCssVariables = [];
+        }
+
+        try {
+            $this->agendaTextThemeCssVariables = $this->agendaTextColorThemeService
+                ->resolveCssVariables($tenantId);
+        } catch (\Throwable $e) {
+            log_message('warning', 'Agenda::getAgendaTextThemeCssVariables failed: {message}', [
+                'message' => $e->getMessage(),
+                'tenant_id' => $tenantId,
+            ]);
+            $this->agendaTextThemeCssVariables = [];
+        }
+
+        return $this->agendaTextThemeCssVariables;
     }
 
     /**
@@ -1712,6 +1744,7 @@ public function eseguiRepairRecurringExtraSlots()
             'visitTypes'           => $visitTypes,
             'agendaAppointmentBlockLayoutSettings' => $agendaAppointmentBlockLayoutSettings,
             'agendaHomeBlockOrderSettings' => $agendaHomeBlockOrderSettings,
+            'agendaTextThemeCssVars' => $this->getAgendaTextThemeCssVariables(),
             'domiciliariAbilitati' => $domiciliariAbilitati,
             'appointmentDocumentActions' => $appointmentDocumentActions,
             'patientSmsReminderPreferenceAvailable' => $patientSmsReminderPreferenceAvailable,

@@ -157,6 +157,17 @@
                 'label' => $doctorLabel !== '' ? $doctorLabel : ('Dottore #' . $doctorId),
             ];
         }
+        $agendaTextThemeCssVars = is_array($agendaTextThemeCssVars ?? null) ? $agendaTextThemeCssVars : [];
+        $agendaTextThemeInlineStyle = '';
+        foreach ($agendaTextThemeCssVars as $cssVarName => $cssVarValue) {
+            $cssVarName = trim((string) $cssVarName);
+            $cssVarValue = trim((string) $cssVarValue);
+            if ($cssVarName === '' || $cssVarValue === '') {
+                continue;
+            }
+
+            $agendaTextThemeInlineStyle .= $cssVarName . ':' . $cssVarValue . ';';
+        }
     ?>
     <title><?= esc($agendaTitle . (' | AmbulatorioFacile')) ?></title>
     <meta content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" name="viewport">
@@ -1334,6 +1345,7 @@
         .agenda-custom-slot.is-free {
             background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
             border-style: solid;
+            color: var(--agenda-free-slot-text, inherit);
         }
 
         .agenda-custom-slot.is-extra {
@@ -1344,31 +1356,31 @@
         .agenda-custom-slot.is-booked {
             background: #3c8dbc;
             border-color: #2f74a0;
-            color: #fff;
+            color: var(--agenda-appointment-text, #fff);
         }
 
         .agenda-custom-slot.is-booked-spec {
             background: #2e8b57;
             border-color: #247149;
-            color: #fff;
+            color: var(--agenda-appointment-text, #fff);
         }
 
         .agenda-custom-slot.is-blocked {
             background: #f39c12;
             border-color: #d58512;
-            color: #fff;
+            color: var(--agenda-appointment-text, #fff);
         }
 
         .agenda-custom-slot.is-day-blocked {
             background: #d9534f;
             border-color: #c9302c;
-            color: #fff;
+            color: var(--agenda-appointment-text, #fff);
         }
 
         .agenda-custom-slot.has-visit-type-color {
             background: var(--agenda-slot-bg, #3c8dbc);
             border-color: var(--agenda-slot-border, #2f74a0);
-            color: var(--agenda-slot-text, #fff);
+            color: var(--agenda-appointment-text, var(--agenda-slot-text, #fff));
             box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
         }
 
@@ -1377,7 +1389,7 @@
             background: var(--agenda-slot-hover-bg, var(--agenda-slot-bg, #3c8dbc));
             border-color: var(--agenda-slot-hover-border, var(--agenda-slot-border, #2f74a0));
             box-shadow: var(--agenda-slot-hover-shadow, 0 10px 20px rgba(31, 45, 61, 0.16));
-            color: var(--agenda-slot-text, #fff);
+            color: var(--agenda-appointment-text, var(--agenda-slot-text, #fff));
         }
 
         .agenda-custom-slot.is-search-focus {
@@ -1399,7 +1411,7 @@
             border: 1px solid #d7e1ea;
             border-radius: 4px;
             background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
-            color: #405463;
+            color: var(--agenda-location-text, #405463);
             box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22);
             z-index: 4;
             pointer-events: none;
@@ -1408,30 +1420,30 @@
         .agenda-slot-location.is-booked {
             background: #eef6fb;
             border-color: #b8d3e4;
-            color: #24506c;
+            color: var(--agenda-location-text, #24506c);
         }
 
         .agenda-slot-location.is-booked-spec {
             background: #edf8f1;
             border-color: #b8dec5;
-            color: #226745;
+            color: var(--agenda-location-text, #226745);
         }
 
         .agenda-slot-location.is-day-blocked {
             background: #fdeeee;
             border-color: #e5b6b4;
-            color: #9e302a;
+            color: var(--agenda-warning-text, #9e302a);
         }
 
         .agenda-slot-location.has-visit-type-color {
             background: var(--agenda-slot-soft-bg, #eef6fb);
             border-color: var(--agenda-slot-soft-border, #b8d3e4);
-            color: var(--agenda-slot-soft-text, #24506c);
+            color: var(--agenda-location-text, var(--agenda-slot-soft-text, #24506c));
             box-shadow: 0 10px 20px rgba(31, 45, 61, 0.08), inset 0 0 0 1px rgba(255, 255, 255, 0.22);
         }
 
         .agenda-slot-location.is-empty {
-            color: #8a99a6;
+            color: var(--agenda-location-empty-text, #8a99a6);
         }
 
         .agenda-slot-location-amb,
@@ -1530,7 +1542,7 @@
             cursor: not-allowed;
             background: #d9534f !important;
             border-color: #c9302c !important;
-            color: #fff !important;
+            color: var(--agenda-appointment-text, #fff) !important;
         }
 
         #calendar.agenda-no-slots .fc-view-container {
@@ -2137,7 +2149,7 @@
         .agenda-team-corner {
             left: 0;
             z-index: 7;
-            color: #587184;
+            color: var(--agenda-team-secondary-text, #587184);
             font-size: 12px;
             font-weight: 700;
             letter-spacing: 0.03em;
@@ -2147,7 +2159,7 @@
         .agenda-team-header {
             min-width: 220px;
             border-left: 1px solid var(--agenda-team-column-soft-border, #dde7ef);
-            color: var(--agenda-team-column-soft-text, #1f2d3d);
+            color: var(--agenda-team-secondary-text, var(--agenda-team-column-soft-text, #1f2d3d));
         }
 
         .agenda-team-header.is-selected {
@@ -2155,7 +2167,7 @@
         }
 
         .agenda-team-header-name {
-            color: inherit;
+            color: var(--agenda-team-header-text, inherit);
             font-size: 14px;
             font-weight: 700;
             line-height: 1.35;
@@ -2174,7 +2186,7 @@
             padding: 4px 8px;
             border-radius: 999px;
             background: var(--agenda-team-column-chip-bg, #e8f1f8);
-            color: var(--agenda-team-column-chip-text, #406173);
+            color: var(--agenda-team-secondary-text, var(--agenda-team-column-chip-text, #406173));
             font-size: 11px;
             font-weight: 700;
             line-height: 1;
@@ -2182,12 +2194,12 @@
 
         .agenda-team-chip.is-selected {
             background: var(--agenda-team-column-entry-bg, #3c8dbc);
-            color: var(--agenda-team-column-entry-text, #fff);
+            color: var(--agenda-appointment-text, var(--agenda-team-column-entry-text, #fff));
         }
 
         .agenda-team-chip.is-locked {
             background: #fbe9e7;
-            color: #c0392b;
+            color: var(--agenda-warning-text, #c0392b);
         }
 
         .agenda-team-time-axis,
@@ -2231,7 +2243,7 @@
             padding: 4px 8px;
             border-radius: 999px;
             background: rgba(217, 83, 79, 0.12);
-            color: #c0392b;
+            color: var(--agenda-warning-text, #c0392b);
             font-size: 11px;
             font-weight: 700;
         }
@@ -2242,7 +2254,7 @@
             right: 0;
             transform: translateY(-50%);
             padding-right: 10px;
-            color: #6b7886;
+            color: var(--agenda-team-secondary-text, #6b7886);
             font-size: 12px;
             font-weight: 600;
             text-align: right;
@@ -2270,7 +2282,7 @@
             padding: 3px 8px;
             border-radius: 999px;
             background: var(--agenda-team-column-chip-bg, rgba(88, 113, 132, 0.09));
-            color: var(--agenda-team-column-guide-text, #5b7284);
+            color: var(--agenda-team-secondary-text, var(--agenda-team-column-guide-text, #5b7284));
             font-size: 11px;
             font-weight: 700;
             font-variant-numeric: tabular-nums;
@@ -2324,13 +2336,13 @@
         .agenda-team-entry.has-visit-type-color {
             background: var(--agenda-slot-bg, #3c8dbc);
             border: 1px solid var(--agenda-slot-border, #2f74a0);
-            color: var(--agenda-slot-text, #fff);
+            color: var(--agenda-appointment-text, var(--agenda-slot-text, #fff));
             box-shadow: 0 12px 24px var(--agenda-slot-shadow, rgba(31, 45, 61, 0.14));
         }
 
         .agenda-team-entry.has-visit-type-color .agenda-team-entry-time {
             background: var(--agenda-team-pill-bg, rgba(255, 255, 255, 0.18));
-            color: var(--agenda-team-pill-text, inherit);
+            color: var(--agenda-appointment-text, var(--agenda-team-pill-text, inherit));
         }
 
         .agenda-team-entry-patient {
@@ -2358,7 +2370,7 @@
             border: 1px dashed var(--agenda-team-column-free-border, rgba(60, 141, 188, 0.4));
             background: linear-gradient(180deg, var(--agenda-team-column-free-bg, rgba(235, 244, 251, 0.98)) 0%, rgba(246, 250, 254, 0.98) 100%);
             box-shadow: none;
-            color: var(--agenda-team-column-free-text, #2e7eb0);
+            color: var(--agenda-free-slot-text, var(--agenda-team-column-free-text, #2e7eb0));
         }
 
         .agenda-team-entry-free-slot:hover,
@@ -2380,18 +2392,18 @@
             border: 1px solid rgba(217, 83, 79, 0.3);
             background: linear-gradient(180deg, rgba(253, 241, 240, 0.98) 0%, rgba(255, 247, 247, 0.98) 100%);
             box-shadow: none;
-            color: #b03a34;
+            color: var(--agenda-warning-text, #b03a34);
             cursor: default;
         }
 
         .agenda-team-entry-free-slot .agenda-team-entry-time {
             background: var(--agenda-team-column-chip-bg, rgba(60, 141, 188, 0.12));
-            color: var(--agenda-team-column-free-text, #2a6f99);
+            color: var(--agenda-free-slot-text, var(--agenda-team-column-free-text, #2a6f99));
         }
 
         .agenda-team-entry-closed .agenda-team-entry-time {
             background: rgba(192, 57, 43, 0.12);
-            color: #b03a34;
+            color: var(--agenda-warning-text, #b03a34);
         }
 
         .agenda-team-empty-column {
@@ -2405,7 +2417,7 @@
             border-radius: 10px;
             background: linear-gradient(180deg, var(--agenda-team-column-empty-bg, rgba(255, 255, 255, 0.98)) 0%, rgba(244, 249, 252, 0.98) 100%);
             box-shadow: 0 6px 16px var(--agenda-team-column-shadow, rgba(31, 45, 61, 0.08));
-            color: var(--agenda-team-column-empty-text, #425466);
+            color: var(--agenda-team-secondary-text, var(--agenda-team-column-empty-text, #425466));
             font-size: 16px;
             font-weight: 600;
             line-height: 1.55;
@@ -2615,7 +2627,10 @@
         }
     </style>
 </head>
-<body class="skin-blue sidebar-mini<?= $agendaCompressedLayoutEnabled ? ' agenda-compressed-layout-enabled' : '' ?>">
+<body
+    class="skin-blue sidebar-mini<?= $agendaCompressedLayoutEnabled ? ' agenda-compressed-layout-enabled' : '' ?>"
+    <?= $agendaTextThemeInlineStyle !== '' ? 'style="' . esc($agendaTextThemeInlineStyle, 'attr') . '"' : '' ?>
+>
 <div class="wrapper">
 
     <?= view('partials/header', ['menu_items' => $menu_items ?? []]) ?>
@@ -7762,12 +7777,14 @@ function buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute, entryH
             bookedClass += ' has-visit-type-color';
             bookedStyle += buildAgendaVisitTypeInlineStyle(visitTypeVisualStyle);
         } else {
-            if (column.giorno_bloccato || isSpecialPatient) {
-                bookedStyle += 'background:' + color + ';border:1px solid ' + color + ';color:#fff;';
+            if (column.giorno_bloccato) {
+                bookedStyle += 'background:' + color + ';border:1px solid ' + color + ';color:var(--agenda-appointment-text, #fff);';
+            } else if (isSpecialPatient) {
+                bookedStyle += 'background:' + color + ';border:1px solid ' + color + ';color:var(--agenda-appointment-text, #fff);';
             } else {
                 bookedStyle += 'background:var(--agenda-team-column-entry-bg, ' + color + ');'
                     + 'border:1px solid var(--agenda-team-column-entry-border, ' + color + ');'
-                    + 'color:var(--agenda-team-column-entry-text, #fff);';
+                    + 'color:var(--agenda-appointment-text, var(--agenda-team-column-entry-text, #fff));';
             }
         }
 

@@ -106,6 +106,17 @@ $oldTeamDayCustomEnabledMap = old('team_day_column_color_custom_enabled');
 $oldTeamDayCustomEnabledMap = is_array($oldTeamDayCustomEnabledMap) ? $oldTeamDayCustomEnabledMap : [];
 $oldTeamDayColorValueMap = old('team_day_column_color_value');
 $oldTeamDayColorValueMap = is_array($oldTeamDayColorValueMap) ? $oldTeamDayColorValueMap : [];
+$agendaTextColorThemeSettings = is_array($agendaTextColorThemeSettings ?? null) ? $agendaTextColorThemeSettings : [];
+$agendaTextColorRows = is_array($agendaTextColorThemeSettings['style_rows'] ?? null)
+    ? $agendaTextColorThemeSettings['style_rows']
+    : [];
+$agendaTextThemeAvailable = !empty($agendaTextColorThemeSettings['theme_management_available']);
+$agendaTextThemeActive = !empty($agendaTextColorThemeSettings['theme_active']);
+$oldAgendaTextThemeEnabled = old('agenda_text_color_theme_enabled');
+$oldAgendaTextCustomEnabledMap = old('agenda_text_color_custom_enabled');
+$oldAgendaTextCustomEnabledMap = is_array($oldAgendaTextCustomEnabledMap) ? $oldAgendaTextCustomEnabledMap : [];
+$oldAgendaTextColorValueMap = old('agenda_text_color_value');
+$oldAgendaTextColorValueMap = is_array($oldAgendaTextColorValueMap) ? $oldAgendaTextColorValueMap : [];
 
 $reorderRowsByScalarKey = static function (array $rows, array $orderedValues, string $keyField, callable $normalize): array {
     $orderedValues = array_values(array_filter(array_map($normalize, $orderedValues), static fn($value): bool => $value !== null));
@@ -190,6 +201,10 @@ foreach ($featureStates as $row) {
     $tenantManaged = (bool) ($row['is_tenant_managed'] ?? false);
     $featureKey = trim((string) ($row['feature_key'] ?? ''));
 
+    if ($featureKey === \App\Services\AgendaTextColorThemeService::FEATURE_KEY) {
+        continue;
+    }
+
     if ($featureKey === 'appointment_notifications') {
         $appointmentNotificationsEntitled = (bool) ($row['entitlement_enabled'] ?? false);
         $appointmentNotificationsAvailable = (bool) ($row['effective_enabled'] ?? false);
@@ -212,6 +227,7 @@ $hasSupplementalSpaceControls = ($agendaHomeBlockOrderAvailable && $agendaHomeBl
     || ($agendaAppointmentBlockLayoutAvailable && $agendaAppointmentBlockRows !== [])
     || ($agendaDefaultViewAvailable && $agendaDefaultViewRows !== [])
     || ($agendaProfessionalOrderAvailable && $agendaProfessionalOrderRows !== [])
+    || ($agendaTextThemeAvailable && $agendaTextColorRows !== [])
     || ($teamDayColorsAvailable && $teamDayColorRows !== []);
 $showGenericEmptyMessage = ($manageableRows === []) && !$hasSupplementalSpaceControls;
 $canSubmitSpaceSettings = ($manageableRows !== []) || $hasSupplementalSpaceControls;
@@ -338,6 +354,84 @@ $canSubmitSpaceSettings = ($manageableRows !== []) || $hasSupplementalSpaceContr
       cursor: pointer;
     }
     .team-day-colors-note {
+      margin-top: 10px;
+      color: #60777c;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    .agenda-text-theme-box {
+      margin-top: 18px;
+      border: 1px solid #dbe8eb;
+      border-radius: 12px;
+      background: linear-gradient(180deg, #fffdf8 0%, #f8fbfc 100%);
+      padding: 16px;
+    }
+    .agenda-text-theme-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+    }
+    .agenda-text-theme-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      flex-wrap: wrap;
+      padding: 14px;
+      border: 1px solid #e4eaee;
+      border-radius: 12px;
+      background: #fff;
+    }
+    .agenda-text-theme-row.is-custom {
+      box-shadow: 0 10px 22px rgba(61, 74, 83, 0.08);
+      border-color: #d3dde3;
+    }
+    .agenda-text-theme-main {
+      min-width: 0;
+      flex: 1 1 220px;
+    }
+    .agenda-text-theme-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 14px;
+      font-weight: 700;
+      color: #223a40;
+      line-height: 1.35;
+    }
+    .agenda-text-theme-meta {
+      margin-top: 4px;
+      font-size: 12px;
+      color: #647b80;
+      line-height: 1.5;
+    }
+    .agenda-text-theme-swatch {
+      width: 18px;
+      height: 18px;
+      flex: 0 0 18px;
+      border-radius: 6px;
+      border: 1px solid rgba(31, 45, 61, 0.14);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.32);
+      background: var(--agenda-text-theme-color, #1F2D3D);
+    }
+    .agenda-text-theme-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    .agenda-text-theme-picker {
+      width: 42px;
+      height: 32px;
+      padding: 0;
+      border: 1px solid #d7e4ea;
+      border-radius: 10px;
+      background: #fff;
+      cursor: pointer;
+    }
+    .agenda-text-theme-note {
       margin-top: 10px;
       color: #60777c;
       font-size: 12px;
@@ -956,6 +1050,108 @@ $canSubmitSpaceSettings = ($manageableRows !== []) || $hasSupplementalSpaceContr
                   </div>
                 <?php endif; ?>
 
+                <?php if ($agendaTextThemeAvailable && $agendaTextColorRows !== []): ?>
+                  <?php
+                    $agendaTextThemeEnabledChecked = ((string) $oldAgendaTextThemeEnabled === '1')
+                        || ($oldAgendaTextThemeEnabled === null && !empty($agendaTextColorThemeSettings['tenant_theme_enabled']));
+                  ?>
+                  <div class="agenda-text-theme-box">
+                    <input type="hidden" name="agenda_text_color_theme_form" value="1">
+                    <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+                      <div>
+                        <h4 style="margin:0 0 6px 0;">Palette testo agenda</h4>
+                        <p style="margin:0; color:#587075;">
+                          Qui decidi quali testi dell agenda vuoi personalizzare per questo studio. Puoi toccare solo le righe che ti interessano: tutte le altre continuano a usare il colore standard.
+                        </p>
+                      </div>
+                      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                        <span class="label label-<?= $agendaTextThemeActive ? 'success' : 'default' ?>">
+                          <?= $agendaTextThemeActive ? 'palette testo attiva' : 'palette standard attiva' ?>
+                        </span>
+                        <span class="label label-info">vale in Giorno, Settimana e Giorno Team</span>
+                      </div>
+                    </div>
+
+                    <div class="checkbox" style="margin:14px 0 0 0;">
+                      <label>
+                        <input
+                          type="checkbox"
+                          name="agenda_text_color_theme_enabled"
+                          value="1"
+                          <?= $agendaTextThemeEnabledChecked ? 'checked' : '' ?>
+                        >
+                        Usa una palette testo personalizzata per l agenda di questo studio
+                      </label>
+                    </div>
+
+                    <div class="agenda-text-theme-grid">
+                      <?php foreach ($agendaTextColorRows as $row): ?>
+                        <?php
+                          $styleKey = trim((string) ($row['key'] ?? ''));
+                          if ($styleKey === '') {
+                              continue;
+                          }
+                          $hasCustomColor = array_key_exists($styleKey, $oldAgendaTextCustomEnabledMap)
+                              ? ((int) ($oldAgendaTextCustomEnabledMap[$styleKey] ?? 0) === 1)
+                              : !empty($row['has_custom_color']);
+                          $pickerValue = trim((string) ($oldAgendaTextColorValueMap[$styleKey] ?? ''));
+                          if ($pickerValue === '') {
+                              $pickerValue = $hasCustomColor
+                                  ? (string) ($row['custom_color'] ?? '')
+                                  : (string) ($row['default_color'] ?? '');
+                          }
+                          if ($pickerValue === '') {
+                              $pickerValue = '#1F2D3D';
+                          }
+                          $previewColor = $hasCustomColor
+                              ? $pickerValue
+                              : (string) ($row['default_color'] ?? $pickerValue);
+                        ?>
+                        <div class="agenda-text-theme-row<?= $hasCustomColor ? ' is-custom' : '' ?>">
+                          <div class="agenda-text-theme-main">
+                            <div class="agenda-text-theme-title">
+                              <span class="agenda-text-theme-swatch" style="--agenda-text-theme-color:<?= esc($previewColor) ?>;"></span>
+                              <span><?= esc((string) ($row['label'] ?? $styleKey)) ?></span>
+                            </div>
+                            <div class="agenda-text-theme-meta">
+                              <?= $hasCustomColor ? 'Colore personalizzato salvato per questo testo.' : 'Per ora resta il colore standard gia usato dall agenda.' ?>
+                              <?php if (trim((string) ($row['description'] ?? '')) !== ''): ?>
+                                <br><?= esc((string) $row['description']) ?>
+                              <?php endif; ?>
+                              <br>Standard: <strong><?= esc((string) ($row['default_color'] ?? '#1F2D3D')) ?></strong>
+                            </div>
+                          </div>
+                          <div class="agenda-text-theme-actions">
+                            <label class="checkbox-inline" style="margin:0;">
+                              <input
+                                type="checkbox"
+                                name="agenda_text_color_custom_enabled[<?= esc($styleKey, 'attr') ?>]"
+                                value="1"
+                                class="js-agenda-text-color-custom-toggle"
+                                data-target="agenda-text-color-value-<?= esc($styleKey, 'attr') ?>"
+                                <?= $hasCustomColor ? 'checked' : '' ?>
+                              >
+                              Personalizza
+                            </label>
+                            <input
+                              type="color"
+                              id="agenda-text-color-value-<?= esc($styleKey, 'attr') ?>"
+                              name="agenda_text_color_value[<?= esc($styleKey, 'attr') ?>]"
+                              value="<?= esc(strtolower($pickerValue)) ?>"
+                              class="agenda-text-theme-picker"
+                              <?= $hasCustomColor ? '' : 'disabled' ?>
+                            >
+                          </div>
+                        </div>
+                      <?php endforeach; ?>
+                    </div>
+
+                    <div class="agenda-text-theme-note">
+                      Attiva solo i testi che vuoi davvero sovrascrivere. Se spegni la palette, tutte le personalizzazioni restano salvate e pronte da riattivare quando vuoi.
+                    </div>
+                  </div>
+                <?php endif; ?>
+
                 <?php if ($teamDayColorsAvailable && $teamDayColorRows !== []): ?>
                   <div class="team-day-colors-box">
                     <input type="hidden" name="team_day_column_color_form" value="1">
@@ -1328,6 +1524,25 @@ $canSubmitSpaceSettings = ($manageableRows !== []) || $hasSupplementalSpaceContr
       }
     }
 
+    function syncAgendaTextColorToggle(toggle) {
+      var targetId = toggle.getAttribute('data-target');
+      if (!targetId) {
+        return;
+      }
+
+      var input = document.getElementById(targetId);
+      if (!input) {
+        return;
+      }
+
+      input.disabled = !toggle.checked;
+
+      var row = toggle.closest('.agenda-text-theme-row');
+      if (row) {
+        row.classList.toggle('is-custom', toggle.checked);
+      }
+    }
+
     function syncAgendaDefaultViewToggle(toggle) {
       var targetId = toggle.getAttribute('data-target');
       if (!targetId) {
@@ -1347,6 +1562,14 @@ $canSubmitSpaceSettings = ($manageableRows !== []) || $hasSupplementalSpaceContr
       syncTeamDayColorToggle(toggles[i]);
       toggles[i].addEventListener('change', function() {
         syncTeamDayColorToggle(this);
+      });
+    }
+
+    var agendaTextColorToggles = document.querySelectorAll('.js-agenda-text-color-custom-toggle');
+    for (var h = 0; h < agendaTextColorToggles.length; h++) {
+      syncAgendaTextColorToggle(agendaTextColorToggles[h]);
+      agendaTextColorToggles[h].addEventListener('change', function() {
+        syncAgendaTextColorToggle(this);
       });
     }
 
