@@ -4760,6 +4760,7 @@ public function eseguiRepairRecurringExtraSlots()
     public function importaPazientiExcelPreview()
     {
         $selectedDot = (int) ($this->request->getPost('id_dot') ?? 0);
+        $associateAllDoctors = $this->requestBooleanFlag($this->request->getPost('associate_all_doctors'));
         $previewContext = null;
 
         if (!$this->isPatientExcelImportEnabled()) {
@@ -4788,6 +4789,7 @@ public function eseguiRepairRecurringExtraSlots()
             return view('agenda/importa_pazienti_excel', $this->buildPatientExcelImportViewData($selectedDot, [
                 'previewContext' => $previewContext,
                 'columnMapping' => (array) ($previewContext['default_mapping'] ?? []),
+                'associateAllDoctors' => $associateAllDoctors,
             ]));
         } catch (\Throwable $e) {
             return view('agenda/importa_pazienti_excel', $this->buildPatientExcelImportViewData($selectedDot, [
@@ -4795,6 +4797,7 @@ public function eseguiRepairRecurringExtraSlots()
                 'columnMapping' => is_array($previewContext['default_mapping'] ?? null)
                     ? (array) $previewContext['default_mapping']
                     : [],
+                'associateAllDoctors' => $associateAllDoctors,
                 'errors' => [$e->getMessage()],
             ]));
         }
@@ -4805,6 +4808,7 @@ public function eseguiRepairRecurringExtraSlots()
         $selectedDot = (int) ($this->request->getPost('id_dot') ?? 0);
         $token = (string) ($this->request->getPost('import_token') ?? '');
         $columnMapping = (array) $this->request->getPost('column_mapping');
+        $associateAllDoctors = $this->requestBooleanFlag($this->request->getPost('associate_all_doctors'));
         $previewContext = null;
 
         if (!$this->isPatientExcelImportEnabled()) {
@@ -4826,16 +4830,24 @@ public function eseguiRepairRecurringExtraSlots()
                 return view('agenda/importa_pazienti_excel', $this->buildPatientExcelImportViewData($selectedDot, [
                     'previewContext' => $previewContext,
                     'columnMapping' => (array) ($mappingState['mapping'] ?? []),
+                    'associateAllDoctors' => $associateAllDoctors,
                     'errors' => (array) ($mappingState['errors'] ?? []),
                     'mappingWarnings' => (array) ($mappingState['warnings'] ?? []),
                 ]));
             }
 
-            $importResult = $service->importPreparedWorkbook($token, $selectedDot, $columnMapping, $this->getCurrentUserId());
+            $importResult = $service->importPreparedWorkbook(
+                $token,
+                $selectedDot,
+                $columnMapping,
+                $this->getCurrentUserId(),
+                $associateAllDoctors
+            );
 
             return view('agenda/importa_pazienti_excel', $this->buildPatientExcelImportViewData($selectedDot, [
                 'previewContext' => $previewContext,
                 'columnMapping' => (array) ($importResult['mapping'] ?? []),
+                'associateAllDoctors' => $associateAllDoctors,
                 'importResult' => $importResult,
             ]));
         } catch (\Throwable $e) {
@@ -4850,6 +4862,7 @@ public function eseguiRepairRecurringExtraSlots()
             return view('agenda/importa_pazienti_excel', $this->buildPatientExcelImportViewData($selectedDot, [
                 'previewContext' => $previewContext,
                 'columnMapping' => $columnMapping,
+                'associateAllDoctors' => $associateAllDoctors,
                 'errors' => [$e->getMessage()],
             ]));
         }
@@ -4875,6 +4888,7 @@ public function eseguiRepairRecurringExtraSlots()
             'previewContext' => null,
             'columnMapping' => [],
             'importResult' => null,
+            'associateAllDoctors' => false,
             'errors' => [],
             'mappingWarnings' => [],
             'targetFieldDefinitions' => (new PatientExcelImportService())->getTargetFieldDefinitions(),
@@ -4886,6 +4900,19 @@ public function eseguiRepairRecurringExtraSlots()
         ];
 
         return array_merge($data, $overrides);
+    }
+
+    private function requestBooleanFlag($value): bool
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        if (is_numeric($value)) {
+            return (int) $value === 1;
+        }
+
+        return in_array(strtolower(trim((string) $value)), ['1', 'true', 'on', 'yes', 'si'], true);
     }
 
     public function listaPazienti()

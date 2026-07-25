@@ -14,6 +14,7 @@ class PazientiModel extends Model
     private const CLIENT_DOCTOR_TABLE = 'dap09_client_doctor';
     private const APPOINTMENTS_TABLE = 'dap12_agenda_appuntamenti';
     private const APPOINTMENT_REMINDER_SMS_COLUMN = 'appointment_reminder_sms_enabled';
+    private const ASSOCIATE_ALL_DOCTORS_COLUMN = 'share_all_doctors';
     private const SHARED_AGENDA_PATIENTS_FEATURE = 'shared_agenda_patients';
     private const SPECIAL_PATIENT_TOKENS = ['DDD', 'STOP', 'INFO', 'INF', 'URG', 'CER', 'DOT'];
     private const EXTRA_PATIENT_FIELDS = [
@@ -80,7 +81,9 @@ class PazientiModel extends Model
                 $ids = count((array) ($scope['legacy_dot_ids'] ?? [])) > 1
                     ? $this->doctorPatientSearchModel->searchClientIdsForDoctors((array) ($scope['legacy_dot_ids'] ?? []), $term, 20)
                     : $this->doctorPatientSearchModel->searchClientIdsForDoctor($idDot, $term, 20);
-                return $this->getPatientsByIds($ids, true);
+                if ($ids !== []) {
+                    return $this->getPatientsByIds($ids, true);
+                }
             } catch (\Throwable $e) {
                 log_message('warning', 'PazientiModel autocomplete indexed search fallback: ' . $e->getMessage(), [
                     'id_dot' => $idDot,
@@ -654,7 +657,9 @@ class PazientiModel extends Model
                 $ids = count((array) ($scope['legacy_dot_ids'] ?? [])) > 1
                     ? $this->doctorPatientSearchModel->listClientIdsForDoctors((array) ($scope['legacy_dot_ids'] ?? []), $term)
                     : $this->doctorPatientSearchModel->listClientIdsForDoctor($idDot, $term);
-                return $this->getPatientsByIds($ids, false);
+                if ($ids !== []) {
+                    return $this->getPatientsByIds($ids, false);
+                }
             } catch (\Throwable $e) {
                 log_message('warning', 'PazientiModel patient list indexed search fallback: ' . $e->getMessage(), [
                     'id_dot' => $idDot,
@@ -689,6 +694,7 @@ class PazientiModel extends Model
                 {$this->dec('c.nome')} AS nome,
                 {$this->dec('c.cognome')} AS cognome,
                 {$this->buildAdditionalPatientSelectSql('c')},
+                {$this->buildAssociateAllDoctorsSelectSql('c')} AS associate_all_doctors,
                 {$this->dec('c.telefono')} AS telefono,
                 {$this->dec('c.cellulare')} AS cellulare,
                 {$this->dec('c.email')} AS email,
@@ -746,17 +752,19 @@ class PazientiModel extends Model
                     : $this->doctorPatientSearchModel->paginateClientIdsForDoctor($idDot, $term, $page, $perPage);
                 $rows = $this->getPatientsByIds($indexed['ids'], false);
 
-                return [
-                    'rows' => $rows,
-                    'page' => $indexed['page'],
-                    'perPage' => $indexed['perPage'],
-                    'total' => $indexed['total'],
-                    'lastPage' => $indexed['lastPage'],
-                    'from' => $indexed['total'] > 0 && !empty($rows) ? $indexed['from'] : 0,
-                    'to' => $indexed['total'] > 0 && !empty($rows)
-                        ? min($indexed['from'] + count($rows) - 1, $indexed['total'])
-                        : 0,
-                ];
+                if ((int) ($indexed['total'] ?? 0) > 0 || $rows !== []) {
+                    return [
+                        'rows' => $rows,
+                        'page' => $indexed['page'],
+                        'perPage' => $indexed['perPage'],
+                        'total' => $indexed['total'],
+                        'lastPage' => $indexed['lastPage'],
+                        'from' => $indexed['total'] > 0 && !empty($rows) ? $indexed['from'] : 0,
+                        'to' => $indexed['total'] > 0 && !empty($rows)
+                            ? min($indexed['from'] + count($rows) - 1, $indexed['total'])
+                            : 0,
+                    ];
+                }
             } catch (\Throwable $e) {
                 log_message('warning', 'PazientiModel indexed paginated patient list fallback: ' . $e->getMessage(), [
                     'id_dot' => $idDot,
@@ -824,6 +832,8 @@ class PazientiModel extends Model
                 c.id_client AS id_paziente,
                 {$this->dec('c.nome')} AS nome,
                 {$this->dec('c.cognome')} AS cognome,
+                {$this->buildAdditionalPatientSelectSql('c')},
+                {$this->buildAssociateAllDoctorsSelectSql('c')} AS associate_all_doctors,
                 {$this->dec('c.telefono')} AS telefono,
                 {$this->dec('c.cellulare')} AS cellulare,
                 {$this->dec('c.email')} AS email,
@@ -895,25 +905,41 @@ class PazientiModel extends Model
 
         $this->db->transStart();
 
-        $this->db->table(self::CLIENT_DOCTOR_TABLE)
-            ->where('id_client', $idPaziente)
-            ->where('id_dot', $idPersonale)
-            ->delete();
+        $isSharedWithAllDoctors = (int) ($row['share_all_doctors'] ?? 0) === 1;
+        if ($isSharedWithAllDoctors) {
+            $remainingDoctorIds = array_values(array_filter(
+                $this->listAllDoctorAssociationPersonaleIds(),
+                static fn(int $doctorId): bool => $doctorId > 0 && $doctorId !== $idPersonale
+            ));
 
-        $remainingLinks = $this->db->table(self::CLIENT_DOCTOR_TABLE)
-            ->select('id_dot')
-            ->where('id_client', $idPaziente)
-            ->get()
-            ->getResultArray();
+            $this->updateAssociateAllDoctorsFlag($idPaziente, false);
+            $this->clientDoctorModel->setDoctorsForClient(
+                $idPaziente,
+                $remainingDoctorIds,
+                $this->resolveReplacementPrimaryDoctorId($remainingDoctorIds),
+                false
+            );
+        } else {
+            $this->db->table(self::CLIENT_DOCTOR_TABLE)
+                ->where('id_client', $idPaziente)
+                ->where('id_dot', $idPersonale)
+                ->delete();
 
-        $remainingDoctorIds = array_values(array_unique(array_map(
-            static fn(array $item): int => (int)($item['id_dot'] ?? 0),
-            $remainingLinks
-        )));
-        $remainingDoctorIds = array_values(array_filter($remainingDoctorIds, static fn(int $doctorId): bool => $doctorId > 0));
+            $remainingLinks = $this->db->table(self::CLIENT_DOCTOR_TABLE)
+                ->select('id_dot')
+                ->where('id_client', $idPaziente)
+                ->get()
+                ->getResultArray();
+
+            $remainingDoctorIds = array_values(array_unique(array_map(
+                static fn(array $item): int => (int)($item['id_dot'] ?? 0),
+                $remainingLinks
+            )));
+            $remainingDoctorIds = array_values(array_filter($remainingDoctorIds, static fn(int $doctorId): bool => $doctorId > 0));
+        }
 
         $currentPrimaryDoctorId = (int)($row['id_personale'] ?? 0);
-        if ($currentPrimaryDoctorId === $idPersonale) {
+        if ($currentPrimaryDoctorId > 0 && !in_array($currentPrimaryDoctorId, $remainingDoctorIds, true)) {
             $newPrimaryDoctorId = $this->resolveReplacementPrimaryDoctorId($remainingDoctorIds);
             $this->db->table(self::CLIENTS_TABLE)
                 ->where('id_client', $idPaziente)
@@ -949,6 +975,7 @@ class PazientiModel extends Model
                 {$this->dec('c.nome')} AS nome,
                 {$this->dec('c.cognome')} AS cognome,
                 {$this->buildAdditionalPatientSelectSql('c')},
+                {$this->buildAssociateAllDoctorsSelectSql('c')} AS associate_all_doctors,
                 {$this->dec('c.data_nascita')} AS data_nascita,
                 {$this->dec('c.codice_fiscale')} AS cod_fis,
                 {$this->dec('c.comune_nascita')} AS comune_nascita,
@@ -1006,6 +1033,7 @@ class PazientiModel extends Model
                 {$this->dec('c.nome')} AS nome,
                 {$this->dec('c.cognome')} AS cognome,
                 {$this->buildAdditionalPatientSelectSql('c')},
+                {$this->buildAssociateAllDoctorsSelectSql('c')} AS associate_all_doctors,
                 {$this->dec('c.data_nascita')} AS data_nascita,
                 {$this->dec('c.codice_fiscale')} AS cod_fis,
                 {$this->dec('c.comune_nascita')} AS comune_nascita,
@@ -1298,6 +1326,7 @@ class PazientiModel extends Model
         }
 
         $useSharedScope = (bool) ($scope['shared'] ?? false);
+        $allDoctorsAssociation = $this->resolveAllDoctorsAssociationMode($payload);
 
         $providedFields = $this->resolveProvidedPatientFields($payload);
 
@@ -1367,8 +1396,10 @@ class PazientiModel extends Model
         }
 
         $persistDoctorLink = !$useSharedScope
+            || !empty($allDoctorsAssociation['provided'])
             || $idClient <= 0
-            || $this->hasDirectDoctorRelationship($idClient, $idPersonale);
+            || $this->hasDirectDoctorRelationship($idClient, $idPersonale)
+            || $this->isPatientAssociatedToAllDoctors($idClient);
 
         $this->db->transStart();
 
@@ -1384,10 +1415,31 @@ class PazientiModel extends Model
             throw new Exception('Impossibile salvare il paziente.');
         }
 
-        if ($persistDoctorLink) {
+        $isSpecialPatient = trim((string)($existing['paz_spec'] ?? '')) !== '' || $data['paz_spec'] !== '';
+        $doctorIdsToAssociate = [];
+
+        if (!empty($allDoctorsAssociation['provided'])) {
+            $this->updateAssociateAllDoctorsFlag($idClient, !empty($allDoctorsAssociation['enabled']));
+            $doctorIdsToAssociate = !empty($allDoctorsAssociation['enabled'])
+                ? $this->listAllDoctorAssociationPersonaleIds($idPersonale)
+                : [$idPersonale];
+        }
+
+        if ($doctorIdsToAssociate !== []) {
+            $this->clientDoctorModel->setDoctorsForClient($idClient, $doctorIdsToAssociate, $idPersonale, false);
+
+            if (!$isSpecialPatient) {
+                $newPrimaryDoctorId = $this->isFamilyDoctor($idPersonale)
+                    ? $idPersonale
+                    : $this->resolveReplacementPrimaryDoctorId($doctorIdsToAssociate);
+                $this->db->table(self::CLIENTS_TABLE)
+                    ->where('id_client', $idClient)
+                    ->update(['id_personale' => $newPrimaryDoctorId > 0 ? $newPrimaryDoctorId : null]);
+            }
+        } elseif ($persistDoctorLink) {
             $this->clientDoctorModel->setDoctorForClient($idClient, $idPersonale, false);
 
-            if ($this->isFamilyDoctor($idPersonale) && trim((string)($existing['paz_spec'] ?? '')) === '') {
+            if ($this->isFamilyDoctor($idPersonale) && !$isSpecialPatient) {
                 $this->db->table(self::CLIENTS_TABLE)
                     ->where('id_client', $idClient)
                     ->update(['id_personale' => $idPersonale]);
@@ -1423,6 +1475,7 @@ class PazientiModel extends Model
                     {$this->dec('c.nome')} AS nome,
                     {$this->dec('c.cognome')} AS cognome,
                     {$this->buildAdditionalPatientSelectSql('c')},
+                    {$this->buildAssociateAllDoctorsSelectSql('c')} AS associate_all_doctors,
                     {$this->dec('c.telefono')} AS telefono,
                     {$this->dec('c.cellulare')} AS cellulare,
                     {$this->dec('c.email')} AS email,
@@ -1443,6 +1496,7 @@ class PazientiModel extends Model
                     {$this->dec('c.nome')} AS nome,
                     {$this->dec('c.cognome')} AS cognome,
                     {$this->buildAdditionalPatientSelectSql('c')},
+                    {$this->buildAssociateAllDoctorsSelectSql('c')} AS associate_all_doctors,
                     {$this->dec('c.telefono')} AS telefono,
                     {$this->dec('c.cellulare')} AS cellulare,
                     {$this->dec('c.email')} AS email,
@@ -1621,7 +1675,8 @@ class PazientiModel extends Model
                 c.id_user,
                 COALESCE(c.id_personale, 0) AS id_personale,
                 COALESCE(c.legacy_id_paziente, 0) AS legacy_id_paziente,
-                {$this->dec('c.paz_spec')} AS paz_spec
+                {$this->dec('c.paz_spec')} AS paz_spec,
+                {$this->buildAssociateAllDoctorsSelectSql('c')} AS share_all_doctors
             FROM " . self::CLIENTS_TABLE . " c
             WHERE c.id_client = ?
               AND (
@@ -1647,7 +1702,8 @@ class PazientiModel extends Model
                 c.id_user,
                 COALESCE(c.id_personale, 0) AS id_personale,
                 COALESCE(c.legacy_id_paziente, 0) AS legacy_id_paziente,
-                {$this->dec('c.paz_spec')} AS paz_spec
+                {$this->dec('c.paz_spec')} AS paz_spec,
+                {$this->buildAssociateAllDoctorsSelectSql('c')} AS share_all_doctors
             FROM " . self::CLIENTS_TABLE . " c
             WHERE c.id_client = ?
             LIMIT 1
@@ -1667,6 +1723,7 @@ class PazientiModel extends Model
                 WHERE cd.id_client = {$alias}.id_client
                   AND cd.id_dot = ?
             )
+            OR " . $this->buildAssociateAllDoctorsVisibilitySql($alias) . "
             OR COALESCE(TRIM({$this->decExpr($alias . '.paz_spec')}), '') <> ''
         )";
     }
@@ -1686,6 +1743,7 @@ class PazientiModel extends Model
                 WHERE cd.id_client = {$alias}.id_client
                   AND cd.id_dot IN ({$personaleListSql})
             )
+            OR " . $this->buildAssociateAllDoctorsVisibilitySql($alias) . "
             OR COALESCE(TRIM({$this->decExpr($alias . '.paz_spec')}), '') <> ''
         )";
     }
@@ -1716,6 +1774,10 @@ class PazientiModel extends Model
                     COALESCE(a.id_client, 0) > 0
                  OR c_legacy.id_client IS NOT NULL
               )
+
+            UNION
+
+            " . $this->buildAssociateAllDoctorsPatientIdsSql('c_shared') . "
 
             UNION
 
@@ -1761,9 +1823,35 @@ class PazientiModel extends Model
 
             UNION
 
+            " . $this->buildAssociateAllDoctorsPatientIdsSql('c_shared') . "
+
+            UNION
+
             SELECT c_special.id_client
             FROM " . self::CLIENTS_TABLE . " c_special
             WHERE " . $this->buildGlobalSpecialPatientSql('c_special') . "
+        ";
+    }
+
+    private function buildAssociateAllDoctorsVisibilitySql(string $alias): string
+    {
+        if (!$this->clientTableHasColumn(self::ASSOCIATE_ALL_DOCTORS_COLUMN)) {
+            return '0 = 1';
+        }
+
+        return 'COALESCE(' . $alias . '.' . self::ASSOCIATE_ALL_DOCTORS_COLUMN . ', 0) = 1';
+    }
+
+    private function buildAssociateAllDoctorsPatientIdsSql(string $alias): string
+    {
+        if (!$this->clientTableHasColumn(self::ASSOCIATE_ALL_DOCTORS_COLUMN)) {
+            return 'SELECT NULL AS id_client WHERE 1 = 0';
+        }
+
+        return "
+            SELECT {$alias}.id_client
+            FROM " . self::CLIENTS_TABLE . " {$alias}
+            WHERE COALESCE({$alias}." . self::ASSOCIATE_ALL_DOCTORS_COLUMN . ", 0) = 1
         ";
     }
 
@@ -2265,6 +2353,20 @@ class PazientiModel extends Model
         return preg_replace('/[^A-Z0-9]/', '', $value) ?? '';
     }
 
+    private function normalizeBooleanFlag($value): bool
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        if (is_numeric($value)) {
+            return (int) $value === 1;
+        }
+
+        $normalized = strtolower(trim((string) $value));
+        return in_array($normalized, ['1', 'true', 'on', 'yes', 'si'], true);
+    }
+
     private function buildNormalizedComparableSql(string $expr): string
     {
         return "REPLACE(REPLACE(REPLACE(REPLACE(TRIM(UPPER(COALESCE({$expr}, ''))), ' ', ''), '.', ''), '-', ''), '/', '')";
@@ -2345,6 +2447,70 @@ class PazientiModel extends Model
         }
 
         return implode(",\n                ", $parts);
+    }
+
+    private function buildAssociateAllDoctorsSelectSql(string $alias): string
+    {
+        if (!$this->clientTableHasColumn(self::ASSOCIATE_ALL_DOCTORS_COLUMN)) {
+            return '0';
+        }
+
+        return 'COALESCE(' . $alias . '.' . self::ASSOCIATE_ALL_DOCTORS_COLUMN . ', 0)';
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     * @return array{provided: bool, enabled: bool}
+     */
+    private function resolveAllDoctorsAssociationMode(array $payload): array
+    {
+        if (!array_key_exists('associate_all_doctors', $payload)) {
+            return [
+                'provided' => false,
+                'enabled' => false,
+            ];
+        }
+
+        return [
+            'provided' => true,
+            'enabled' => $this->normalizeBooleanFlag($payload['associate_all_doctors'] ?? 0),
+        ];
+    }
+
+    private function listAllDoctorAssociationPersonaleIds(int $selectedPersonaleId = 0): array
+    {
+        $doctorIds = (array) ($this->listSharedDoctorScopeIds()['personale_ids'] ?? []);
+        if ($selectedPersonaleId > 0) {
+            $doctorIds[] = $selectedPersonaleId;
+        }
+
+        return $this->normalizeIdList($doctorIds);
+    }
+
+    private function updateAssociateAllDoctorsFlag(int $idClient, bool $enabled): void
+    {
+        if ($idClient <= 0 || !$this->clientTableHasColumn(self::ASSOCIATE_ALL_DOCTORS_COLUMN)) {
+            return;
+        }
+
+        $this->db->table(self::CLIENTS_TABLE)
+            ->where('id_client', $idClient)
+            ->update([self::ASSOCIATE_ALL_DOCTORS_COLUMN => $enabled ? 1 : 0]);
+    }
+
+    private function isPatientAssociatedToAllDoctors(int $idClient): bool
+    {
+        if ($idClient <= 0 || !$this->clientTableHasColumn(self::ASSOCIATE_ALL_DOCTORS_COLUMN)) {
+            return false;
+        }
+
+        $row = $this->db->table(self::CLIENTS_TABLE)
+            ->select('COALESCE(' . self::ASSOCIATE_ALL_DOCTORS_COLUMN . ', 0) AS associate_all_doctors')
+            ->where('id_client', $idClient)
+            ->get(1)
+            ->getRowArray();
+
+        return (int) ($row['associate_all_doctors'] ?? 0) === 1;
     }
 
     private function buildAdditionalPatientInsertFragments(array $data): array

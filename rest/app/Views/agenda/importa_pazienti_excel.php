@@ -9,6 +9,7 @@ $mappingWarnings = is_array($mappingWarnings ?? null) ? $mappingWarnings : [];
 $targetFieldDefinitions = is_array($targetFieldDefinitions ?? null) ? $targetFieldDefinitions : [];
 $previewWarnings = is_array($previewContext['warnings'] ?? null) ? $previewContext['warnings'] : [];
 $importWarnings = is_array($importResult['warnings'] ?? null) ? $importResult['warnings'] : [];
+$associateAllDoctors = !empty($associateAllDoctors);
 $allWarnings = array_values(array_unique(array_merge($previewWarnings, $mappingWarnings, $importWarnings)));
 $previewSampleValues = [];
 
@@ -216,14 +217,25 @@ foreach ($previewColumns as $previewColumn) {
                                         </select>
                                         <p class="help-block" style="margin-bottom:0;">I nuovi pazienti verranno collegati a questo medico.</p>
                                     </div>
-                                    <div class="col-md-5 form-group">
+                                    <div class="col-md-3">
+                                        <div class="checkbox" style="margin:30px 0 4px;">
+                                            <label>
+                                                <input type="checkbox" name="associate_all_doctors" value="1" <?= $associateAllDoctors ? 'checked' : '' ?>>
+                                                Associa tutti i medici
+                                            </label>
+                                        </div>
+                                        <p class="help-block" style="margin:0;">
+                                            Condivide i pazienti importati con tutto lo spazio agenda.
+                                        </p>
+                                    </div>
+                                    <div class="col-md-3 form-group">
                                         <label>File Excel</label>
                                         <input type="file" name="excel_file" class="form-control" accept=".xlsx,.xlsm,.xltx,.xltm" required>
                                         <p class="help-block" style="margin-bottom:0;">
                                             Formati supportati: <code>.xlsx</code>, <code>.xlsm</code>. Limite upload: <?= esc((string) ($maxUploadFileSizeLabel ?? '3MB')) ?>.
                                         </p>
                                     </div>
-                                    <div class="col-md-3 form-group">
+                                    <div class="col-md-2 form-group">
                                         <label>&nbsp;</label>
                                         <button type="submit" class="btn btn-primary btn-block">
                                             <i class="fa fa-search"></i> Analizza file
@@ -273,7 +285,18 @@ foreach ($previewColumns as $previewColumn) {
                                                 <?php endforeach; ?>
                                             </select>
                                         </div>
-                                        <div class="col-md-8">
+                                        <div class="col-md-3">
+                                            <div class="checkbox" style="margin:24px 0 4px;">
+                                                <label>
+                                                    <input type="checkbox" name="associate_all_doctors" value="1" <?= $associateAllDoctors ? 'checked' : '' ?>>
+                                                    Associa tutti i medici
+                                                </label>
+                                            </div>
+                                            <p class="help-block" style="margin:0;">
+                                                Mantiene il paziente disponibile per tutto lo spazio agenda.
+                                            </p>
+                                        </div>
+                                        <div class="col-md-5">
                                             <p class="help-block" style="margin:24px 0 0;">
                                                 Le celle vuote vengono ignorate e non cancellano il valore gia presente sul paziente. Se il sistema trova un match forte su codice fiscale o partita IVA aggiorna il paziente esistente, altrimenti crea una nuova anagrafica.
                                             </p>

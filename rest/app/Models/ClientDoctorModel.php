@@ -104,6 +104,58 @@ class ClientDoctorModel extends Model
         }
     }
 
+    public function setDoctorsForClient(int $idClient, array $doctorIds, int $preferredDoctorId = 0, bool $syncSearch = true): bool
+    {
+        if ($idClient <= 0) {
+            log_message('error', 'setDoctorsForClient ERROR: id_client non valido');
+            return false;
+        }
+
+        $normalizedDoctorIds = array_values(array_unique(array_filter(array_map(
+            static fn($value): int => (int) $value,
+            $doctorIds
+        ), static fn(int $value): bool => $value > 0)));
+
+        if ($preferredDoctorId > 0 && !in_array($preferredDoctorId, $normalizedDoctorIds, true)) {
+            $normalizedDoctorIds[] = $preferredDoctorId;
+        }
+
+        sort($normalizedDoctorIds);
+
+        $db = $this->db ?? \Config\Database::connect();
+
+        try {
+            $db->transBegin();
+
+            $builder = $db->table($this->table);
+            $builder->where('id_client', $idClient)->delete();
+
+            foreach ($normalizedDoctorIds as $doctorId) {
+                $builder->insert([
+                    'id_client' => $idClient,
+                    'id_dot' => $doctorId,
+                ]);
+            }
+
+            if (!$db->transStatus()) {
+                $db->transRollback();
+                return false;
+            }
+
+            $db->transCommit();
+
+            if ($syncSearch) {
+                (new DoctorPatientSearchModel())->syncClient($idClient);
+            }
+
+            return true;
+        } catch (\Throwable $e) {
+            $db->transRollback();
+            log_message('error', 'setDoctorsForClient ERROR: ' . $e->getMessage());
+            return false;
+        }
+    }
+
     public function getDoctorIdsForClient(int $idClient): array
     {
         if ($idClient <= 0) {
