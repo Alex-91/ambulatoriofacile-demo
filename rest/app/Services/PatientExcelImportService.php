@@ -341,7 +341,7 @@ class PatientExcelImportService
      * @param array<string, mixed> $columnMapping
      * @return array<string, mixed>
      */
-    public function importPreparedWorkbook(string $token, int $idDot, array $columnMapping, int $actingUserId): array
+    public function importPreparedWorkbook(string $token, int $idDot, array $columnMapping, int $actingUserId, bool $associateAllDoctors = false): array
     {
         if ($idDot <= 0) {
             throw new RuntimeException('Medico non valido per l importazione.');
@@ -432,6 +432,10 @@ class PatientExcelImportService
                         'Riga senza dati anagrafici minimi: serve almeno la denominazione oppure nome e cognome.'
                     );
                     return true;
+                }
+
+                if ($associateAllDoctors) {
+                    $payload['associate_all_doctors'] = 1;
                 }
 
                 try {

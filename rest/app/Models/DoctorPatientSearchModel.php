@@ -8,6 +8,7 @@ use CodeIgniter\Model;
 class DoctorPatientSearchModel extends Model
 {
     public const TABLE = 'dap26_doctor_patient_search';
+    private const ASSOCIATE_ALL_DOCTORS_COLUMN = 'share_all_doctors';
 
     protected $table = self::TABLE;
     protected $primaryKey = 'id_client';
@@ -28,6 +29,7 @@ class DoctorPatientSearchModel extends Model
     protected $db;
     private ?bool $tableExistsCache = null;
     private ?bool $pazSpecColumnExistsCache = null;
+    private ?bool $clientShareAllDoctorsColumnExistsCache = null;
 
     public function __construct()
     {
@@ -711,24 +713,38 @@ class DoctorPatientSearchModel extends Model
 
     private function buildBulkRebuildQueries(): array
     {
-        return [
+        $queries = [
             $this->buildPrimaryDoctorInsertQuery(),
             $this->buildRelationInsertQuery(),
             $this->buildAppointmentClientInsertQuery(),
             $this->buildAppointmentLegacyInsertQuery(),
             $this->buildGlobalSpecialInsertQuery(),
         ];
+
+        $shareAllDoctorsQuery = $this->buildShareAllDoctorsInsertQuery();
+        if ($shareAllDoctorsQuery !== null) {
+            $queries[] = $shareAllDoctorsQuery;
+        }
+
+        return $queries;
     }
 
     private function buildClientSyncQueries(int $idClient): array
     {
-        return [
+        $queries = [
             $this->buildPrimaryDoctorInsertQuery($idClient),
             $this->buildRelationInsertQuery($idClient),
             $this->buildAppointmentClientInsertQuery($idClient),
             $this->buildAppointmentLegacyInsertQuery($idClient),
             $this->buildGlobalSpecialInsertQuery($idClient),
         ];
+
+        $shareAllDoctorsQuery = $this->buildShareAllDoctorsInsertQuery($idClient);
+        if ($shareAllDoctorsQuery !== null) {
+            $queries[] = $shareAllDoctorsQuery;
+        }
+
+        return $queries;
     }
 
     private function buildPrimaryDoctorInsertQuery(?int $idClient = null): array
@@ -917,6 +933,56 @@ class DoctorPatientSearchModel extends Model
         return [$sql, $params];
     }
 
+    private function buildShareAllDoctorsInsertQuery(?int $idClient = null): ?array
+    {
+        if (!$this->clientTableHasShareAllDoctorsColumn()) {
+            return null;
+        }
+
+        $sql = "
+            INSERT IGNORE INTO " . self::TABLE . " (
+                id_dot, id_client, cognome_norm, nome_norm, full_norm, cf_norm, tel_norm, cell_norm, email_norm, paz_spec_norm, updated_at
+            )
+            SELECT DISTINCT
+                p.legacy_id_dot AS id_dot,
+                s.id_client,
+                s.cognome_norm,
+                s.nome_norm,
+                s.full_norm,
+                s.cf_norm,
+                s.tel_norm,
+                s.cell_norm,
+                s.email_norm,
+                s.paz_spec_norm,
+                NOW()
+            FROM dap03_personale p
+            INNER JOIN (
+                SELECT
+                    c.id_client,
+                    {$this->normalizedTextExpr('c.cognome')} AS cognome_norm,
+                    {$this->normalizedTextExpr('c.nome')} AS nome_norm,
+                    {$this->normalizedFullExpr()} AS full_norm,
+                    {$this->normalizedCodeExpr('c.codice_fiscale')} AS cf_norm,
+                    {$this->normalizedPhoneExpr('c.telefono')} AS tel_norm,
+                    {$this->normalizedPhoneExpr('c.cellulare')} AS cell_norm,
+                    {$this->normalizedEmailExpr('c.email')} AS email_norm,
+                    {$this->normalizedTextExpr('c.paz_spec')} AS paz_spec_norm
+                FROM dap02_clients c
+                WHERE COALESCE(c." . self::ASSOCIATE_ALL_DOCTORS_COLUMN . ", 0) = 1
+            ) s
+                ON 1 = 1
+            WHERE p.legacy_id_dot > 0
+        ";
+
+        $params = [];
+        if ($idClient !== null) {
+            $sql .= ' AND s.id_client = ?';
+            $params[] = $idClient;
+        }
+
+        return [$sql, $params];
+    }
+
     private function normalizedTextExpr(string $fieldExpr): string
     {
         return 'LEFT(' . $this->lowerTrimDecryptExpr($fieldExpr) . ', 191)';
@@ -974,6 +1040,18 @@ class DoctorPatientSearchModel extends Model
     private function decryptExpr(string $fieldExpr): string
     {
         return 'CONVERT(CAST(AES_DECRYPT(UNHEX(' . $fieldExpr . '), @key_str, c.vector_id) AS CHAR CHARACTER SET latin1) USING utf8mb4)';
+    }
+
+    private function clientTableHasShareAllDoctorsColumn(): bool
+    {
+        if ($this->clientShareAllDoctorsColumnExistsCache !== null) {
+            return $this->clientShareAllDoctorsColumnExistsCache;
+        }
+
+        return $this->clientShareAllDoctorsColumnExistsCache = $this->db->fieldExists(
+            self::ASSOCIATE_ALL_DOCTORS_COLUMN,
+            'dap02_clients'
+        );
     }
 
     private function normalizeText(string $value): string

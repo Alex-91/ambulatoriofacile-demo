@@ -232,6 +232,21 @@
                     </div>
 
                     <div class="col-md-12">
+                        <div class="patient-form-section-title">Assegnazione Medici</div>
+                    </div>
+                    <div class="col-md-12">
+                        <div class="checkbox" style="margin:0 0 4px;">
+                            <label>
+                                <input type="checkbox" id="associate_all_doctors" value="1">
+                                Rendi questa anagrafica disponibile a tutti i medici dello spazio
+                            </label>
+                        </div>
+                        <p class="help-block" style="margin:0 0 12px;">
+                            Il popup appuntamento continua a chiedere solo i campi essenziali, ma la scheda paziente viene condivisa con tutto lo spazio agenda.
+                        </p>
+                    </div>
+
+                    <div class="col-md-12">
                         <div class="patient-form-section-title">Contatti E Amministrazione</div>
                     </div>
                     <div class="col-md-4 form-group">
@@ -444,6 +459,7 @@ function resetFormPaziente() {
     $('#cliente_attivo').val('1');
     $('#iva_differita').val('0');
     $('#appointment_reminder_sms_enabled').prop('checked', false);
+    $('#associate_all_doctors').prop('checked', false);
     $('#btnEliminaPaziente').hide();
     $('#pazienteModalTitle').text('Nuovo paziente');
 }
@@ -498,6 +514,7 @@ function fillPazienteForm(row) {
     $('#bloccato').val(row.bloccato || 0);
     $('#cliente_attivo').val((row.cliente_attivo == null ? 1 : row.cliente_attivo).toString() === '0' ? '0' : '1');
     $('#appointment_reminder_sms_enabled').prop('checked', parseInt(row.appointment_reminder_sms_enabled || 0, 10) === 1);
+    $('#associate_all_doctors').prop('checked', parseInt(row.associate_all_doctors || 0, 10) === 1);
 
     $('#pazienteModalTitle').text('Modifica paziente');
     $('#btnEliminaPaziente').show();
@@ -541,7 +558,11 @@ function caricaPazienti(page) {
         $.each(res.rows, function(i, row) {
             var primaryLabel = row.cognome || row.denominazione || '';
             html += '<tr>';
-            html += '<td>' + escapeHtml(primaryLabel) + '</td>';
+            html += '<td>' + escapeHtml(primaryLabel);
+            if (parseInt(row.associate_all_doctors || 0, 10) === 1) {
+                html += '<div style="margin-top:4px;"><span class="label label-info">Tutti i medici</span></div>';
+            }
+            html += '</td>';
             html += '<td>' + escapeHtml(row.nome || '') + '</td>';
             html += '<td>' + escapeHtml(row.telefono || '') + '</td>';
             html += '<td>' + escapeHtml(row.cellulare || '') + '</td>';
@@ -638,6 +659,7 @@ function salvaPaziente() {
         iva_differita: $('#iva_differita').val(),
         note_cliente: $('#note_cliente').val(),
         appointment_reminder_sms_enabled: $('#appointment_reminder_sms_enabled').is(':checked') ? 1 : 0,
+        associate_all_doctors: $('#associate_all_doctors').is(':checked') ? 1 : 0,
         cliente_attivo: $('#cliente_attivo').val(),
         paz_spec: $('#paz_spec').val(),
         bloccato: $('#bloccato').val()

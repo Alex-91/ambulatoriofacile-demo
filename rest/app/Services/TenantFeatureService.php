@@ -289,7 +289,7 @@ class TenantFeatureService
                 'feature_name' => 'Importazione pazienti da Excel',
                 'feature_scope' => 'workflow',
                 'description' => 'Il tenant master puo attivare per il singolo studio l importazione guidata dei pazienti da file Excel, con mapping colonne, preview e controlli prima del salvataggio.',
-                'default_enabled' => 0,
+                'default_enabled' => 1,
                 'icon_class' => 'fa-upload',
                 'is_tenant_managed' => 1,
                 'tenant_default_enabled' => 0,
