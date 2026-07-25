@@ -9,7 +9,7 @@ $mappingWarnings = is_array($mappingWarnings ?? null) ? $mappingWarnings : [];
 $targetFieldDefinitions = is_array($targetFieldDefinitions ?? null) ? $targetFieldDefinitions : [];
 $previewWarnings = is_array($previewContext['warnings'] ?? null) ? $previewContext['warnings'] : [];
 $importWarnings = is_array($importResult['warnings'] ?? null) ? $importResult['warnings'] : [];
-$associateAllDoctors = !empty($associateAllDoctors);
+$associateAllDoctors = isset($associateAllDoctors) && !empty($associateAllDoctors);
 $allWarnings = array_values(array_unique(array_merge($previewWarnings, $mappingWarnings, $importWarnings)));
 $previewSampleValues = [];
 
