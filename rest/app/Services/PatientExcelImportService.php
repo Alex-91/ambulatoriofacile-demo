@@ -386,6 +386,7 @@ class PatientExcelImportService
                 $idDot,
                 $actingUserId,
                 $activeMapping,
+                $associateAllDoctors,
                 $patientsModel,
                 &$result
             ): bool {
