@@ -1104,7 +1104,19 @@ class PazientiModel extends Model
             LIMIT 1
         ";
 
-        $existing = $this->db->query($sql, [$specialCode])->getRowArray();
+        $query = $this->db->query($sql, [$specialCode]);
+        if (!$query) {
+            $dbError = $this->db->error();
+            log_message('error', 'PazientiModel::findOrCreateSpecialPatientForDoctor query failed for id_dot={id_dot} code={code} db_code={db_code} db_message={db_message}', [
+                'id_dot' => $idDot,
+                'code' => $specialCode,
+                'db_code' => (string) ($dbError['code'] ?? ''),
+                'db_message' => (string) ($dbError['message'] ?? ''),
+            ]);
+            throw new Exception('Errore durante la ricerca del paziente speciale.');
+        }
+
+        $existing = $query->getRowArray();
         $idClient = (int) ($existing['id_client'] ?? 0);
         if ($idClient > 0) {
             return $idClient;
@@ -2521,7 +2533,7 @@ class PazientiModel extends Model
     private function buildAssociateAllDoctorsSelectSql(string $alias): string
     {
         if (!$this->clientTableHasColumn(self::ASSOCIATE_ALL_DOCTORS_COLUMN)) {
-            return '0';
+            return 'CAST(0 AS SIGNED)';
         }
 
         return 'COALESCE(' . $alias . '.' . self::ASSOCIATE_ALL_DOCTORS_COLUMN . ', 0)';
