@@ -9,7 +9,7 @@ $mappingWarnings = is_array($mappingWarnings ?? null) ? $mappingWarnings : [];
 $targetFieldDefinitions = is_array($targetFieldDefinitions ?? null) ? $targetFieldDefinitions : [];
 $previewWarnings = is_array($previewContext['warnings'] ?? null) ? $previewContext['warnings'] : [];
 $importWarnings = is_array($importResult['warnings'] ?? null) ? $importResult['warnings'] : [];
-$associateAllDoctors = isset($associateAllDoctors) && !empty($associateAllDoctors);
+$isAssociateAllDoctorsChecked = (bool) ($associateAllDoctors ?? false);
 $allWarnings = array_values(array_unique(array_merge($previewWarnings, $mappingWarnings, $importWarnings)));
 $previewSampleValues = [];
 
@@ -220,7 +220,7 @@ foreach ($previewColumns as $previewColumn) {
                                     <div class="col-md-3">
                                         <div class="checkbox" style="margin:30px 0 4px;">
                                             <label>
-                                                <input type="checkbox" name="associate_all_doctors" value="1" <?= $associateAllDoctors ? 'checked' : '' ?>>
+                                                <input type="checkbox" name="associate_all_doctors" value="1" <?= $isAssociateAllDoctorsChecked ? 'checked' : '' ?>>
                                                 Associa tutti i medici
                                             </label>
                                         </div>
@@ -288,7 +288,7 @@ foreach ($previewColumns as $previewColumn) {
                                         <div class="col-md-3">
                                             <div class="checkbox" style="margin:24px 0 4px;">
                                                 <label>
-                                                    <input type="checkbox" name="associate_all_doctors" value="1" <?= $associateAllDoctors ? 'checked' : '' ?>>
+                                                    <input type="checkbox" name="associate_all_doctors" value="1" <?= $isAssociateAllDoctorsChecked ? 'checked' : '' ?>>
                                                     Associa tutti i medici
                                                 </label>
                                             </div>
