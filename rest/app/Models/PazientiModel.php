@@ -460,6 +460,18 @@ class PazientiModel extends Model
         return '';
     }
 
+    private function normalizeSpecialPatientCode(string $value): string
+    {
+        $value = trim((string) (preg_replace('/\s+/', ' ', $value) ?? ''));
+        if ($value === '') {
+            return '';
+        }
+
+        return function_exists('mb_strtoupper')
+            ? mb_strtoupper($value, 'UTF-8')
+            : strtoupper($value);
+    }
+
     private function listFutureAppointmentClientIdsByDoctor(int $idDot, int $limit = 500): array
     {
         if ($idDot <= 0) {
@@ -1064,6 +1076,57 @@ class PazientiModel extends Model
 
         $row = $this->db->query($sql, [$idPaziente])->getRowArray();
         return $this->sanitizePatientDetailRow($row ?: null);
+    }
+
+    public function findOrCreateSpecialPatientForDoctor(
+        int $idDot,
+        string $specialCode,
+        array $defaults = [],
+        int $actingUserId = 0
+    ): int {
+        if ($idDot <= 0) {
+            throw new Exception('Dottore non valido per il paziente speciale.');
+        }
+
+        $specialCode = $this->normalizeSpecialPatientCode($specialCode);
+        if ($specialCode === '') {
+            throw new Exception('Codice paziente speciale non valido.');
+        }
+
+        $sql = "
+            SELECT
+                c.id_client
+            FROM " . self::CLIENTS_TABLE . " c
+            WHERE UPPER(TRIM(COALESCE({$this->decExpr('c.paz_spec')}, ''))) = ?
+            ORDER BY
+                {$this->buildAssociateAllDoctorsSelectSql('c')} DESC,
+                c.id_client ASC
+            LIMIT 1
+        ";
+
+        $existing = $this->db->query($sql, [$specialCode])->getRowArray();
+        $idClient = (int) ($existing['id_client'] ?? 0);
+        if ($idClient > 0) {
+            return $idClient;
+        }
+
+        $payload = [
+            'cognome' => trim((string) ($defaults['cognome'] ?? '')),
+            'nome' => trim((string) ($defaults['nome'] ?? '')),
+            'denominazione' => trim((string) ($defaults['denominazione'] ?? '')),
+            'telefono' => trim((string) ($defaults['telefono'] ?? '')),
+            'cellulare' => trim((string) ($defaults['cellulare'] ?? '')),
+            'email' => trim((string) ($defaults['email'] ?? '')),
+            'appointment_reminder_sms_enabled' => 0,
+            'cliente_attivo' => array_key_exists('cliente_attivo', $defaults) ? (int) ($defaults['cliente_attivo'] ?? 1) : 1,
+            'bloccato' => array_key_exists('bloccato', $defaults) ? (int) ($defaults['bloccato'] ?? 0) : 0,
+            'associate_all_doctors' => array_key_exists('associate_all_doctors', $defaults)
+                ? (int) ($defaults['associate_all_doctors'] ?? 0)
+                : 1,
+            'paz_spec' => $specialCode,
+        ];
+
+        return $this->savePatientAndLink($payload, $idDot, $actingUserId);
     }
 
     public function getAppointmentsByDoctorAndPatient(int $idPaziente, int $idDot, int $limit = 200, int $actingUserId = 0): array

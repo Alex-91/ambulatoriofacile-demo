@@ -35,6 +35,7 @@
         $appointmentBillingWorkflowEnabled = !empty($appointmentDocumentActions['billing_enabled']);
         $appointmentTsWorkflowEnabled = !empty($appointmentDocumentActions['ts_enabled']);
         $appointmentDocumentWorkflowVisible = $appointmentBillingWorkflowEnabled || $appointmentTsWorkflowEnabled;
+        $personalCommitmentsFeatureEnabled = !empty($personalCommitmentsFeatureEnabled);
         $appointmentModalFallbackLayoutItems = [
             ['key' => 'time'],
         ];
@@ -321,6 +322,41 @@
         .appointment-modal-block + .appointment-modal-block {
             padding-top: 18px;
             border-top: 1px solid #edf3f7;
+        }
+
+        .appointment-mode-switch .btn {
+            min-width: 170px;
+            border-radius: 12px !important;
+        }
+
+        .appointment-mode-switch .btn.is-active[data-appointment-mode="standard"],
+        .appointment-mode-switch .btn.active[data-appointment-mode="standard"] {
+            background: #3c8dbc;
+            border-color: #2f74a0;
+            color: #fff;
+        }
+
+        .appointment-mode-switch .btn.is-active[data-appointment-mode="personal_commitment"],
+        .appointment-mode-switch .btn.active[data-appointment-mode="personal_commitment"] {
+            background: #c9302c;
+            border-color: #b52b27;
+            color: #fff;
+        }
+
+        .appointment-personal-commitment-note {
+            padding: 12px 14px;
+            border: 1px solid #f2c7c5;
+            border-radius: 14px;
+            background: linear-gradient(135deg, #fff6f5 0%, #fdeceb 100%);
+            color: #8a302d;
+            line-height: 1.5;
+            margin: 0 0 14px;
+        }
+
+        .appointment-personal-commitment-note strong {
+            display: block;
+            margin-bottom: 4px;
+            color: #7f2220;
         }
 
         .appointment-modal-footer {
@@ -1365,6 +1401,12 @@
             color: var(--agenda-appointment-text, #fff);
         }
 
+        .agenda-custom-slot.is-personal-commitment {
+            background: #c9302c;
+            border-color: #a82622;
+            color: var(--agenda-appointment-text, #fff);
+        }
+
         .agenda-custom-slot.is-blocked {
             background: #f39c12;
             border-color: #d58512;
@@ -1427,6 +1469,12 @@
             background: #edf8f1;
             border-color: #b8dec5;
             color: var(--agenda-location-text, #226745);
+        }
+
+        .agenda-slot-location.is-personal-commitment {
+            background: #fbecec;
+            border-color: #e3b4b2;
+            color: var(--agenda-warning-text, #962721);
         }
 
         .agenda-slot-location.is-day-blocked {
@@ -3201,6 +3249,7 @@
 $renderAppointmentModalBlock = static function (string $blockKey) use (
     $visitTypesFeatureEnabled,
     $visitTypeSelectionOptionalEnabled,
+    $personalCommitmentsFeatureEnabled,
     $patientSmsReminderPreferenceAvailable,
     $appointmentDocumentWorkflowVisible,
     $appointmentBillingWorkflowEnabled,
@@ -3221,7 +3270,19 @@ $renderAppointmentModalBlock = static function (string $blockKey) use (
                     <div class="col-md-6 form-group">
                         <label for="app_ora_fine">Ora fine</label>
                         <input type="text" id="app_ora_fine" class="form-control" readonly>
+                        <?php if (!empty($personalCommitmentsFeatureEnabled)): ?>
+                        <select id="app_personal_commitment_end" class="form-control" style="display:none;"></select>
+                        <p id="app_personal_commitment_time_help" class="help-block" style="display:none; margin:6px 0 0;">
+                            Scegli fino a dove bloccare gli slot consecutivi disponibili.
+                        </p>
+                        <?php endif; ?>
                     </div>
+
+                    <?php if (!empty($personalCommitmentsFeatureEnabled)): ?>
+                    <div class="col-md-12">
+                        <div id="app_personal_commitment_duration_info" class="agenda-appointment-coverage" style="display:none;"></div>
+                    </div>
+                    <?php endif; ?>
                 </div>
             </div>
             <?php
@@ -3271,6 +3332,27 @@ $renderAppointmentModalBlock = static function (string $blockKey) use (
             ?>
             <div class="appointment-modal-block" data-appointment-block-key="patient_entry">
                 <div class="row">
+                    <?php if (!empty($personalCommitmentsFeatureEnabled)): ?>
+                    <div class="col-md-12 form-group">
+                        <label>Tipo prenotazione</label>
+                        <div class="btn-group appointment-mode-switch" id="appointmentModeSwitch" role="group" aria-label="Tipo prenotazione">
+                            <button type="button" class="btn btn-default is-active" data-appointment-mode="standard">Paziente</button>
+                            <button type="button" class="btn btn-default" data-appointment-mode="personal_commitment">Impegno personale</button>
+                        </div>
+                        <p class="help-block" style="margin:6px 0 0;">
+                            Gli impegni personali bloccano piu slot consecutivi con una voce speciale rossa, senza creare un paziente reale.
+                        </p>
+                    </div>
+
+                    <div class="col-md-12">
+                        <div id="appointmentPersonalCommitmentNotice" class="appointment-personal-commitment-note" style="display:none;">
+                            <strong>Impegno personale</strong>
+                            Questo blocco usa una voce speciale condivisa nello studio. Puoi scegliere liberamente l ora di fine in base agli slot consecutivi davvero disponibili.
+                        </div>
+                    </div>
+                    <?php endif; ?>
+
+                    <div id="appointmentPatientFields">
                     <div class="col-md-12 form-group" style="position:relative;">
                         <label for="searchPatient">Cerca o cambia paziente</label>
                         <div class="input-group">
@@ -3323,6 +3405,7 @@ $renderAppointmentModalBlock = static function (string $blockKey) use (
                         </p>
                     </div>
                     <?php endif; ?>
+                    </div>
 
                     <div class="col-md-12 form-group">
                         <label for="app_note">Note</label>
@@ -3418,6 +3501,8 @@ if ($appointmentModalRenderOrderKeys === []) {
                 <input type="hidden" id="app_token_lock">
                 <input type="hidden" id="app_id_appuntamento">
                 <input type="hidden" id="app_origine_slot">
+                <input type="hidden" id="app_paz_spec">
+                <input type="hidden" id="app_special_mode" value="standard">
 
                 <div class="appointment-modal-layout" id="appointmentModalLayout">
                     <?php foreach ($appointmentModalRenderOrderKeys as $appointmentModalRenderOrderKey): ?>
@@ -3711,6 +3796,9 @@ window.AGENDA_CONFIG = {
     sharedAgendaPatientsEnabled: <?= !empty($sharedAgendaPatientsEnabled) ? 'true' : 'false' ?>,
     visitTypesFeatureEnabled: <?= !empty($visitTypesFeatureEnabled) ? 'true' : 'false' ?>,
     visitTypeSelectionOptionalEnabled: <?= !empty($visitTypeSelectionOptionalEnabled) ? 'true' : 'false' ?>,
+    personalCommitmentsFeatureEnabled: <?= !empty($personalCommitmentsFeatureEnabled) ? 'true' : 'false' ?>,
+    personalCommitmentSpecialCode: "IMPEGNO_PERSONALE",
+    personalCommitmentLabel: "Impegno personale",
     appointmentBillingWorkflowEnabled: <?= !empty($appointmentDocumentActions['billing_enabled']) ? 'true' : 'false' ?>,
     appointmentTsWorkflowEnabled: <?= !empty($appointmentDocumentActions['ts_enabled']) ? 'true' : 'false' ?>,
     patientSmsReminderPreferenceAvailable: <?= !empty($patientSmsReminderPreferenceAvailable) ? 'true' : 'false' ?>,
@@ -3922,9 +4010,46 @@ var agendaMiniCalendarRequestSeq = 0;
 var agendaVisitTypes = <?= json_encode(array_values(is_array($visitTypes ?? null) ? $visitTypes : []), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
 var agendaVisitTypeColorPalette = ['#3C8DBC', '#16A085', '#5E72E4', '#EB6B56', '#8E44AD', '#F39C12', '#27AE60', '#C0392B', '#2C82C9', '#D35400'];
 var appointmentModalSlot = null;
+var appointmentStandardDraftCache = null;
 
 function supportsAgendaVisitTypes() {
     return !!window.AGENDA_CONFIG.visitTypesFeatureEnabled;
+}
+
+function supportsAgendaPersonalCommitments() {
+    return !!window.AGENDA_CONFIG.personalCommitmentsFeatureEnabled;
+}
+
+function getAgendaPersonalCommitmentSpecialCode() {
+    return $.trim(window.AGENDA_CONFIG.personalCommitmentSpecialCode || 'IMPEGNO_PERSONALE').toUpperCase();
+}
+
+function getAgendaPersonalCommitmentLabel() {
+    return $.trim(window.AGENDA_CONFIG.personalCommitmentLabel || 'Impegno personale');
+}
+
+function isAppointmentPersonalCommitmentMode() {
+    return supportsAgendaPersonalCommitments()
+        && $.trim(String($('#app_special_mode').val() || '')) === 'personal_commitment';
+}
+
+function formatAgendaDurationMinutes(totalMinutes) {
+    totalMinutes = parseInt(totalMinutes || 0, 10) || 0;
+    if (totalMinutes <= 0) {
+        return '';
+    }
+
+    if (totalMinutes < 60) {
+        return totalMinutes + ' minuti';
+    }
+
+    var hours = Math.floor(totalMinutes / 60);
+    var minutes = totalMinutes % 60;
+    if (minutes <= 0) {
+        return hours === 1 ? '1 ora' : (hours + ' ore');
+    }
+
+    return hours + 'h ' + minutes + 'm';
 }
 
 function isAgendaVisitTypeSelectionOptional() {
@@ -4802,6 +4927,10 @@ function buildSingleSlotAppointmentCoverage(slot) {
 }
 
 function refreshAppointmentVisitTypePreview() {
+    if (isAppointmentPersonalCommitmentMode()) {
+        return refreshAppointmentPersonalCommitmentCoverage();
+    }
+
     if (!supportsAgendaVisitTypes()) {
         return null;
     }
@@ -5544,6 +5673,23 @@ function parseAgendaMoment(value) {
     return parsed.isValid() ? parsed : null;
 }
 
+function normalizeAgendaSpecialCode(value) {
+    return $.trim(String(value || '').replace(/\s+/g, ' ')).toUpperCase();
+}
+
+function isAgendaPersonalCommitment(slot, pazSpec) {
+    var specialCode = normalizeAgendaSpecialCode(pazSpec);
+    if (specialCode === getAgendaPersonalCommitmentSpecialCode()) {
+        return true;
+    }
+
+    var cognome = $.trim(((slot && slot.cognome) || '').toString()).toUpperCase();
+    var nome = $.trim(((slot && slot.nome) || '').toString()).toUpperCase();
+    var combined = $.trim((cognome + ' ' + nome).replace(/\s+/g, ' '));
+
+    return combined === getAgendaPersonalCommitmentLabel().toUpperCase();
+}
+
 function isAgendaSpecialPatient(slot, pazSpec) {
     if ($.trim((pazSpec || '').toString()) !== '') {
         return true;
@@ -5562,6 +5708,18 @@ function isAgendaSpecialPatient(slot, pazSpec) {
     }
 
     return false;
+}
+
+function getAgendaAppointmentDisplayName(slot, pazSpec) {
+    if (isAgendaPersonalCommitment(slot, pazSpec)) {
+        return getAgendaPersonalCommitmentLabel();
+    }
+
+    return $.trim((((slot && slot.cognome) || '') + ' ' + ((slot && slot.nome) || '')).replace(/\s+/g, ' '));
+}
+
+function getAgendaSpecialPatientColor(pazSpec, slot) {
+    return isAgendaPersonalCommitment(slot, pazSpec) ? '#c9302c' : '#2e8b57';
 }
 
 function getAgendaSlotAmbulatorioLabel(slot) {
@@ -5986,7 +6144,7 @@ function renderAgendaSlotLayer() {
         var pazSpec = $.trim(slot.paz_spec || '');
         var isSpecialPatient = isAgendaSpecialPatient(slot, pazSpec);
         var noteEvento = buildAppointmentNoteDisplay(slot);
-        var nominativo = $.trim((slot.cognome || '') + ' ' + (slot.nome || ''));
+        var nominativo = getAgendaAppointmentDisplayName(slot, pazSpec);
         var cellulareEvento = $.trim(slot.cellulare || '');
         var telefonoEvento = $.trim(slot.telefono || '');
         var recapitoEvento = cellulareEvento !== '' ? cellulareEvento : telefonoEvento;
@@ -6021,6 +6179,9 @@ function renderAgendaSlotLayer() {
 
             if (isSpecialPatient) {
                 extraClass += ' is-booked-spec';
+                if (isAgendaPersonalCommitment(slot, pazSpec)) {
+                    extraClass += ' is-personal-commitment';
+                }
             }
         }
 
@@ -6054,7 +6215,9 @@ function renderAgendaSlotLayer() {
         };
 
         if (locationBoxWidth > 0) {
-            if (extraClass.indexOf('is-booked-spec') !== -1) {
+            if (extraClass.indexOf('is-personal-commitment') !== -1) {
+                locationStateClass = 'is-personal-commitment';
+            } else if (extraClass.indexOf('is-booked-spec') !== -1) {
                 locationStateClass = 'is-booked-spec';
             } else if (extraClass.indexOf('is-day-blocked') !== -1) {
                 locationStateClass = 'is-day-blocked';
@@ -6826,6 +6989,7 @@ function riallineaRenderingCalendario() {
 }
 
 function resetAppointmentModal() {
+    appointmentStandardDraftCache = null;
     appointmentModalSlot = null;
     $('#app_id_slot').val('');
     $('#app_id_dot').val('');
@@ -6833,8 +6997,13 @@ function resetAppointmentModal() {
     $('#app_token_lock').val('');
     $('#app_id_appuntamento').val('');
     $('#app_origine_slot').val('');
+    $('#app_paz_spec').val('');
+    $('#app_special_mode').val('standard');
     $('#app_ora_inizio').val('');
     $('#app_ora_fine').val('');
+    $('#app_personal_commitment_end').html('').hide();
+    $('#app_personal_commitment_time_help').hide();
+    $('#app_personal_commitment_duration_info').hide().removeClass('is-error is-ok').text('');
 
     $('#searchPatient').val('');
     $('#app_cognome').val('');
@@ -6854,6 +7023,7 @@ function resetAppointmentModal() {
     setAppointmentModalEditingState(false);
     setAppointmentExtraSlotState(null);
     setAppointmentLinkedPatient('', '');
+    setAppointmentMode('standard');
     setAppointmentSavingState(false);
     refreshAppointmentDocumentWorkflowState();
 }
@@ -6883,6 +7053,302 @@ function setAppointmentReminderSmsPreference(enabled) {
     $('#app_appointment_reminder_sms_enabled').prop('checked', !!enabled);
 }
 
+function setAppointmentSpecialPatientCode(value) {
+    $('#app_paz_spec').val($.trim(String(value || '')));
+}
+
+function getAppointmentSpecialPatientCode() {
+    return normalizeAgendaSpecialCode($('#app_paz_spec').val() || '');
+}
+
+function captureAppointmentStandardPatientDraft() {
+    return {
+        idPaziente: $.trim($('#app_id_paziente').val() || ''),
+        patientLabel: $.trim($('#appointmentLinkedPatientInfo').data('patient-label') || ''),
+        searchValue: $.trim($('#searchPatient').val() || ''),
+        cognome: $('#app_cognome').val() || '',
+        nome: $('#app_nome').val() || '',
+        telefono: $('#app_telefono').val() || '',
+        cellulare: $('#app_cellulare').val() || '',
+        email: $('#app_email').val() || '',
+        reminderSmsEnabled: supportsPatientSmsReminderPreference() && $('#app_appointment_reminder_sms_enabled').is(':checked') ? 1 : 0,
+        idTipoVisita: $('#app_id_tipo_visita').val() || '',
+        pazSpec: $.trim($('#app_paz_spec').val() || '')
+    };
+}
+
+function applyAppointmentStandardPatientDraft(draft) {
+    var normalizedDraft = draft || {};
+    setAppointmentLinkedPatient(normalizedDraft.idPaziente || '', normalizedDraft.patientLabel || '');
+    $('#searchPatient').val(normalizedDraft.searchValue || '');
+    $('#app_cognome').val(normalizedDraft.cognome || '');
+    $('#app_nome').val(normalizedDraft.nome || '');
+    $('#app_telefono').val(normalizedDraft.telefono || '');
+    $('#app_cellulare').val(normalizedDraft.cellulare || '');
+    $('#app_email').val(normalizedDraft.email || '');
+    setAppointmentReminderSmsPreference(parseInt(normalizedDraft.reminderSmsEnabled || 0, 10) === 1);
+    setAppointmentSpecialPatientCode(normalizedDraft.pazSpec || '');
+    if ($('#app_id_tipo_visita').length) {
+        $('#app_id_tipo_visita').val(normalizedDraft.idTipoVisita || '');
+    }
+}
+
+function clearAppointmentStandardPatientDraftFields() {
+    setAppointmentLinkedPatient('', '');
+    $('#searchPatient').val('');
+    $('#app_cognome').val('');
+    $('#app_nome').val('');
+    $('#app_telefono').val('');
+    $('#app_cellulare').val('');
+    $('#app_email').val('');
+    setAppointmentReminderSmsPreference(false);
+    setAppointmentSpecialPatientCode('');
+}
+
+function buildPersonalCommitmentCoverageOptions(slot, currentAppointmentId) {
+    var baseSlot = slot || appointmentModalSlot;
+    var appointmentId = parseInt(currentAppointmentId || 0, 10) || 0;
+    if (!baseSlot) {
+        return [];
+    }
+
+    var startMoment = getAgendaSlotVisualStartMoment(baseSlot);
+    if (!startMoment || !startMoment.isValid()) {
+        return [];
+    }
+
+    var contextSlots = $.grep(getAgendaSlotsForAppointmentModal(), function(row) {
+        var rowStart = parseAgendaMoment(row && row.ora_inizio ? row.ora_inizio : '');
+        return rowStart
+            && rowStart.isValid()
+            && String((row && row.id_dot) || '') === String((baseSlot && baseSlot.id_dot) || '')
+            && rowStart.format('YYYY-MM-DD') === startMoment.format('YYYY-MM-DD');
+    });
+
+    contextSlots.sort(function(leftRow, rightRow) {
+        var leftMoment = parseAgendaMoment(leftRow && leftRow.ora_inizio ? leftRow.ora_inizio : '');
+        var rightMoment = parseAgendaMoment(rightRow && rightRow.ora_inizio ? rightRow.ora_inizio : '');
+        if (!leftMoment || !rightMoment || !leftMoment.isValid() || !rightMoment.isValid()) {
+            return 0;
+        }
+        return leftMoment.valueOf() - rightMoment.valueOf();
+    });
+
+    var baseSlotId = parseInt((baseSlot && baseSlot.id_slot) || 0, 10) || 0;
+    var startIndex = -1;
+    $.each(contextSlots, function(index, row) {
+        if ((parseInt((row && row.id_slot) || 0, 10) || 0) === baseSlotId) {
+            startIndex = index;
+            return false;
+        }
+        return true;
+    });
+
+    if (startIndex < 0) {
+        return [];
+    }
+
+    var options = [];
+    var totalDuration = 0;
+    var coveredCount = 0;
+    var expectedStart = startMoment.clone();
+
+    for (var index = startIndex; index < contextSlots.length; index++) {
+        var row = contextSlots[index];
+        var rowStart = parseAgendaMoment(row && row.ora_inizio ? row.ora_inizio : '');
+        var rowEnd = parseAgendaMoment(row && row.ora_fine ? row.ora_fine : '');
+
+        if (!rowStart || !rowEnd || !rowStart.isValid() || !rowEnd.isValid()) {
+            break;
+        }
+
+        if (index > startIndex && !rowStart.isSame(expectedStart)) {
+            break;
+        }
+
+        var rowState = $.trim(String((row && row.stato) || '')).toUpperCase();
+        var rowAppointmentId = parseInt((row && row.id_appuntamento) || 0, 10) || 0;
+        var occupiedByOtherAppointment = rowAppointmentId > 0 && rowAppointmentId !== appointmentId;
+
+        if (rowState === 'CHIUSO' || occupiedByOtherAppointment) {
+            break;
+        }
+
+        totalDuration += getAgendaSlotActualDurationMinutes(row);
+        coveredCount += 1;
+        expectedStart = rowEnd.clone();
+
+        if (totalDuration <= 0) {
+            continue;
+        }
+
+        options.push({
+            durationMinutes: totalDuration,
+            count: coveredCount,
+            endMoment: rowEnd.clone()
+        });
+    }
+
+    return options;
+}
+
+function refreshAppointmentPersonalCommitmentCoverage() {
+    var $endSelect = $('#app_personal_commitment_end');
+    var $info = $('#app_personal_commitment_duration_info');
+    var $help = $('#app_personal_commitment_time_help');
+    var currentAppointmentId = parseInt($('#app_id_appuntamento').val() || 0, 10) || 0;
+
+    if (!$endSelect.length) {
+        return {
+            ok: false,
+            message: 'Controllo ora fine non disponibile.'
+        };
+    }
+
+    var currentValue = parseInt($endSelect.val() || 0, 10) || 0;
+    var options = buildPersonalCommitmentCoverageOptions(appointmentModalSlot, currentAppointmentId);
+
+    if (!options.length) {
+        $endSelect.html('').hide();
+        $help.show();
+        $info
+            .show()
+            .removeClass('is-ok')
+            .addClass('is-error')
+            .text('Non ci sono slot consecutivi disponibili per questo impegno personale.');
+        setAppointmentSlotTimeSummary(appointmentModalSlot || null, null);
+        return {
+            ok: false,
+            message: 'Non ci sono slot consecutivi disponibili per questo impegno personale.'
+        };
+    }
+
+    var html = '';
+    var selectedDuration = currentValue;
+    var selectedFound = false;
+
+    $.each(options, function(_, option) {
+        var durationMinutes = parseInt(option.durationMinutes || 0, 10) || 0;
+        if (durationMinutes <= 0 || !option.endMoment || !option.endMoment.isValid()) {
+            return true;
+        }
+
+        if (durationMinutes === selectedDuration) {
+            selectedFound = true;
+        }
+
+        html += '<option value="' + escapeHtml(durationMinutes) + '">';
+        html += escapeHtml(option.endMoment.format('HH:mm') + ' - ' + formatAgendaDurationMinutes(durationMinutes) + ' - ' + option.count + ' slot');
+        html += '</option>';
+        return true;
+    });
+
+    if (!selectedFound) {
+        selectedDuration = parseInt((options[0] && options[0].durationMinutes) || 0, 10) || 0;
+    }
+
+    $endSelect.html(html).val(selectedDuration > 0 ? String(selectedDuration) : '').show();
+    $help.show();
+
+    var coverage = computeAppointmentCoverageForSlot(appointmentModalSlot, selectedDuration, currentAppointmentId);
+    setAppointmentSlotTimeSummary(appointmentModalSlot || null, coverage);
+
+    if ($('#app_durata_visita').length) {
+        $('#app_durata_visita').val(selectedDuration > 0 ? formatAgendaDurationMinutes(selectedDuration) : '');
+    }
+
+    if (!coverage || !coverage.ok) {
+        $info
+            .show()
+            .removeClass('is-ok')
+            .addClass('is-error')
+            .text((coverage && coverage.message) ? coverage.message : 'Durata non compatibile con la griglia agenda.');
+        return coverage;
+    }
+
+    $info
+        .show()
+        .removeClass('is-error')
+        .addClass('is-ok')
+        .text('Blocca ' + coverage.count + ' slot consecutivi fino alle ' + coverage.endMoment.format('HH:mm') + ' (' + formatAgendaDurationMinutes(selectedDuration) + ').');
+
+    return coverage;
+}
+
+function setAppointmentMode(mode, options) {
+    options = options || {};
+
+    if (!supportsAgendaPersonalCommitments()) {
+        mode = 'standard';
+    }
+
+    mode = mode === 'personal_commitment' ? 'personal_commitment' : 'standard';
+
+    var previousMode = $.trim(String($('#app_special_mode').val() || 'standard'));
+    var isPersonal = mode === 'personal_commitment';
+    var $visitTypeBlock = $('[data-appointment-block-key="visit_type"]');
+
+    if (!isPersonal && previousMode === 'personal_commitment') {
+        if (appointmentStandardDraftCache) {
+            applyAppointmentStandardPatientDraft(appointmentStandardDraftCache);
+        } else {
+            clearAppointmentStandardPatientDraftFields();
+        }
+    }
+
+    if (isPersonal && previousMode !== 'personal_commitment') {
+        appointmentStandardDraftCache = captureAppointmentStandardPatientDraft();
+    }
+
+    $('#app_special_mode').val(mode);
+
+    $('#appointmentModeSwitch [data-appointment-mode]')
+        .removeClass('is-active active')
+        .addClass('btn-default');
+    $('#appointmentModeSwitch [data-appointment-mode="' + mode + '"]')
+        .addClass('is-active active')
+        .removeClass('btn-default');
+
+    $('#appointmentPatientFields').toggle(!isPersonal);
+    $('#appointmentPersonalCommitmentNotice').toggle(isPersonal);
+    $('#app_personal_commitment_end').toggle(isPersonal);
+    $('#app_personal_commitment_time_help').toggle(isPersonal);
+    $('#app_personal_commitment_duration_info').toggle(isPersonal);
+    $('#app_ora_fine').toggle(!isPersonal);
+
+    if ($visitTypeBlock.length) {
+        $visitTypeBlock.toggle(!isPersonal);
+    }
+
+    $('#app_id_tipo_visita').prop('disabled', isPersonal);
+
+    if (isPersonal) {
+        setAppointmentSpecialPatientCode(getAgendaPersonalCommitmentSpecialCode());
+        setAppointmentLinkedPatient($('#app_id_paziente').val() || '', getAgendaPersonalCommitmentLabel());
+        $('#searchPatient').val(getAgendaPersonalCommitmentLabel());
+        $('#app_cognome').val('Impegno');
+        $('#app_nome').val('personale');
+        $('#app_telefono').val('');
+        $('#app_cellulare').val('');
+        $('#app_email').val('');
+        setAppointmentReminderSmsPreference(false);
+        $('#patientAutocomplete').addClass('d-none').html('');
+        if (appointmentModalSlot) {
+            refreshAppointmentPersonalCommitmentCoverage();
+        }
+    } else {
+        if ($visitTypeBlock.length) {
+            fillAppointmentVisitTypeSelect($('#app_id_tipo_visita').val() || '');
+        }
+        if (appointmentModalSlot || $.trim($('#app_id_appuntamento').val() || '') !== '') {
+            refreshAppointmentVisitTypePreview();
+        }
+    }
+
+    renderAppointmentLinkedPatientInfo();
+    refreshAppointmentDocumentWorkflowState();
+}
+
 function buildAppointmentDocumentWorkflowUrl(mode, appointmentId) {
     appointmentId = parseInt(appointmentId || 0, 10) || 0;
     if (appointmentId <= 0) {
@@ -6908,11 +7374,15 @@ function buildAppointmentDocumentWorkflowUrl(mode, appointmentId) {
 }
 
 function buildAppointmentDocumentWorkflowPayload() {
+    var draftLabel = isAppointmentPersonalCommitmentMode()
+        ? getAgendaPersonalCommitmentLabel()
+        : getAppointmentPatientLabel($('#app_cognome').val(), $('#app_nome').val());
+
     var payload = {
         draft_id_client: $('#app_id_paziente').val() || '',
         draft_cognome: $('#app_cognome').val() || '',
         draft_nome: $('#app_nome').val() || '',
-        draft_patient_label: getAppointmentPatientLabel($('#app_cognome').val(), $('#app_nome').val()),
+        draft_patient_label: draftLabel,
         draft_telefono: $('#app_telefono').val() || '',
         draft_cellulare: $('#app_cellulare').val() || '',
         draft_email: $('#app_email').val() || '',
@@ -6961,8 +7431,7 @@ function refreshAppointmentDocumentWorkflowState() {
     var billingEnabled = supportsAppointmentBillingWorkflow();
     var tsEnabled = supportsAppointmentTsWorkflow();
     var appointmentId = parseInt($('#app_id_appuntamento').val() || 0, 10) || 0;
-    var linkedPatientId = parseInt($('#app_id_paziente').val() || 0, 10) || 0;
-    var hasSpecialPatient = linkedPatientId === 33;
+    var hasSpecialPatient = getAppointmentSpecialPatientCode() !== '' || isAppointmentPersonalCommitmentMode();
     var $wrapper = $('#appointmentDocumentWorkflow');
     var $billingButton = $('#btnAppointmentBillingWorkflow');
     var $tsButton = $('#btnAppointmentTsWorkflow');
@@ -7095,9 +7564,20 @@ function renderAppointmentLinkedPatientInfo() {
         label = liveLabel;
     }
 
+    if (isAppointmentPersonalCommitmentMode()) {
+        $info
+            .removeClass('text-muted text-primary')
+            .addClass('text-danger')
+            .html(
+                '<i class="fa fa-calendar-times-o"></i> Voce speciale: <strong>' + escapeHtml(getAgendaPersonalCommitmentLabel()) + '</strong>. ' +
+                'Non crea un paziente reale e puo bloccare piu slot consecutivi.'
+            );
+        return;
+    }
+
     if (idPaziente !== '') {
         $info
-            .removeClass('text-muted')
+            .removeClass('text-muted text-danger')
             .addClass('text-primary')
             .html(
                 '<i class="fa fa-link"></i> Paziente collegato: <strong>' + escapeHtml(label || ('ID ' + idPaziente)) + '</strong>. ' +
@@ -7107,7 +7587,7 @@ function renderAppointmentLinkedPatientInfo() {
     }
 
     $info
-        .removeClass('text-primary')
+        .removeClass('text-primary text-danger')
         .addClass('text-muted')
         .html(
             '<i class="fa fa-user-plus"></i> Nessun paziente collegato. Salvando verra creato un nuovo paziente e collegato all\\\'appuntamento.'
@@ -7310,6 +7790,7 @@ function apriSlotLiberoDaSlot(slot) {
     setAppointmentSlotTimeSummary(slot);
     setAppointmentExtraSlotState(slot);
     fillAppointmentVisitTypeSelect(0);
+    setAppointmentMode('standard');
     refreshAppointmentVisitTypePreview();
 
     $.post("<?= base_url('agenda/lock-slot') ?>", {
@@ -7332,9 +7813,13 @@ function riempiModaleDaEvento(slot) {
 
     var dataSlot = estraiDataSlot(slot, null);
     var linkedPatientId = slot.id_cliente_collegato || slot.id_client || slot.id_paziente || '';
+    var pazSpec = $.trim(slot.paz_spec || '');
     var cognome = normalizeAppointmentPatientName(slot.cognome || '');
     var nome = normalizeAppointmentPatientName(slot.nome || '');
-    var patientLabel = getAppointmentPatientLabel(cognome, nome);
+    var isPersonalCommitment = isAgendaPersonalCommitment(slot, pazSpec);
+    var patientLabel = isPersonalCommitment
+        ? getAgendaPersonalCommitmentLabel()
+        : getAppointmentPatientLabel(cognome, nome);
     if (dataSlot !== '') {
         appointmentModalDate = dataSlot;
     }
@@ -7343,6 +7828,7 @@ function riempiModaleDaEvento(slot) {
     $('#app_id_dot').val(slot.id_dot || '');
     $('#app_id_appuntamento').val(slot.id_appuntamento || '');
     $('#app_token_lock').val('');
+    setAppointmentSpecialPatientCode(pazSpec);
     setAppointmentSlotTimeSummary(slot);
 
     $('#app_cognome').val(cognome);
@@ -7356,6 +7842,10 @@ function riempiModaleDaEvento(slot) {
     setAppointmentExtraSlotState(slot);
     setAppointmentLinkedPatient(linkedPatientId, patientLabel);
     fillAppointmentVisitTypeSelect(slot.id_tipo_visita || '');
+    if (isPersonalCommitment) {
+        appointmentStandardDraftCache = null;
+    }
+    setAppointmentMode(isPersonalCommitment ? 'personal_commitment' : 'standard');
     refreshAppointmentVisitTypePreview();
 
     if (slot.id_appuntamento) {
@@ -7440,10 +7930,6 @@ function caricaSlotCalendario(options) {
 
         var eventi = [];
 
-        function getPazSpecColor(pazSpec) {
-            return '#2e8b57';
-        }
-
         $.each(agendaCurrentSlots, function(i, slot) {
             if (isAgendaCoveredSecondarySlot(slot)) {
                 return true;
@@ -7459,7 +7945,7 @@ function caricaSlotCalendario(options) {
             var pazSpec = $.trim(slot.paz_spec || '');
             var isSpecialPatient = isAgendaSpecialPatient(slot, pazSpec);
             var hasAppointment = !!slot.id_appuntamento || (stato !== 'LIBERO' && stato !== 'BLOCCATO' && stato !== 'CHIUSO');
-            var nominativo = $.trim((slot.cognome || '') + ' ' + (slot.nome || ''));
+            var nominativo = getAgendaAppointmentDisplayName(slot, pazSpec);
             var noteEvento = buildAppointmentNoteDisplay(slot);
             var slotDayBlocked = isAgendaSlotDayBlocked(slot);
             var visitTypeColor = (!slotDayBlocked && hasAppointment) ? getAgendaVisitTypeColorById(slot.id_tipo_visita) : '';
@@ -7496,7 +7982,7 @@ function caricaSlotCalendario(options) {
                 classe = 'evento-prenotato';
 
                 if (isSpecialPatient) {
-                    colore = getPazSpecColor(pazSpec) || '#2e8b57';
+                    colore = getAgendaSpecialPatientColor(pazSpec, slot) || '#2e8b57';
                     classe = 'evento-prenotato evento-prenotato-spec';
                 }
 
@@ -7752,7 +8238,7 @@ function buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute, entryH
         var isSpecialPatient = isAgendaSpecialPatient(slot, pazSpec);
         var hasAppointment = !!slot.id_appuntamento || (stato !== 'LIBERO' && stato !== 'BLOCCATO' && stato !== 'CHIUSO');
         var visitTypeVisualStyle = (!column.giorno_bloccato && hasAppointment) ? getAgendaVisitTypeVisualStyleById(slot.id_tipo_visita) : null;
-        var nominativo = $.trim((slot.cognome || '') + ' ' + (slot.nome || ''));
+        var nominativo = getAgendaAppointmentDisplayName(slot, pazSpec);
         var noteEvento = buildAppointmentNoteDisplay(slot);
         var title = orarioLabel + (nominativo !== '' ? (' ' + nominativo) : '');
 
@@ -7778,7 +8264,7 @@ function buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute, entryH
             return true;
         }
 
-        var color = column.giorno_bloccato ? '#d9534f' : (isSpecialPatient ? '#2e8b57' : '#3c8dbc');
+        var color = column.giorno_bloccato ? '#d9534f' : (isSpecialPatient ? getAgendaSpecialPatientColor(pazSpec, slot) : '#3c8dbc');
         var bookedStyle = 'top:' + top + 'px;height:' + height + 'px;';
         var bookedClass = 'agenda-team-entry';
 
@@ -8956,6 +9442,11 @@ function eliminaNotaCompleta(idNota) {
 function cercaPazientiAutocomplete(term) {
     var idDot = $('#id_dot').val();
 
+    if (isAppointmentPersonalCommitmentMode()) {
+        $('#patientAutocomplete').addClass('d-none').html('');
+        return;
+    }
+
     if (patientAutocompleteTimer) {
         clearTimeout(patientAutocompleteTimer);
     }
@@ -8989,6 +9480,7 @@ function cercaPazientiAutocomplete(term) {
                 'data-id="' + escapeHtml(row.id_paziente || '') + '" ' +
                 'data-cognome="' + escapeHtml(row.cognome || '') + '" ' +
                 'data-nome="' + escapeHtml(row.nome || '') + '" ' +
+                    'data-paz-spec="' + escapeHtml(row.paz_spec || '') + '" ' +
                     'data-telefono="' + escapeHtml(row.telefono || '') + '" ' +
                     'data-cellulare="' + escapeHtml(row.cellulare || '') + '" ' +
                     'data-reminder-sms-enabled="' + escapeHtml(row.appointment_reminder_sms_enabled || 0) + '" ' +
@@ -9852,8 +10344,24 @@ $('#nota_giorno_text').on('blur', function() {
         cercaPazientiAutocomplete($(this).val());
     });
 
+    $('#appointmentModeSwitch').on('click', '[data-appointment-mode]', function() {
+        var nextMode = $.trim(String($(this).data('appointment-mode') || ''));
+        setAppointmentMode(nextMode);
+
+        if (nextMode === 'personal_commitment') {
+            $('#app_personal_commitment_end').trigger('focus');
+            return;
+        }
+
+        $('#app_cognome').trigger('focus');
+    });
+
     $('#app_id_tipo_visita').on('change', function() {
         refreshAppointmentVisitTypePreview();
+    });
+
+    $('#app_personal_commitment_end').on('change', function() {
+        refreshAppointmentPersonalCommitmentCoverage();
     });
 
     $('#app_cognome, #app_nome').on('input', function() {
@@ -9866,6 +10374,7 @@ $('#nota_giorno_text').on('blur', function() {
 
     $('#btnNewAppointmentPatient').on('click', function() {
         setAppointmentLinkedPatient('', '');
+        setAppointmentSpecialPatientCode('');
         $('#searchPatient').val('');
         $('#app_cognome').val('');
         $('#app_nome').val('');
@@ -9887,6 +10396,7 @@ $('#nota_giorno_text').on('blur', function() {
         }
 
         setAppointmentLinkedPatient(idPaziente, getAppointmentPatientLabel(cognome, nome));
+        setAppointmentSpecialPatientCode($(this).data('pazSpec') || '');
         $('#app_cognome').val(cognome);
         $('#app_nome').val(nome);
         $('#app_telefono').val($(this).data('telefono') || '');
@@ -9915,12 +10425,14 @@ $('#nota_giorno_text').on('blur', function() {
             return;
         }
 
+        var isPersonalCommitment = isAppointmentPersonalCommitmentMode();
         var linkedPatientId = $.trim($('#app_id_paziente').val() || '');
         var searchPatientValue = $.trim($('#searchPatient').val() || '');
         var currentPatientLabel = getAppointmentPatientLabel($('#app_cognome').val(), $('#app_nome').val());
         var selectedPatientLabel = $.trim($('#appointmentLinkedPatientInfo').data('patient-label') || '');
 
         if (
+            !isPersonalCommitment &&
             linkedPatientId !== '' &&
             searchPatientValue !== '' &&
             searchPatientValue !== currentPatientLabel &&
@@ -9939,12 +10451,14 @@ $('#nota_giorno_text').on('blur', function() {
             : 'Prenotazione confermata correttamente.';
         var coverage = null;
 
-        if (supportsAgendaVisitTypes()) {
+        if (supportsAgendaVisitTypes() || isPersonalCommitment) {
             coverage = refreshAppointmentVisitTypePreview();
             if (!coverage || !coverage.ok) {
                 alert((coverage && coverage.message) ? coverage.message : 'La durata selezionata non e compatibile con gli slot disponibili.');
-                if (isAgendaVisitTypeSelectionRequired() && $.trim($('#app_id_tipo_visita').val() || '') === '') {
+                if (!isPersonalCommitment && isAgendaVisitTypeSelectionRequired() && $.trim($('#app_id_tipo_visita').val() || '') === '') {
                     $('#app_id_tipo_visita').trigger('focus');
+                } else if (isPersonalCommitment) {
+                    $('#app_personal_commitment_end').trigger('focus');
                 }
                 return;
             }
@@ -9952,8 +10466,8 @@ $('#nota_giorno_text').on('blur', function() {
 
         setAppointmentSavingState(true);
 
-        var cognome = normalizeAppointmentPatientName($('#app_cognome').val());
-        var nome = normalizeAppointmentPatientName($('#app_nome').val());
+        var cognome = isPersonalCommitment ? 'Impegno' : normalizeAppointmentPatientName($('#app_cognome').val());
+        var nome = isPersonalCommitment ? 'personale' : normalizeAppointmentPatientName($('#app_nome').val());
         $('#app_cognome').val(cognome);
         $('#app_nome').val(nome);
 
@@ -9967,14 +10481,19 @@ $('#nota_giorno_text').on('blur', function() {
                 id_dot: $('#app_id_dot').val(),
                 id_paziente: $('#app_id_paziente').val(),
                 token_lock: $('#app_token_lock').val(),
+                appointment_special_mode: isPersonalCommitment ? 'personal_commitment' : 'standard',
+                paz_spec: isPersonalCommitment ? getAgendaPersonalCommitmentSpecialCode() : ($('#app_paz_spec').val() || ''),
                 cognome: cognome,
                 nome: nome,
-                telefono: $('#app_telefono').val(),
-                cellulare: $('#app_cellulare').val(),
-                email: $('#app_email').val(),
-                appointment_reminder_sms_enabled: supportsPatientSmsReminderPreference() && $('#app_appointment_reminder_sms_enabled').is(':checked') ? 1 : 0,
+                telefono: isPersonalCommitment ? '' : $('#app_telefono').val(),
+                cellulare: isPersonalCommitment ? '' : $('#app_cellulare').val(),
+                email: isPersonalCommitment ? '' : $('#app_email').val(),
+                appointment_reminder_sms_enabled: isPersonalCommitment
+                    ? 0
+                    : (supportsPatientSmsReminderPreference() && $('#app_appointment_reminder_sms_enabled').is(':checked') ? 1 : 0),
                 note: $('#app_note').val(),
-                id_tipo_visita: $('#app_id_tipo_visita').val()
+                id_tipo_visita: isPersonalCommitment ? '' : $('#app_id_tipo_visita').val(),
+                durata_minuti: isPersonalCommitment ? ($('#app_personal_commitment_end').val() || '') : ''
             }
         }).done(function(res) {
             if (!res || !res.status) {

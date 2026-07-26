@@ -45,8 +45,11 @@ class Agenda extends BaseController
     private const SHARED_AGENDA_PATIENTS_FEATURE = 'shared_agenda_patients';
     private const VISIT_TYPES_FEATURE = 'agenda_visit_types';
     private const OPTIONAL_VISIT_TYPE_FEATURE = 'agenda_visit_type_optional';
+    private const PERSONAL_COMMITMENTS_FEATURE = 'agenda_personal_commitments';
     private const SHOW_APPOINTMENT_CREATOR_FEATURE = 'agenda_show_appointment_creator';
     private const PATIENT_EXCEL_IMPORT_FEATURE = PatientExcelImportService::FEATURE_KEY;
+    private const PERSONAL_COMMITMENT_SPECIAL_CODE = 'IMPEGNO_PERSONALE';
+    private const PERSONAL_COMMITMENT_LABEL = 'Impegno personale';
 
     protected AgendaModel $agendaModel;
     protected AgendaSlotModel $slotModel;
@@ -828,6 +831,18 @@ public function eseguiRepairRecurringExtraSlots()
             && !$this->isVisitTypeSelectionOptionalEnabled();
     }
 
+    protected function isPersonalCommitmentsFeatureEnabled(): bool
+    {
+        return $this->tenantFeatureEnabled(self::PERSONAL_COMMITMENTS_FEATURE);
+    }
+
+    protected function assertPersonalCommitmentsFeatureEnabled(): void
+    {
+        if (!$this->isPersonalCommitmentsFeatureEnabled()) {
+            throw new \Exception('La gestione degli impegni personali non e attiva per questo studio.');
+        }
+    }
+
     protected function assertVisitTypesFeatureEnabled(): void
     {
         if (!$this->isVisitTypesFeatureEnabled()) {
@@ -1234,6 +1249,57 @@ public function eseguiRepairRecurringExtraSlots()
         if (array_key_exists('nome', $payload)) {
             $payload['nome'] = $this->normalizeAppointmentPatientName((string)$payload['nome']);
         }
+
+        if (array_key_exists('appointment_special_mode', $payload)) {
+            $mode = strtolower(trim((string) ($payload['appointment_special_mode'] ?? '')));
+            $payload['appointment_special_mode'] = $mode === 'personal_commitment'
+                ? 'personal_commitment'
+                : 'standard';
+        }
+
+        if (array_key_exists('durata_minuti', $payload)) {
+            $payload['durata_minuti'] = max(0, (int) ($payload['durata_minuti'] ?? 0));
+        }
+
+        return $payload;
+    }
+
+    protected function isPersonalCommitmentPayload(array $payload): bool
+    {
+        return trim((string) ($payload['appointment_special_mode'] ?? '')) === 'personal_commitment';
+    }
+
+    protected function preparePersonalCommitmentPayload(array $payload, int $idDot): array
+    {
+        $this->assertPersonalCommitmentsFeatureEnabled();
+
+        if ($idDot <= 0) {
+            throw new \Exception('Medico non valido per l impegno personale.');
+        }
+
+        $idPaziente = $this->pazientiModel->findOrCreateSpecialPatientForDoctor(
+            $idDot,
+            self::PERSONAL_COMMITMENT_SPECIAL_CODE,
+            [
+                'cognome' => 'Impegno',
+                'nome' => 'personale',
+                'denominazione' => self::PERSONAL_COMMITMENT_LABEL,
+                'associate_all_doctors' => 1,
+                'cliente_attivo' => 1,
+                'bloccato' => 0,
+            ],
+            $this->getCurrentUserId()
+        );
+
+        $payload['id_paziente'] = $idPaziente;
+        $payload['paz_spec'] = self::PERSONAL_COMMITMENT_SPECIAL_CODE;
+        $payload['cognome'] = 'Impegno';
+        $payload['nome'] = 'personale';
+        $payload['telefono'] = '';
+        $payload['cellulare'] = '';
+        $payload['email'] = '';
+        $payload['appointment_reminder_sms_enabled'] = 0;
+        $payload['allow_custom_duration'] = 1;
 
         return $payload;
     }
@@ -1774,6 +1840,7 @@ public function eseguiRepairRecurringExtraSlots()
         $skipEmptyAgendaDaysEnabled = $this->isSkipEmptyAgendaDaysFeatureEnabled();
         $visitTypesFeatureEnabled = $this->isVisitTypesFeatureEnabled();
         $visitTypeSelectionOptionalEnabled = $this->isVisitTypeSelectionOptionalEnabled();
+        $personalCommitmentsFeatureEnabled = $this->isPersonalCommitmentsFeatureEnabled();
         $visitTypes = [];
 
         if ($visitTypesFeatureEnabled) {
@@ -1837,6 +1904,7 @@ public function eseguiRepairRecurringExtraSlots()
             'sharedAgendaPatientsEnabled' => $this->isSharedAgendaPatientsSearchEnabledForCurrentUser(),
             'visitTypesFeatureEnabled' => $visitTypesFeatureEnabled,
             'visitTypeSelectionOptionalEnabled' => $visitTypeSelectionOptionalEnabled,
+            'personalCommitmentsFeatureEnabled' => $personalCommitmentsFeatureEnabled,
             'visitTypes'           => $visitTypes,
             'agendaAppointmentBlockLayoutSettings' => $agendaAppointmentBlockLayoutSettings,
             'agendaHomeBlockOrderSettings' => $agendaHomeBlockOrderSettings,
@@ -3823,8 +3891,12 @@ public function eseguiRepairRecurringExtraSlots()
             $idDot = (int)$slot['id_dot'];
             $payload['id_dot'] = $idDot;
 
-            $idPaziente = $this->pazientiModel->savePatientAndLink($payload, $idDot, $this->getCurrentUserId());
-            $payload['id_paziente'] = $idPaziente;
+            if ($this->isPersonalCommitmentPayload($payload)) {
+                $payload = $this->preparePersonalCommitmentPayload($payload, $idDot);
+            } else {
+                $idPaziente = $this->pazientiModel->savePatientAndLink($payload, $idDot, $this->getCurrentUserId());
+                $payload['id_paziente'] = $idPaziente;
+            }
 
             $id = $this->appointmentModel->saveAppointment($payload);
             $this->notifyBookedAppointmentIfNeeded($id, $idDot);
@@ -3858,8 +3930,12 @@ public function eseguiRepairRecurringExtraSlots()
             if ($idDot > 0) {
                 $this->assertDoctorAllowed($idDot);
 
-                $idPaziente = $this->pazientiModel->savePatientAndLink($payload, $idDot, $this->getCurrentUserId());
-                $payload['id_paziente'] = $idPaziente;
+                if ($this->isPersonalCommitmentPayload($payload)) {
+                    $payload = $this->preparePersonalCommitmentPayload($payload, $idDot);
+                } else {
+                    $idPaziente = $this->pazientiModel->savePatientAndLink($payload, $idDot, $this->getCurrentUserId());
+                    $payload['id_paziente'] = $idPaziente;
+                }
             }
 
             $this->appointmentModel->updateAppointment($payload);

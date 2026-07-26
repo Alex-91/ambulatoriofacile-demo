@@ -300,6 +300,28 @@ class AgendaAppointmentModel extends Model
     {
         $slotDuration = $this->getSlotDurationMinutes($slot);
 
+        if (!empty($data['allow_custom_duration'])) {
+            $customDuration = (int) ($data['durata_minuti'] ?? 0);
+            if (
+                $customDuration <= 0
+                && $existingAppointment !== null
+                && !array_key_exists('durata_minuti', $data)
+            ) {
+                $customDuration = $this->resolveStoredAppointmentDuration($existingAppointment, $slotDuration);
+            }
+
+            if ($customDuration <= 0) {
+                throw new Exception('Seleziona un orario di fine valido per l impegno personale.');
+            }
+
+            return [
+                'visit_type_id' => 0,
+                'type_label' => '',
+                'duration_minutes' => $customDuration,
+                'uses_custom_duration' => true,
+            ];
+        }
+
         if ($visitTypesFeatureEnabled) {
             $hasVisitTypeInput = array_key_exists('id_tipo_visita', $data);
             $selectedTypeId = (int) ($data['id_tipo_visita'] ?? 0);
@@ -693,8 +715,9 @@ class AgendaAppointmentModel extends Model
     private function assertVisitTypeSchemaReady(array $plan, int $slotDuration, bool $visitTypesFeatureEnabled): void
     {
         $usesSpan = (int) ($plan['duration_minutes'] ?? 0) > $slotDuration;
+        $requiresExtendedAppointmentSchema = $visitTypesFeatureEnabled || !empty($plan['uses_custom_duration']);
 
-        if ($visitTypesFeatureEnabled) {
+        if ($requiresExtendedAppointmentSchema) {
             $this->ensureVisitTypeSchemaReady();
 
             foreach (['id_tipo_visita', 'tipo_visita_label', 'durata_minuti', 'ora_fine_appuntamento'] as $field) {

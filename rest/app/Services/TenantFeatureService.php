@@ -265,6 +265,16 @@ class TenantFeatureService
                 'tenant_default_enabled' => 0,
                 'sort_order' => 69,
             ],
+            'agenda_personal_commitments' => [
+                'feature_name' => 'Impegni personali multi-slot',
+                'feature_scope' => 'workflow',
+                'description' => 'Il master piattaforma puo attivare per il singolo studio il blocco rapido di slot consecutivi come impegno personale, con durata variabile e voce speciale eliminabile dal calendario.',
+                'default_enabled' => 0,
+                'icon_class' => 'fa-calendar-times-o',
+                'is_tenant_managed' => 0,
+                'tenant_default_enabled' => 0,
+                'sort_order' => 70,
+            ],
             'agenda_compressed_layout' => [
                 'feature_name' => 'Versione compressa agenda',
                 'feature_scope' => 'workflow',
@@ -273,7 +283,7 @@ class TenantFeatureService
                 'icon_class' => 'fa-compress',
                 'is_tenant_managed' => 1,
                 'tenant_default_enabled' => 0,
-                'sort_order' => 70,
+                'sort_order' => 71,
             ],
             'agenda_show_appointment_creator' => [
                 'feature_name' => 'Mostra creatore appuntamento',
@@ -283,7 +293,7 @@ class TenantFeatureService
                 'icon_class' => 'fa-eye',
                 'is_tenant_managed' => 1,
                 'tenant_default_enabled' => 1,
-                'sort_order' => 73,
+                'sort_order' => 74,
             ],
             PatientExcelImportService::FEATURE_KEY => [
                 'feature_name' => 'Importazione pazienti da Excel',
@@ -293,7 +303,7 @@ class TenantFeatureService
                 'icon_class' => 'fa-upload',
                 'is_tenant_managed' => 1,
                 'tenant_default_enabled' => 0,
-                'sort_order' => 74,
+                'sort_order' => 75,
             ],
             AgendaAppointmentBlockLayoutService::FEATURE_KEY => [
                 'feature_name' => 'Layout popup appuntamento',
@@ -303,7 +313,7 @@ class TenantFeatureService
                 'icon_class' => 'fa-columns',
                 'is_tenant_managed' => 0,
                 'tenant_default_enabled' => 0,
-                'sort_order' => 71,
+                'sort_order' => 72,
             ],
         ];
     }
