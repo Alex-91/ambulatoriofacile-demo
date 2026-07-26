@@ -1066,9 +1066,15 @@ class PazientiModel extends Model
         return $this->sanitizePatientDetailRow($row ?: null);
     }
 
-    public function getAppointmentsByDoctorAndPatient(int $idPaziente, int $idDot, int $limit = 200): array
+    public function getAppointmentsByDoctorAndPatient(int $idPaziente, int $idDot, int $limit = 200, int $actingUserId = 0): array
     {
         if ($idPaziente <= 0 || $idDot <= 0) {
+            return [];
+        }
+
+        $scope = $this->resolveDoctorPatientScope($idDot, $actingUserId);
+        $scopeLegacyIdDots = $this->normalizeIdList((array) ($scope['legacy_dot_ids'] ?? []));
+        if ($scopeLegacyIdDots === []) {
             return [];
         }
 
@@ -1095,6 +1101,7 @@ class PazientiModel extends Model
         $limit = max(1, min(200, $limit));
         $queries = [];
         $params = [];
+        $doctorPlaceholders = implode(',', array_fill(0, count($scopeLegacyIdDots), '?'));
         $appointmentEndExpr = $hasAppointmentEndColumn ? 'a.ora_fine_appuntamento' : 'NULL';
         $appointmentVisitTypeLabelExpr = $hasAppointmentVisitTypeLabelColumn ? 'a.tipo_visita_label' : "''";
         $appointmentDurationExpr = $hasAppointmentDurationColumn ? 'a.durata_minuti' : 'NULL';
@@ -1133,14 +1140,14 @@ class PazientiModel extends Model
             INNER JOIN dap11_agenda_slot s
                 ON s.id_slot = a.id_slot
             {$createdByJoin}
-            WHERE a.id_dot = ?
+            WHERE a.id_dot IN ({$doctorPlaceholders})
               AND a.stato <> 'ANNULLATO'
               AND __PATIENT_MATCH_CONDITION__
         ";
 
         if ($hasAppointmentClientColumn) {
             $queries[] = str_replace('__PATIENT_MATCH_CONDITION__', 'a.id_client = ?', $selectSql);
-            array_push($params, $idDot, $idPaziente);
+            $params = array_merge($params, $scopeLegacyIdDots, [$idPaziente]);
         }
 
         if ($legacyPatientIds !== []) {
@@ -1151,8 +1158,7 @@ class PazientiModel extends Model
             }
 
             $queries[] = str_replace('__PATIENT_MATCH_CONDITION__', $legacySql, $selectSql);
-            $params[] = $idDot;
-            $params = array_merge($params, $legacyPatientIds);
+            $params = array_merge($params, $scopeLegacyIdDots, $legacyPatientIds);
         }
 
         if ($queries === []) {

@@ -2853,7 +2853,11 @@
                     <div class="box box-info agenda-patient-lookup-box">
                         <div class="box-header with-border">
                             <h3 class="box-title"><i class="fa fa-search"></i> Cerca paziente nell'agenda</h3>
-                            <?php if ($selectedDoctorLabel !== ''): ?>
+                            <?php if (!empty($sharedAgendaPatientsEnabled)): ?>
+                                <div class="box-tools">
+                                    <span class="label label-success">Ricerca condivisa team</span>
+                                </div>
+                            <?php elseif ($selectedDoctorLabel !== ''): ?>
                                 <div class="box-tools">
                                     <span class="label label-default">Solo <?= esc($selectedDoctorLabel) ?></span>
                                 </div>
@@ -2869,13 +2873,15 @@
                                             id="agendaPatientSearch"
                                             class="form-control"
                                             autocomplete="off"
-                                            placeholder="Ricerca rapida tra i pazienti del professionista"
+                                            placeholder="<?= !empty($sharedAgendaPatientsEnabled) ? 'Ricerca rapida tra i pazienti condivisi del team' : 'Ricerca rapida tra i pazienti del professionista' ?>"
                                         >
                                         <input type="hidden" id="agendaPatientSearchIdPaziente" value="">
                                         <div id="agendaPatientAutocomplete" class="agenda-autocomplete d-none"></div>
                                     </div>
                                     <p class="help-block" style="margin-bottom:8px;">
-                                        Cerca per nome o cognome tra i pazienti del professionista selezionato; dopo la selezione vedi gli appuntamenti passati e futuri.
+                                        <?= !empty($sharedAgendaPatientsEnabled)
+                                            ? 'Cerca per nome o cognome tra i pazienti condivisi del team; dopo la selezione vedi gli appuntamenti passati e futuri su tutte le agende dei medici.'
+                                            : 'Cerca per nome o cognome tra i pazienti del professionista selezionato; dopo la selezione vedi gli appuntamenti passati e futuri.' ?>
                                     </p>
                                     <div id="agendaPatientSelectedSummary" class="agenda-patient-selected-summary" style="display:none;"></div>
                                 </div>
@@ -2889,7 +2895,9 @@
                                         </div>
                                         <div id="agendaPatientAppointmentsList" class="agenda-patient-history-list">
                                             <div class="agenda-patient-history-empty">
-                                                Seleziona un paziente per vedere gli appuntamenti passati e futuri del professionista attuale.
+                                                <?= !empty($sharedAgendaPatientsEnabled)
+                                                    ? 'Seleziona un paziente per vedere gli appuntamenti passati e futuri su tutte le agende dei medici.'
+                                                    : 'Seleziona un paziente per vedere gli appuntamenti passati e futuri del professionista attuale.' ?>
                                             </div>
                                         </div>
                                     </div>
@@ -3700,6 +3708,7 @@ window.AGENDA_CONFIG = {
     skipEmptyAgendaDaysEnabled: <?= !empty($skipEmptyAgendaDaysEnabled) ? 'true' : 'false' ?>,
     compressedLayoutEnabled: <?= $agendaCompressedLayoutEnabled ? 'true' : 'false' ?>,
     sharedMemoManagementEnabled: <?= $sharedMemoManagementEnabled ? 'true' : 'false' ?>,
+    sharedAgendaPatientsEnabled: <?= !empty($sharedAgendaPatientsEnabled) ? 'true' : 'false' ?>,
     visitTypesFeatureEnabled: <?= !empty($visitTypesFeatureEnabled) ? 'true' : 'false' ?>,
     visitTypeSelectionOptionalEnabled: <?= !empty($visitTypeSelectionOptionalEnabled) ? 'true' : 'false' ?>,
     appointmentBillingWorkflowEnabled: <?= !empty($appointmentDocumentActions['billing_enabled']) ? 'true' : 'false' ?>,
@@ -8228,7 +8237,29 @@ function shouldRunPatientAutocomplete(term) {
 }
 
 function getAgendaPatientHistoryDefaultMessage() {
+    if (isSharedAgendaPatientsEnabled()) {
+        return 'La ricerca usa lo spazio condiviso dei pazienti; dopo la selezione qui vedi appuntamenti passati e futuri su tutte le agende dei medici.';
+    }
+
     return 'La ricerca usa l\'anagrafica del professionista; dopo la selezione qui vedi appuntamenti passati e futuri del professionista attuale.';
+}
+
+function isSharedAgendaPatientsEnabled() {
+    return !!window.AGENDA_CONFIG.sharedAgendaPatientsEnabled;
+}
+
+function getAgendaDoctorLabelFromRow(row) {
+    var doctorLabel = $.trim((row && row.doctor_label) || '');
+    if (doctorLabel !== '') {
+        return doctorLabel;
+    }
+
+    var idDot = parseInt((row && row.id_dot) || 0, 10) || 0;
+    if (idDot <= 0) {
+        return '';
+    }
+
+    return $.trim($('#id_dot option[value="' + idDot + '"]').text() || '');
 }
 
 function setAgendaPatientHistoryPlaceholder(message) {
@@ -8499,6 +8530,8 @@ function renderAgendaPatientAppointments(patient, rows) {
             var start = moments.start;
             var end = moments.end;
             var appointmentId = parseInt((row && row.id_appuntamento) || 0, 10) || 0;
+            var doctorId = parseInt((row && row.id_dot) || 0, 10) || 0;
+            var doctorLabel = getAgendaDoctorLabelFromRow(row);
             var dateLabel = start ? start.format('DD/MM/YYYY') : ((row && row.data_slot) || '');
             var timeLabel = (row && row.ora_inizio_label ? row.ora_inizio_label : (start ? start.format('HH:mm') : ''))
                 + ' - ' +
@@ -8509,11 +8542,15 @@ function renderAgendaPatientAppointments(patient, rows) {
             html += '<button type="button" class="agenda-patient-history-item is-' + state + (isSelected ? ' is-selected' : '') + '" ' +
                 'data-appointment-id="' + escapeHtml(appointmentId) + '" ' +
                 'data-patient-id="' + escapeHtml(patientId) + '" ' +
+                'data-dot-id="' + escapeHtml(doctorId) + '" ' +
                 'data-date="' + escapeHtml((row && row.data_slot) || '') + '">' +
                 '<div class="agenda-patient-history-topline">' +
                 '<span class="agenda-patient-history-date">' + escapeHtml(dateLabel + ' - ' + timeLabel) + '</span>' +
                 '<span class="agenda-patient-history-badge">' + escapeHtml(getAgendaPatientAppointmentBadge(state)) + '</span>' +
                 '</div>' +
+                (isSharedAgendaPatientsEnabled() && doctorLabel !== ''
+                    ? '<div class="agenda-patient-history-text">' + escapeHtml(doctorLabel) + '</div>'
+                    : '') +
                 '<div class="agenda-patient-history-text">' + escapeHtml(detailText !== '' ? detailText : 'Apri il giorno in agenda') + '</div>' +
                 '</button>';
         });
@@ -8608,9 +8645,23 @@ function jumpToAgendaPatientAppointment($item) {
     var data = $.trim(($item.data('date') || '').toString());
     var appointmentId = parseInt($item.data('appointment-id') || 0, 10) || 0;
     var patientId = parseInt($item.data('patient-id') || 0, 10) || 0;
+    var targetDotId = parseInt($item.data('dot-id') || 0, 10) || 0;
+    var currentDotId = parseInt($('#id_dot').val() || 0, 10) || 0;
 
     if (!moment(data, 'YYYY-MM-DD', true).isValid()) {
         return;
+    }
+
+    if (targetDotId > 0 && targetDotId !== currentDotId) {
+        if (!$('#id_dot option[value="' + targetDotId + '"]').length) {
+            showAgendaToast('Non posso aprire l\'agenda del professionista associato a questo appuntamento.', 'error');
+            return;
+        }
+
+        $('#id_dot').val(String(targetDotId));
+        window.AGENDA_CONFIG.selectedDot = targetDotId;
+        syncNoteTargetDoctor(targetDotId);
+        $('#vd_id_dot').val(String(targetDotId));
     }
 
     agendaFocusedAppointmentId = appointmentId;
@@ -8623,7 +8674,9 @@ function jumpToAgendaPatientAppointment($item) {
     $('#agenda_date').val(data);
     setAgendaViewMode('day');
     scrollAgendaCalendarIntoView();
-    caricaTutto();
+    caricaTutto({
+        reloadDoctorPanels: targetDotId > 0 && targetDotId !== currentDotId
+    });
 }
 
 function loadAgendaPatientAppointments(idPaziente) {

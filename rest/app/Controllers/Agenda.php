@@ -42,6 +42,7 @@ class Agenda extends BaseController
     private const TEAM_DAY_VIEW_FEATURE = 'agenda_team_day_view';
     private const SKIP_EMPTY_AGENDA_DAYS_FEATURE = 'agenda_skip_empty_days';
     private const SHARED_AGENDA_MEMOS_FEATURE = 'shared_agenda_memos';
+    private const SHARED_AGENDA_PATIENTS_FEATURE = 'shared_agenda_patients';
     private const VISIT_TYPES_FEATURE = 'agenda_visit_types';
     private const OPTIONAL_VISIT_TYPE_FEATURE = 'agenda_visit_type_optional';
     private const SHOW_APPOINTMENT_CREATOR_FEATURE = 'agenda_show_appointment_creator';
@@ -749,6 +750,20 @@ public function eseguiRepairRecurringExtraSlots()
         return $this->tenantFeatureEnabled(self::SHARED_AGENDA_MEMOS_FEATURE);
     }
 
+    protected function isSharedAgendaPatientsFeatureEnabled(): bool
+    {
+        return $this->tenantFeatureEnabled(self::SHARED_AGENDA_PATIENTS_FEATURE);
+    }
+
+    protected function isSharedAgendaPatientsSearchEnabledForCurrentUser(): bool
+    {
+        $sessionUser = $this->getUserSession();
+        $actorTipoPers = is_object($sessionUser) ? (int) ($sessionUser->tipo_pers ?? 0) : 0;
+
+        return $actorTipoPers === StaffDoctorAccessService::TIPO_DOTTORE
+            && $this->isSharedAgendaPatientsFeatureEnabled();
+    }
+
     protected function isSkipEmptyAgendaDaysFeatureEnabled(): bool
     {
         return $this->tenantFeatureEnabled(self::SKIP_EMPTY_AGENDA_DAYS_FEATURE);
@@ -1080,6 +1095,31 @@ public function eseguiRepairRecurringExtraSlots()
             $row['memo_action_blocked'] = $agendaData !== '' && $idDot > 0
                 ? $this->agendaModel->isMemoGiornoBloccato($idDot, $agendaData)
                 : false;
+        }
+        unset($row);
+
+        return $rows;
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $rows
+     * @return array<int, array<string, mixed>>
+     */
+    protected function enrichPatientAppointmentRowsForResponse(array $rows): array
+    {
+        if ($rows === []) {
+            return [];
+        }
+
+        $doctorMap = $this->agendaModel->getAgendaProfessionalMapByLegacyIds(array_map(
+            static fn(array $row): int => (int) ($row['id_dot'] ?? 0),
+            $rows
+        ));
+
+        foreach ($rows as &$row) {
+            $idDot = (int) ($row['id_dot'] ?? 0);
+            $doctor = is_array($doctorMap[$idDot] ?? null) ? $doctorMap[$idDot] : [];
+            $row['doctor_label'] = $this->resolveAgendaProfessionalDisplayLabel($doctor, $idDot);
         }
         unset($row);
 
@@ -1794,6 +1834,7 @@ public function eseguiRepairRecurringExtraSlots()
             'teamDayViewEnabled'   => $teamDayViewEnabled,
             'skipEmptyAgendaDaysEnabled' => $skipEmptyAgendaDaysEnabled,
             'sharedMemoManagementEnabled' => $this->isSharedAgendaMemosFeatureEnabled(),
+            'sharedAgendaPatientsEnabled' => $this->isSharedAgendaPatientsSearchEnabledForCurrentUser(),
             'visitTypesFeatureEnabled' => $visitTypesFeatureEnabled,
             'visitTypeSelectionOptionalEnabled' => $visitTypeSelectionOptionalEnabled,
             'visitTypes'           => $visitTypes,
@@ -3678,11 +3719,18 @@ public function eseguiRepairRecurringExtraSlots()
 
             $this->assertDoctorAllowed($idDot);
 
+            $rows = $this->pazientiModel->getAppointmentsByDoctorAndPatient(
+                $idPaziente,
+                $idDot,
+                200,
+                $this->getCurrentUserId()
+            );
+
             return $this->respondJsonSafe([
                 'status'  => true,
                 'patient' => null,
-                'rows'    => $this->sanitizeAppointmentCreatorRows(
-                    $this->pazientiModel->getAppointmentsByDoctorAndPatient($idPaziente, $idDot, 200)
+                'rows'    => $this->enrichPatientAppointmentRowsForResponse(
+                    $this->sanitizeAppointmentCreatorRows($rows)
                 ),
             ]);
         } catch (\Exception $e) {
