@@ -2430,6 +2430,39 @@
             outline: none;
         }
 
+        .agenda-team-entry-free-slot-chip-only {
+            padding: 0;
+            border: 0;
+            background: transparent;
+            box-shadow: none;
+        }
+
+        .agenda-team-entry-free-slot-chip-only:hover,
+        .agenda-team-entry-free-slot-chip-only:focus {
+            background: transparent;
+            border-color: transparent;
+            box-shadow: none;
+            outline: none;
+        }
+
+        .agenda-team-entry-free-slot-chip-only .agenda-team-entry-content {
+            display: block;
+            min-height: 0;
+        }
+
+        .agenda-team-entry-free-slot-chip-only .agenda-team-entry-title {
+            display: block;
+        }
+
+        .agenda-team-entry-free-slot-chip-only .agenda-team-entry-time {
+            margin: 8px 0 0 10px;
+        }
+
+        .agenda-team-entry-free-slot-chip-only .agenda-team-entry-patient,
+        .agenda-team-entry-free-slot-chip-only .agenda-team-entry-note {
+            display: none;
+        }
+
         .agenda-team-free-label {
             font-size: 13px;
             font-weight: 700;
@@ -8191,6 +8224,7 @@ function buildAgendaTeamEntryContent(orario, primaryLabel, secondaryLabel) {
 
 function buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute, entryHeight) {
     var slots = $.isArray(column.slots) ? column.slots : [];
+    var compactSingleSlotHeight = supportsAgendaTeamDaySingleSlotHeightFeature();
 
     if (!slots.length) {
         return '<div class="agenda-team-empty-column">' + escapeHtml(column.message || 'Nessuna agenda impostata per questo professionista.') + '</div>';
@@ -8243,7 +8277,7 @@ function buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute, entryH
         var pazSpec = $.trim(slot.paz_spec || '');
         var isSpecialPatient = isAgendaSpecialPatient(slot, pazSpec);
         var hasAppointment = !!slot.id_appuntamento || (stato !== 'LIBERO' && stato !== 'BLOCCATO' && stato !== 'CHIUSO');
-        if (supportsAgendaTeamDaySingleSlotHeightFeature()) {
+        if (compactSingleSlotHeight) {
             height = Math.max(parseInt(entryHeight, 10) || 0, 44);
         }
         var visitTypeVisualStyle = (!column.giorno_bloccato && hasAppointment) ? getAgendaVisitTypeVisualStyleById(slot.id_tipo_visita) : null;
@@ -8252,9 +8286,13 @@ function buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute, entryH
         var title = orarioLabel + (nominativo !== '' ? (' ' + nominativo) : '');
 
         if ((stato === 'LIBERO' || stato === 'BLOCCATO') && !hasAppointment && !column.giorno_bloccato) {
+            var freeSlotClass = 'agenda-team-entry agenda-team-entry-free-slot js-agenda-team-free-slot';
+            if (compactSingleSlotHeight) {
+                freeSlotClass += ' agenda-team-entry-free-slot-chip-only';
+            }
             html += ''
                 + '<button type="button"'
-                + ' class="agenda-team-entry agenda-team-entry-free-slot js-agenda-team-free-slot"'
+                + ' class="' + freeSlotClass + '"'
                 + ' style="top:' + top + 'px;height:' + height + 'px;"'
                 + ' data-slot-id="' + slotId + '"'
                 + ' title="' + escapeHtml(orarioLabel + ' - Slot libero') + '">'
