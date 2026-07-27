@@ -8225,6 +8225,7 @@ function buildAgendaTeamEntryContent(orario, primaryLabel, secondaryLabel) {
 function buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute, entryHeight) {
     var slots = $.isArray(column.slots) ? column.slots : [];
     var compactSingleSlotHeight = supportsAgendaTeamDaySingleSlotHeightFeature();
+    var compactRenderedUntilMinutes = null;
 
     if (!slots.length) {
         return '<div class="agenda-team-empty-column">' + escapeHtml(column.message || 'Nessuna agenda impostata per questo professionista.') + '</div>';
@@ -8277,6 +8278,11 @@ function buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute, entryH
         var pazSpec = $.trim(slot.paz_spec || '');
         var isSpecialPatient = isAgendaSpecialPatient(slot, pazSpec);
         var hasAppointment = !!slot.id_appuntamento || (stato !== 'LIBERO' && stato !== 'BLOCCATO' && stato !== 'CHIUSO');
+
+        if (compactSingleSlotHeight && !hasAppointment && compactRenderedUntilMinutes !== null && startMinutes < compactRenderedUntilMinutes) {
+            return true;
+        }
+
         if (compactSingleSlotHeight) {
             height = Math.max(parseInt(entryHeight, 10) || 0, 44);
         }
@@ -8298,6 +8304,9 @@ function buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute, entryH
                 + ' title="' + escapeHtml(orarioLabel + ' - Slot libero') + '">'
                 + buildAgendaTeamEntryContent(orarioLabel, 'Libero', 'Slot disponibile')
                 + '</button>';
+            if (compactSingleSlotHeight) {
+                compactRenderedUntilMinutes = startMinutes + displayDurationMinutes;
+            }
             return true;
         }
 
@@ -8308,6 +8317,9 @@ function buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute, entryH
                 + ' title="Giornata bloccata">'
                 + buildAgendaTeamEntryContent(orarioLabel, 'Bloccato', 'Fascia non disponibile')
                 + '</div>';
+            if (compactSingleSlotHeight) {
+                compactRenderedUntilMinutes = startMinutes + displayDurationMinutes;
+            }
             return true;
         }
 
