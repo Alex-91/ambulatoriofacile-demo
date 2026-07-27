@@ -6930,17 +6930,24 @@ function inizializzaCalendario(stepMinuti, minTime, maxTime) {
     agendaCalendarStep = stepMinuti || agendaCalendarBaseStep;
     agendaMinTime = minTime || '08:00:00';
     agendaMaxTime = maxTime || '18:00:00';
+    var compressedLayoutEnabled = !!window.AGENDA_CONFIG.compressedLayoutEnabled;
 
     if ($('#calendar').data('fullCalendar')) {
         $('#calendar').fullCalendar('destroy');
     }
 
     $('#calendar').fullCalendar({
-        header: {
-            left: '',
-            center: 'title',
-            right: ''
-        },
+        header: compressedLayoutEnabled
+            ? {
+                left: '',
+                center: 'title',
+                right: ''
+            }
+            : {
+                left: 'prev,today,next',
+                center: 'title',
+                right: ''
+            },
         locale: 'it',
         defaultView: 'agendaDay',
         defaultDate: $('#agenda_date').val() || window.AGENDA_CONFIG.selectedDate,
@@ -10336,7 +10343,7 @@ $('#nota_giorno_text').on('blur', function() {
         riallineaRenderingCalendario();
     });
 
-    $('#calendar').on('click', '.fc-today-button, .fc-agendaDay-button, .fc-agendaWeek-button', function() {
+    $('#calendar').on('click', '.fc-prev-button, .fc-next-button, .fc-today-button, .fc-agendaDay-button, .fc-agendaWeek-button', function() {
         setTimeout(syncCalendarDateAndReload, 0);
     });
 
