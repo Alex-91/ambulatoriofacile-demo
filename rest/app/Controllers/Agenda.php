@@ -46,6 +46,7 @@ class Agenda extends BaseController
     private const VISIT_TYPES_FEATURE = 'agenda_visit_types';
     private const OPTIONAL_VISIT_TYPE_FEATURE = 'agenda_visit_type_optional';
     private const PERSONAL_COMMITMENTS_FEATURE = 'agenda_personal_commitments';
+    private const TEAM_DAY_SINGLE_SLOT_HEIGHT_FEATURE = 'agenda_team_day_single_slot_height';
     private const SHOW_APPOINTMENT_CREATOR_FEATURE = 'agenda_show_appointment_creator';
     private const PATIENT_EXCEL_IMPORT_FEATURE = PatientExcelImportService::FEATURE_KEY;
     private const PERSONAL_COMMITMENT_SPECIAL_CODE = 'IMPEGNO_PERSONALE';
@@ -834,6 +835,11 @@ public function eseguiRepairRecurringExtraSlots()
     protected function isPersonalCommitmentsFeatureEnabled(): bool
     {
         return $this->tenantFeatureEnabled(self::PERSONAL_COMMITMENTS_FEATURE);
+    }
+
+    protected function isTeamDaySingleSlotHeightFeatureEnabled(): bool
+    {
+        return $this->tenantFeatureEnabled(self::TEAM_DAY_SINGLE_SLOT_HEIGHT_FEATURE);
     }
 
     protected function assertPersonalCommitmentsFeatureEnabled(): void
@@ -1841,6 +1847,7 @@ public function eseguiRepairRecurringExtraSlots()
         $visitTypesFeatureEnabled = $this->isVisitTypesFeatureEnabled();
         $visitTypeSelectionOptionalEnabled = $this->isVisitTypeSelectionOptionalEnabled();
         $personalCommitmentsFeatureEnabled = $this->isPersonalCommitmentsFeatureEnabled();
+        $teamDaySingleSlotHeightFeatureEnabled = $this->isTeamDaySingleSlotHeightFeatureEnabled();
         $visitTypes = [];
 
         if ($visitTypesFeatureEnabled) {
@@ -1905,6 +1912,7 @@ public function eseguiRepairRecurringExtraSlots()
             'visitTypesFeatureEnabled' => $visitTypesFeatureEnabled,
             'visitTypeSelectionOptionalEnabled' => $visitTypeSelectionOptionalEnabled,
             'personalCommitmentsFeatureEnabled' => $personalCommitmentsFeatureEnabled,
+            'teamDaySingleSlotHeightFeatureEnabled' => $teamDaySingleSlotHeightFeatureEnabled,
             'visitTypes'           => $visitTypes,
             'agendaAppointmentBlockLayoutSettings' => $agendaAppointmentBlockLayoutSettings,
             'agendaHomeBlockOrderSettings' => $agendaHomeBlockOrderSettings,

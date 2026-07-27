@@ -285,6 +285,16 @@ class TenantFeatureService
                 'tenant_default_enabled' => 0,
                 'sort_order' => 71,
             ],
+            'agenda_team_day_single_slot_height' => [
+                'feature_name' => 'Giorno Team compatto',
+                'feature_scope' => 'workflow',
+                'description' => 'Il tenant master puo attivare per il singolo studio una resa compatta della vista Giorno Team: gli appuntamenti che coprono piu slot restano alti come un solo slot, come nella vista giornaliera del singolo professionista.',
+                'default_enabled' => 0,
+                'icon_class' => 'fa-columns',
+                'is_tenant_managed' => 1,
+                'tenant_default_enabled' => 0,
+                'sort_order' => 73,
+            ],
             'agenda_show_appointment_creator' => [
                 'feature_name' => 'Mostra creatore appuntamento',
                 'feature_scope' => 'workflow',

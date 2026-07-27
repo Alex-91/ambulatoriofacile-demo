@@ -36,6 +36,7 @@
         $appointmentTsWorkflowEnabled = !empty($appointmentDocumentActions['ts_enabled']);
         $appointmentDocumentWorkflowVisible = $appointmentBillingWorkflowEnabled || $appointmentTsWorkflowEnabled;
         $personalCommitmentsFeatureEnabled = !empty($personalCommitmentsFeatureEnabled);
+        $teamDaySingleSlotHeightFeatureEnabled = !empty($teamDaySingleSlotHeightFeatureEnabled);
         $appointmentModalFallbackLayoutItems = [
             ['key' => 'time'],
         ];
@@ -3790,6 +3791,7 @@ window.AGENDA_CONFIG = {
     notificationContext: "<?= esc((string)($notificationContext ?? '')) ?>",
     domiciliariAbilitati: <?= !empty($domiciliariAbilitati) ? 'true' : 'false' ?>,
     teamDayViewEnabled: <?= !empty($teamDayViewEnabled) ? 'true' : 'false' ?>,
+    teamDaySingleSlotHeightFeatureEnabled: <?= !empty($teamDaySingleSlotHeightFeatureEnabled) ? 'true' : 'false' ?>,
     skipEmptyAgendaDaysEnabled: <?= !empty($skipEmptyAgendaDaysEnabled) ? 'true' : 'false' ?>,
     compressedLayoutEnabled: <?= $agendaCompressedLayoutEnabled ? 'true' : 'false' ?>,
     sharedMemoManagementEnabled: <?= $sharedMemoManagementEnabled ? 'true' : 'false' ?>,
@@ -4062,6 +4064,10 @@ function isAgendaVisitTypeSelectionRequired() {
 
 function supportsTeamDayView() {
     return !!window.AGENDA_CONFIG.teamDayViewEnabled;
+}
+
+function supportsAgendaTeamDaySingleSlotHeightFeature() {
+    return !!window.AGENDA_CONFIG.teamDaySingleSlotHeightFeatureEnabled;
 }
 
 function supportsAgendaSkipEmptyDaysNavigation() {
@@ -8237,6 +8243,9 @@ function buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute, entryH
         var pazSpec = $.trim(slot.paz_spec || '');
         var isSpecialPatient = isAgendaSpecialPatient(slot, pazSpec);
         var hasAppointment = !!slot.id_appuntamento || (stato !== 'LIBERO' && stato !== 'BLOCCATO' && stato !== 'CHIUSO');
+        if (supportsAgendaTeamDaySingleSlotHeightFeature() && hasAppointment) {
+            height = Math.max(parseInt(entryHeight, 10) || 0, 44);
+        }
         var visitTypeVisualStyle = (!column.giorno_bloccato && hasAppointment) ? getAgendaVisitTypeVisualStyleById(slot.id_tipo_visita) : null;
         var nominativo = getAgendaAppointmentDisplayName(slot, pazSpec);
         var noteEvento = buildAppointmentNoteDisplay(slot);
