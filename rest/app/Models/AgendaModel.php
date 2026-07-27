@@ -1683,6 +1683,7 @@ protected function buildConfiguredOrBookedSlotSql(string $slotTableAlias): strin
 
     return "(
         {$configuredSql}
+        OR UPPER(COALESCE({$slotTableAlias}.origine_slot, '')) = 'EXTRA'
         OR EXISTS (
             SELECT 1
             FROM dap12_agenda_appuntamenti a_vis
