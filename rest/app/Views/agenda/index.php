@@ -2176,6 +2176,10 @@
             background: #f8fafc;
         }
 
+        .agenda-team-board-wrap.is-compact-stack {
+            min-height: 0;
+        }
+
         .agenda-team-board {
             min-width: max-content;
         }
@@ -2270,6 +2274,22 @@
             --agenda-team-step-height: 52px;
         }
 
+        .agenda-team-column-body.is-compact-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding: 0 8px 8px;
+            min-height: 0;
+        }
+
+        .agenda-team-column-body.is-compact-stack::before {
+            display: none;
+        }
+
+        .agenda-team-column-body.is-compact-stack.is-day-locked {
+            padding-top: 42px;
+        }
+
         .agenda-team-column-body::before {
             content: '';
             position: absolute;
@@ -2348,6 +2368,14 @@
             box-shadow: 0 12px 24px var(--agenda-team-column-shadow, rgba(31, 45, 61, 0.12));
             overflow: hidden;
             cursor: pointer;
+        }
+
+        .agenda-team-column-body.is-compact-stack .agenda-team-entry {
+            position: relative;
+            left: auto;
+            right: auto;
+            top: auto;
+            margin: 0;
         }
 
         .agenda-team-entry-content {
@@ -2503,6 +2531,14 @@
             font-size: 16px;
             font-weight: 600;
             line-height: 1.55;
+        }
+
+        .agenda-team-column-body.is-compact-stack .agenda-team-empty-column {
+            position: relative;
+            top: auto;
+            left: auto;
+            right: auto;
+            margin: 0;
         }
 
         @media (min-width: 992px) {
@@ -8304,7 +8340,6 @@ function buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute, entryH
             return true;
         }
 
-        var top = Math.max(0, (startMinutes - bounds.startMinutes) * pixelsPerMinute);
         var height = getAgendaTeamDayEntryHeight(displayDurationMinutes, pixelsPerMinute, entryHeight);
         var orario = startMoment.format('HH:mm');
         var orarioFine = endMoment.format('HH:mm');
@@ -8324,6 +8359,9 @@ function buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute, entryH
         if (compactSingleSlotHeight) {
             height = Math.max(parseInt(entryHeight, 10) || 0, 44);
         }
+        var entryStyle = compactSingleSlotHeight
+            ? 'height:' + height + 'px;'
+            : 'top:' + Math.max(0, (startMinutes - bounds.startMinutes) * pixelsPerMinute) + 'px;height:' + height + 'px;';
         var visitTypeVisualStyle = (!column.giorno_bloccato && hasAppointment) ? getAgendaVisitTypeVisualStyleById(slot.id_tipo_visita) : null;
         var nominativo = getAgendaAppointmentDisplayName(slot, pazSpec);
         var noteEvento = buildAppointmentNoteDisplay(slot);
@@ -8333,7 +8371,7 @@ function buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute, entryH
             html += ''
                 + '<button type="button"'
                 + ' class="agenda-team-entry agenda-team-entry-free-slot js-agenda-team-free-slot"'
-                + ' style="top:' + top + 'px;height:' + height + 'px;"'
+                + ' style="' + entryStyle + '"'
                 + ' data-slot-id="' + slotId + '"'
                 + ' title="' + escapeHtml(orarioLabel + ' - Slot libero') + '">'
                 + buildAgendaTeamEntryContent(orarioLabel, 'Libero', 'Slot disponibile')
@@ -8347,7 +8385,7 @@ function buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute, entryH
         if (stato === 'CHIUSO' || (column.giorno_bloccato && !hasAppointment)) {
             html += ''
                 + '<div class="agenda-team-entry agenda-team-entry-closed"'
-                + ' style="top:' + top + 'px;height:' + height + 'px;"'
+                + ' style="' + entryStyle + '"'
                 + ' title="Giornata bloccata">'
                 + buildAgendaTeamEntryContent(orarioLabel, 'Bloccato', 'Fascia non disponibile')
                 + '</div>';
@@ -8358,7 +8396,7 @@ function buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute, entryH
         }
 
         var color = column.giorno_bloccato ? '#d9534f' : (isSpecialPatient ? getAgendaSpecialPatientColor(pazSpec, slot) : '#3c8dbc');
-        var bookedStyle = 'top:' + top + 'px;height:' + height + 'px;';
+        var bookedStyle = entryStyle;
         var bookedClass = 'agenda-team-entry';
 
         if (visitTypeVisualStyle) {
@@ -8407,10 +8445,12 @@ function renderAgendaTeamDay(res) {
 
     var columns = $.isArray(res && res.columns) ? res.columns : [];
     if (!columns.length) {
+        $('#agendaTeamDayBoard').closest('.agenda-team-board-wrap').removeClass('is-compact-stack');
         $('#agendaTeamDayBoard').html('<div class="alert alert-info" style="margin:12px;">Nessun professionista visibile per questa vista.</div>');
         return;
     }
 
+    var compactSingleSlotHeight = supportsAgendaTeamDaySingleSlotHeightFeature();
     var stepMinutes = Math.max(5, parseInt(res.grid_duration, 10) || agendaCalendarBaseStep);
     var bounds = getAgendaTeamDayBounds(res.min_time, res.max_time);
     var pixelsPerMinute = getAgendaTeamDayPixelsPerMinute(bounds.totalMinutes, stepMinutes);
@@ -8418,7 +8458,7 @@ function renderAgendaTeamDay(res) {
     var stepHeight = Math.max(Math.round(stepMinutes * pixelsPerMinute), 60);
     var entryHeight = Math.max(stepHeight - 6, 54);
     var compressedLayoutEnabled = !!window.AGENDA_CONFIG.compressedLayoutEnabled;
-    var templateColumns = compressedLayoutEnabled ? '' : '82px';
+    var templateColumns = (!compressedLayoutEnabled && !compactSingleSlotHeight) ? '82px' : '';
     var html = '';
 
     $.each(columns, function() {
@@ -8426,16 +8466,17 @@ function renderAgendaTeamDay(res) {
     });
 
     html += '<div class="agenda-team-grid" style="grid-template-columns:' + templateColumns + ';">';
-    if (!compressedLayoutEnabled) {
+    if (!compressedLayoutEnabled && !compactSingleSlotHeight) {
         html += '<div class="agenda-team-corner">Orario</div>';
     }
 
     $.each(columns, function(index, column) {
-        var headerExtraStyle = compressedLayoutEnabled && index === 0 ? 'border-left:0;' : '';
+        var removeLeadingBorder = index === 0 && (compressedLayoutEnabled || compactSingleSlotHeight);
+        var headerExtraStyle = removeLeadingBorder ? 'border-left:0;' : '';
         html += renderAgendaTeamDayHeader(column, headerExtraStyle);
     });
 
-    if (!compressedLayoutEnabled) {
+    if (!compressedLayoutEnabled && !compactSingleSlotHeight) {
         html += '<div class="agenda-team-time-axis" style="height:' + totalHeight + 'px;">'
             + renderAgendaTeamDayTimeMarkers(bounds, pixelsPerMinute)
             + '</div>';
@@ -8443,18 +8484,23 @@ function renderAgendaTeamDay(res) {
 
     $.each(columns, function(index, column) {
         var columnStyle = buildAgendaTeamColumnInlineStyle(column);
-        var columnBodyStyle = 'height:' + totalHeight + 'px;--agenda-team-step-height:' + stepHeight + 'px;';
+        var columnBodyStyle = compactSingleSlotHeight
+            ? ''
+            : 'height:' + totalHeight + 'px;--agenda-team-step-height:' + stepHeight + 'px;';
         if (columnStyle !== '') {
             columnBodyStyle += columnStyle;
         }
-        if (compressedLayoutEnabled && index === 0) {
+        if (index === 0 && (compressedLayoutEnabled || compactSingleSlotHeight)) {
             columnBodyStyle += 'border-left:0;';
         }
 
         if ($.isArray(column && column.slots)) {
             agendaTeamAllSlots = agendaTeamAllSlots.concat(column.slots);
         }
-        html += '<div class="agenda-team-column-body' + (column.giorno_bloccato ? ' is-day-locked' : '') + '"'
+        html += '<div class="agenda-team-column-body'
+            + (column.giorno_bloccato ? ' is-day-locked' : '')
+            + (compactSingleSlotHeight ? ' is-compact-stack' : '')
+            + '"'
             + ' style="' + columnBodyStyle + '">'
             + buildAgendaTeamDayBackgroundRows(bounds, pixelsPerMinute, stepMinutes, stepHeight)
             + buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute, entryHeight)
@@ -8463,6 +8509,7 @@ function renderAgendaTeamDay(res) {
 
     html += '</div>';
     $('#agendaTeamDayBoard').html(html);
+    $('#agendaTeamDayBoard').closest('.agenda-team-board-wrap').toggleClass('is-compact-stack', compactSingleSlotHeight);
 }
 
 function caricaSlotCalendarioTeamDay(options) {
