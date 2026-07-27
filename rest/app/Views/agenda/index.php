@@ -8226,15 +8226,49 @@ function buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute, entryH
     var slots = $.isArray(column.slots) ? column.slots : [];
     var compactSingleSlotHeight = supportsAgendaTeamDaySingleSlotHeightFeature();
     var compactRenderedUntilMinutes = null;
+    var renderSlots = slots;
 
     if (!slots.length) {
         return '<div class="agenda-team-empty-column">' + escapeHtml(column.message || 'Nessuna agenda impostata per questo professionista.') + '</div>';
     }
 
+    if (compactSingleSlotHeight) {
+        renderSlots = slots.slice(0).sort(function(leftSlot, rightSlot) {
+            var leftStart = getAgendaSlotVisualStartMoment(leftSlot);
+            var rightStart = getAgendaSlotVisualStartMoment(rightSlot);
+            var leftEnd = getAgendaSlotVisualEndMoment(leftSlot);
+            var rightEnd = getAgendaSlotVisualEndMoment(rightSlot);
+            var leftStartMinutes = leftStart && leftStart.isValid() ? ((leftStart.hours() * 60) + leftStart.minutes()) : 0;
+            var rightStartMinutes = rightStart && rightStart.isValid() ? ((rightStart.hours() * 60) + rightStart.minutes()) : 0;
+
+            if (leftStartMinutes !== rightStartMinutes) {
+                return leftStartMinutes - rightStartMinutes;
+            }
+
+            var leftDuration = leftEnd && leftEnd.isValid() ? (((leftEnd.hours() * 60) + leftEnd.minutes()) - leftStartMinutes) : 0;
+            var rightDuration = rightEnd && rightEnd.isValid() ? (((rightEnd.hours() * 60) + rightEnd.minutes()) - rightStartMinutes) : 0;
+
+            if (leftDuration !== rightDuration) {
+                return rightDuration - leftDuration;
+            }
+
+            var leftHasAppointment = !!leftSlot.id_appuntamento
+                || $.trim(String(leftSlot.stato || '')).toUpperCase() === 'PRENOTATO';
+            var rightHasAppointment = !!rightSlot.id_appuntamento
+                || $.trim(String(rightSlot.stato || '')).toUpperCase() === 'PRENOTATO';
+
+            if (leftHasAppointment !== rightHasAppointment) {
+                return leftHasAppointment ? -1 : 1;
+            }
+
+            return (parseInt(leftSlot.id_slot, 10) || 0) - (parseInt(rightSlot.id_slot, 10) || 0);
+        });
+    }
+
     var html = '';
     var nextSlotStartMap = buildAgendaNextSlotStartMap(slots);
 
-    $.each(slots, function(_, slot) {
+    $.each(renderSlots, function(_, slot) {
         if (isAgendaCoveredSecondarySlot(slot)) {
             return true;
         }
@@ -8305,7 +8339,7 @@ function buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute, entryH
                 + buildAgendaTeamEntryContent(orarioLabel, 'Libero', 'Slot disponibile')
                 + '</button>';
             if (compactSingleSlotHeight) {
-                compactRenderedUntilMinutes = startMinutes + displayDurationMinutes;
+                compactRenderedUntilMinutes = Math.max(compactRenderedUntilMinutes || 0, startMinutes + displayDurationMinutes);
             }
             return true;
         }
@@ -8318,7 +8352,7 @@ function buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute, entryH
                 + buildAgendaTeamEntryContent(orarioLabel, 'Bloccato', 'Fascia non disponibile')
                 + '</div>';
             if (compactSingleSlotHeight) {
-                compactRenderedUntilMinutes = startMinutes + displayDurationMinutes;
+                compactRenderedUntilMinutes = Math.max(compactRenderedUntilMinutes || 0, startMinutes + displayDurationMinutes);
             }
             return true;
         }
