@@ -47,6 +47,7 @@ class Agenda extends BaseController
     private const OPTIONAL_VISIT_TYPE_FEATURE = 'agenda_visit_type_optional';
     private const PERSONAL_COMMITMENTS_FEATURE = 'agenda_personal_commitments';
     private const TEAM_DAY_SINGLE_SLOT_HEIGHT_FEATURE = 'agenda_team_day_single_slot_height';
+    private const TEAM_DAY_COMPACT_SLOT_DETAILS_FEATURE = 'agenda_team_day_compact_slot_details';
     private const SHOW_APPOINTMENT_CREATOR_FEATURE = 'agenda_show_appointment_creator';
     private const PATIENT_EXCEL_IMPORT_FEATURE = PatientExcelImportService::FEATURE_KEY;
     private const PERSONAL_COMMITMENT_SPECIAL_CODE = 'IMPEGNO_PERSONALE';
@@ -840,6 +841,11 @@ public function eseguiRepairRecurringExtraSlots()
     protected function isTeamDaySingleSlotHeightFeatureEnabled(): bool
     {
         return $this->tenantFeatureEnabled(self::TEAM_DAY_SINGLE_SLOT_HEIGHT_FEATURE);
+    }
+
+    protected function isTeamDayCompactSlotDetailsFeatureEnabled(): bool
+    {
+        return $this->tenantFeatureEnabled(self::TEAM_DAY_COMPACT_SLOT_DETAILS_FEATURE);
     }
 
     protected function assertPersonalCommitmentsFeatureEnabled(): void
@@ -1848,6 +1854,7 @@ public function eseguiRepairRecurringExtraSlots()
         $visitTypeSelectionOptionalEnabled = $this->isVisitTypeSelectionOptionalEnabled();
         $personalCommitmentsFeatureEnabled = $this->isPersonalCommitmentsFeatureEnabled();
         $teamDaySingleSlotHeightFeatureEnabled = $this->isTeamDaySingleSlotHeightFeatureEnabled();
+        $teamDayCompactSlotDetailsFeatureEnabled = $this->isTeamDayCompactSlotDetailsFeatureEnabled();
         $visitTypes = [];
 
         if ($visitTypesFeatureEnabled) {
@@ -1913,6 +1920,7 @@ public function eseguiRepairRecurringExtraSlots()
             'visitTypeSelectionOptionalEnabled' => $visitTypeSelectionOptionalEnabled,
             'personalCommitmentsFeatureEnabled' => $personalCommitmentsFeatureEnabled,
             'teamDaySingleSlotHeightFeatureEnabled' => $teamDaySingleSlotHeightFeatureEnabled,
+            'teamDayCompactSlotDetailsFeatureEnabled' => $teamDayCompactSlotDetailsFeatureEnabled,
             'visitTypes'           => $visitTypes,
             'agendaAppointmentBlockLayoutSettings' => $agendaAppointmentBlockLayoutSettings,
             'agendaHomeBlockOrderSettings' => $agendaHomeBlockOrderSettings,

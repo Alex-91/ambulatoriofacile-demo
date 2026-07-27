@@ -295,6 +295,16 @@ class TenantFeatureService
                 'tenant_default_enabled' => 0,
                 'sort_order' => 73,
             ],
+            'agenda_team_day_compact_slot_details' => [
+                'feature_name' => 'Dettagli slot Giorno Team compatto',
+                'feature_scope' => 'workflow',
+                'description' => 'Il tenant master puo attivare per il singolo studio dettagli piu ricchi nella vista Giorno Team compatto: slot appuntamento piu leggibili con nome, recapito principale e note, piu dettaglio completo al passaggio del mouse. Si applica solo quando Giorno Team compatto e attivo.',
+                'default_enabled' => 1,
+                'icon_class' => 'fa-list-alt',
+                'is_tenant_managed' => 1,
+                'tenant_default_enabled' => 0,
+                'sort_order' => 74,
+            ],
             'agenda_show_appointment_creator' => [
                 'feature_name' => 'Mostra creatore appuntamento',
                 'feature_scope' => 'workflow',
@@ -303,7 +313,7 @@ class TenantFeatureService
                 'icon_class' => 'fa-eye',
                 'is_tenant_managed' => 1,
                 'tenant_default_enabled' => 1,
-                'sort_order' => 74,
+                'sort_order' => 75,
             ],
             PatientExcelImportService::FEATURE_KEY => [
                 'feature_name' => 'Importazione pazienti da Excel',
@@ -313,7 +323,7 @@ class TenantFeatureService
                 'icon_class' => 'fa-upload',
                 'is_tenant_managed' => 1,
                 'tenant_default_enabled' => 0,
-                'sort_order' => 75,
+                'sort_order' => 76,
             ],
             AgendaAppointmentBlockLayoutService::FEATURE_KEY => [
                 'feature_name' => 'Layout popup appuntamento',

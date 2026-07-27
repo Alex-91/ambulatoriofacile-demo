@@ -37,6 +37,7 @@
         $appointmentDocumentWorkflowVisible = $appointmentBillingWorkflowEnabled || $appointmentTsWorkflowEnabled;
         $personalCommitmentsFeatureEnabled = !empty($personalCommitmentsFeatureEnabled);
         $teamDaySingleSlotHeightFeatureEnabled = !empty($teamDaySingleSlotHeightFeatureEnabled);
+        $teamDayCompactSlotDetailsFeatureEnabled = !empty($teamDayCompactSlotDetailsFeatureEnabled);
         $appointmentModalFallbackLayoutItems = [
             ['key' => 'time'],
         ];
@@ -2528,27 +2529,27 @@
             color: var(--agenda-warning-text, #b03a34);
         }
 
-        .agenda-team-column-body.is-compact-stack .agenda-team-entry {
+        .agenda-team-board.has-compact-slot-details .agenda-team-column-body.is-compact-stack .agenda-team-entry {
             min-height: 96px;
         }
 
-        .agenda-team-column-body.is-compact-stack .agenda-team-entry-content {
+        .agenda-team-board.has-compact-slot-details .agenda-team-column-body.is-compact-stack .agenda-team-entry-content {
             gap: 4px;
         }
 
-        .agenda-team-column-body.is-compact-stack .agenda-team-entry-title {
+        .agenda-team-board.has-compact-slot-details .agenda-team-column-body.is-compact-stack .agenda-team-entry-title {
             display: block;
         }
 
-        .agenda-team-column-body.is-compact-stack .agenda-team-entry-time {
+        .agenda-team-board.has-compact-slot-details .agenda-team-column-body.is-compact-stack .agenda-team-entry-time {
             margin-bottom: 6px;
         }
 
-        .agenda-team-column-body.is-compact-stack .agenda-team-entry-patient {
+        .agenda-team-board.has-compact-slot-details .agenda-team-column-body.is-compact-stack .agenda-team-entry-patient {
             display: block;
         }
 
-        .agenda-team-column-body.is-compact-stack .agenda-team-entry-note {
+        .agenda-team-board.has-compact-slot-details .agenda-team-column-body.is-compact-stack .agenda-team-entry-note {
             display: -webkit-box;
             overflow: hidden;
             -webkit-box-orient: vertical;
@@ -3902,6 +3903,7 @@ window.AGENDA_CONFIG = {
     domiciliariAbilitati: <?= !empty($domiciliariAbilitati) ? 'true' : 'false' ?>,
     teamDayViewEnabled: <?= !empty($teamDayViewEnabled) ? 'true' : 'false' ?>,
     teamDaySingleSlotHeightFeatureEnabled: <?= !empty($teamDaySingleSlotHeightFeatureEnabled) ? 'true' : 'false' ?>,
+    teamDayCompactSlotDetailsFeatureEnabled: <?= !empty($teamDayCompactSlotDetailsFeatureEnabled) ? 'true' : 'false' ?>,
     skipEmptyAgendaDaysEnabled: <?= !empty($skipEmptyAgendaDaysEnabled) ? 'true' : 'false' ?>,
     compressedLayoutEnabled: <?= $agendaCompressedLayoutEnabled ? 'true' : 'false' ?>,
     sharedMemoManagementEnabled: <?= $sharedMemoManagementEnabled ? 'true' : 'false' ?>,
@@ -4178,6 +4180,10 @@ function supportsTeamDayView() {
 
 function supportsAgendaTeamDaySingleSlotHeightFeature() {
     return !!window.AGENDA_CONFIG.teamDaySingleSlotHeightFeatureEnabled;
+}
+
+function supportsAgendaTeamDayCompactSlotDetailsFeature() {
+    return !!window.AGENDA_CONFIG.teamDayCompactSlotDetailsFeatureEnabled;
 }
 
 function supportsAgendaSkipEmptyDaysNavigation() {
@@ -8362,6 +8368,7 @@ function buildAgendaTeamEntryContent(orario, primaryLabel, secondaryLabel, optio
 function buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute, entryHeight) {
     var slots = $.isArray(column.slots) ? column.slots : [];
     var compactSingleSlotHeight = supportsAgendaTeamDaySingleSlotHeightFeature();
+    var compactSlotDetailsEnabled = compactSingleSlotHeight && supportsAgendaTeamDayCompactSlotDetailsFeature();
     var compactRenderedUntilMinutes = null;
     var renderSlots = slots;
 
@@ -8454,19 +8461,25 @@ function buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute, entryH
         }
 
         if (compactSingleSlotHeight) {
-            height = hasAppointment
-                ? Math.max(parseInt(entryHeight, 10) || 0, 96)
-                : Math.max(parseInt(entryHeight, 10) || 0, 58);
+            if (compactSlotDetailsEnabled) {
+                height = hasAppointment
+                    ? Math.max(parseInt(entryHeight, 10) || 0, 96)
+                    : Math.max(parseInt(entryHeight, 10) || 0, 58);
+            } else {
+                height = Math.max(parseInt(entryHeight, 10) || 0, 44);
+            }
         }
         var entryStyle = compactSingleSlotHeight
-            ? 'min-height:' + height + 'px;'
+            ? (compactSlotDetailsEnabled ? 'min-height:' : 'height:') + height + 'px;'
             : 'top:' + Math.max(0, (startMinutes - bounds.startMinutes) * pixelsPerMinute) + 'px;height:' + height + 'px;';
         var visitTypeVisualStyle = (!column.giorno_bloccato && hasAppointment) ? getAgendaVisitTypeVisualStyleById(slot.id_tipo_visita) : null;
         var nominativo = getAgendaAppointmentDisplayName(slot, pazSpec);
         var noteEvento = buildAppointmentNoteDisplay(slot);
         var primaryLabel = nominativo !== '' ? nominativo : 'Appuntamento';
-        var compactContactLabel = compactSingleSlotHeight ? buildAgendaTeamEntryPrimaryContactLabel(slot) : '';
-        var tooltipText = buildAgendaTeamEntryTooltip(orarioLabel, primaryLabel, slot, noteEvento);
+        var compactContactLabel = compactSlotDetailsEnabled ? buildAgendaTeamEntryPrimaryContactLabel(slot) : '';
+        var tooltipText = compactSlotDetailsEnabled
+            ? buildAgendaTeamEntryTooltip(orarioLabel, primaryLabel, slot, noteEvento)
+            : (orarioLabel + (nominativo !== '' ? (' ' + nominativo) : ''));
 
         if ((stato === 'LIBERO' || stato === 'BLOCCATO') && !hasAppointment && !column.giorno_bloccato) {
             html += ''
@@ -8551,11 +8564,13 @@ function renderAgendaTeamDay(res) {
     var columns = $.isArray(res && res.columns) ? res.columns : [];
     if (!columns.length) {
         $('#agendaTeamDayBoard').closest('.agenda-team-board-wrap').removeClass('is-compact-stack');
+        $('#agendaTeamDayBoard').removeClass('has-compact-slot-details');
         $('#agendaTeamDayBoard').html('<div class="alert alert-info" style="margin:12px;">Nessun professionista visibile per questa vista.</div>');
         return;
     }
 
     var compactSingleSlotHeight = supportsAgendaTeamDaySingleSlotHeightFeature();
+    var compactSlotDetailsEnabled = compactSingleSlotHeight && supportsAgendaTeamDayCompactSlotDetailsFeature();
     var stepMinutes = Math.max(5, parseInt(res.grid_duration, 10) || agendaCalendarBaseStep);
     var bounds = getAgendaTeamDayBounds(res.min_time, res.max_time);
     var pixelsPerMinute = getAgendaTeamDayPixelsPerMinute(bounds.totalMinutes, stepMinutes);
@@ -8614,6 +8629,7 @@ function renderAgendaTeamDay(res) {
 
     html += '</div>';
     $('#agendaTeamDayBoard').html(html);
+    $('#agendaTeamDayBoard').toggleClass('has-compact-slot-details', compactSlotDetailsEnabled);
     $('#agendaTeamDayBoard').closest('.agenda-team-board-wrap').toggleClass('is-compact-stack', compactSingleSlotHeight);
 }
 
