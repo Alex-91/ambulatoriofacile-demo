@@ -8243,7 +8243,7 @@ function buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute, entryH
         var pazSpec = $.trim(slot.paz_spec || '');
         var isSpecialPatient = isAgendaSpecialPatient(slot, pazSpec);
         var hasAppointment = !!slot.id_appuntamento || (stato !== 'LIBERO' && stato !== 'BLOCCATO' && stato !== 'CHIUSO');
-        if (supportsAgendaTeamDaySingleSlotHeightFeature() && hasAppointment) {
+        if (supportsAgendaTeamDaySingleSlotHeightFeature()) {
             height = Math.max(parseInt(entryHeight, 10) || 0, 44);
         }
         var visitTypeVisualStyle = (!column.giorno_bloccato && hasAppointment) ? getAgendaVisitTypeVisualStyleById(slot.id_tipo_visita) : null;
