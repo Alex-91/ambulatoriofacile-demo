@@ -2430,6 +2430,18 @@
             word-break: break-word;
         }
 
+        .agenda-team-entry-contact {
+            display: block;
+            color: inherit;
+            font-size: 12px;
+            font-weight: 600;
+            line-height: 1.35;
+            opacity: 0.96;
+            white-space: normal;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+
         .agenda-team-entry-note {
             display: block;
             color: inherit;
@@ -2514,6 +2526,34 @@
         .agenda-team-entry-closed .agenda-team-entry-time {
             background: rgba(192, 57, 43, 0.12);
             color: var(--agenda-warning-text, #b03a34);
+        }
+
+        .agenda-team-column-body.is-compact-stack .agenda-team-entry {
+            min-height: 96px;
+        }
+
+        .agenda-team-column-body.is-compact-stack .agenda-team-entry-content {
+            gap: 4px;
+        }
+
+        .agenda-team-column-body.is-compact-stack .agenda-team-entry-title {
+            display: block;
+        }
+
+        .agenda-team-column-body.is-compact-stack .agenda-team-entry-time {
+            margin-bottom: 6px;
+        }
+
+        .agenda-team-column-body.is-compact-stack .agenda-team-entry-patient {
+            display: block;
+        }
+
+        .agenda-team-column-body.is-compact-stack .agenda-team-entry-note {
+            display: -webkit-box;
+            overflow: hidden;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 3;
+            line-clamp: 3;
         }
 
         .agenda-team-empty-column {
@@ -2720,6 +2760,7 @@
                 font-size: 12px;
             }
 
+            .agenda-team-entry-contact,
             .agenda-team-entry-note {
                 font-size: 11px;
             }
@@ -8244,9 +8285,62 @@ function buildAgendaTeamDayBackgroundRows(bounds, pixelsPerMinute, stepMinutes, 
     return html;
 }
 
-function buildAgendaTeamEntryContent(orario, primaryLabel, secondaryLabel) {
+function buildAgendaTeamEntryPrimaryContactLabel(slot) {
+    var telefono = $.trim(((slot && slot.telefono) || '') + '');
+    var cellulare = $.trim(((slot && slot.cellulare) || '') + '');
+
+    if (telefono !== '') {
+        return 'Tel: ' + telefono;
+    }
+
+    if (cellulare !== '') {
+        return 'Cell: ' + cellulare;
+    }
+
+    return '';
+}
+
+function buildAgendaTeamEntryTooltip(orario, primaryLabel, slot, secondaryLabel) {
+    var lines = [];
+    var safeOrario = $.trim(String(orario || ''));
     var safePrimaryLabel = $.trim(String(primaryLabel || ''));
     var safeSecondaryLabel = $.trim(String(secondaryLabel || ''));
+    var telefono = $.trim(((slot && slot.telefono) || '') + '');
+    var cellulare = $.trim(((slot && slot.cellulare) || '') + '');
+
+    if (safeOrario !== '') {
+        lines.push(safeOrario);
+    }
+
+    if (safePrimaryLabel !== '') {
+        lines.push('Paziente: ' + safePrimaryLabel);
+    }
+
+    if (telefono !== '') {
+        lines.push('Telefono: ' + telefono);
+    }
+
+    if (cellulare !== '' && cellulare !== telefono) {
+        lines.push('Cellulare: ' + cellulare);
+    }
+
+    if (safeSecondaryLabel !== '') {
+        lines.push('Note: ' + safeSecondaryLabel);
+    }
+
+    return lines.join('\n');
+}
+
+function buildAgendaTeamEntryTitleAttr(text) {
+    var safeText = String(text || '');
+    return escapeHtml(safeText).replace(/\r?\n/g, '&#10;');
+}
+
+function buildAgendaTeamEntryContent(orario, primaryLabel, secondaryLabel, options) {
+    options = options || {};
+    var safePrimaryLabel = $.trim(String(primaryLabel || ''));
+    var safeSecondaryLabel = $.trim(String(secondaryLabel || ''));
+    var safeContactLabel = $.trim(String(options.contactLabel || ''));
 
     return ''
         + '<div class="agenda-team-entry-content">'
@@ -8256,6 +8350,9 @@ function buildAgendaTeamEntryContent(orario, primaryLabel, secondaryLabel) {
             ? '<span class="agenda-team-entry-patient">' + escapeHtml(safePrimaryLabel) + '</span>'
             : '')
         + '  </div>'
+        + (safeContactLabel !== ''
+            ? '<div class="agenda-team-entry-contact">' + escapeHtml(safeContactLabel) + '</div>'
+            : '')
         + (safeSecondaryLabel !== ''
             ? '<div class="agenda-team-entry-note">' + escapeHtml(safeSecondaryLabel) + '</div>'
             : '')
@@ -8357,15 +8454,19 @@ function buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute, entryH
         }
 
         if (compactSingleSlotHeight) {
-            height = Math.max(parseInt(entryHeight, 10) || 0, 44);
+            height = hasAppointment
+                ? Math.max(parseInt(entryHeight, 10) || 0, 96)
+                : Math.max(parseInt(entryHeight, 10) || 0, 58);
         }
         var entryStyle = compactSingleSlotHeight
-            ? 'height:' + height + 'px;'
+            ? 'min-height:' + height + 'px;'
             : 'top:' + Math.max(0, (startMinutes - bounds.startMinutes) * pixelsPerMinute) + 'px;height:' + height + 'px;';
         var visitTypeVisualStyle = (!column.giorno_bloccato && hasAppointment) ? getAgendaVisitTypeVisualStyleById(slot.id_tipo_visita) : null;
         var nominativo = getAgendaAppointmentDisplayName(slot, pazSpec);
         var noteEvento = buildAppointmentNoteDisplay(slot);
-        var title = orarioLabel + (nominativo !== '' ? (' ' + nominativo) : '');
+        var primaryLabel = nominativo !== '' ? nominativo : 'Appuntamento';
+        var compactContactLabel = compactSingleSlotHeight ? buildAgendaTeamEntryPrimaryContactLabel(slot) : '';
+        var tooltipText = buildAgendaTeamEntryTooltip(orarioLabel, primaryLabel, slot, noteEvento);
 
         if ((stato === 'LIBERO' || stato === 'BLOCCATO') && !hasAppointment && !column.giorno_bloccato) {
             html += ''
@@ -8373,7 +8474,7 @@ function buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute, entryH
                 + ' class="agenda-team-entry agenda-team-entry-free-slot js-agenda-team-free-slot"'
                 + ' style="' + entryStyle + '"'
                 + ' data-slot-id="' + slotId + '"'
-                + ' title="' + escapeHtml(orarioLabel + ' - Slot libero') + '">'
+                + ' title="' + buildAgendaTeamEntryTitleAttr(orarioLabel + '\nSlot libero') + '">'
                 + buildAgendaTeamEntryContent(orarioLabel, 'Libero', 'Slot disponibile')
                 + '</button>';
             if (compactSingleSlotHeight) {
@@ -8386,7 +8487,7 @@ function buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute, entryH
             html += ''
                 + '<div class="agenda-team-entry agenda-team-entry-closed"'
                 + ' style="' + entryStyle + '"'
-                + ' title="Giornata bloccata">'
+                + ' title="' + buildAgendaTeamEntryTitleAttr(orarioLabel + '\nGiornata bloccata') + '">'
                 + buildAgendaTeamEntryContent(orarioLabel, 'Bloccato', 'Fascia non disponibile')
                 + '</div>';
             if (compactSingleSlotHeight) {
@@ -8418,8 +8519,10 @@ function buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute, entryH
             html += ''
                 + '<div class="' + bookedClass + '"'
                 + ' style="' + bookedStyle + '"'
-                + ' title="' + escapeHtml(title || 'Appuntamento') + '">'
-                + buildAgendaTeamEntryContent(orarioLabel, nominativo !== '' ? nominativo : 'Appuntamento', noteEvento)
+                + ' title="' + buildAgendaTeamEntryTitleAttr(tooltipText || 'Appuntamento') + '">'
+                + buildAgendaTeamEntryContent(orarioLabel, primaryLabel, noteEvento, {
+                    contactLabel: compactContactLabel
+                })
                 + '</div>';
             return true;
         }
@@ -8429,8 +8532,10 @@ function buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute, entryH
             + ' class="' + bookedClass + ' js-agenda-team-booked-slot"'
             + ' style="' + bookedStyle + '"'
             + ' data-slot-id="' + slotId + '"'
-            + ' title="' + escapeHtml(title || 'Appuntamento') + '">'
-            + buildAgendaTeamEntryContent(orarioLabel, nominativo !== '' ? nominativo : 'Appuntamento', noteEvento)
+            + ' title="' + buildAgendaTeamEntryTitleAttr(tooltipText || 'Appuntamento') + '">'
+            + buildAgendaTeamEntryContent(orarioLabel, primaryLabel, noteEvento, {
+                contactLabel: compactContactLabel
+            })
             + '</button>';
 
         return true;
