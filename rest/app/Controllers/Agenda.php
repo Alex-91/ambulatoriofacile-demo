@@ -48,6 +48,7 @@ class Agenda extends BaseController
     private const PERSONAL_COMMITMENTS_FEATURE = 'agenda_personal_commitments';
     private const TEAM_DAY_SINGLE_SLOT_HEIGHT_FEATURE = 'agenda_team_day_single_slot_height';
     private const TEAM_DAY_COMPACT_SLOT_DETAILS_FEATURE = 'agenda_team_day_compact_slot_details';
+    private const AUTO_REFRESH_FEATURE = 'agenda_auto_refresh';
     private const SHOW_APPOINTMENT_CREATOR_FEATURE = 'agenda_show_appointment_creator';
     private const SHOW_APPOINTMENT_CREATOR_IN_SLOTS_FEATURE = 'agenda_show_appointment_creator_in_slots';
     private const PATIENT_EXCEL_IMPORT_FEATURE = PatientExcelImportService::FEATURE_KEY;
@@ -852,6 +853,11 @@ public function eseguiRepairRecurringExtraSlots()
     protected function isTeamDayCompactSlotDetailsFeatureEnabled(): bool
     {
         return $this->tenantFeatureEnabled(self::TEAM_DAY_COMPACT_SLOT_DETAILS_FEATURE);
+    }
+
+    protected function isAgendaAutoRefreshFeatureEnabled(): bool
+    {
+        return $this->tenantFeatureEnabled(self::AUTO_REFRESH_FEATURE);
     }
 
     protected function assertPersonalCommitmentsFeatureEnabled(): void
@@ -1885,6 +1891,7 @@ public function eseguiRepairRecurringExtraSlots()
         $personalCommitmentsFeatureEnabled = $this->isPersonalCommitmentsFeatureEnabled();
         $teamDaySingleSlotHeightFeatureEnabled = $this->isTeamDaySingleSlotHeightFeatureEnabled();
         $teamDayCompactSlotDetailsFeatureEnabled = $this->isTeamDayCompactSlotDetailsFeatureEnabled();
+        $agendaAutoRefreshFeatureEnabled = $this->isAgendaAutoRefreshFeatureEnabled();
         $visitTypes = [];
 
         if ($visitTypesFeatureEnabled) {
@@ -1951,6 +1958,7 @@ public function eseguiRepairRecurringExtraSlots()
             'personalCommitmentsFeatureEnabled' => $personalCommitmentsFeatureEnabled,
             'teamDaySingleSlotHeightFeatureEnabled' => $teamDaySingleSlotHeightFeatureEnabled,
             'teamDayCompactSlotDetailsFeatureEnabled' => $teamDayCompactSlotDetailsFeatureEnabled,
+            'agendaAutoRefreshFeatureEnabled' => $agendaAutoRefreshFeatureEnabled,
             'visitTypes'           => $visitTypes,
             'agendaAppointmentBlockLayoutSettings' => $agendaAppointmentBlockLayoutSettings,
             'agendaHomeBlockOrderSettings' => $agendaHomeBlockOrderSettings,

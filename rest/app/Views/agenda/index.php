@@ -3968,6 +3968,7 @@ window.AGENDA_CONFIG = {
     teamDayViewEnabled: <?= !empty($teamDayViewEnabled) ? 'true' : 'false' ?>,
     teamDaySingleSlotHeightFeatureEnabled: <?= !empty($teamDaySingleSlotHeightFeatureEnabled) ? 'true' : 'false' ?>,
     teamDayCompactSlotDetailsFeatureEnabled: <?= !empty($teamDayCompactSlotDetailsFeatureEnabled) ? 'true' : 'false' ?>,
+    agendaAutoRefreshFeatureEnabled: <?= !empty($agendaAutoRefreshFeatureEnabled) ? 'true' : 'false' ?>,
     skipEmptyAgendaDaysEnabled: <?= !empty($skipEmptyAgendaDaysEnabled) ? 'true' : 'false' ?>,
     compressedLayoutEnabled: <?= $agendaCompressedLayoutEnabled ? 'true' : 'false' ?>,
     sharedMemoManagementEnabled: <?= $sharedMemoManagementEnabled ? 'true' : 'false' ?>,
@@ -11147,9 +11148,11 @@ $('#nota_giorno_text').on('blur', function() {
         }
     });
 
-    setInterval(function() {
-        caricaTutto({ showCalendarLoader: false });
-    }, 30000);
+    if (window.AGENDA_CONFIG.agendaAutoRefreshFeatureEnabled) {
+        setInterval(function() {
+            caricaTutto({ showCalendarLoader: false });
+        }, 30000);
+    }
 
     $('#btnPrintDayAgenda').on('click', function() {
         var url = "<?= base_url('agenda/stampa-pdf-giorno') ?>?id_dot=" +
