@@ -2530,22 +2530,22 @@
         }
 
         .agenda-team-board.has-compact-slot-details .agenda-team-column-body.is-compact-stack .agenda-team-entry {
-            min-height: 96px;
+            min-height: 58px;
         }
 
         .agenda-team-board.has-compact-slot-details .agenda-team-column-body.is-compact-stack .agenda-team-entry:not(.agenda-team-entry-free-slot):not(.agenda-team-entry-closed) {
-            padding: 8px 10px;
+            padding: 10px 12px;
         }
 
         .agenda-team-board.has-compact-slot-details .agenda-team-column-body.is-compact-stack .agenda-team-entry-content {
             gap: 4px;
         }
 
-        .agenda-team-board.has-compact-slot-details .agenda-team-column-body.is-compact-stack .agenda-team-entry-title {
+        .agenda-team-board.has-compact-slot-details .agenda-team-column-body.is-compact-stack .agenda-team-entry:not(.agenda-team-entry-free-slot):not(.agenda-team-entry-closed) .agenda-team-entry-title {
             display: flex;
-            align-items: flex-start;
-            flex-wrap: wrap;
-            gap: 8px;
+            align-items: center;
+            flex-wrap: nowrap;
+            gap: 6px;
         }
 
         .agenda-team-board.has-compact-slot-details .agenda-team-column-body.is-compact-stack .agenda-team-entry-time {
@@ -2554,7 +2554,10 @@
 
         .agenda-team-board.has-compact-slot-details .agenda-team-column-body.is-compact-stack .agenda-team-entry-patient {
             display: block;
-            flex: 1 1 120px;
+        }
+
+        .agenda-team-board.has-compact-slot-details .agenda-team-column-body.is-compact-stack .agenda-team-entry:not(.agenda-team-entry-free-slot):not(.agenda-team-entry-closed) .agenda-team-entry-patient {
+            flex: 1 1 0;
         }
 
         .agenda-team-board.has-compact-slot-details .agenda-team-column-body.is-compact-stack .agenda-team-entry-note {
@@ -8724,9 +8727,7 @@ function buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute, entryH
 
         if (compactSingleSlotHeight) {
             if (compactSlotDetailsEnabled) {
-                height = hasAppointment
-                    ? Math.max(parseInt(entryHeight, 10) || 0, 96)
-                    : Math.max(parseInt(entryHeight, 10) || 0, 58);
+                height = Math.max(parseInt(entryHeight, 10) || 0, 58);
             } else {
                 height = Math.max(parseInt(entryHeight, 10) || 0, 44);
             }
