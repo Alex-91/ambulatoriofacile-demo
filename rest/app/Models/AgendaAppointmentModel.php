@@ -234,6 +234,106 @@ class AgendaAppointmentModel extends Model
         return true;
     }
 
+    /**
+     * @param array<int, int|string> $appointmentIds
+     */
+    public function deleteAppointments(array $appointmentIds, int $userId): int
+    {
+        $appointmentIds = array_values(array_unique(array_filter(
+            array_map('intval', $appointmentIds),
+            static fn(int $id): bool => $id > 0
+        )));
+
+        if ($appointmentIds === []) {
+            throw new Exception('Seleziona almeno un appuntamento da eliminare.');
+        }
+
+        $timestamp = date('Y-m-d H:i:s');
+        $updatePayload = ['stato' => 'ANNULLATO'];
+
+        if ($this->appointmentTableHasField('updated_at')) {
+            $updatePayload['updated_at'] = $timestamp;
+        }
+
+        if ($this->appointmentTableHasField('updated_by')) {
+            $updatePayload['updated_by'] = $userId > 0 ? $userId : null;
+        }
+
+        $this->db->transBegin();
+
+        try {
+            $placeholders = implode(',', array_fill(0, count($appointmentIds), '?'));
+            $rows = $this->db->query(
+                "SELECT id_appuntamento, stato
+                 FROM {$this->table}
+                 WHERE id_appuntamento IN ({$placeholders})
+                 FOR UPDATE",
+                $appointmentIds
+            )->getResultArray();
+
+            if (count($rows) !== count($appointmentIds)) {
+                throw new Exception(
+                    'Uno o piu appuntamenti selezionati non sono piu disponibili.',
+                    422
+                );
+            }
+
+            foreach ($rows as $row) {
+                if (strtoupper(trim((string) ($row['stato'] ?? ''))) === 'ANNULLATO') {
+                    throw new Exception(
+                        'Uno o piu appuntamenti selezionati risultano gia annullati.',
+                        422
+                    );
+                }
+            }
+
+            $coveredSlotIds = [];
+            foreach ($appointmentIds as $appointmentId) {
+                $coveredSlotIds = array_merge(
+                    $coveredSlotIds,
+                    $this->getAppointmentCoveredSlotIds($appointmentId)
+                );
+            }
+            $coveredSlotIds = array_values(array_unique(array_filter(array_map('intval', $coveredSlotIds))));
+
+            $this->db->table($this->table)
+                ->whereIn('id_appuntamento', $appointmentIds)
+                ->update($updatePayload);
+
+            if ($this->appointmentSlotLinkTableExists()) {
+                $this->db->table('dap45_agenda_appuntamenti_slot')
+                    ->whereIn('id_appuntamento', $appointmentIds)
+                    ->delete();
+            }
+
+            foreach ($coveredSlotIds as $slotId) {
+                $this->restoreSlotState($slotId, $timestamp);
+            }
+
+            if (!$this->db->transStatus() || !$this->db->transCommit()) {
+                throw new \RuntimeException('Bulk appointment transaction failed.');
+            }
+        } catch (\Throwable $e) {
+            $this->db->transRollback();
+
+            if ($e instanceof Exception && $e->getCode() === 422) {
+                throw $e;
+            }
+
+            $dbError = $this->db->error();
+            log_message('error', 'AgendaAppointmentModel::deleteAppointments failed for count={count} user_id={user} code={code} message={message}', [
+                'count' => count($appointmentIds),
+                'user' => $userId,
+                'code' => (string) ($dbError['code'] ?? ''),
+                'message' => (string) ($dbError['message'] ?? ''),
+            ]);
+
+            throw new Exception('Errore durante l\'eliminazione degli appuntamenti selezionati.');
+        }
+
+        return count($appointmentIds);
+    }
+
     private function buildAppointmentPayload(array $data, array $plan, array $coveredSlots, int $createdBy, string $timestamp): array
     {
         $lastCoveredSlot = end($coveredSlots);

@@ -3865,6 +3865,233 @@ public function eseguiRepairRecurringExtraSlots()
         }
     }
 
+    public function eliminaAppuntamentiMassivo()
+    {
+        try {
+            $this->assertCanManageBulkAppointmentDeletion();
+            $this->assertAgendaRouteAllowed('agenda/elimina-appuntamenti-massivo');
+
+            if ($this->getBulkAppointmentDeletionDoctorMap() === []) {
+                throw new \Exception('Nessun professionista disponibile per questo spazio.');
+            }
+
+            return view('agenda/elimina_appuntamenti_massivo', [
+                'pageTitle' => 'Eliminazione massiva appuntamenti',
+                'menuAgenda' => $this->getVisibleAgendaMenuForUser($this->getCurrentUserId()),
+                'menu_items' => [],
+            ]);
+        } catch (\Throwable $e) {
+            return redirect()->to(base_url('agenda'))->with('error', $e->getMessage());
+        }
+    }
+
+    public function cercaPazientiEliminazioneMassiva()
+    {
+        try {
+            $this->assertCanManageBulkAppointmentDeletion();
+
+            $term = trim((string) $this->request->getGet('term'));
+            if (mb_strlen($term) < 2) {
+                return $this->respondJsonSafe([
+                    'status' => true,
+                    'rows' => [],
+                ]);
+            }
+
+            $doctorMap = $this->getBulkAppointmentDeletionDoctorMap();
+            if ($doctorMap === []) {
+                throw new \Exception('Nessun professionista disponibile per questo spazio.');
+            }
+
+            return $this->respondJsonSafe([
+                'status' => true,
+                'rows' => $this->pazientiModel->autocompleteFutureAppointmentsForDoctors(
+                    array_keys($doctorMap),
+                    $term,
+                    20
+                ),
+            ]);
+        } catch (\Throwable $e) {
+            return $this->respondJsonSafe([
+                'status' => false,
+                'message' => $e->getMessage(),
+                'rows' => [],
+            ], $this->bulkAppointmentDeletionErrorStatus($e));
+        }
+    }
+
+    public function appuntamentiPazienteEliminazioneMassiva()
+    {
+        try {
+            $this->assertCanManageBulkAppointmentDeletion();
+
+            $idPaziente = (int) $this->request->getGet('id_paziente');
+            if ($idPaziente <= 0) {
+                throw new \Exception('Seleziona un paziente valido.');
+            }
+
+            $searchDateTime = date('Y-m-d H:i:s');
+            $rows = $this->getBulkAppointmentDeletionRows($idPaziente, $searchDateTime);
+
+            return $this->respondJsonSafe([
+                'status' => true,
+                'search_datetime' => $searchDateTime,
+                'rows' => $rows,
+                'total' => count($rows),
+            ]);
+        } catch (\Throwable $e) {
+            return $this->respondJsonSafe([
+                'status' => false,
+                'message' => $e->getMessage(),
+                'rows' => [],
+                'total' => 0,
+            ], $this->bulkAppointmentDeletionErrorStatus($e));
+        }
+    }
+
+    public function eliminaAppuntamentiMassivoSelezionati()
+    {
+        try {
+            $this->assertCanManageBulkAppointmentDeletion();
+
+            $idPaziente = (int) $this->request->getPost('id_paziente');
+            $rawAppointmentIds = $this->request->getPost('appointment_ids');
+            $rawAppointmentIds = is_array($rawAppointmentIds) ? $rawAppointmentIds : [$rawAppointmentIds];
+            $appointmentIds = array_values(array_unique(array_filter(
+                array_map('intval', $rawAppointmentIds),
+                static fn(int $id): bool => $id > 0
+            )));
+
+            if ($idPaziente <= 0) {
+                throw new \Exception('Seleziona un paziente valido.');
+            }
+
+            if ($appointmentIds === []) {
+                throw new \Exception('Seleziona almeno un appuntamento da eliminare.');
+            }
+
+            if (count($appointmentIds) > 500) {
+                throw new \Exception('Puoi eliminare al massimo 500 appuntamenti alla volta.');
+            }
+
+            $eligibleRows = $this->getBulkAppointmentDeletionRows($idPaziente, date('Y-m-d H:i:s'));
+            $eligibleIds = [];
+            foreach ($eligibleRows as $row) {
+                $appointmentId = (int) ($row['id_appuntamento'] ?? 0);
+                if ($appointmentId > 0) {
+                    $eligibleIds[$appointmentId] = true;
+                }
+            }
+
+            $invalidIds = array_values(array_filter(
+                $appointmentIds,
+                static fn(int $id): bool => !isset($eligibleIds[$id])
+            ));
+
+            if ($invalidIds !== []) {
+                throw new \Exception(
+                    'Uno o piu appuntamenti non appartengono al paziente, non sono futuri o non sono piu disponibili. Aggiorna l\'elenco e riprova.'
+                );
+            }
+
+            $deletedCount = $this->appointmentModel->deleteAppointments(
+                $appointmentIds,
+                $this->getCurrentUserId()
+            );
+
+            log_message('notice', 'Bulk patient appointments deleted', [
+                'patient_id' => $idPaziente,
+                'appointment_count' => $deletedCount,
+                'user_id' => $this->getCurrentUserId(),
+            ]);
+
+            return $this->respondJsonSafe([
+                'status' => true,
+                'deleted_count' => $deletedCount,
+                'csrf_hash' => csrf_hash(),
+                'message' => $deletedCount === 1
+                    ? 'Appuntamento eliminato e agenda aggiornata correttamente.'
+                    : $deletedCount . ' appuntamenti eliminati e agenda aggiornata correttamente.',
+            ]);
+        } catch (\Throwable $e) {
+            return $this->respondJsonSafe([
+                'status' => false,
+                'message' => $e->getMessage(),
+                'csrf_hash' => csrf_hash(),
+            ], $this->bulkAppointmentDeletionErrorStatus($e));
+        }
+    }
+
+    protected function assertCanManageBulkAppointmentDeletion(): void
+    {
+        $userId = $this->getCurrentUserId();
+        $tenantRole = session_current_tenant_role();
+        $isTenantAdmin = in_array($tenantRole, ['tenant_master', 'tenant_admin'], true);
+
+        if (!$isTenantAdmin && !$this->agendaModel->isAdmin($userId) && !$this->isCurrentSessionPlatformAdmin()) {
+            throw new \RuntimeException(
+                'Solo gli amministratori dello spazio possono eliminare massivamente gli appuntamenti.',
+                403
+            );
+        }
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    protected function getBulkAppointmentDeletionDoctorMap(): array
+    {
+        $map = [];
+
+        foreach ($this->getOrderedVisibleDoctorsForCurrentUser() as $doctor) {
+            $idDot = is_object($doctor)
+                ? (int) ($doctor->id_dot ?? 0)
+                : (int) ($doctor['id_dot'] ?? 0);
+            if ($idDot <= 0) {
+                continue;
+            }
+
+            $label = is_object($doctor)
+                ? (string) ($doctor->label ?? trim(($doctor->cognome ?? '') . ' ' . ($doctor->nome ?? '')))
+                : (string) ($doctor['label'] ?? trim(($doctor['cognome'] ?? '') . ' ' . ($doctor['nome'] ?? '')));
+
+            $map[$idDot] = trim($label) !== '' ? trim($label) : ('Professionista #' . $idDot);
+        }
+
+        return $map;
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    protected function getBulkAppointmentDeletionRows(int $idPaziente, string $fromDateTime): array
+    {
+        $doctorMap = $this->getBulkAppointmentDeletionDoctorMap();
+        if ($doctorMap === []) {
+            return [];
+        }
+
+        $rows = $this->pazientiModel->getFutureAppointmentsForPatientByDoctors(
+            $idPaziente,
+            array_keys($doctorMap),
+            $fromDateTime,
+            500
+        );
+
+        foreach ($rows as &$row) {
+            $idDot = (int) ($row['id_dot'] ?? 0);
+            $row['doctor_label'] = $doctorMap[$idDot] ?? ('Professionista #' . $idDot);
+        }
+        unset($row);
+
+        return $rows;
+    }
+
+    protected function bulkAppointmentDeletionErrorStatus(\Throwable $e): int
+    {
+        return (int) $e->getCode() === 403 ? 403 : 400;
+    }
+
     public function getPaziente($idPaziente)
     {
         try {

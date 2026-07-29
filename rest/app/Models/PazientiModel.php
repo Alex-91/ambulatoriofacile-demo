@@ -136,6 +136,62 @@ class PazientiModel extends Model
         return $this->db->query($sql, $params)->getResultArray();
     }
 
+    /**
+     * @param array<int, int|string> $legacyIdDots
+     */
+    public function autocompleteFutureAppointmentsForDoctors(
+        array $legacyIdDots,
+        string $term,
+        int $limit = 20
+    ): array {
+        $legacyIdDots = $this->normalizeIdList($legacyIdDots);
+        $term = trim($term);
+
+        if ($legacyIdDots === [] || $term === '') {
+            return [];
+        }
+
+        $limit = max(1, min(50, $limit));
+        $specialTerm = $this->normalizeSpecialPatientSearchTerm($term);
+
+        if ($specialTerm !== '') {
+            return $this->getPatientsByIds(
+                $this->searchFutureSpecialAppointmentClientIdsByDoctors($legacyIdDots, $specialTerm, $limit),
+                true
+            );
+        }
+
+        if ($this->doctorPatientSearchModel->tableExists()) {
+            try {
+                $lookupLimit = min(160, max(60, $limit * 6));
+                $candidateIds = count($legacyIdDots) > 1
+                    ? $this->doctorPatientSearchModel->searchClientIdsForDoctors($legacyIdDots, $term, $lookupLimit)
+                    : $this->doctorPatientSearchModel->searchClientIdsForDoctor($legacyIdDots[0], $term, $lookupLimit);
+
+                if ($candidateIds !== []) {
+                    $ordered = $this->filterClientIdsWithFutureAppointmentsByDoctors(
+                        $legacyIdDots,
+                        $candidateIds,
+                        $limit
+                    );
+                    if ($ordered !== []) {
+                        return $this->getPatientsByIds($ordered, true);
+                    }
+                }
+            } catch (\Throwable $e) {
+                log_message('warning', 'PazientiModel bulk appointment patient search fallback: ' . $e->getMessage(), [
+                    'doctor_count' => count($legacyIdDots),
+                    'term' => $term,
+                ]);
+            }
+        }
+
+        return $this->getPatientsByIds(
+            $this->searchFutureAppointmentClientIdsByAppointmentTextForDoctors($legacyIdDots, $term, $limit),
+            true
+        );
+    }
+
     private function searchFutureAppointmentClientIdsByDoctor(int $idDot, string $term, int $limit = 20, int $actingUserId = 0): array
     {
         $term = trim($term);
@@ -1153,6 +1209,48 @@ class PazientiModel extends Model
             return [];
         }
 
+        return $this->getAppointmentsByDoctorsAndPatient(
+            $idPaziente,
+            $scopeLegacyIdDots,
+            max(1, min(200, $limit))
+        );
+    }
+
+    /**
+     * @param array<int, int|string> $legacyIdDots
+     */
+    public function getFutureAppointmentsForPatientByDoctors(
+        int $idPaziente,
+        array $legacyIdDots,
+        string $fromDateTime,
+        int $limit = 500
+    ): array {
+        $legacyIdDots = $this->normalizeIdList($legacyIdDots);
+        $timestamp = strtotime($fromDateTime);
+
+        if ($idPaziente <= 0 || $legacyIdDots === [] || $timestamp === false) {
+            return [];
+        }
+
+        return $this->getAppointmentsByDoctorsAndPatient(
+            $idPaziente,
+            $legacyIdDots,
+            max(1, min(500, $limit)),
+            date('Y-m-d H:i:s', $timestamp),
+            'ASC'
+        );
+    }
+
+    /**
+     * @param array<int, int> $legacyIdDots
+     */
+    private function getAppointmentsByDoctorsAndPatient(
+        int $idPaziente,
+        array $legacyIdDots,
+        int $limit,
+        ?string $fromDateTime = null,
+        string $sortDirection = 'DESC'
+    ): array {
         $patientSnapshot = $this->getClientSnapshot($idPaziente);
         if (!$patientSnapshot) {
             return [];
@@ -1173,13 +1271,21 @@ class PazientiModel extends Model
         $hasAppointmentEndColumn = $this->db->fieldExists('ora_fine_appuntamento', self::APPOINTMENTS_TABLE);
         $hasAppointmentVisitTypeLabelColumn = $this->db->fieldExists('tipo_visita_label', self::APPOINTMENTS_TABLE);
         $hasAppointmentDurationColumn = $this->db->fieldExists('durata_minuti', self::APPOINTMENTS_TABLE);
-        $limit = max(1, min(200, $limit));
+        $legacyIdDots = $this->normalizeIdList($legacyIdDots);
+        $limit = max(1, min(500, $limit));
+        $sortDirection = strtoupper($sortDirection) === 'ASC' ? 'ASC' : 'DESC';
+
+        if ($legacyIdDots === []) {
+            return [];
+        }
+
         $queries = [];
         $params = [];
-        $doctorPlaceholders = implode(',', array_fill(0, count($scopeLegacyIdDots), '?'));
+        $doctorPlaceholders = implode(',', array_fill(0, count($legacyIdDots), '?'));
         $appointmentEndExpr = $hasAppointmentEndColumn ? 'a.ora_fine_appuntamento' : 'NULL';
         $appointmentVisitTypeLabelExpr = $hasAppointmentVisitTypeLabelColumn ? 'a.tipo_visita_label' : "''";
         $appointmentDurationExpr = $hasAppointmentDurationColumn ? 'a.durata_minuti' : 'NULL';
+        $fromDateSql = $fromDateTime !== null ? 'AND s.ora_inizio >= ?' : '';
         $createdBySelect = $hasAppointmentCreatedByColumn
             ? "COALESCE(u_created.username, '') AS created_by_username,"
             : "'' AS created_by_username,";
@@ -1217,12 +1323,18 @@ class PazientiModel extends Model
             {$createdByJoin}
             WHERE a.id_dot IN ({$doctorPlaceholders})
               AND a.stato <> 'ANNULLATO'
+              {$fromDateSql}
               AND __PATIENT_MATCH_CONDITION__
         ";
 
         if ($hasAppointmentClientColumn) {
             $queries[] = str_replace('__PATIENT_MATCH_CONDITION__', 'a.id_client = ?', $selectSql);
-            $params = array_merge($params, $scopeLegacyIdDots, [$idPaziente]);
+            $params = array_merge(
+                $params,
+                $legacyIdDots,
+                $fromDateTime !== null ? [$fromDateTime] : [],
+                [$idPaziente]
+            );
         }
 
         if ($legacyPatientIds !== []) {
@@ -1233,7 +1345,12 @@ class PazientiModel extends Model
             }
 
             $queries[] = str_replace('__PATIENT_MATCH_CONDITION__', $legacySql, $selectSql);
-            $params = array_merge($params, $scopeLegacyIdDots, $legacyPatientIds);
+            $params = array_merge(
+                $params,
+                $legacyIdDots,
+                $fromDateTime !== null ? [$fromDateTime] : [],
+                $legacyPatientIds
+            );
         }
 
         if ($queries === []) {
@@ -1247,7 +1364,7 @@ class PazientiModel extends Model
                 UNION
                 ", $queries) . "
             ) appointment_rows
-            ORDER BY data_slot DESC, ora_inizio DESC, id_appuntamento DESC
+            ORDER BY data_slot {$sortDirection}, ora_inizio {$sortDirection}, id_appuntamento {$sortDirection}
             LIMIT {$limit}
         ";
 

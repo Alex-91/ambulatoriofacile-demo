@@ -431,6 +431,10 @@ $routes->group('agenda', function($routes) {
 
     $routes->get('cerca-pazienti', 'Agenda::cercaPazienti');
     $routes->get('appuntamenti-paziente', 'Agenda::appuntamentiPaziente');
+    $routes->get('elimina-appuntamenti-massivo', 'Agenda::eliminaAppuntamentiMassivo');
+    $routes->get('elimina-appuntamenti-massivo/cerca-pazienti', 'Agenda::cercaPazientiEliminazioneMassiva');
+    $routes->get('elimina-appuntamenti-massivo/appuntamenti', 'Agenda::appuntamentiPazienteEliminazioneMassiva');
+    $routes->post('elimina-appuntamenti-massivo/elimina', 'Agenda::eliminaAppuntamentiMassivoSelezionati');
     $routes->get('paziente/(:num)', 'Agenda::getPaziente/$1');
     $routes->get('get-nota', 'Agenda::getNota');
     $routes->post('salva-paziente', 'Agenda::salvaPaziente');

@@ -570,6 +570,10 @@ private function isMenuRowAllowedForUser(array $row, int $idUser): bool
         return $this->canManageMenuRoles($idUser);
     }
 
+    if ($route === 'agenda/elimina-appuntamenti-massivo') {
+        return $this->isAdmin($idUser);
+    }
+
     if ($route === 'agenda/slot-bloccati') {
         return $this->canBloccareGiorno($idUser);
     }
