@@ -2533,6 +2533,10 @@
             min-height: 96px;
         }
 
+        .agenda-team-board.has-compact-slot-details .agenda-team-column-body.is-compact-stack .agenda-team-entry:not(.agenda-team-entry-free-slot):not(.agenda-team-entry-closed) {
+            padding: 8px 10px;
+        }
+
         .agenda-team-board.has-compact-slot-details .agenda-team-column-body.is-compact-stack .agenda-team-entry-content {
             gap: 4px;
         }
@@ -8460,6 +8464,7 @@ function buildAgendaTeamEntryTitleAttr(text) {
 
 function buildAgendaTeamEntryContent(orario, primaryLabel, secondaryLabel, options) {
     options = options || {};
+    var safeTimeLabel = $.trim(String(orario || ''));
     var safePrimaryLabel = $.trim(String(primaryLabel || ''));
     var safeSecondaryLabel = $.trim(String(secondaryLabel || ''));
     var safeContactLabel = $.trim(String(options.contactLabel || ''));
@@ -8467,7 +8472,9 @@ function buildAgendaTeamEntryContent(orario, primaryLabel, secondaryLabel, optio
     return ''
         + '<div class="agenda-team-entry-content">'
         + '  <div class="agenda-team-entry-title">'
-        + '    <span class="agenda-team-entry-time">' + escapeHtml(orario) + '</span>'
+        + (safeTimeLabel !== ''
+            ? '    <span class="agenda-team-entry-time">' + escapeHtml(safeTimeLabel) + '</span>'
+            : '')
         + (safePrimaryLabel !== ''
             ? '<span class="agenda-team-entry-patient">' + escapeHtml(safePrimaryLabel) + '</span>'
             : '')
@@ -8736,6 +8743,7 @@ function buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute, entryH
         var bookedTitleAttrs = hoverDetailAttrs !== ''
             ? ' aria-label="' + buildAgendaTeamEntryTitleAttr(tooltipText || 'Appuntamento') + '"'
             : ' title="' + buildAgendaTeamEntryTitleAttr(tooltipText || 'Appuntamento') + '"';
+        var bookedTimeLabel = compactSlotDetailsEnabled ? '' : orarioLabel;
 
         if ((stato === 'LIBERO' || stato === 'BLOCCATO') && !hasAppointment && !column.giorno_bloccato) {
             html += ''
@@ -8790,7 +8798,7 @@ function buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute, entryH
                 + ' style="' + bookedStyle + '"'
                 + bookedTitleAttrs
                 + hoverDetailAttrs + '>'
-                + buildAgendaTeamEntryContent(orarioLabel, primaryLabel, noteEvento, {
+                + buildAgendaTeamEntryContent(bookedTimeLabel, primaryLabel, noteEvento, {
                     contactLabel: compactContactLabel
                 })
                 + '</div>';
@@ -8804,7 +8812,7 @@ function buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute, entryH
             + ' data-slot-id="' + slotId + '"'
             + bookedTitleAttrs
             + hoverDetailAttrs + '>'
-            + buildAgendaTeamEntryContent(orarioLabel, primaryLabel, noteEvento, {
+            + buildAgendaTeamEntryContent(bookedTimeLabel, primaryLabel, noteEvento, {
                 contactLabel: compactContactLabel
             })
             + '</button>';
