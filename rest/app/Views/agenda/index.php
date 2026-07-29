@@ -2538,15 +2538,19 @@
         }
 
         .agenda-team-board.has-compact-slot-details .agenda-team-column-body.is-compact-stack .agenda-team-entry-title {
-            display: block;
+            display: flex;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            gap: 8px;
         }
 
         .agenda-team-board.has-compact-slot-details .agenda-team-column-body.is-compact-stack .agenda-team-entry-time {
-            margin-bottom: 6px;
+            margin-bottom: 0;
         }
 
         .agenda-team-board.has-compact-slot-details .agenda-team-column-body.is-compact-stack .agenda-team-entry-patient {
             display: block;
+            flex: 1 1 120px;
         }
 
         .agenda-team-board.has-compact-slot-details .agenda-team-column-body.is-compact-stack .agenda-team-entry-note {
@@ -2555,6 +2559,66 @@
             -webkit-box-orient: vertical;
             -webkit-line-clamp: 3;
             line-clamp: 3;
+        }
+
+        .agenda-team-hover-card {
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1065;
+            width: 320px;
+            max-width: calc(100vw - 24px);
+            padding: 12px 14px;
+            border-radius: 12px;
+            background: rgba(17, 24, 39, 0.96);
+            color: #fff;
+            box-shadow: 0 18px 40px rgba(15, 23, 42, 0.32);
+            pointer-events: none;
+            opacity: 0;
+            transform: translate3d(0, 8px, 0);
+            transition: opacity 0.14s ease, transform 0.14s ease;
+        }
+
+        .agenda-team-hover-card.is-visible {
+            opacity: 1;
+            transform: translate3d(0, 0, 0);
+        }
+
+        .agenda-team-hover-card-title {
+            margin: 0 0 8px;
+            font-size: 13px;
+            font-weight: 700;
+            line-height: 1.4;
+            color: #fff;
+        }
+
+        .agenda-team-hover-card-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .agenda-team-hover-card-row {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .agenda-team-hover-card-label {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.68);
+        }
+
+        .agenda-team-hover-card-value {
+            font-size: 12px;
+            line-height: 1.45;
+            color: #fff;
+            white-space: normal;
+            overflow-wrap: anywhere;
+            word-break: break-word;
         }
 
         .agenda-team-empty-column {
@@ -4125,6 +4189,8 @@ var agendaVisitTypes = <?= json_encode(array_values(is_array($visitTypes ?? null
 var agendaVisitTypeColorPalette = ['#3C8DBC', '#16A085', '#5E72E4', '#EB6B56', '#8E44AD', '#F39C12', '#27AE60', '#C0392B', '#2C82C9', '#D35400'];
 var appointmentModalSlot = null;
 var appointmentStandardDraftCache = null;
+var agendaTeamHoverCard = null;
+var agendaTeamHoverCardActiveEl = null;
 
 function supportsAgendaVisitTypes() {
     return !!window.AGENDA_CONFIG.visitTypesFeatureEnabled;
@@ -8302,12 +8368,12 @@ function buildAgendaTeamEntryPrimaryContactLabel(slot) {
     var telefono = $.trim(((slot && slot.telefono) || '') + '');
     var cellulare = $.trim(((slot && slot.cellulare) || '') + '');
 
-    if (telefono !== '') {
-        return 'Tel: ' + telefono;
-    }
-
     if (cellulare !== '') {
         return 'Cell: ' + cellulare;
+    }
+
+    if (telefono !== '') {
+        return 'Tel: ' + telefono;
     }
 
     return '';
@@ -8344,6 +8410,48 @@ function buildAgendaTeamEntryTooltip(orario, primaryLabel, slot, secondaryLabel)
     return lines.join('\n');
 }
 
+function buildAgendaTeamEntryHoverDetails(orario, primaryLabel, slot, secondaryLabel, column) {
+    return {
+        title: $.trim(String(primaryLabel || '')) || 'Appuntamento',
+        time: $.trim(String(orario || '')),
+        operator: $.trim(String((column && column.label) || '')),
+        contact: buildAgendaTeamEntryPrimaryContactLabel(slot),
+        note: $.trim(String(secondaryLabel || '')),
+        location: buildAgendaSlotLocationLines(slot).join(' - ')
+    };
+}
+
+function buildAgendaTeamEntryAttrValue(text) {
+    return escapeHtml(String(text == null ? '' : text)).replace(/\r?\n/g, '&#10;');
+}
+
+function buildAgendaTeamEntryHoverDataAttrs(details) {
+    if (!details || typeof details !== 'object') {
+        return '';
+    }
+
+    var attrs = '';
+    $.each({
+        tooltipTitle: details.title,
+        tooltipTime: details.time,
+        tooltipOperator: details.operator,
+        tooltipContact: details.contact,
+        tooltipNote: details.note,
+        tooltipLocation: details.location
+    }, function(name, value) {
+        var safeValue = $.trim(String(value || ''));
+        if (safeValue === '') {
+            return;
+        }
+
+        attrs += ' data-' + name.replace(/[A-Z]/g, function(letter) {
+            return '-' + letter.toLowerCase();
+        }) + '="' + buildAgendaTeamEntryAttrValue(safeValue) + '"';
+    });
+
+    return attrs;
+}
+
 function buildAgendaTeamEntryTitleAttr(text) {
     var safeText = String(text || '');
     return escapeHtml(safeText).replace(/\r?\n/g, '&#10;');
@@ -8370,6 +8478,139 @@ function buildAgendaTeamEntryContent(orario, primaryLabel, secondaryLabel, optio
             ? '<div class="agenda-team-entry-note">' + escapeHtml(safeSecondaryLabel) + '</div>'
             : '')
         + '</div>';
+}
+
+function getAgendaTeamHoverCard() {
+    if (!agendaTeamHoverCard || !agendaTeamHoverCard.length) {
+        agendaTeamHoverCard = $('<div id="agendaTeamHoverCard" class="agenda-team-hover-card" aria-hidden="true"></div>');
+        $('body').append(agendaTeamHoverCard);
+    }
+
+    return agendaTeamHoverCard;
+}
+
+function buildAgendaTeamHoverCardMarkup(details) {
+    var title = $.trim(String((details && details.title) || '')) || 'Appuntamento';
+    var rows = [];
+
+    function pushRow(label, value) {
+        var safeValue = $.trim(String(value || ''));
+        if (safeValue === '') {
+            return;
+        }
+
+        rows.push(
+            '<div class="agenda-team-hover-card-row">'
+            + '<div class="agenda-team-hover-card-label">' + escapeHtml(label) + '</div>'
+            + '<div class="agenda-team-hover-card-value">' + nl2br(escapeHtml(safeValue)) + '</div>'
+            + '</div>'
+        );
+    }
+
+    pushRow('Orario', details && details.time);
+    pushRow('Professionista', details && details.operator);
+    pushRow('Recapito', details && details.contact);
+    pushRow('Note', details && details.note);
+    pushRow('Luogo', details && details.location);
+
+    return ''
+        + '<div class="agenda-team-hover-card-title">' + escapeHtml(title) + '</div>'
+        + (rows.length
+            ? '<div class="agenda-team-hover-card-list">' + rows.join('') + '</div>'
+            : '');
+}
+
+function getAgendaTeamHoverDetailsFromElement(element) {
+    var $element = $(element);
+    if (!$element.length) {
+        return null;
+    }
+
+    var details = {
+        title: $.trim(String($element.attr('data-tooltip-title') || '')),
+        time: $.trim(String($element.attr('data-tooltip-time') || '')),
+        operator: $.trim(String($element.attr('data-tooltip-operator') || '')),
+        contact: $.trim(String($element.attr('data-tooltip-contact') || '')),
+        note: $.trim(String($element.attr('data-tooltip-note') || '')),
+        location: $.trim(String($element.attr('data-tooltip-location') || ''))
+    };
+
+    if (details.title === '' && details.time === '' && details.operator === '' && details.contact === '' && details.note === '' && details.location === '') {
+        return null;
+    }
+
+    return details;
+}
+
+function positionAgendaTeamHoverCard($card, anchorElement, event) {
+    if (!$card || !$card.length || !anchorElement) {
+        return;
+    }
+
+    var viewportWidth = $(window).width() || window.innerWidth || 0;
+    var viewportHeight = $(window).height() || window.innerHeight || 0;
+    var rect = anchorElement.getBoundingClientRect();
+    var offset = 18;
+    var anchorX = rect.left + Math.min(rect.width / 2, 64);
+    var anchorY = rect.top + Math.min(rect.height / 2, 48);
+
+    if (event && typeof event.clientX === 'number') {
+        anchorX = event.clientX;
+    }
+    if (event && typeof event.clientY === 'number') {
+        anchorY = event.clientY;
+    }
+
+    var left = anchorX + offset;
+    var top = anchorY + offset;
+    var cardWidth = $card.outerWidth();
+    var cardHeight = $card.outerHeight();
+
+    if (left + cardWidth > viewportWidth - 12) {
+        left = Math.max(12, anchorX - cardWidth - offset);
+    }
+    if (top + cardHeight > viewportHeight - 12) {
+        top = Math.max(12, anchorY - cardHeight - offset);
+    }
+
+    $card.css({
+        left: left + 'px',
+        top: top + 'px'
+    });
+}
+
+function showAgendaTeamHoverCard(element, event) {
+    if (!supportsAgendaTeamDayCompactSlotDetailsFeature()) {
+        return;
+    }
+
+    var details = getAgendaTeamHoverDetailsFromElement(element);
+    if (!details) {
+        hideAgendaTeamHoverCard();
+        return;
+    }
+
+    var $card = getAgendaTeamHoverCard();
+    if (agendaTeamHoverCardActiveEl && agendaTeamHoverCardActiveEl !== element) {
+        $(agendaTeamHoverCardActiveEl).removeClass('is-hover-card-active');
+    }
+
+    agendaTeamHoverCardActiveEl = element;
+    $(element).addClass('is-hover-card-active');
+    $card.html(buildAgendaTeamHoverCardMarkup(details));
+    positionAgendaTeamHoverCard($card, element, event);
+    $card.addClass('is-visible').attr('aria-hidden', 'false');
+}
+
+function hideAgendaTeamHoverCard() {
+    if (agendaTeamHoverCardActiveEl) {
+        $(agendaTeamHoverCardActiveEl).removeClass('is-hover-card-active');
+        agendaTeamHoverCardActiveEl = null;
+    }
+
+    if (agendaTeamHoverCard && agendaTeamHoverCard.length) {
+        agendaTeamHoverCard.removeClass('is-visible').attr('aria-hidden', 'true').empty();
+    }
 }
 
 function buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute, entryHeight) {
@@ -8487,6 +8728,13 @@ function buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute, entryH
         var tooltipText = compactSlotDetailsEnabled
             ? buildAgendaTeamEntryTooltip(orarioLabel, primaryLabel, slot, noteEvento)
             : (orarioLabel + (nominativo !== '' ? (' ' + nominativo) : ''));
+        var hoverDetails = compactSlotDetailsEnabled
+            ? buildAgendaTeamEntryHoverDetails(orarioLabel, primaryLabel, slot, noteEvento, column)
+            : null;
+        var hoverDetailAttrs = hoverDetails ? buildAgendaTeamEntryHoverDataAttrs(hoverDetails) : '';
+        var bookedTitleAttrs = hoverDetailAttrs !== ''
+            ? ' aria-label="' + buildAgendaTeamEntryTitleAttr(tooltipText || 'Appuntamento') + '"'
+            : ' title="' + buildAgendaTeamEntryTitleAttr(tooltipText || 'Appuntamento') + '"';
 
         if ((stato === 'LIBERO' || stato === 'BLOCCATO') && !hasAppointment && !column.giorno_bloccato) {
             html += ''
@@ -8537,9 +8785,10 @@ function buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute, entryH
 
         if (column.giorno_bloccato) {
             html += ''
-                + '<div class="' + bookedClass + '"'
+                + '<div class="' + bookedClass + (hoverDetailAttrs !== '' ? ' js-agenda-team-hover-details' : '') + '"'
                 + ' style="' + bookedStyle + '"'
-                + ' title="' + buildAgendaTeamEntryTitleAttr(tooltipText || 'Appuntamento') + '">'
+                + bookedTitleAttrs
+                + hoverDetailAttrs + '>'
                 + buildAgendaTeamEntryContent(orarioLabel, primaryLabel, noteEvento, {
                     contactLabel: compactContactLabel
                 })
@@ -8549,10 +8798,11 @@ function buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute, entryH
 
         html += ''
             + '<button type="button"'
-            + ' class="' + bookedClass + ' js-agenda-team-booked-slot"'
+            + ' class="' + bookedClass + ' js-agenda-team-booked-slot' + (hoverDetailAttrs !== '' ? ' js-agenda-team-hover-details' : '') + '"'
             + ' style="' + bookedStyle + '"'
             + ' data-slot-id="' + slotId + '"'
-            + ' title="' + buildAgendaTeamEntryTitleAttr(tooltipText || 'Appuntamento') + '">'
+            + bookedTitleAttrs
+            + hoverDetailAttrs + '>'
             + buildAgendaTeamEntryContent(orarioLabel, primaryLabel, noteEvento, {
                 contactLabel: compactContactLabel
             })
@@ -8565,6 +8815,7 @@ function buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute, entryH
 }
 
 function renderAgendaTeamDay(res) {
+    hideAgendaTeamHoverCard();
     agendaTeamSlotIndex = {};
     agendaTeamAllSlots = [];
 
@@ -10165,8 +10416,37 @@ $('#nota_giorno_text').on('blur', function() {
             return;
         }
 
+        hideAgendaTeamHoverCard();
         riempiModaleDaEvento(getAgendaPrimaryCoveredSlot(slot, agendaTeamAllSlots));
         $('#appointmentModal').modal('show');
+    });
+
+    $(document).on('mouseenter focusin', '.js-agenda-team-hover-details', function(e) {
+        if (!$('#agendaTeamDayBoard').hasClass('has-compact-slot-details')) {
+            return;
+        }
+
+        showAgendaTeamHoverCard(this, e);
+    });
+
+    $(document).on('mousemove', '.js-agenda-team-hover-details', function(e) {
+        if (agendaTeamHoverCardActiveEl !== this) {
+            return;
+        }
+
+        positionAgendaTeamHoverCard(getAgendaTeamHoverCard(), this, e);
+    });
+
+    $(document).on('mouseleave focusout', '.js-agenda-team-hover-details', function(e) {
+        if (e.type === 'focusout' && $(this).is(':hover')) {
+            return;
+        }
+
+        hideAgendaTeamHoverCard();
+    });
+
+    $(window).on('scroll resize', function() {
+        hideAgendaTeamHoverCard();
     });
 
     $('#btnSaveVisitType').on('click', function() {
