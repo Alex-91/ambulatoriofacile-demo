@@ -4753,20 +4753,26 @@ function getAgendaSlotActualDurationMinutes(slot) {
     return Math.max(0, endMoment.diff(startMoment, 'minutes'));
 }
 
-function buildAgendaVisitTypeDisplay(row) {
+function buildAgendaVisitTypeDisplay(row, options) {
+    options = options || {};
     var label = $.trim((row && row.tipo_visita_label) || '');
     var duration = parseInt((row && row.appointment_durata_minuti) || (row && row.durata_minuti) || 0, 10) || 0;
+    var includeDuration = options.includeDuration !== false;
 
     if (label === '' && duration <= 0) {
         return '';
     }
 
-    if (label !== '' && duration > 0) {
+    if (label !== '' && duration > 0 && includeDuration) {
         return label + ' (' + duration + ' min)';
     }
 
     if (label !== '') {
         return label;
+    }
+
+    if (!includeDuration) {
+        return '';
     }
 
     return duration + ' min';
@@ -8731,6 +8737,9 @@ function buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute, entryH
         var visitTypeVisualStyle = (!column.giorno_bloccato && hasAppointment) ? getAgendaVisitTypeVisualStyleById(slot.id_tipo_visita) : null;
         var nominativo = getAgendaAppointmentDisplayName(slot, pazSpec);
         var noteEvento = buildAppointmentNoteDisplay(slot);
+        var slotNoteEvento = compactSlotDetailsEnabled
+            ? buildAppointmentNoteDisplay(slot, { includeVisitTypeDuration: false })
+            : noteEvento;
         var primaryLabel = nominativo !== '' ? nominativo : 'Appuntamento';
         var compactContactLabel = compactSlotDetailsEnabled ? buildAgendaTeamEntryPrimaryContactLabel(slot) : '';
         var tooltipText = compactSlotDetailsEnabled
@@ -8743,7 +8752,7 @@ function buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute, entryH
         var bookedTitleAttrs = hoverDetailAttrs !== ''
             ? ' aria-label="' + buildAgendaTeamEntryTitleAttr(tooltipText || 'Appuntamento') + '"'
             : ' title="' + buildAgendaTeamEntryTitleAttr(tooltipText || 'Appuntamento') + '"';
-        var bookedTimeLabel = compactSlotDetailsEnabled ? '' : orarioLabel;
+        var bookedTimeLabel = orarioLabel;
 
         if ((stato === 'LIBERO' || stato === 'BLOCCATO') && !hasAppointment && !column.giorno_bloccato) {
             html += ''
@@ -8798,7 +8807,7 @@ function buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute, entryH
                 + ' style="' + bookedStyle + '"'
                 + bookedTitleAttrs
                 + hoverDetailAttrs + '>'
-                + buildAgendaTeamEntryContent(bookedTimeLabel, primaryLabel, noteEvento, {
+                + buildAgendaTeamEntryContent(bookedTimeLabel, primaryLabel, slotNoteEvento, {
                     contactLabel: compactContactLabel
                 })
                 + '</div>';
@@ -8812,7 +8821,7 @@ function buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute, entryH
             + ' data-slot-id="' + slotId + '"'
             + bookedTitleAttrs
             + hoverDetailAttrs + '>'
-            + buildAgendaTeamEntryContent(bookedTimeLabel, primaryLabel, noteEvento, {
+            + buildAgendaTeamEntryContent(bookedTimeLabel, primaryLabel, slotNoteEvento, {
                 contactLabel: compactContactLabel
             })
             + '</button>';
@@ -9378,8 +9387,11 @@ function getCreatedByLabel(row) {
     return username !== '' ? ('Utente: ' + username) : '';
 }
 
-function buildAppointmentNoteDisplay(row) {
-    var visitType = buildAgendaVisitTypeDisplay(row);
+function buildAppointmentNoteDisplay(row, options) {
+    options = options || {};
+    var visitType = buildAgendaVisitTypeDisplay(row, {
+        includeDuration: options.includeVisitTypeDuration !== false
+    });
     var note = $.trim((row && row.note) || '');
     var createdByLabel = getCreatedByLabel(row);
     var pieces = [];
