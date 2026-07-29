@@ -90,6 +90,19 @@ class MenuRegistryService
                 ],
             ],
             [
+                'key' => 'agenda/elimina-appuntamenti-massivo',
+                'link' => 'agenda/elimina-appuntamenti-massivo',
+                'title' => 'Elimina appuntamenti',
+                'icon' => 'fa-calendar-times-o',
+                'order' => 500,
+                'default' => true,
+                'group' => 'Menu operativo',
+                'description' => 'Cerca un paziente ed elimina gli appuntamenti futuri selezionati.',
+                'route_prefixes' => [
+                    'agenda/elimina-appuntamenti-massivo',
+                ],
+            ],
+            [
                 'key' => 'personale/visibilita-moduli',
                 'link' => 'personale/visibilita-moduli',
                 'title' => 'Visibilita moduli',

@@ -18,6 +18,7 @@ class TenantAdminMenuService
     {
         return [
             'agenda/gestione-sedi',
+            'agenda/elimina-appuntamenti-massivo',
         ];
     }
 

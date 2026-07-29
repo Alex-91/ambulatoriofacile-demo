@@ -24,6 +24,7 @@ if (!function_exists('admin_menu_pretty_title')) {
             str_contains($key, 'agenda/gestione-ferie') => 'Gestione ferie',
             str_contains($key, 'agenda/elenco-ferie') => 'Elenco ferie',
             str_contains($key, 'agenda/slot-bloccati') => 'Slot bloccati',
+            str_contains($key, 'agenda/elimina-appuntamenti-massivo') => 'Elimina appuntamenti',
             str_contains($key, 'visibilita-moduli') => 'Visibilita moduli',
             str_contains($key, 'spazi-clienti') || str_contains($key, 'tenant') => 'Spazi cliente',
             str_contains($key, 'agenda/gestione-sedi') || str_contains($key, 'agenda/sedi') || str_contains($key, 'anagrafica/sedi') => 'Gestione sedi',
@@ -54,6 +55,7 @@ if (!function_exists('admin_menu_fallback_icon')) {
             str_contains($key, 'agenda/gestione-ferie') => 'fa-suitcase',
             str_contains($key, 'agenda/elenco-ferie') => 'fa-calendar-times-o',
             str_contains($key, 'agenda/slot-bloccati') => 'fa-unlock-alt',
+            str_contains($key, 'agenda/elimina-appuntamenti-massivo') => 'fa-calendar-times-o',
             str_contains($key, 'visibilita') || str_contains($key, 'moduli') => 'fa-toggle-on',
             str_contains($key, 'spazi-clienti') || str_contains($key, 'tenant') => 'fa-sitemap',
             str_contains($key, 'dap14') || str_contains($key, 'segret') => 'fa-users',
@@ -153,7 +155,12 @@ if (!function_exists('admin_menu_resolve_href')) {
             return site_url('agenda/gestione-sedi');
         }
 
-        if (in_array($normalized, ['agenda/gestione-ferie', 'agenda/elenco-ferie', 'agenda/slot-bloccati'], true)) {
+        if (in_array($normalized, [
+            'agenda/gestione-ferie',
+            'agenda/elenco-ferie',
+            'agenda/slot-bloccati',
+            'agenda/elimina-appuntamenti-massivo',
+        ], true)) {
             return site_url($normalized);
         }
 
