@@ -220,7 +220,7 @@
 
                     <div class="box box-danger">
                         <div class="box-header with-border">
-                            <h3 class="box-title"><i class="fa fa-calendar-times-o"></i> Appuntamenti futuri</h3>
+                            <h3 class="box-title"><i class="fa fa-trash-o"></i> Appuntamenti futuri</h3>
                             <span id="bulkLoading" class="bulk-loading">
                                 <i class="fa fa-spinner fa-spin"></i> Caricamento...
                             </span>

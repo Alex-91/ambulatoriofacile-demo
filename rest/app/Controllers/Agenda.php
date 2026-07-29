@@ -3869,7 +3869,6 @@ public function eseguiRepairRecurringExtraSlots()
     {
         try {
             $this->assertCanManageBulkAppointmentDeletion();
-            $this->assertAgendaRouteAllowed('agenda/elimina-appuntamenti-massivo');
 
             if ($this->getBulkAppointmentDeletionDoctorMap() === []) {
                 throw new \Exception('Nessun professionista disponibile per questo spazio.');
@@ -4043,7 +4042,7 @@ public function eseguiRepairRecurringExtraSlots()
     {
         $map = [];
 
-        foreach ($this->getOrderedVisibleDoctorsForCurrentUser() as $doctor) {
+        foreach ($this->getOrderedAgendaProfessionals() as $doctor) {
             $idDot = is_object($doctor)
                 ? (int) ($doctor->id_dot ?? 0)
                 : (int) ($doctor['id_dot'] ?? 0);

@@ -55,7 +55,7 @@ if (!function_exists('admin_menu_fallback_icon')) {
             str_contains($key, 'agenda/gestione-ferie') => 'fa-suitcase',
             str_contains($key, 'agenda/elenco-ferie') => 'fa-calendar-times-o',
             str_contains($key, 'agenda/slot-bloccati') => 'fa-unlock-alt',
-            str_contains($key, 'agenda/elimina-appuntamenti-massivo') => 'fa-calendar-times-o',
+            str_contains($key, 'agenda/elimina-appuntamenti-massivo') => 'fa-trash-o',
             str_contains($key, 'visibilita') || str_contains($key, 'moduli') => 'fa-toggle-on',
             str_contains($key, 'spazi-clienti') || str_contains($key, 'tenant') => 'fa-sitemap',
             str_contains($key, 'dap14') || str_contains($key, 'segret') => 'fa-users',

@@ -93,7 +93,7 @@ class MenuRegistryService
                 'key' => 'agenda/elimina-appuntamenti-massivo',
                 'link' => 'agenda/elimina-appuntamenti-massivo',
                 'title' => 'Elimina appuntamenti',
-                'icon' => 'fa-calendar-times-o',
+                'icon' => 'fa-trash-o',
                 'order' => 500,
                 'default' => true,
                 'group' => 'Menu operativo',
