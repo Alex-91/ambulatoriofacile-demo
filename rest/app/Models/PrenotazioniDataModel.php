@@ -115,8 +115,8 @@ class PrenotazioniDataModel extends Model
                 SELECT
                     a.id_appuntamento AS id_prenotazione,
                     a.id_appuntamento,
-                    s.ora_inizio AS data_ora_ini,
-                    s.ora_fine AS data_ora_fin,
+                    COALESCE(a.ora_inizio_appuntamento, s.ora_inizio) AS data_ora_ini,
+                    COALESCE(a.ora_fine_appuntamento, s.ora_fine) AS data_ora_fin,
                     {$qualificaExpr} AS titolo,
                     {$nomeExpr} AS nome_med,
                     {$cognomeExpr} AS cognome_med,
@@ -139,8 +139,8 @@ class PrenotazioniDataModel extends Model
                         a.id_client = ?
                      OR a.id_paziente = ?
                   )
-                  AND s.ora_inizio >= NOW()
-                ORDER BY s.ora_inizio ASC, a.id_appuntamento ASC
+                  AND COALESCE(a.ora_inizio_appuntamento, s.ora_inizio) >= NOW()
+                ORDER BY COALESCE(a.ora_inizio_appuntamento, s.ora_inizio) ASC, a.id_appuntamento ASC
                 LIMIT 1
             ";
 

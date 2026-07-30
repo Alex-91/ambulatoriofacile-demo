@@ -17,6 +17,7 @@ class AgendaAppointmentBlockLayoutService
     private const BLOCK_VISIT_TYPE = 'visit_type';
     private const BLOCK_PATIENT_ENTRY = 'patient_entry';
     private const BLOCK_DOCUMENT_WORKFLOW = 'document_workflow';
+    private const CUSTOM_APPOINTMENT_TIME_FEATURE = 'agenda_custom_appointment_time';
 
     /**
      * @var array<int, array<string, mixed>>
@@ -344,6 +345,7 @@ class AgendaAppointmentBlockLayoutService
     {
         $visitTypesEnabled = !empty($featureMap['agenda_visit_types']);
         $visitTypeOptional = $visitTypesEnabled && !empty($featureMap['agenda_visit_type_optional']);
+        $customAppointmentTimeEnabled = !empty($featureMap[self::CUSTOM_APPOINTMENT_TIME_FEATURE]);
         $billingEnabled = !empty($featureMap[BillingModule::FEATURE_KEY]);
         $tsEnabled = !empty($featureMap[TsBilling::FEATURE_KEY]);
         $documentWorkflowAvailable = $billingEnabled || $tsEnabled;
@@ -351,13 +353,16 @@ class AgendaAppointmentBlockLayoutService
         return [
             'visit_types_enabled' => $visitTypesEnabled,
             'visit_type_optional' => $visitTypeOptional,
+            'custom_appointment_time_enabled' => $customAppointmentTimeEnabled,
             'document_workflow_available' => $documentWorkflowAvailable,
             'blocks' => [
                 self::BLOCK_TIME => [
                     'available' => true,
-                    'hideable' => true,
-                    'force_visible' => false,
-                    'note' => 'Mostra solo il riepilogo orario dello slot selezionato e puo quindi essere nascosto se preferisci un popup piu compatto.',
+                    'hideable' => !$customAppointmentTimeEnabled,
+                    'force_visible' => $customAppointmentTimeEnabled,
+                    'note' => $customAppointmentTimeEnabled
+                        ? 'Resta visibile perche contiene i controlli necessari agli orari personalizzati.'
+                        : 'Mostra solo il riepilogo orario dello slot selezionato e puo quindi essere nascosto se preferisci un popup piu compatto.',
                 ],
                 self::BLOCK_VISIT_TYPE => [
                     'available' => $visitTypesEnabled,

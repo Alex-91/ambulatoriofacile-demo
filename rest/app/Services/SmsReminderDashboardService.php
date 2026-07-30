@@ -176,7 +176,7 @@ class SmsReminderDashboardService
                     a.cognome,
                     a.nome,
                     s.data_slot,
-                    TIME_FORMAT(s.ora_inizio, '%H:%i') AS time_label
+                    TIME_FORMAT(COALESCE(a.ora_inizio_appuntamento, s.ora_inizio), '%H:%i') AS time_label
                 ", false)
                 ->join('dap11_agenda_slot s', 's.id_slot = a.id_slot', 'left')
                 ->whereIn('a.id_appuntamento', $chunk)

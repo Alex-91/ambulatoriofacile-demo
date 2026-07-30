@@ -187,8 +187,8 @@ class AgendaCrossDoctorBookingNotificationService
                 a.note,
                 a.motivo_visita,
                 s.data_slot,
-                s.ora_inizio,
-                s.ora_fine
+                COALESCE(a.ora_inizio_appuntamento, s.ora_inizio) AS ora_inizio,
+                COALESCE(a.ora_fine_appuntamento, s.ora_fine) AS ora_fine
             ")
             ->join('dap11_agenda_slot s', 's.id_slot = a.id_slot', 'inner')
             ->where('a.id_appuntamento', $appointmentId)

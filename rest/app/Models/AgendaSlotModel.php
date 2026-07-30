@@ -77,6 +77,9 @@ public function getSlotsCalendario(int $idDot, string $date, string $view = 'day
         ? "COALESCE(amb.nome, s.ambulatorio, '') AS ambulatorio_label,"
         : "COALESCE(s.ambulatorio, '') AS ambulatorio_label,";
     $pazSpecExpr = $this->buildPazSpecSelectSql($hasAppointmentClientColumn);
+    $appointmentStartExpr = $this->appointmentTableHasField('ora_inizio_appuntamento')
+        ? 'COALESCE(a.ora_inizio_appuntamento, s.ora_inizio)'
+        : 's.ora_inizio';
 
     // Keep MySQL session vars like @key_str untouched inside AES_DECRYPT.
     $builder->select("
@@ -114,8 +117,10 @@ public function getSlotsCalendario(int $idDot, string $date, string $view = 'day
     COALESCE(a.tipo_visita_label, '') AS tipo_visita_label,
     COALESCE(
         a.durata_minuti,
-        TIMESTAMPDIFF(MINUTE, s.ora_inizio, COALESCE(a.ora_fine_appuntamento, s.ora_fine))
+        TIMESTAMPDIFF(MINUTE, {$appointmentStartExpr}, COALESCE(a.ora_fine_appuntamento, s.ora_fine))
     ) AS appointment_durata_minuti,
+    a.ora_inizio_appuntamento AS appointment_custom_ora_inizio,
+    {$appointmentStartExpr} AS appointment_ora_inizio,
     COALESCE(a.ora_fine_appuntamento, s.ora_fine) AS appointment_ora_fine,
     COALESCE(a.appointment_is_primary_slot, 0) AS appointment_is_primary_slot,
     COALESCE(a.appointment_slot_position, 0) AS appointment_slot_position,
@@ -415,6 +420,7 @@ private function mapAvailabilityDays(array $rows): array
             ($this->appointmentTableHasField('id_tipo_visita') ? 'a.id_tipo_visita' : 'NULL') . ' AS id_tipo_visita',
             ($this->appointmentTableHasField('tipo_visita_label') ? 'a.tipo_visita_label' : 'NULL') . ' AS tipo_visita_label',
             ($this->appointmentTableHasField('durata_minuti') ? 'a.durata_minuti' : 'NULL') . ' AS durata_minuti',
+            ($this->appointmentTableHasField('ora_inizio_appuntamento') ? 'a.ora_inizio_appuntamento' : 'NULL') . ' AS ora_inizio_appuntamento',
             ($this->appointmentTableHasField('ora_fine_appuntamento') ? 'a.ora_fine_appuntamento' : 'NULL') . ' AS ora_fine_appuntamento',
             'a.stato AS stato',
         ];

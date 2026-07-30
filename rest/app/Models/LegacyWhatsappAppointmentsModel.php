@@ -36,8 +36,8 @@ class LegacyWhatsappAppointmentsModel extends Model
         $sql = "
             SELECT
                 a.id_appuntamento AS appointment_id,
-                s.ora_inizio AS appointment_date,
-                DATE_FORMAT(s.ora_inizio, '%d/%m/%Y %H:%i') AS appointment_date_format,
+                COALESCE(a.ora_inizio_appuntamento, s.ora_inizio) AS appointment_date,
+                DATE_FORMAT(COALESCE(a.ora_inizio_appuntamento, s.ora_inizio), '%d/%m/%Y %H:%i') AS appointment_date_format,
                 a.id_dot AS doctor_id,
                 {$doctorTitleSql} AS doctor_title,
                 {$doctorSurnameSql} AS doctor_surname,
@@ -55,8 +55,8 @@ class LegacyWhatsappAppointmentsModel extends Model
             WHERE ({$phoneMatchSql})
               AND a.stato <> 'ANNULLATO'
               " . $this->buildEsitatoPendingSql('a') . "
-              AND DATE(s.ora_inizio) BETWEEN ? AND ?
-            ORDER BY s.ora_inizio ASC, a.id_appuntamento ASC
+              AND DATE(COALESCE(a.ora_inizio_appuntamento, s.ora_inizio)) BETWEEN ? AND ?
+            ORDER BY COALESCE(a.ora_inizio_appuntamento, s.ora_inizio) ASC, a.id_appuntamento ASC
         ";
 
         return $this->db->query($sql, [$cellulare, $cellulare, $startDate, $endDate])->getResultArray();
@@ -94,7 +94,7 @@ class LegacyWhatsappAppointmentsModel extends Model
                 a.email AS appointment_email,
                 a.note AS appointment_note,
                 a.stato AS appointment_state,
-                s.ora_inizio AS appointment_date,
+                COALESCE(a.ora_inizio_appuntamento, s.ora_inizio) AS appointment_date,
                 {$doctorTitleSql} AS doctor_title,
                 {$doctorSurnameSql} AS doctor_surname,
                 {$doctorNameSql} AS doctor_name,

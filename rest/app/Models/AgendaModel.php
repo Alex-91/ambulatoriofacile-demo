@@ -728,14 +728,14 @@ public function getActiveAppointmentsBySlotIds(array $slotIds): array
             a.nome,
             a.stato,
             s.data_slot,
-            s.ora_inizio,
-            s.ora_fine
+            COALESCE(a.ora_inizio_appuntamento, s.ora_inizio) AS ora_inizio,
+            COALESCE(a.ora_fine_appuntamento, s.ora_fine) AS ora_fine
         ")
         ->join('dap11_agenda_slot s', 's.id_slot = a.id_slot', 'inner')
         ->whereIn('a.id_slot', $slotIds)
         ->where('a.stato <>', 'ANNULLATO')
         ->orderBy('s.data_slot', 'ASC')
-        ->orderBy('s.ora_inizio', 'ASC')
+        ->orderBy('COALESCE(a.ora_inizio_appuntamento, s.ora_inizio)', 'ASC', false)
         ->get()
         ->getResultArray();
 }

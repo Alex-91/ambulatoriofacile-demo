@@ -247,8 +247,8 @@ class AgendaBackupModel extends Model
             ->select("
                 s.id_slot,
                 s.data_slot,
-                s.ora_inizio,
-                s.ora_fine,
+                COALESCE(a.ora_inizio_appuntamento, s.ora_inizio) AS ora_inizio,
+                COALESCE(a.ora_fine_appuntamento, s.ora_fine) AS ora_fine,
                 s.tipo_slot,
                 s.stato AS stato_slot,
                 a.id_appuntamento,

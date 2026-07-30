@@ -295,7 +295,7 @@ class AppointmentReminderDispatchService
                 a.email AS appointment_email,
                 a.stato,
                 s.data_slot,
-                DATE_FORMAT(s.ora_inizio, '%H:%i') AS ora_label,
+                DATE_FORMAT(COALESCE(a.ora_inizio_appuntamento, s.ora_inizio), '%H:%i') AS ora_label,
                 s.id_amb_legacy,
                 s.ambulatorio,
                 s.stanza,
@@ -323,7 +323,7 @@ class AppointmentReminderDispatchService
             WHERE s.data_slot = ?
               AND a.stato <> 'ANNULLATO'
               {$doctorSql}
-            ORDER BY s.id_dot ASC, s.ora_inizio ASC, a.id_appuntamento ASC
+            ORDER BY s.id_dot ASC, COALESCE(a.ora_inizio_appuntamento, s.ora_inizio) ASC, a.id_appuntamento ASC
             {$limitSql}
         ";
 

@@ -304,7 +304,7 @@ class PazientiModel extends Model
                         ON s.id_slot = a.id_slot
                     WHERE a.id_dot = ?
                       AND a.stato <> 'ANNULLATO'
-                      AND s.ora_inizio >= ?
+                      AND COALESCE(a.ora_inizio_appuntamento, s.ora_inizio) >= ?
                       AND a.id_client IN ({$idListSql})
                 ",
                 [$idDot, $now]
@@ -331,7 +331,7 @@ class PazientiModel extends Model
                         ON s.id_slot = a.id_slot
                     WHERE a.id_dot = ?
                       AND a.stato <> 'ANNULLATO'
-                      AND s.ora_inizio >= ?
+                      AND COALESCE(a.ora_inizio_appuntamento, s.ora_inizio) >= ?
                       {$legacyMatchSql}
                       AND a.id_paziente IN ({$appointmentPatientIdSql})
                 ",
@@ -439,7 +439,7 @@ class PazientiModel extends Model
                         ON s.id_slot = a.id_slot
                     WHERE a.id_dot IN ({$doctorListSql})
                       AND a.stato <> 'ANNULLATO'
-                      AND s.ora_inizio >= ?
+                      AND COALESCE(a.ora_inizio_appuntamento, s.ora_inizio) >= ?
                       AND a.id_client IN ({$idListSql})
                 ",
                 [$now]
@@ -466,7 +466,7 @@ class PazientiModel extends Model
                         ON s.id_slot = a.id_slot
                     WHERE a.id_dot IN ({$doctorListSql})
                       AND a.stato <> 'ANNULLATO'
-                      AND s.ora_inizio >= ?
+                      AND COALESCE(a.ora_inizio_appuntamento, s.ora_inizio) >= ?
                       {$legacyMatchSql}
                       AND a.id_paziente IN ({$appointmentPatientIdSql})
                 ",
@@ -551,14 +551,14 @@ class PazientiModel extends Model
         $sql = "
             SELECT
                 {$resolvedClientExpr} AS id_client,
-                MIN(s.ora_inizio) AS next_appointment_at
+                MIN(COALESCE(a.ora_inizio_appuntamento, s.ora_inizio)) AS next_appointment_at
             FROM " . self::APPOINTMENTS_TABLE . " a
             INNER JOIN dap11_agenda_slot s
                 ON s.id_slot = a.id_slot
             {$legacyJoin}
             WHERE a.id_dot = ?
               AND a.stato <> 'ANNULLATO'
-              AND s.ora_inizio >= ?
+              AND COALESCE(a.ora_inizio_appuntamento, s.ora_inizio) >= ?
               AND {$resolvedClientExpr} IS NOT NULL
             GROUP BY {$resolvedClientExpr}
             ORDER BY next_appointment_at ASC, id_client ASC
@@ -604,14 +604,14 @@ class PazientiModel extends Model
         $sql = "
             SELECT
                 {$resolvedClientExpr} AS id_client,
-                MIN(s.ora_inizio) AS next_appointment_at
+                MIN(COALESCE(a.ora_inizio_appuntamento, s.ora_inizio)) AS next_appointment_at
             FROM " . self::APPOINTMENTS_TABLE . " a
             INNER JOIN dap11_agenda_slot s
                 ON s.id_slot = a.id_slot
             {$legacyJoin}
             WHERE a.id_dot IN ({$doctorListSql})
               AND a.stato <> 'ANNULLATO'
-              AND s.ora_inizio >= ?
+              AND COALESCE(a.ora_inizio_appuntamento, s.ora_inizio) >= ?
               AND {$resolvedClientExpr} IS NOT NULL
               AND (
                     UPPER(TRIM(COALESCE(a.cognome, ''))) LIKE ?
@@ -689,14 +689,14 @@ class PazientiModel extends Model
         $sql = "
             SELECT
                 {$resolvedClientExpr} AS id_client,
-                MIN(s.ora_inizio) AS next_appointment_at
+                MIN(COALESCE(a.ora_inizio_appuntamento, s.ora_inizio)) AS next_appointment_at
             FROM " . self::APPOINTMENTS_TABLE . " a
             INNER JOIN dap11_agenda_slot s
                 ON s.id_slot = a.id_slot
             {$legacyJoin}
             WHERE a.id_dot IN ({$doctorListSql})
               AND a.stato <> 'ANNULLATO'
-              AND s.ora_inizio >= ?
+              AND COALESCE(a.ora_inizio_appuntamento, s.ora_inizio) >= ?
               AND {$resolvedClientExpr} IS NOT NULL
               {$searchSql}
             GROUP BY {$resolvedClientExpr}
@@ -1285,7 +1285,10 @@ class PazientiModel extends Model
         $appointmentEndExpr = $hasAppointmentEndColumn ? 'a.ora_fine_appuntamento' : 'NULL';
         $appointmentVisitTypeLabelExpr = $hasAppointmentVisitTypeLabelColumn ? 'a.tipo_visita_label' : "''";
         $appointmentDurationExpr = $hasAppointmentDurationColumn ? 'a.durata_minuti' : 'NULL';
-        $fromDateSql = $fromDateTime !== null ? 'AND s.ora_inizio >= ?' : '';
+        $appointmentStartExpr = $this->db->fieldExists('ora_inizio_appuntamento', self::APPOINTMENTS_TABLE)
+            ? 'COALESCE(a.ora_inizio_appuntamento, s.ora_inizio)'
+            : 's.ora_inizio';
+        $fromDateSql = $fromDateTime !== null ? 'AND ' . $appointmentStartExpr . ' >= ?' : '';
         $createdBySelect = $hasAppointmentCreatedByColumn
             ? "COALESCE(u_created.username, '') AS created_by_username,"
             : "'' AS created_by_username,";
@@ -1301,9 +1304,9 @@ class PazientiModel extends Model
                 a.id_slot,
                 a.id_dot,
                 s.data_slot,
-                s.ora_inizio,
+                {$appointmentStartExpr} AS ora_inizio,
                 COALESCE({$appointmentEndExpr}, s.ora_fine) AS ora_fine,
-                TIME_FORMAT(s.ora_inizio, '%H:%i') AS ora_inizio_label,
+                TIME_FORMAT({$appointmentStartExpr}, '%H:%i') AS ora_inizio_label,
                 TIME_FORMAT(COALESCE({$appointmentEndExpr}, s.ora_fine), '%H:%i') AS ora_fine_label,
                 COALESCE(a.stato, '') AS stato,
                 COALESCE(s.stato, '') AS stato_slot,
@@ -1311,7 +1314,7 @@ class PazientiModel extends Model
                 COALESCE({$appointmentVisitTypeLabelExpr}, '') AS tipo_visita_label,
                 COALESCE(
                     {$appointmentDurationExpr},
-                    TIMESTAMPDIFF(MINUTE, s.ora_inizio, COALESCE({$appointmentEndExpr}, s.ora_fine))
+                    TIMESTAMPDIFF(MINUTE, {$appointmentStartExpr}, COALESCE({$appointmentEndExpr}, s.ora_fine))
                 ) AS durata_minuti,
                 COALESCE(a.note, '') AS note,
                 {$createdBySelect}

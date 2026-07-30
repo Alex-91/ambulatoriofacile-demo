@@ -435,7 +435,7 @@ class WhatsappReminderMonitor
                 a.telefono,
                 a.stato,
                 s.id_dot,
-                DATE_FORMAT(s.ora_inizio, '%H:%i') AS ora_label,
+                DATE_FORMAT(COALESCE(a.ora_inizio_appuntamento, s.ora_inizio), '%H:%i') AS ora_label,
                 COALESCE({$doctorNameSql}, CONCAT('ID ', s.id_dot)) AS doctor_label
             FROM dap12_agenda_appuntamenti a
             INNER JOIN dap11_agenda_slot s
@@ -447,7 +447,7 @@ class WhatsappReminderMonitor
                AND p.tipo IN (1, 2)
             WHERE s.data_slot = ?
               AND a.stato <> 'ANNULLATO'
-            ORDER BY s.id_dot ASC, s.ora_inizio ASC, a.id_appuntamento ASC
+            ORDER BY s.id_dot ASC, COALESCE(a.ora_inizio_appuntamento, s.ora_inizio) ASC, a.id_appuntamento ASC
         ";
 
         $rows = $this->db->query($sql, [$targetDate])->getResultArray();

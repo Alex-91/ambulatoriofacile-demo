@@ -357,6 +357,16 @@ class TenantFeatureService
                 'tenant_default_enabled' => 0,
                 'sort_order' => 77,
             ],
+            'agenda_custom_appointment_time' => [
+                'feature_name' => 'Orari personalizzati appuntamenti',
+                'feature_scope' => 'workflow',
+                'description' => 'Il tenant master puo abilitare appuntamenti con un orario iniziale fuori dalla griglia. Il sistema riserva automaticamente tutti gli slot sovrapposti all intervallo reale.',
+                'default_enabled' => 0,
+                'icon_class' => 'fa-clock-o',
+                'is_tenant_managed' => 1,
+                'tenant_default_enabled' => 0,
+                'sort_order' => 78,
+            ],
             AgendaAppointmentBlockLayoutService::FEATURE_KEY => [
                 'feature_name' => 'Layout popup appuntamento',
                 'feature_scope' => 'workflow',

@@ -31,6 +31,7 @@ class AgendaAppointmentModel extends Model
         $createdBy = !empty($data['created_by']) ? (int) $data['created_by'] : 0;
         $visitTypesFeatureEnabled = !empty($data['visit_types_feature_enabled']);
         $visitTypeRequired = !array_key_exists('visit_type_required', $data) || !empty($data['visit_type_required']);
+        $customTimeFeatureEnabled = !empty($data['custom_appointment_time_feature_enabled']);
 
         if ($idSlot <= 0 || $idDot <= 0) {
             throw new Exception('Slot o dottore non valorizzati.');
@@ -70,14 +71,19 @@ class AgendaAppointmentModel extends Model
         $plan = $this->resolveVisitPlan($data, $slot, null, $visitTypesFeatureEnabled, $visitTypeRequired);
         $this->assertVisitTypeSchemaReady($plan, $slotDuration, $visitTypesFeatureEnabled);
 
-        $coveredSlots = $this->resolveCoveredSlots(
+        $window = $this->resolveAppointmentWindow(
+            $data,
             $slot,
-            (int) $plan['duration_minutes'],
+            $plan,
+            null,
+            $customTimeFeatureEnabled,
             0,
             $tokenLock
         );
+        $coveredSlots = $window['covered_slots'];
+        $this->assertAppointmentSpanSchemaReady($coveredSlots);
 
-        $insert = $this->buildAppointmentPayload($data, $plan, $coveredSlots, $createdBy, $now);
+        $insert = $this->buildAppointmentPayload($data, $plan, $coveredSlots, $window, $createdBy, $now);
 
         if ($insert['cognome'] === '' || $insert['nome'] === '') {
             throw new Exception('Nome e cognome sono obbligatori.');
@@ -88,25 +94,33 @@ class AgendaAppointmentModel extends Model
             $coveredSlots
         );
 
-        $this->db->transStart();
+        $this->db->transBegin();
 
-        $this->db->table($this->table)->insert($insert);
-        $idAppuntamento = (int) $this->db->insertID();
+        try {
+            $this->lockSlotRowsForUpdate($coveredSlotIds);
+            $this->assertCoveredSlotsAvailable($coveredSlotIds, 0, $tokenLock);
 
-        $this->replaceAppointmentSlotLinks($idAppuntamento, $coveredSlotIds, $now);
-        $this->setSlotsState($coveredSlotIds, 'PRENOTATO', $now);
+            $this->db->table($this->table)->insert($insert);
+            $idAppuntamento = (int) $this->db->insertID();
 
-        $this->db->table('dap14_agenda_lock')
-            ->where('token_lock', $tokenLock)
-            ->where('stato', 'ATTIVO')
-            ->update([
-                'stato' => 'RILASCIATO',
-            ]);
+            $this->replaceAppointmentSlotLinks($idAppuntamento, $coveredSlotIds, $now);
+            $this->setSlotsState($coveredSlotIds, 'PRENOTATO', $now);
 
-        $this->db->transComplete();
+            $this->db->table('dap14_agenda_lock')
+                ->where('token_lock', $tokenLock)
+                ->where('stato', 'ATTIVO')
+                ->update([
+                    'stato' => 'RILASCIATO',
+                ]);
 
-        if (!$this->db->transStatus()) {
-            throw new Exception('Errore durante il salvataggio della prenotazione.');
+            if (!$this->db->transStatus()) {
+                throw new Exception('Errore durante il salvataggio della prenotazione.');
+            }
+
+            $this->db->transCommit();
+        } catch (\Throwable $e) {
+            $this->db->transRollback();
+            throw $e;
         }
 
         return $idAppuntamento;
@@ -117,6 +131,7 @@ class AgendaAppointmentModel extends Model
         $idAppuntamento = (int) ($data['id_appuntamento'] ?? 0);
         $visitTypesFeatureEnabled = !empty($data['visit_types_feature_enabled']);
         $visitTypeRequired = !array_key_exists('visit_type_required', $data) || !empty($data['visit_type_required']);
+        $customTimeFeatureEnabled = !empty($data['custom_appointment_time_feature_enabled']);
 
         if ($idAppuntamento <= 0) {
             throw new Exception('ID appuntamento mancante.');
@@ -136,11 +151,16 @@ class AgendaAppointmentModel extends Model
         $plan = $this->resolveVisitPlan($data, $slot, $appointment, $visitTypesFeatureEnabled, $visitTypeRequired);
         $this->assertVisitTypeSchemaReady($plan, $slotDuration, $visitTypesFeatureEnabled);
 
-        $coveredSlots = $this->resolveCoveredSlots(
+        $window = $this->resolveAppointmentWindow(
+            $data,
             $slot,
-            (int) $plan['duration_minutes'],
+            $plan,
+            $appointment,
+            $customTimeFeatureEnabled,
             $idAppuntamento
         );
+        $coveredSlots = $window['covered_slots'];
+        $this->assertAppointmentSpanSchemaReady($coveredSlots);
         $coveredSlotIds = array_map(
             static fn(array $row): int => (int) ($row['id_slot'] ?? 0),
             $coveredSlots
@@ -148,7 +168,7 @@ class AgendaAppointmentModel extends Model
         $previousSlotIds = $this->getAppointmentCoveredSlotIds($idAppuntamento);
 
         $timestamp = date('Y-m-d H:i:s');
-        $update = $this->buildAppointmentPayload($data, $plan, $coveredSlots, 0, $timestamp);
+        $update = $this->buildAppointmentPayload($data, $plan, $coveredSlots, $window, 0, $timestamp);
 
         unset($update['id_slot'], $update['id_dot'], $update['stato'], $update['created_at'], $update['created_by']);
 
@@ -156,24 +176,32 @@ class AgendaAppointmentModel extends Model
             $update['updated_at'] = $timestamp;
         }
 
-        $this->db->transStart();
+        $this->db->transBegin();
 
-        $this->db->table($this->table)
-            ->where('id_appuntamento', $idAppuntamento)
-            ->update($update);
+        try {
+            $this->lockSlotRowsForUpdate(array_values(array_unique(array_merge($previousSlotIds, $coveredSlotIds))));
+            $this->assertCoveredSlotsAvailable($coveredSlotIds, $idAppuntamento);
 
-        $this->replaceAppointmentSlotLinks($idAppuntamento, $coveredSlotIds, $timestamp);
-        $this->setSlotsState($coveredSlotIds, 'PRENOTATO', $timestamp);
+            $this->db->table($this->table)
+                ->where('id_appuntamento', $idAppuntamento)
+                ->update($update);
 
-        $slotIdsToRestore = array_values(array_diff($previousSlotIds, $coveredSlotIds));
-        foreach ($slotIdsToRestore as $slotIdToRestore) {
-            $this->restoreSlotState($slotIdToRestore, $timestamp);
-        }
+            $this->replaceAppointmentSlotLinks($idAppuntamento, $coveredSlotIds, $timestamp);
+            $this->setSlotsState($coveredSlotIds, 'PRENOTATO', $timestamp);
 
-        $this->db->transComplete();
+            $slotIdsToRestore = array_values(array_diff($previousSlotIds, $coveredSlotIds));
+            foreach ($slotIdsToRestore as $slotIdToRestore) {
+                $this->restoreSlotState($slotIdToRestore, $timestamp);
+            }
 
-        if (!$this->db->transStatus()) {
-            throw new Exception('Errore durante l\'aggiornamento della prenotazione.');
+            if (!$this->db->transStatus()) {
+                throw new Exception('Errore durante l\'aggiornamento della prenotazione.');
+            }
+
+            $this->db->transCommit();
+        } catch (\Throwable $e) {
+            $this->db->transRollback();
+            throw $e;
         }
 
         return true;
@@ -334,7 +362,14 @@ class AgendaAppointmentModel extends Model
         return count($appointmentIds);
     }
 
-    private function buildAppointmentPayload(array $data, array $plan, array $coveredSlots, int $createdBy, string $timestamp): array
+    private function buildAppointmentPayload(
+        array $data,
+        array $plan,
+        array $coveredSlots,
+        array $window,
+        int $createdBy,
+        string $timestamp
+    ): array
     {
         $lastCoveredSlot = end($coveredSlots);
 
@@ -381,13 +416,107 @@ class AgendaAppointmentModel extends Model
                 : null;
         }
 
-        if ($this->appointmentTableHasField('ora_fine_appuntamento')) {
-            $payload['ora_fine_appuntamento'] = !empty($lastCoveredSlot['ora_fine'])
-                ? (string) $lastCoveredSlot['ora_fine']
+        if ($this->appointmentTableHasField('ora_inizio_appuntamento')) {
+            $payload['ora_inizio_appuntamento'] = !empty($window['custom_start'])
+                ? (string) $window['custom_start']
                 : null;
         }
 
+        if ($this->appointmentTableHasField('ora_fine_appuntamento')) {
+            $payload['ora_fine_appuntamento'] = !empty($window['end'])
+                ? (string) $window['end']
+                : (!empty($lastCoveredSlot['ora_fine']) ? (string) $lastCoveredSlot['ora_fine'] : null);
+        }
+
         return $payload;
+    }
+
+    /**
+     * @return array{covered_slots: array<int, array<string, mixed>>, custom_start: ?string, end: string}
+     */
+    private function resolveAppointmentWindow(
+        array $data,
+        array $primarySlot,
+        array $plan,
+        ?array $existingAppointment,
+        bool $customTimeFeatureEnabled,
+        int $ignoreAppointmentId = 0,
+        string $allowedLockToken = ''
+    ): array {
+        $durationMinutes = (int) ($plan['duration_minutes'] ?? 0);
+        if ($durationMinutes <= 0) {
+            throw new Exception('Durata appuntamento non valida.');
+        }
+
+        $storedCustomStart = $existingAppointment !== null
+            ? trim((string) ($existingAppointment['ora_inizio_appuntamento'] ?? ''))
+            : '';
+        $toggleProvided = array_key_exists('custom_time_enabled', $data);
+        $customRequested = $toggleProvided && !empty($data['custom_time_enabled']);
+
+        if ($customRequested && !$customTimeFeatureEnabled) {
+            throw new Exception('Gli orari personalizzati non sono attivi per questo spazio.');
+        }
+
+        $shouldPreserveStoredCustomTime = $storedCustomStart !== ''
+            && (!$customTimeFeatureEnabled || !$toggleProvided);
+        $customStart = null;
+
+        if ($customRequested) {
+            $customStart = $this->normalizeCustomAppointmentStart(
+                (string) ($data['custom_start_time'] ?? ''),
+                $primarySlot
+            );
+        } elseif ($shouldPreserveStoredCustomTime) {
+            $customStart = $storedCustomStart;
+        }
+
+        if ($customStart !== null) {
+            if (!$this->appointmentTableHasField('ora_inizio_appuntamento')) {
+                throw new Exception('La struttura del database non e aggiornata per gestire gli orari personalizzati.');
+            }
+
+            $startTimestamp = strtotime($customStart);
+            if ($startTimestamp === false) {
+                throw new Exception('Ora iniziale personalizzata non valida.');
+            }
+
+            $endTimestamp = strtotime('+' . $durationMinutes . ' minutes', $startTimestamp);
+            if ($endTimestamp === false || date('Y-m-d', $endTimestamp) !== date('Y-m-d', $startTimestamp)) {
+                throw new Exception('L appuntamento personalizzato deve iniziare e terminare nello stesso giorno.');
+            }
+
+            $end = date('Y-m-d H:i:s', $endTimestamp);
+            $coveredSlots = $this->resolveCoveredSlotsForWindow(
+                $primarySlot,
+                $customStart,
+                $end,
+                $ignoreAppointmentId,
+                $allowedLockToken
+            );
+
+            return [
+                'covered_slots' => $coveredSlots,
+                'custom_start' => $customStart,
+                'end' => $end,
+            ];
+        }
+
+        $coveredSlots = $this->resolveCoveredSlots(
+            $primarySlot,
+            $durationMinutes,
+            $ignoreAppointmentId,
+            $allowedLockToken
+        );
+        $lastCoveredSlot = end($coveredSlots);
+
+        return [
+            'covered_slots' => $coveredSlots,
+            'custom_start' => null,
+            'end' => !empty($lastCoveredSlot['ora_fine'])
+                ? (string) $lastCoveredSlot['ora_fine']
+                : null,
+        ];
     }
 
     private function resolveVisitPlan(
@@ -483,13 +612,136 @@ class AgendaAppointmentModel extends Model
             return $duration;
         }
 
-        $startTimestamp = strtotime((string) ($appointment['slot_ora_inizio'] ?? ''));
+        $startTimestamp = strtotime((string) (
+            $appointment['ora_inizio_appuntamento']
+            ?? $appointment['slot_ora_inizio']
+            ?? ''
+        ));
         $endTimestamp = strtotime((string) ($appointment['ora_fine_appuntamento'] ?? ''));
         if ($startTimestamp !== false && $endTimestamp !== false && $endTimestamp > $startTimestamp) {
             return (int) round(($endTimestamp - $startTimestamp) / 60);
         }
 
         return max(1, $fallbackDuration);
+    }
+
+    private function normalizeCustomAppointmentStart(string $customTime, array $primarySlot): string
+    {
+        $customTime = trim($customTime);
+        if (!preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/', $customTime)) {
+            throw new Exception('Inserisci un ora iniziale personalizzata valida.');
+        }
+
+        $date = trim((string) ($primarySlot['data_slot'] ?? ''));
+        if ($date === '') {
+            $slotStart = strtotime((string) ($primarySlot['ora_inizio'] ?? ''));
+            $date = $slotStart !== false ? date('Y-m-d', $slotStart) : '';
+        }
+
+        if ($date === '') {
+            throw new Exception('Data dello slot non valida.');
+        }
+
+        $customStart = $date . ' ' . $customTime . ':00';
+        $customTimestamp = strtotime($customStart);
+        $slotStartTimestamp = strtotime((string) ($primarySlot['ora_inizio'] ?? ''));
+        $slotEndTimestamp = strtotime((string) ($primarySlot['ora_fine'] ?? ''));
+
+        if (
+            $customTimestamp === false
+            || $slotStartTimestamp === false
+            || $slotEndTimestamp === false
+            || $customTimestamp < $slotStartTimestamp
+            || $customTimestamp >= $slotEndTimestamp
+        ) {
+            throw new Exception('L ora personalizzata deve rientrare nello slot iniziale selezionato.');
+        }
+
+        return date('Y-m-d H:i:s', $customTimestamp);
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function resolveCoveredSlotsForWindow(
+        array $primarySlot,
+        string $customStart,
+        string $customEnd,
+        int $ignoreAppointmentId = 0,
+        string $allowedLockToken = ''
+    ): array {
+        $startTimestamp = strtotime($customStart);
+        $endTimestamp = strtotime($customEnd);
+        if ($startTimestamp === false || $endTimestamp === false || $endTimestamp <= $startTimestamp) {
+            throw new Exception('Intervallo personalizzato non valido.');
+        }
+
+        $idDot = (int) ($primarySlot['id_dot'] ?? 0);
+        $dataSlot = (string) ($primarySlot['data_slot'] ?? '');
+        $primarySlotId = (int) ($primarySlot['id_slot'] ?? 0);
+
+        $rows = $this->db->table('dap11_agenda_slot')
+            ->select('id_slot, id_dot, data_slot, ora_inizio, ora_fine, stato')
+            ->where('id_dot', $idDot)
+            ->where('data_slot', $dataSlot)
+            ->where('ora_inizio <', $customEnd)
+            ->where('ora_fine >', $customStart)
+            ->orderBy('ora_inizio', 'ASC')
+            ->get()
+            ->getResultArray();
+
+        if ($rows === [] || (int) ($rows[0]['id_slot'] ?? 0) !== $primarySlotId) {
+            throw new Exception('L ora personalizzata deve partire dallo slot selezionato.');
+        }
+
+        $coveredSlots = [];
+        $expectedStartTimestamp = null;
+
+        foreach ($rows as $index => $row) {
+            $slotId = (int) ($row['id_slot'] ?? 0);
+            $rowStartTimestamp = strtotime((string) ($row['ora_inizio'] ?? ''));
+            $rowEndTimestamp = strtotime((string) ($row['ora_fine'] ?? ''));
+
+            if (
+                $slotId <= 0
+                || $rowStartTimestamp === false
+                || $rowEndTimestamp === false
+                || $rowEndTimestamp <= $rowStartTimestamp
+            ) {
+                throw new Exception('Durata slot non valida nella fascia selezionata.');
+            }
+
+            if ($index === 0 && ($startTimestamp < $rowStartTimestamp || $startTimestamp >= $rowEndTimestamp)) {
+                throw new Exception('L ora personalizzata deve rientrare nello slot iniziale selezionato.');
+            }
+
+            if ($expectedStartTimestamp !== null && $rowStartTimestamp !== $expectedStartTimestamp) {
+                throw new Exception('L intervallo personalizzato attraversa una fascia senza slot disponibili.');
+            }
+
+            if (strtoupper(trim((string) ($row['stato'] ?? ''))) === 'CHIUSO') {
+                throw new Exception('La fascia richiesta include uno slot in una giornata bloccata.');
+            }
+
+            if ($this->slotHasActiveAppointment($slotId, $ignoreAppointmentId)) {
+                throw new Exception('Uno degli slot coinvolti e gia occupato da un altro appuntamento.');
+            }
+
+            if ($this->slotHasActiveLock($slotId, $allowedLockToken)) {
+                throw new Exception('Uno degli slot coinvolti e in modifica da un altro operatore.');
+            }
+
+            $coveredSlots[] = $row;
+            $expectedStartTimestamp = $rowEndTimestamp;
+        }
+
+        $lastCoveredSlot = end($coveredSlots);
+        $lastEndTimestamp = strtotime((string) ($lastCoveredSlot['ora_fine'] ?? ''));
+        if ($lastEndTimestamp === false || $lastEndTimestamp < $endTimestamp) {
+            throw new Exception('Non ci sono abbastanza slot disponibili per completare l appuntamento.');
+        }
+
+        return $coveredSlots;
     }
 
     private function resolveCoveredSlots(
@@ -693,6 +945,56 @@ class AgendaAppointmentModel extends Model
             ]);
     }
 
+    /**
+     * @param array<int, int> $slotIds
+     */
+    private function lockSlotRowsForUpdate(array $slotIds): void
+    {
+        $slotIds = array_values(array_unique(array_filter(array_map('intval', $slotIds))));
+        if ($slotIds === []) {
+            throw new Exception('Nessuno slot disponibile per l appuntamento.');
+        }
+
+        sort($slotIds);
+        $placeholders = implode(', ', array_fill(0, count($slotIds), '?'));
+        $rows = $this->db->query(
+            'SELECT id_slot FROM dap11_agenda_slot WHERE id_slot IN (' . $placeholders . ') ORDER BY id_slot FOR UPDATE',
+            $slotIds
+        )->getResultArray();
+
+        if (count($rows) !== count($slotIds)) {
+            throw new Exception('Uno degli slot coinvolti non e piu disponibile.');
+        }
+    }
+
+    /**
+     * @param array<int, int> $slotIds
+     */
+    private function assertCoveredSlotsAvailable(
+        array $slotIds,
+        int $ignoreAppointmentId = 0,
+        string $allowedLockToken = ''
+    ): void {
+        foreach (array_values(array_unique(array_filter(array_map('intval', $slotIds)))) as $slotId) {
+            $slot = $this->loadSlotRow($slotId);
+            if (!$slot) {
+                throw new Exception('Uno degli slot coinvolti non e piu disponibile.');
+            }
+
+            if (strtoupper(trim((string) ($slot['stato'] ?? ''))) === 'CHIUSO') {
+                throw new Exception('La fascia richiesta include uno slot in una giornata bloccata.');
+            }
+
+            if ($this->slotHasActiveAppointment($slotId, $ignoreAppointmentId)) {
+                throw new Exception('Uno degli slot coinvolti e gia occupato da un altro appuntamento.');
+            }
+
+            if ($this->slotHasActiveLock($slotId, $allowedLockToken)) {
+                throw new Exception('Uno degli slot coinvolti e in modifica da un altro operatore.');
+            }
+        }
+    }
+
     private function slotHasActiveAppointment(int $idSlot, int $ignoreAppointmentId = 0): bool
     {
         if ($idSlot <= 0) {
@@ -828,6 +1130,16 @@ class AgendaAppointmentModel extends Model
         }
 
         if ($usesSpan && !$this->appointmentSlotLinkTableExists()) {
+            throw new Exception('La struttura del database non e aggiornata per gestire appuntamenti su piu slot.');
+        }
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $coveredSlots
+     */
+    private function assertAppointmentSpanSchemaReady(array $coveredSlots): void
+    {
+        if (count($coveredSlots) > 1 && !$this->appointmentSlotLinkTableExists()) {
             throw new Exception('La struttura del database non e aggiornata per gestire appuntamenti su piu slot.');
         }
     }

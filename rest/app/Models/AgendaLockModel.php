@@ -86,25 +86,67 @@ class AgendaLockModel extends Model
 
         $token = bin2hex(random_bytes(32));
 
-        $this->db->transStart();
+        $this->db->transBegin();
 
-        $this->db->table('dap14_agenda_lock')->insert([
-            'id_slot'    => $idSlot,
-            'id_ope'     => $idOpe,
-            'token_lock' => $token,
-            'locked_at'  => $now,
-            'expires_at' => $exp,
-            'stato'      => 'ATTIVO'
-        ]);
+        try {
+            $lockedSlot = $this->db->query(
+                'SELECT id_slot, stato FROM dap11_agenda_slot WHERE id_slot = ? FOR UPDATE',
+                [$idSlot]
+            )->getRowArray();
 
-        $this->db->table('dap11_agenda_slot')
-            ->where('id_slot', $idSlot)
-            ->update([
-                'stato'      => 'BLOCCATO',
-                'updated_at' => $now
+            if (!$lockedSlot) {
+                throw new \RuntimeException('Slot non trovato.');
+            }
+
+            $lockedState = strtoupper(trim((string) ($lockedSlot['stato'] ?? '')));
+            if ($lockedState === 'PRENOTATO' || $this->hasNonCancelledAppointmentForSlot($idSlot)) {
+                throw new \RuntimeException('Lo slot risulta gia prenotato.');
+            }
+
+            if ($lockedState === 'CHIUSO') {
+                throw new \RuntimeException('La giornata risulta bloccata.');
+            }
+
+            $activeLock = $this->db->table('dap14_agenda_lock')
+                ->select('id_lock')
+                ->where('id_slot', $idSlot)
+                ->where('stato', 'ATTIVO')
+                ->where('expires_at >=', $now)
+                ->get(1)
+                ->getRowArray();
+            if ($activeLock) {
+                throw new \RuntimeException('Slot attualmente in modifica da un altro operatore.');
+            }
+
+            $this->db->table('dap14_agenda_lock')->insert([
+                'id_slot'    => $idSlot,
+                'id_ope'     => $idOpe,
+                'token_lock' => $token,
+                'locked_at'  => $now,
+                'expires_at' => $exp,
+                'stato'      => 'ATTIVO'
             ]);
 
-        $this->db->transComplete();
+            $this->db->table('dap11_agenda_slot')
+                ->where('id_slot', $idSlot)
+                ->update([
+                    'stato'      => 'BLOCCATO',
+                    'updated_at' => $now
+                ]);
+
+            if (!$this->db->transStatus()) {
+                throw new \RuntimeException('Impossibile acquisire il lock dello slot.');
+            }
+
+            $this->db->transCommit();
+        } catch (\Throwable $e) {
+            $this->db->transRollback();
+
+            return [
+                'status' => false,
+                'message' => $e->getMessage(),
+            ];
+        }
 
         return [
             'status'     => true,

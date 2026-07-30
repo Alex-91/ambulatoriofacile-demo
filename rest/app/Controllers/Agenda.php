@@ -52,6 +52,7 @@ class Agenda extends BaseController
     private const AUTO_REFRESH_FEATURE = 'agenda_auto_refresh';
     private const SHOW_APPOINTMENT_CREATOR_FEATURE = 'agenda_show_appointment_creator';
     private const SHOW_APPOINTMENT_CREATOR_IN_SLOTS_FEATURE = 'agenda_show_appointment_creator_in_slots';
+    private const CUSTOM_APPOINTMENT_TIME_FEATURE = 'agenda_custom_appointment_time';
     private const PATIENT_EXCEL_IMPORT_FEATURE = PatientExcelImportService::FEATURE_KEY;
     private const PERSONAL_COMMITMENT_SPECIAL_CODE = 'IMPEGNO_PERSONALE';
     private const PERSONAL_COMMITMENT_LABEL = 'Impegno personale';
@@ -846,6 +847,11 @@ public function eseguiRepairRecurringExtraSlots()
     protected function isPersonalCommitmentsFeatureEnabled(): bool
     {
         return $this->tenantFeatureEnabled(self::PERSONAL_COMMITMENTS_FEATURE);
+    }
+
+    protected function isCustomAppointmentTimeFeatureEnabled(): bool
+    {
+        return $this->tenantFeatureEnabled(self::CUSTOM_APPOINTMENT_TIME_FEATURE);
     }
 
     protected function isTeamDaySingleSlotHeightFeatureEnabled(): bool
@@ -1892,6 +1898,7 @@ public function eseguiRepairRecurringExtraSlots()
         $visitTypesFeatureEnabled = $this->isVisitTypesFeatureEnabled();
         $visitTypeSelectionOptionalEnabled = $this->isVisitTypeSelectionOptionalEnabled();
         $personalCommitmentsFeatureEnabled = $this->isPersonalCommitmentsFeatureEnabled();
+        $customAppointmentTimeFeatureEnabled = $this->isCustomAppointmentTimeFeatureEnabled();
         $teamDaySingleSlotHeightFeatureEnabled = $this->isTeamDaySingleSlotHeightFeatureEnabled();
         $teamDayCompactSlotDetailsFeatureEnabled = $this->isTeamDayCompactSlotDetailsFeatureEnabled();
         $agendaAutoRefreshFeatureEnabled = $this->isAgendaAutoRefreshFeatureEnabled();
@@ -1970,6 +1977,7 @@ public function eseguiRepairRecurringExtraSlots()
             'visitTypesFeatureEnabled' => $visitTypesFeatureEnabled,
             'visitTypeSelectionOptionalEnabled' => $visitTypeSelectionOptionalEnabled,
             'personalCommitmentsFeatureEnabled' => $personalCommitmentsFeatureEnabled,
+            'customAppointmentTimeFeatureEnabled' => $customAppointmentTimeFeatureEnabled,
             'teamDaySingleSlotHeightFeatureEnabled' => $teamDaySingleSlotHeightFeatureEnabled,
             'teamDayCompactSlotDetailsFeatureEnabled' => $teamDayCompactSlotDetailsFeatureEnabled,
             'agendaAutoRefreshFeatureEnabled' => $agendaAutoRefreshFeatureEnabled,
@@ -4160,6 +4168,7 @@ public function eseguiRepairRecurringExtraSlots()
             $payload['created_by'] = $this->getCurrentUserId();
             $payload['visit_types_feature_enabled'] = $this->isVisitTypesFeatureEnabled();
             $payload['visit_type_required'] = $this->isVisitTypeSelectionRequired();
+            $payload['custom_appointment_time_feature_enabled'] = $this->isCustomAppointmentTimeFeatureEnabled();
 
             $idSlot = (int)($payload['id_slot'] ?? 0);
 
@@ -4215,6 +4224,7 @@ public function eseguiRepairRecurringExtraSlots()
             $payload = $this->normalizeAppointmentPatientPayload($this->request->getPost());
             $payload['visit_types_feature_enabled'] = $this->isVisitTypesFeatureEnabled();
             $payload['visit_type_required'] = $this->isVisitTypeSelectionRequired();
+            $payload['custom_appointment_time_feature_enabled'] = $this->isCustomAppointmentTimeFeatureEnabled();
 
             $idAppuntamento = (int)($payload['id_appuntamento'] ?? 0);
             if ($idAppuntamento > 0) {
@@ -4514,12 +4524,18 @@ public function eseguiRepairRecurringExtraSlots()
 
         $hasAppointmentClientColumn = $this->db->fieldExists('id_client', 'dap12_agenda_appuntamenti');
         $hasAppointmentVisitTypeLabelColumn = $this->db->fieldExists('tipo_visita_label', 'dap12_agenda_appuntamenti');
+        $hasAppointmentStartColumn = $this->db->fieldExists('ora_inizio_appuntamento', 'dap12_agenda_appuntamenti');
         $hasAppointmentEndColumn = $this->db->fieldExists('ora_fine_appuntamento', 'dap12_agenda_appuntamenti');
         $appointmentClientSelect = $hasAppointmentClientColumn ? 'a.id_client,' : 'NULL AS id_client,';
         $appointmentVisitTypeLabelSelect = $hasAppointmentVisitTypeLabelColumn
             ? 'COALESCE(a.tipo_visita_label, \'\') AS tipo_visita_label,'
             : '\'\' AS tipo_visita_label,';
-        $appointmentEndExpr = $hasAppointmentEndColumn ? 'a.ora_fine_appuntamento' : 's.ora_fine';
+        $appointmentStartExpr = $hasAppointmentStartColumn
+            ? 'COALESCE(a.ora_inizio_appuntamento, s.ora_inizio)'
+            : 's.ora_inizio';
+        $appointmentEndExpr = $hasAppointmentEndColumn
+            ? 'COALESCE(a.ora_fine_appuntamento, s.ora_fine)'
+            : 's.ora_fine';
 
         $row = $this->db->table('dap12_agenda_appuntamenti a')
             ->select("
@@ -4536,7 +4552,7 @@ public function eseguiRepairRecurringExtraSlots()
                 {$appointmentVisitTypeLabelSelect}
                 s.id_dot,
                 s.data_slot,
-                s.ora_inizio,
+                {$appointmentStartExpr} AS ora_inizio,
                 {$appointmentEndExpr} AS ora_fine
             ")
             ->join('dap11_agenda_slot s', 's.id_slot = a.id_slot', 'inner')
@@ -6427,8 +6443,8 @@ public function eseguiRepairRecurringExtraSlots()
                     s.id_slot,
                     s.id_dot,
                     s.data_slot,
-                    s.ora_inizio,
-                    s.ora_fine,
+                    COALESCE(a.ora_inizio_appuntamento, s.ora_inizio) AS ora_inizio,
+                    COALESCE(a.ora_fine_appuntamento, s.ora_fine) AS ora_fine,
                     s.id_amb_legacy,
                     s.ambulatorio,
                     s.stanza

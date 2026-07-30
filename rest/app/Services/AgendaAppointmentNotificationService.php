@@ -199,7 +199,7 @@ class AgendaAppointmentNotificationService
                 a.note,
                 a.motivo_visita,
                 s.data_slot,
-                s.ora_inizio
+                COALESCE(a.ora_inizio_appuntamento, s.ora_inizio) AS ora_inizio
             ")
             ->join('dap11_agenda_slot s', 's.id_slot = a.id_slot', 'inner')
             ->where('a.id_appuntamento', $appointmentId)

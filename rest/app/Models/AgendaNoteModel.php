@@ -672,8 +672,8 @@ class AgendaNoteModel extends Model
         $rows = $this->db->table('dap12_agenda_appuntamenti a')
             ->select("
                 s.id_slot,
-                s.ora_inizio,
-                s.ora_fine,
+                COALESCE(a.ora_inizio_appuntamento, s.ora_inizio) AS ora_inizio,
+                COALESCE(a.ora_fine_appuntamento, s.ora_fine) AS ora_fine,
                 s.id_amb_legacy,
                 {$roomSelect},
                 s.ambulatorio,
@@ -683,7 +683,7 @@ class AgendaNoteModel extends Model
             ->where('s.id_dot', $idDot)
             ->where('s.data_slot', $data)
             ->where('a.stato <>', 'ANNULLATO')
-            ->orderBy('s.ora_inizio', 'ASC')
+            ->orderBy('COALESCE(a.ora_inizio_appuntamento, s.ora_inizio)', 'ASC', false)
             ->get()
             ->getResultArray();
 
