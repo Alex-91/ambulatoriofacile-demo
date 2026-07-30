@@ -2676,7 +2676,10 @@
 
         .agenda-team-board-wrap.is-mobile-list {
             min-height: 0;
-            overflow: visible;
+            overflow-x: hidden;
+            overflow-y: auto;
+            overscroll-behavior-y: contain;
+            -webkit-overflow-scrolling: touch;
             border: 0;
             background: transparent;
         }
