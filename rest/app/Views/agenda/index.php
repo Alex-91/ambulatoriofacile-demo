@@ -2251,6 +2251,11 @@
             min-width: 0;
         }
 
+        .agenda-team-board.is-mobile-list {
+            width: 100%;
+            min-width: 0;
+        }
+
         .agenda-team-grid {
             display: grid;
             align-items: start;
@@ -2669,6 +2674,214 @@
             margin: 0;
         }
 
+        .agenda-team-board-wrap.is-mobile-list {
+            min-height: 0;
+            overflow: visible;
+            border: 0;
+            background: transparent;
+        }
+
+        .agenda-team-mobile-list {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .agenda-team-mobile-summary {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .agenda-team-mobile-summary-card {
+            min-width: 0;
+            padding: 12px 14px;
+            border: 1px solid var(--agenda-team-column-soft-border, #d8e4ed);
+            border-radius: 16px;
+            background: linear-gradient(180deg, var(--agenda-team-column-soft-bg, #f5f9fd) 0%, #ffffff 100%);
+            box-shadow: 0 10px 24px rgba(31, 45, 61, 0.08);
+        }
+
+        .agenda-team-mobile-summary-name {
+            color: var(--agenda-team-header-text, #1f2d3d);
+            font-size: 13px;
+            font-weight: 700;
+            line-height: 1.4;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+
+        .agenda-team-mobile-summary-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 8px;
+        }
+
+        .agenda-team-mobile-summary-status {
+            margin-top: 8px;
+            color: var(--agenda-team-secondary-text, #587184);
+            font-size: 12px;
+            font-weight: 600;
+            line-height: 1.4;
+        }
+
+        .agenda-team-mobile-section {
+            overflow: hidden;
+            border: 1px solid #d8e4ed;
+            border-radius: 18px;
+            background: #ffffff;
+            box-shadow: 0 10px 24px rgba(31, 45, 61, 0.08);
+        }
+
+        .agenda-team-mobile-section-header {
+            padding: 12px 14px;
+            border-bottom: 1px solid #e5edf4;
+            background: linear-gradient(180deg, #f7fafc 0%, #f2f6fa 100%);
+        }
+
+        .agenda-team-mobile-section-kicker {
+            color: #7a8a99;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .agenda-team-mobile-section-label {
+            margin-top: 2px;
+            color: #1f2d3d;
+            font-size: 16px;
+            font-weight: 700;
+            line-height: 1.25;
+        }
+
+        .agenda-team-mobile-section-body {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding: 12px;
+        }
+
+        .agenda-team-mobile-entry {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--agenda-team-column-soft-border, #d8e4ed);
+            border-radius: 16px;
+            background: linear-gradient(180deg, var(--agenda-team-column-empty-bg, #fbfdff) 0%, #ffffff 100%);
+            box-shadow: 0 8px 20px rgba(31, 45, 61, 0.08);
+            color: #1f2d3d;
+            text-align: left;
+        }
+
+        button.agenda-team-mobile-entry {
+            cursor: pointer;
+        }
+
+        .agenda-team-mobile-entry.is-free {
+            border-style: dashed;
+        }
+
+        .agenda-team-mobile-entry.is-locked {
+            border-color: rgba(217, 83, 79, 0.3);
+            background: linear-gradient(180deg, rgba(253, 241, 240, 0.98) 0%, rgba(255, 247, 247, 0.98) 100%);
+            color: var(--agenda-warning-text, #b03a34);
+        }
+
+        .agenda-team-mobile-entry.is-booked {
+            color: var(--agenda-appointment-text, var(--agenda-team-column-entry-text, #ffffff));
+        }
+
+        .agenda-team-mobile-entry.has-visit-type-color .agenda-team-mobile-entry-time,
+        .agenda-team-mobile-entry.is-booked .agenda-team-mobile-entry-time {
+            background: var(--agenda-team-pill-bg, rgba(255, 255, 255, 0.18));
+            color: var(--agenda-team-pill-text, currentColor);
+        }
+
+        .agenda-team-mobile-entry-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+
+        .agenda-team-mobile-entry-doctor {
+            min-width: 0;
+            color: inherit;
+            font-size: 12px;
+            font-weight: 700;
+            line-height: 1.35;
+            opacity: 0.94;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+
+        .agenda-team-mobile-entry-time {
+            flex: 0 0 auto;
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 8px;
+            border-radius: 999px;
+            background: var(--agenda-team-column-chip-bg, rgba(88, 113, 132, 0.12));
+            color: var(--agenda-team-secondary-text, #587184);
+            font-size: 11px;
+            font-weight: 700;
+            line-height: 1;
+            white-space: nowrap;
+        }
+
+        .agenda-team-mobile-entry-title {
+            color: inherit;
+            font-size: 15px;
+            font-weight: 700;
+            line-height: 1.35;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+
+        .agenda-team-mobile-entry-contact,
+        .agenda-team-mobile-entry-note {
+            margin-top: 4px;
+            color: inherit;
+            font-size: 12px;
+            line-height: 1.45;
+            opacity: 0.95;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+
+        .agenda-team-mobile-empty-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .agenda-team-mobile-empty-card {
+            padding: 12px 14px;
+            border: 1px solid var(--agenda-team-column-soft-border, #d8e4ed);
+            border-radius: 16px;
+            background: linear-gradient(180deg, var(--agenda-team-column-soft-bg, #f7fafc) 0%, #ffffff 100%);
+            box-shadow: 0 8px 20px rgba(31, 45, 61, 0.06);
+        }
+
+        .agenda-team-mobile-empty-card-name {
+            color: var(--agenda-team-header-text, #1f2d3d);
+            font-size: 13px;
+            font-weight: 700;
+            line-height: 1.4;
+        }
+
+        .agenda-team-mobile-empty-card-message {
+            margin-top: 6px;
+            color: var(--agenda-team-secondary-text, #587184);
+            font-size: 12px;
+            line-height: 1.45;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+
         @media (min-width: 992px) {
             .agenda-layout {
                 flex-wrap: nowrap;
@@ -2827,6 +3040,10 @@
                 min-height: 560px;
             }
 
+            .agenda-team-board-wrap.is-mobile-list {
+                min-height: 0;
+            }
+
             .agenda-team-time-axis {
                 min-width: 68px;
             }
@@ -2848,6 +3065,22 @@
             .agenda-team-entry-contact,
             .agenda-team-entry-note {
                 font-size: 11px;
+            }
+
+            .agenda-team-mobile-summary {
+                grid-template-columns: 1fr;
+            }
+
+            .agenda-team-mobile-section-header {
+                padding: 11px 12px;
+            }
+
+            .agenda-team-mobile-section-body {
+                padding: 10px;
+            }
+
+            .agenda-team-mobile-entry {
+                padding: 11px;
             }
 
             .agenda-compressed-daybar {
@@ -4325,6 +4558,7 @@ var agendaCalendarXhr = null;
 var agendaCalendarRequestSeq = 0;
 var agendaTeamDayXhr = null;
 var agendaTeamDayRequestSeq = 0;
+var agendaTeamDayLastResponse = null;
 var agendaTeamSlotIndex = {};
 var agendaTeamAllSlots = [];
 var agendaAvailabilityJumpXhr = null;
@@ -7329,6 +7563,9 @@ function sincronizzaVistaCalendario(view, data) {
 
 function riallineaRenderingCalendario() {
     if (isTeamDayViewActive()) {
+        if (agendaTeamDayLastResponse) {
+            renderAgendaTeamDay(agendaTeamDayLastResponse);
+        }
         return;
     }
 
@@ -8608,6 +8845,363 @@ function buildAgendaTeamEntryContent(orario, primaryLabel, secondaryLabel, optio
         + '</div>';
 }
 
+function isAgendaTeamDayMobileListMode() {
+    if (window.matchMedia) {
+        return window.matchMedia('(max-width: 767px)').matches;
+    }
+
+    return window.innerWidth <= 767;
+}
+
+function registerAgendaTeamDaySlotPool(columns) {
+    agendaTeamSlotIndex = {};
+    agendaTeamAllSlots = [];
+
+    $.each($.isArray(columns) ? columns : [], function(_, column) {
+        if (!$.isArray(column && column.slots)) {
+            return true;
+        }
+
+        agendaTeamAllSlots = agendaTeamAllSlots.concat(column.slots);
+
+        $.each(column.slots, function(_, slot) {
+            var slotId = parseInt((slot && slot.id_slot) || 0, 10) || 0;
+            if (slotId > 0) {
+                agendaTeamSlotIndex[String(slotId)] = slot;
+            }
+        });
+
+        return true;
+    });
+}
+
+function buildAgendaTeamDayMobileSummary(columns) {
+    var html = '<div class="agenda-team-mobile-summary">';
+
+    $.each(columns, function(_, column) {
+        var columnStyle = buildAgendaTeamColumnInlineStyle(column);
+        var styleAttr = columnStyle !== '' ? ' style="' + columnStyle + '"' : '';
+        var badges = '';
+        var statusText = 'Agenda disponibile';
+
+        if (column.is_selected) {
+            badges += '<span class="agenda-team-chip is-selected">Attivo</span>';
+        }
+
+        if (column.giorno_bloccato) {
+            badges += '<span class="agenda-team-chip is-locked">Bloccata</span>';
+            statusText = 'Giornata bloccata';
+        } else if (!column.has_slots) {
+            badges += '<span class="agenda-team-chip">Senza agenda</span>';
+            statusText = 'Nessuna agenda';
+        }
+
+        html += ''
+            + '<div class="agenda-team-mobile-summary-card"' + styleAttr + '>'
+            + '  <div class="agenda-team-mobile-summary-name">' + escapeHtml(column.label || ('Professionista ' + (column.id_dot || ''))) + '</div>'
+            + (badges !== ''
+                ? '  <div class="agenda-team-mobile-summary-meta">' + badges + '</div>'
+                : '')
+            + '  <div class="agenda-team-mobile-summary-status">' + escapeHtml(statusText) + '</div>'
+            + '</div>';
+    });
+
+    html += '</div>';
+
+    return html;
+}
+
+function appendAgendaTeamDayMobileRecord(records, record) {
+    var lastRecord = records.length ? records[records.length - 1] : null;
+
+    if (
+        record.mergeable
+        && lastRecord
+        && lastRecord.mergeable
+        && lastRecord.kind === record.kind
+        && lastRecord.columnKey === record.columnKey
+        && lastRecord.hourStartMinutes === record.hourStartMinutes
+        && lastRecord.endMinutes === record.startMinutes
+    ) {
+        lastRecord.endMinutes = record.endMinutes;
+        lastRecord.timeLabel = formatAgendaTeamMinutesLabel(lastRecord.startMinutes) + ' - ' + formatAgendaTeamMinutesLabel(record.endMinutes);
+        lastRecord.tooltipText = lastRecord.timeLabel + (record.kind === 'free' ? '\nSlot libero' : '\nFascia non disponibile');
+        return;
+    }
+
+    records.push(record);
+}
+
+function buildAgendaTeamDayMobileRecords(columns) {
+    var records = [];
+
+    $.each(columns, function(_, column) {
+        var slots = $.isArray(column && column.slots) ? column.slots.slice(0) : [];
+        if (!slots.length) {
+            return true;
+        }
+
+        slots.sort(function(leftSlot, rightSlot) {
+            var leftStart = getAgendaSlotVisualStartMoment(leftSlot);
+            var rightStart = getAgendaSlotVisualStartMoment(rightSlot);
+            var leftStartMinutes = leftStart && leftStart.isValid() ? ((leftStart.hours() * 60) + leftStart.minutes()) : 0;
+            var rightStartMinutes = rightStart && rightStart.isValid() ? ((rightStart.hours() * 60) + rightStart.minutes()) : 0;
+
+            if (leftStartMinutes !== rightStartMinutes) {
+                return leftStartMinutes - rightStartMinutes;
+            }
+
+            return (parseInt((leftSlot && leftSlot.id_slot) || 0, 10) || 0)
+                - (parseInt((rightSlot && rightSlot.id_slot) || 0, 10) || 0);
+        });
+
+        var nextSlotStartMap = buildAgendaNextSlotStartMap(slots);
+        var columnBaseStyle = buildAgendaTeamColumnInlineStyle(column);
+
+        $.each(slots, function(_, slot) {
+            if (isAgendaCoveredSecondarySlot(slot)) {
+                return true;
+            }
+
+            var slotId = parseInt((slot && slot.id_slot) || 0, 10) || 0;
+            var startMoment = getAgendaSlotVisualStartMoment(slot);
+            var endMoment = getAgendaSlotVisualEndMoment(slot);
+
+            if (!startMoment || !startMoment.isValid() || !endMoment || !endMoment.isValid()) {
+                return true;
+            }
+
+            var startMinutes = (startMoment.hours() * 60) + startMoment.minutes();
+            var endMinutes = (endMoment.hours() * 60) + endMoment.minutes();
+            var durationMinutes = endMinutes - startMinutes;
+            var dayKey = startMoment.format('YYYY-MM-DD');
+            var displayDurationMinutes = getAgendaDisplayDurationMinutes(
+                slot,
+                durationMinutes,
+                startMinutes,
+                nextSlotStartMap[dayKey + '|' + startMinutes]
+            );
+
+            if (durationMinutes <= 0 || displayDurationMinutes <= 0) {
+                return true;
+            }
+
+            var orario = startMoment.format('HH:mm');
+            var orarioFine = endMoment.format('HH:mm');
+            var orarioLabel = orario;
+            if (orarioFine !== '' && orarioFine !== orario) {
+                orarioLabel += ' - ' + orarioFine;
+            }
+
+            var stato = $.trim(String(slot.stato || '')).toUpperCase();
+            var pazSpec = $.trim(slot.paz_spec || '');
+            var isSpecialPatient = isAgendaSpecialPatient(slot, pazSpec);
+            var hasAppointment = !!slot.id_appuntamento || (stato !== 'LIBERO' && stato !== 'BLOCCATO' && stato !== 'CHIUSO');
+            var hourStartMinutes = Math.floor(startMinutes / 60) * 60;
+            var record = {
+                columnKey: String(column.id_dot || column.label || ''),
+                columnLabel: String(column.label || ('Professionista ' + (column.id_dot || ''))),
+                isSelected: !!column.is_selected,
+                slotId: slotId,
+                startMinutes: startMinutes,
+                endMinutes: endMinutes,
+                hourStartMinutes: hourStartMinutes,
+                timeLabel: orarioLabel,
+                styleText: columnBaseStyle,
+                primaryLabel: '',
+                secondaryLabel: '',
+                contactLabel: '',
+                tooltipText: '',
+                extraClass: '',
+                kind: '',
+                interactiveType: '',
+                mergeable: false
+            };
+
+            if ((stato === 'LIBERO' || stato === 'BLOCCATO') && !hasAppointment && !column.giorno_bloccato) {
+                record.kind = 'free';
+                record.interactiveType = 'free';
+                record.mergeable = true;
+                record.extraClass = 'is-free';
+                record.primaryLabel = 'Libero';
+                record.secondaryLabel = 'Slot disponibile';
+                record.tooltipText = orarioLabel + '\nSlot libero';
+                appendAgendaTeamDayMobileRecord(records, record);
+                return true;
+            }
+
+            if (stato === 'CHIUSO' || (column.giorno_bloccato && !hasAppointment)) {
+                record.kind = 'locked';
+                record.mergeable = true;
+                record.extraClass = 'is-locked';
+                record.primaryLabel = 'Bloccato';
+                record.secondaryLabel = column.giorno_bloccato ? 'Giornata bloccata' : 'Fascia non disponibile';
+                record.tooltipText = orarioLabel + '\nGiornata bloccata';
+                appendAgendaTeamDayMobileRecord(records, record);
+                return true;
+            }
+
+            var visitTypeVisualStyle = (!column.giorno_bloccato && hasAppointment) ? getAgendaVisitTypeVisualStyleById(slot.id_tipo_visita) : null;
+            var nominativo = getAgendaAppointmentDisplayName(slot, pazSpec);
+            var noteEvento = buildAppointmentNoteDisplay(slot);
+            var compactNote = buildAppointmentNoteDisplay(slot, { includeVisitTypeDuration: false });
+            var primaryLabel = nominativo !== '' ? nominativo : 'Appuntamento';
+            var contactLabel = buildAgendaTeamEntryPrimaryContactLabel(slot);
+            var color = column.giorno_bloccato ? '#d9534f' : (isSpecialPatient ? getAgendaSpecialPatientColor(pazSpec, slot) : '#3c8dbc');
+            var bookedStyle = columnBaseStyle;
+
+            record.kind = 'booked';
+            record.interactiveType = column.giorno_bloccato ? '' : 'booked';
+            record.extraClass = 'is-booked';
+            record.primaryLabel = primaryLabel;
+            record.secondaryLabel = compactNote !== '' ? compactNote : (noteEvento !== '' ? noteEvento : '');
+            record.contactLabel = contactLabel;
+            record.tooltipText = buildAgendaTeamEntryTooltip(orarioLabel, primaryLabel, slot, noteEvento);
+
+            if (visitTypeVisualStyle) {
+                record.extraClass += ' has-visit-type-color';
+                bookedStyle += buildAgendaVisitTypeInlineStyle(visitTypeVisualStyle);
+            } else if (column.giorno_bloccato) {
+                bookedStyle += 'background:' + color + ';border:1px solid ' + color + ';color:var(--agenda-appointment-text, #fff);';
+            } else if (isSpecialPatient) {
+                bookedStyle += 'background:' + color + ';border:1px solid ' + color + ';color:var(--agenda-appointment-text, #fff);';
+            } else {
+                bookedStyle += 'background:var(--agenda-team-column-entry-bg, ' + color + ');'
+                    + 'border:1px solid var(--agenda-team-column-entry-border, ' + color + ');'
+                    + 'color:var(--agenda-appointment-text, var(--agenda-team-column-entry-text, #fff));';
+            }
+
+            record.styleText = bookedStyle;
+            appendAgendaTeamDayMobileRecord(records, record);
+            return true;
+        });
+
+        return true;
+    });
+
+    records.sort(function(leftRecord, rightRecord) {
+        if (leftRecord.startMinutes !== rightRecord.startMinutes) {
+            return leftRecord.startMinutes - rightRecord.startMinutes;
+        }
+
+        if (leftRecord.isSelected !== rightRecord.isSelected) {
+            return leftRecord.isSelected ? -1 : 1;
+        }
+
+        return leftRecord.columnLabel.localeCompare(rightRecord.columnLabel, 'it', { sensitivity: 'base' });
+    });
+
+    return records;
+}
+
+function renderAgendaTeamDayMobileRecord(record) {
+    var styleAttr = record.styleText !== '' ? ' style="' + record.styleText + '"' : '';
+    var titleAttr = record.tooltipText !== ''
+        ? ' title="' + buildAgendaTeamEntryTitleAttr(record.tooltipText) + '"'
+        : '';
+    var tagName = record.interactiveType === 'free' || record.interactiveType === 'booked' ? 'button' : 'div';
+    var extraAttrs = '';
+
+    if (tagName === 'button') {
+        extraAttrs += ' type="button"';
+        extraAttrs += ' class="agenda-team-mobile-entry ' + record.extraClass + ' js-agenda-team-' + record.interactiveType + '-slot"';
+        extraAttrs += ' data-slot-id="' + escapeHtml(String(record.slotId || '')) + '"';
+    } else {
+        extraAttrs += ' class="agenda-team-mobile-entry ' + record.extraClass + '"';
+    }
+
+    return ''
+        + '<' + tagName + extraAttrs + styleAttr + titleAttr + '>'
+        + '  <div class="agenda-team-mobile-entry-head">'
+        + '    <div class="agenda-team-mobile-entry-doctor">' + escapeHtml(record.columnLabel || '') + '</div>'
+        + '    <span class="agenda-team-mobile-entry-time">' + escapeHtml(record.timeLabel || '') + '</span>'
+        + '  </div>'
+        + '  <div class="agenda-team-mobile-entry-title">' + escapeHtml(record.primaryLabel || '') + '</div>'
+        + (record.contactLabel !== ''
+            ? '  <div class="agenda-team-mobile-entry-contact">' + escapeHtml(record.contactLabel) + '</div>'
+            : '')
+        + (record.secondaryLabel !== ''
+            ? '  <div class="agenda-team-mobile-entry-note">' + escapeHtml(record.secondaryLabel) + '</div>'
+            : '')
+        + '</' + tagName + '>';
+}
+
+function buildAgendaTeamDayMobileEmptyStates(columns) {
+    var html = '<div class="agenda-team-mobile-empty-stack">';
+
+    $.each(columns, function(_, column) {
+        var columnStyle = buildAgendaTeamColumnInlineStyle(column);
+        var styleAttr = columnStyle !== '' ? ' style="' + columnStyle + '"' : '';
+        var message = $.trim(String(column.message || ''));
+
+        if (message === '') {
+            if (column.giorno_bloccato) {
+                message = 'Giornata bloccata per il professionista.';
+            } else if (!column.has_slots) {
+                message = 'Nessuna agenda impostata per questo professionista.';
+            } else {
+                message = 'Nessuno slot visibile per questa giornata.';
+            }
+        }
+
+        html += ''
+            + '<div class="agenda-team-mobile-empty-card"' + styleAttr + '>'
+            + '  <div class="agenda-team-mobile-empty-card-name">' + escapeHtml(column.label || ('Professionista ' + (column.id_dot || ''))) + '</div>'
+            + '  <div class="agenda-team-mobile-empty-card-message">' + escapeHtml(message) + '</div>'
+            + '</div>';
+    });
+
+    html += '</div>';
+
+    return html;
+}
+
+function renderAgendaTeamDayMobile(columns, bounds) {
+    var records = buildAgendaTeamDayMobileRecords(columns);
+    var html = '<div class="agenda-team-mobile-list">';
+
+    html += buildAgendaTeamDayMobileSummary(columns);
+
+    if (!records.length) {
+        html += buildAgendaTeamDayMobileEmptyStates(columns);
+        html += '</div>';
+        return html;
+    }
+
+    var currentHourStart = null;
+
+    $.each(records, function(_, record) {
+        if (currentHourStart !== record.hourStartMinutes) {
+            if (currentHourStart !== null) {
+                html += '    </div>';
+                html += '  </div>';
+            }
+
+            currentHourStart = record.hourStartMinutes;
+            var hourEndMinutes = Math.min(currentHourStart + 60, bounds.endMinutes);
+            html += '  <div class="agenda-team-mobile-section">';
+            html += '    <div class="agenda-team-mobile-section-header">';
+            html += '      <div class="agenda-team-mobile-section-kicker">Fascia oraria</div>';
+            html += '      <div class="agenda-team-mobile-section-label">'
+                + escapeHtml(formatAgendaTeamMinutesLabel(currentHourStart) + ' - ' + formatAgendaTeamMinutesLabel(hourEndMinutes))
+                + '</div>';
+            html += '    </div>';
+            html += '    <div class="agenda-team-mobile-section-body">';
+        }
+
+        html += renderAgendaTeamDayMobileRecord(record);
+    });
+
+    if (currentHourStart !== null) {
+        html += '    </div>';
+        html += '  </div>';
+    }
+
+    html += '</div>';
+
+    return html;
+}
+
 function buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute, entryHeight) {
     var slots = $.isArray(column.slots) ? column.slots : [];
     var compactSingleSlotHeight = supportsAgendaTeamDaySingleSlotHeightFeature();
@@ -8814,13 +9408,17 @@ function renderAgendaTeamDay(res) {
     var columns = $.isArray(res && res.columns) ? res.columns : [];
     if (!columns.length) {
         $teamBoardWrap.removeClass('is-compact-stack');
-        $teamBoard.removeClass('has-compact-slot-details is-fit-columns');
+        $teamBoardWrap.removeClass('is-mobile-list');
+        $teamBoard.removeClass('has-compact-slot-details is-fit-columns is-mobile-list');
         $teamBoard.html('<div class="alert alert-info" style="margin:12px;">Nessun professionista visibile per questa vista.</div>');
         return;
     }
 
+    registerAgendaTeamDaySlotPool(columns);
+
     var compactSingleSlotHeight = supportsAgendaTeamDaySingleSlotHeightFeature();
     var compactSlotDetailsEnabled = compactSingleSlotHeight && supportsAgendaTeamDayCompactSlotDetailsFeature();
+    var mobileListMode = isAgendaTeamDayMobileListMode();
     var fitColumnsToViewport = columns.length <= 4;
     var stepMinutes = Math.max(5, parseInt(res.grid_duration, 10) || agendaCalendarBaseStep);
     var bounds = getAgendaTeamDayBounds(res.min_time, res.max_time);
@@ -8831,6 +9429,16 @@ function renderAgendaTeamDay(res) {
     var compressedLayoutEnabled = !!window.AGENDA_CONFIG.compressedLayoutEnabled;
     var templateColumns = (!compressedLayoutEnabled && !compactSingleSlotHeight) ? '82px' : '';
     var html = '';
+
+    if (mobileListMode) {
+        $teamBoard.html(renderAgendaTeamDayMobile(columns, bounds));
+        $teamBoard.removeClass('has-compact-slot-details is-fit-columns').addClass('is-mobile-list');
+        $teamBoardWrap.removeClass('is-compact-stack').addClass('is-mobile-list');
+        return;
+    }
+
+    $teamBoardWrap.removeClass('is-mobile-list');
+    $teamBoard.removeClass('is-mobile-list');
 
     $.each(columns, function() {
         templateColumns += (templateColumns !== '' ? ' ' : '') + (
@@ -8921,12 +9529,14 @@ function caricaSlotCalendarioTeamDay(options) {
         }
 
         if (!res || !res.status) {
+            agendaTeamDayLastResponse = null;
             agendaTeamSlotIndex = {};
             applyAgendaStateResponse({});
             $('#agendaTeamDayBoard').html('<div class="alert alert-info" style="margin:12px;">' + escapeHtml((res && res.message) ? res.message : 'Errore durante il caricamento della vista team.') + '</div>');
             return;
         }
 
+        agendaTeamDayLastResponse = res;
         applyAgendaStateResponse(res);
         agendaCalendarStep = parseInt(res.grid_duration, 10) || agendaCalendarBaseStep;
         agendaMinTime = res.min_time || '08:00:00';
@@ -8938,6 +9548,7 @@ function caricaSlotCalendarioTeamDay(options) {
             return;
         }
 
+        agendaTeamDayLastResponse = null;
         agendaTeamSlotIndex = {};
         applyAgendaStateResponse({});
         $('#agendaTeamDayBoard').html('<div class="alert alert-info" style="margin:12px;">Errore nel caricamento della vista team. Riprova tra un attimo.</div>');
