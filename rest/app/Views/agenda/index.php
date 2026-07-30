@@ -2691,7 +2691,7 @@
             display: flex;
             gap: 8px;
             overflow-x: auto;
-            padding-bottom: 2px;
+            padding: 2px 1px 4px;
             scrollbar-width: none;
             -ms-overflow-style: none;
         }
@@ -2701,34 +2701,51 @@
         }
 
         .agenda-team-mobile-summary-card {
-            flex: 0 0 136px;
-            min-width: 136px;
-            padding: 10px 12px;
+            display: flex;
+            flex: 0 0 100%;
+            min-width: 0;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            padding: 7px 6px;
             border: 1px solid var(--agenda-team-column-soft-border, #d8e4ed);
-            border-radius: 14px;
+            border-radius: 12px;
             background: linear-gradient(180deg, var(--agenda-team-column-soft-bg, #f5f9fd) 0%, #ffffff 100%);
-            box-shadow: 0 8px 18px rgba(31, 45, 61, 0.06);
+            box-shadow: 0 4px 10px rgba(31, 45, 61, 0.05);
+        }
+
+        .agenda-team-mobile-summary-card.is-selected {
+            box-shadow: inset 0 0 0 1px var(--agenda-team-column-selected-ring, rgba(60, 141, 188, 0.3));
+        }
+
+        .agenda-team-mobile-summary-avatar {
+            display: inline-flex;
+            flex: 0 0 25px;
+            width: 25px;
+            height: 25px;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background: var(--agenda-team-column-chip-bg, #e8f1f8);
+            color: var(--agenda-team-header-text, #1f2d3d);
+            font-size: 9px;
+            font-weight: 800;
+            letter-spacing: -0.02em;
         }
 
         .agenda-team-mobile-summary-name {
+            min-width: 0;
             color: var(--agenda-team-header-text, #1f2d3d);
-            font-size: 12px;
+            font-size: 10px;
             font-weight: 700;
-            line-height: 1.4;
-            display: -webkit-box;
+            line-height: 1.2;
             overflow: hidden;
-            -webkit-box-orient: vertical;
-            -webkit-line-clamp: 2;
-            line-clamp: 2;
-            overflow-wrap: anywhere;
-            word-break: break-word;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .agenda-team-mobile-summary-meta {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 4px;
-            margin-top: 6px;
+            display: none;
         }
 
         .agenda-team-mobile-summary-status {
@@ -2736,6 +2753,7 @@
         }
 
         .agenda-team-mobile-section {
+            min-width: 0;
             overflow: hidden;
             border: 1px solid #d8e4ed;
             border-radius: 18px;
@@ -2744,49 +2762,102 @@
         }
 
         .agenda-team-mobile-section-header {
-            padding: 12px 14px;
+            display: flex;
+            min-width: 0;
+            align-items: center;
+            justify-content: space-between;
+            padding: 9px 11px;
             border-bottom: 1px solid #e5edf4;
             background: linear-gradient(180deg, #f7fafc 0%, #f2f6fa 100%);
         }
 
         .agenda-team-mobile-section-kicker {
-            color: #7a8a99;
-            font-size: 11px;
-            font-weight: 700;
-            letter-spacing: 0.05em;
-            text-transform: uppercase;
+            display: none;
         }
 
         .agenda-team-mobile-section-label {
-            margin-top: 2px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
             color: #1f2d3d;
-            font-size: 16px;
+            font-size: 12px;
             font-weight: 700;
-            line-height: 1.25;
+            line-height: 1.2;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .agenda-team-mobile-section-separator {
+            color: #95a5b2;
+            font-size: 11px;
+            line-height: 1;
         }
 
         .agenda-team-mobile-section-body {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+            display: flex;
+            min-width: 0;
             gap: 8px;
             padding: 10px;
+            overflow-x: auto;
+            overflow-y: hidden;
+            overscroll-behavior-x: contain;
+            scroll-snap-type: x proximity;
+            scrollbar-width: thin;
+            scrollbar-color: #c8d7e2 transparent;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .agenda-team-mobile-professional-lane {
+            display: flex;
+            flex: 0 0 100%;
+            min-width: 0;
+            flex-direction: column;
+            gap: 5px;
+            scroll-snap-align: start;
+        }
+
+        .agenda-team-mobile-list.has-2-columns .agenda-team-mobile-summary-card,
+        .agenda-team-mobile-list.has-2-columns .agenda-team-mobile-professional-lane {
+            flex-basis: calc((100% - 8px) / 2);
+        }
+
+        .agenda-team-mobile-list.has-3-columns .agenda-team-mobile-summary-card,
+        .agenda-team-mobile-list.has-3-columns .agenda-team-mobile-professional-lane {
+            flex-basis: calc((100% - 16px) / 3);
+        }
+
+        .agenda-team-mobile-list.has-4-columns .agenda-team-mobile-summary-card,
+        .agenda-team-mobile-list.has-4-columns .agenda-team-mobile-professional-lane {
+            flex-basis: calc((100% - 24px) / 4);
+        }
+
+        .agenda-team-mobile-section-body::-webkit-scrollbar {
+            height: 4px;
+        }
+
+        .agenda-team-mobile-section-body::-webkit-scrollbar-thumb {
+            border-radius: 999px;
+            background: #c8d7e2;
         }
 
         .agenda-team-mobile-entry {
             display: block;
+            flex: 0 0 auto;
             width: 100%;
-            min-height: 94px;
-            padding: 10px;
+            min-width: 0;
+            min-height: 62px;
+            padding: 7px 5px;
             border: 1px solid var(--agenda-team-column-soft-border, #d8e4ed);
-            border-radius: 14px;
+            border-radius: 9px;
             background: linear-gradient(180deg, var(--agenda-team-column-empty-bg, #fbfdff) 0%, #ffffff 100%);
-            box-shadow: 0 6px 16px rgba(31, 45, 61, 0.06);
+            box-shadow: none;
             color: #1f2d3d;
-            text-align: left;
+            text-align: center;
         }
 
         button.agenda-team-mobile-entry {
             cursor: pointer;
+            pointer-events: auto;
+            touch-action: manipulation;
         }
 
         .agenda-team-mobile-entry.is-free {
@@ -2810,48 +2881,34 @@
         }
 
         .agenda-team-mobile-entry-head {
-            display: flex;
-            align-items: flex-start;
-            justify-content: space-between;
-            gap: 8px;
-            margin-bottom: 6px;
+            display: block;
+            margin-bottom: 5px;
         }
 
         .agenda-team-mobile-entry-doctor {
-            min-width: 0;
-            color: inherit;
-            font-size: 11px;
-            font-weight: 700;
-            line-height: 1.35;
-            opacity: 0.94;
-            display: -webkit-box;
-            overflow: hidden;
-            -webkit-box-orient: vertical;
-            -webkit-line-clamp: 2;
-            line-clamp: 2;
-            overflow-wrap: anywhere;
-            word-break: break-word;
+            display: none;
         }
 
         .agenda-team-mobile-entry-time {
-            flex: 0 0 auto;
             display: inline-flex;
+            max-width: 100%;
             align-items: center;
-            padding: 3px 7px;
+            justify-content: center;
+            padding: 2px 4px;
             border-radius: 999px;
             background: var(--agenda-team-column-chip-bg, rgba(88, 113, 132, 0.12));
             color: var(--agenda-team-secondary-text, #587184);
-            font-size: 10px;
+            font-size: 8px;
             font-weight: 700;
-            line-height: 1;
-            white-space: nowrap;
+            line-height: 1.15;
+            overflow-wrap: anywhere;
         }
 
         .agenda-team-mobile-entry-title {
             color: inherit;
-            font-size: 14px;
+            font-size: 10px;
             font-weight: 700;
-            line-height: 1.35;
+            line-height: 1.2;
             display: -webkit-box;
             overflow: hidden;
             -webkit-box-orient: vertical;
@@ -2877,11 +2934,22 @@
         }
 
         .agenda-team-mobile-entry-note {
-            display: -webkit-box;
-            overflow: hidden;
-            -webkit-box-orient: vertical;
-            -webkit-line-clamp: 2;
-            line-clamp: 2;
+            display: none;
+        }
+
+        .agenda-team-mobile-entry.is-empty {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-style: solid;
+            background: #f7fafc;
+            color: #8a9aa8;
+        }
+
+        .agenda-team-mobile-entry-empty-label {
+            font-size: 9px;
+            font-weight: 700;
+            line-height: 1.2;
         }
 
         .agenda-team-mobile-empty-stack {
@@ -3099,22 +3167,16 @@
                 font-size: 11px;
             }
 
-            .agenda-team-mobile-summary-card {
-                flex-basis: 126px;
-                min-width: 126px;
-            }
-
             .agenda-team-mobile-section-header {
-                padding: 11px 12px;
+                padding: 9px 11px;
             }
 
             .agenda-team-mobile-section-body {
-                grid-template-columns: repeat(2, minmax(0, 1fr));
-                padding: 10px;
+                padding: 8px;
             }
 
             .agenda-team-mobile-entry {
-                padding: 11px;
+                padding: 7px 5px;
             }
 
             .agenda-compressed-daybar {
@@ -3137,11 +3199,6 @@
             }
         }
 
-        @media (max-width: 380px) {
-            .agenda-team-mobile-section-body {
-                grid-template-columns: 1fr;
-            }
-        }
     </style>
 </head>
 <body
@@ -8893,6 +8950,17 @@ function isAgendaTeamDayMobileListMode() {
     return window.innerWidth <= 767;
 }
 
+function buildAgendaTeamSlotIndexKey(slot) {
+    slot = slot || {};
+
+    return [
+        String(slot.id_dot || ''),
+        String(slot.id_slot || ''),
+        String(slot.ora_inizio || ''),
+        String(slot.id_appuntamento || '')
+    ].join('|');
+}
+
 function registerAgendaTeamDaySlotPool(columns) {
     agendaTeamSlotIndex = {};
     agendaTeamAllSlots = [];
@@ -8906,6 +8974,9 @@ function registerAgendaTeamDaySlotPool(columns) {
 
         $.each(column.slots, function(_, slot) {
             var slotId = parseInt((slot && slot.id_slot) || 0, 10) || 0;
+            var slotKey = buildAgendaTeamSlotIndexKey(slot);
+
+            agendaTeamSlotIndex[slotKey] = slot;
             if (slotId > 0) {
                 agendaTeamSlotIndex[String(slotId)] = slot;
             }
@@ -8915,12 +8986,34 @@ function registerAgendaTeamDaySlotPool(columns) {
     });
 }
 
+function getAgendaTeamMobileProfessionalWords(label) {
+    var words = $.trim(String(label || '')).split(/\s+/).filter(function(word) {
+        return word !== '' && !/^professionist[ai]$/i.test(word);
+    });
+
+    return words.length ? words : ['Prof.'];
+}
+
+function getAgendaTeamMobileProfessionalShortLabel(label) {
+    return getAgendaTeamMobileProfessionalWords(label)[0];
+}
+
+function getAgendaTeamMobileProfessionalInitials(label) {
+    return getAgendaTeamMobileProfessionalWords(label)
+        .slice(0, 2)
+        .map(function(word) { return word.charAt(0).toUpperCase(); })
+        .join('');
+}
+
 function buildAgendaTeamDayMobileSummary(columns) {
     var html = '<div class="agenda-team-mobile-summary">';
 
     $.each(columns, function(_, column) {
         var columnStyle = buildAgendaTeamColumnInlineStyle(column);
         var styleAttr = columnStyle !== '' ? ' style="' + columnStyle + '"' : '';
+        var fullLabel = String(column.label || ('Professionista ' + (column.id_dot || '')));
+        var shortLabel = getAgendaTeamMobileProfessionalShortLabel(fullLabel);
+        var initials = getAgendaTeamMobileProfessionalInitials(fullLabel);
         var badges = '';
         var statusText = 'Agenda disponibile';
 
@@ -8937,8 +9030,10 @@ function buildAgendaTeamDayMobileSummary(columns) {
         }
 
         html += ''
-            + '<div class="agenda-team-mobile-summary-card"' + styleAttr + '>'
-            + '  <div class="agenda-team-mobile-summary-name">' + escapeHtml(column.label || ('Professionista ' + (column.id_dot || ''))) + '</div>'
+            + '<div class="agenda-team-mobile-summary-card' + (column.is_selected ? ' is-selected' : '') + '"'
+            + ' title="' + buildAgendaTeamEntryTitleAttr(fullLabel) + '"' + styleAttr + '>'
+            + '  <span class="agenda-team-mobile-summary-avatar" aria-hidden="true">' + escapeHtml(initials) + '</span>'
+            + '  <div class="agenda-team-mobile-summary-name">' + escapeHtml(shortLabel) + '</div>'
             + (badges !== ''
                 ? '  <div class="agenda-team-mobile-summary-meta">' + badges + '</div>'
                 : '')
@@ -9043,6 +9138,7 @@ function buildAgendaTeamDayMobileRecords(columns) {
                 columnLabel: String(column.label || ('Professionista ' + (column.id_dot || ''))),
                 isSelected: !!column.is_selected,
                 slotId: slotId,
+                slotKey: buildAgendaTeamSlotIndexKey(slot),
                 startMinutes: startMinutes,
                 endMinutes: endMinutes,
                 hourStartMinutes: hourStartMinutes,
@@ -9061,7 +9157,6 @@ function buildAgendaTeamDayMobileRecords(columns) {
             if ((stato === 'LIBERO' || stato === 'BLOCCATO') && !hasAppointment && !column.giorno_bloccato) {
                 record.kind = 'free';
                 record.interactiveType = 'free';
-                record.mergeable = true;
                 record.extraClass = 'is-free';
                 record.primaryLabel = 'Libero';
                 record.secondaryLabel = 'Slot disponibile';
@@ -9145,7 +9240,9 @@ function renderAgendaTeamDayMobileRecord(record) {
     if (tagName === 'button') {
         extraAttrs += ' type="button"';
         extraAttrs += ' class="agenda-team-mobile-entry ' + record.extraClass + ' js-agenda-team-' + record.interactiveType + '-slot"';
+        extraAttrs += ' data-slot-key="' + escapeHtml(String(record.slotKey || '')) + '"';
         extraAttrs += ' data-slot-id="' + escapeHtml(String(record.slotId || '')) + '"';
+        extraAttrs += ' aria-label="' + buildAgendaTeamEntryTitleAttr(record.tooltipText || record.primaryLabel || 'Slot agenda') + '"';
     } else {
         extraAttrs += ' class="agenda-team-mobile-entry ' + record.extraClass + '"';
     }
@@ -9198,7 +9295,9 @@ function buildAgendaTeamDayMobileEmptyStates(columns) {
 
 function renderAgendaTeamDayMobile(columns, bounds) {
     var records = buildAgendaTeamDayMobileRecords(columns);
-    var html = '<div class="agenda-team-mobile-list">';
+    var visibleColumns = Math.max(1, Math.min(columns.length, 4));
+    var html = '<div class="agenda-team-mobile-list has-' + visibleColumns + '-columns'
+        + (columns.length > visibleColumns ? ' has-overflow-columns' : '') + '">';
 
     html += buildAgendaTeamDayMobileSummary(columns);
 
@@ -9208,38 +9307,97 @@ function renderAgendaTeamDayMobile(columns, bounds) {
         return html;
     }
 
-    var currentHourStart = null;
-
+    var recordsByHour = {};
+    var hourStarts = [];
     $.each(records, function(_, record) {
-        if (currentHourStart !== record.hourStartMinutes) {
-            if (currentHourStart !== null) {
-                html += '    </div>';
-                html += '  </div>';
-            }
-
-            currentHourStart = record.hourStartMinutes;
-            var hourEndMinutes = Math.min(currentHourStart + 60, bounds.endMinutes);
-            html += '  <div class="agenda-team-mobile-section">';
-            html += '    <div class="agenda-team-mobile-section-header">';
-            html += '      <div class="agenda-team-mobile-section-kicker">Fascia oraria</div>';
-            html += '      <div class="agenda-team-mobile-section-label">'
-                + escapeHtml(formatAgendaTeamMinutesLabel(currentHourStart) + ' - ' + formatAgendaTeamMinutesLabel(hourEndMinutes))
-                + '</div>';
-            html += '    </div>';
-            html += '    <div class="agenda-team-mobile-section-body">';
+        var hourKey = String(record.hourStartMinutes);
+        if (!recordsByHour[hourKey]) {
+            recordsByHour[hourKey] = {};
+            hourStarts.push(record.hourStartMinutes);
         }
 
-        html += renderAgendaTeamDayMobileRecord(record);
+        recordsByHour[hourKey][record.columnKey] = recordsByHour[hourKey][record.columnKey] || [];
+        recordsByHour[hourKey][record.columnKey].push(record);
     });
 
-    if (currentHourStart !== null) {
+    hourStarts.sort(function(leftHour, rightHour) {
+        return leftHour - rightHour;
+    });
+
+    $.each(hourStarts, function(_, hourStartMinutes) {
+        var hourEndMinutes = Math.min(hourStartMinutes + 60, bounds.endMinutes);
+        var hourColumns = recordsByHour[String(hourStartMinutes)] || {};
+
+        html += '  <div class="agenda-team-mobile-section">';
+        html += '    <div class="agenda-team-mobile-section-header">';
+        html += '      <div class="agenda-team-mobile-section-kicker">Fascia oraria</div>';
+        html += '      <div class="agenda-team-mobile-section-label">';
+        html += '        <span>' + escapeHtml(formatAgendaTeamMinutesLabel(hourStartMinutes)) + '</span>';
+        html += '        <span class="agenda-team-mobile-section-separator">&ndash;</span>';
+        html += '        <span>' + escapeHtml(formatAgendaTeamMinutesLabel(hourEndMinutes)) + '</span>';
+        html += '      </div>';
+        html += '    </div>';
+        html += '    <div class="agenda-team-mobile-section-body">';
+
+        $.each(columns, function(_, column) {
+            var columnKey = String(column.id_dot || column.label || '');
+            var columnRecords = hourColumns[columnKey] || [];
+            var columnStyle = buildAgendaTeamColumnInlineStyle(column);
+            var columnStyleAttr = columnStyle !== '' ? ' style="' + columnStyle + '"' : '';
+            var columnLabel = String(column.label || ('Professionista ' + (column.id_dot || '')));
+
+            html += '      <div class="agenda-team-mobile-professional-lane"'
+                + ' aria-label="' + buildAgendaTeamEntryTitleAttr(columnLabel) + '">';
+
+            if (columnRecords.length) {
+                $.each(columnRecords, function(_, record) {
+                    html += renderAgendaTeamDayMobileRecord(record);
+                });
+            } else {
+                var emptyLabel = column.giorno_bloccato
+                    ? 'Bloccata'
+                    : (!column.has_slots ? 'No agenda' : 'Nessuno slot');
+                html += '        <div class="agenda-team-mobile-entry is-empty"' + columnStyleAttr + '>';
+                html += '          <span class="agenda-team-mobile-entry-empty-label">' + escapeHtml(emptyLabel) + '</span>';
+                html += '        </div>';
+            }
+
+            html += '      </div>';
+        });
+
         html += '    </div>';
         html += '  </div>';
-    }
+    });
 
     html += '</div>';
 
     return html;
+}
+
+function bindAgendaTeamDayMobileScrollSync() {
+    var $scrollers = $('#agendaTeamDayBoard .agenda-team-mobile-summary, #agendaTeamDayBoard .agenda-team-mobile-section-body');
+    var isSyncing = false;
+
+    $scrollers.off('scroll.agendaTeamMobileSync').on('scroll.agendaTeamMobileSync', function() {
+        if (isSyncing) {
+            return;
+        }
+
+        isSyncing = true;
+        var scrollLeft = this.scrollLeft;
+
+        $scrollers.not(this).each(function() {
+            this.scrollLeft = scrollLeft;
+        });
+
+        if (window.requestAnimationFrame) {
+            window.requestAnimationFrame(function() {
+                isSyncing = false;
+            });
+        } else {
+            isSyncing = false;
+        }
+    });
 }
 
 function buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute, entryHeight) {
@@ -9474,6 +9632,7 @@ function renderAgendaTeamDay(res) {
         $teamBoard.html(renderAgendaTeamDayMobile(columns, bounds));
         $teamBoard.removeClass('has-compact-slot-details is-fit-columns').addClass('is-mobile-list');
         $teamBoardWrap.removeClass('is-compact-stack').addClass('is-mobile-list');
+        bindAgendaTeamDayMobileScrollSync();
         return;
     }
 
@@ -11049,27 +11208,35 @@ $('#nota_giorno_text').on('blur', function() {
         apriNuovaVisita();
     });
 
-    $(document).on('click', '.js-agenda-team-free-slot', function() {
-        var slotId = String($(this).data('slot-id') || '');
-        var slot = agendaTeamSlotIndex[slotId];
+    $(document).on('click', '.js-agenda-team-free-slot', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
 
+        var slotKey = String($(this).attr('data-slot-key') || '');
+        var slotId = String($(this).attr('data-slot-id') || '');
+        var slot = agendaTeamSlotIndex[slotKey] || agendaTeamSlotIndex[slotId];
         if (!slot) {
-            return;
+            return false;
         }
 
         apriSlotLiberoDaSlot(slot);
+        return false;
     });
 
-    $(document).on('click', '.js-agenda-team-booked-slot', function() {
-        var slotId = String($(this).data('slot-id') || '');
-        var slot = agendaTeamSlotIndex[slotId];
+    $(document).on('click', '.js-agenda-team-booked-slot', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
 
+        var slotKey = String($(this).attr('data-slot-key') || '');
+        var slotId = String($(this).attr('data-slot-id') || '');
+        var slot = agendaTeamSlotIndex[slotKey] || agendaTeamSlotIndex[slotId];
         if (!slot) {
-            return;
+            return false;
         }
 
         riempiModaleDaEvento(getAgendaPrimaryCoveredSlot(slot, agendaTeamAllSlots));
         $('#appointmentModal').modal('show');
+        return false;
     });
 
     $('#btnSaveVisitType').on('click', function() {
