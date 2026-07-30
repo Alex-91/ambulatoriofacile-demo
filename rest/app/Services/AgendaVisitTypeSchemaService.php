@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Database\Migrations\AddAgendaCustomAppointmentStart;
 use App\Database\Migrations\AddColorToAgendaVisitTypes;
 use App\Database\Migrations\AddSlotColorPreferenceToAgendaVisitTypes;
 use App\Database\Migrations\CreateAgendaVisitTypesAndAppointmentSpan;
@@ -34,6 +35,7 @@ class AgendaVisitTypeSchemaService
         'id_tipo_visita',
         'tipo_visita_label',
         'durata_minuti',
+        'ora_inizio_appuntamento',
         'ora_fine_appuntamento',
     ];
 
@@ -98,6 +100,9 @@ class AgendaVisitTypeSchemaService
 
             $migration = new CreateAgendaVisitTypesAndAppointmentSpan($forge);
             $migration->up();
+
+            $customAppointmentStartMigration = new AddAgendaCustomAppointmentStart($forge);
+            $customAppointmentStartMigration->up();
 
             $colorMigration = new AddColorToAgendaVisitTypes($forge);
             $colorMigration->up();

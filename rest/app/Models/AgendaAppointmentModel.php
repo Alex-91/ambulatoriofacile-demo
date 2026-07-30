@@ -486,12 +486,14 @@ class AgendaAppointmentModel extends Model
         }
 
         if ($customStart !== null) {
+            $this->ensureVisitTypeSchemaReady();
+
             if (
                 !$this->appointmentTableHasField('ora_inizio_appuntamento')
                 || !$this->appointmentTableHasField('ora_fine_appuntamento')
                 || !$this->appointmentTableHasField('durata_minuti')
             ) {
-                throw new Exception('La struttura del database non e aggiornata per gestire gli orari personalizzati.');
+                throw new Exception('La struttura del database non è aggiornata per gestire gli orari personalizzati.');
             }
 
             $startTimestamp = strtotime($customStart);
