@@ -80,6 +80,9 @@ class AgendaAppointmentModel extends Model
             0,
             $tokenLock
         );
+        if (!empty($window['custom_start'])) {
+            $plan['duration_minutes'] = (int) ($window['duration_minutes'] ?? 0);
+        }
         $coveredSlots = $window['covered_slots'];
         $this->assertAppointmentSpanSchemaReady($coveredSlots);
 
@@ -159,6 +162,9 @@ class AgendaAppointmentModel extends Model
             $customTimeFeatureEnabled,
             $idAppuntamento
         );
+        if (!empty($window['custom_start'])) {
+            $plan['duration_minutes'] = (int) ($window['duration_minutes'] ?? 0);
+        }
         $coveredSlots = $window['covered_slots'];
         $this->assertAppointmentSpanSchemaReady($coveredSlots);
         $coveredSlotIds = array_map(
@@ -432,7 +438,12 @@ class AgendaAppointmentModel extends Model
     }
 
     /**
-     * @return array{covered_slots: array<int, array<string, mixed>>, custom_start: ?string, end: string}
+     * @return array{
+     *     covered_slots: array<int, array<string, mixed>>,
+     *     custom_start: ?string,
+     *     end: string,
+     *     duration_minutes: int
+     * }
      */
     private function resolveAppointmentWindow(
         array $data,
@@ -450,6 +461,9 @@ class AgendaAppointmentModel extends Model
 
         $storedCustomStart = $existingAppointment !== null
             ? trim((string) ($existingAppointment['ora_inizio_appuntamento'] ?? ''))
+            : '';
+        $storedCustomEnd = $existingAppointment !== null
+            ? trim((string) ($existingAppointment['ora_fine_appuntamento'] ?? ''))
             : '';
         $toggleProvided = array_key_exists('custom_time_enabled', $data);
         $customRequested = $toggleProvided && !empty($data['custom_time_enabled']);
@@ -472,7 +486,11 @@ class AgendaAppointmentModel extends Model
         }
 
         if ($customStart !== null) {
-            if (!$this->appointmentTableHasField('ora_inizio_appuntamento')) {
+            if (
+                !$this->appointmentTableHasField('ora_inizio_appuntamento')
+                || !$this->appointmentTableHasField('ora_fine_appuntamento')
+                || !$this->appointmentTableHasField('durata_minuti')
+            ) {
                 throw new Exception('La struttura del database non e aggiornata per gestire gli orari personalizzati.');
             }
 
@@ -481,12 +499,33 @@ class AgendaAppointmentModel extends Model
                 throw new Exception('Ora iniziale personalizzata non valida.');
             }
 
-            $endTimestamp = strtotime('+' . $durationMinutes . ' minutes', $startTimestamp);
+            $requestedCustomEnd = $customRequested
+                ? trim((string) ($data['custom_end_time'] ?? ''))
+                : '';
+            $customEnd = null;
+
+            if ($requestedCustomEnd !== '') {
+                $customEnd = $this->normalizeCustomAppointmentEnd($requestedCustomEnd, $customStart);
+            } elseif ($shouldPreserveStoredCustomTime && $storedCustomEnd !== '') {
+                $storedEndTimestamp = strtotime($storedCustomEnd);
+                if ($storedEndTimestamp !== false && $storedEndTimestamp > $startTimestamp) {
+                    $customEnd = date('Y-m-d H:i:s', $storedEndTimestamp);
+                }
+            }
+
+            $endTimestamp = $customEnd !== null
+                ? strtotime($customEnd)
+                : strtotime('+' . $durationMinutes . ' minutes', $startTimestamp);
             if ($endTimestamp === false || date('Y-m-d', $endTimestamp) !== date('Y-m-d', $startTimestamp)) {
                 throw new Exception('L appuntamento personalizzato deve iniziare e terminare nello stesso giorno.');
             }
 
             $end = date('Y-m-d H:i:s', $endTimestamp);
+            $durationMinutes = (int) round(($endTimestamp - $startTimestamp) / 60);
+            if ($durationMinutes <= 0) {
+                throw new Exception('L ora finale personalizzata deve essere successiva all ora iniziale.');
+            }
+
             $coveredSlots = $this->resolveCoveredSlotsForWindow(
                 $primarySlot,
                 $customStart,
@@ -499,6 +538,7 @@ class AgendaAppointmentModel extends Model
                 'covered_slots' => $coveredSlots,
                 'custom_start' => $customStart,
                 'end' => $end,
+                'duration_minutes' => $durationMinutes,
             ];
         }
 
@@ -516,6 +556,7 @@ class AgendaAppointmentModel extends Model
             'end' => !empty($lastCoveredSlot['ora_fine'])
                 ? (string) $lastCoveredSlot['ora_fine']
                 : null,
+            'duration_minutes' => $durationMinutes,
         ];
     }
 
@@ -660,6 +701,27 @@ class AgendaAppointmentModel extends Model
         return date('Y-m-d H:i:s', $customTimestamp);
     }
 
+    private function normalizeCustomAppointmentEnd(string $customTime, string $customStart): string
+    {
+        $customTime = trim($customTime);
+        if (!preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/', $customTime)) {
+            throw new Exception('Inserisci un ora finale personalizzata valida.');
+        }
+
+        $startTimestamp = strtotime($customStart);
+        if ($startTimestamp === false) {
+            throw new Exception('Ora iniziale personalizzata non valida.');
+        }
+
+        $customEnd = date('Y-m-d', $startTimestamp) . ' ' . $customTime . ':00';
+        $endTimestamp = strtotime($customEnd);
+        if ($endTimestamp === false || $endTimestamp <= $startTimestamp) {
+            throw new Exception('L ora finale personalizzata deve essere successiva all ora iniziale.');
+        }
+
+        return date('Y-m-d H:i:s', $endTimestamp);
+    }
+
     /**
      * @return array<int, array<string, mixed>>
      */
@@ -690,14 +752,15 @@ class AgendaAppointmentModel extends Model
             ->get()
             ->getResultArray();
 
-        if ($rows === [] || (int) ($rows[0]['id_slot'] ?? 0) !== $primarySlotId) {
+        if ($rows === []) {
             throw new Exception('L ora personalizzata deve partire dallo slot selezionato.');
         }
 
         $coveredSlots = [];
-        $expectedStartTimestamp = null;
+        $primaryCoveredSlot = null;
+        $coverageCursorTimestamp = $startTimestamp;
 
-        foreach ($rows as $index => $row) {
+        foreach ($rows as $row) {
             $slotId = (int) ($row['id_slot'] ?? 0);
             $rowStartTimestamp = strtotime((string) ($row['ora_inizio'] ?? ''));
             $rowEndTimestamp = strtotime((string) ($row['ora_fine'] ?? ''));
@@ -711,11 +774,7 @@ class AgendaAppointmentModel extends Model
                 throw new Exception('Durata slot non valida nella fascia selezionata.');
             }
 
-            if ($index === 0 && ($startTimestamp < $rowStartTimestamp || $startTimestamp >= $rowEndTimestamp)) {
-                throw new Exception('L ora personalizzata deve rientrare nello slot iniziale selezionato.');
-            }
-
-            if ($expectedStartTimestamp !== null && $rowStartTimestamp !== $expectedStartTimestamp) {
+            if ($rowStartTimestamp > $coverageCursorTimestamp) {
                 throw new Exception('L intervallo personalizzato attraversa una fascia senza slot disponibili.');
             }
 
@@ -731,15 +790,24 @@ class AgendaAppointmentModel extends Model
                 throw new Exception('Uno degli slot coinvolti e in modifica da un altro operatore.');
             }
 
-            $coveredSlots[] = $row;
-            $expectedStartTimestamp = $rowEndTimestamp;
+            if ($slotId === $primarySlotId) {
+                $primaryCoveredSlot = $row;
+            } else {
+                $coveredSlots[] = $row;
+            }
+
+            $coverageCursorTimestamp = max($coverageCursorTimestamp, $rowEndTimestamp);
         }
 
-        $lastCoveredSlot = end($coveredSlots);
-        $lastEndTimestamp = strtotime((string) ($lastCoveredSlot['ora_fine'] ?? ''));
-        if ($lastEndTimestamp === false || $lastEndTimestamp < $endTimestamp) {
+        if ($primaryCoveredSlot === null) {
+            throw new Exception('L ora personalizzata deve partire dallo slot selezionato.');
+        }
+
+        if ($coverageCursorTimestamp < $endTimestamp) {
             throw new Exception('Non ci sono abbastanza slot disponibili per completare l appuntamento.');
         }
+
+        array_unshift($coveredSlots, $primaryCoveredSlot);
 
         return $coveredSlots;
     }

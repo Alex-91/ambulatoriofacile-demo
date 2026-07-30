@@ -3904,7 +3904,7 @@ $renderAppointmentModalBlock = static function (string $blockKey) use (
                                         </label>
                                     </div>
                                     <p class="help-block">
-                                        Usa un orario fuori dalla griglia e riserva automaticamente tutti gli slot coinvolti.
+                                        Scegli l ora reale di inizio e di fine: verranno riservati automaticamente tutti gli slot coinvolti.
                                     </p>
                                 </div>
                             </div>
@@ -3918,7 +3918,7 @@ $renderAppointmentModalBlock = static function (string $blockKey) use (
 
                                     <div class="col-sm-6 form-group">
                                         <label for="app_custom_end_time">Alle</label>
-                                        <input type="time" id="app_custom_end_time" class="form-control" readonly>
+                                        <input type="time" id="app_custom_end_time" class="form-control" step="300">
                                     </div>
                                 </div>
 
@@ -5728,18 +5728,19 @@ function getAppointmentRequestedDurationMinutes() {
     return storedDuration > 0 ? storedDuration : getAgendaSlotActualDurationMinutes(appointmentModalSlot);
 }
 
-function computeCustomAppointmentCoverage(slot, customStartTime, durationMinutes, currentAppointmentId) {
+function computeCustomAppointmentCoverage(slot, customStartTime, customEndTime, fallbackDurationMinutes, currentAppointmentId) {
     var baseSlot = slot || appointmentModalSlot;
-    var requestedDuration = parseInt(durationMinutes || 0, 10) || 0;
+    var fallbackDuration = parseInt(fallbackDurationMinutes || 0, 10) || 0;
     var appointmentId = parseInt(currentAppointmentId || 0, 10) || 0;
     var normalizedTime = $.trim(String(customStartTime || ''));
+    var normalizedEndTime = $.trim(String(customEndTime || ''));
     var baseStart = parseAgendaMoment(baseSlot && baseSlot.ora_inizio ? baseSlot.ora_inizio : '');
     var baseEnd = parseAgendaMoment(baseSlot && baseSlot.ora_fine ? baseSlot.ora_fine : '');
 
-    if (!baseSlot || !baseStart || !baseEnd || !baseStart.isValid() || !baseEnd.isValid() || requestedDuration <= 0) {
+    if (!baseSlot || !baseStart || !baseEnd || !baseStart.isValid() || !baseEnd.isValid()) {
         return {
             ok: false,
-            message: 'Seleziona un tipo visita con una durata valida.'
+            message: 'Slot iniziale non valido.'
         };
     }
 
@@ -5762,11 +5763,29 @@ function computeCustomAppointmentCoverage(slot, customStartTime, durationMinutes
         };
     }
 
-    var endMoment = startMoment.clone().add(requestedDuration, 'minutes');
-    if (!endMoment.isValid() || endMoment.format('YYYY-MM-DD') !== startMoment.format('YYYY-MM-DD')) {
+    var endMoment = null;
+    if (normalizedEndTime !== '') {
+        if (!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(normalizedEndTime)) {
+            return {
+                ok: false,
+                message: 'Inserisci un ora finale personalizzata valida.'
+            };
+        }
+
+        endMoment = moment(baseStart.format('YYYY-MM-DD') + ' ' + normalizedEndTime, 'YYYY-MM-DD HH:mm', true);
+    } else if (fallbackDuration > 0) {
+        endMoment = startMoment.clone().add(fallbackDuration, 'minutes');
+    }
+
+    if (
+        !endMoment
+        || !endMoment.isValid()
+        || !endMoment.isAfter(startMoment)
+        || endMoment.format('YYYY-MM-DD') !== startMoment.format('YYYY-MM-DD')
+    ) {
         return {
             ok: false,
-            message: 'L appuntamento deve iniziare e terminare nello stesso giorno.'
+            message: 'L ora finale personalizzata deve essere successiva all ora iniziale.'
         };
     }
 
@@ -5790,14 +5809,15 @@ function computeCustomAppointmentCoverage(slot, customStartTime, durationMinutes
     });
 
     var baseSlotId = parseInt((baseSlot && baseSlot.id_slot) || 0, 10) || 0;
-    if (!contextSlots.length || (parseInt((contextSlots[0] && contextSlots[0].id_slot) || 0, 10) || 0) !== baseSlotId) {
+    if (!contextSlots.length) {
         return {
             ok: false,
             message: 'L ora personalizzata deve partire dallo slot selezionato.'
         };
     }
 
-    var expectedStart = null;
+    var coverageCursor = startMoment.clone();
+    var primarySlotFound = false;
     var slotIds = [];
     var slotLabels = [];
 
@@ -5809,7 +5829,7 @@ function computeCustomAppointmentCoverage(slot, customStartTime, durationMinutes
         var rowAppointmentId = parseInt((row && row.id_appuntamento) || 0, 10) || 0;
         var occupiedByOtherAppointment = rowAppointmentId > 0 && rowAppointmentId !== appointmentId;
 
-        if (expectedStart && !rowStart.isSame(expectedStart)) {
+        if (rowStart.isAfter(coverageCursor)) {
             return {
                 ok: false,
                 message: 'L intervallo attraversa una fascia senza slot disponibili.'
@@ -5830,12 +5850,25 @@ function computeCustomAppointmentCoverage(slot, customStartTime, durationMinutes
             };
         }
 
+        if ((parseInt((row && row.id_slot) || 0, 10) || 0) === baseSlotId) {
+            primarySlotFound = true;
+        }
+
         slotIds.push(parseInt((row && row.id_slot) || 0, 10) || 0);
         slotLabels.push(rowStart.format('HH:mm') + '-' + rowEnd.format('HH:mm'));
-        expectedStart = rowEnd.clone();
+        if (rowEnd.isAfter(coverageCursor)) {
+            coverageCursor = rowEnd.clone();
+        }
     }
 
-    if (!expectedStart || expectedStart.isBefore(endMoment)) {
+    if (!primarySlotFound) {
+        return {
+            ok: false,
+            message: 'L ora personalizzata deve partire dallo slot selezionato.'
+        };
+    }
+
+    if (coverageCursor.isBefore(endMoment)) {
         return {
             ok: false,
             message: 'Non ci sono abbastanza slot disponibili per completare l appuntamento.'
@@ -5849,6 +5882,7 @@ function computeCustomAppointmentCoverage(slot, customStartTime, durationMinutes
         count: slotIds.length,
         startMoment: startMoment,
         endMoment: endMoment,
+        durationMinutes: endMoment.diff(startMoment, 'minutes'),
         message: 'Occupa ' + slotIds.length + ' slot: ' + slotLabels.join(', ') + '. Orario reale ' + startMoment.format('HH:mm') + '-' + endMoment.format('HH:mm') + '.'
     };
 }
@@ -5880,12 +5914,12 @@ function refreshAppointmentCustomTimeCoverage(durationMinutes) {
     var coverage = computeCustomAppointmentCoverage(
         appointmentModalSlot,
         $start.val(),
+        $end.val(),
         durationMinutes,
         $('#app_id_appuntamento').val()
     );
 
     if (!coverage || !coverage.ok) {
-        $end.val('');
         $coverage
             .removeClass('is-ok')
             .addClass('is-error')
@@ -8035,7 +8069,7 @@ function riallineaRenderingCalendario() {
     }, 0);
 }
 
-function setAppointmentCustomTimeState(enabled, startTime) {
+function setAppointmentCustomTimeState(enabled, startTime, endTime) {
     if (!supportsAgendaCustomAppointmentTime()) {
         return;
     }
@@ -8043,7 +8077,7 @@ function setAppointmentCustomTimeState(enabled, startTime) {
     var active = !!enabled;
     $('#app_custom_time_enabled').prop('checked', active);
     $('#app_custom_start_time').val($.trim(String(startTime || '')));
-    $('#app_custom_end_time').val('');
+    $('#app_custom_end_time').val($.trim(String(endTime || '')));
     $('#appointmentCustomTimeFields').toggle(active && !isAppointmentPersonalCommitmentMode());
     $('#app_custom_time_coverage').removeClass('is-error is-ok').text('');
 }
@@ -8061,7 +8095,7 @@ function resetAppointmentModal() {
     $('#app_special_mode').val('standard');
     $('#app_ora_inizio').val('');
     $('#app_ora_fine').val('');
-    setAppointmentCustomTimeState(false, '');
+    setAppointmentCustomTimeState(false, '', '');
     $('#app_personal_commitment_end').html('').hide();
     $('#app_personal_commitment_time_help').hide();
     $('#app_personal_commitment_duration_info').hide().removeClass('is-error is-ok').text('');
@@ -8859,7 +8893,7 @@ function apriSlotLiberoDaSlot(slot) {
     $('#app_id_dot').val(slot.id_dot || '');
     setAppointmentSlotTimeSummary(slot);
     var newSlotStart = parseAgendaMoment(slot.ora_inizio || '');
-    setAppointmentCustomTimeState(false, newSlotStart && newSlotStart.isValid() ? newSlotStart.format('HH:mm') : '');
+    setAppointmentCustomTimeState(false, newSlotStart && newSlotStart.isValid() ? newSlotStart.format('HH:mm') : '', '');
     setAppointmentExtraSlotState(slot);
     fillAppointmentVisitTypeSelect(0);
     setAppointmentMode('standard');
@@ -8915,9 +8949,13 @@ function riempiModaleDaEvento(slot) {
     setAppointmentLinkedPatient(linkedPatientId, patientLabel);
     fillAppointmentVisitTypeSelect(slot.id_tipo_visita || '');
     var customStartMoment = parseAgendaMoment(slot.appointment_custom_ora_inizio || '');
+    var customEndMoment = parseAgendaMoment(slot.appointment_ora_fine || '');
     setAppointmentCustomTimeState(
         !!(customStartMoment && customStartMoment.isValid()),
-        customStartMoment && customStartMoment.isValid() ? customStartMoment.format('HH:mm') : ''
+        customStartMoment && customStartMoment.isValid() ? customStartMoment.format('HH:mm') : '',
+        customStartMoment && customStartMoment.isValid() && customEndMoment && customEndMoment.isValid()
+            ? customEndMoment.format('HH:mm')
+            : ''
     );
     if (isPersonalCommitment) {
         appointmentStandardDraftCache = null;
@@ -12087,7 +12125,7 @@ $('#nota_giorno_text').on('blur', function() {
         }
     });
 
-    $('#app_custom_start_time').on('input change', function() {
+    $('#app_custom_start_time, #app_custom_end_time').on('input change', function() {
         refreshAppointmentVisitTypePreview();
     });
 
@@ -12217,6 +12255,7 @@ $('#nota_giorno_text').on('blur', function() {
                 appointment_special_mode: isPersonalCommitment ? 'personal_commitment' : 'standard',
                 custom_time_enabled: isAppointmentCustomTimeEnabled() ? 1 : 0,
                 custom_start_time: isAppointmentCustomTimeEnabled() ? ($('#app_custom_start_time').val() || '') : '',
+                custom_end_time: isAppointmentCustomTimeEnabled() ? ($('#app_custom_end_time').val() || '') : '',
                 paz_spec: isPersonalCommitment ? getAgendaPersonalCommitmentSpecialCode() : ($('#app_paz_spec').val() || ''),
                 cognome: cognome,
                 nome: nome,
