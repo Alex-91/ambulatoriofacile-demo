@@ -6,8 +6,9 @@ use App\Controllers\BaseController;
 use App\Services\AgendaAppointmentBlockLayoutService;
 use App\Services\AgendaDefaultViewService;
 use App\Services\AgendaHomeBlockOrderService;
-use App\Services\BillingFeatureService;
 use App\Models\AgendaModel;
+use App\Services\AgendaSidebarBlockOrderService;
+use App\Services\BillingFeatureService;
 use App\Services\AgendaTextColorThemeService;
 use App\Services\AgendaTeamColumnColorService;
 use App\Services\AgendaProfessionalOrderService;
@@ -43,10 +44,13 @@ class SpaceFeatures extends BaseController
         $agendaProfessionals = (new AgendaModel())->getAllAgendaProfessionals();
         $appointmentBlockLayoutService = new AgendaAppointmentBlockLayoutService();
         $homeBlockOrderService = new AgendaHomeBlockOrderService();
+        $sidebarBlockOrderService = new AgendaSidebarBlockOrderService();
         $professionalOrderService = new AgendaProfessionalOrderService();
         $agendaAppointmentBlockLayoutSettings = $appointmentBlockLayoutService
             ->resolveTenantSettings($context->tenantId);
         $agendaHomeBlockOrderSettings = $homeBlockOrderService
+            ->resolveTenantSettings($context->tenantId);
+        $agendaSidebarBlockOrderSettings = $sidebarBlockOrderService
             ->resolveTenantSettings($context->tenantId);
         $agendaProfessionalOrderSettings = $professionalOrderService
             ->resolveTenantSettings($context->tenantId, $agendaProfessionals);
@@ -70,6 +74,7 @@ class SpaceFeatures extends BaseController
             'agendaAppointmentBlockLayoutSettings' => $agendaAppointmentBlockLayoutSettings,
             'agendaDefaultViewSettings' => $agendaDefaultViewSettings,
             'agendaHomeBlockOrderSettings' => $agendaHomeBlockOrderSettings,
+            'agendaSidebarBlockOrderSettings' => $agendaSidebarBlockOrderSettings,
             'agendaProfessionalOrderSettings' => $agendaProfessionalOrderSettings,
             'teamDayColumnColorSettings' => $teamDayColumnColorSettings,
             'agendaTextColorThemeSettings' => $agendaTextColorThemeSettings,
@@ -109,6 +114,12 @@ class SpaceFeatures extends BaseController
                 (array) $this->request->getPost('agenda_home_block_order_keys')
             ), static fn(string $value): bool => $value !== ''));
             $agendaHomeBlockOrderColumns = (array) $this->request->getPost('agenda_home_block_columns');
+            $agendaSidebarBlockOrderForm = (int) ($this->request->getPost('agenda_sidebar_block_order_form') ?? 0) === 1;
+            $agendaSidebarBlockOrderEnabled = (int) ($this->request->getPost('agenda_sidebar_block_order_enabled') ?? 0) === 1;
+            $agendaSidebarBlockOrderKeys = array_values(array_filter(array_map(
+                static fn($value): string => trim((string) $value),
+                (array) $this->request->getPost('agenda_sidebar_block_order_keys')
+            ), static fn(string $value): bool => $value !== ''));
             $agendaDefaultViewForm = (int) ($this->request->getPost('agenda_default_view_form') ?? 0) === 1;
             $agendaDefaultViewEnabled = (int) ($this->request->getPost('agenda_default_view_enabled') ?? 0) === 1;
             $agendaDefaultView = trim(strtolower((string) ($this->request->getPost('agenda_default_view') ?? '')));
@@ -154,6 +165,7 @@ class SpaceFeatures extends BaseController
             $agendaProfessionals = (new AgendaModel())->getAllAgendaProfessionals();
             $appointmentBlockLayoutService = new AgendaAppointmentBlockLayoutService();
             $homeBlockOrderService = new AgendaHomeBlockOrderService();
+            $sidebarBlockOrderService = new AgendaSidebarBlockOrderService();
             $professionalOrderService = new AgendaProfessionalOrderService();
 
             if ($agendaAppointmentBlockLayoutForm) {
@@ -173,6 +185,15 @@ class SpaceFeatures extends BaseController
                     $agendaHomeBlockOrderKeys,
                     $platformUserId,
                     $agendaHomeBlockOrderColumns
+                );
+            }
+
+            if ($agendaSidebarBlockOrderForm) {
+                $sidebarBlockOrderService->saveTenantPreferences(
+                    $context->tenantId,
+                    $agendaSidebarBlockOrderEnabled,
+                    $agendaSidebarBlockOrderKeys,
+                    $platformUserId
                 );
             }
 

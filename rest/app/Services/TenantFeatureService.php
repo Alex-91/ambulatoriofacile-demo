@@ -6,6 +6,8 @@ use App\Config\BillingModule;
 use App\Config\TsBilling;
 use App\Models\PlatformFeaturesModel;
 use App\Models\PlatformTenantFeaturePreferencesModel;
+use App\Services\AgendaHomeBlockOrderService;
+use App\Services\AgendaSidebarBlockOrderService;
 use Config\Database;
 
 class TenantFeatureService
@@ -275,6 +277,26 @@ class TenantFeatureService
                 'tenant_default_enabled' => 0,
                 'sort_order' => 70,
             ],
+            AgendaHomeBlockOrderService::FEATURE_KEY => [
+                'feature_name' => 'Ordine blocchi home agenda',
+                'feature_scope' => 'workflow',
+                'description' => 'Il master piattaforma puo attivare per il singolo studio un ordinamento personalizzato dei blocchi principali della home agenda: professionista, ricerca paziente, agenda e memo.',
+                'default_enabled' => 0,
+                'icon_class' => 'fa-th-large',
+                'is_tenant_managed' => 0,
+                'tenant_default_enabled' => 0,
+                'sort_order' => 68,
+            ],
+            AgendaSidebarBlockOrderService::FEATURE_KEY => [
+                'feature_name' => 'Ordine blocchi laterali agenda',
+                'feature_scope' => 'workflow',
+                'description' => 'Il master piattaforma puo attivare per il singolo studio un ordinamento dedicato dei blocchi della colonna sinistra dell agenda. La sequenza puo includere menu, calendario laterale e anche eventuali blocchi home spostati a sinistra dalla configurazione principale.',
+                'default_enabled' => 0,
+                'icon_class' => 'fa-align-left',
+                'is_tenant_managed' => 0,
+                'tenant_default_enabled' => 0,
+                'sort_order' => 71,
+            ],
             'agenda_compressed_layout' => [
                 'feature_name' => 'Versione compressa agenda',
                 'feature_scope' => 'workflow',
@@ -283,7 +305,7 @@ class TenantFeatureService
                 'icon_class' => 'fa-compress',
                 'is_tenant_managed' => 1,
                 'tenant_default_enabled' => 0,
-                'sort_order' => 71,
+                'sort_order' => 72,
             ],
             'agenda_team_day_single_slot_height' => [
                 'feature_name' => 'Giorno Team compatto',
@@ -343,7 +365,7 @@ class TenantFeatureService
                 'icon_class' => 'fa-columns',
                 'is_tenant_managed' => 0,
                 'tenant_default_enabled' => 0,
-                'sort_order' => 72,
+                'sort_order' => 74,
             ],
         ];
     }

@@ -31,6 +31,7 @@
             ? $agendaAppointmentBlockLayoutSettings
             : [];
         $agendaHomeBlockOrderSettings = is_array($agendaHomeBlockOrderSettings ?? null) ? $agendaHomeBlockOrderSettings : [];
+        $agendaSidebarBlockOrderSettings = is_array($agendaSidebarBlockOrderSettings ?? null) ? $agendaSidebarBlockOrderSettings : [];
         $appointmentDocumentActions = is_array($appointmentDocumentActions ?? null) ? $appointmentDocumentActions : [];
         $appointmentBillingWorkflowEnabled = !empty($appointmentDocumentActions['billing_enabled']);
         $appointmentTsWorkflowEnabled = !empty($appointmentDocumentActions['ts_enabled']);
@@ -108,6 +109,27 @@
         $agendaHomeLayoutMetaJson = json_encode($agendaHomeEffectiveLayoutItems, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
         if (!is_string($agendaHomeLayoutMetaJson) || $agendaHomeLayoutMetaJson === '') {
             $agendaHomeLayoutMetaJson = '[]';
+        }
+
+        $agendaSidebarFallbackOrderKeys = [
+            'sidebar_menu',
+            'sidebar_calendar',
+            'doctor_selector',
+            'patient_search',
+            'day_note',
+            'calendar',
+            'memo',
+        ];
+        $agendaSidebarEffectiveOrderKeys = array_values(array_filter(array_map(
+            static fn($value): string => trim((string) $value),
+            (array) ($agendaSidebarBlockOrderSettings['effective_order_keys'] ?? [])
+        ), static fn(string $value): bool => $value !== ''));
+        if ($agendaSidebarEffectiveOrderKeys === []) {
+            $agendaSidebarEffectiveOrderKeys = $agendaSidebarFallbackOrderKeys;
+        }
+        $agendaSidebarOrderMetaJson = json_encode($agendaSidebarEffectiveOrderKeys, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        if (!is_string($agendaSidebarOrderMetaJson) || $agendaSidebarOrderMetaJson === '') {
+            $agendaSidebarOrderMetaJson = '[]';
         }
 
         $agendaHomeLeftColumnHasBlocks = false;
@@ -1750,6 +1772,14 @@
             gap: 8px;
         }
 
+        .agenda-sidebar-stack-item > .box {
+            margin-bottom: 0 !important;
+        }
+
+        .agenda-sidebar-panels > .agenda-sidebar-stack-item + .agenda-sidebar-stack-item {
+            margin-top: 15px;
+        }
+
         .agenda-sidebar-custom-blocks {
             margin-top: 15px;
         }
@@ -1758,23 +1788,23 @@
             display: none;
         }
 
-        .agenda-sidebar-custom-blocks .agenda-doctor-hero {
+        .agenda-sidebar-panels .agenda-home-block .agenda-doctor-hero {
             margin-bottom: 0;
             padding: 16px 18px;
             text-align: left;
         }
 
-        .agenda-sidebar-custom-blocks .agenda-doctor-label {
+        .agenda-sidebar-panels .agenda-home-block .agenda-doctor-label {
             font-size: 20px;
             margin-bottom: 8px;
         }
 
-        .agenda-sidebar-custom-blocks .agenda-doctor-help {
+        .agenda-sidebar-panels .agenda-home-block .agenda-doctor-help {
             max-width: none;
             margin: 0 0 12px 0;
         }
 
-        .agenda-sidebar-custom-blocks .agenda-doctor-select {
+        .agenda-sidebar-panels .agenda-home-block .agenda-doctor-select {
             max-width: none;
             margin: 0;
             font-size: 16px;
@@ -1993,12 +2023,34 @@
             text-transform: uppercase;
         }
 
+        .agenda-compressed-daybar-label-wrap {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
         .agenda-compressed-daybar-label {
             color: #1f2d3d;
             font-size: 20px;
             font-weight: 800;
             line-height: 1.2;
             text-transform: capitalize;
+        }
+
+        .agenda-day-note-indicator {
+            display: inline-flex;
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background: #f39c12;
+            box-shadow: 0 0 0 3px rgba(243, 156, 18, 0.18);
+            flex: 0 0 auto;
+            vertical-align: middle;
+        }
+
+        .agenda-day-note-indicator.is-hidden {
+            display: none;
         }
 
         .agenda-compressed-daybar .btn {
@@ -2169,6 +2221,7 @@
         }
 
         .agenda-team-board-wrap {
+            --agenda-team-column-min-width: 220px;
             overflow: auto;
             max-height: 84vh;
             min-height: 680px;
@@ -2211,9 +2264,10 @@
         }
 
         .agenda-team-header {
-            min-width: 220px;
+            min-width: var(--agenda-team-column-min-width, 220px);
             border-left: 1px solid var(--agenda-team-column-soft-border, #dde7ef);
             color: var(--agenda-team-secondary-text, var(--agenda-team-column-soft-text, #1f2d3d));
+            box-sizing: border-box;
         }
 
         .agenda-team-header.is-selected {
@@ -2273,6 +2327,8 @@
         .agenda-team-column-body {
             border-left: 1px solid var(--agenda-team-column-soft-border, #eef2f7);
             --agenda-team-step-height: 52px;
+            min-width: 0;
+            box-sizing: border-box;
         }
 
         .agenda-team-column-body.is-compact-stack {
@@ -2583,6 +2639,13 @@
             font-size: 16px;
             font-weight: 600;
             line-height: 1.55;
+            width: calc(100% - 28px);
+            max-width: calc(100% - 28px);
+            min-width: 0;
+            box-sizing: border-box;
+            white-space: normal;
+            overflow-wrap: anywhere;
+            word-break: break-word;
         }
 
         .agenda-team-column-body.is-compact-stack .agenda-team-empty-column {
@@ -2711,10 +2774,6 @@
                 min-width: 0;
             }
 
-            .agenda-team-header {
-                min-width: 180px;
-            }
-
             .agenda-team-day-toolbar {
                 flex-direction: column;
                 align-items: stretch;
@@ -2751,6 +2810,7 @@
             }
 
             .agenda-team-board-wrap {
+                --agenda-team-column-min-width: 180px;
                 min-height: 560px;
             }
 
@@ -2854,7 +2914,8 @@
                         </div>
 
                         <div id="agendaSidebarPanels" class="agenda-sidebar-panels">
-                    <div class="box box-solid" style="margin-bottom:0!important">
+                    <div id="agendaSidebarBlock-sidebar_menu" class="agenda-sidebar-stack-item">
+                    <div class="box box-solid">
                         <div class="box-header with-border">
                             <h3 class="box-title">Menu</h3>
                             <div class="box-tools">
@@ -2868,14 +2929,25 @@
     <?= view('agenda/partials/menu_laterale', ['menuAgenda' => $menuAgenda ?? ($menu ?? [])]) ?>
 </div>
                     </div>
+                    </div>
 
-                    <div class="box box-primary" style="margin-top:15px;">
+                    <div id="agendaSidebarBlock-sidebar_calendar" class="agenda-sidebar-stack-item">
+                    <div class="box box-primary">
                         <div class="box-header with-border">
                             <h3 class="box-title"><i class="fa fa-filter"></i> Filtri agenda</h3>
                         </div>
                         <div class="box-body agenda-toolbar">
                             <div class="form-group">
-                                <label for="agenda_date">Data</label>
+                                <label for="agenda_date">
+                                    Data
+                                    <span
+                                        id="agendaDateNoteIndicator"
+                                        class="agenda-day-note-indicator is-hidden"
+                                        data-agenda-day-note-indicator
+                                        aria-hidden="true"
+                                        title="Sono presenti note del giorno per questa data."
+                                    ></span>
+                                </label>
                                 <input type="date" id="agenda_date" class="form-control" value="<?= esc($selectedDate ?? date('Y-m-d')) ?>">
                             </div>
 
@@ -2976,7 +3048,7 @@
                             <?php endif; ?>
                         </div>
                     </div>
-
+                    </div>
                     <div id="agendaSidebarCustomBlocks" class="agenda-sidebar-custom-blocks"></div>
                         </div>
                     </div>
@@ -2986,6 +3058,11 @@
                     <div
                         id="agendaHomeBlockOrderMeta"
                         data-layout-items="<?= esc($agendaHomeLayoutMetaJson, 'attr') ?>"
+                        style="display:none;"
+                    ></div>
+                    <div
+                        id="agendaSidebarBlockOrderMeta"
+                        data-order-keys="<?= esc($agendaSidebarOrderMetaJson, 'attr') ?>"
                         style="display:none;"
                     ></div>
 
@@ -3185,7 +3262,16 @@
                     <i class="fa fa-calendar-o" id="agendaCompressedDaybarKickerIcon"></i>
                     <span id="agendaCompressedDaybarKickerText">Giorno agenda</span>
                 </div>
-                <div class="agenda-compressed-daybar-label" id="agendaCompressedDaybarLabel">-</div>
+                <div class="agenda-compressed-daybar-label-wrap">
+                    <div class="agenda-compressed-daybar-label" id="agendaCompressedDaybarLabel">-</div>
+                    <span
+                        id="agendaCompressedDayNoteIndicator"
+                        class="agenda-day-note-indicator is-hidden"
+                        data-agenda-day-note-indicator
+                        aria-hidden="true"
+                        title="Sono presenti note del giorno per questa data."
+                    ></span>
+                </div>
             </div>
             <div class="agenda-compressed-daybar-actions">
                 <button type="button" class="btn btn-warning" id="btnCompressedAddExtraSlot">
@@ -3226,6 +3312,13 @@
                                 <span class="agenda-team-day-toolbar-piece" id="agendaTeamDayCurrentWeekday">-</span>
                                 <span class="agenda-team-day-toolbar-piece" id="agendaTeamDayCurrentDayNumber">-</span>
                                 <span class="agenda-team-day-toolbar-piece" id="agendaTeamDayCurrentMonth">-</span>
+                                <span
+                                    id="agendaTeamDayNoteIndicator"
+                                    class="agenda-day-note-indicator is-hidden"
+                                    data-agenda-day-note-indicator
+                                    aria-hidden="true"
+                                    title="Sono presenti note del giorno per questa data."
+                                ></span>
                             </div>
                             <div class="agenda-team-day-toolbar-year" id="agendaTeamDayCurrentYear">-</div>
                         </div>
@@ -4032,6 +4125,100 @@ window.AGENDA_CONFIG = {
 })();
 </script>
 <script>
+(function() {
+    var meta = document.getElementById('agendaSidebarBlockOrderMeta');
+    var sidebarPanels = document.getElementById('agendaSidebarPanels');
+    var customHost = document.getElementById('agendaSidebarCustomBlocks');
+
+    if (!meta || !sidebarPanels || !customHost) {
+        return;
+    }
+
+    var fallbackOrder = [
+        'sidebar_menu',
+        'sidebar_calendar',
+        'doctor_selector',
+        'patient_search',
+        'day_note',
+        'calendar',
+        'memo'
+    ];
+    var orderKeys = [];
+
+    try {
+        orderKeys = JSON.parse(meta.getAttribute('data-order-keys') || '[]');
+    } catch (error) {
+        orderKeys = [];
+    }
+
+    if (!Array.isArray(orderKeys) || orderKeys.length === 0) {
+        orderKeys = fallbackOrder;
+    }
+
+    var blocksByKey = {
+        sidebar_menu: document.getElementById('agendaSidebarBlock-sidebar_menu'),
+        sidebar_calendar: document.getElementById('agendaSidebarBlock-sidebar_calendar'),
+        doctor_selector: document.getElementById('agendaHomeBlock-doctor_selector'),
+        patient_search: document.getElementById('agendaHomeBlock-patient_search'),
+        day_note: document.getElementById('agendaHomeBlock-day_note'),
+        calendar: document.getElementById('agendaHomeBlock-calendar'),
+        memo: document.getElementById('agendaHomeBlock-memo')
+    };
+    var fixedKeys = {
+        sidebar_menu: true,
+        sidebar_calendar: true
+    };
+    var placedKeys = {};
+
+    function appendSidebarNode(node) {
+        if (!node) {
+            return;
+        }
+
+        node.classList.add('agenda-sidebar-stack-item');
+        sidebarPanels.appendChild(node);
+    }
+
+    function isDynamicLeftNode(node) {
+        return !!(node && node.parentElement === customHost);
+    }
+
+    orderKeys.forEach(function(orderKey) {
+        var blockKey = String(orderKey || '').trim();
+        var node = blocksByKey[blockKey] || null;
+        if (!node) {
+            return;
+        }
+
+        if (fixedKeys[blockKey]) {
+            appendSidebarNode(node);
+            placedKeys[blockKey] = true;
+            return;
+        }
+
+        if (!isDynamicLeftNode(node)) {
+            return;
+        }
+
+        appendSidebarNode(node);
+        placedKeys[blockKey] = true;
+    });
+
+    Object.keys(blocksByKey).forEach(function(blockKey) {
+        if (placedKeys[blockKey] || fixedKeys[blockKey]) {
+            return;
+        }
+
+        var node = blocksByKey[blockKey] || null;
+        if (!isDynamicLeftNode(node)) {
+            return;
+        }
+
+        appendSidebarNode(node);
+    });
+})();
+</script>
+<script>
 if (window.moment && window.moment.fn) {
     if (typeof window.moment.fn.isSameOrBefore !== 'function') {
         window.moment.fn.isSameOrBefore = function(input, units) {
@@ -4286,6 +4473,16 @@ function syncAgendaCompressedDaybar() {
     $kickerText.text(kickerText);
     $kickerIcon.attr('class', 'fa ' + kickerIcon);
     $label.text(label);
+}
+
+function hasAgendaDayNoteValue(value) {
+    return $.trim(String(value || '')) !== '';
+}
+
+function syncAgendaDayNoteIndicators(value) {
+    var hasNote = hasAgendaDayNoteValue(value);
+
+    $('[data-agenda-day-note-indicator]').toggleClass('is-hidden', !hasNote);
 }
 
 function buildAgendaAvailabilityNavigationMessage(direction, view) {
@@ -6709,6 +6906,8 @@ function getAgendaDisplayDurationMinutes(slot, actualDurationMinutes, startMinut
 }
 
 function caricaNotaGiorno() {
+    syncAgendaDayNoteIndicators('');
+
     $.get("<?= base_url('agenda/get-nota-giorno') ?>", {
         id_dot: $('#id_dot').val(),
         data: $('#agenda_date').val()
@@ -6717,6 +6916,7 @@ function caricaNotaGiorno() {
             $('#nota_giorno_text').val('');
             $('#nota_giorno_status').text('');
             notaGiornoUltimoValore = '';
+            syncAgendaDayNoteIndicators('');
             return;
         }
 
@@ -6725,6 +6925,7 @@ function caricaNotaGiorno() {
         $('#nota_giorno_status').text('');
         notaGiornoUltimoValore = testo;
         notaGiornoDirty = false;
+        syncAgendaDayNoteIndicators(testo);
 
         applicaStatoGiornoBloccato();
     }, 'json');
@@ -6765,6 +6966,7 @@ function salvaNotaGiorno(callbackSilenziosa) {
 
         notaGiornoUltimoValore = testo;
         notaGiornoDirty = false;
+        syncAgendaDayNoteIndicators(testo);
 
         $('#nota_giorno_status').removeClass('text-muted text-danger')
             .addClass('text-success')
@@ -8615,7 +8817,7 @@ function renderAgendaTeamDay(res) {
     var html = '';
 
     $.each(columns, function() {
-        templateColumns += (templateColumns !== '' ? ' ' : '') + 'minmax(220px, 1fr)';
+        templateColumns += (templateColumns !== '' ? ' ' : '') + 'minmax(var(--agenda-team-column-min-width, 220px), var(--agenda-team-column-min-width, 220px))';
     });
 
     html += '<div class="agenda-team-grid" style="grid-template-columns:' + templateColumns + ';">';

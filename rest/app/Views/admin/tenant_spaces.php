@@ -880,6 +880,16 @@ $oldValue = static function (string $key, $fallback = '') {
                               Se attivo, il responsabile dello studio puo accendere una resa cromatica dedicata per Giorno Team e personalizzare i singoli professionisti dal pannello spazio.
                             </div>
                           <?php endif; ?>
+                          <?php if ($featureKey === \App\Services\AgendaHomeBlockOrderService::FEATURE_KEY): ?>
+                            <div class="text-muted" style="font-size:12px; margin-top:8px; line-height:1.45;">
+                              Se attiva, il responsabile dello studio puo riordinare i blocchi principali della home agenda e decidere quali lasciare al centro, quali spostare nella colonna sinistra e quali nascondere.
+                            </div>
+                          <?php endif; ?>
+                          <?php if ($featureKey === \App\Services\AgendaSidebarBlockOrderService::FEATURE_KEY): ?>
+                            <div class="text-muted" style="font-size:12px; margin-top:8px; line-height:1.45;">
+                              Se attiva, il responsabile dello studio puo ordinare separatamente i blocchi della colonna sinistra dell agenda, compresi quelli che arrivano li dalla configurazione principale della home.
+                            </div>
+                          <?php endif; ?>
                         </div>
                       </div>
                     <?php endforeach; ?>

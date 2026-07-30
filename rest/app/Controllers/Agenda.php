@@ -20,6 +20,7 @@ use App\Services\AgendaAppointmentBlockLayoutService;
 use App\Services\AgendaDefaultViewService;
 use App\Services\AgendaHomeBlockOrderService;
 use App\Services\AgendaProfessionalOrderService;
+use App\Services\AgendaSidebarBlockOrderService;
 use App\Services\AgendaTextColorThemeService;
 use App\Services\AgendaTeamColumnColorService;
 use App\Services\AppointmentNotificationSettingsService;
@@ -69,6 +70,7 @@ class Agenda extends BaseController
     protected NotificationService $notificationService;
     protected AgendaAppointmentBlockLayoutService $agendaAppointmentBlockLayoutService;
     protected AgendaHomeBlockOrderService $agendaHomeBlockOrderService;
+    protected AgendaSidebarBlockOrderService $agendaSidebarBlockOrderService;
     protected AgendaDefaultViewService $agendaDefaultViewService;
     protected AgendaProfessionalOrderService $agendaProfessionalOrderService;
     protected AgendaTextColorThemeService $agendaTextColorThemeService;
@@ -98,6 +100,7 @@ class Agenda extends BaseController
         $this->notificationService = new NotificationService();
         $this->agendaAppointmentBlockLayoutService = new AgendaAppointmentBlockLayoutService();
         $this->agendaHomeBlockOrderService = new AgendaHomeBlockOrderService();
+        $this->agendaSidebarBlockOrderService = new AgendaSidebarBlockOrderService();
         $this->agendaDefaultViewService = new AgendaDefaultViewService();
         $this->agendaProfessionalOrderService = new AgendaProfessionalOrderService();
         $this->agendaTextColorThemeService = new AgendaTextColorThemeService();
@@ -1914,6 +1917,7 @@ public function eseguiRepairRecurringExtraSlots()
         $appointmentDocumentActions = $this->resolveAppointmentDocumentActionsState();
         $agendaAppointmentBlockLayoutSettings = [];
         $agendaHomeBlockOrderSettings = [];
+        $agendaSidebarBlockOrderSettings = [];
         $agendaTenantId = $this->resolveCurrentAgendaTenantId();
         $patientSmsReminderPreferenceAvailable = $this->isPatientSmsReminderPreferenceAvailable();
 
@@ -1933,6 +1937,16 @@ public function eseguiRepairRecurringExtraSlots()
                     ->resolveTenantSettings($agendaTenantId);
             } catch (\Throwable $e) {
                 log_message('warning', 'Agenda::index agenda home block order bootstrap failed: {message}', [
+                    'message' => $e->getMessage(),
+                    'tenant_id' => $agendaTenantId,
+                ]);
+            }
+
+            try {
+                $agendaSidebarBlockOrderSettings = $this->agendaSidebarBlockOrderService
+                    ->resolveTenantSettings($agendaTenantId);
+            } catch (\Throwable $e) {
+                log_message('warning', 'Agenda::index agenda sidebar block order bootstrap failed: {message}', [
                     'message' => $e->getMessage(),
                     'tenant_id' => $agendaTenantId,
                 ]);
@@ -1962,6 +1976,7 @@ public function eseguiRepairRecurringExtraSlots()
             'visitTypes'           => $visitTypes,
             'agendaAppointmentBlockLayoutSettings' => $agendaAppointmentBlockLayoutSettings,
             'agendaHomeBlockOrderSettings' => $agendaHomeBlockOrderSettings,
+            'agendaSidebarBlockOrderSettings' => $agendaSidebarBlockOrderSettings,
             'agendaTextThemeCssVars' => $this->getAgendaTextThemeCssVariables(),
             'domiciliariAbilitati' => $domiciliariAbilitati,
             'appointmentDocumentActions' => $appointmentDocumentActions,

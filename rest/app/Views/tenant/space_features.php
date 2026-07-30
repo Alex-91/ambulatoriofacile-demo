@@ -55,6 +55,18 @@ $agendaHomeBlockColumnLabels = [
     'left' => 'colonna sinistra con menu',
     'hidden' => 'nascosto',
 ];
+$agendaSidebarBlockOrderSettings = is_array($agendaSidebarBlockOrderSettings ?? null) ? $agendaSidebarBlockOrderSettings : [];
+$agendaSidebarBlockOrderRows = is_array($agendaSidebarBlockOrderSettings['block_rows'] ?? null)
+    ? $agendaSidebarBlockOrderSettings['block_rows']
+    : [];
+$agendaSidebarBlockOrderAvailable = !empty($agendaSidebarBlockOrderSettings['order_management_available']);
+$oldAgendaSidebarBlockOrderEnabled = old('agenda_sidebar_block_order_enabled');
+$oldAgendaSidebarBlockOrderKeys = old('agenda_sidebar_block_order_keys');
+$oldAgendaSidebarBlockOrderKeys = is_array($oldAgendaSidebarBlockOrderKeys) ? $oldAgendaSidebarBlockOrderKeys : [];
+$agendaSidebarBlockDefaultOrderKeys = array_values(array_filter(array_map(
+    static fn($value): string => trim((string) $value),
+    (array) ($agendaSidebarBlockOrderSettings['default_order_keys'] ?? [])
+), static fn(string $value): bool => $value !== ''));
 $agendaProfessionalOrderSettings = is_array($agendaProfessionalOrderSettings ?? null) ? $agendaProfessionalOrderSettings : [];
 $agendaProfessionalOrderRows = is_array($agendaProfessionalOrderSettings['doctor_rows'] ?? null)
     ? $agendaProfessionalOrderSettings['doctor_rows']
@@ -192,6 +204,18 @@ if ($oldAgendaHomeBlockOrderKeys !== []) {
     );
 }
 
+if ($oldAgendaSidebarBlockOrderKeys !== []) {
+    $agendaSidebarBlockOrderRows = $reorderRowsByScalarKey(
+        $agendaSidebarBlockOrderRows,
+        $oldAgendaSidebarBlockOrderKeys,
+        'key',
+        static function ($value): ?string {
+            $normalized = trim((string) $value);
+            return $normalized !== '' ? $normalized : null;
+        }
+    );
+}
+
 $manageableRows = [];
 $lockedRows = [];
 $unavailableRows = [];
@@ -224,6 +248,7 @@ foreach ($featureStates as $row) {
 }
 
 $hasSupplementalSpaceControls = ($agendaHomeBlockOrderAvailable && $agendaHomeBlockOrderRows !== [])
+    || ($agendaSidebarBlockOrderAvailable && $agendaSidebarBlockOrderRows !== [])
     || ($agendaAppointmentBlockLayoutAvailable && $agendaAppointmentBlockRows !== [])
     || ($agendaDefaultViewAvailable && $agendaDefaultViewRows !== [])
     || ($agendaProfessionalOrderAvailable && $agendaProfessionalOrderRows !== [])
@@ -890,6 +915,99 @@ $canSubmitSpaceSettings = ($manageableRows !== []) || $hasSupplementalSpaceContr
 
                     <div class="agenda-order-note">
                       Se lasci l opzione spenta, la home agenda continua a usare la disposizione standard. La sequenza, le colonne e gli eventuali blocchi nascosti che prepari qui restano comunque salvati e pronti da riattivare quando vuoi.
+                    </div>
+                  </div>
+                <?php endif; ?>
+
+                <?php if ($agendaSidebarBlockOrderAvailable && $agendaSidebarBlockOrderRows !== []): ?>
+                  <div class="agenda-order-box">
+                    <input type="hidden" name="agenda_sidebar_block_order_form" value="1">
+                    <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+                      <div>
+                        <h4 style="margin:0 0 6px 0;">Ordine blocchi colonna sinistra agenda</h4>
+                        <p style="margin:0; color:#587075;">
+                          Qui decidi l ordine dei blocchi nella colonna sinistra dell agenda. Oltre a menu e calendario laterale, questa sequenza puo includere anche eventuali blocchi della home agenda spostati a sinistra dalla configurazione principale.
+                        </p>
+                      </div>
+                      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                        <span class="label label-<?= (((string) $oldAgendaSidebarBlockOrderEnabled === '1') || ($oldAgendaSidebarBlockOrderEnabled === null && !empty($agendaSidebarBlockOrderSettings['tenant_order_enabled']))) ? 'success' : 'default' ?>">
+                          <?= (((string) $oldAgendaSidebarBlockOrderEnabled === '1') || ($oldAgendaSidebarBlockOrderEnabled === null && !empty($agendaSidebarBlockOrderSettings['tenant_order_enabled']))) ? 'ordine laterale attivo' : 'ordine laterale standard' ?>
+                        </span>
+                        <span class="label label-info">concesso dalla piattaforma</span>
+                      </div>
+                    </div>
+
+                    <div class="checkbox" style="margin:14px 0 0 0;">
+                      <label>
+                        <input
+                          type="checkbox"
+                          name="agenda_sidebar_block_order_enabled"
+                          value="1"
+                          <?= (((string) $oldAgendaSidebarBlockOrderEnabled === '1') || ($oldAgendaSidebarBlockOrderEnabled === null && !empty($agendaSidebarBlockOrderSettings['tenant_order_enabled']))) ? 'checked' : '' ?>
+                        >
+                        Usa questo ordine personalizzato nella colonna sinistra dell agenda
+                      </label>
+                    </div>
+
+                    <div class="agenda-order-toolbar">
+                      <div class="text-muted" style="font-size:12px;">
+                        Usa le frecce per spostare i blocchi laterali su e giu. I blocchi della home entrano davvero in questa colonna solo quando la configurazione principale li manda a sinistra.
+                      </div>
+                      <button type="button" class="btn btn-default btn-sm js-order-reset" id="agendaSidebarBlockOrderReset">
+                        <i class="fa fa-refresh"></i> Ripristina ordine laterale standard
+                      </button>
+                    </div>
+
+                    <div
+                      class="agenda-order-list js-order-list"
+                      id="agendaSidebarBlockOrderList"
+                      data-default-order="<?= esc(implode(',', $agendaSidebarBlockDefaultOrderKeys), 'attr') ?>"
+                      data-input-name="agenda_sidebar_block_order_keys[]"
+                      data-input-container-id="agendaSidebarBlockOrderInputs"
+                      data-reset-button-id="agendaSidebarBlockOrderReset"
+                    >
+                      <?php foreach ($agendaSidebarBlockOrderRows as $row): ?>
+                        <?php
+                          $blockKey = trim((string) ($row['key'] ?? ''));
+                          $defaultPosition = (int) ($row['default_position'] ?? 0);
+                          $savedPosition = (int) ($row['saved_position'] ?? 0);
+                          $leftOrigin = trim((string) ($row['left_origin'] ?? 'fixed'));
+                          $originLabel = $leftOrigin === 'home'
+                              ? 'Comparsa dinamica dalla home agenda'
+                              : 'Sempre presente nella colonna sinistra';
+                        ?>
+                        <div class="agenda-order-row" data-order-value="<?= esc($blockKey, 'attr') ?>">
+                          <span class="agenda-order-rank js-order-rank"><?= esc((string) $savedPosition) ?></span>
+                          <div class="agenda-order-main">
+                            <div class="agenda-order-title">
+                              <?= esc((string) ($row['label'] ?? $blockKey)) ?>
+                            </div>
+                            <div class="agenda-order-meta">
+                              <?= ($savedPosition !== $defaultPosition)
+                                  ? 'Ordine standard #' . $defaultPosition . '. Ordine personalizzato salvato #' . $savedPosition . '.'
+                                  : 'Al momento coincide con l ordine standard (#' . $defaultPosition . ').' ?>
+                              <br><?= esc($originLabel) ?>
+                              <?php if (trim((string) ($row['description'] ?? '')) !== ''): ?>
+                                <br><?= esc((string) $row['description']) ?>
+                              <?php endif; ?>
+                            </div>
+                          </div>
+                          <div class="agenda-order-actions">
+                            <button type="button" class="btn btn-default btn-sm js-order-up" title="Sposta su">
+                              <i class="fa fa-arrow-up"></i>
+                            </button>
+                            <button type="button" class="btn btn-default btn-sm js-order-down" title="Sposta giu">
+                              <i class="fa fa-arrow-down"></i>
+                            </button>
+                          </div>
+                        </div>
+                      <?php endforeach; ?>
+                    </div>
+
+                    <div id="agendaSidebarBlockOrderInputs"></div>
+
+                    <div class="agenda-order-note">
+                      Se lasci l opzione spenta, la colonna sinistra continua a usare la sequenza standard. L ordine che prepari qui resta comunque salvato e pronto da riattivare quando vuoi.
                     </div>
                   </div>
                 <?php endif; ?>
