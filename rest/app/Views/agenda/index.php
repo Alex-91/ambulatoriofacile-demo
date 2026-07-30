@@ -2238,6 +2238,19 @@
             min-width: max-content;
         }
 
+        .agenda-team-board.is-fit-columns {
+            width: 100%;
+            min-width: 0;
+        }
+
+        .agenda-team-board.is-fit-columns .agenda-team-grid {
+            width: 100%;
+        }
+
+        .agenda-team-board.is-fit-columns .agenda-team-header {
+            min-width: 0;
+        }
+
         .agenda-team-grid {
             display: grid;
             align-items: start;
@@ -8796,16 +8809,19 @@ function renderAgendaTeamDay(res) {
     agendaTeamSlotIndex = {};
     agendaTeamAllSlots = [];
 
+    var $teamBoard = $('#agendaTeamDayBoard');
+    var $teamBoardWrap = $teamBoard.closest('.agenda-team-board-wrap');
     var columns = $.isArray(res && res.columns) ? res.columns : [];
     if (!columns.length) {
-        $('#agendaTeamDayBoard').closest('.agenda-team-board-wrap').removeClass('is-compact-stack');
-        $('#agendaTeamDayBoard').removeClass('has-compact-slot-details');
-        $('#agendaTeamDayBoard').html('<div class="alert alert-info" style="margin:12px;">Nessun professionista visibile per questa vista.</div>');
+        $teamBoardWrap.removeClass('is-compact-stack');
+        $teamBoard.removeClass('has-compact-slot-details is-fit-columns');
+        $teamBoard.html('<div class="alert alert-info" style="margin:12px;">Nessun professionista visibile per questa vista.</div>');
         return;
     }
 
     var compactSingleSlotHeight = supportsAgendaTeamDaySingleSlotHeightFeature();
     var compactSlotDetailsEnabled = compactSingleSlotHeight && supportsAgendaTeamDayCompactSlotDetailsFeature();
+    var fitColumnsToViewport = columns.length <= 4;
     var stepMinutes = Math.max(5, parseInt(res.grid_duration, 10) || agendaCalendarBaseStep);
     var bounds = getAgendaTeamDayBounds(res.min_time, res.max_time);
     var pixelsPerMinute = getAgendaTeamDayPixelsPerMinute(bounds.totalMinutes, stepMinutes);
@@ -8817,7 +8833,11 @@ function renderAgendaTeamDay(res) {
     var html = '';
 
     $.each(columns, function() {
-        templateColumns += (templateColumns !== '' ? ' ' : '') + 'minmax(var(--agenda-team-column-min-width, 220px), var(--agenda-team-column-min-width, 220px))';
+        templateColumns += (templateColumns !== '' ? ' ' : '') + (
+            fitColumnsToViewport
+                ? 'minmax(0, 1fr)'
+                : 'minmax(var(--agenda-team-column-min-width, 220px), 1fr)'
+        );
     });
 
     html += '<div class="agenda-team-grid" style="grid-template-columns:' + templateColumns + ';">';
@@ -8863,9 +8883,10 @@ function renderAgendaTeamDay(res) {
     });
 
     html += '</div>';
-    $('#agendaTeamDayBoard').html(html);
-    $('#agendaTeamDayBoard').toggleClass('has-compact-slot-details', compactSlotDetailsEnabled);
-    $('#agendaTeamDayBoard').closest('.agenda-team-board-wrap').toggleClass('is-compact-stack', compactSingleSlotHeight);
+    $teamBoard.html(html);
+    $teamBoard.toggleClass('has-compact-slot-details', compactSlotDetailsEnabled);
+    $teamBoard.toggleClass('is-fit-columns', fitColumnsToViewport);
+    $teamBoardWrap.toggleClass('is-compact-stack', compactSingleSlotHeight);
 }
 
 function caricaSlotCalendarioTeamDay(options) {
