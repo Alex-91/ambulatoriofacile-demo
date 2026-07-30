@@ -6262,7 +6262,39 @@ function isAgendaDayBlockedByDate(dateValue) {
     return isAgendaDateFlaggedInMap(agendaBlockedDaysMap, dateValue, giornoBloccato);
 }
 
+function getAgendaTeamDaySlotBlockedState(slot) {
+    if (
+        normalizeAgendaViewModeValue($('#view_mode').val()) !== 'team_day'
+        || !agendaTeamDayLastResponse
+        || !$.isArray(agendaTeamDayLastResponse.columns)
+    ) {
+        return null;
+    }
+
+    var slotDoctorId = String((slot && slot.id_dot) || '');
+    if (slotDoctorId === '') {
+        return null;
+    }
+
+    var blockedState = null;
+    $.each(agendaTeamDayLastResponse.columns, function(_, column) {
+        if (String((column && column.id_dot) || '') !== slotDoctorId) {
+            return true;
+        }
+
+        blockedState = !!column.giorno_bloccato;
+        return false;
+    });
+
+    return blockedState;
+}
+
 function isAgendaSlotDayBlocked(slot, fallbackDateValue) {
+    var teamDayBlockedState = getAgendaTeamDaySlotBlockedState(slot);
+    if (teamDayBlockedState !== null) {
+        return teamDayBlockedState;
+    }
+
     var dateValue = estraiDataSlot(slot) || normalizeAgendaDateKey(fallbackDateValue) || getSelectedAgendaDateKey();
     return isAgendaDayBlockedByDate(dateValue);
 }
@@ -11208,19 +11240,18 @@ $('#nota_giorno_text').on('blur', function() {
         apriNuovaVisita();
     });
 
-    $(document).on('click', '.js-agenda-team-free-slot', function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-
+    $(document).on('click', '.js-agenda-team-free-slot', function() {
         var slotKey = String($(this).attr('data-slot-key') || '');
-        var slotId = String($(this).attr('data-slot-id') || '');
-        var slot = agendaTeamSlotIndex[slotKey] || agendaTeamSlotIndex[slotId];
+        var slotId = String($(this).data('slot-id') || '');
+        var slot = slotKey !== ''
+            ? agendaTeamSlotIndex[slotKey]
+            : agendaTeamSlotIndex[slotId];
+
         if (!slot) {
-            return false;
+            return;
         }
 
         apriSlotLiberoDaSlot(slot);
-        return false;
     });
 
     $(document).on('click', '.js-agenda-team-booked-slot', function(e) {
