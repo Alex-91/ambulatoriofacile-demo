@@ -841,7 +841,8 @@ public function eseguiRepairRecurringExtraSlots()
     protected function isVisitTypeSelectionRequired(): bool
     {
         return $this->isVisitTypesFeatureEnabled()
-            && !$this->isVisitTypeSelectionOptionalEnabled();
+            && !$this->isVisitTypeSelectionOptionalEnabled()
+            && $this->visitTypeModel->listForAgenda(false) !== [];
     }
 
     protected function isPersonalCommitmentsFeatureEnabled(): bool

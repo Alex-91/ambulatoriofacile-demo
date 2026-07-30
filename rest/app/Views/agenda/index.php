@@ -4806,7 +4806,11 @@ function formatAgendaDurationMinutes(totalMinutes) {
 }
 
 function isAgendaVisitTypeSelectionOptional() {
-    return supportsAgendaVisitTypes() && !!window.AGENDA_CONFIG.visitTypeSelectionOptionalEnabled;
+    return supportsAgendaVisitTypes()
+        && (
+            !!window.AGENDA_CONFIG.visitTypeSelectionOptionalEnabled
+            || getActiveAgendaVisitTypes().length === 0
+        );
 }
 
 function isAgendaVisitTypeSelectionRequired() {
@@ -12187,10 +12191,12 @@ $('#nota_giorno_text').on('blur', function() {
 
     $('#btnSaveAppointment').on('click', function() {
         if (giornoBloccato) {
+            alert('La giornata e bloccata. Non e possibile salvare l appuntamento.');
             return;
         }
 
         if (appointmentSaveXhr && appointmentSaveXhr.readyState !== 4) {
+            showAgendaToast('Il salvataggio dell appuntamento e gia in corso.', 'info');
             return;
         }
 
