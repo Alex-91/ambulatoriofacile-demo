@@ -12190,13 +12190,16 @@ $('#nota_giorno_text').on('blur', function() {
     });
 
     $('#btnSaveAppointment').on('click', function() {
-        if (giornoBloccato) {
-            alert('La giornata e bloccata. Non e possibile salvare l appuntamento.');
+        if (
+            appointmentModalSlot
+            && isAgendaSlotDayBlocked(appointmentModalSlot, appointmentModalDate)
+        ) {
+            alert('La giornata è bloccata. Non è possibile salvare l\'appuntamento.');
             return;
         }
 
         if (appointmentSaveXhr && appointmentSaveXhr.readyState !== 4) {
-            showAgendaToast('Il salvataggio dell appuntamento e gia in corso.', 'info');
+            showAgendaToast('Il salvataggio dell\'appuntamento è già in corso.', 'info');
             return;
         }
 

@@ -4190,7 +4190,7 @@ public function eseguiRepairRecurringExtraSlots()
             $this->assertDoctorAllowed((int)$slot['id_dot']);
 
             if ($this->agendaModel->isGiornoBloccato((int)$slot['id_dot'], (string)$slot['data_slot'])) {
-                throw new \Exception('La giornata Ã¨ bloccata. Non Ã¨ possibile prenotare.');
+                throw new \Exception('La giornata è bloccata. Non è possibile prenotare.');
             }
 
             $idDot = (int)$slot['id_dot'];
