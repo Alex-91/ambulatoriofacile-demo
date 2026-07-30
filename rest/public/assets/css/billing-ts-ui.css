@@ -1,0 +1,264 @@
+/*
+ * Ambulatorio Facile — Fatturazione & Sistema TS
+ * Visual layer scoped to the two administrative modules.  It deliberately
+ * leaves markup, endpoint URLs, form controls and application behaviour intact.
+ */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+body.billing-ts-ui {
+  --af-app-bg: #f6f8fa;
+  --af-surface: #ffffff;
+  --af-surface-alt: #f9fafb;
+  --af-border: #e4e7ec;
+  --af-border-strong: #d0d5dd;
+  --af-ink: #101828;
+  --af-text: #344054;
+  --af-muted: #667085;
+  --af-faint: #98a2b3;
+  --af-success-ink: #067647;
+  --af-success-bg: #ecfdf3;
+  --af-success-border: #abefc6;
+  --af-warning-ink: #b54708;
+  --af-warning-bg: #fff8eb;
+  --af-warning-border: #fedf89;
+  --af-danger-ink: #b42318;
+  --af-danger-bg: #fef3f2;
+  --af-danger-border: #fecdca;
+  --af-info-ink: #175cd3;
+  --af-info-bg: #eff8ff;
+  --af-info-border: #b2ddff;
+  --af-module-accent: #4f46e5;
+  --af-module-hover: #4338ca;
+  --af-module-ink: #4338ca;
+  --af-module-soft: #eef2ff;
+  --af-module-border: #c7d2fe;
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  color: var(--af-text);
+  background: var(--af-app-bg);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+body.billing-ts-ui.module-sistema-ts {
+  --af-module-accent: #0067a1;
+  --af-module-hover: #005486;
+  --af-module-ink: #005486;
+  --af-module-soft: #e7f0f7;
+  --af-module-border: #b8d4e8;
+}
+
+.billing-ts-ui *, .billing-ts-ui *::before, .billing-ts-ui *::after { box-sizing: border-box; }
+.billing-ts-ui a { color: var(--af-module-ink); }
+.billing-ts-ui a:hover, .billing-ts-ui a:focus { color: var(--af-module-hover); }
+.billing-ts-ui :focus-visible { outline: 2px solid var(--af-module-accent); outline-offset: 2px; }
+.billing-ts-ui .content-wrapper { background: var(--af-app-bg); min-height: calc(100vh - 101px); }
+.billing-ts-ui .content-header { padding: 24px 20px 12px; }
+.billing-ts-ui .content-header h1 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  color: var(--af-ink);
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+.billing-ts-ui .content-header h1::before {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--af-module-border);
+  border-radius: 9px;
+  background: var(--af-module-soft);
+  color: var(--af-module-ink);
+  font-family: FontAwesome;
+  font-size: 16px;
+  content: '\f15c';
+}
+.billing-ts-ui.module-sistema-ts .content-header h1::before { content: '\f0a3'; }
+.billing-ts-ui .content-header .text-muted { color: var(--af-muted) !important; font-size: 13px; line-height: 1.5; }
+.billing-ts-ui .content { padding: 8px 20px 28px; }
+
+/* The original AdminLTE navigation stays in place, but takes the compact
+ * white-card treatment of the supplied administrative shell. */
+.billing-ts-ui .nav-pills.nav-stacked { margin: 0; padding: 8px; border: 1px solid var(--af-border); border-radius: 12px; background: var(--af-surface); box-shadow: 0 1px 2px rgba(16, 24, 40, .05); }
+.billing-ts-ui .nav-pills.nav-stacked > li + li { margin-top: 2px; }
+.billing-ts-ui .nav-pills.nav-stacked > li > a { padding: 9px 10px; border-radius: 8px; color: var(--af-text); font-size: 13px; font-weight: 500; }
+.billing-ts-ui .nav-pills.nav-stacked > li > a:hover { background: var(--af-surface-alt); color: var(--af-ink); }
+.billing-ts-ui .nav-pills.nav-stacked > li.active > a,
+.billing-ts-ui .nav-pills.nav-stacked > li.active > a:hover,
+.billing-ts-ui .nav-pills.nav-stacked > li.active > a:focus { background: #e7f7f3; color: #00795f; }
+
+/* Page headers, cards and helper panels */
+.billing-ts-ui .intro-box,
+.billing-ts-ui .hero-box {
+  margin-bottom: 16px;
+  padding: 20px 22px;
+  border: 1px solid var(--af-module-border) !important;
+  border-radius: 12px !important;
+  background: var(--af-surface) !important;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, .05);
+}
+.billing-ts-ui .intro-box > h3,
+.billing-ts-ui .hero-box > h3 { color: var(--af-ink); font-size: 16px; font-weight: 600; }
+.billing-ts-ui .intro-box > p,
+.billing-ts-ui .hero-box > p { color: var(--af-muted) !important; font-size: 13px; line-height: 1.55; }
+.billing-ts-ui .status-chip,
+.billing-ts-ui .state-chip,
+.billing-ts-ui .trace-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  margin: 0 6px 6px 0;
+  padding: 3px 8px;
+  border: 1px solid var(--af-module-border);
+  border-radius: 999px;
+  background: var(--af-module-soft);
+  color: var(--af-module-ink);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+.billing-ts-ui .summary-strip { padding: 14px 16px; border: 1px solid var(--af-module-border); border-radius: 12px; background: var(--af-module-soft); color: var(--af-text); }
+.billing-ts-ui .box,
+.billing-ts-ui .metric-card,
+.billing-ts-ui .quick-card,
+.billing-ts-ui .trace-card,
+.billing-ts-ui .doc-row {
+  margin-bottom: 16px;
+  overflow: hidden;
+  border: 1px solid var(--af-border) !important;
+  border-top: 1px solid var(--af-border) !important;
+  border-radius: 12px !important;
+  background: var(--af-surface) !important;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, .05);
+}
+.billing-ts-ui .box-header { min-height: 0; padding: 16px 20px; border-bottom: 1px solid var(--af-border) !important; background: var(--af-surface); }
+.billing-ts-ui .box-title { color: var(--af-ink); font-size: 16px; font-weight: 600; line-height: 1.4; }
+.billing-ts-ui .box-body { padding: 20px; }
+.billing-ts-ui .box-footer { padding: 14px 20px; border-top: 1px solid var(--af-border); background: var(--af-surface-alt); }
+.billing-ts-ui .metric-card { min-height: 132px; padding: 18px; }
+.billing-ts-ui .metric-card .label-top { color: var(--af-muted); font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
+.billing-ts-ui .metric-card .value { margin: 7px 0 6px; color: var(--af-module-accent); font-size: 30px; font-weight: 700; line-height: 1.05; font-variant-numeric: tabular-nums; }
+.billing-ts-ui .metric-card .hint { color: var(--af-muted); font-size: 12.5px; line-height: 1.45; }
+.billing-ts-ui .quick-grid { gap: 16px; }
+.billing-ts-ui .quick-card { padding: 18px; }
+.billing-ts-ui .quick-card h4 { color: var(--af-ink); font-size: 14px; font-weight: 600; }
+.billing-ts-ui .quick-card h4 .fa { color: var(--af-module-ink); }
+.billing-ts-ui .quick-card p,
+.billing-ts-ui .text-muted { color: var(--af-muted) !important; }
+.billing-ts-ui .doc-row { padding: 14px 16px; }
+
+/* Semantic feedback: no Bootstrap cyan or default chromes. */
+.billing-ts-ui .alert { margin-bottom: 16px; border-width: 1px; border-radius: 10px; font-size: 13px; line-height: 1.5; }
+.billing-ts-ui .alert-info { border-color: var(--af-info-border); background: var(--af-info-bg); color: var(--af-info-ink); }
+.billing-ts-ui .alert-success { border-color: var(--af-success-border); background: var(--af-success-bg); color: var(--af-success-ink); }
+.billing-ts-ui .alert-warning { border-color: var(--af-warning-border); background: var(--af-warning-bg); color: var(--af-warning-ink); }
+.billing-ts-ui .alert-danger { border-color: var(--af-danger-border); background: var(--af-danger-bg); color: var(--af-danger-ink); }
+.billing-ts-ui .label { border: 1px solid transparent; border-radius: 999px; font-size: 11px; font-weight: 600; }
+.billing-ts-ui .label-success { border-color: var(--af-success-border); background: var(--af-success-bg); color: var(--af-success-ink); }
+.billing-ts-ui .label-warning { border-color: var(--af-warning-border); background: var(--af-warning-bg); color: var(--af-warning-ink); }
+.billing-ts-ui .label-danger { border-color: var(--af-danger-border); background: var(--af-danger-bg); color: var(--af-danger-ink); }
+.billing-ts-ui .label-default { border-color: var(--af-border); background: #f2f4f7; color: #475467; }
+
+/* Buttons retain their existing classes and actions; this only normalizes their visual roles. */
+.billing-ts-ui .btn {
+  min-height: 40px;
+  padding: 9px 13px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+  transition: background-color .15s ease, border-color .15s ease, box-shadow .15s ease, transform .15s ease;
+}
+.billing-ts-ui .btn:hover { text-decoration: none; transform: translateY(-1px); }
+.billing-ts-ui .btn:active { transform: translateY(.5px); }
+.billing-ts-ui .btn-default { border-color: var(--af-border-strong); background: var(--af-surface); color: var(--af-text); }
+.billing-ts-ui .btn-default:hover,
+.billing-ts-ui .btn-default:focus { border-color: var(--af-module-border); background: var(--af-module-soft); color: var(--af-module-ink); }
+.billing-ts-ui .btn-primary,
+.billing-ts-ui .btn-success { border-color: var(--af-module-accent); background: var(--af-module-accent); color: #fff; }
+.billing-ts-ui .btn-primary:hover,
+.billing-ts-ui .btn-primary:focus,
+.billing-ts-ui .btn-success:hover,
+.billing-ts-ui .btn-success:focus { border-color: var(--af-module-hover); background: var(--af-module-hover); color: #fff; }
+.billing-ts-ui .btn-info { border-color: var(--af-info-border); background: var(--af-info-bg); color: var(--af-info-ink); }
+.billing-ts-ui .btn-warning { border-color: var(--af-warning-border); background: var(--af-warning-bg); color: var(--af-warning-ink); }
+.billing-ts-ui.module-fatturazione .btn-warning { border-color: var(--af-module-accent); background: var(--af-module-accent); color: #fff; }
+.billing-ts-ui.module-fatturazione .btn-warning:hover,
+.billing-ts-ui.module-fatturazione .btn-warning:focus { border-color: var(--af-module-hover); background: var(--af-module-hover); color: #fff; }
+.billing-ts-ui .btn-danger { border-color: var(--af-danger-border); background: var(--af-danger-bg); color: var(--af-danger-ink); }
+.billing-ts-ui .btn-xs { min-height: 29px; padding: 5px 8px; border-radius: 7px; font-size: 12px; }
+.billing-ts-ui .btn-sm { min-height: 34px; padding: 7px 10px; font-size: 12px; }
+.billing-ts-ui .box-tools .btn { margin-top: -5px; }
+
+/* Forms */
+.billing-ts-ui .form-group { margin-bottom: 16px; }
+.billing-ts-ui .form-group > label,
+.billing-ts-ui label { color: var(--af-text); font-size: 13px; font-weight: 600; line-height: 1.4; }
+.billing-ts-ui .form-control,
+.billing-ts-ui select.form-control,
+.billing-ts-ui input.form-control,
+.billing-ts-ui textarea.form-control {
+  min-height: 42px;
+  border: 1px solid var(--af-border-strong);
+  border-radius: 8px;
+  box-shadow: none;
+  color: var(--af-ink);
+  font-size: 14px;
+}
+.billing-ts-ui textarea.form-control { min-height: 92px; padding-top: 10px; resize: vertical; }
+.billing-ts-ui .form-control:focus { border-color: var(--af-module-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--af-module-accent) 16%, transparent); }
+.billing-ts-ui .form-control[readonly],
+.billing-ts-ui .form-control[disabled] { border-color: var(--af-border); background: #f2f4f7; color: var(--af-muted); }
+.billing-ts-ui .help-block,
+.billing-ts-ui .secret-note,
+.billing-ts-ui .patient-autocomplete-help,
+.billing-ts-ui .patient-data-note { color: var(--af-muted) !important; font-size: 12px; }
+.billing-ts-ui .checkbox { color: var(--af-text); }
+.billing-ts-ui input[type='checkbox'],
+.billing-ts-ui input[type='radio'] { accent-color: var(--af-module-accent); }
+.billing-ts-ui .ts-panel,
+.billing-ts-ui .patient-linked-summary,
+.billing-ts-ui .patient-link-pill,
+.billing-ts-ui .patient-autocomplete-menu {
+  border-color: var(--af-module-border) !important;
+  border-radius: 10px !important;
+  background: var(--af-surface) !important;
+  box-shadow: none;
+}
+.billing-ts-ui .ts-panel { padding: 16px !important; }
+.billing-ts-ui .patient-link-pill { color: var(--af-module-ink); }
+.billing-ts-ui .patient-autocomplete-item { color: var(--af-text); }
+.billing-ts-ui .patient-autocomplete-item:hover,
+.billing-ts-ui .patient-autocomplete-item:focus { background: var(--af-module-soft); }
+
+/* Dense operational data tables */
+.billing-ts-ui .table-responsive { border: 1px solid var(--af-border); border-radius: 10px; }
+.billing-ts-ui table.table { margin: 0; color: var(--af-text); font-size: 13px; }
+.billing-ts-ui .table > thead > tr > th { padding: 10px 12px; border-bottom: 1px solid var(--af-border); background: var(--af-surface-alt); color: var(--af-muted); font-size: 12px; font-weight: 600; letter-spacing: .02em; vertical-align: middle; }
+.billing-ts-ui .table > tbody > tr > td { padding: 11px 12px; border-top-color: var(--af-border); vertical-align: middle; }
+.billing-ts-ui .table-striped > tbody > tr:nth-of-type(odd) { background: var(--af-surface); }
+.billing-ts-ui .table-striped > tbody > tr:nth-of-type(even) { background: var(--af-surface-alt); }
+.billing-ts-ui .table-hover > tbody > tr:hover { background: var(--af-module-soft); }
+.billing-ts-ui .state-chip { margin: 0; }
+
+/* TS diagnostic details share the same neutral operational surface. */
+.billing-ts-ui .trace-card.is-selected { border-color: var(--af-module-border) !important; box-shadow: 0 0 0 3px color-mix(in srgb, var(--af-module-accent) 12%, transparent); }
+.billing-ts-ui .trace-badge.status-success { border-color: var(--af-success-border); background: var(--af-success-bg); color: var(--af-success-ink); }
+.billing-ts-ui .trace-badge.status-warning { border-color: var(--af-warning-border); background: var(--af-warning-bg); color: var(--af-warning-ink); }
+.billing-ts-ui .trace-badge.status-danger { border-color: var(--af-danger-border); background: var(--af-danger-bg); color: var(--af-danger-ink); }
+.billing-ts-ui .trace-badge.status-default { border-color: var(--af-border); background: #f2f4f7; color: #475467; }
+.billing-ts-ui .step-card { border-left: 3px solid var(--af-module-border); border-radius: 8px; background: var(--af-surface-alt); }
+.billing-ts-ui .step-card.level-info { border-left-color: var(--af-module-accent); }
+.billing-ts-ui .json-preview { border: 1px solid #344054; border-radius: 10px; background: #101828; color: #e4e7ec; }
+
+.billing-ts-ui .main-footer { border-top-color: var(--af-border); color: var(--af-muted); font-size: 12px; }
+@media (max-width: 991px) {
+  .billing-ts-ui .content-header,
+  .billing-ts-ui .content { padding-left: 15px; padding-right: 15px; }
+  .billing-ts-ui .nav-pills.nav-stacked { margin-bottom: 16px; }
+  .billing-ts-ui .box-body { padding: 16px; }
+}

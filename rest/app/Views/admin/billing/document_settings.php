@@ -160,8 +160,9 @@ $oldChecked = static function (string $key, bool $default = false): bool {
       .live-preview-logo-box { margin-top:14px; }
     }
   </style>
+  <link href="<?= base_url('public/assets/css/billing-ts-ui.css') ?>" rel="stylesheet" />
 </head>
-<body class="skin-blue sidebar-mini">
+<body class="skin-blue sidebar-mini billing-ts-ui module-fatturazione">
 <div class="wrapper">
   <?= view('partials/header', ['menu_items' => $menu_items]) ?>
 

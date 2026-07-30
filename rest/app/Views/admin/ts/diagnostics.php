@@ -118,8 +118,9 @@ $selectedRawPreview = $truncateText($selectedRaw, $rawPreviewLimit);
     .inline-code { font-family:Menlo, Consolas, monospace; font-size:12px; }
     .toolbar-row .btn { margin-right:8px; margin-bottom:8px; }
   </style>
+  <link href="<?= base_url('public/assets/css/billing-ts-ui.css') ?>" rel="stylesheet" />
 </head>
-<body class="skin-blue sidebar-mini">
+<body class="skin-blue sidebar-mini billing-ts-ui module-sistema-ts">
 <div class="wrapper">
   <?= view('partials/header', ['menu_items' => $menu_items]) ?>
 

@@ -133,8 +133,9 @@ if (!is_string($supportedExpenseDetailsJson) || $supportedExpenseDetailsJson ===
     .patient-autocomplete-help.is-success { color:#1f7a3f; }
     .patient-autocomplete-help.is-warning { color:#9a6a06; }
   </style>
+  <link href="<?= base_url('public/assets/css/billing-ts-ui.css') ?>" rel="stylesheet" />
 </head>
-<body class="skin-blue sidebar-mini">
+<body class="skin-blue sidebar-mini billing-ts-ui module-sistema-ts">
 <div class="wrapper">
   <?= view('partials/header', ['menu_items' => $menu_items]) ?>
 

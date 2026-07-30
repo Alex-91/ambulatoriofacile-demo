@@ -36,8 +36,9 @@ $modeMessage = trim((string) ($moduleStatus['mode_message'] ?? ''));
     .quick-card p { color:#667b80; margin:0; font-size:12px; line-height:1.5; }
     .status-chip { display:inline-block; margin:0 8px 8px 0; padding:6px 10px; border-radius:999px; background:#f4efe2; color:#7a5818; font-size:12px; font-weight:600; }
   </style>
+  <link href="<?= base_url('public/assets/css/billing-ts-ui.css') ?>" rel="stylesheet" />
 </head>
-<body class="skin-blue sidebar-mini">
+<body class="skin-blue sidebar-mini billing-ts-ui module-fatturazione">
 <div class="wrapper">
   <?= view('partials/header', ['menu_items' => $menu_items, 'portal_console_header' => false]) ?>
 

@@ -31,8 +31,9 @@ $warning = trim((string) ($warning ?? ''));
     .stat-card .value { font-size:25px; line-height:1.1; font-weight:700; color:#8a5b10; margin-bottom:6px; }
     .stat-card .label-top { color:#72868b; font-size:12px; text-transform:uppercase; letter-spacing:.05em; font-weight:700; }
   </style>
+  <link href="<?= base_url('public/assets/css/billing-ts-ui.css') ?>" rel="stylesheet" />
 </head>
-<body class="skin-blue sidebar-mini">
+<body class="skin-blue sidebar-mini billing-ts-ui module-fatturazione">
 <div class="wrapper">
   <?= view('partials/header', ['menu_items' => $menu_items]) ?>
 

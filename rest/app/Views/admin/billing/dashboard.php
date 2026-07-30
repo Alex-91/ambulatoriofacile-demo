@@ -52,8 +52,9 @@ $documentsSchemaMessage = trim((string) ($documentsDashboard['schema_message'] ?
     .metric-card .hint { color:#60757a; line-height:1.55; }
     .state-chip { display:inline-block; padding:5px 10px; border-radius:999px; background:#f4efe2; color:#7a5818; font-size:12px; font-weight:700; margin:0 8px 8px 0; }
   </style>
+  <link href="<?= base_url('public/assets/css/billing-ts-ui.css') ?>" rel="stylesheet" />
 </head>
-<body class="skin-blue sidebar-mini">
+<body class="skin-blue sidebar-mini billing-ts-ui module-fatturazione">
 <div class="wrapper">
   <?= view('partials/header', ['menu_items' => $menu_items]) ?>
 

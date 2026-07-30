@@ -31,8 +31,9 @@ $integratedEnabled = !empty($moduleStatus['integrated_enabled']);
     .doc-row { border:1px solid #e5ecee; border-radius:12px; background:#fff; padding:14px 16px; margin-bottom:12px; }
     .state-chip { display:inline-block; padding:5px 10px; border-radius:999px; background:#eef5f6; color:#1b6770; font-size:12px; font-weight:700; }
   </style>
+  <link href="<?= base_url('public/assets/css/billing-ts-ui.css') ?>" rel="stylesheet" />
 </head>
-<body class="skin-blue sidebar-mini">
+<body class="skin-blue sidebar-mini billing-ts-ui module-sistema-ts">
 <div class="wrapper">
   <?= view('partials/header', ['menu_items' => $menu_items]) ?>
 
