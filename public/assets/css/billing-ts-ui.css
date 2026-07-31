@@ -1,6 +1,6 @@
 /*
  * Ambulatorio Facile — Fatturazione & Sistema TS
- * Visual layer scoped to the two administrative modules.  It deliberately
+ * Visual layer scoped to the two administrative modules. It deliberately
  * leaves markup, endpoint URLs, form controls and application behaviour intact.
  */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
