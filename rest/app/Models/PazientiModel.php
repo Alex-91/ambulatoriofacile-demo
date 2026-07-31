@@ -43,6 +43,7 @@ class PazientiModel extends Model
     private array $doctorRoleByUserCache = [];
     private ?array $sharedDoctorScopeCache = null;
     private ?bool $sharedAgendaPatientsEnabledCache = null;
+    private ?bool $currentTenantMasterCache = null;
     private ?bool $hasClientAppointmentReminderSmsColumn = null;
     private array $clientColumnExistsCache = [];
 
@@ -2382,9 +2383,33 @@ class PazientiModel extends Model
 
     private function shouldUseSharedDoctorPatientScope(int $actingUserId): bool
     {
-        return $actingUserId > 0
-            && $this->isSharedAgendaPatientsEnabledForCurrentTenant()
-            && $this->isDoctorAgendaUser($actingUserId);
+        if (!$this->isSharedAgendaPatientsEnabledForCurrentTenant()) {
+            return false;
+        }
+
+        if ($this->isCurrentTenantMaster()) {
+            return true;
+        }
+
+        return $actingUserId > 0 && $this->isDoctorAgendaUser($actingUserId);
+    }
+
+    private function isCurrentTenantMaster(): bool
+    {
+        if ($this->currentTenantMasterCache !== null) {
+            return $this->currentTenantMasterCache;
+        }
+
+        try {
+            $context = (new TenantContextService())->getCurrentTenant();
+            $this->currentTenantMasterCache = $context !== null
+                && $context->isValid()
+                && strtolower(trim((string) $context->tenantRole)) === 'tenant_master';
+        } catch (\Throwable $e) {
+            $this->currentTenantMasterCache = false;
+        }
+
+        return $this->currentTenantMasterCache;
     }
 
     private function isDoctorAgendaUser(int $idUser): bool

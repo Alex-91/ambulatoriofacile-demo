@@ -771,8 +771,11 @@ public function eseguiRepairRecurringExtraSlots()
         $sessionUser = $this->getUserSession();
         $actorTipoPers = is_object($sessionUser) ? (int) ($sessionUser->tipo_pers ?? 0) : 0;
 
-        return $actorTipoPers === StaffDoctorAccessService::TIPO_DOTTORE
-            && $this->isSharedAgendaPatientsFeatureEnabled();
+        return $this->isSharedAgendaPatientsFeatureEnabled()
+            && (
+                $actorTipoPers === StaffDoctorAccessService::TIPO_DOTTORE
+                || session_current_tenant_role() === 'tenant_master'
+            );
     }
 
     protected function isSkipEmptyAgendaDaysFeatureEnabled(): bool
