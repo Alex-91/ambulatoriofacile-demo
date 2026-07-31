@@ -1503,7 +1503,9 @@
             color: var(--agenda-appointment-text, var(--agenda-slot-text, #fff));
         }
 
-        .agenda-custom-slot.is-search-focus {
+        .agenda-custom-slot.is-search-focus,
+        .agenda-team-entry.is-search-focus,
+        .agenda-team-mobile-entry.is-search-focus {
             border-color: #1f6fa7 !important;
             box-shadow: 0 0 0 3px rgba(60, 141, 188, 0.26), 0 14px 24px rgba(31, 111, 167, 0.18);
             animation: agendaSearchSlotPulse 1.35s ease-in-out 2;
@@ -9610,7 +9612,7 @@ function buildAgendaTeamDayMobileRecords(columns) {
 
             record.kind = 'booked';
             record.interactiveType = column.giorno_bloccato ? '' : 'booked';
-            record.extraClass = 'is-booked';
+            record.extraClass = 'is-booked' + (isAgendaSearchFocusedSlot(slot) ? ' is-search-focus' : '');
             record.primaryLabel = primaryLabel;
             record.secondaryLabel = compactNote !== '' ? compactNote : (noteEvento !== '' ? noteEvento : '');
             record.contactLabel = contactLabel;
@@ -9976,6 +9978,10 @@ function buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute, entryH
         var bookedStyle = entryStyle;
         var bookedClass = 'agenda-team-entry';
 
+        if (isAgendaSearchFocusedSlot(slot)) {
+            bookedClass += ' is-search-focus';
+        }
+
         if (visitTypeVisualStyle) {
             bookedClass += ' has-visit-type-color';
             bookedStyle += buildAgendaVisitTypeInlineStyle(visitTypeVisualStyle);
@@ -10165,6 +10171,7 @@ function caricaSlotCalendarioTeamDay(options) {
         agendaMaxTime = res.max_time || '18:00:00';
         renderAgendaTeamDay(res);
         applicaStatoGiornoBloccato();
+        focusAgendaSearchAppointmentSlotIfNeeded();
     }, 'json').fail(function(xhr, textStatus) {
         if (textStatus === 'abort' || requestSeq !== agendaTeamDayRequestSeq) {
             return;
@@ -10850,7 +10857,9 @@ function focusAgendaSearchAppointmentSlotIfNeeded() {
         return;
     }
 
-    var $slot = $('#calendar .agenda-custom-slot.is-search-focus').first();
+    var $slot = $('#calendar .agenda-custom-slot.is-search-focus, ' +
+        '#agendaTeamDayBoard .agenda-team-entry.is-search-focus, ' +
+        '#agendaTeamDayBoard .agenda-team-mobile-entry.is-search-focus').first();
     agendaShouldScrollToFocusedAppointment = false;
 
     window.setTimeout(function() {
@@ -10886,6 +10895,7 @@ function jumpToAgendaPatientAppointment($item) {
     var patientId = parseInt($item.data('patient-id') || 0, 10) || 0;
     var targetDotId = parseInt($item.data('dot-id') || 0, 10) || 0;
     var currentDotId = parseInt($('#id_dot').val() || 0, 10) || 0;
+    var keepTeamDayView = isTeamDayViewActive();
 
     if (!moment(data, 'YYYY-MM-DD', true).isValid()) {
         return;
@@ -10911,7 +10921,7 @@ function jumpToAgendaPatientAppointment($item) {
     $item.addClass('is-selected');
 
     $('#agenda_date').val(data);
-    setAgendaViewMode('day');
+    setAgendaViewMode(keepTeamDayView ? 'team_day' : 'day');
     scrollAgendaCalendarIntoView();
     caricaTutto({
         reloadDoctorPanels: targetDotId > 0 && targetDotId !== currentDotId
