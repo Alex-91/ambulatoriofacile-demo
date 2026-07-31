@@ -942,14 +942,19 @@ class PazientiModel extends Model
         ];
     }
 
-    public function deletePatientByDoctor(int $idPaziente, int $idDot): bool
+    public function deletePatientByDoctor(int $idPaziente, int $idDot, int $actingUserId = 0): bool
     {
-        $idPersonale = $this->resolvePersonaleIdFromLegacyDot($idDot);
+        $scope = $this->resolveDoctorPatientScope($idDot, $actingUserId);
+        $idPersonale = (int) ($scope['selected_personale_id'] ?? 0);
         if ($idPersonale <= 0) {
             throw new Exception('Dottore non valido.');
         }
 
-        $row = $this->getVisiblePatientSnapshot($idPaziente, $idPersonale, $idDot);
+        $row = $this->getVisiblePatientSnapshotForScope(
+            $idPaziente,
+            (array) ($scope['personale_ids'] ?? []),
+            (array) ($scope['legacy_dot_ids'] ?? [])
+        );
         if (!$row) {
             throw new Exception('Paziente non trovato.');
         }
@@ -974,8 +979,20 @@ class PazientiModel extends Model
 
         $this->db->transStart();
 
+        // The shared agenda scope exposes one tenant-wide patient list to the
+        // responsible user and to professionals. Deletion must use that same
+        // scope: the patient is removed from every professional in the studio.
+        $deleteAcrossSharedScope = !empty($scope['shared']);
         $isSharedWithAllDoctors = (int) ($row['share_all_doctors'] ?? 0) === 1;
-        if ($isSharedWithAllDoctors) {
+
+        if ($deleteAcrossSharedScope) {
+            $this->db->table(self::CLIENT_DOCTOR_TABLE)
+                ->where('id_client', $idPaziente)
+                ->delete();
+
+            $this->updateAssociateAllDoctorsFlag($idPaziente, false);
+            $remainingDoctorIds = [];
+        } elseif ($isSharedWithAllDoctors) {
             $remainingDoctorIds = array_values(array_filter(
                 $this->listAllDoctorAssociationPersonaleIds(),
                 static fn(int $doctorId): bool => $doctorId > 0 && $doctorId !== $idPersonale
