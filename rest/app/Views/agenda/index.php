@@ -12436,6 +12436,12 @@ $('#nota_giorno_text').on('blur', function() {
 
     if (window.AGENDA_CONFIG.agendaAutoRefreshFeatureEnabled) {
         setInterval(function() {
+            // Non aggiornare il calendario mentre l'operatore sta compilando il popup:
+            // il refresh deve restare invisibile e non interferire con una bozza in corso.
+            if ($('#appointmentModal').hasClass('in')) {
+                return;
+            }
+
             caricaTutto({ showCalendarLoader: false });
         }, 30000);
     }
