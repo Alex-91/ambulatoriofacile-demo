@@ -367,6 +367,16 @@ class TenantFeatureService
                 'tenant_default_enabled' => 0,
                 'sort_order' => 78,
             ],
+            'agenda_patient_registry_visibility' => [
+                'feature_name' => 'Visibilita pazienti in anagrafica',
+                'feature_scope' => 'workflow',
+                'description' => 'Il master piattaforma puo attivare per il singolo spazio il flag nel popup appuntamento per scegliere se rendere il paziente visibile anche nell anagrafica. Il paziente e gli appuntamenti restano sempre conservati nel database.',
+                'default_enabled' => 0,
+                'icon_class' => 'fa-address-card-o',
+                'is_tenant_managed' => 0,
+                'tenant_default_enabled' => 0,
+                'sort_order' => 79,
+            ],
             AgendaAppointmentBlockLayoutService::FEATURE_KEY => [
                 'feature_name' => 'Layout popup appuntamento',
                 'feature_scope' => 'workflow',

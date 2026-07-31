@@ -53,6 +53,7 @@ class Agenda extends BaseController
     private const SHOW_APPOINTMENT_CREATOR_FEATURE = 'agenda_show_appointment_creator';
     private const SHOW_APPOINTMENT_CREATOR_IN_SLOTS_FEATURE = 'agenda_show_appointment_creator_in_slots';
     private const CUSTOM_APPOINTMENT_TIME_FEATURE = 'agenda_custom_appointment_time';
+    private const PATIENT_REGISTRY_VISIBILITY_FEATURE = 'agenda_patient_registry_visibility';
     private const PATIENT_EXCEL_IMPORT_FEATURE = PatientExcelImportService::FEATURE_KEY;
     private const PERSONAL_COMMITMENT_SPECIAL_CODE = 'IMPEGNO_PERSONALE';
     private const PERSONAL_COMMITMENT_LABEL = 'Impegno personale';
@@ -858,6 +859,11 @@ public function eseguiRepairRecurringExtraSlots()
         return $this->tenantFeatureEnabled(self::CUSTOM_APPOINTMENT_TIME_FEATURE);
     }
 
+    protected function isPatientRegistryVisibilityFeatureEnabled(): bool
+    {
+        return $this->tenantFeatureEnabled(self::PATIENT_REGISTRY_VISIBILITY_FEATURE);
+    }
+
     protected function isTeamDaySingleSlotHeightFeatureEnabled(): bool
     {
         return $this->tenantFeatureEnabled(self::TEAM_DAY_SINGLE_SLOT_HEIGHT_FEATURE);
@@ -1321,6 +1327,20 @@ public function eseguiRepairRecurringExtraSlots()
         if (array_key_exists('durata_minuti', $payload)) {
             $payload['durata_minuti'] = max(0, (int) ($payload['durata_minuti'] ?? 0));
         }
+
+        return $payload;
+    }
+
+    protected function applyPatientRegistryVisibilityPreference(array $payload): array
+    {
+        if (!$this->isPatientRegistryVisibilityFeatureEnabled()) {
+            unset($payload['visibile_in_anagrafica']);
+            return $payload;
+        }
+
+        $payload['visibile_in_anagrafica'] = $this->requestBooleanFlag(
+            $payload['visibile_in_anagrafica'] ?? 0
+        ) ? 1 : 0;
 
         return $payload;
     }
@@ -1903,6 +1923,7 @@ public function eseguiRepairRecurringExtraSlots()
         $visitTypeSelectionOptionalEnabled = $this->isVisitTypeSelectionOptionalEnabled();
         $personalCommitmentsFeatureEnabled = $this->isPersonalCommitmentsFeatureEnabled();
         $customAppointmentTimeFeatureEnabled = $this->isCustomAppointmentTimeFeatureEnabled();
+        $patientRegistryVisibilityFeatureEnabled = $this->isPatientRegistryVisibilityFeatureEnabled();
         $teamDaySingleSlotHeightFeatureEnabled = $this->isTeamDaySingleSlotHeightFeatureEnabled();
         $teamDayCompactSlotDetailsFeatureEnabled = $this->isTeamDayCompactSlotDetailsFeatureEnabled();
         $agendaAutoRefreshFeatureEnabled = $this->isAgendaAutoRefreshFeatureEnabled();
@@ -1982,6 +2003,7 @@ public function eseguiRepairRecurringExtraSlots()
             'visitTypeSelectionOptionalEnabled' => $visitTypeSelectionOptionalEnabled,
             'personalCommitmentsFeatureEnabled' => $personalCommitmentsFeatureEnabled,
             'customAppointmentTimeFeatureEnabled' => $customAppointmentTimeFeatureEnabled,
+            'patientRegistryVisibilityFeatureEnabled' => $patientRegistryVisibilityFeatureEnabled,
             'teamDaySingleSlotHeightFeatureEnabled' => $teamDaySingleSlotHeightFeatureEnabled,
             'teamDayCompactSlotDetailsFeatureEnabled' => $teamDayCompactSlotDetailsFeatureEnabled,
             'agendaAutoRefreshFeatureEnabled' => $agendaAutoRefreshFeatureEnabled,
@@ -4146,6 +4168,7 @@ public function eseguiRepairRecurringExtraSlots()
     {
         try {
             $payload = $this->request->getPost();
+            $payload['visibile_in_anagrafica'] = 1;
             $idDot   = (int)($payload['id_dot'] ?? 0);
 
             $this->assertDoctorAllowed($idDot);
@@ -4169,6 +4192,7 @@ public function eseguiRepairRecurringExtraSlots()
     {
         try {
             $payload = $this->normalizeAppointmentPatientPayload($this->request->getPost());
+            $payload = $this->applyPatientRegistryVisibilityPreference($payload);
             $payload['created_by'] = $this->getCurrentUserId();
             $payload['visit_types_feature_enabled'] = $this->isVisitTypesFeatureEnabled();
             $payload['visit_type_required'] = $this->isVisitTypeSelectionRequired();
@@ -4226,6 +4250,7 @@ public function eseguiRepairRecurringExtraSlots()
     {
         try {
             $payload = $this->normalizeAppointmentPatientPayload($this->request->getPost());
+            $payload = $this->applyPatientRegistryVisibilityPreference($payload);
             $payload['visit_types_feature_enabled'] = $this->isVisitTypesFeatureEnabled();
             $payload['visit_type_required'] = $this->isVisitTypeSelectionRequired();
             $payload['custom_appointment_time_feature_enabled'] = $this->isCustomAppointmentTimeFeatureEnabled();
@@ -5368,7 +5393,14 @@ public function eseguiRepairRecurringExtraSlots()
 
             $this->assertDoctorAllowed($idDot);
 
-            $result = $this->pazientiModel->getPatientsByDoctorPaginate($idDot, $term, $page, $perPage, $this->getCurrentUserId());
+            $result = $this->pazientiModel->getPatientsByDoctorPaginate(
+                $idDot,
+                $term,
+                $page,
+                $perPage,
+                $this->getCurrentUserId(),
+                $this->isPatientRegistryVisibilityFeatureEnabled()
+            );
 
             return $this->respondJsonSafe([
                 'status'   => true,
@@ -5392,6 +5424,7 @@ public function eseguiRepairRecurringExtraSlots()
     {
         try {
             $payload = $this->request->getPost();
+            $payload['visibile_in_anagrafica'] = 1;
             $idDot   = (int)($payload['id_dot'] ?? 0);
 
             if ($idDot <= 0) {

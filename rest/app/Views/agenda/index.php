@@ -38,6 +38,7 @@
         $appointmentDocumentWorkflowVisible = $appointmentBillingWorkflowEnabled || $appointmentTsWorkflowEnabled;
         $personalCommitmentsFeatureEnabled = !empty($personalCommitmentsFeatureEnabled);
         $customAppointmentTimeFeatureEnabled = !empty($customAppointmentTimeFeatureEnabled);
+        $patientRegistryVisibilityFeatureEnabled = !empty($patientRegistryVisibilityFeatureEnabled);
         $teamDaySingleSlotHeightFeatureEnabled = !empty($teamDaySingleSlotHeightFeatureEnabled);
         $teamDayCompactSlotDetailsFeatureEnabled = !empty($teamDayCompactSlotDetailsFeatureEnabled);
         $appointmentModalFallbackLayoutItems = [
@@ -3861,6 +3862,7 @@ $renderAppointmentModalBlock = static function (string $blockKey) use (
     $personalCommitmentsFeatureEnabled,
     $customAppointmentTimeFeatureEnabled,
     $patientSmsReminderPreferenceAvailable,
+    $patientRegistryVisibilityFeatureEnabled,
     $appointmentDocumentWorkflowVisible,
     $appointmentBillingWorkflowEnabled,
     $appointmentTsWorkflowEnabled
@@ -4037,6 +4039,20 @@ $renderAppointmentModalBlock = static function (string $blockKey) use (
                         <label for="app_email">Email</label>
                         <input type="email" id="app_email" class="form-control">
                     </div>
+
+                    <?php if (!empty($patientRegistryVisibilityFeatureEnabled)): ?>
+                    <div class="col-md-12">
+                        <div class="checkbox" style="margin:0 0 4px;">
+                            <label>
+                                <input type="checkbox" id="app_visibile_in_anagrafica" value="1">
+                                Salva anche nell anagrafica pazienti
+                            </label>
+                        </div>
+                        <p class="help-block" style="margin:0 0 12px;">
+                            Se non selezionato, il paziente resta collegato all appuntamento e nel database, ma non compare nell anagrafica pazienti.
+                        </p>
+                    </div>
+                    <?php endif; ?>
 
                     <?php if (!empty($patientSmsReminderPreferenceAvailable)): ?>
                     <div class="col-md-12">
@@ -4447,6 +4463,7 @@ window.AGENDA_CONFIG = {
     visitTypeSelectionOptionalEnabled: <?= !empty($visitTypeSelectionOptionalEnabled) ? 'true' : 'false' ?>,
     personalCommitmentsFeatureEnabled: <?= !empty($personalCommitmentsFeatureEnabled) ? 'true' : 'false' ?>,
     customAppointmentTimeFeatureEnabled: <?= !empty($customAppointmentTimeFeatureEnabled) ? 'true' : 'false' ?>,
+    patientRegistryVisibilityFeatureEnabled: <?= !empty($patientRegistryVisibilityFeatureEnabled) ? 'true' : 'false' ?>,
     personalCommitmentSpecialCode: "IMPEGNO_PERSONALE",
     personalCommitmentLabel: "Impegno personale",
     appointmentBillingWorkflowEnabled: <?= !empty($appointmentDocumentActions['billing_enabled']) ? 'true' : 'false' ?>,
@@ -8114,6 +8131,7 @@ function resetAppointmentModal() {
     $('#app_email').val('');
     $('#app_note').val('');
     setAppointmentReminderSmsPreference(false);
+    setAppointmentPatientRegistryVisibility(false);
     $('#app_id_tipo_visita').val('');
     $('#app_durata_visita').val('');
     $('#app_slot_copertura_info').removeClass('is-error is-ok').text('');
@@ -8146,12 +8164,24 @@ function supportsPatientSmsReminderPreference() {
     return !!window.AGENDA_CONFIG.patientSmsReminderPreferenceAvailable;
 }
 
+function supportsPatientRegistryVisibilityPreference() {
+    return !!window.AGENDA_CONFIG.patientRegistryVisibilityFeatureEnabled;
+}
+
 function setAppointmentReminderSmsPreference(enabled) {
     if (!supportsPatientSmsReminderPreference()) {
         return;
     }
 
     $('#app_appointment_reminder_sms_enabled').prop('checked', !!enabled);
+}
+
+function setAppointmentPatientRegistryVisibility(enabled) {
+    if (!supportsPatientRegistryVisibilityPreference()) {
+        return;
+    }
+
+    $('#app_visibile_in_anagrafica').prop('checked', !!enabled);
 }
 
 function setAppointmentSpecialPatientCode(value) {
@@ -8173,6 +8203,7 @@ function captureAppointmentStandardPatientDraft() {
         cellulare: $('#app_cellulare').val() || '',
         email: $('#app_email').val() || '',
         reminderSmsEnabled: supportsPatientSmsReminderPreference() && $('#app_appointment_reminder_sms_enabled').is(':checked') ? 1 : 0,
+        visibleInRegistry: supportsPatientRegistryVisibilityPreference() && $('#app_visibile_in_anagrafica').is(':checked') ? 1 : 0,
         idTipoVisita: $('#app_id_tipo_visita').val() || '',
         pazSpec: $.trim($('#app_paz_spec').val() || '')
     };
@@ -8188,6 +8219,7 @@ function applyAppointmentStandardPatientDraft(draft) {
     $('#app_cellulare').val(normalizedDraft.cellulare || '');
     $('#app_email').val(normalizedDraft.email || '');
     setAppointmentReminderSmsPreference(parseInt(normalizedDraft.reminderSmsEnabled || 0, 10) === 1);
+    setAppointmentPatientRegistryVisibility(parseInt(normalizedDraft.visibleInRegistry || 0, 10) === 1);
     setAppointmentSpecialPatientCode(normalizedDraft.pazSpec || '');
     if ($('#app_id_tipo_visita').length) {
         $('#app_id_tipo_visita').val(normalizedDraft.idTipoVisita || '');
@@ -8203,6 +8235,7 @@ function clearAppointmentStandardPatientDraftFields() {
     $('#app_cellulare').val('');
     $('#app_email').val('');
     setAppointmentReminderSmsPreference(false);
+    setAppointmentPatientRegistryVisibility(false);
     setAppointmentSpecialPatientCode('');
 }
 
@@ -8950,6 +8983,9 @@ function riempiModaleDaEvento(slot) {
     $('#app_email').val(slot.email || '');
     $('#app_note').val(slot.note || '');
     setAppointmentReminderSmsPreference(parseInt(slot.appointment_reminder_sms_enabled || 0, 10) === 1);
+    setAppointmentPatientRegistryVisibility(
+        slot.visibile_in_anagrafica == null || parseInt(slot.visibile_in_anagrafica || 0, 10) === 1
+    );
     $('#searchPatient').val('');
     setAppointmentExtraSlotState(slot);
     setAppointmentLinkedPatient(linkedPatientId, patientLabel);
@@ -11247,6 +11283,7 @@ function cercaPazientiAutocomplete(term) {
                     'data-telefono="' + escapeHtml(row.telefono || '') + '" ' +
                     'data-cellulare="' + escapeHtml(row.cellulare || '') + '" ' +
                     'data-reminder-sms-enabled="' + escapeHtml(row.appointment_reminder_sms_enabled || 0) + '" ' +
+                    'data-visible-in-registry="' + escapeHtml(row.visibile_in_anagrafica == null ? 1 : row.visibile_in_anagrafica) + '" ' +
                     'data-email="' + escapeHtml(row.email || '') + '">' +
                     '<strong>' + escapeHtml((row.cognome || '') + ' ' + (row.nome || '')) + '</strong>' +
                     '</div>';
@@ -12165,6 +12202,7 @@ $('#nota_giorno_text').on('blur', function() {
         $('#app_cellulare').val('');
         $('#app_email').val('');
         setAppointmentReminderSmsPreference(false);
+        setAppointmentPatientRegistryVisibility(false);
         $('#patientAutocomplete').addClass('d-none').html('');
         $('#app_cognome').trigger('focus');
     });
@@ -12186,6 +12224,7 @@ $('#nota_giorno_text').on('blur', function() {
         $('#app_cellulare').val($(this).data('cellulare') || '');
         $('#app_email').val($(this).data('email') || '');
         setAppointmentReminderSmsPreference(parseInt($(this).data('reminderSmsEnabled') || 0, 10) === 1);
+        setAppointmentPatientRegistryVisibility(parseInt($(this).data('visibleInRegistry') || 0, 10) === 1);
         $('#searchPatient').val(getAppointmentPatientLabel(cognome, nome));
 
         $('#patientAutocomplete').addClass('d-none').html('');
@@ -12284,6 +12323,9 @@ $('#nota_giorno_text').on('blur', function() {
                 appointment_reminder_sms_enabled: isPersonalCommitment
                     ? 0
                     : (supportsPatientSmsReminderPreference() && $('#app_appointment_reminder_sms_enabled').is(':checked') ? 1 : 0),
+                visibile_in_anagrafica: isPersonalCommitment
+                    ? 0
+                    : (supportsPatientRegistryVisibilityPreference() && $('#app_visibile_in_anagrafica').is(':checked') ? 1 : 0),
                 note: $('#app_note').val(),
                 id_tipo_visita: isPersonalCommitment ? '' : $('#app_id_tipo_visita').val(),
                 durata_minuti: isPersonalCommitment ? ($('#app_personal_commitment_end').val() || '') : ''

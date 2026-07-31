@@ -13,6 +13,7 @@ class AgendaSlotModel extends Model
 {
     private const CONFIG_INSERT_BATCH_SIZE = 250;
     private const PATIENT_REMINDER_SMS_COLUMN = 'appointment_reminder_sms_enabled';
+    private const PATIENT_REGISTRY_VISIBILITY_COLUMN = 'visibile_in_anagrafica';
 
     protected $table = 'dap11_agenda_slot';
     protected $primaryKey = 'id_slot';
@@ -40,6 +41,7 @@ class AgendaSlotModel extends Model
     private ?bool $hasFasceTable = null;
     private ?bool $hasAmbulatoriTable = null;
     private ?bool $hasPatientReminderSmsColumn = null;
+    private ?bool $hasPatientRegistryVisibilityColumn = null;
     private ?bool $hasSlotRoomColumn = null;
     /** @var array<string, bool> */
     private array $appointmentFieldExistsCache = [];
@@ -70,6 +72,11 @@ public function getSlotsCalendario(int $idDot, string $date, string $view = 'day
             ? 'COALESCE(c_by_id.' . self::PATIENT_REMINDER_SMS_COLUMN . ', c_by_legacy.' . self::PATIENT_REMINDER_SMS_COLUMN . ', 0) AS appointment_reminder_sms_enabled,'
             : 'COALESCE(c_by_legacy.' . self::PATIENT_REMINDER_SMS_COLUMN . ', 0) AS appointment_reminder_sms_enabled,')
         : '0 AS appointment_reminder_sms_enabled,';
+    $patientRegistryVisibilitySelect = $this->clientTableHasRegistryVisibilityColumn()
+        ? ($hasAppointmentClientColumn
+            ? 'COALESCE(c_by_id.' . self::PATIENT_REGISTRY_VISIBILITY_COLUMN . ', c_by_legacy.' . self::PATIENT_REGISTRY_VISIBILITY_COLUMN . ', 1) AS visibile_in_anagrafica,'
+            : 'COALESCE(c_by_legacy.' . self::PATIENT_REGISTRY_VISIBILITY_COLUMN . ', 1) AS visibile_in_anagrafica,')
+        : '1 AS visibile_in_anagrafica,';
     $createdByUsernameSelect = $hasAppointmentCreatedByColumn
         ? "COALESCE(u_created.username, '') AS created_by_username,"
         : "'' AS created_by_username,";
@@ -109,6 +116,7 @@ public function getSlotsCalendario(int $idDot, string $date, string $view = 'day
     a.cellulare,
     a.email,
     {$patientReminderSmsSelect}
+    {$patientRegistryVisibilitySelect}
     {$pazSpecExpr}
     a.note,
     {$createdByUsernameSelect}
@@ -380,6 +388,18 @@ private function mapAvailabilityDays(array $rows): array
         }
 
         return $this->hasPatientReminderSmsColumn;
+    }
+
+    private function clientTableHasRegistryVisibilityColumn(): bool
+    {
+        if ($this->hasPatientRegistryVisibilityColumn === null) {
+            $this->hasPatientRegistryVisibilityColumn = $this->db->fieldExists(
+                self::PATIENT_REGISTRY_VISIBILITY_COLUMN,
+                'dap02_clients'
+            );
+        }
+
+        return $this->hasPatientRegistryVisibilityColumn;
     }
 
     private function appointmentSlotLinkTableExists(): bool

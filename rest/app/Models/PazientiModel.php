@@ -14,6 +14,7 @@ class PazientiModel extends Model
     private const CLIENT_DOCTOR_TABLE = 'dap09_client_doctor';
     private const APPOINTMENTS_TABLE = 'dap12_agenda_appuntamenti';
     private const APPOINTMENT_REMINDER_SMS_COLUMN = 'appointment_reminder_sms_enabled';
+    private const REGISTRY_VISIBILITY_COLUMN = 'visibile_in_anagrafica';
     private const ASSOCIATE_ALL_DOCTORS_COLUMN = 'share_all_doctors';
     private const SHARED_AGENDA_PATIENTS_FEATURE = 'shared_agenda_patients';
     private const SPECIAL_PATIENT_TOKENS = ['DDD', 'STOP', 'INFO', 'INF', 'URG', 'CER', 'DOT'];
@@ -33,6 +34,7 @@ class PazientiModel extends Model
         'cap_secondario' => ['encrypted' => true, 'default' => "''"],
         'provincia_secondaria' => ['encrypted' => true, 'default' => "''"],
         'cliente_attivo' => ['encrypted' => false, 'default' => '1'],
+        'visibile_in_anagrafica' => ['encrypted' => false, 'default' => '1'],
     ];
 
     protected $db;
@@ -798,7 +800,14 @@ class PazientiModel extends Model
         return $this->sanitizePatientRows($this->db->query($sql, $params)->getResultArray(), false);
     }
 
-    public function getPatientsByDoctorPaginate(int $idDot, string $term = '', int $page = 1, int $perPage = 20, int $actingUserId = 0): array
+    public function getPatientsByDoctorPaginate(
+        int $idDot,
+        string $term = '',
+        int $page = 1,
+        int $perPage = 20,
+        int $actingUserId = 0,
+        bool $onlyVisibleInRegistry = false
+    ): array
     {
         $scope = $this->resolveDoctorPatientScope($idDot, $actingUserId);
         $idPersonale = (int) ($scope['selected_personale_id'] ?? 0);
@@ -814,7 +823,7 @@ class PazientiModel extends Model
             ];
         }
 
-        if ($this->doctorPatientSearchModel->tableExists()) {
+        if (!$onlyVisibleInRegistry && $this->doctorPatientSearchModel->tableExists()) {
             try {
                 $indexed = count((array) ($scope['legacy_dot_ids'] ?? [])) > 1
                     ? $this->doctorPatientSearchModel->paginateClientIdsForDoctors((array) ($scope['legacy_dot_ids'] ?? []), $term, $page, $perPage)
@@ -848,6 +857,9 @@ class PazientiModel extends Model
         $perPage = max(1, $perPage);
         $params = [];
         $whereSearch = '';
+        $registryVisibilityWhere = $onlyVisibleInRegistry
+            ? "\n              AND " . $this->buildRegistryVisibilitySql('c')
+            : '';
 
         $term = trim($term);
         if ($term !== '') {
@@ -874,6 +886,7 @@ class PazientiModel extends Model
                 ON scope.id_client = c.id_client
             WHERE 1 = 1
               AND {$this->buildNonEmptyPatientDataSql('c')}
+              {$registryVisibilityWhere}
               {$whereSearch}
         ";
 
@@ -1582,6 +1595,9 @@ class PazientiModel extends Model
             'iva_differita' => (int)($payload['iva_differita'] ?? 0),
             'note_cliente' => trim((string)($payload['note_cliente'] ?? '')),
             'appointment_reminder_sms_enabled' => (int)($payload['appointment_reminder_sms_enabled'] ?? 0),
+            'visibile_in_anagrafica' => array_key_exists(self::REGISTRY_VISIBILITY_COLUMN, $payload)
+                ? ($this->normalizeBooleanFlag($payload[self::REGISTRY_VISIBILITY_COLUMN]) ? 1 : 0)
+                : 1,
             'bloccato' => (int)($payload['bloccato'] ?? 0),
             'cliente_attivo' => array_key_exists('cliente_attivo', $payload)
                 ? (int)($payload['cliente_attivo'] ?? 0)
@@ -2050,6 +2066,15 @@ class PazientiModel extends Model
             FROM " . self::CLIENTS_TABLE . " c_special
             WHERE " . $this->buildGlobalSpecialPatientSql('c_special') . "
         ";
+    }
+
+    private function buildRegistryVisibilitySql(string $alias): string
+    {
+        if (!$this->clientTableHasColumn(self::REGISTRY_VISIBILITY_COLUMN)) {
+            return '1 = 1';
+        }
+
+        return 'COALESCE(' . $alias . '.' . self::REGISTRY_VISIBILITY_COLUMN . ', 1) = 1';
     }
 
     private function buildAssociateAllDoctorsVisibilitySql(string $alias): string
@@ -2670,6 +2695,7 @@ class PazientiModel extends Model
             'iva_differita' => array_key_exists('iva_differita', $payload),
             'note_cliente' => array_key_exists('note_cliente', $payload),
             'appointment_reminder_sms_enabled' => array_key_exists('appointment_reminder_sms_enabled', $payload),
+            'visibile_in_anagrafica' => array_key_exists(self::REGISTRY_VISIBILITY_COLUMN, $payload),
             'bloccato' => array_key_exists('bloccato', $payload),
             'cliente_attivo' => array_key_exists('cliente_attivo', $payload),
             'paz_spec' => array_key_exists('paz_spec', $payload),
