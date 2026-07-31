@@ -27,7 +27,6 @@ $enabledBlockCount = count(array_filter([
     return (bool) $enabled;
 }));
 $logoConfigured = trim((string) ($documentBranding['logo_url'] ?? '')) !== '';
-$documentsSummary = is_array($documentsDashboard['summary'] ?? null) ? $documentsDashboard['summary'] : [];
 $recentDocuments = is_array($documentsDashboard['recent_documents'] ?? null) ? $documentsDashboard['recent_documents'] : [];
 $documentsTableAvailable = !empty($documentsDashboard['table_available']);
 $documentsSchemaMessage = trim((string) ($documentsDashboard['schema_message'] ?? ''));
@@ -96,34 +95,6 @@ $documentsSchemaMessage = trim((string) ($documentsDashboard['schema_message'] ?
                   <i class="fa fa-exchange"></i> Apri modulo Sistema TS
                 </a>
               <?php endif; ?>
-            </div>
-          </div>
-
-          <div class="alert alert-info">
-            La Fatturazione ora ha anche una schermata dedicata per il <strong>documento cliente</strong>: puoi scegliere campi, branding e regole di convivenza con il Sistema TS senza mischiare i due moduli.
-          </div>
-
-          <div class="row">
-            <div class="col-md-4">
-              <div class="metric-card">
-                <span class="label-top">Modulo cliente</span>
-                <div class="value">Separato dal TS</div>
-                <div class="hint">La Fatturazione viene trattata come area autonoma, pronta a gestire documento cliente, PDF e numerazione senza forzare il flusso TS.</div>
-              </div>
-            </div>
-            <div class="col-md-4">
-              <div class="metric-card">
-                <span class="label-top">Documenti creati</span>
-                <div class="value"><?= (int) ($documentsSummary['total_documents'] ?? 0) ?></div>
-                <div class="hint">L archivio Fatturazione tiene bozza, definitivo e stampa PDF indipendenti dal flusso Sistema TS.</div>
-              </div>
-            </div>
-            <div class="col-md-4">
-              <div class="metric-card">
-                <span class="label-top">Prossimo step</span>
-                <div class="value">Template documento</div>
-                <div class="hint">La nuova schermata Documento fatturazione definisce titolo, campi, logo e comportamento del documento da consegnare al cliente.</div>
-              </div>
             </div>
           </div>
 
