@@ -5427,7 +5427,7 @@ public function eseguiRepairRecurringExtraSlots()
 
             $this->assertDoctorAllowed($idDot);
 
-            $this->pazientiModel->deletePatientByDoctor($idPaziente, $idDot);
+            $this->pazientiModel->deletePatientByDoctor($idPaziente, $idDot, $this->getCurrentUserId());
 
             return $this->response->setJSON([
                 'status'  => true,
