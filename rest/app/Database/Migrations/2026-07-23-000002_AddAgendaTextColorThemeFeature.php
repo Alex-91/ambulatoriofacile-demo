@@ -27,7 +27,7 @@ class AddAgendaTextColorThemeFeature extends Migration
             'feature_key' => self::FEATURE_KEY,
             'feature_name' => 'Palette testo agenda',
             'feature_scope' => 'appearance',
-            'description' => 'Salva per il singolo studio una palette testo per appuntamenti, slot liberi e vista Giorno Team dell agenda.',
+            'description' => 'Salva per il singolo studio una palette testo per appuntamenti, slot liberi e vista Giorno Team dell’agenda.',
             'default_enabled' => 1,
             'created_at' => $now,
             'updated_at' => $now,
@@ -57,7 +57,7 @@ class AddAgendaTextColorThemeFeature extends Migration
         $update = [
             'feature_name' => 'Palette testo agenda',
             'feature_scope' => 'appearance',
-            'description' => 'Salva per il singolo studio una palette testo per appuntamenti, slot liberi e vista Giorno Team dell agenda.',
+            'description' => 'Salva per il singolo studio una palette testo per appuntamenti, slot liberi e vista Giorno Team dell’agenda.',
             'default_enabled' => 1,
             'updated_at' => $now,
         ];

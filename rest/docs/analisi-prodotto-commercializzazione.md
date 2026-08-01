@@ -5,23 +5,23 @@
 Capire:
 
 - cosa fa davvero il prodotto oggi
-- cosa e gia vendibile senza stravolgerlo
+- cosa e già vendibile senza stravolgerlo
 - quanto e legato al dominio sanitario
-- come trasformarlo in una base piu universale per altri settori
+- come trasformarlo in una base più universale per altri settori
 
-Questa analisi e stata ricavata leggendo il codice applicativo attuale, senza modificare il comportamento dell'app.
+Questa analisi è stata ricavata leggendo il codice applicativo attuale, senza modificare il comportamento dell'app.
 
 ## Sintesi esecutiva
 
-Il prodotto oggi non e un semplice calendario con login, ma una piattaforma operativa verticale per studi medici, poliambulatori e strutture sanitarie leggere. I suoi punti forti non sono solo agenda e prenotazioni: il valore reale sta nella combinazione di agenda avanzata, ruoli differenziati, messaggistica strutturata, chat, reminder automatici, gestione dispositivi, OTP multi-canale e controllo granulare della visibilita.
+Il prodotto oggi non è un semplice calendario con login, ma una piattaforma operativa verticale per studi medici, poliambulatori e strutture sanitarie leggere. I suoi punti forti non sono solo agenda e prenotazioni: il valore reale sta nella combinazione di agenda avanzata, ruoli differenziati, messaggistica strutturata, chat, reminder automatici, gestione dispositivi, OTP multi-canale e controllo granulare della visibilità.
 
-Dal punto di vista commerciale, la strada piu solida non e renderlo subito "per tutti". La strada piu forte e venderlo prima come soluzione verticale sanitaria molto completa, poi estrarre un "core engine" multi-tenant e multi-settore. In altre parole: prima monetizzare il valore che esiste gia, poi generalizzarlo per allargare il mercato.
+Dal punto di vista commerciale, la strada più solida non è renderlo subito "per tutti". La strada più forte e venderlo prima come soluzione verticale sanitaria molto completa, poi estrarre un "core engine" multi-tenant e multi-settore. In altre parole: prima monetizzare il valore che esiste già, poi generalizzarlo per allargare il mercato.
 
 ## Cosa fa oggi il prodotto
 
 La lettura di `app/Config/Routes.php`, `app/Controllers`, `app/Services` e `app/Views` mostra questi blocchi funzionali principali.
 
-### 1. Accesso, identita e sicurezza
+### 1. Accesso, identità e sicurezza
 
 - login, logout, registrazione, reset password
 - autenticazione OTP
@@ -53,12 +53,12 @@ Indicatori nel codice:
 ### 3. Agenda operativa
 
 - calendario agenda
-- disponibilita mensile
+- disponibilità mensile
 - blocco e sblocco slot
 - generazione e rigenerazione slot
 - copie agenda e repair di slot ricorrenti
 - gestione note e memo
-- visibilita operatori
+- visibilità operatori
 - ferie e giorni bloccati
 - ticket e PDF
 - slot extra
@@ -66,7 +66,7 @@ Indicatori nel codice:
 
 Indicatore forte:
 
-- `app/Controllers/Agenda.php` e uno dei nuclei piu ricchi dell'intero prodotto
+- `app/Controllers/Agenda.php` e uno dei nuclei più ricchi dell'intero prodotto
 
 ### 4. Gestione anagrafica e ruoli
 
@@ -77,7 +77,7 @@ Indicatore forte:
 - infermieri
 - sostituti
 - sedi e stanze
-- visibilita modulo per persona
+- visibilità modulo per persona
 - relazioni segreteria-medico e infermiere-medico
 
 Indicatori nel codice:
@@ -107,7 +107,7 @@ Indicatori nel codice:
 - prenotazioni MMG
 - prenotazioni specialistiche
 - ricerca slot disponibili
-- blocco in caso di prenotazione futura gia esistente
+- blocco in caso di prenotazione futura già esistente
 - gestione prenotazione da parte del paziente
 
 Indicatori nel codice:
@@ -130,7 +130,7 @@ Indicatori nel codice:
 
 ## Dove sta il vero valore commerciale
 
-Il valore piu forte non e in una singola funzione, ma nella combinazione di piu aree che di solito nei gestionali piccoli sono separate:
+Il valore più forte non è in una singola funzione, ma nella combinazione di più aree che di solito nei gestionali piccoli sono separate:
 
 - agenda operativa reale, non solo booking base
 - accessi per ruolo e per relazione organizzativa
@@ -139,11 +139,11 @@ Il valore piu forte non e in una singola funzione, ma nella combinazione di piu 
 - sicurezza MFA con device linking
 - multi-sede e gestione spazi
 
-Questo rende il prodotto molto piu vicino a una "operational platform" verticale che a un semplice software di appuntamenti.
+Questo rende il prodotto molto più vicino a una "operational platform" verticale che a un semplice software di appuntamenti.
 
 ## Quanto e verticalizzato oggi
 
-L'app e gia modulare nella struttura, ma il dominio sanitario e ancora molto presente nel linguaggio e in varie regole di business.
+L'app è già modulare nella struttura, ma il dominio sanitario è ancora molto presente nel linguaggio e in varie regole di business.
 
 ### Segnali concreti di verticalizzazione
 
@@ -159,7 +159,7 @@ Ricerca nel codice applicativo:
 
 Questi numeri non sono un problema in se, ma dimostrano che oggi il prodotto e semanticamente centrato su sanita e ambulatorio.
 
-### Vincoli attuali piu forti
+### Vincoli attuali più forti
 
 1. Ruoli hardcoded
 
@@ -206,7 +206,7 @@ Riferimento:
 - accoppiamento elevato tra logica, schema dati e ruoli reali
 - cifratura direttamente dentro molte query SQL
 
-I due hotspot piu evidenti sono:
+I due hotspot più evidenti sono:
 
 - `app/Controllers/Agenda.php`
 - `app/Services/MessageService.php`
@@ -227,7 +227,7 @@ Non come:
 
 ### Motivo
 
-Nel sanitario leggero il prodotto ha gia un vantaggio credibile perche unisce:
+Nel sanitario leggero il prodotto ha già un vantaggio credibile perché unisce:
 
 - gestione agenda
 - comunicazione interna
@@ -236,9 +236,9 @@ Nel sanitario leggero il prodotto ha gia un vantaggio credibile perche unisce:
 - controllo accessi per staff
 - workflow reali di front office e back office
 
-Se lo presenti subito come prodotto troppo generico rischi di indebolire il messaggio e di promettere adattabilita che oggi nel codice non e ancora completa.
+Se lo presenti subito come prodotto troppo generico rischi di indebolire il messaggio e di promettere adattabilita che oggi nel codice non è ancora completa.
 
-## Settori in cui si puo estendere
+## Settori in cui si può estendere
 
 ### Estensione facile o naturale
 
@@ -246,13 +246,13 @@ Se lo presenti subito come prodotto troppo generico rischi di indebolire il mess
 
 - fit: molto alto
 - sforzo: basso
-- motivo: il prodotto e gia nato per questo
+- motivo: il prodotto e già nato per questo
 
 2. Fisioterapia, riabilitazione, logopedia
 
 - fit: alto
 - sforzo: medio-basso
-- motivo: agenda, ruoli, reminder, multi-operatore e comunicazioni sono gia coerenti
+- motivo: agenda, ruoli, reminder, multi-operatore e comunicazioni sono già coerenti
 
 3. Odontoiatria e medicina estetica
 
@@ -278,7 +278,7 @@ Se lo presenti subito come prodotto troppo generico rischi di indebolire il mess
 
 - fit: medio
 - sforzo: medio-alto
-- motivo: servono modelli piu commerciali, servizi, pacchetti, listini, tempi standard, politiche di appuntamento diverse
+- motivo: servono modelli più commerciali, servizi, pacchetti, listini, tempi standard, politiche di appuntamento diverse
 
 ### Non consigliato come primo target
 
@@ -290,7 +290,7 @@ Se lo presenti subito come prodotto troppo generico rischi di indebolire il mess
 
 ## Come generalizzarlo senza rompere il valore attuale
 
-La generalizzazione non va fatta cancellando il sanitario. Va fatta introducendo un livello superiore piu astratto, lasciando il verticale sanitario come primo "pacchetto".
+La generalizzazione non va fatta cancellando il sanitario. Va fatta introducendo un livello superiore più astratto, lasciando il verticale sanitario come primo "pacchetto".
 
 ### Modello concettuale consigliato
 
@@ -317,7 +317,7 @@ Attenzione: non significa rinominare tutto subito nel database. Significa creare
 
 2. Feature flags per modulo
 
-La base esiste gia con il sistema di `schede` e visibilita modulo.
+La base esiste già con il sistema di `schede` e visibilità modulo.
 
 Da evolvere verso:
 
@@ -364,11 +364,11 @@ Conviene isolare meglio:
 - email
 - push
 
-La base attuale e valida, ma la versione commerciale deve partire con provider disattivati di default e attivabili via configurazione per cliente.
+La base attuale è valida, ma la versione commerciale deve partire con provider disattivati di default e attivabili via configurazione per cliente.
 
 ## Strategia commerciale consigliata
 
-### Fase 1. Monetizzare il verticale che hai gia
+### Fase 1. Monetizzare il verticale che hai già
 
 Proposta:
 
@@ -411,7 +411,7 @@ Il mercato dei software di prenotazione e practice management tende a usare pian
 
 2. Team
 
-- piu operatori
+- più operatori
 - chat e posta interna
 - booking online
 - reminder WhatsApp o SMS
@@ -441,9 +441,9 @@ Il mercato dei software di prenotazione e practice management tende a usare pian
 - personalizzazione testi
 - supporto prioritario
 
-## Priorita tecniche prima di allargare davvero il prodotto
+## Priorità tecniche prima di allargare davvero il prodotto
 
-### Priorita alta
+### Priorità alta
 
 1. Configurazione tenant
 
@@ -455,7 +455,7 @@ Il mercato dei software di prenotazione e practice management tende a usare pian
 2. Neutralizzazione dei testi
 
 - rimuovere testi hardcoded da viste e controller
-- spostare il piu possibile in config o language files
+- spostare il più possibile in config o language files
 
 3. Riduzione dell'accoppiamento nei moduli centrali
 
@@ -467,7 +467,7 @@ Il mercato dei software di prenotazione e practice management tende a usare pian
 - provider disattivi di default
 - attivazione esplicita per ambiente e cliente
 
-### Priorita media
+### Priorità media
 
 5. Demo dataset universale
 
@@ -479,7 +479,7 @@ Il mercato dei software di prenotazione e practice management tende a usare pian
 
 - seed iniziale
 - onboarding nuovo tenant
-- setup da zero piu semplice
+- setup da zero più semplice
 
 7. Catalogo servizi e tipi appuntamento
 
@@ -494,17 +494,17 @@ Il mercato dei software di prenotazione e practice management tende a usare pian
 
 ## Raccomandazione finale
 
-La scelta piu forte e questa:
+La scelta più forte è questa:
 
 1. tenere la farmacia come ramo cliente e ambiente separato
 2. preparare una demo pulita e neutra della versione commerciale
-3. vendere prima il verticale sanitario, che oggi e gia molto forte
+3. vendere prima il verticale sanitario, che oggi e già molto forte
 4. costruire subito dopo un layer di generalizzazione sopra ruoli, lessico, moduli e template
 5. allargare in un secondo momento verso settori adiacenti, non verso "tutti"
 
 Se devo sintetizzarlo in una frase:
 
-`oggi hai gia un buon prodotto verticale; la commercializzazione piu intelligente e usarlo per entrare nel mercato, non appiattirlo troppo presto.`
+`oggi hai già un buon prodotto verticale; la commercializzazione più intelligente è usarlo per entrare nel mercato, non appiattirlo troppo presto.`
 
 ## Fonti esterne usate per il benchmark
 

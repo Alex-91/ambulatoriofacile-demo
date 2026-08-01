@@ -28,7 +28,7 @@ class AddAgendaVisitTypesFeature extends Migration
                 'feature_key' => self::FEATURE_KEY,
                 'feature_name' => 'Tipi visita con durata automatica',
                 'feature_scope' => 'workflow',
-                'description' => 'Il tenant master decide se l agenda deve usare tipi visita configurabili che occupano automaticamente piu slot consecutivi quando necessario.',
+                'description' => 'Il tenant master decide se l’agenda deve usare tipi visita configurabili che occupano automaticamente più slot consecutivi quando necessario.',
                 'default_enabled' => 0,
                 'created_at' => $now,
                 'updated_at' => $now,

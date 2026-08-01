@@ -5,7 +5,7 @@
 Progettare e implementare in AmbulatorioFacile un modulo `Fatturazione TS` che permetta di:
 
 - creare e gestire documenti fiscali validi per il Sistema Tessera Sanitaria
-- validare localmente i dati prima dell invio
+- validare localmente i dati prima dell’invio
 - inviare i documenti ai web service ufficiali TS
 - ricevere e salvare esiti, protocolli, ricevute ed errori
 - riprendere facilmente il lavoro anche dopo interruzioni o task paralleli
@@ -37,24 +37,24 @@ Stato generale:
 - fondazione tecnica del modulo avviata
 - invio sincrono `Inserimento` cablato sul tracciato SOAP ufficiale TS per ambiente `TEST`
 
-Decisioni gia prese:
+Decisioni già prese:
 
-- partire con un `MVP` focalizzato sul singolo documento e sull invio diretto
+- partire con un `MVP` focalizzato sul singolo documento e sull’invio diretto
 - usare prima i `web service sincroni` ufficiali TS
 - prevedere da subito anche un fallback operativo con gestione bozza, validazione e storico
-- rimandare l invio massivo asincrono a una fase successiva
+- rimandare l’invio massivo asincrono a una fase successiva
 - separare `configurazione TS` nel DB `platform` e `documenti TS` nel DB tenant
-- nel primo rilascio non gestire un profilo `software house / terzo delegato`: la struttura sanitaria inserira e usera i propri dati e le proprie credenziali TS
+- nel primo rilascio non gestire un profilo `software house / terzo delegato`: la struttura sanitaria inserira e userà i propri dati e le proprie credenziali TS
 
-## Fonti ufficiali gia verificate
+## Fonti ufficiali già verificate
 
 - Sistema TS area spese sanitarie
-- documentazione ufficiale `Destinatari dei servizi e modalita di utilizzo`
+- documentazione ufficiale `Destinatari dei servizi e modalità di utilizzo`
 - documentazione ufficiale `Strumenti per lo sviluppo`
 - kit pubblico `730 Spese Sanitarie`
 - presenza di `WSDL`, `XSD`, esempi XML, endpoint test e produzione
 
-Nota tecnica gia confermata:
+Nota tecnica già confermata:
 
 - esistono `web service SOAP` ufficiali
 - esistono flussi `sincroni` e `asincroni`
@@ -76,7 +76,7 @@ Il primo MVP deve coprire:
 Scelta operativa corrente:
 
 - il soggetto che compare e trasmette al Sistema TS e la struttura sanitaria cliente
-- l applicativo ospita i campi e i flussi di configurazione, ma non introduce una identita TS autonoma della software house
+- l’applicativo ospita i campi e i flussi di configurazione, ma non introduce un’identità TS autonoma della software house
 
 ## Fuori ambito del primo MVP
 
@@ -113,7 +113,7 @@ Stato:
 
 Obiettivo:
 
-- decidere come incastrare il modulo TS nell architettura esistente
+- decidere come incastrare il modulo TS nell’architettura esistente
 
 Output attesi:
 
@@ -150,7 +150,7 @@ Stato:
 
 Obiettivo:
 
-- dare agli utenti una UI chiara e usabile prima ancora dell integrazione completa
+- dare agli utenti un’UI chiara e usabile prima ancora dell’integrazione completa
 
 Output attesi:
 
@@ -176,8 +176,8 @@ Output attesi:
 - validazione codice fiscale paziente
 - validazione tipo spesa
 - validazione importi e date
-- validazione modalita pagamento
-- prevenzione documenti duplicati piu comuni
+- validazione modalità pagamento
+- prevenzione documenti duplicati più comuni
 
 Stato:
 
@@ -205,7 +205,7 @@ Stato:
 
 Obiettivo:
 
-- chiudere il ciclo operativo dopo l invio
+- chiudere il ciclo operativo dopo l’invio
 
 Output attesi:
 
@@ -217,7 +217,7 @@ Output attesi:
 
 Stato:
 
-- avviata con protocollo, esito e recupero ricevuta PDF gia collaudati in ambiente `TEST`
+- avviata con protocollo, esito e recupero ricevuta PDF già collaudati in ambiente `TEST`
 - resta da rifinire la gestione operativa di correzione, annullo o rettifica nei casi reali
 
 ### 8. Stabilizzazione e rilascio
@@ -245,7 +245,7 @@ Da affrontare solo dopo il MVP:
 - invio asincrono massivo
 - report mensili o annuali
 - gestione segnalazioni o anomalie cittadino
-- strumenti di annullo o rettifica piu evoluti
+- strumenti di annullo o rettifica più evoluti
 - automazioni e controlli pianificati
 
 ## Proposta modello dati minimo
@@ -308,13 +308,13 @@ Domande ancora da chiudere prima di implementare forte:
 - quali `tipi spesa` supportiamo nel primo rilascio oltre a `SP`
 - il documento nasce da visita, da prestazione o da inserimento libero
 - dove memorizzare in modo sicuro credenziali e parametri TS per tenant
-- come gestire tenant con piu professionisti o piu partite IVA
+- come gestire tenant con più professionisti o più partite IVA
 - quali utenti possono inviare davvero a TS e quali solo preparare bozze
-- se il primo tenant reale ha bisogno di annullo o rettifica gia nel MVP
+- se il primo tenant reale ha bisogno di annullo o rettifica già nel MVP
 
 Nodo chiarito il `2026-07-05`:
 
-- per ora non implementiamo il caso `terzo delegato software house`; se in futuro servira, verra trattato come estensione separata
+- per ora non implementiamo il caso `terzo delegato software house`; se in futuro servirà, verrà trattato come estensione separata
 
 ## Strategia test
 
@@ -338,15 +338,15 @@ Livelli di test previsti:
 
 Conclusione pratica:
 
-- possiamo costruire subito tutta l infrastruttura software
-- possiamo fare subito test locali, build payload e chiamate reali all ambiente `TEST`
+- possiamo costruire subito tutta l’infrastruttura software
+- possiamo fare subito test locali, build payload e chiamate reali all’ambiente `TEST`
 - il passaggio a `PRODUZIONE` dipendera invece dalle credenziali del soggetto cliente
 
 ## Rischi principali
 
 - complessita delle regole per categorie professionali diverse
 - dipendenza da credenziali e ambiente test reale TS
-- integrazione SOAP e cifratura piu delicata di una normale API REST
+- integrazione SOAP e cifratura più delicata di una normale API REST
 - possibili differenze tra dati interni attuali e requisiti del tracciato TS
 - impatto UX se i messaggi di errore non vengono tradotti bene
 
@@ -367,7 +367,7 @@ Ordine consigliato:
 Quando lavoriamo di nuovo su TS, aggiornare sempre questo file con almeno una riga nel diario:
 
 - data
-- cosa e stato fatto
+- cosa è stato fatto
 - cosa resta aperto
 - prossimo step operativo
 
@@ -376,8 +376,8 @@ Quando lavoriamo di nuovo su TS, aggiornare sempre questo file con almeno una ri
 ### 2026-07-04
 
 - chiarito il significato di `Fatturazione TS` nel contesto prodotto
-- verificata l esistenza di web service ufficiali TS
-- verificata la disponibilita di kit tecnico pubblico con `WSDL` e `XSD`
+- verificata l’esistenza di web service ufficiali TS
+- verificata la disponibilità di kit tecnico pubblico con `WSDL` e `XSD`
 - scelto di partire con un MVP basato su invio `sincrono`
 - prodotti mockup iniziali per dashboard e dettaglio documento
 - creato questo file come roadmap persistente di progetto
@@ -387,33 +387,33 @@ Quando lavoriamo di nuovo su TS, aggiornare sempre questo file con almeno una ri
 - registrata la feature `ts_billing` nel catalogo applicativo
 - creata la migration `platform_tenant_ts_profiles`
 - creati `Config/TsBilling.php`, `PlatformTenantTsProfilesModel.php` e la struttura `ThirdParty/TesseraSanitaria/`
-- lasciata aperta l importazione dei file ufficiali `WSDL/XSD/cert` nel repo, con path e convenzioni gia pronti
+- lasciata aperta l’importazione dei file ufficiali `WSDL/XSD/cert` nel repo, con path e convenzioni già pronti
 - create le tabelle tenant `ts_documents`, `ts_document_events` e `ts_document_receipts`
 - creati i model base `TsDocumentModel`, `TsDocumentEventModel` e `TsDocumentReceiptModel`
 - creata la pagina tenant `spazio/fatturazione-ts` con salvataggio profilo TS locale
 - introdotti i service `TsFeatureService`, `TsProfileService`, `TsSecretsService` e `TsHealthcheckService`
 - aggiunto un `healthcheck locale` che controlla feature, campi minimi, runtime `soap` e presenza asset tecnici
 - aperto il lato admin operativo con dashboard `admin/fatturazione-ts` e lista `admin/fatturazione-ts/documenti`
-- aggiunta l iniezione dinamica della voce menu admin TS quando la feature `ts_billing` e attiva
+- aggiunta l’iniezione dinamica della voce menu admin TS quando la feature `ts_billing` è attiva
 - aggiunta la schermata `Nuovo documento TS` con salvataggio bozza reale e `salva + valida localmente`
 - introdotti `TsDocumentValidationService` e `TsAuditService` con timeline eventi base del documento
 - aggiunti `TsPayloadBuilderService`, `TsSoapClientFactory`, `TsStorageService` e `TsDispatchService`
 - collegato il bottone `Tenta invio TS` con preflight SOAP locale, snapshot sicuro e audit degli esiti tecnici
 - corretto il legame tra documento TS e profilo usato, evitando cambi silenziosi di profilo sulle modifiche successive
 - reso il canale SOAP configurabile via env per `operation`, `request root` e parser risposta
-- aggiunta diagnostica tecnica in scheda documento con snapshot request/response dell ultimo tentativo
-- chiarito che il primo flusso supportato sara `struttura sanitaria con proprie credenziali TS`, senza profilo terzo dedicato
+- aggiunta diagnostica tecnica in scheda documento con snapshot request/response dell’ultimo tentativo
+- chiarito che il primo flusso supportato sarà `struttura sanitaria con proprie credenziali TS`, senza profilo terzo dedicato
 - rivista la strategia test: useremo prima le utenze di prova ufficiali del kit TS, senza dipendere subito dalle credenziali reali del cliente
 - importati gli asset pubblici ufficiali `WSDL/XSD/cert` del kit TS nella cartella `ThirdParty/TesseraSanitaria`
 - aggiunto supporto ai preset locali `TEST` ufficiali tramite file ignorato `ops/.local/ts-test-presets.json`
 - aggiornata la schermata tenant TS per precompilare il profilo con utenze di prova ufficiali
-- mappata l operazione SOAP `Inserimento` sul body ufficiale `inserimentoDocumentoSpesaRequest`
+- mappata l’operazione SOAP `Inserimento` sul body ufficiale `inserimentoDocumentoSpesaRequest`
 - confermata dai SoapUI ufficiali la cifratura di `pincode`, `cfProprietario` e `cfCittadino`
 - introdotto `TsCryptoService` con uso del certificato pubblico `SanitelCF.cer`
 - aggiunta Basic Auth reale al `SoapClient` usando username e password del profilo TS
 - aggiornato il parser di risposta per leggere `esitoChiamata`, `protocollo` e `listaMessaggi`
-- reso obbligatorio il campo `document_device` nella validazione locale per l invio sincrono
-- aggiornata la UI documento per chiarire che il pulsante esegue l invio reale a Sistema TS
+- reso obbligatorio il campo `document_device` nella validazione locale per l’invio sincrono
+- aggiornata la UI documento per chiarire che il pulsante esegue l’invio reale a Sistema TS
 
 ### 2026-07-05
 
@@ -423,7 +423,7 @@ Quando lavoriamo di nuovo su TS, aggiornare sempre questo file con almeno una ri
 - corretta la costruzione del payload SOAP `Inserimento` evitando il wrapper errato, preservando gli zeri iniziali della `P.IVA` e attivando trace diagnostico sanificato
 - estratti automaticamente da `office_code` i campi `codiceRegione`, `codiceAsl` e `codiceSSA`
 - corretto il parsing importo nello smoke test per non trasformare `18.40` in `1840`
-- verificato end-to-end l invio reale verso Sistema TS `TEST` con preset `struttura_accreditata_lazio`
+- verificato end-to-end l’invio reale verso Sistema TS `TEST` con preset `struttura_accreditata_lazio`
 - scenario passato usando `tipoSpesa=SR`, `aliquotaIVA=10.00`, documento `TS260705160437`, record locale `#10`
 - protocollo restituito dal gateway di prova: `99260705001852582`
 - aggiunta la migration `2026-07-05-000004_AddTsVatMetadataToDocuments` con i nuovi campi persistiti `document_type`, `vat_rate` e `vat_nature`
@@ -433,10 +433,10 @@ Quando lavoriamo di nuovo su TS, aggiornare sempre questo file con almeno una ri
 - aggiunti in scheda documento il box `Esito TS corrente`, la sezione `Ricevute TS` e le route admin per recupero e download ricevuta
 - implementato `TsReceiptService` con chiamata SOAP `RicevutaPdf`, salvataggio PDF in `writable/tenants/<storage_key>/ts/receipts/...` e persistenza in `ts_document_receipts`
 - eseguito collaudo reale completo `invio + recupero ricevuta PDF` su Sistema TS `TEST`: documento `TS260705163850`, record locale `#14`, protocollo `99260705001852586`, PDF salvato localmente con successo
-- resta da rifinire le descrizioni business dei codici `tipoSpesa` in UI e modellare meglio i casi IVA non standard oltre allo scenario `F + SR + aliquotaIVA` gia collaudato
+- resta da rifinire le descrizioni business dei codici `tipoSpesa` in UI e modellare meglio i casi IVA non standard oltre allo scenario `F + SR + aliquotaIVA` già collaudato
 - resta da affinare le descrizioni business dei codici `tipoSpesa` meno documentati nel kit locale e, se serve, modellare eventuali campi avanzati come `flagTipoSpesa`
 - nota di attenzione: il comando `php spark migrate -g platform` sul DB test ha registrato anche migration dell namespace `App`; prima del rilascio conviene rifinire la strategia di esecuzione migration per gruppo
-- nota di attenzione aggiornata: anche `php spark migrate -n App -g default` sul DB test ha applicato migration `App` pregresse ancora pendenti sul tenant di prova; prima di rilasciare conviene definire una procedura migration piu prevedibile per ambiente e gruppo
+- nota di attenzione aggiornata: anche `php spark migrate -n App -g default` sul DB test ha applicato migration `App` pregresse ancora pendenti sul tenant di prova; prima di rilasciare conviene definire una procedura migration più prevedibile per ambiente e gruppo
 - introdotto `TsMigrationSafetyService` per ispezionare schema TS, drift migration e allineamento runtime separatamente su `platform` e `tenant`
 - aggiunti i comandi `php spark ts:doctor` e `php spark ts:migrate-safe` per una diagnostica ripetibile e una procedura di migrazione filtrata solo TS
 - esteso l `healthcheck locale` della schermata tenant con i controlli su tabelle, colonne chiave, feature `ts_billing` e mismatch tra tenant configurato e runtime locale
@@ -463,7 +463,7 @@ Quando in futuro diremo:
 - `torniamo sulla fatturazione TS`
 - `continuiamo il modulo TS`
 
-la prima cosa da fare sara:
+la prima cosa da fare sarà:
 
 1. rileggere questo file
 2. verificare `Stato attuale`, `Nodi aperti` e `Prossimo step operativo`

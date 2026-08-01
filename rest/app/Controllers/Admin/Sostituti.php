@@ -52,7 +52,7 @@ class Sostituti extends BaseController
 
         // Blocca solo duplicati sovrapposti dello stesso medico+sostituto.
         if ($model->hasPairOverlap($idDaSostituire, $idSostituto, $inizio, $fine)) {
-            return redirect()->back()->with('errors', ['generic' => 'Esiste gia una sostituzione sovrapposta per questo stesso medico e sostituto.']);
+            return redirect()->back()->with('errors', ['generic' => 'Esiste già una sostituzione sovrapposta per questo stesso medico e sostituto.']);
         }
 
         $ok = $model->insert([

@@ -284,7 +284,7 @@ class PatientExcelImportService
         $json = json_encode($metadata, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
         if ($json === false || file_put_contents($this->metadataPath($token), $json) === false) {
             @unlink($storedPath);
-            throw new RuntimeException('Impossibile preparare i dati temporanei per l importazione.');
+            throw new RuntimeException('Impossibile preparare i dati temporanei per l’importazione.');
         }
 
         return $metadata;
@@ -302,7 +302,7 @@ class PatientExcelImportService
 
         $metadataPath = $this->metadataPath($token);
         if (!is_file($metadataPath)) {
-            throw new RuntimeException('Il file di importazione non e piu disponibile. Caricalo di nuovo.');
+            throw new RuntimeException('Il file di importazione non è più disponibile. Caricalo di nuovo.');
         }
 
         $json = file_get_contents($metadataPath);
@@ -311,19 +311,19 @@ class PatientExcelImportService
             : null;
 
         if (!is_array($metadata)) {
-            throw new RuntimeException('I dati temporanei dell importazione non sono leggibili.');
+            throw new RuntimeException('I dati temporanei dell’importazione non sono leggibili.');
         }
 
         $this->assertPreparedUploadOwnership($metadata);
 
         $storedName = trim((string) ($metadata['stored_name'] ?? ''));
         if ($storedName === '') {
-            throw new RuntimeException('File temporaneo dell importazione mancante.');
+            throw new RuntimeException('File temporaneo dell’importazione mancante.');
         }
 
         $storedPath = $this->importsDir(false) . DIRECTORY_SEPARATOR . basename($storedName);
         if (!is_file($storedPath)) {
-            throw new RuntimeException('Il file Excel temporaneo non e piu disponibile. Caricalo di nuovo.');
+            throw new RuntimeException('Il file Excel temporaneo non è più disponibile. Caricalo di nuovo.');
         }
 
         $metadata['stored_path'] = $storedPath;
@@ -344,7 +344,7 @@ class PatientExcelImportService
     public function importPreparedWorkbook(string $token, int $idDot, array $columnMapping, int $actingUserId, bool $associateAllDoctors = false): array
     {
         if ($idDot <= 0) {
-            throw new RuntimeException('Medico non valido per l importazione.');
+            throw new RuntimeException('Medico non valido per l’importazione.');
         }
 
         $prepared = $this->loadPreparedUpload($token);
@@ -412,7 +412,7 @@ class PatientExcelImportService
                     $this->appendImportError(
                         $result['errors'],
                         $rowNumber,
-                        (string) ($match['message'] ?? 'Sono stati trovati piu pazienti compatibili con gli stessi identificativi.')
+                        (string) ($match['message'] ?? 'Sono stati trovati più pazienti compatibili con gli stessi identificativi.')
                     );
                     return true;
                 }
@@ -539,7 +539,7 @@ class PatientExcelImportService
 
         $warnings = array_values((array) ($headerDetection['warnings'] ?? []));
         if ((int) ($workbook['worksheet_count'] ?? 1) > 1) {
-            $warnings[] = 'E stato letto il primo foglio del workbook. Se il file contiene altri fogli, per l import conta solo il primo.';
+            $warnings[] = 'È stato letto il primo foglio del workbook. Se il file contiene altri fogli, per l’import conta solo il primo.';
         }
 
         return [
@@ -582,12 +582,12 @@ class PatientExcelImportService
             }
 
             if (!isset($definitions[$fieldKey])) {
-                $errors[] = 'Il campo selezionato per la colonna "' . (string) ($column['header'] ?? ('Colonna ' . $columnIndex)) . '" non e valido.';
+                $errors[] = 'Il campo selezionato per la colonna "' . (string) ($column['header'] ?? ('Colonna ' . $columnIndex)) . '" non è valido.';
                 continue;
             }
 
             if (isset($usedFields[$fieldKey])) {
-                $errors[] = 'Il campo "' . (string) ($definitions[$fieldKey]['label'] ?? $fieldKey) . '" e stato assegnato a piu colonne Excel.';
+                $errors[] = 'Il campo "' . (string) ($definitions[$fieldKey]['label'] ?? $fieldKey) . '" è stato assegnato a più colonne Excel.';
                 continue;
             }
 
@@ -603,11 +603,11 @@ class PatientExcelImportService
         $hasCognome = isset($usedFields['cognome']);
         $hasNome = isset($usedFields['nome']);
         if (!$hasDenominazione && !($hasCognome && $hasNome)) {
-            $errors[] = 'Per creare o aggiornare l anagrafica serve almeno la denominazione oppure la coppia nome e cognome.';
+            $errors[] = 'Per creare o aggiornare l’anagrafica serve almeno la denominazione oppure la coppia nome e cognome.';
         }
 
         if (!isset($usedFields['cod_fis']) && !isset($usedFields['partita_iva'])) {
-            $warnings[] = 'Senza codice fiscale o partita IVA l import puo creare nuovi pazienti ma non aggiornare in modo affidabile quelli gia esistenti.';
+            $warnings[] = 'Senza codice fiscale o partita IVA l’import può creare nuovi pazienti ma non aggiornare in modo affidabile quelli già esistenti.';
         }
 
         return [
@@ -707,7 +707,7 @@ class PatientExcelImportService
 
         $path = $root . DIRECTORY_SEPARATOR . self::IMPORT_DIR;
         if ($ensure && !is_dir($path) && !mkdir($path, 0775, true) && !is_dir($path)) {
-            throw new RuntimeException('Impossibile creare la cartella temporanea per l importazione Excel.');
+            throw new RuntimeException('Impossibile creare la cartella temporanea per l’importazione Excel.');
         }
 
         return $path;
@@ -728,7 +728,7 @@ class PatientExcelImportService
         $zip = new ZipArchive();
         $status = $zip->open($file->getTempName());
         if ($status !== true) {
-            throw new RuntimeException('Il file caricato non e un workbook Excel leggibile.');
+            throw new RuntimeException('Il file caricato non è un workbook Excel leggibile.');
         }
 
         $zip->close();
@@ -775,7 +775,7 @@ class PatientExcelImportService
         }
 
         if ($ownerUserId > 0 && $currentUserId > 0 && $ownerUserId !== $currentUserId) {
-            throw new RuntimeException('Questo file Excel e stato caricato da un altro utente.');
+            throw new RuntimeException('Questo file Excel è stato caricato da un altro utente.');
         }
     }
 
@@ -792,7 +792,7 @@ class PatientExcelImportService
         $zip = new ZipArchive();
         $status = $zip->open($path);
         if ($status !== true) {
-            throw new RuntimeException('Il file Excel non puo essere aperto.');
+            throw new RuntimeException('Il file Excel non può essere aperto.');
         }
 
         try {
@@ -811,7 +811,7 @@ class PatientExcelImportService
             $sheetXml = $zip->getFromName((string) ($worksheet['path'] ?? ''));
 
             if (!is_string($sheetXml) || trim($sheetXml) === '') {
-                throw new RuntimeException('Il foglio Excel principale non e leggibile.');
+                throw new RuntimeException('Il foglio Excel principale non è leggibile.');
             }
 
             return [
@@ -1137,7 +1137,7 @@ class PatientExcelImportService
         $selected = $candidates[0];
         $warnings = [];
         if ((int) ($selected['score'] ?? 0) < 2) {
-            $warnings[] = 'Intestazione colonne rilevata con confidenza bassa. Controlla con attenzione il mapping prima di confermare l importazione.';
+            $warnings[] = 'Intestazione colonne rilevata con confidenza bassa. Controlla con attenzione il mapping prima di confermare l’importazione.';
         }
 
         return [
@@ -1330,7 +1330,7 @@ class PatientExcelImportService
 
         $errors[] = [
             'row_number' => $rowNumber,
-            'message' => trim($message) !== '' ? trim($message) : 'Errore non specificato durante l importazione.',
+            'message' => trim($message) !== '' ? trim($message) : 'Errore non specificato durante l’importazione.',
         ];
     }
 

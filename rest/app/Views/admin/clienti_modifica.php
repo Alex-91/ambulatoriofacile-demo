@@ -65,7 +65,7 @@ $selectedDoctorOld = trim((string) old('id_personale'));
 
           <?php if ($createMode): ?>
             <div class="alert alert-info">
-              Qui crei una nuova anagrafica cliente con account gia pronto. Se invece devi cercarne uno esistente usa la voce
+              Qui crei una nuova anagrafica cliente con account già pronto. Se invece devi cercarne uno esistente usa la voce
               <strong>Modifica cliente</strong>.
             </div>
           <?php else: ?>
@@ -159,7 +159,7 @@ $selectedDoctorOld = trim((string) old('id_personale'));
                   </div>
                   <div class="col-md-3">
                     <div class="form-group">
-                      <label>Citta</label>
+                      <label>Città</label>
                       <input class="form-control" name="citta" id="citta" value="<?= esc((string) old('citta')) ?>">
                     </div>
                   </div>
@@ -220,7 +220,7 @@ $selectedDoctorOld = trim((string) old('id_personale'));
                         <i class="fa fa-unlink"></i> Disassocia dispositivo
                       </button>
                       <p class="text-muted" style="margin:8px 0 0 0;">
-                        L amministratore puo disassociare il telefono push del paziente quando serve.
+                        L’amministratore può disassociare il telefono push del paziente quando serve.
                       </p>
                     </div>
                   </div>
@@ -235,7 +235,7 @@ $selectedDoctorOld = trim((string) old('id_personale'));
                     <div class="form-group">
                       <label>Username (CF) *</label>
                       <input class="form-control" name="username" id="username" value="<?= esc((string) old('username')) ?>" required>
-                      <p class="text-muted" style="margin:6px 0 0 0;">Lo username non e cifrato e coincide con il codice fiscale.</p>
+                      <p class="text-muted" style="margin:6px 0 0 0;">Lo username non è cifrato e coincide con il codice fiscale.</p>
                     </div>
                   </div>
 
@@ -244,7 +244,7 @@ $selectedDoctorOld = trim((string) old('id_personale'));
                       <label><?= $createMode ? 'Password iniziale *' : 'Nuova password' ?></label>
                       <input type="password" class="form-control" name="password" id="password" autocomplete="new-password" <?= $createMode ? 'required' : '' ?>>
                       <p class="text-muted" style="margin:6px 0 0 0;">
-                        <?= $createMode ? 'Serve per creare subito l account cliente.' : 'Se lasci vuoto, la password non cambia.' ?>
+                        <?= $createMode ? 'Serve per creare subito l’account cliente.' : 'Se lasci vuoto, la password non cambia.' ?>
                       </p>
                     </div>
                   </div>
@@ -365,7 +365,7 @@ $selectedDoctorOld = trim((string) old('id_personale'));
       }
 
       if (lastSeen) {
-        html += '<br><small class="text-muted">Ultima attivita: ' + escHtml(lastSeen) + '</small>';
+        html += '<br><small class="text-muted">Ultima attività: ' + escHtml(lastSeen) + '</small>';
       }
 
       $status

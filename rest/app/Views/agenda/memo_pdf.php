@@ -212,7 +212,7 @@ if (!function_exists('memo_pdf_value')) {
                     <tr>
                         <th>Indirizzo</th>
                         <td><?= memo_pdf_value($note['indirizzo'] ?? '') ?></td>
-                        <th>Citta</th>
+                        <th>Città</th>
                         <td><?= memo_pdf_value($note['citta'] ?? '') ?></td>
                     </tr>
                     <tr>

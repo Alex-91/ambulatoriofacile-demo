@@ -299,7 +299,7 @@ class TenantSpaces extends BaseController
             if ((int) ($this->request->getPost('member_send_access_email') ?? 0) === 1) {
                 try {
                     (new PlatformAccessService())->sendMembershipAccessEmail((int) ($result['membership']['id_platform_user_tenant'] ?? 0), 'admin_member_save');
-                    $messages[] = 'Email di accesso inviata all utente dello spazio.';
+                    $messages[] = 'Email di accesso inviata all’utente dello spazio.';
                 } catch (\Throwable $e) {
                     $warnings[] = 'Utente salvato, ma l\'invio dell\'accesso non è riuscito: ' . $e->getMessage();
                 }

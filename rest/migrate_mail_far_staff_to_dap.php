@@ -1703,7 +1703,7 @@ final class FarStaffToDapSync
         $lines[] = 'SYNC FAR01_OPE -> DAP01_USERS / DAP03_PERSONALE';
         $lines[] = str_repeat('=', 58);
         $lines[] = 'Stato: ' . (string)($this->report['status'] ?? 'n/d');
-        $lines[] = 'Modalita: ' . (string)($this->report['mode'] ?? 'n/d');
+        $lines[] = 'Modalità: ' . (string)($this->report['mode'] ?? 'n/d');
         $lines[] = 'Database: ' . (string)($this->report['database'] ?? 'n/d');
         $lines[] = 'Inizio: ' . (string)($this->report['started_at'] ?? 'n/d');
         $lines[] = 'Fine: ' . (string)($this->report['finished_at'] ?? 'n/d');
@@ -1863,7 +1863,7 @@ final class FarStaffToDapSync
 
         $html .= '<div class="box"><h1>Sync far01_ope -> dap01_users / dap03_personale</h1>'
             . '<p><strong>Stato:</strong> ' . $this->html((string)($this->report['status'] ?? 'n/d')) . '</p>'
-            . '<p><strong>Modalita:</strong> ' . $this->html((string)($this->report['mode'] ?? 'n/d')) . '</p>'
+            . '<p><strong>Modalità:</strong> ' . $this->html((string)($this->report['mode'] ?? 'n/d')) . '</p>'
             . '<p><strong>Database:</strong> ' . $this->html((string)($this->report['database'] ?? 'n/d')) . '</p>'
             . '<p><strong>Inizio:</strong> ' . $this->html((string)($this->report['started_at'] ?? 'n/d')) . '<br>'
             . '<strong>Fine:</strong> ' . $this->html((string)($this->report['finished_at'] ?? 'n/d')) . '</p>'

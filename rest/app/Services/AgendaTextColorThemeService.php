@@ -116,7 +116,7 @@ class AgendaTextColorThemeService
     ): array {
         $settings = $this->resolveTenantSettings($tenantId);
         if (empty($settings['theme_management_available'])) {
-            throw new \RuntimeException('La palette testo agenda non e disponibile per questo spazio.');
+            throw new \RuntimeException('La palette testo agenda non è disponibile per questo spazio.');
         }
 
         $featureId = (int) ($settings['feature_id'] ?? 0);

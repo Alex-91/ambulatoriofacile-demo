@@ -162,7 +162,7 @@ function assertDestinationIsSafe(string $projectRoot, string $dest): void
     $relative = substr($dest, strlen($distRoot));
     $firstSegment = strtok(str_replace('\\', '/', $relative), '/');
     if (!is_string($firstSegment) || !str_starts_with($firstSegment, 'demo-runtime')) {
-        throw new RuntimeException('La runtime demo puo essere generata solo in cartelle dist/demo-runtime*.');
+        throw new RuntimeException('La runtime demo può essere generata solo in cartelle dist/demo-runtime*.');
     }
 }
 
@@ -754,7 +754,7 @@ function buildNotes(array $missingAssets, array $summary): array
     ), 0, 5);
 
     return [
-        'La runtime demo e stata generata, ma il repository non contiene ancora tutti gli asset legacy referenziati dalle view.',
+        'La runtime demo è stata generata, ma il repository non contiene ancora tutti gli asset legacy referenziati dalle view.',
         'I riferimenti statici mancanti sono stati filtrati escludendo le route applicative, quindi il report evidenzia solo gap reali di frontend o media.',
         'Fino al recupero o alla neutralizzazione di questi asset, alcune schermate legacy potrebbero non essere renderizzate correttamente.',
         'Bucket principali rilevati: ' . implode(', ', $topBuckets),

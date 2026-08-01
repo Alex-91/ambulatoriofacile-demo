@@ -48,7 +48,7 @@ class AgendaLockModel extends Model
         if ($statoSlot === 'PRENOTATO') {
             return [
                 'status'  => false,
-                'message' => 'Lo slot risulta gia prenotato.'
+                'message' => 'Lo slot risulta già prenotato.'
             ];
         }
 
@@ -66,7 +66,7 @@ class AgendaLockModel extends Model
 
             return [
                 'status'  => false,
-                'message' => 'Lo slot risulta gia prenotato.'
+                'message' => 'Lo slot risulta già prenotato.'
             ];
         }
 
@@ -100,7 +100,7 @@ class AgendaLockModel extends Model
 
             $lockedState = strtoupper(trim((string) ($lockedSlot['stato'] ?? '')));
             if ($lockedState === 'PRENOTATO' || $this->hasNonCancelledAppointmentForSlot($idSlot)) {
-                throw new \RuntimeException('Lo slot risulta gia prenotato.');
+                throw new \RuntimeException('Lo slot risulta già prenotato.');
             }
 
             if ($lockedState === 'CHIUSO') {

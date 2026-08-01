@@ -62,7 +62,7 @@
             <div class="dual-grid">
                 <article class="detail-card">
                     <h3>Demo pubblica</h3>
-                    <p class="access-note">Da qui accompagni il cliente fino allo stesso <strong>/login</strong> che verra usato in produzione, ma con credenziali prova su dati separati.</p>
+                    <p class="access-note">Da qui accompagni il cliente fino allo stesso <strong>/login</strong> che verrà usato in produzione, ma con credenziali prova su dati separati.</p>
                 </article>
                 <article class="detail-card">
                     <h3>Credenziali rapide</h3>
@@ -74,7 +74,7 @@
         <section class="panel">
             <div class="panel-head">
                 <p class="eyebrow">Messaggio commerciale</p>
-                <h2>Perche questo verticale e una buona entrata di mercato</h2>
+                <h2>Perché questo verticale è una buona entrata di mercato</h2>
             </div>
             <div class="dual-grid">
                 <article class="detail-card">
@@ -147,7 +147,7 @@
         <section class="panel">
             <div class="panel-head">
                 <p class="eyebrow">Packaging suggerito</p>
-                <h2>Come confezionare l offerta per questo verticale</h2>
+                <h2>Come confezionare l’offerta per questo verticale</h2>
             </div>
             <div class="dual-grid">
                 <article class="detail-card">
@@ -253,7 +253,7 @@
                 <article class="detail-card">
                     <h3>Prossimo passaggio naturale</h3>
                     <p class="access-note">
-                        Dopo questa overview puoi entrare nel flusso demo del verticale e mostrare login, agenda, reminder e coordinamento team con un percorso gia preparato.
+                        Dopo questa overview puoi entrare nel flusso demo del verticale e mostrare login, agenda, reminder e coordinamento team con un percorso già preparato.
                     </p>
                 </article>
                 <article class="detail-card">
@@ -275,7 +275,7 @@
             </div>
             <div class="dual-grid">
                 <article class="detail-card">
-                    <h3>Storyline gia pronta</h3>
+                    <h3>Storyline già pronta</h3>
                     <ul class="detail-list">
                         <?php foreach ((array) ($profile['demo_storylines'] ?? []) as $story): ?>
                             <li><?= esc((string) $story) ?></li>

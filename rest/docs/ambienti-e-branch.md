@@ -22,7 +22,7 @@ Ogni installazione reale o demo deve avere il suo ambiente separato:
 
 ## Copie locali consigliate
 
-Fuori da questo repository, la gestione piu sicura e:
+Fuori da questo repository, la gestione più sicura e:
 
 - una copia "farmacia" usata per manutenzione e deploy verso Aruba
 - una copia "prodotto" collegata a GitHub e usata per evolvere il software

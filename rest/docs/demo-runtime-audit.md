@@ -19,14 +19,14 @@ Tenere traccia dello stato reale della copia demo/commerciale senza toccare farm
 php dist/demo-runtime/spark routes
 ```
 
-## Report piu recente
+## Report più recente
 
 - runtime report: `writable/demo_setup/demo_runtime_20260606_185840.json`
 - seed report: `writable/demo_setup/demo_seed_20260606_184429.json`
 
 ## Gap frontend emersi
 
-L'audit statico piu recente segnala soprattutto questi bucket:
+L'audit statico più recente segnala soprattutto questi bucket:
 
 - `public/dist`: 124 referenze
 - `public/bootstrap`: 80 referenze
@@ -34,7 +34,7 @@ L'audit statico piu recente segnala soprattutto questi bucket:
 - `public/assets`: 31 referenze
 - `public/css`: 18 referenze
 
-Questi numeri indicano che il collo di bottiglia attuale non e il backend demo:
+Questi numeri indicano che il collo di bottiglia attuale non è il backend demo:
 
 - la struttura separata esiste
 - i dati finti esistono

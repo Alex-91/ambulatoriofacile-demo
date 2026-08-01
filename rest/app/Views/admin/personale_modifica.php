@@ -142,7 +142,7 @@ $success = $success ?? null;
                       <select class="form-control" name="luoghi[]" id="luoghi" multiple size="4">
                       </select>
                       <p class="text-muted" style="margin:6px 0 0 0;">
-                        Per segretaria e infermiera puoi selezionare piu luoghi o "Tutti i luoghi".
+                        Per segretaria e infermiera puoi selezionare più luoghi o "Tutti i luoghi".
                       </p>
                     </div>
                   </div>
@@ -160,9 +160,9 @@ $success = $success ?? null;
 
                 <div class="row" style="margin-top:4px;">
                   <div class="col-md-12">
-                    <label>Visibilita moduli</label>
+                    <label>Visibilità moduli</label>
                     <p class="text-muted" style="margin:4px 0 8px 0;">
-                      Usa questi flag per decidere dove il personale deve comparire. Per esempio un dottore puo essere visibile in agenda ma non in posta o chat.
+                      Usa questi flag per decidere dove il personale deve comparire. Per esempio un dottore può essere visibile in agenda ma non in posta o chat.
                     </p>
                     <div class="alert alert-info" style="margin-bottom:12px;">
                       Questi flag non assegnano le schede della home utente.
@@ -326,11 +326,11 @@ function toISODate(datetimeStr){
   return String(datetimeStr).split(' ')[0]; // YYYY-MM-DD
 }
 function buildSelect($sel, items, idKey, labelKey, selected){
-  var selectedClean = String(selected ?? '').trim();  // ðŸ‘ˆ
+  var selectedClean = String(selected ?? '').trim();  // 👈
   var html = '<option value="">Seleziona...</option>';
 
   (items||[]).forEach(function(it){
-    var id  = String(it[idKey] ?? '').trim();         // ðŸ‘ˆ
+    var id  = String(it[idKey] ?? '').trim();         // 👈
     var lab = it[labelKey] ?? '';
     var sel = (selectedClean !== '' && selectedClean === id) ? ' selected' : '';
     html += '<option value="'+escHtml(id)+'"'+sel+'>'+escHtml(lab)+'</option>';

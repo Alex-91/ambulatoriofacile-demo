@@ -74,7 +74,7 @@ $error = trim((string) ($error ?? ''));
             <?= (int) ($summary['sent_count'] ?? 0) ?> inviati,
             <?= (int) ($summary['rejected_count'] ?? 0) ?> scartati.
             <span style="margin-left:10px;">Fatture in coda: <?= $pendingBillingCount ?></span>
-            <span style="margin-left:10px;">Fatture gia inviate: <?= $sentBillingCount ?></span>
+            <span style="margin-left:10px;">Fatture già inviate: <?= $sentBillingCount ?></span>
             <a class="btn btn-success btn-sm pull-right" href="<?= site_url('admin/sistema-ts/documenti/nuovo') ?>">
               <i class="fa fa-plus"></i> Nuovo documento TS
             </a>
@@ -82,7 +82,7 @@ $error = trim((string) ($error ?? ''));
 
           <?php if (!$tableAvailable): ?>
             <div class="alert alert-warning">
-              La tabella `ts_documents` non e ancora disponibile su questo database. Prima di usare davvero la lista documenti TS dobbiamo eseguire le migration del modulo.
+              La tabella `ts_documents` non è ancora disponibile su questo database. Prima di usare davvero la lista documenti TS dobbiamo eseguire le migration del modulo.
             </div>
           <?php endif; ?>
 
@@ -93,7 +93,7 @@ $error = trim((string) ($error ?? ''));
             <div class="box-body">
               <?php if ($pendingBillingDocuments === []): ?>
                 <p class="text-muted" style="margin:0;">
-                  Nessuna fattura definitiva pronta per l invio TS. Le fatture salvate in Fatturazione con integrazione TS attiva compariranno qui.
+                  Nessuna fattura definitiva pronta per l’invio TS. Le fatture salvate in Fatturazione con integrazione TS attiva compariranno qui.
                 </p>
               <?php else: ?>
                 <form method="post" action="<?= site_url('admin/sistema-ts/documenti/send-bulk-billing') ?>">
@@ -162,7 +162,7 @@ $error = trim((string) ($error ?? ''));
 
           <div class="box box-success">
             <div class="box-header with-border">
-              <h3 class="box-title">Fatture gia inviate a TS</h3>
+              <h3 class="box-title">Fatture già inviate a TS</h3>
             </div>
             <div class="box-body">
               <?php if ($sentBillingDocuments === []): ?>

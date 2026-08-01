@@ -350,7 +350,7 @@ function assertTargetDatabaseIsSafe(string $database): void
 {
     $lower = strtolower(trim($database));
     if ($lower === '' || in_array($lower, DEMO_SEED_FORBIDDEN_DATABASES, true) || !str_contains($lower, 'demo')) {
-        throw new RuntimeException('Il seed demo puo lavorare solo su un database demo dedicato.');
+        throw new RuntimeException('Il seed demo può lavorare solo su un database demo dedicato.');
     }
 }
 
@@ -2000,7 +2000,7 @@ function buildFixtures(string $demoPassword, array $futureDays): array
                 'title' => 'Segreteria',
                 'member_staff_keys' => ['nutrition_collab', 'frontdesk_nutri'],
                 'messages' => [
-                    ['sender_key' => 'frontdesk_nutri', 'body' => 'Chiara Marini chiede se puo anticipare la bioimpedenziometria di 15 minuti.', 'created_at' => $futureDays[0] . ' 08:40:00'],
+                    ['sender_key' => 'frontdesk_nutri', 'body' => 'Chiara Marini chiede se può anticipare la bioimpedenziometria di 15 minuti.', 'created_at' => $futureDays[0] . ' 08:40:00'],
                     ['sender_key' => 'nutrition_collab', 'body' => 'Va bene, anticipiamola e lasciamo la stanza libera per il controllo successivo.', 'created_at' => $futureDays[0] . ' 08:47:00'],
                 ],
                 'read_state' => [
@@ -2014,8 +2014,8 @@ function buildFixtures(string $demoPassword, array $futureDays): array
                 'title' => 'Segreteria',
                 'member_staff_keys' => ['nutrition_team_3', 'frontdesk_nutri'],
                 'messages' => [
-                    ['sender_key' => 'frontdesk_nutri', 'body' => 'Ho spostato Ilaria Monti alle 11:00 cosi la visita di follow up resta allineata con i nuovi slot condivisi.', 'created_at' => $futureDays[0] . ' 08:55:00'],
-                    ['sender_key' => 'nutrition_team_3', 'body' => 'Perfetto, cosi nella vista team si vede subito anche il blocco di mezza mattina e il riordino degli appuntamenti.', 'created_at' => $futureDays[0] . ' 09:02:00'],
+                    ['sender_key' => 'frontdesk_nutri', 'body' => 'Ho spostato Ilaria Monti alle 11:00 così la visita di follow up resta allineata con i nuovi slot condivisi.', 'created_at' => $futureDays[0] . ' 08:55:00'],
+                    ['sender_key' => 'nutrition_team_3', 'body' => 'Perfetto, così nella vista team si vede subito anche il blocco di mezza mattina e il riordino degli appuntamenti.', 'created_at' => $futureDays[0] . ' 09:02:00'],
                 ],
                 'read_state' => [
                     'nutrition_team_3' => $futureDays[0] . ' 09:05:00',
@@ -2067,7 +2067,7 @@ function buildFixtures(string $demoPassword, array $futureDays): array
                     ],
                     [
                         'sender' => 'doctor',
-                        'body' => 'Si, lo inserisco nello stesso appuntamento cosi facciamo la revisione completa.',
+                        'body' => 'Sì, lo inserisco nello stesso appuntamento così facciamo la revisione completa.',
                         'created_at' => $futureDays[0] . ' 10:19:00',
                     ],
                 ],
@@ -2080,7 +2080,7 @@ function buildFixtures(string $demoPassword, array $futureDays): array
                 'messages' => [
                     [
                         'sender' => 'patient',
-                        'body' => 'Ho visto che l appuntamento e stato spostato alle 11:00, confermo che per me va bene.',
+                        'body' => 'Ho visto che l’appuntamento è stato spostato alle 11:00, confermo che per me va bene.',
                         'created_at' => $futureDays[0] . ' 10:32:00',
                     ],
                     [
@@ -2103,7 +2103,7 @@ function buildFixtures(string $demoPassword, array $futureDays): array
                     ],
                     [
                         'sender' => 'doctor',
-                        'body' => 'Porta anche le scarpe da allenamento, cosi facciamo una valutazione completa.',
+                        'body' => 'Porta anche le scarpe da allenamento, così facciamo una valutazione completa.',
                         'created_at' => $futureDays[0] . ' 11:31:00',
                     ],
                 ],

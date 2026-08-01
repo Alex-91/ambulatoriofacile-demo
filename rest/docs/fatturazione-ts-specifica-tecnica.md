@@ -9,7 +9,7 @@ Questo documento definisce:
 - dove vive il modulo nel repository
 - quali tabelle servono e in quale database
 - quali route, controller, model e service introdurre
-- come integrare feature flag, menu e permessi gia esistenti
+- come integrare feature flag, menu e permessi già esistenti
 - quale e il primo slice tecnico da sviluppare
 
 ## Vincoli del codebase attuale
@@ -19,14 +19,14 @@ Il repository oggi ha questi pattern da rispettare:
 - i dati commerciali e di entitlement vivono nel DB `platform`
 - i dati operativi del cliente vivono nel DB tenant applicativo
 - i moduli tenant vengono governati da `platform_features` e `TenantFeatureService`
-- l accesso alle route tenant passa gia da `TenantFeatureAccessFilter` usando `TenantFeatureRegistry`
+- l’accesso alle route tenant passa già da `TenantFeatureAccessFilter` usando `TenantFeatureRegistry`
 - il menu admin operativo usa `MenuRegistryService`, `TenantAdminMenuService` e `AdminMenuVisibilityService`
 - il runtime container usa il `Dockerfile` in root
 
 Nota tecnica importante emersa subito:
 
-- il `Dockerfile` attuale non installa l estensione PHP `soap`
-- il modulo TS non puo partire senza `ext-soap`
+- il `Dockerfile` attuale non installa l’estensione PHP `soap`
+- il modulo TS non può partire senza `ext-soap`
 
 ## Scelta architetturale
 
@@ -44,7 +44,7 @@ Questo approccio evita di mischiare:
 - credenziali e configurazione commerciale
 - documenti fiscali operativi
 
-e resta coerente con l architettura multi tenant gia introdotta.
+e resta coerente con l’architettura multi tenant già introdotta.
 
 ## Decisione di perimetro aggiornata
 
@@ -52,7 +52,7 @@ Aggiornata al: `2026-07-05`
 
 Per il primo rilascio:
 
-- non viene modellato un soggetto `software house` come identita autonoma del Sistema TS
+- non viene modellato un soggetto `software house` come identità autonoma del Sistema TS
 - il profilo TS configurato nel tenant appartiene alla struttura sanitaria o al professionista cliente
 - il prodotto gestisce campi, segreti, validazioni e invio, ma non sostituisce il ruolo formale del soggetto obbligato
 
@@ -63,13 +63,13 @@ Implicazione architetturale:
 
 ### Decisione operativa sul collaudo
 
-Per accelerare l integrazione tecnica:
+Per accelerare l’integrazione tecnica:
 
-- il modulo supporta una modalita `TEST ufficiale TS`
+- il modulo supporta una modalità `TEST ufficiale TS`
 - i preset di prova vengono letti da un file locale ignorato da Git: `ops/.local/ts-test-presets.json`
-- se il file locale non esiste, il runtime puo usare il fallback persistente `rest/writable/ts/ts-test-presets.json`
+- se il file locale non esiste, il runtime può usare il fallback persistente `rest/writable/ts/ts-test-presets.json`
 - i preset possono precompilare username, password, pincode e dati anagrafici del soggetto di prova
-- il passaggio a `PRODUZIONE` restera separato e usera solo le credenziali reali del cliente
+- il passaggio a `PRODUZIONE` restera separato e userà solo le credenziali reali del cliente
 
 ### Decisione tecnica sul canale SOAP sincrono
 
@@ -86,7 +86,7 @@ Per il primo invio reale abbiamo allineato il modulo al tracciato SOAP ufficiale
 Nota MVP:
 
 - il form operativo supporta ora la scelta esplicita `F / D`
-- nel collaudo reale `TEST` e gia passato lo scenario `F + SR + aliquotaIVA`
+- nel collaudo reale `TEST` e già passato lo scenario `F + SR + aliquotaIVA`
 
 ### Decisione tecnica su migrazioni e drift ambiente
 
@@ -97,7 +97,7 @@ Per evitare che le migration TS si portino dietro migration `App` non correlate:
 - il modulo introduce `TsMigrationSafetyService`
 - il controllo `ts:doctor` ispeziona separatamente `platform` e `tenant`
 - il comando `ts:migrate-safe` copia in una cartella temporanea solo le migration TS attese e applica esclusivamente quelle
-- se nello stesso gruppo esistono migration `App` non TS ancora pendenti, il comando blocca l esecuzione salvo override esplicito con `--allow-drift=1`
+- se nello stesso gruppo esistono migration `App` non TS ancora pendenti, il comando blocca l’esecuzione salvo override esplicito con `--allow-drift=1`
 
 ## Feature flag proposta
 
@@ -189,7 +189,7 @@ Eccezione operativa locale:
 Scopo:
 
 - contenere la configurazione TS di uno spazio cliente
-- supportare gia da subito il caso futuro di piu profili per tenant
+- supportare già da subito il caso futuro di più profili per tenant
 - nel MVP il profilo rappresenta direttamente il soggetto cliente che invia a TS
 
 Per il primo MVP un tenant userebbe normalmente un solo profilo `default`.
@@ -248,7 +248,7 @@ Campi proposti:
 | Campo | Tipo | Note |
 | --- | --- | --- |
 | `id_ts_document` | INT PK | chiave primaria |
-| `id_ts_profile` | INT NULL | id profilo platform usato al momento dell invio |
+| `id_ts_profile` | INT NULL | id profilo platform usato al momento dell’invio |
 | `id_client` | INT NULL | riferimento al paziente locale |
 | `source_type` | VARCHAR(30) | `manual`, `appointment`, `import` |
 | `source_ref_id` | INT NULL | id record sorgente |
@@ -341,7 +341,7 @@ Campi proposti:
 | `storage_path` | VARCHAR(255) | path file relativo |
 | `mime_type` | VARCHAR(120) NULL | mime |
 | `file_size` | INT NULL | bytes |
-| `checksum_sha256` | CHAR(64) NULL | integrita |
+| `checksum_sha256` | CHAR(64) NULL | integrità |
 | `created_at` | DATETIME NULL | audit |
 
 Indici proposti:
@@ -397,7 +397,7 @@ Nota MVP sui tipi spesa:
 
 - il modulo espone tutti i codici attualmente ammessi dall `XSD` ufficiale `DocumentoSpesa730pSchema.xsd`
 - le descrizioni `TK`, `FC`, `FV`, `AS`, `SR`, `SP` sono considerate stabili nel contesto attuale
-- i codici `CT`, `PI`, `IC`, `AA`, `AD`, `SV` restano disponibili ma mostrati con descrizione prudente finche non aggiungiamo una fonte business piu esplicita
+- i codici `CT`, `PI`, `IC`, `AA`, `AD`, `SV` restano disponibili ma mostrati con descrizione prudente finché non aggiungiamo una fonte business più esplicita
 
 ## Route proposte
 
@@ -412,8 +412,8 @@ Nota MVP sui tipi spesa:
 
 Nota di esercizio:
 
-- i test end to end verso il Sistema TS richiedono credenziali del soggetto cliente abilitate anche per l ambiente `TEST`
-- senza tali credenziali il modulo puo comunque essere collaudato localmente su validazioni, payload, storage, adapter SOAP e diagnostica
+- i test end to end verso il Sistema TS richiedono credenziali del soggetto cliente abilitate anche per l’ambiente `TEST`
+- senza tali credenziali il modulo può comunque essere collaudato localmente su validazioni, payload, storage, adapter SOAP e diagnostica
 
 ### Modulo operativo admin
 
@@ -447,7 +447,7 @@ Proposta:
 
 Effetto:
 
-- `TenantFeatureAccessFilter` potra gia bloccare le route se la feature non e attiva
+- `TenantFeatureAccessFilter` potrà già bloccare le route se la feature non è attiva
 
 ### MenuRegistryService
 
@@ -474,17 +474,17 @@ Aggiungere voce contesto spazio:
 - `title`: `Configura Fatturazione TS`
 - `icon`: `fa-file-text-o`
 
-Visibilita:
+Visibilità:
 
 - solo per `tenant_master`
-- solo se `ts_billing` e abilitata per il tenant
+- solo se `ts_billing` è abilitata per il tenant
 
 ### MenuResolverService
 
 Aggiornamento richiesto:
 
 - nascondere la voce admin `fatturazione-ts` se il tenant non ha `ts_billing`
-- usare lo stesso approccio gia usato per `agenda_visit_types`, ma su una voce reale di menu admin
+- usare lo stesso approccio già usato per `agenda_visit_types`, ma su una voce reale di menu admin
 
 ### Migrazione menu admin
 
@@ -494,17 +494,17 @@ Nuova migration proposta:
 
 Scopo:
 
-- backfill della voce `fatturazione-ts` dentro `dap06_mnu` per tenant gia esistenti
+- backfill della voce `fatturazione-ts` dentro `dap06_mnu` per tenant già esistenti
 
 ## Modello permessi MVP
 
 ### Configurazione TS
 
-Puo farla:
+Può farla:
 
 - `tenant_master`
 
-### Operativita documenti TS
+### Operatività documenti TS
 
 Possono accedere:
 
@@ -514,29 +514,29 @@ Possono accedere:
 
 ### Invio a TS
 
-Nel MVP puo inviare:
+Nel MVP può inviare:
 
 - `tenant_master`
 - `tenant_admin`
-- admin operativo del tenant se la pagina e visibile e la feature e attiva
+- admin operativo del tenant se la pagina è visibile e la feature è attiva
 
 Nota:
 
-- il split piu fine tra `puo preparare` e `puo inviare` si puo introdurre in una fase successiva
-- per il MVP sfruttiamo i ruoli gia esistenti e la visibilita menu
+- lo split più fine tra `può preparare` e `può inviare` si può introdurre in una fase successiva
+- per il MVP sfruttiamo i ruoli già esistenti e la visibilità menu
 
 ## Service layer proposto
 
 ### `TsFeatureService`
 
-Responsabilita:
+Responsabilità:
 
 - centralizzare il controllo feature `ts_billing`
-- aiutare menu e controller a capire se il modulo e disponibile
+- aiutare menu e controller a capire se il modulo è disponibile
 
 ### `TsProfileService`
 
-Responsabilita:
+Responsabilità:
 
 - leggere e salvare `platform_tenant_ts_profiles`
 - restituire il profilo default attivo del tenant
@@ -546,21 +546,21 @@ Responsabilita:
 
 ### `TsSecretsService`
 
-Responsabilita:
+Responsabilità:
 
 - cifrare e decifrare password TS, pincode e CF sensibili
 - evitare che la cifratura sia duplicata nei controller
 
 ### `TsStorageService`
 
-Responsabilita:
+Responsabilità:
 
 - costruire i path di `writable/tenants/<storage_key>/ts`
 - salvare ricevute e payload
 
 ### `TsDocumentService`
 
-Responsabilita:
+Responsabilità:
 
 - CRUD documento
 - gestione stati
@@ -569,21 +569,21 @@ Responsabilita:
 
 ### `TsDocumentValidationService`
 
-Responsabilita:
+Responsabilità:
 
-- regole locali prima dell invio
+- regole locali prima dell’invio
 - ritorno strutturato di errori e warning
 
 ### `TsPayloadBuilderService`
 
-Responsabilita:
+Responsabilità:
 
 - trasformare il documento interno nel payload richiesto dai WSDL TS
 - mantenere separato il mapping dominio -> SOAP
 
 ### `TsSoapClientFactory`
 
-Responsabilita:
+Responsabilità:
 
 - istanziare client SOAP usando WSDL locali
 - impostare endpoint reali `test` o `production`
@@ -591,14 +591,14 @@ Responsabilita:
 
 ### `TsCryptoService`
 
-Responsabilita:
+Responsabilità:
 
 - applicare la cifratura dei campi richiesta dal kit TS
 - usare il certificato pubblico locale versionato nel repo
 
 ### `TsDispatchService`
 
-Responsabilita:
+Responsabilità:
 
 - orchestrare il flusso `validate -> build payload -> encrypt -> send`
 - salvare protocollo, risposta e stato
@@ -606,21 +606,21 @@ Responsabilita:
 
 ### `TsReceiptService`
 
-Responsabilita:
+Responsabilità:
 
 - recuperare PDF ricevuta o eventuali dettagli errori
 - salvarli in `ts_document_receipts`
 
 ### `TsAuditService`
 
-Responsabilita:
+Responsabilità:
 
 - scrivere eventi in `ts_document_events`
 - uniformare i messaggi di timeline
 
 ### `TsMigrationSafetyService`
 
-Responsabilita:
+Responsabilità:
 
 - leggere la history migration del gruppo `platform` e del DB tenant
 - verificare che tabelle e colonne chiave del modulo TS siano presenti
@@ -657,7 +657,7 @@ Responsabilita:
 
 ### 2. Creazione documento
 
-1. l operatore apre `admin/fatturazione-ts/documenti/nuovo`
+1. l’operatore apre `admin/fatturazione-ts/documenti/nuovo`
 2. seleziona o conferma paziente
 3. compila numero, date, tipo spesa, importo, pagamento, opposizione
 4. salva bozza
@@ -711,8 +711,8 @@ Responsabilita:
 ### Controlli di coerenza
 
 - nessun duplicato sullo stesso identificativo documento
-- nessun invio se il documento e gia `sent`
-- nessun invio se il profilo TS non e attivo
+- nessun invio se il documento e già `sent`
+- nessun invio se il profilo TS non è attivo
 
 ## Stati documento
 
@@ -775,7 +775,7 @@ Dipendenze minime richieste:
 
 Nota:
 
-- `openssl` e gia presente
+- `openssl` e già presente
 - `soap` oggi non lo e
 
 ## Strategia di test
@@ -797,14 +797,14 @@ Nota:
 - usare prima ambiente `test`
 - usare tenant e dati dedicati
 - nessuna prova su produzione live
-- collaudo reale gia eseguito il `2026-07-05` con comando `php spark ts:smoke-test --preset=struttura_accreditata_lazio`
+- collaudo reale già eseguito il `2026-07-05` con comando `php spark ts:smoke-test --preset=struttura_accreditata_lazio`
 - esito verificato: invio accettato dal gateway `TEST`, protocollo `99260705001852582`, `esitoChiamata=0`
 - scenario tecnico che oggi passa end-to-end: `tipoDocumento=F`, `tipoSpesa=SR`, `aliquotaIVA=10.00`, pagamento `tracciato`
-- follow-up chiuso: `aliquotaIVA` non e piu un fallback hardcoded, ma un dato persistito sul documento insieme a `document_type` e `vat_nature`
+- follow-up chiuso: `aliquotaIVA` non è più un fallback hardcoded, ma un dato persistito sul documento insieme a `document_type` e `vat_nature`
 - secondo collaudo reale eseguito dopo la persistenza dei nuovi campi: protocollo `99260705001852583`, `esitoChiamata=0`
 - terzo collaudo reale completato con recupero ricevuta PDF tramite `RicevutaPdf`: protocollo `99260705001852586`, PDF archiviato nello storage tenant e registrato in `ts_document_receipts`
-- il modulo espone ora tutti i codici `tipoSpesa` ammessi dall `XSD` ufficiale; alcune descrizioni restano volutamente conservative finche non aggiungiamo un mapping business piu ricco
-- dopo il collaudo e stato aggiunto anche il controllo `php spark ts:doctor` per verificare schema, drift migration e allineamento runtime prima di ogni rilascio o pilot cliente
+- il modulo espone ora tutti i codici `tipoSpesa` ammessi dall `XSD` ufficiale; alcune descrizioni restano volutamente conservative finché non aggiungiamo un mapping business più ricco
+- dopo il collaudo è stato aggiunto anche il controllo `php spark ts:doctor` per verificare schema, drift migration e allineamento runtime prima di ogni rilascio o pilot cliente
 
 ### Comandi operativi consigliati
 
@@ -857,7 +857,7 @@ Nota:
 - error list
 - timeline documento
 
-## Decisioni gia fissate
+## Decisioni già fissate
 
 - il primo rilascio usa i `WS sincroni`
 - i dati documento vivono nel DB tenant
@@ -869,8 +869,8 @@ Nota:
 ## Decisioni ancora aperte
 
 - quali pacchetti commerciali abilitano `ts_billing` di default
-- set minimo di `tipoSpesa` da supportare in UI oltre a `SR` gia verificato nel collaudo TEST
-- se il tenant puo avere un solo profilo TS attivo o piu profili gia dal day one
+- set minimo di `tipoSpesa` da supportare in UI oltre a `SR` già verificato nel collaudo TEST
+- se il tenant può avere un solo profilo TS attivo o più profili già dal day one
 - se il primo tenant reale richiede da subito annullo o rettifica
 
 ## Primo task di implementazione consigliato

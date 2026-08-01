@@ -66,7 +66,7 @@ $menu_items = $menu_items ?? ($result['result'] ?? []);
               </h3>
             </div>
             <div class="box-body">
-              <p>Visualizza e gestisci le tue prenotazioni specialistiche giÃ  effettuate.</p>
+              <p>Visualizza e gestisci le tue prenotazioni specialistiche già effettuate.</p>
               <a class="btn btn-success" href="<?= base_url('prenotazioni/specialisti/gestisci') ?>">
                 Vai <i class="fa fa-arrow-right"></i>
               </a>

@@ -94,7 +94,7 @@ $rows    = $rows ?? [];
                   <div class="col-md-6">
                     <p class="text-muted" style="margin-top:25px;">
                       Le date sono obbligatorie. La fine deve essere >= della data inizio.
-                      Sono ammessi piu sostituti contemporanei per lo stesso medico.
+                      Sono ammessi più sostituti contemporanei per lo stesso medico.
                       Il sistema blocca solo duplicati sovrapposti dello stesso sostituto.
                     </p>
                   </div>

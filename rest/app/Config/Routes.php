@@ -74,6 +74,7 @@ $routes->get('login/spazi/cambia/(:num)', 'Login\LoginController::switchTenant/$
 $routes->get('login/spazio/funzioni', 'Tenant\SpaceFeatures::index');
 $routes->post('login/spazio/funzioni/save', 'Tenant\SpaceFeatures::save');
 $routes->get('login/spazio/fatturazione', 'Tenant\BillingSettingsController::index');
+$routes->post('login/spazio/fatturazione/save', 'Tenant\BillingSettingsController::save');
 $routes->get('login/spazio/sistema-ts', 'Tenant\TsSettingsController::index');
 $routes->get('login/spazio/fatturazione-ts', 'Tenant\TsSettingsController::index');
 $routes->post('login/spazio/sistema-ts/save', 'Tenant\TsSettingsController::save');
@@ -122,6 +123,7 @@ $routes->get('spazi/cambia/(:num)', 'Login\LoginController::switchTenant/$1');
 $routes->get('spazio/funzioni', 'Tenant\SpaceFeatures::index');
 $routes->post('spazio/funzioni/save', 'Tenant\SpaceFeatures::save');
 $routes->get('spazio/fatturazione', 'Tenant\BillingSettingsController::index');
+$routes->post('spazio/fatturazione/save', 'Tenant\BillingSettingsController::save');
 $routes->get('spazio/sistema-ts', 'Tenant\TsSettingsController::index');
 $routes->get('spazio/fatturazione-ts', 'Tenant\TsSettingsController::index');
 $routes->post('spazio/sistema-ts/save', 'Tenant\TsSettingsController::save');
@@ -195,6 +197,9 @@ $routes->group('admin', static function($routes){
     $routes->post('fatturazione-documenti/elimina/(:num)', 'Admin\BillingDocumentsController::delete/$1');
     $routes->get('fatturazione-documenti/preview/(:num)', 'Admin\BillingDocumentsController::preview/$1');
     $routes->get('fatturazione-documenti/pdf/(:num)', 'Admin\BillingDocumentsController::downloadPdf/$1');
+    $routes->get('fatturazione-statistiche', 'Admin\BillingReportsController::index');
+    $routes->get('fatturazione-statistiche/export', 'Admin\BillingReportsController::export');
+    $routes->get('fatturazione-statistiche/export-pdf', 'Admin\BillingReportsController::exportPdf');
     $routes->get('sistema-ts', 'Admin\TsDashboardController::index');
     $routes->get('sistema-ts/diagnostica', 'Admin\TsDiagnosticsController::index');
     $routes->get('sistema-ts/diagnostica/download', 'Admin\TsDiagnosticsController::download');

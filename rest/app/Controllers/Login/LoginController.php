@@ -457,7 +457,7 @@ class LoginController extends BaseController
             return $this->response->setJSON([
                 'resp' => 'KO',
                 'success' => false,
-                'message' => 'La selezione dello spazio e scaduta. Effettua di nuovo il login.',
+                'message' => 'La selezione dello spazio è scaduta. Effettua di nuovo il login.',
             ])->setStatusCode(440);
         }
 
@@ -567,7 +567,7 @@ session()->remove('platform_is_admin');
 session()->remove(\App\Services\TenantAppSessionBootstrapService::PLATFORM_SELECTABLE_TENANTS_SESSION_KEY);
 session()->remove(\App\Services\PlatformAccessService::SESSION_KEY_PENDING_PASSWORD_SETUP);
         if (!$credentials || !isset($credentials->username) || !isset($credentials->password)) {
-            $this->logErrorLogin('Richiesta login non valida: payload JSON assente o incompleto. Il frontend mostrera errorLogin perche non ci sono username/password utilizzabili.');
+            $this->logErrorLogin('Richiesta login non valida: payload JSON assente o incompleto. Il frontend mostrerà errorLogin perché non ci sono username/password utilizzabili.');
             return $this->response->setJSON([
                 'resp'    => 'KO',
                 'success' => false,
@@ -1063,7 +1063,7 @@ session()->remove(\App\Services\PlatformAccessService::SESSION_KEY_PENDING_PASSW
                  $storedPasswordCorrupted = $this->storedPasswordLooksCorrupted($db, (int) ($existingUser['id_user'] ?? 0));
 
                  if ($storedPasswordCorrupted) {
-                     $this->logErrorLogin('Credenziali bloccate: la password salvata sembra un vecchio valore cifrato/da reimpostare. Suggerire reset password all utente.', [
+                     $this->logErrorLogin('Credenziali bloccate: la password salvata sembra un vecchio valore cifrato/da reimpostare. Suggerire reset password all’utente.', [
                          'username'     => $loginUsername,
                          'id_user'      => (int) ($existingUser['id_user'] ?? 0),
                          'tipo_user'    => (int) ($existingUser['tipo_user'] ?? 0),
@@ -1073,7 +1073,7 @@ session()->remove(\App\Services\PlatformAccessService::SESSION_KEY_PENDING_PASSW
                      return $this->response->setJSON([
                         'resp'    => 'RESET_REQUIRED',
                         'success' => false,
-                        'message' => 'La password di questo account deve essere reimpostata. Usa "Password Dimenticata?" oppure chiedi all amministratore di impostarne una nuova.'
+                        'message' => 'La password di questo account deve essere reimpostata. Usa "Password Dimenticata?" oppure chiedi all’amministratore di impostarne una nuova.'
                     ]);
                  }
 
@@ -1097,7 +1097,7 @@ session()->remove(\App\Services\PlatformAccessService::SESSION_KEY_PENDING_PASSW
           
         }
     }  catch (\Throwable $e) {
-        $this->logErrorLogin('Eccezione durante il login: il frontend ricevera errore server e puo mostrare errorLogin. Dettaglio: ' . $e->getMessage(), [
+        $this->logErrorLogin('Eccezione durante il login: il frontend riceverà errore server e può mostrare errorLogin. Dettaglio: ' . $e->getMessage(), [
             'username' => $username,
             'file'     => $e->getFile(),
             'line'     => $e->getLine(),

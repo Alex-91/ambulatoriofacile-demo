@@ -166,7 +166,7 @@ class TsDocumentService
 
         return [
             'profile' => $profile,
-            'document' => $this->buildEditableDocument($document),
+            'document' => $this->buildEditableDocument($document, $this->resolveProfileDocumentDefaults($profile)),
             'parent_document' => $this->resolveParentDocumentSummary($documents, $document),
             'related_operations' => $this->listRelatedOperations($documents, $document),
             'validation' => $this->decodeValidationJson((string) ($document['validation_json'] ?? '')),
@@ -197,7 +197,7 @@ class TsDocumentService
         $audit = $context['audit'];
 
         if (!$this->isDocumentsTableAvailable($db)) {
-            throw new \RuntimeException('La tabella ts_documents non e disponibile nel database corrente.');
+            throw new \RuntimeException('La tabella ts_documents non è disponibile nel database corrente.');
         }
 
         $currentId = (int) ($payload['id_ts_document'] ?? 0);
@@ -219,7 +219,7 @@ class TsDocumentService
         }
 
         if (trim((string) ($current['local_state'] ?? '')) === 'sent') {
-            throw new \RuntimeException('Il documento risulta gia inviato e non puo essere modificato da questa schermata.');
+            throw new \RuntimeException('Il documento risulta già inviato e non può essere modificato da questa schermata.');
         }
 
         $sourceType = trim((string) ($current['source_type'] ?? 'manual'));
@@ -345,7 +345,7 @@ class TsDocumentService
 
         $saved = $documents->find($documentId);
         if (!is_array($saved)) {
-            throw new \RuntimeException('Documento TS salvato ma non piu reperibile.');
+            throw new \RuntimeException('Documento TS salvato ma non più reperibile.');
         }
 
         return [
@@ -370,7 +370,7 @@ class TsDocumentService
         $audit = $context['audit'];
 
         if (!$this->isDocumentsTableAvailable($db)) {
-            throw new \RuntimeException('La tabella ts_documents non e disponibile nel database corrente.');
+            throw new \RuntimeException('La tabella ts_documents non è disponibile nel database corrente.');
         }
 
         $source = $documents->find($documentId);
@@ -443,7 +443,7 @@ class TsDocumentService
         $audit = $context['audit'];
 
         if (!$this->isDocumentsTableAvailable($db)) {
-            throw new \RuntimeException('La tabella ts_documents non e disponibile nel database corrente.');
+            throw new \RuntimeException('La tabella ts_documents non è disponibile nel database corrente.');
         }
 
         $source = $documents->find($documentId);
@@ -527,7 +527,7 @@ class TsDocumentService
         $documentId = is_array($existing) ? (int) ($existing['id_ts_document'] ?? 0) : 0;
         $suffix = $documentId > 0 ? ' (documento #' . $documentId . ')' : '';
 
-        return 'Esiste gia un documento TS con lo stesso identificativo logico' . $suffix . '. Cambia numero, data o dispositivo, oppure modifica quello gia presente.';
+        return 'Esiste già un documento TS con lo stesso identificativo logico' . $suffix . '. Cambia numero, data o dispositivo, oppure modifica quello già presente.';
     }
 
     /**
@@ -631,11 +631,11 @@ class TsDocumentService
         $localState = trim((string) ($source['local_state'] ?? 'draft'));
         $tsState = trim((string) ($source['ts_state'] ?? ''));
         if ($localState !== 'sent' && !in_array($tsState, ['accepted', 'varied'], true)) {
-            throw new \RuntimeException('Il documento deve risultare gia inviato a TS prima di creare una nuova operazione collegata.');
+            throw new \RuntimeException('Il documento deve risultare già inviato a TS prima di creare una nuova operazione collegata.');
         }
 
         if ($tsState === 'cancelled') {
-            throw new \RuntimeException('Il documento risulta gia annullato su TS.');
+            throw new \RuntimeException('Il documento risulta già annullato su TS.');
         }
 
         if ($operationType === 'ts_cancellation' && trim((string) ($source['ts_protocol'] ?? '')) === '') {
@@ -722,11 +722,11 @@ class TsDocumentService
 
         $localState = trim((string) ($existing['local_state'] ?? 'draft'));
         if ($localState === 'sending') {
-            throw new \RuntimeException('Esiste gia una cancellazione TS in corso per questo documento.');
+            throw new \RuntimeException('Esiste già una cancellazione TS in corso per questo documento.');
         }
 
         if ($localState === 'sent') {
-            throw new \RuntimeException('Esiste gia una cancellazione TS inviata per questo documento.');
+            throw new \RuntimeException('Esiste già una cancellazione TS inviata per questo documento.');
         }
 
         return $existing;
@@ -912,9 +912,13 @@ class TsDocumentService
      * @param array<string, mixed>|null $document
      * @return array<string, mixed>
      */
-    private function buildEditableDocument(?array $document): array
+    private function buildEditableDocument(?array $document, array $defaults = []): array
     {
         if (!is_array($document)) {
+            $documentType = trim((string) ($defaults['document_type'] ?? 'F'));
+            $expenseType = trim((string) ($defaults['expense_type_code'] ?? 'SP'));
+            $paymentMode = trim((string) ($defaults['payment_mode'] ?? 'tracciato'));
+
             return [
                 'id_ts_document' => 0,
                 'id_client' => 0,
@@ -926,13 +930,13 @@ class TsDocumentService
                 'document_device' => '',
                 'issue_date' => date('Y-m-d'),
                 'payment_date' => date('Y-m-d'),
-                'document_type' => 'F',
-                'expense_type_code' => 'SP',
-                'payment_mode' => 'tracciato',
+                'document_type' => array_key_exists($documentType, $this->config->supportedDocumentTypes) ? $documentType : 'F',
+                'expense_type_code' => array_key_exists($expenseType, $this->config->supportedExpenseTypes) ? $expenseType : 'SP',
+                'payment_mode' => array_key_exists($paymentMode, $this->config->paymentModes) ? $paymentMode : 'tracciato',
                 'amount_total' => '0,00',
                 'vat_rate' => '',
                 'vat_nature' => '',
-                'opposition_flag' => 0,
+                'opposition_flag' => !empty($defaults['opposition_flag']) ? 1 : 0,
                 'notes' => '',
                 'local_state' => 'draft',
                 'ts_state' => '',
@@ -970,6 +974,25 @@ class TsDocumentService
             'ts_sent_at' => trim((string) ($document['ts_sent_at'] ?? '')),
             'last_error_code' => trim((string) ($document['last_error_code'] ?? '')),
             'last_error_message' => trim((string) ($document['last_error_message'] ?? '')),
+        ];
+    }
+
+    /**
+     * @param array<string, mixed>|null $profile
+     * @return array<string, mixed>
+     */
+    private function resolveProfileDocumentDefaults(?array $profile): array
+    {
+        $metadata = json_decode((string) ($profile['metadata_json'] ?? ''), true);
+        $defaults = is_array($metadata) && is_array($metadata['document_defaults'] ?? null)
+            ? $metadata['document_defaults']
+            : [];
+
+        return [
+            'document_type' => trim((string) ($defaults['document_type'] ?? 'F')),
+            'expense_type_code' => trim((string) ($defaults['expense_type_code'] ?? 'SP')),
+            'payment_mode' => trim((string) ($defaults['payment_mode'] ?? 'tracciato')),
+            'opposition_flag' => !empty($defaults['opposition_flag']),
         ];
     }
 

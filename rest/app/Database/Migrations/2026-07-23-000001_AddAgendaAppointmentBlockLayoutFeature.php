@@ -27,7 +27,7 @@ class AddAgendaAppointmentBlockLayoutFeature extends Migration
             'feature_key' => self::FEATURE_KEY,
             'feature_name' => 'Layout popup appuntamento',
             'feature_scope' => 'workflow',
-            'description' => 'Il master piattaforma puo attivare per il singolo studio un layout personalizzato del popup appuntamento, con ordine dei blocchi e possibilita di nascondere quelli non obbligatori.',
+            'description' => 'Il master piattaforma può attivare per il singolo studio un layout personalizzato del popup appuntamento, con ordine dei blocchi e possibilità di nascondere quelli non obbligatori.',
             'default_enabled' => 0,
             'created_at' => $now,
             'updated_at' => $now,
@@ -57,7 +57,7 @@ class AddAgendaAppointmentBlockLayoutFeature extends Migration
         $update = [
             'feature_name' => 'Layout popup appuntamento',
             'feature_scope' => 'workflow',
-            'description' => 'Il master piattaforma puo attivare per il singolo studio un layout personalizzato del popup appuntamento, con ordine dei blocchi e possibilita di nascondere quelli non obbligatori.',
+            'description' => 'Il master piattaforma può attivare per il singolo studio un layout personalizzato del popup appuntamento, con ordine dei blocchi e possibilità di nascondere quelli non obbligatori.',
             'default_enabled' => 0,
             'updated_at' => $now,
         ];

@@ -193,8 +193,8 @@ function renderWebUsage(): void
     <div class="box">
         <h1>Migrazione agenda legacy -> mail</h1>
         <p>Da questa pagina puoi eseguire lo script dal browser. I log e i report vengono salvati in <code>writable/agenda_merge</code>.</p>
-        <p>Lo script non usa piu nessun database legacy in modo implicito: <code>source-db</code> va indicato esplicitamente solo per una migrazione una tantum.</p>
-        <p>La modalita <code>apply</code> scrive davvero su <code>mail</code>. Usala solo quando hai gia validato il dry-run.</p>
+        <p>Lo script non usa più nessun database legacy in modo implicito: <code>source-db</code> va indicato esplicitamente solo per una migrazione una tantum.</p>
+        <p>La modalità <code>apply</code> scrive davvero su <code>mail</code>. Usala solo quando hai già validato il dry-run.</p>
     </div>
 
     <div class="box">
@@ -1221,7 +1221,7 @@ final class AgendaLegacyAgendaMerger
 
         if ($explicitFrom !== '' && $explicitTo !== '') {
             if ($explicitTo < $explicitFrom) {
-                throw new RuntimeException('La finestra struttura non e valida: --structure-to e precedente a --structure-from');
+                throw new RuntimeException('La finestra struttura non è valida: --structure-to è precedente a --structure-from');
             }
             return;
         }

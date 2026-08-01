@@ -3,12 +3,43 @@ $menu_items = $menu_items ?? ((session()->get('menuDataAdmin')['result'] ?? []))
 $tenantScope = is_array($tenantScope ?? null) ? $tenantScope : [];
 $dashboard = is_array($dashboard ?? null) ? $dashboard : [];
 $moduleStatus = is_array($moduleStatus ?? null) ? $moduleStatus : [];
+$profile = is_array($profile ?? null) ? $profile : [];
 $summary = is_array($dashboard['summary'] ?? null) ? $dashboard['summary'] : [];
 $recentDocuments = is_array($dashboard['recent_documents'] ?? null) ? $dashboard['recent_documents'] : [];
 $uiStateLabels = is_array($dashboard['ui_state_labels'] ?? null) ? $dashboard['ui_state_labels'] : [];
 $tableAvailable = !empty($dashboard['table_available']);
 $billingEnabled = !empty($moduleStatus['billing_enabled']);
 $integratedEnabled = !empty($moduleStatus['integrated_enabled']);
+$profileName = trim((string) ($profile['profile_name'] ?? ''));
+$profilePiva = trim((string) ($profile['owner_piva'] ?? ''));
+$profileEnvironment = strtolower(trim((string) ($profile['environment'] ?? 'test')));
+$profileEnvironmentLabel = $profileEnvironment === 'production' ? 'Produzione' : 'Test';
+$formatDate = static function ($value): string {
+    $date = trim((string) $value);
+    if ($date === '') {
+        return '-';
+    }
+
+    try {
+        return (new DateTimeImmutable($date))->format('d/m/Y');
+    } catch (Throwable $e) {
+        return $date;
+    }
+};
+$stateMeta = static function (string $state, array $labels): array {
+    $normalizedState = strtolower(trim($state));
+    $label = trim((string) ($labels[$normalizedState] ?? ''));
+
+    return match ($normalizedState) {
+        'sent' => ['label' => $label !== '' ? $label : 'Inviato', 'class' => 'is-sent'],
+        'ready' => ['label' => $label !== '' ? $label : 'Pronto', 'class' => 'is-ready'],
+        'rejected' => ['label' => $label !== '' ? $label : 'Errore', 'class' => 'is-error'],
+        default => ['label' => $label !== '' ? $label : 'Bozza', 'class' => 'is-draft'],
+    };
+};
+$moduleRelationship = $billingEnabled
+    ? ($integratedEnabled ? 'Fatturazione attiva · modalità integrata' : 'Fatturazione attiva · moduli separati')
+    : 'Sistema TS autonomo';
 ?>
 <!DOCTYPE html>
 <html>
@@ -21,16 +52,6 @@ $integratedEnabled = !empty($moduleStatus['integrated_enabled']);
   <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css" rel="stylesheet" />
   <link href="<?= base_url('public/dist/css/AdminLTE.css') ?>" rel="stylesheet" />
   <link href="<?= base_url('public/dist/css/skins/_all-skins.min.css') ?>" rel="stylesheet" />
-  <style>
-    .nav-pills.nav-stacked > li.active > a { background-color:#2c8895; color:#fff; }
-    .hero-box { border:1px solid #dbe8eb; border-radius:16px; padding:22px; background:linear-gradient(135deg, #f8fcfc 0%, #eef7f8 60%, #fff5ec 100%); margin-bottom:16px; }
-    .metric-card { border:1px solid #e5ecee; border-radius:14px; background:#fff; padding:16px; min-height:130px; margin-bottom:16px; }
-    .metric-card .value { font-size:32px; font-weight:700; color:#186b74; line-height:1; margin-bottom:8px; }
-    .metric-card .label-top { color:#6b8085; font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; }
-    .metric-card .hint { color:#60757a; line-height:1.55; }
-    .doc-row { border:1px solid #e5ecee; border-radius:12px; background:#fff; padding:14px 16px; margin-bottom:12px; }
-    .state-chip { display:inline-block; padding:5px 10px; border-radius:999px; background:#eef5f6; color:#1b6770; font-size:12px; font-weight:700; }
-  </style>
   <link href="<?= base_url('public/assets/css/billing-ts-ui.css') ?>" rel="stylesheet" />
 </head>
 <body class="skin-blue sidebar-mini billing-ts-ui module-sistema-ts">
@@ -38,122 +59,154 @@ $integratedEnabled = !empty($moduleStatus['integrated_enabled']);
   <?= view('partials/header', ['menu_items' => $menu_items]) ?>
 
   <div class="content-wrapper">
-    <section class="content-header">
-      <h1>Sistema TS</h1>
-      <p class="text-muted" style="margin:8px 0 0 0;">
-        Dashboard iniziale del modulo Sistema Tessera Sanitaria per lo spazio <?= esc((string) ($tenantScope['tenant_name'] ?? 'attivo')) ?>.
-      </p>
-    </section>
-
-    <section class="content">
-      <div class="row">
-        <div class="col-md-3">
+    <section class="content ts-dashboard-content">
+      <div class="row ts-dashboard-layout">
+        <aside class="col-md-3 ts-dashboard-nav">
           <?= view('partials/sidebar_admin', ['menu_items' => $menu_items]) ?>
-        </div>
+        </aside>
 
-        <div class="col-md-9">
-          <div class="hero-box">
-            <h3 style="margin-top:0; margin-bottom:8px;">Modulo TS operativo</h3>
-            <p style="margin:0 0 12px 0; color:#556b70;">
-              Questa area raccoglie i documenti TS dello studio, il loro stato locale e il prossimo punto di lavoro. Il modulo resta autonomo, ma quando anche la Fatturazione e attiva puo convivere con il flusso documento cliente senza fondersi con esso.
-            </p>
-            <span class="state-chip">Sistema TS: attivo</span>
-            <span class="state-chip">Fatturazione: <?= $billingEnabled ? 'attiva' : 'spenta' ?></span>
-            <span class="state-chip">Modalita: <?= $integratedEnabled ? 'integrata' : 'TS standalone' ?></span>
-            <div style="margin-top:12px;">
-            <a class="btn btn-primary" href="<?= site_url('admin/sistema-ts/documenti') ?>">
-              <i class="fa fa-list"></i> Apri lista documenti TS
-            </a>
-            <a class="btn btn-success" href="<?= site_url('admin/sistema-ts/documenti/nuovo') ?>" style="margin-left:8px;">
-              <i class="fa fa-plus"></i> Nuovo documento TS
-            </a>
-            <a class="btn btn-default" href="<?= site_url('admin/sistema-ts/diagnostica') ?>" style="margin-left:8px;">
-              <i class="fa fa-search"></i> Apri diagnostica TS
-            </a>
-            <a class="btn btn-default" href="<?= portal_tenant_space_url('sistema-ts') ?>" style="margin-left:8px;">
-              <i class="fa fa-cog"></i> Configura profilo TS
-            </a>
-            <?php if ($billingEnabled): ?>
-              <a class="btn btn-default" href="<?= site_url('admin/fatturazione') ?>" style="margin-left:8px;">
-                <i class="fa fa-calculator"></i> Apri modulo Fatturazione
-              </a>
-            <?php endif; ?>
-            </div>
-          </div>
+        <div class="col-md-9 ts-dashboard-main">
+          <main class="ts-dashboard">
+            <header class="ts-modulebar">
+              <div class="ts-modulebar-copy">
+                <div class="ts-eyebrow">Modulo</div>
+                <div class="ts-title-row">
+                  <span class="ts-module-icon"><i class="fa fa-credit-card"></i></span>
+                  <div>
+                    <div class="ts-title-with-env">
+                      <h1>Sistema TS</h1>
+                      <span class="ts-environment"><i class="fa fa-flask"></i> <?= esc($profileEnvironmentLabel) ?></span>
+                    </div>
+                    <p>Trasmissione dei dati di spesa al Sistema Tessera Sanitaria per il 730 precompilato.</p>
+                  </div>
+                </div>
+                <span class="ts-module-chip"><i class="fa fa-link"></i> <?= esc($moduleRelationship) ?></span>
+              </div>
 
-          <?php if (!$tableAvailable): ?>
-            <div class="alert alert-warning">
-              Le tabelle `ts_documents` non risultano ancora presenti su questo database operativo. La UI TS e pronta, ma per vedere dati reali dobbiamo eseguire le migration del modulo sul DB locale o sul tenant di test.
-            </div>
-          <?php endif; ?>
+              <div class="ts-module-actions">
+                <a class="ts-action ts-action-secondary" href="<?= site_url('admin/sistema-ts/documenti') ?>"><i class="fa fa-file-text-o"></i> Lista documenti</a>
+                <a class="ts-action ts-action-secondary" href="<?= portal_tenant_space_url('sistema-ts') ?>"><i class="fa fa-cog"></i> Configura profilo</a>
+                <a class="ts-action ts-action-secondary" href="<?= site_url('admin/sistema-ts/diagnostica') ?>"><i class="fa fa-stethoscope"></i> Diagnostica</a>
+                <a class="ts-action ts-action-primary" href="<?= site_url('admin/sistema-ts/documenti/nuovo') ?>"><i class="fa fa-plus"></i> Nuovo documento TS</a>
+              </div>
+            </header>
 
-          <div class="row">
-            <div class="col-md-3">
-              <div class="metric-card">
-                <span class="label-top">Documenti totali</span>
-                <div class="value"><?= (int) ($summary['total_documents'] ?? 0) ?></div>
-                <div class="hint">Numero complessivo di documenti TS censiti nello spazio.</div>
+            <div class="ts-statebar" aria-label="Anteprima stato">
+              <span>Anteprima stato</span>
+              <div class="ts-state-options" role="group" aria-label="Stato della vista">
+                <button type="button" class="is-active" aria-pressed="true">Popolato</button>
+                <button type="button" aria-pressed="false">Caricamento</button>
+                <button type="button" aria-pressed="false">Vuoto</button>
+                <button type="button" aria-pressed="false">Errore TS</button>
               </div>
             </div>
-            <div class="col-md-3">
-              <div class="metric-card">
-                <span class="label-top">Bozze</span>
-                <div class="value"><?= (int) ($summary['draft_count'] ?? 0) ?></div>
-                <div class="hint">Documenti ancora da completare o validare localmente.</div>
-              </div>
-            </div>
-            <div class="col-md-3">
-              <div class="metric-card">
-                <span class="label-top">Pronti</span>
-                <div class="value"><?= (int) ($summary['ready_count'] ?? 0) ?></div>
-                <div class="hint">Documenti che hanno gia superato la validazione locale.</div>
-              </div>
-            </div>
-            <div class="col-md-3">
-              <div class="metric-card">
-                <span class="label-top">Inviati</span>
-                <div class="value"><?= (int) ($summary['sent_count'] ?? 0) ?></div>
-                <div class="hint">Documenti con esito locale di invio completato.</div>
-              </div>
-            </div>
-          </div>
 
-          <div class="box box-default">
-            <div class="box-header with-border">
-              <h3 class="box-title">Ultimi documenti TS</h3>
+            <div class="ts-pipeline" aria-label="Stato documenti Sistema TS">
+              <article class="ts-pipeline-card">
+                <span>Totali</span>
+                <strong><?= (int) ($summary['total_documents'] ?? 0) ?></strong>
+                <p>documenti TS</p>
+              </article>
+              <i class="fa fa-chevron-right ts-pipeline-arrow" aria-hidden="true"></i>
+              <article class="ts-pipeline-card ts-pipeline-neutral">
+                <span>Bozze</span>
+                <strong><?= (int) ($summary['draft_count'] ?? 0) ?></strong>
+                <p>da completare</p>
+              </article>
+              <i class="fa fa-chevron-right ts-pipeline-arrow" aria-hidden="true"></i>
+              <article class="ts-pipeline-card">
+                <span>Pronti</span>
+                <strong><?= (int) ($summary['ready_count'] ?? 0) ?></strong>
+                <p>verificati, in attesa di invio</p>
+              </article>
+              <i class="fa fa-chevron-right ts-pipeline-arrow" aria-hidden="true"></i>
+              <article class="ts-pipeline-card">
+                <span>Inviati</span>
+                <strong><?= (int) ($summary['sent_count'] ?? 0) ?></strong>
+                <p>trasmessi al Sistema TS</p>
+              </article>
+              <i class="fa fa-chevron-right ts-pipeline-arrow" aria-hidden="true"></i>
+              <article class="ts-pipeline-card ts-pipeline-neutral">
+                <span>Errori</span>
+                <strong><?= (int) ($summary['rejected_count'] ?? 0) ?></strong>
+                <p>da correggere</p>
+              </article>
             </div>
-            <div class="box-body">
-              <?php if ($recentDocuments === []): ?>
-                <div class="text-muted">Nessun documento TS disponibile per ora.</div>
-                <?php else: ?>
-                  <?php foreach ($recentDocuments as $row): ?>
-                    <?php $state = trim((string) ($row['local_state'] ?? 'draft')); ?>
-                    <?php
-                      $vatSummary = '';
-                      if ($row['vat_rate'] !== null && $row['vat_rate'] !== '') {
-                          $vatSummary = number_format((float) $row['vat_rate'], 2, ',', '.') . '%';
-                      } elseif (trim((string) ($row['vat_nature'] ?? '')) !== '') {
-                          $vatSummary = trim((string) ($row['vat_nature'] ?? ''));
-                      }
-                    ?>
-                    <div class="doc-row">
-                      <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap;">
-                        <div>
-                          <strong>Documento <?= esc((string) ($row['document_number'] ?? '#')) ?></strong>
-                          <div class="text-muted" style="margin-top:4px;">
-                            Data emissione: <?= esc((string) ($row['issue_date'] ?? '-')) ?> |
-                            Doc: <?= esc((string) ($row['document_type'] ?? 'F')) ?> |
-                            Tipo spesa: <?= esc((string) ($row['expense_type_code'] ?? 'SP')) ?> |
-                            Importo: <?= esc(number_format((float) ($row['amount_total'] ?? 0), 2, ',', '.')) ?> EUR<?= $vatSummary !== '' ? ' | IVA: ' . esc($vatSummary) : '' ?>
-                          </div>
-                        </div>
-                      <span class="state-chip"><?= esc((string) ($uiStateLabels[$state] ?? strtoupper($state))) ?></span>
+
+            <div class="ts-dashboard-grid">
+              <section class="ts-panel ts-documents-panel">
+                <div class="ts-panel-heading">
+                  <h2>Ultimi documenti TS</h2>
+                  <a class="ts-text-action" href="<?= site_url('admin/sistema-ts/documenti') ?>">Vedi tutti <i class="fa fa-arrow-right"></i></a>
+                </div>
+
+                <?php if (!$tableAvailable): ?>
+                  <div class="ts-panel-body">
+                    <div class="alert alert-warning" style="margin:0;">
+                      Le tabelle dei documenti TS non sono ancora disponibili in questo database operativo.
                     </div>
                   </div>
-                <?php endforeach; ?>
-              <?php endif; ?>
+                <?php elseif ($recentDocuments === []): ?>
+                  <div class="ts-empty-state">
+                    <span class="ts-empty-icon"><i class="fa fa-credit-card"></i></span>
+                    <h3>Non hai ancora documenti TS</h3>
+                    <p>Crea il primo documento da trasmettere al Sistema Tessera Sanitaria.</p>
+                    <a class="ts-action ts-action-primary" href="<?= site_url('admin/sistema-ts/documenti/nuovo') ?>"><i class="fa fa-plus"></i> Nuovo documento TS</a>
+                    <a class="ts-empty-secondary" href="<?= portal_tenant_space_url('sistema-ts') ?>"><i class="fa fa-cog"></i> Configura profilo TS</a>
+                  </div>
+                <?php else: ?>
+                  <div class="table-responsive ts-dashboard-table-wrap">
+                    <table class="table ts-dashboard-table">
+                      <thead>
+                        <tr>
+                          <th>Numero documento</th>
+                          <th>Documento</th>
+                          <th>Data</th>
+                          <th>Stato</th>
+                          <th class="text-right">Azioni</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <?php foreach ($recentDocuments as $row): ?>
+                          <?php
+                            $documentId = (int) ($row['id_ts_document'] ?? 0);
+                            $meta = $stateMeta((string) ($row['local_state'] ?? ''), $uiStateLabels);
+                            $documentDetail = trim((string) ($row['document_type'] ?? ''));
+                            $expenseType = trim((string) ($row['expense_type_code'] ?? ''));
+                            $documentDetail = trim($documentDetail . ($expenseType !== '' ? ' · ' . $expenseType : '')) ?: 'Documento TS';
+                          ?>
+                          <tr>
+                            <td><a class="ts-document-number" href="<?= site_url('admin/sistema-ts/documenti/modifica/' . $documentId) ?>"><?= esc((string) ($row['document_number'] ?? '-')) ?></a></td>
+                            <td><?= esc($documentDetail) ?></td>
+                            <td class="ts-table-muted"><?= esc($formatDate($row['issue_date'] ?? '')) ?></td>
+                            <td><span class="ts-status-pill <?= esc($meta['class']) ?>"><i class="fa fa-circle"></i><?= esc($meta['label']) ?></span></td>
+                            <td class="text-right"><a class="ts-icon-action" href="<?= site_url('admin/sistema-ts/documenti/modifica/' . $documentId) ?>" aria-label="Apri documento"><i class="fa fa-external-link"></i></a></td>
+                          </tr>
+                        <?php endforeach; ?>
+                      </tbody>
+                    </table>
+                  </div>
+                <?php endif; ?>
+              </section>
+
+              <aside class="ts-side-rail">
+                <section class="ts-panel ts-profile-panel">
+                  <div class="ts-profile-eyebrow">Profilo TS attivo</div>
+                  <strong><?= esc($profileName !== '' ? $profileName : 'Profilo TS da configurare') ?></strong>
+                  <span>P.IVA erogatore <?= esc($profilePiva !== '' ? $profilePiva : 'non impostata') ?></span>
+                  <span class="ts-profile-environment"><i class="fa fa-flask"></i> Ambiente: <?= esc($profileEnvironmentLabel) ?></span>
+                  <a class="ts-empty-secondary" href="<?= portal_tenant_space_url('sistema-ts') ?>"><i class="fa fa-cog"></i> Configura profilo</a>
+                </section>
+
+                <?php if ($billingEnabled): ?>
+                  <section class="ts-coexist-panel">
+                    <p>Modulo autonomo, convive con Fatturazione.</p>
+                    <a class="ts-text-action ts-billing-action" href="<?= site_url('admin/fatturazione') ?>">Apri modulo Fatturazione <i class="fa fa-arrow-right"></i></a>
+                  </section>
+                <?php endif; ?>
+              </aside>
             </div>
-          </div>
+          </main>
         </div>
       </div>
     </section>

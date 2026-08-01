@@ -144,13 +144,13 @@ if (!is_string($supportedExpenseDetailsJson) || $supportedExpenseDetailsJson ===
       <h1><?= esc((string) ($pageTitle ?? 'Documento TS')) ?></h1>
       <p class="text-muted" style="margin:8px 0 0 0;">
         <?php if ($isCancellationDocument): ?>
-          Questa schermata rappresenta una cancellazione TS collegata a un documento gia inviato. Se l operazione e pronta puoi inviarla subito o riprovare in caso di errore.
+          Questa schermata rappresenta una cancellazione TS collegata a un documento già inviato. Se l’operazione è pronta puoi inviarla subito o riprovare in caso di errore.
         <?php elseif ($isBillingSourceDocument): ?>
-          Questa schermata deriva da una fattura del modulo Fatturazione. Qui puoi controllare lo stato TS e lanciare l invio, mentre le modifiche ai dati della fattura restano nel modulo origine.
+          Questa schermata deriva da una fattura del modulo Fatturazione. Qui puoi controllare lo stato TS e lanciare l’invio, mentre le modifiche ai dati della fattura restano nel modulo origine.
         <?php elseif ($isVariationDocument): ?>
-          Questa schermata rappresenta una variazione TS collegata a un documento gia inviato. Aggiorna i dati ammessi e poi usa <strong>Salva e invia</strong>.
+          Questa schermata rappresenta una variazione TS collegata a un documento già inviato. Aggiorna i dati ammessi e poi usa <strong>Salva e invia</strong>.
         <?php else: ?>
-          Compila i dati del documento, premi <strong>Salva e invia</strong> e lascia che il modulo salvi la bozza, esegua i controlli locali e provi subito l invio SOAP al Sistema TS.
+          Compila i dati del documento, premi <strong>Salva e invia</strong> e lascia che il modulo salvi la bozza, esegua i controlli locali e provi subito l’invio SOAP al Sistema TS.
         <?php endif; ?>
       </p>
     </section>
@@ -181,13 +181,13 @@ if (!is_string($supportedExpenseDetailsJson) || $supportedExpenseDetailsJson ===
             <h3 style="margin-top:0; margin-bottom:8px;">Spazio: <?= esc((string) ($tenantScope['tenant_name'] ?? 'attivo')) ?></h3>
             <p style="margin:0 0 12px 0; color:#556b70;">
               <?php if ($isCancellationDocument): ?>
-                Questa operazione riusa l identificativo fiscale del documento originale e serve ad annullarlo su TS senza alterare lo storico locale.
+                Questa operazione riusa l’identificativo fiscale del documento originale e serve ad annullarlo su TS senza alterare lo storico locale.
               <?php elseif ($isBillingSourceDocument): ?>
-                Questo record TS nasce da una fattura gia definitiva. Se devi correggere importi, anagrafica o metadati da inviare, torna nella fattura origine e poi rilancia l invio da qui o dalla coda massiva.
+                Questo record TS nasce da una fattura già definitiva. Se devi correggere importi, anagrafica o metadati da inviare, torna nella fattura origine e poi rilancia l’invio da qui o dalla coda massiva.
               <?php elseif ($isVariationDocument): ?>
                 Questa operazione parte dal documento originale inviato e ti lascia correggere i dati variabili mantenendo agganciati numero, dispositivo e data emissione.
               <?php else: ?>
-                Il documento usa il profilo TS attivo dello studio come sorgente per Partita IVA e configurazione di invio. Se l invio va bene, da qui sotto puoi scaricare la ricevuta e passare subito al documento successivo.
+                Il documento usa il profilo TS attivo dello studio come sorgente per Partita IVA e configurazione di invio. Se l’invio va bene, da qui sotto puoi scaricare la ricevuta e passare subito al documento successivo.
               <?php endif; ?>
             </p>
             <?php if ($sourceContext !== []): ?>
@@ -250,7 +250,7 @@ if (!is_string($supportedExpenseDetailsJson) || $supportedExpenseDetailsJson ===
               </a>
               <?php if (trim((string) ($sourceContext['return_url'] ?? '')) !== ''): ?>
                 <a class="btn btn-default" href="<?= esc((string) ($sourceContext['return_url'] ?? '')) ?>" style="margin-left:8px;">
-                  <i class="fa fa-calendar"></i> <?= esc((string) ($sourceContext['return_label'] ?? 'Torna all agenda')) ?>
+                  <i class="fa fa-calendar"></i> <?= esc((string) ($sourceContext['return_label'] ?? 'Torna all’agenda')) ?>
                 </a>
               <?php endif; ?>
             </div>
@@ -297,14 +297,14 @@ if (!is_string($supportedExpenseDetailsJson) || $supportedExpenseDetailsJson ===
               <div class="box-body">
                 <?php if ($isVariationDocument): ?>
                   <div class="alert alert-info">
-                    Per la variazione TS restano bloccati numero documento, dispositivo e data emissione, cosi l operazione rimane agganciata al record gia trasmesso.
+                    Per la variazione TS restano bloccati numero documento, dispositivo e data emissione, così l’operazione rimane agganciata al record già trasmesso.
                 <?php elseif ($isBillingSourceDocument): ?>
                   <div class="alert alert-info">
-                    Questo documento e in sola lettura perche nasce dalla fattura. Se devi correggere i dati, aggiorna prima la fattura e poi rilancia da Sistema TS.
+                    Questo documento è in sola lettura perché nasce dalla fattura. Se devi correggere i dati, aggiorna prima la fattura e poi rilancia da Sistema TS.
                   </div>
                 <?php elseif ($isCancellationDocument): ?>
                   <div class="alert alert-info">
-                    La cancellazione TS non richiede modifiche manuali ai campi: qui vedi solo il riepilogo dell identificativo che verra usato verso TS.
+                    La cancellazione TS non richiede modifiche manuali ai campi: qui vedi solo il riepilogo dell’identificativo che verrà usato verso TS.
                   </div>
                 <?php endif; ?>
 
@@ -324,13 +324,13 @@ if (!is_string($supportedExpenseDetailsJson) || $supportedExpenseDetailsJson ===
                   <div class="col-md-12">
                     <div class="patient-autocomplete-menu" data-role="patient-results"></div>
                     <small class="patient-autocomplete-help" data-role="patient-help">
-                      Cerca un paziente gia presente nello spazio oppure compila i campi manualmente.
+                      Cerca un paziente già presente nello spazio oppure compila i campi manualmente.
                     </small>
                   </div>
                   <?php if ($sourceContext !== []): ?>
                     <div class="col-md-12">
                       <div class="alert alert-info" style="margin-top:4px; margin-bottom:8px; padding:12px 14px;">
-                        <strong>Dati paziente importati dall appuntamento</strong>
+                        <strong>Dati paziente importati dall’appuntamento</strong>
                         <div style="margin-top:6px; font-size:12px; color:#425462;">
                           <?= esc($sourcePatientLabel !== '' ? $sourcePatientLabel : 'Anagrafica collegata') ?>
                           | Cognome: <?= esc($sourcePatientLastName !== '' ? $sourcePatientLastName : '-') ?>
@@ -441,7 +441,7 @@ if (!is_string($supportedExpenseDetailsJson) || $supportedExpenseDetailsJson ===
                     <div class="form-group">
                       <label>Natura IVA</label>
                       <input class="form-control" type="text" name="vat_nature" maxlength="10" value="<?= esc($fieldValue('vat_nature')) ?>" placeholder="Es. N2.2" <?= $readonlyAttr ?>>
-                      <small class="text-muted">Alternativa all aliquota IVA, utile per esenzioni o non imponibilita.</small>
+                      <small class="text-muted">Alternativa all’aliquota IVA, utile per esenzioni o non imponibilita.</small>
                     </div>
                   </div>
                   <div class="col-md-4">
@@ -463,11 +463,11 @@ if (!is_string($supportedExpenseDetailsJson) || $supportedExpenseDetailsJson ===
                     Questa operazione usa i dati del documento originale. Se serve rilanciare la cancellazione usa il pulsante di invio nella sezione esito qui sotto.
                 <?php elseif ($isBillingSourceDocument): ?>
                   <div class="alert alert-info" style="margin-bottom:0;">
-                    Questo record nasce da Fatturazione. Per modificare i dati usa la fattura origine; per l invio puoi usare il pulsante nella sezione esito qui sotto o la coda massiva.
+                    Questo record nasce da Fatturazione. Per modificare i dati usa la fattura origine; per l’invio puoi usare il pulsante nella sezione esito qui sotto o la coda massiva.
                   </div>
                 <?php elseif ($documentLocked): ?>
                   <div class="alert alert-success" style="margin-bottom:0;">
-                    Questo documento risulta gia inviato. Da qui sotto puoi scaricare la ricevuta, creare una variazione TS oppure annullarlo su TS.
+                    Questo documento risulta già inviato. Da qui sotto puoi scaricare la ricevuta, creare una variazione TS oppure annullarlo su TS.
                   </div>
                 <?php else: ?>
                   <button class="btn btn-default" type="submit" name="save_mode" value="draft">
@@ -477,7 +477,7 @@ if (!is_string($supportedExpenseDetailsJson) || $supportedExpenseDetailsJson ===
                     <i class="fa fa-paper-plane-o"></i> Salva e invia
                   </button>
                   <span class="text-muted" style="margin-left:10px;">
-                    Il modulo salva la bozza, controlla i dati e prova subito l invio TS.
+                    Il modulo salva la bozza, controlla i dati e prova subito l’invio TS.
                   </span>
                 <?php endif; ?>
               </div>
@@ -569,7 +569,7 @@ if (!is_string($supportedExpenseDetailsJson) || $supportedExpenseDetailsJson ===
                       </form>
                     <?php endif; ?>
                     <?php if ($canCreateCancellation): ?>
-                      <form method="post" action="<?= site_url('admin/sistema-ts/documenti/cancellazione/' . $documentId) ?>" style="display:inline-block; margin:0 8px 8px 0;" onsubmit="return confirm('Confermi la creazione e l invio della cancellazione TS per questo documento?');">
+                      <form method="post" action="<?= site_url('admin/sistema-ts/documenti/cancellazione/' . $documentId) ?>" style="display:inline-block; margin:0 8px 8px 0;" onsubmit="return confirm('Confermi la creazione e l’invio della cancellazione TS per questo documento?');">
                         <?= csrf_field() ?>
                         <button class="btn btn-danger" type="submit">
                           <i class="fa fa-ban"></i> Annulla su TS
@@ -588,7 +588,7 @@ if (!is_string($supportedExpenseDetailsJson) || $supportedExpenseDetailsJson ===
                 <?php if (!$documentSent && !$canAttemptSend && !$canFetchReceipt): ?>
                   <div class="text-muted" style="margin-top:4px;">
                     <?= $isBillingSourceDocument
-                      ? 'Correggi la fattura origine e poi rilancia l invio da Sistema TS.'
+                      ? 'Correggi la fattura origine e poi rilancia l’invio da Sistema TS.'
                       : 'Correggi i campi del documento e usa Salva e invia per rilanciare il flusso completo.' ?>
                   </div>
                 <?php endif; ?>
@@ -644,7 +644,7 @@ if (!is_string($supportedExpenseDetailsJson) || $supportedExpenseDetailsJson ===
               </div>
               <div class="box-body">
                 <p class="text-muted" style="margin-bottom:12px;">
-                  Qui trovi le ricevute gia salvate localmente per questo documento. Se manca ancora il PDF, usa il pulsante <strong>Scarica ricevuta PDF TS</strong> nell area esito qui sopra.
+                  Qui trovi le ricevute già salvate localmente per questo documento. Se manca ancora il PDF, usa il pulsante <strong>Scarica ricevuta PDF TS</strong> nell’area esito qui sopra.
                 </p>
 
                 <?php if ($receipts === []): ?>
@@ -821,7 +821,7 @@ if (!is_string($supportedExpenseDetailsJson) || $supportedExpenseDetailsJson ===
 
         selectedSignature = buildSignature();
         if (showManualMessage) {
-          setHelp('Compilazione manuale attiva. Seleziona un paziente dalla lista solo se vuoi agganciare il documento TS all anagrafica dello spazio.', 'warning');
+          setHelp('Compilazione manuale attiva. Seleziona un paziente dalla lista solo se vuoi agganciare il documento TS all’anagrafica dello spazio.', 'warning');
         }
       }
 
@@ -831,7 +831,7 @@ if (!is_string($supportedExpenseDetailsJson) || $supportedExpenseDetailsJson ===
         $taxCode.val($.trim(patient.patient_tax_code || ''));
         selectedSignature = buildSignature();
         hideResults();
-        setHelp('Paziente collegato all anagrafica dello spazio. Se modifichi i campi torni in modalita manuale.', 'success');
+        setHelp('Paziente collegato all’anagrafica dello spazio. Se modifichi i campi torni in modalità manuale.', 'success');
       }
 
       function renderResults(items) {
@@ -891,7 +891,7 @@ if (!is_string($supportedExpenseDetailsJson) || $supportedExpenseDetailsJson ===
         if (term.length < 2) {
           hideResults();
           if (parseInt($clientId.val() || '0', 10) <= 0) {
-            setHelp('Cerca un paziente gia presente nello spazio oppure compila i campi manualmente.', '');
+            setHelp('Cerca un paziente già presente nello spazio oppure compila i campi manualmente.', '');
           }
           return;
         }
@@ -904,7 +904,7 @@ if (!is_string($supportedExpenseDetailsJson) || $supportedExpenseDetailsJson ===
 
       if (inputsLocked) {
         if (parseInt($clientId.val() || '0', 10) > 0) {
-          setHelp('Paziente collegato all anagrafica dello spazio.', 'success');
+          setHelp('Paziente collegato all’anagrafica dello spazio.', 'success');
         }
         return;
       }
@@ -926,7 +926,7 @@ if (!is_string($supportedExpenseDetailsJson) || $supportedExpenseDetailsJson ===
       });
 
       if (parseInt($clientId.val() || '0', 10) > 0) {
-        setHelp('Paziente gia collegato all anagrafica dello spazio. Puoi modificarlo o continuare cosi.', 'success');
+        setHelp('Paziente già collegato all’anagrafica dello spazio. Puoi modificarlo o continuare così.', 'success');
       }
     }
 

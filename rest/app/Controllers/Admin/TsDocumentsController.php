@@ -59,7 +59,9 @@ class TsDocumentsController extends TsAdminBaseController
         $tenantScope = $this->resolveTenantScope();
         $tenantId = (int) ($tenantScope['tenant_id'] ?? 0);
         $billingDocumentIds = (array) $this->request->getPost('billing_document_ids');
-        $targetUrl = site_url('admin/sistema-ts/documenti');
+        $targetUrl = $this->request->getPost('return_to') === 'billing_archive'
+            ? site_url('admin/fatturazione-documenti')
+            : site_url('admin/sistema-ts/documenti');
 
         try {
             $report = $this->billingTsBridge->sendBillingDocumentsBulk($tenantId, $billingDocumentIds, $this->currentAdminUserId());
@@ -73,7 +75,7 @@ class TsDocumentsController extends TsAdminBaseController
                 $summaryParts[] = $sentCount . ' fatture inviate a TS';
             }
             if ($blockedCount > 0) {
-                $summaryParts[] = $blockedCount . ' da correggere prima dell invio';
+                $summaryParts[] = $blockedCount . ' da correggere prima dell’invio';
             }
             if ($errorCount > 0) {
                 $summaryParts[] = $errorCount . ' con errore tecnico';
@@ -260,7 +262,7 @@ class TsDocumentsController extends TsAdminBaseController
                 $validationResult = is_array($result['validation'] ?? null) ? $result['validation'] : [];
                 $validationErrors = is_array($validationResult['errors'] ?? null) ? $validationResult['errors'] : [];
                 $validationResult['errors'] = array_values(array_filter($validationErrors, static function ($message): bool {
-                    return stripos(trim((string) $message), 'Esiste gia un documento TS con lo stesso identificativo logico') === false;
+                    return stripos(trim((string) $message), 'Esiste già un documento TS con lo stesso identificativo logico') === false;
                 }));
 
                 return redirect()
@@ -426,7 +428,7 @@ class TsDocumentsController extends TsAdminBaseController
             $supportLog = is_array($result['support_log'] ?? null) ? $result['support_log'] : [];
             $traceId = trim((string) ($supportLog['trace_id'] ?? ''));
             $message = ($result['status'] ?? '') === 'cached'
-                ? 'Ricevuta TS gia presente in archivio locale.'
+                ? 'Ricevuta TS già presente in archivio locale.'
                 : 'Ricevuta TS recuperata e archiviata con successo.';
             if ($traceId !== '') {
                 $message .= ' Rif. supporto TS: ' . $traceId . '.';

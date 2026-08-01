@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Visibilita operatori | Agenda</title>
+    <title>Visibilità operatori | Agenda</title>
     <meta content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" name="viewport">
     <link href="<?= base_url('public/css/agenda-menu.css') ?>" rel="stylesheet" type="text/css" />
     <link href="<?= base_url('public/bootstrap/css/bootstrap.min.css') ?>" rel="stylesheet" type="text/css" />
@@ -42,10 +42,10 @@
 
     <div class="content-wrapper">
         <section class="content-header">
-            <h1>Visibilita operatori Agenda</h1>
+            <h1>Visibilità operatori Agenda</h1>
             <ol class="breadcrumb">
                 <li><a href="<?= base_url('agenda') ?>"><i class="fa fa-dashboard"></i> Agenda</a></li>
-                <li class="active">Visibilita operatori</li>
+                <li class="active">Visibilità operatori</li>
             </ol>
         </section>
 
@@ -65,7 +65,7 @@
                 <div class="col-md-9">
                     <div class="box box-primary">
                         <div class="box-header with-border">
-                            <h3 class="box-title"><i class="fa fa-eye"></i> Gestione visibilita</h3>
+                            <h3 class="box-title"><i class="fa fa-eye"></i> Gestione visibilità</h3>
                         </div>
                         <div class="box-body">
                             <form id="formVisibilita">
@@ -124,7 +124,7 @@
 
                                 <div class="text-right" style="margin-top: 15px;">
                                     <button type="button" class="btn btn-primary" id="btnSalvaVisibilita">
-                                        <i class="fa fa-save"></i> Salva visibilita
+                                        <i class="fa fa-save"></i> Salva visibilità
                                     </button>
                                 </div>
                             </form>

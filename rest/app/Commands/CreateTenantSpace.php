@@ -100,7 +100,7 @@ class CreateTenantSpace extends BaseCommand
             if (!empty($result['platform_user']['was_created'])) {
                 CLI::write('Platform user creato: si');
             } else {
-                CLI::write('Platform user creato: no, account piattaforma gia esistente');
+                CLI::write('Platform user creato: no, account piattaforma già esistente');
             }
 
             if (!empty($result['platform_user']['temporary_password'])) {

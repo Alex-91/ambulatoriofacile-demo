@@ -27,7 +27,7 @@ class AddAgendaAutoRefreshFeature extends Migration
             'feature_key' => self::FEATURE_KEY,
             'feature_name' => 'Refresh automatico agenda',
             'feature_scope' => 'workflow',
-            'description' => 'Il tenant master puo decidere per il singolo spazio se mantenere attivo il refresh automatico dell agenda ogni 30 secondi.',
+            'description' => 'Il tenant master può decidere per il singolo spazio se mantenere attivo il refresh automatico dell’agenda ogni 30 secondi.',
             'default_enabled' => 1,
             'created_at' => $now,
             'updated_at' => $now,
@@ -57,7 +57,7 @@ class AddAgendaAutoRefreshFeature extends Migration
         $update = [
             'feature_name' => 'Refresh automatico agenda',
             'feature_scope' => 'workflow',
-            'description' => 'Il tenant master puo decidere per il singolo spazio se mantenere attivo il refresh automatico dell agenda ogni 30 secondi.',
+            'description' => 'Il tenant master può decidere per il singolo spazio se mantenere attivo il refresh automatico dell’agenda ogni 30 secondi.',
             'default_enabled' => 1,
             'updated_at' => $now,
         ];

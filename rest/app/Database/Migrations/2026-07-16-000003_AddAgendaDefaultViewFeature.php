@@ -27,7 +27,7 @@ class AddAgendaDefaultViewFeature extends Migration
             'feature_key' => self::FEATURE_KEY,
             'feature_name' => 'Vista iniziale agenda',
             'feature_scope' => 'workflow',
-            'description' => 'Il master piattaforma puo attivare per il singolo studio una vista iniziale personalizzata dell agenda tra giorno, settimana e Giorno Team quando disponibile.',
+            'description' => 'Il master piattaforma può attivare per il singolo studio una vista iniziale personalizzata dell’agenda tra giorno, settimana e Giorno Team quando disponibile.',
             'default_enabled' => 0,
             'created_at' => $now,
             'updated_at' => $now,
@@ -57,7 +57,7 @@ class AddAgendaDefaultViewFeature extends Migration
         $update = [
             'feature_name' => 'Vista iniziale agenda',
             'feature_scope' => 'workflow',
-            'description' => 'Il master piattaforma puo attivare per il singolo studio una vista iniziale personalizzata dell agenda tra giorno, settimana e Giorno Team quando disponibile.',
+            'description' => 'Il master piattaforma può attivare per il singolo studio una vista iniziale personalizzata dell’agenda tra giorno, settimana e Giorno Team quando disponibile.',
             'default_enabled' => 0,
             'updated_at' => $now,
         ];

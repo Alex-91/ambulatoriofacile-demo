@@ -91,8 +91,8 @@ $formatDateTime = static function (?string $value): string {
           <?php if (!empty($settings['using_default_preferences'])): ?>
             <div class="alert alert-info">
               Questo spazio sta usando la configurazione iniziale del centro notifiche appuntamenti:
-              il flusso da medico a medico via OTP e attivo, mentre i messaggi verso pazienti restano spenti
-              finche il responsabile dello studio non salva una configurazione personalizzata.
+              il flusso da medico a medico via OTP è attivo, mentre i messaggi verso pazienti restano spenti
+              finché il responsabile dello studio non salva una configurazione personalizzata.
             </div>
           <?php endif; ?>
 
@@ -101,7 +101,7 @@ $formatDateTime = static function (?string $value): string {
               Studio attivo: <?= esc((string) ($tenantContext->tenantName ?? '')) ?>
             </h3>
             <p style="margin:0 0 12px 0; color:#52676c;">
-              Qui il responsabile dello studio decide quali notifiche inviare tra conferma appuntamento, reminder e presa appuntamento da un medico a un altro medico. I canali disponibili dipendono sia da cio che la piattaforma ha concesso al tuo studio sia dalla configurazione commerciale attiva.
+              Qui il responsabile dello studio decide quali notifiche inviare tra conferma appuntamento, reminder e presa appuntamento da un medico a un altro medico. I canali disponibili dipendono sia da ciò che la piattaforma ha concesso al tuo studio sia dalla configurazione commerciale attiva.
             </p>
             <a class="btn btn-default" href="<?= portal_tenant_space_url('funzioni') ?>">
               <i class="fa fa-arrow-left"></i> Torna alle funzioni dello spazio
@@ -215,7 +215,7 @@ $formatDateTime = static function (?string $value): string {
                       </fieldset>
                       <?php if ($typeLocked): ?>
                         <p class="text-warning" style="margin:10px 0 0 0;">
-                          Questo tipo di notifica e gestito dal master piattaforma per il tuo studio. I canali salvati restano memorizzati, ma il flusso non puo essere modificato da qui finche non viene riabilitato centralmente.
+                          Questo tipo di notifica è gestito dal master piattaforma per il tuo studio. I canali salvati restano memorizzati, ma il flusso non può essere modificato da qui finché non viene riabilitato centralmente.
                         </p>
                       <?php endif; ?>
 

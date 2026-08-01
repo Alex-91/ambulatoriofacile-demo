@@ -15,7 +15,7 @@ class TsMigrateSafe extends BaseCommand
     protected $options = [
         '--scope=' => 'Target da migrare: platform, tenant oppure all. Default: all.',
         '--tenant-id=' => 'ID tenant da usare per il database operativo. Se omesso usa il tenant runtime corrente.',
-        '--allow-drift=' => 'Se impostato a 1 consente l esecuzione anche se nello stesso gruppo esistono migration App non TS pendenti.',
+        '--allow-drift=' => 'Se impostato a 1 consente l’esecuzione anche se nello stesso gruppo esistono migration App non TS pendenti.',
     ];
 
     public function run(array $params)

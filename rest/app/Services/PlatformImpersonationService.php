@@ -102,7 +102,7 @@ class PlatformImpersonationService
         }
 
         if (!(bool) ($targetAccount['is_runtime_active'] ?? true)) {
-            throw new \RuntimeException('L account selezionato non e attivo e non puo essere impersonato.');
+            throw new \RuntimeException('L’account selezionato non è attivo e non può essere impersonato.');
         }
 
         $reason = $this->normalizeReason($reason);
@@ -136,7 +136,7 @@ class PlatformImpersonationService
         ], true);
 
         if ($logId <= 0) {
-            throw new \RuntimeException('Impossibile registrare l audit della sessione delegata.');
+            throw new \RuntimeException('Impossibile registrare l’audit della sessione delegata.');
         }
 
         $tenantSession = new LegacyTenantSessionService();
@@ -153,7 +153,7 @@ class PlatformImpersonationService
             $result = $handoff->bootstrapDemoSessionByUserId($appUserId, (string) ($targetAccount['username'] ?? ''));
 
             if (($result['resp'] ?? 'KO') !== 'OK') {
-                throw new \RuntimeException('Impossibile aprire la sessione delegata per l account scelto.');
+                throw new \RuntimeException('Impossibile aprire la sessione delegata per l’account scelto.');
             }
 
             $tenantSession->activatePendingRuntime();
@@ -330,12 +330,12 @@ class PlatformImpersonationService
         }
 
         if ((int) ($tenant['is_active'] ?? 0) !== 1) {
-            throw new \RuntimeException('Lo spazio cliente non e attivo.');
+            throw new \RuntimeException('Lo spazio cliente non è attivo.');
         }
 
         $status = strtolower(trim((string) ($tenant['status'] ?? 'active')));
         if (in_array($status, ['archived', 'suspended'], true)) {
-            throw new \RuntimeException('Lo spazio cliente non e disponibile per l accesso delegato.');
+            throw new \RuntimeException('Lo spazio cliente non è disponibile per l’accesso delegato.');
         }
 
         return $tenant;
@@ -728,7 +728,7 @@ class PlatformImpersonationService
     {
         $reason = trim(preg_replace('/\s+/', ' ', $reason) ?? '');
         if (mb_strlen($reason) < self::MIN_REASON_LENGTH) {
-            throw new \InvalidArgumentException('Inserisci un motivo chiaro di almeno 8 caratteri per avviare l accesso delegato.');
+            throw new \InvalidArgumentException('Inserisci un motivo chiaro di almeno 8 caratteri per avviare l’accesso delegato.');
         }
 
         return $reason;

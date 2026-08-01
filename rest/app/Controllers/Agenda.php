@@ -178,7 +178,7 @@ public function eseguiCopiaAppuntamenti()
         $this->assertDoctorAllowed($idDot);
 
         if ($this->agendaModel->isGiornoBloccato($idDot, $data)) {
-            throw new \Exception('La giornata Ã¨ bloccata.');
+            throw new \Exception('La giornata è bloccata.');
         }
 
         $orariGiorno = $this->agendaModel->getOrariAgendaByDoctorAndDate($idDot, $data);
@@ -442,7 +442,7 @@ public function eseguiSlotExtraPeriodo()
         $msg = 'Operazione completata. Inseriti ' . (int)$result['inserted'] . ' slot extra';
 
         if (!empty($result['collisioni'])) {
-            $msg .= '. Slot gia presenti saltati: ' . count($result['collisioni']);
+            $msg .= '. Slot già presenti saltati: ' . count($result['collisioni']);
         }
 
         if (!empty($result['giorni_bloccati'])) {
@@ -827,7 +827,7 @@ public function eseguiRepairRecurringExtraSlots()
     protected function assertPatientExcelImportEnabled(): void
     {
         if (!$this->isPatientExcelImportEnabled()) {
-            throw new \Exception('L importazione pazienti da Excel non e attiva per questo studio.');
+            throw new \Exception('L’importazione pazienti da Excel non è attiva per questo studio.');
         }
     }
 
@@ -882,14 +882,14 @@ public function eseguiRepairRecurringExtraSlots()
     protected function assertPersonalCommitmentsFeatureEnabled(): void
     {
         if (!$this->isPersonalCommitmentsFeatureEnabled()) {
-            throw new \Exception('La gestione degli impegni personali non e attiva per questo studio.');
+            throw new \Exception('La gestione degli impegni personali non è attiva per questo studio.');
         }
     }
 
     protected function assertVisitTypesFeatureEnabled(): void
     {
         if (!$this->isVisitTypesFeatureEnabled()) {
-            throw new \Exception('La gestione dei tipi visita non e attiva per questo studio.');
+            throw new \Exception('La gestione dei tipi visita non è attiva per questo studio.');
         }
     }
 
@@ -1355,7 +1355,7 @@ public function eseguiRepairRecurringExtraSlots()
         $this->assertPersonalCommitmentsFeatureEnabled();
 
         if ($idDot <= 0) {
-            throw new \Exception('Medico non valido per l impegno personale.');
+            throw new \Exception('Medico non valido per l’impegno personale.');
         }
 
         $idPaziente = $this->pazientiModel->findOrCreateSpecialPatientForDoctor(
@@ -1732,7 +1732,7 @@ public function eseguiRepairRecurringExtraSlots()
     protected function assertVisibilityManager(): void
     {
         if (!$this->agendaModel->canManageVisibility($this->getCurrentUserId())) {
-            throw new \Exception('Non hai i permessi per gestire la visibilita operatori.');
+            throw new \Exception('Non hai i permessi per gestire la visibilità operatori.');
         }
     }
 
@@ -2092,7 +2092,7 @@ public function eseguiRepairRecurringExtraSlots()
                 : [];
 
             return view('agenda/visibilita_operatori', [
-                'pageTitle'    => 'Visibilita operatori',
+                'pageTitle'    => 'Visibilità operatori',
                 'operatori'    => $operatori,
                 'targets'      => $targets,
                 'assegnati'    => $assegnati,
@@ -2132,7 +2132,7 @@ public function eseguiRepairRecurringExtraSlots()
 
             return $this->response->setJSON([
                 'status' => true,
-                'message' => 'Visibilita aggiornata correttamente.'
+                'message' => 'Visibilità aggiornata correttamente.'
             ]);
         } catch (\Exception $e) {
             return $this->response->setJSON([
@@ -2183,7 +2183,7 @@ public function eseguiRepairRecurringExtraSlots()
                     'status'              => true,
                     'job_already_running' => true,
                     'job'                 => $this->buildAgendaJobStatusPayload($activeJob),
-                    'message'             => 'Per questo professionista c\'e gia una rigenerazione agenda in corso.',
+                    'message'             => 'Per questo professionista c\'e già una rigenerazione agenda in corso.',
                 ]);
             }
 
@@ -2319,7 +2319,7 @@ public function eseguiRepairRecurringExtraSlots()
         if (empty($job['_claim_granted'])) {
             return $this->respondJsonSafe([
                 'status'  => true,
-                'message' => 'Job gia in esecuzione o gia processato.',
+                'message' => 'Job già in esecuzione o già processato.',
             ]);
         }
 
@@ -2878,7 +2878,7 @@ public function eseguiRepairRecurringExtraSlots()
         }
 
         if ($context->tenantRole !== 'tenant_master' || (int)$context->platformUserId <= 0) {
-            return redirect()->to(site_url('/'))->with('error', 'Solo il responsabile dello studio puo scaricare il backup agenda.');
+            return redirect()->to(site_url('/'))->with('error', 'Solo il responsabile dello studio può scaricare il backup agenda.');
         }
 
         $idDot = (int)($job['id_dot'] ?? 0);
@@ -3159,7 +3159,7 @@ public function eseguiRepairRecurringExtraSlots()
                     'grid_duration' => 15,
                     'min_time' => '08:00:00',
                     'max_time' => '18:00:00',
-                    'message' => 'La vista giorno team non e disponibile per questo spazio.',
+                    'message' => 'La vista giorno team non è disponibile per questo spazio.',
                     'giorno_bloccato' => false,
                     'memo_giorno_bloccato' => false,
                     'domiciliare_giorno_bloccato' => false,
@@ -3329,7 +3329,7 @@ public function eseguiRepairRecurringExtraSlots()
                     'month'   => $mese,
                     'dates'   => [],
                     'counts'  => [],
-                    'message' => 'Errore nel caricamento delle disponibilita del mese.',
+                    'message' => 'Errore nel caricamento delle disponibilità del mese.',
                 ]);
         }
     }
@@ -3351,7 +3351,7 @@ public function eseguiRepairRecurringExtraSlots()
                     'found' => false,
                     'date' => null,
                     'slot_totali' => 0,
-                    'message' => 'La navigazione che salta i giorni senza agenda non e attiva per questo spazio.',
+                    'message' => 'La navigazione che salta i giorni senza agenda non è attiva per questo spazio.',
                 ], 403);
             }
 
@@ -3361,7 +3361,7 @@ public function eseguiRepairRecurringExtraSlots()
 
             if ($view === 'team_day') {
                 if (!$this->canUseTeamDayView($teamDayDoctors)) {
-                    throw new \Exception('La vista giorno team non e disponibile per questo spazio.');
+                    throw new \Exception('La vista giorno team non è disponibile per questo spazio.');
                 }
 
                 $doctorIds = $this->extractAgendaDoctorIds($teamDayDoctors);
@@ -3741,7 +3741,7 @@ public function eseguiRepairRecurringExtraSlots()
         if ($this->agendaModel->isGiornoBloccato((int)$slot['id_dot'], (string)$slot['data_slot'])) {
             return $this->response->setJSON([
                 'status'  => false,
-                'message' => 'La giornata Ã¨ bloccata.'
+                'message' => 'La giornata è bloccata.'
             ]);
         }
 
@@ -4038,7 +4038,7 @@ public function eseguiRepairRecurringExtraSlots()
 
             if ($invalidIds !== []) {
                 throw new \Exception(
-                    'Uno o piu appuntamenti non appartengono al paziente, non sono futuri o non sono piu disponibili. Aggiorna l\'elenco e riprova.'
+                    'Uno o più appuntamenti non appartengono al paziente, non sono futuri o non sono più disponibili. Aggiorna l\'elenco e riprova.'
                 );
             }
 
@@ -4330,17 +4330,17 @@ public function eseguiRepairRecurringExtraSlots()
         try {
             $actions = $this->resolveAppointmentDocumentActionsState();
             if ($workflow === 'billing' && empty($actions['billing_enabled'])) {
-                throw new \Exception('Il modulo Fatturazione non e disponibile per questa sessione agenda.');
+                throw new \Exception('Il modulo Fatturazione non è disponibile per questa sessione agenda.');
             }
 
             if ($workflow === 'ts' && empty($actions['ts_enabled'])) {
-                throw new \Exception('Il modulo Sistema TS non e disponibile per questa sessione agenda.');
+                throw new \Exception('Il modulo Sistema TS non è disponibile per questa sessione agenda.');
             }
 
             $snapshot = $this->loadAppointmentDocumentWorkflowSnapshot($idAppuntamento);
             $snapshot = $this->applyAppointmentDocumentDraftSnapshot($snapshot);
             if (!empty($snapshot['is_special_patient'])) {
-                throw new \Exception('Il paziente speciale non puo generare documenti fiscali o TS. Collega prima un paziente reale all appuntamento.');
+                throw new \Exception('Il paziente speciale non può generare documenti fiscali o TS. Collega prima un paziente reale all’appuntamento.');
             }
 
             $returnUrl = $this->buildAppointmentDocumentReturnUrl($snapshot);
@@ -4359,7 +4359,7 @@ public function eseguiRepairRecurringExtraSlots()
                 $prefillKey = $this->storeAppointmentDocumentPrefill('billing', $billingPrefill);
 
                 if (!empty($actions['ts_enabled']) && trim((string) ($snapshot['patient_tax_code'] ?? '')) === '') {
-                    $warning = 'La fattura e pronta per il passaggio a TS, ma manca il codice fiscale del paziente: compilalo prima di usare "Salva e invia a TS".';
+                    $warning = 'La fattura è pronta per il passaggio a TS, ma manca il codice fiscale del paziente: compilalo prima di usare "Salva e invia a TS".';
                 }
 
                 $redirectUrl = site_url('admin/fatturazione-documenti/nuovo');
@@ -4378,7 +4378,7 @@ public function eseguiRepairRecurringExtraSlots()
             $prefillKey = $this->storeAppointmentDocumentPrefill('ts', $tsPrefill);
 
             if (trim((string) ($snapshot['patient_tax_code'] ?? '')) === '') {
-                $warning = 'Il documento TS e stato precompilato dall appuntamento, ma manca il codice fiscale del paziente.';
+                $warning = 'Il documento TS è stato precompilato dall’appuntamento, ma manca il codice fiscale del paziente.';
             }
 
             $redirectUrl = site_url('admin/sistema-ts/documenti/nuovo');
@@ -4788,7 +4788,7 @@ public function eseguiRepairRecurringExtraSlots()
             : 'Bozza TS creata da appuntamento. Controlla codice fiscale, numero documento, dispositivo e importo prima di inviare.';
 
         if ($workflow === 'billing' && $tsEnabled) {
-            $message = 'Bozza fattura creata da appuntamento. Il collegamento TS e gia attivo: puoi chiudere con Salva fattura oppure Salva e invia a TS.';
+            $message = 'Bozza fattura creata da appuntamento. Il collegamento TS e già attivo: puoi chiudere con Salva fattura oppure Salva e invia a TS.';
         }
 
         return [
@@ -4809,7 +4809,7 @@ public function eseguiRepairRecurringExtraSlots()
             'appointment_time_label' => $timeLabel,
             'doctor_label' => $doctorLabel,
             'return_url' => $returnUrl,
-            'return_label' => 'Torna all appuntamento in agenda',
+            'return_label' => 'Torna all’appuntamento in agenda',
         ];
     }
 
@@ -5059,7 +5059,7 @@ public function eseguiRepairRecurringExtraSlots()
             $this->assertDomiciliariAbilitatiPerDottore($idDot);
 
             if ($this->agendaModel->isGiornoBloccato($idDot, $data)) {
-                throw new \Exception('La giornata agenda e gia bloccata: anche le domiciliari risultano gia bloccate.');
+                throw new \Exception('La giornata agenda e già bloccata: anche le domiciliari risultano già bloccate.');
             }
 
             $this->agendaModel->bloccaDomiciliareGiorno($idDot, $data);
@@ -5094,7 +5094,7 @@ public function eseguiRepairRecurringExtraSlots()
             $this->assertDomiciliariAbilitatiPerDottore($idDot);
 
             if ($this->agendaModel->isGiornoBloccato($idDot, $data)) {
-                throw new \Exception('La giornata agenda e bloccata. Sblocca prima la giornata completa.');
+                throw new \Exception('La giornata agenda è bloccata. Sblocca prima la giornata completa.');
             }
 
             $this->agendaModel->sbloccaDomiciliareGiorno($idDot, $data);
@@ -5153,11 +5153,11 @@ public function eseguiRepairRecurringExtraSlots()
 
             // Agenda day lock must not prevent memo operations.
             if ($this->agendaModel->isMemoGiornoBloccato($idDot, $data)) {
-                throw new \Exception('Il giorno selezionato e bloccato per le memo.');
+                throw new \Exception('Il giorno selezionato è bloccato per le memo.');
             }
             if (false && method_exists($this->agendaModel, 'isGiornoBloccato') &&
                 $this->agendaModel->isGiornoBloccato($idDot, $data)) {
-                throw new \Exception('La giornata Ã¨ bloccata.');
+                throw new \Exception('La giornata è bloccata.');
             }
 
             $id = $this->agendaModel->saveNotaGiorno(
@@ -5228,12 +5228,12 @@ public function eseguiRepairRecurringExtraSlots()
         $previewContext = null;
 
         if (!$this->isPatientExcelImportEnabled()) {
-            return redirect()->to(base_url('agenda/gestione-pazienti'))->with('error', 'L importazione pazienti da Excel non e attiva per questo studio.');
+            return redirect()->to(base_url('agenda/gestione-pazienti'))->with('error', 'L’importazione pazienti da Excel non è attiva per questo studio.');
         }
 
         try {
             if ($selectedDot <= 0) {
-                throw new \Exception('Seleziona il medico a cui collegare l importazione.');
+                throw new \Exception('Seleziona il medico a cui collegare l’importazione.');
             }
 
             $this->assertDoctorAllowed($selectedDot);
@@ -5276,12 +5276,12 @@ public function eseguiRepairRecurringExtraSlots()
         $previewContext = null;
 
         if (!$this->isPatientExcelImportEnabled()) {
-            return redirect()->to(base_url('agenda/gestione-pazienti'))->with('error', 'L importazione pazienti da Excel non e attiva per questo studio.');
+            return redirect()->to(base_url('agenda/gestione-pazienti'))->with('error', 'L’importazione pazienti da Excel non è attiva per questo studio.');
         }
 
         try {
             if ($selectedDot <= 0) {
-                throw new \Exception('Seleziona il medico a cui collegare l importazione.');
+                throw new \Exception('Seleziona il medico a cui collegare l’importazione.');
             }
 
             $this->assertDoctorAllowed($selectedDot);
@@ -5824,7 +5824,7 @@ public function eseguiRepairRecurringExtraSlots()
     private function stampaPdfGiornoTeamResponse(int $selectedDot, string $data, array $medici)
     {
         if (!$this->canUseTeamDayView($medici)) {
-            throw new \Exception('La vista giorno team non e disponibile per questo spazio.');
+            throw new \Exception('La vista giorno team non è disponibile per questo spazio.');
         }
 
         $this->ensureDompdfAvailable();
@@ -6262,11 +6262,11 @@ public function eseguiRepairRecurringExtraSlots()
         }
 
         $days = [
-            1 => 'Lunedi',
-            2 => 'Martedi',
-            3 => 'Mercoledi',
-            4 => 'Giovedi',
-            5 => 'Venerdi',
+            1 => 'Lunedì',
+            2 => 'Martedì',
+            3 => 'Mercoledì',
+            4 => 'Giovedì',
+            5 => 'Venerdì',
             6 => 'Sabato',
             7 => 'Domenica',
         ];
@@ -6569,7 +6569,7 @@ public function eseguiRepairRecurringExtraSlots()
             $this->assertDoctorAllowed($idDot);
 
             if ($this->agendaModel->isGiornoBloccato($idDot, $data)) {
-                throw new \Exception('La giornata e bloccata. Non puoi aggiungere slot extra.');
+                throw new \Exception('La giornata è bloccata. Non puoi aggiungere slot extra.');
             }
 
             $result = $this->noteModel->insertExtraSlotsForSingleDay($payload);
@@ -6588,7 +6588,7 @@ public function eseguiRepairRecurringExtraSlots()
                 $messaggio = 'Slot extra aggiunti correttamente. Inseriti ' . (int)$result['inserted'] . ' slot.';
             }
             if (!empty($result['collisioni'])) {
-                $messaggio .= ' Slot gia presenti saltati: ' . count($result['collisioni']) . '.';
+                $messaggio .= ' Slot già presenti saltati: ' . count($result['collisioni']) . '.';
             }
 
             return $this->response->setJSON([
@@ -6609,7 +6609,7 @@ public function eseguiRepairRecurringExtraSlots()
     {
         $collisioni = array_values(array_filter($collisioni, static fn($row) => is_array($row)));
         if ($collisioni === []) {
-            return 'Gli orari richiesti sono gia presenti in agenda.';
+            return 'Gli orari richiesti sono già presenti in agenda.';
         }
 
         if (count($collisioni) === 1) {
@@ -6622,14 +6622,14 @@ public function eseguiRepairRecurringExtraSlots()
             $origine = strtoupper(trim((string)($row['origine_slot'] ?? '')));
 
             if ($origine === 'CONFIG') {
-                return 'Lo slot ' . $fascia . ' e gia presente in agenda come slot configurato. Non serve aggiungere uno slot extra.';
+                return 'Lo slot ' . $fascia . ' e già presente in agenda come slot configurato. Non serve aggiungere uno slot extra.';
             }
 
             if ($origine === 'EXTRA') {
-                return 'Lo slot extra ' . $fascia . ' e gia presente con lo stesso orario.';
+                return 'Lo slot extra ' . $fascia . ' e già presente con lo stesso orario.';
             }
 
-            return 'Lo slot ' . $fascia . ' e gia presente in agenda con lo stesso orario.';
+            return 'Lo slot ' . $fascia . ' e già presente in agenda con lo stesso orario.';
         }
 
         $configCount = 0;
@@ -6648,14 +6648,14 @@ public function eseguiRepairRecurringExtraSlots()
         }
 
         if ($configCount > 0 && $extraCount === 0) {
-            return 'Gli orari richiesti sono gia presenti in agenda come slot configurati. Non serve aggiungere slot extra.';
+            return 'Gli orari richiesti sono già presenti in agenda come slot configurati. Non serve aggiungere slot extra.';
         }
 
         if ($extraCount > 0 && $configCount === 0) {
-            return 'Tutti gli slot extra richiesti sono gia presenti con lo stesso orario.';
+            return 'Tutti gli slot extra richiesti sono già presenti con lo stesso orario.';
         }
 
-        return 'Gli orari richiesti sono gia presenti in agenda; alcuni come slot configurati e altri come slot extra.';
+        return 'Gli orari richiesti sono già presenti in agenda; alcuni come slot configurati e altri come slot extra.';
     }
 
     private function formatItalianShortWeekday(string $date): string
@@ -6958,7 +6958,7 @@ public function eseguiCopiaAppuntamentiPeriodo()
         $msg = 'Operazione completata. Creati ' . (int)$result['creati'] . ' appuntamenti';
 
         if (!empty($result['gia_pieni'])) {
-            $msg .= '. Slot gia pieni: ' . count($result['gia_pieni']);
+            $msg .= '. Slot già pieni: ' . count($result['gia_pieni']);
         }
 
         if (!empty($result['giorni_bloccati'])) {
@@ -7043,7 +7043,7 @@ public function eseguiCopiaAppuntamentiSettimanali()
         $this->assertDoctorAllowed($idDot);
 
         if ($this->agendaModel->isGiornoBloccato($idDot, $dataSorgente)) {
-            throw new \Exception('Il giorno sorgente Ã¨ bloccato.');
+            throw new \Exception('Il giorno sorgente è bloccato.');
         }
 
         $orariGiorno = $this->agendaModel->getOrariAgendaByDoctorAndDate($idDot, $dataSorgente);
@@ -7070,7 +7070,7 @@ public function eseguiCopiaAppuntamentiSettimanali()
         }
 
         if (!empty($result['gia_pieni'])) {
-            $msg .= '. Slot gia pieni: ' . count($result['gia_pieni']);
+            $msg .= '. Slot già pieni: ' . count($result['gia_pieni']);
         }
 
         return $this->response->setJSON([
@@ -7127,7 +7127,7 @@ public function salvaFeriePeriodo()
         $msg = 'Operazione completata. Giorni ferie bloccati: ' . (int)$result['bloccati'];
 
         if (!empty($result['gia_bloccati'])) {
-            $msg .= '. Giorni giÃ  bloccati: ' . count($result['gia_bloccati']);
+            $msg .= '. Giorni già bloccati: ' . count($result['gia_bloccati']);
         }
 
         if (!empty($result['con_prenotazioni'])) {
@@ -7149,7 +7149,7 @@ public function salvaFeriePeriodo()
 public function gestioneSmsAppuntamenti()
 {
     try {
-        $this->assertAgendaRouteAllowed('agenda/gestione-sms-appuntamenti', 'Il servizio SMS non e attivo per questo studio.');
+        $this->assertAgendaRouteAllowed('agenda/gestione-sms-appuntamenti', 'Il servizio SMS non è attivo per questo studio.');
 
         $medici = $this->getOrderedVisibleDoctorsForCurrentUser();
         $selectedDot = (int)($this->request->getGet('id_dot') ?: $this->getFirstVisibleDoctorId($medici));
@@ -7184,7 +7184,7 @@ public function gestioneSmsAppuntamenti()
 public function salvaSmsAppuntamenti()
 {
     try {
-        $this->assertAgendaRouteAllowed('agenda/gestione-sms-appuntamenti', 'Il servizio SMS non e attivo per questo studio.');
+        $this->assertAgendaRouteAllowed('agenda/gestione-sms-appuntamenti', 'Il servizio SMS non è attivo per questo studio.');
 
         $idDot = (int)($this->request->getPost('id_dot') ?? 0);
         $conferma = (int)($this->request->getPost('conferma') ?? 0);
@@ -7215,7 +7215,7 @@ public function salvaSmsAppuntamenti()
 public function disattivaSmsAppuntamenti()
 {
     try {
-        $this->assertAgendaRouteAllowed('agenda/gestione-sms-appuntamenti', 'Il servizio SMS non e attivo per questo studio.');
+        $this->assertAgendaRouteAllowed('agenda/gestione-sms-appuntamenti', 'Il servizio SMS non è attivo per questo studio.');
 
         $idSms = (int)($this->request->getPost('id_sms') ?? 0);
 
@@ -7472,12 +7472,11 @@ public function eliminaGiorniFerieSelezionati()
 
         // Memo actions are blocked only by the dedicated memo day lock.
         if (false && $this->agendaModel->isGiornoBloccato($idDot, $agendaData)) {
-            throw new \Exception('La giornata agenda e bloccata.');
+            throw new \Exception('La giornata agenda è bloccata.');
         }
 
         if ($this->agendaModel->isMemoGiornoBloccato($idDot, $agendaData)) {
-            throw new \Exception('Il giorno selezionato e bloccato per le memo.');
+            throw new \Exception('Il giorno selezionato è bloccato per le memo.');
         }
     }
 }
-

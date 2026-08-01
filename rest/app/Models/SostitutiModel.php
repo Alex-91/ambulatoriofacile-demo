@@ -86,7 +86,7 @@ class SostitutiModel extends Model
     /**
      * Blocca solo sovrapposizioni duplicate per la stessa coppia
      * medico da sostituire + sostituto.
-     * Cosi piu sostituti diversi possono coprire lo stesso medico
+     * Così più sostituti diversi possono coprire lo stesso medico
      * nello stesso giorno.
      */
     public function hasPairOverlap(int $idDaSostituire, int $idSostituto, string $inizio, string $fine): bool

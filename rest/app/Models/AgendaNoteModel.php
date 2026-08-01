@@ -583,14 +583,14 @@ class AgendaNoteModel extends Model
         $origine = strtoupper(trim((string)($slot['origine_slot'] ?? '')));
 
         if ($origine === 'CONFIG') {
-            return 'Slot gia presente in agenda come slot configurato';
+            return 'Slot già presente in agenda come slot configurato';
         }
 
         if ($origine === 'EXTRA') {
-            return 'Slot extra gia presente con lo stesso orario';
+            return 'Slot extra già presente con lo stesso orario';
         }
 
-        return 'Slot gia presente con lo stesso orario';
+        return 'Slot già presente con lo stesso orario';
     }
 
     protected function resolveAutoLocationForExtraSlot(

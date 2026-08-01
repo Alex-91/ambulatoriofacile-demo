@@ -41,7 +41,7 @@ class AdminMenuAccessFilter implements FilterInterface
 
         helper('portal');
 
-        $message = 'Questa voce di menu non e disponibile per il tuo profilo.';
+        $message = 'Questa voce di menu non è disponibile per il tuo profilo.';
         if (method_exists($request, 'isAJAX') && $request->isAJAX()) {
             return service('response')->setStatusCode(403)->setJSON([
                 'ok' => false,

@@ -756,7 +756,7 @@ $canSubmitSpaceSettings = ($manageableRows !== []) || $hasSupplementalSpaceContr
                                   ? 'Layout standard #' . $defaultPosition . ' con blocco ' . $defaultVisibilityLabel . '. Layout personalizzato salvato #' . $savedPosition . ' con blocco ' . $savedVisibilityLabel . '.'
                                   : 'Al momento coincide con il layout standard (#' . $defaultPosition . ' con blocco ' . $defaultVisibilityLabel . ').' ?>
                               <?php if ($forceVisible && $effectiveVisibility !== $savedVisibility): ?>
-                                <br>Ora resta comunque <strong><?= esc($effectiveVisibilityLabel) ?></strong> perche in questo spazio contiene dati obbligatori o richiesti dalla configurazione attuale.
+                                <br>Ora resta comunque <strong><?= esc($effectiveVisibilityLabel) ?></strong> perché in questo spazio contiene dati obbligatori o richiesti dalla configurazione attuale.
                               <?php endif; ?>
                               <?php if (!$runtimeAvailable && $runtimeNote !== ''): ?>
                                 <br><?= esc($runtimeNote) ?>
@@ -771,7 +771,7 @@ $canSubmitSpaceSettings = ($manageableRows !== []) || $hasSupplementalSpaceContr
                           <div class="agenda-order-actions">
                             <div class="agenda-order-column-picker">
                               <label class="agenda-order-column-picker-label" for="agenda-appointment-block-visibility-<?= esc($blockKey, 'attr') ?>">
-                                Visibilita
+                                Visibilità
                               </label>
                               <select
                                 class="form-control input-sm"
@@ -797,7 +797,7 @@ $canSubmitSpaceSettings = ($manageableRows !== []) || $hasSupplementalSpaceContr
                     <div id="agendaAppointmentBlockLayoutInputs"></div>
 
                     <div class="agenda-order-note">
-                      Se lasci l opzione spenta, il popup appuntamento continua a usare la disposizione standard. L ordine e le visibilita che prepari qui restano comunque salvati e pronti da riattivare quando vuoi.
+                      Se lasci l’opzione spenta, il popup appuntamento continua a usare la disposizione standard. L’ordine e le visibilità che prepari qui restano comunque salvati e pronti da riattivare quando vuoi.
                     </div>
                   </div>
                 <?php endif; ?>
@@ -809,7 +809,7 @@ $canSubmitSpaceSettings = ($manageableRows !== []) || $hasSupplementalSpaceContr
                       <div>
                         <h4 style="margin:0 0 6px 0;">Ordine blocchi home agenda</h4>
                         <p style="margin:0; color:#587075;">
-                          Qui decidi in quale sequenza mostrare i blocchi principali della home agenda dello studio: scelta professionista, ricerca visite del paziente, note del giorno, agenda e memo. Per ogni blocco puoi anche scegliere se lasciarlo nella colonna principale, spostarlo nella colonna sinistra dove si trovano gia menu e filtri, oppure nasconderlo del tutto.
+                          Qui decidi in quale sequenza mostrare i blocchi principali della home agenda dello studio: scelta professionista, ricerca visite del paziente, note del giorno, agenda e memo. Per ogni blocco puoi anche scegliere se lasciarlo nella colonna principale, spostarlo nella colonna sinistra dove si trovano già menu e filtri, oppure nasconderlo del tutto.
                         </p>
                       </div>
                       <div style="display:flex; gap:8px; flex-wrap:wrap;">
@@ -914,7 +914,7 @@ $canSubmitSpaceSettings = ($manageableRows !== []) || $hasSupplementalSpaceContr
                     <div id="agendaHomeBlockOrderInputs"></div>
 
                     <div class="agenda-order-note">
-                      Se lasci l opzione spenta, la home agenda continua a usare la disposizione standard. La sequenza, le colonne e gli eventuali blocchi nascosti che prepari qui restano comunque salvati e pronti da riattivare quando vuoi.
+                      Se lasci l’opzione spenta, la home agenda continua a usare la disposizione standard. La sequenza, le colonne e gli eventuali blocchi nascosti che prepari qui restano comunque salvati e pronti da riattivare quando vuoi.
                     </div>
                   </div>
                 <?php endif; ?>
@@ -926,7 +926,7 @@ $canSubmitSpaceSettings = ($manageableRows !== []) || $hasSupplementalSpaceContr
                       <div>
                         <h4 style="margin:0 0 6px 0;">Ordine blocchi colonna sinistra agenda</h4>
                         <p style="margin:0; color:#587075;">
-                          Qui decidi l ordine dei blocchi nella colonna sinistra dell agenda. Oltre a menu e calendario laterale, questa sequenza puo includere anche eventuali blocchi della home agenda spostati a sinistra dalla configurazione principale.
+                          Qui decidi l’ordine dei blocchi nella colonna sinistra dell’agenda. Oltre a menu e calendario laterale, questa sequenza può includere anche eventuali blocchi della home agenda spostati a sinistra dalla configurazione principale.
                         </p>
                       </div>
                       <div style="display:flex; gap:8px; flex-wrap:wrap;">
@@ -945,7 +945,7 @@ $canSubmitSpaceSettings = ($manageableRows !== []) || $hasSupplementalSpaceContr
                           value="1"
                           <?= (((string) $oldAgendaSidebarBlockOrderEnabled === '1') || ($oldAgendaSidebarBlockOrderEnabled === null && !empty($agendaSidebarBlockOrderSettings['tenant_order_enabled']))) ? 'checked' : '' ?>
                         >
-                        Usa questo ordine personalizzato nella colonna sinistra dell agenda
+                        Usa questo ordine personalizzato nella colonna sinistra dell’agenda
                       </label>
                     </div>
 
@@ -985,7 +985,7 @@ $canSubmitSpaceSettings = ($manageableRows !== []) || $hasSupplementalSpaceContr
                             <div class="agenda-order-meta">
                               <?= ($savedPosition !== $defaultPosition)
                                   ? 'Ordine standard #' . $defaultPosition . '. Ordine personalizzato salvato #' . $savedPosition . '.'
-                                  : 'Al momento coincide con l ordine standard (#' . $defaultPosition . ').' ?>
+                                  : 'Al momento coincide con l’ordine standard (#' . $defaultPosition . ').' ?>
                               <br><?= esc($originLabel) ?>
                               <?php if (trim((string) ($row['description'] ?? '')) !== ''): ?>
                                 <br><?= esc((string) $row['description']) ?>
@@ -1007,7 +1007,7 @@ $canSubmitSpaceSettings = ($manageableRows !== []) || $hasSupplementalSpaceContr
                     <div id="agendaSidebarBlockOrderInputs"></div>
 
                     <div class="agenda-order-note">
-                      Se lasci l opzione spenta, la colonna sinistra continua a usare la sequenza standard. L ordine che prepari qui resta comunque salvato e pronto da riattivare quando vuoi.
+                      Se lasci l’opzione spenta, la colonna sinistra continua a usare la sequenza standard. L’ordine che prepari qui resta comunque salvato e pronto da riattivare quando vuoi.
                     </div>
                   </div>
                 <?php endif; ?>
@@ -1019,7 +1019,7 @@ $canSubmitSpaceSettings = ($manageableRows !== []) || $hasSupplementalSpaceContr
                       <div>
                         <h4 style="margin:0 0 6px 0;">Ordine professionisti in agenda</h4>
                         <p style="margin:0; color:#587075;">
-                          Qui decidi in quale sequenza mostrare i professionisti nei selettori agenda e nella vista Giorno Team. Se arrivano nuovi medici, li aggiungiamo automaticamente in coda mantenendo l ordine base finche non li sistemi.
+                          Qui decidi in quale sequenza mostrare i professionisti nei selettori agenda e nella vista Giorno Team. Se arrivano nuovi medici, li aggiungiamo automaticamente in coda mantenendo l’ordine base finché non li sistemi.
                         </p>
                       </div>
                       <div style="display:flex; gap:8px; flex-wrap:wrap;">
@@ -1038,7 +1038,7 @@ $canSubmitSpaceSettings = ($manageableRows !== []) || $hasSupplementalSpaceContr
                           value="1"
                           <?= (((string) $oldAgendaProfessionalOrderEnabled === '1') || ($oldAgendaProfessionalOrderEnabled === null && !empty($agendaProfessionalOrderSettings['tenant_order_enabled']))) ? 'checked' : '' ?>
                         >
-                        Usa questo ordine personalizzato in tutta l agenda dello studio
+                        Usa questo ordine personalizzato in tutta l’agenda dello studio
                       </label>
                     </div>
 
@@ -1074,7 +1074,7 @@ $canSubmitSpaceSettings = ($manageableRows !== []) || $hasSupplementalSpaceContr
                             <div class="agenda-order-meta">
                               <?= $savedPosition !== $defaultPosition
                                   ? 'Base alfabetica #' . $defaultPosition . '. Ordine personalizzato salvato #' . $savedPosition . '.'
-                                  : 'Al momento coincide con l ordine base alfabetico (#' . $defaultPosition . ').' ?>
+                                  : 'Al momento coincide con l’ordine base alfabetico (#' . $defaultPosition . ').' ?>
                             </div>
                           </div>
                           <div class="agenda-order-actions">
@@ -1092,7 +1092,7 @@ $canSubmitSpaceSettings = ($manageableRows !== []) || $hasSupplementalSpaceContr
                     <div id="agendaProfessionalOrderInputs"></div>
 
                     <div class="agenda-order-note">
-                      Se lasci l opzione spenta, l agenda continua a usare l ordine standard. La sequenza che prepari qui resta comunque salvata e pronta da riattivare quando vuoi.
+                      Se lasci l’opzione spenta, l’agenda continua a usare l’ordine standard. La sequenza che prepari qui resta comunque salvata e pronta da riattivare quando vuoi.
                     </div>
                   </div>
                 <?php endif; ?>
@@ -1108,7 +1108,7 @@ $canSubmitSpaceSettings = ($manageableRows !== []) || $hasSupplementalSpaceContr
                       <div>
                         <h4 style="margin:0 0 6px 0;">Vista iniziale agenda</h4>
                         <p style="margin:0; color:#587075;">
-                          Qui decidi con quale vista si apre l agenda dello studio quando l utente entra in agenda senza forzare gia una vista specifica dal link.
+                          Qui decidi con quale vista si apre l’agenda dello studio quando l’utente entra in agenda senza forzare già una vista specifica dal link.
                         </p>
                       </div>
                       <div style="display:flex; gap:8px; flex-wrap:wrap;">
@@ -1152,17 +1152,17 @@ $canSubmitSpaceSettings = ($manageableRows !== []) || $hasSupplementalSpaceContr
                         <?php endforeach; ?>
                       </select>
                       <p class="text-muted" style="margin:8px 0 0 0; line-height:1.5;">
-                        Se l utente apre un link agenda con `?view=...`, quel link continua ad avere priorita e non viene sovrascritto da questa preferenza.
+                        Se l’utente apre un link agenda con `?view=...`, quel link continua ad avere priorità e non viene sovrascritto da questa preferenza.
                       </p>
                     </div>
 
                     <?php if ($agendaDefaultViewSavedViewUnavailable): ?>
                       <div class="alert alert-info" style="margin:12px 0 0 0;">
-                        La vista salvata in precedenza non e al momento disponibile nello spazio. Finche non riattivi quella vista, l agenda riparte da Giorno.
+                        La vista salvata in precedenza non è al momento disponibile nello spazio. Finché non riattivi quella vista, l’agenda riparte da Giorno.
                       </div>
                     <?php elseif (!$agendaDefaultViewTeamDayAvailable): ?>
                       <div class="alert alert-info" style="margin:12px 0 0 0;">
-                        Giorno Team comparira automaticamente tra le scelte appena la relativa funzione verra attivata nello spazio.
+                        Giorno Team comparirà automaticamente tra le scelte appena la relativa funzione verrà attivata nello spazio.
                       </div>
                     <?php endif; ?>
                   </div>
@@ -1179,7 +1179,7 @@ $canSubmitSpaceSettings = ($manageableRows !== []) || $hasSupplementalSpaceContr
                       <div>
                         <h4 style="margin:0 0 6px 0;">Palette testo agenda</h4>
                         <p style="margin:0; color:#587075;">
-                          Qui decidi quali testi dell agenda vuoi personalizzare per questo studio. Puoi toccare solo le righe che ti interessano: tutte le altre continuano a usare il colore standard.
+                          Qui decidi quali testi dell’agenda vuoi personalizzare per questo studio. Puoi toccare solo le righe che ti interessano: tutte le altre continuano a usare il colore standard.
                         </p>
                       </div>
                       <div style="display:flex; gap:8px; flex-wrap:wrap;">
@@ -1198,7 +1198,7 @@ $canSubmitSpaceSettings = ($manageableRows !== []) || $hasSupplementalSpaceContr
                           value="1"
                           <?= $agendaTextThemeEnabledChecked ? 'checked' : '' ?>
                         >
-                        Usa una palette testo personalizzata per l agenda di questo studio
+                        Usa una palette testo personalizzata per l’agenda di questo studio
                       </label>
                     </div>
 
@@ -1232,7 +1232,7 @@ $canSubmitSpaceSettings = ($manageableRows !== []) || $hasSupplementalSpaceContr
                               <span><?= esc((string) ($row['label'] ?? $styleKey)) ?></span>
                             </div>
                             <div class="agenda-text-theme-meta">
-                              <?= $hasCustomColor ? 'Colore personalizzato salvato per questo testo.' : 'Per ora resta il colore standard gia usato dall agenda.' ?>
+                              <?= $hasCustomColor ? 'Colore personalizzato salvato per questo testo.' : 'Per ora resta il colore standard già usato dall’agenda.' ?>
                               <?php if (trim((string) ($row['description'] ?? '')) !== ''): ?>
                                 <br><?= esc((string) $row['description']) ?>
                               <?php endif; ?>
@@ -1304,7 +1304,7 @@ $canSubmitSpaceSettings = ($manageableRows !== []) || $hasSupplementalSpaceContr
 
                     <?php if (!$teamDayFeatureEnabled): ?>
                       <div class="alert alert-info" style="margin:12px 0 0 0;">
-                        La vista Giorno Team e al momento spenta nello spazio. Puoi comunque preparare ora i colori, cosi saranno pronti appena la funzione verra attivata.
+                        La vista Giorno Team e al momento spenta nello spazio. Puoi comunque preparare ora i colori, così saranno pronti appena la funzione verrà attivata.
                       </div>
                     <?php endif; ?>
 
@@ -1335,7 +1335,7 @@ $canSubmitSpaceSettings = ($manageableRows !== []) || $hasSupplementalSpaceContr
                               <span><?= esc((string) ($row['label'] ?? ('Professionista ' . $doctorId))) ?></span>
                             </div>
                             <div class="team-day-color-meta">
-                              <?= $hasCustomColor ? 'Colore personalizzato salvato per questa colonna.' : 'Usa la palette consigliata automatica finche non personalizzi.' ?>
+                              <?= $hasCustomColor ? 'Colore personalizzato salvato per questa colonna.' : 'Usa la palette consigliata automatica finché non personalizzi.' ?>
                               <br>
                               Suggerito: <strong><?= esc((string) ($row['suggested_color'] ?? '#3C8DBC')) ?></strong>
                             </div>
@@ -1366,7 +1366,7 @@ $canSubmitSpaceSettings = ($manageableRows !== []) || $hasSupplementalSpaceContr
                     </div>
 
                     <div class="team-day-colors-note">
-                      Il master piattaforma ha gia autorizzato questa opzione per lo spazio attivo. Qui stai decidendo se usarla e, se serve, quali eccezioni cromatiche applicare ai singoli professionisti.
+                      Il master piattaforma ha già autorizzato questa opzione per lo spazio attivo. Qui stai decidendo se usarla e, se serve, quali eccezioni cromatiche applicare ai singoli professionisti.
                     </div>
                   </div>
                 <?php endif; ?>
@@ -1402,7 +1402,7 @@ $canSubmitSpaceSettings = ($manageableRows !== []) || $hasSupplementalSpaceContr
                       <?php if ($lockedFeatureKey === \App\Config\BillingModule::FEATURE_KEY): ?>
                         <div class="text-muted" style="margin-top:10px; line-height:1.5;">
                           <?= $lockedFeatureEnabled
-                              ? 'La Fatturazione e pronta come modulo separato per il documento cliente. Quando attivi anche il Sistema TS, i due moduli possono convivere.'
+                              ? 'La Fatturazione è pronta come modulo separato per il documento cliente. Quando attivi anche il Sistema TS, i due moduli possono convivere.'
                               : 'La Fatturazione per questo studio viene attivata centralmente dal master piattaforma.' ?>
                         </div>
                         <?php if ($lockedFeatureEnabled): ?>
@@ -1416,7 +1416,7 @@ $canSubmitSpaceSettings = ($manageableRows !== []) || $hasSupplementalSpaceContr
                       <?php if ($lockedFeatureKey === \App\Config\TsBilling::FEATURE_KEY): ?>
                         <div class="text-muted" style="margin-top:10px; line-height:1.5;">
                           <?= ($lockedFeatureEnabled || $tsConfigurationAccessible)
-                              ? 'Il Sistema TS e pronto per la configurazione operativa dello studio. Da qui puoi aprire subito il profilo e inserire i dati richiesti anche se la Fatturazione resta un modulo separato.'
+                              ? 'Il Sistema TS è pronto per la configurazione operativa dello studio. Da qui puoi aprire subito il profilo e inserire i dati richiesti anche se la Fatturazione resta un modulo separato.'
                               : 'Il Sistema TS per questo studio viene attivato centralmente dal master piattaforma.' ?>
                         </div>
                         <?php if ($lockedFeatureEnabled || $tsConfigurationAccessible): ?>

@@ -4,7 +4,7 @@ $menu_items = $menu_items ?? ($result['result'] ?? []);
 
 $slots    = $slots ?? [];
 $from     = $from ?? date('Y-m-d');
-$id_dot   = (int)($id_dot ?? 0);       // compatibilitÃ 
+$id_dot   = (int)($id_dot ?? 0);       // compatibilità
 $id_medico = (int)($id_medico ?? 0);   // se il controller passa id_medico
 $medico   = $medico ?? null;
 $existing = $existing ?? null;
@@ -75,7 +75,7 @@ $idMedicoHidden = (int)($id_medico ?: $id_dot);
 
       <?php if ($existing): ?>
         <div class="alert alert-warning">
-          Hai giÃ  una prenotazione futura. Se vuoi, annulla prima quella esistente.
+          Hai già una prenotazione futura. Se vuoi, annulla prima quella esistente.
         </div>
       <?php endif; ?>
 
@@ -85,7 +85,7 @@ $idMedicoHidden = (int)($id_medico ?: $id_dot);
           <div class="box box-primary choice-box">
             <div class="box-header with-border">
               <h3 class="box-title">
-                <i class="fa fa-calendar"></i> Cerca disponibilitÃ 
+                <i class="fa fa-calendar"></i> Cerca disponibilità
                 <small>&nbsp;| scegli da che data partire</small>
               </h3>
             </div>
@@ -113,17 +113,17 @@ $idMedicoHidden = (int)($id_medico ?: $id_dot);
                     <?php
 $giorniIt = [
   'Sunday'    => 'Domenica',
-  'Monday'    => 'LunedÃ¬',
-  'Tuesday'   => 'MartedÃ¬',
-  'Wednesday' => 'MercoledÃ¬',
-  'Thursday'  => 'GiovedÃ¬',
-  'Friday'    => 'VenerdÃ¬',
+  'Monday'    => 'Lunedì',
+  'Tuesday'   => 'Martedì',
+  'Wednesday' => 'Mercoledì',
+  'Thursday'  => 'Giovedì',
+  'Friday'    => 'Venerdì',
   'Saturday'  => 'Sabato',
 ];
 ?>
                   <?php foreach ($slots as $s): ?>
                     <?php
-                      // âœ… supporta nuovo formato (data_ora_ini) + compatibilitÃ 
+                      // ✅ supporta nuovo formato (data_ora_ini) + compatibilità
                       $slotIni = $s['data_ora_ini']
                         ?? ($s['slot_ini'] ?? ($s['inizio'] ?? ''));
 

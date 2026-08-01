@@ -199,7 +199,7 @@ class AppointmentNotificationSettingsService
     {
         $current = $this->resolveTenantSettings($tenantId);
         if (empty($current['module']['available'])) {
-            throw new \RuntimeException('Il centro notifiche appuntamenti non e disponibile per questo spazio.');
+            throw new \RuntimeException('Il centro notifiche appuntamenti non è disponibile per questo spazio.');
         }
 
         $featureId = (int) ($current['module']['feature_id'] ?? 0);
@@ -262,7 +262,7 @@ class AppointmentNotificationSettingsService
         return [
             self::TYPE_PATIENT_BOOKING => [
                 'label' => 'Conferma appuntamento',
-                'description' => 'Parte appena l appuntamento viene salvato per il paziente.',
+                'description' => 'Parte appena l’appuntamento viene salvato per il paziente.',
             ],
             self::TYPE_DOCTOR_CROSS_BOOKING => [
                 'label' => 'Presa appuntamento da un medico a un altro medico',
@@ -284,21 +284,21 @@ class AppointmentNotificationSettingsService
             self::CHANNEL_SMS => [
                 'label' => 'SMS',
                 'icon' => 'fa-comment',
-                'description' => 'Disponibilita commerciale e tecnica del canale SMS per questo spazio.',
+                'description' => 'Disponibilità commerciale e tecnica del canale SMS per questo spazio.',
                 'platform_managed' => true,
                 'platform_default_enabled' => false,
             ],
             self::CHANNEL_WHATSAPP => [
                 'label' => 'WhatsApp',
                 'icon' => 'fa-whatsapp',
-                'description' => 'Disponibilita commerciale e tecnica del canale WhatsApp per questo spazio.',
+                'description' => 'Disponibilità commerciale e tecnica del canale WhatsApp per questo spazio.',
                 'platform_managed' => true,
                 'platform_default_enabled' => false,
             ],
             self::CHANNEL_EMAIL => [
                 'label' => 'Email',
                 'icon' => 'fa-envelope',
-                'description' => 'Canale nativo dell applicazione basato sui recapiti email presenti in agenda e anagrafica.',
+                'description' => 'Canale nativo dell’applicazione basato sui recapiti email presenti in agenda e anagrafica.',
                 'platform_managed' => false,
                 'platform_default_enabled' => true,
             ],

@@ -27,7 +27,7 @@ class AddAgendaShowAppointmentCreatorInSlotsFeature extends Migration
             'feature_key' => self::FEATURE_KEY,
             'feature_name' => 'Mostra creatore appuntamento negli slot',
             'feature_scope' => 'workflow',
-            'description' => 'Il tenant master puo scegliere se mostrare o nascondere il nome dell utente che ha creato l appuntamento dentro gli slot agenda, inclusa la vista Giorno Team.',
+            'description' => 'Il tenant master può scegliere se mostrare o nascondere il nome dell’utente che ha creato l’appuntamento dentro gli slot agenda, inclusa la vista Giorno Team.',
             'default_enabled' => 1,
             'created_at' => $now,
             'updated_at' => $now,
@@ -57,7 +57,7 @@ class AddAgendaShowAppointmentCreatorInSlotsFeature extends Migration
         $update = [
             'feature_name' => 'Mostra creatore appuntamento negli slot',
             'feature_scope' => 'workflow',
-            'description' => 'Il tenant master puo scegliere se mostrare o nascondere il nome dell utente che ha creato l appuntamento dentro gli slot agenda, inclusa la vista Giorno Team.',
+            'description' => 'Il tenant master può scegliere se mostrare o nascondere il nome dell’utente che ha creato l’appuntamento dentro gli slot agenda, inclusa la vista Giorno Team.',
             'default_enabled' => 1,
             'updated_at' => $now,
         ];

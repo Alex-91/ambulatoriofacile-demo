@@ -27,7 +27,7 @@ class AddAgendaPersonalCommitmentsFeature extends Migration
             'feature_key' => self::FEATURE_KEY,
             'feature_name' => 'Impegni personali multi-slot',
             'feature_scope' => 'workflow',
-            'description' => 'Il master piattaforma puo attivare per il singolo studio il blocco rapido di slot consecutivi come impegno personale, con durata variabile e voce speciale eliminabile dal calendario.',
+            'description' => 'Il master piattaforma può attivare per il singolo studio il blocco rapido di slot consecutivi come impegno personale, con durata variabile e voce speciale eliminabile dal calendario.',
             'default_enabled' => 0,
             'created_at' => $now,
             'updated_at' => $now,
@@ -57,7 +57,7 @@ class AddAgendaPersonalCommitmentsFeature extends Migration
         $update = [
             'feature_name' => 'Impegni personali multi-slot',
             'feature_scope' => 'workflow',
-            'description' => 'Il master piattaforma puo attivare per il singolo studio il blocco rapido di slot consecutivi come impegno personale, con durata variabile e voce speciale eliminabile dal calendario.',
+            'description' => 'Il master piattaforma può attivare per il singolo studio il blocco rapido di slot consecutivi come impegno personale, con durata variabile e voce speciale eliminabile dal calendario.',
             'default_enabled' => 0,
             'updated_at' => $now,
         ];

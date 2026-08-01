@@ -222,7 +222,7 @@ final class TargetedRecurringExtraSlotAdder
     public function run(): array
     {
         if ($this->dateTo < $this->dateFrom) {
-            throw new RuntimeException('date_to non puo essere precedente a date_from.');
+            throw new RuntimeException('date_to non può essere precedente a date_from.');
         }
 
         $this->assertTables();

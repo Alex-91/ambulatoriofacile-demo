@@ -28,7 +28,7 @@ class TsSmokeTest extends BaseCommand
         '--vat-rate=' => 'Aliquota IVA da inviare. Default: 10.00.',
         '--vat-nature=' => 'Natura IVA alternativa, ad esempio N2.2. Default: vuoto.',
         '--fetch-receipt=' => 'Se impostato a 0 salta il recupero della ricevuta PDF TS. Default: 1.',
-        '--payment-mode=' => 'Modalita pagamento: tracciato o contanti. Default: tracciato.',
+        '--payment-mode=' => 'Modalità pagamento: tracciato o contanti. Default: tracciato.',
         '--issue-date=' => 'Data emissione Y-m-d. Default: oggi.',
         '--payment-date=' => 'Data pagamento Y-m-d. Default: oggi.',
     ];

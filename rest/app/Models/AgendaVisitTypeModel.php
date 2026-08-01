@@ -97,7 +97,7 @@ class AgendaVisitTypeModel extends Model
         $this->ensureSchemaReady();
 
         if (!$this->db->tableExists($this->table)) {
-            throw new Exception('La tabella dei tipi visita non e disponibile.');
+            throw new Exception('La tabella dei tipi visita non è disponibile.');
         }
 
         $idTipoVisita = (int) ($data['id_tipo_visita'] ?? 0);
@@ -113,7 +113,7 @@ class AgendaVisitTypeModel extends Model
         $existing = null;
 
         if ($nome === '') {
-            throw new Exception('Il nome del tipo visita e obbligatorio.');
+            throw new Exception('Il nome del tipo visita è obbligatorio.');
         }
 
         if ($durataMinuti <= 0) {
@@ -121,7 +121,7 @@ class AgendaVisitTypeModel extends Model
         }
 
         if ($durataMinuti > 480) {
-            throw new Exception('La durata del tipo visita non puo superare 480 minuti.');
+            throw new Exception('La durata del tipo visita non può superare 480 minuti.');
         }
 
         if ($coloreInput !== '' && $this->normalizeStoredColor($coloreInput) === '') {

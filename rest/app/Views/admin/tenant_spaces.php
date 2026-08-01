@@ -47,7 +47,7 @@ $appointmentNotificationChannelMeta = [
     ],
     'email' => [
         'label' => 'Email',
-        'description' => 'Canale nativo dell applicazione, ora governabile anche centralmente per singolo studio.',
+        'description' => 'Canale nativo dell’applicazione, ora governabile anche centralmente per singolo studio.',
         'feature_key' => null,
     ],
     'otp' => [
@@ -613,7 +613,7 @@ $oldValue = static function (string $key, $fallback = '') {
                           <span class="label label-<?= $tsBillingEnabledForSelectedTenant ? 'success' : 'default' ?>">
                             <?= $tsBillingEnabledForSelectedTenant ? 'attiva' : 'spenta' ?>
                           </span>.
-                          Il toggle reale si trova piÃ¹ sotto in <strong>Override funzioni studio</strong> e non serve un secondo passaggio lato studio.
+                          Il toggle reale si trova più sotto in <strong>Override funzioni studio</strong> e non serve un secondo passaggio lato studio.
                         </p>
                         <p class="text-muted" style="margin:8px 0 0 0; line-height:1.5;">
                           Stato moduli: <strong>Fatturazione</strong>
@@ -774,7 +774,7 @@ $oldValue = static function (string $key, $fallback = '') {
                         <div class="form-group">
                           <label>Env var password DB</label>
                           <input class="form-control" name="db_password_ref" value="<?= esc((string)$oldValue('db_password_ref', $tenantData['db_password_ref'] ?? '')) ?>" placeholder="es. TENANT_STUDIO_VERDE_DB_PASSWORD">
-                          <p class="text-muted" style="margin:6px 0 0 0;">Se lasci vuoti host, user o password ref, il provisioning usera i default configurati per la piattaforma.</p>
+                          <p class="text-muted" style="margin:6px 0 0 0;">Se lasci vuoti host, user o password ref, il provisioning userà i default configurati per la piattaforma.</p>
                         </div>
                       </div>
                       <div class="col-md-4">
@@ -799,7 +799,7 @@ $oldValue = static function (string $key, $fallback = '') {
                     Qui decidi quali funzioni sono concesse a questo cliente. Se una funzione è marcata come gestibile dal responsabile dello studio, il cliente potrà poi accenderla o spegnerla dal suo pannello sotto `/login/spazio/funzioni`.
                   </p>
                   <div class="alert alert-info" style="margin-bottom:14px;">
-                    <strong>Fatturazione</strong> e <strong>Sistema TS</strong> ora sono moduli separati: puoi accendere uno senza l altro. Se li attivi entrambi, lo spazio li vede come moduli distinti ma pronti a convivere nello stesso flusso.
+                    <strong>Fatturazione</strong> e <strong>Sistema TS</strong> ora sono moduli separati: puoi accendere uno senza l’altro. Se li attivi entrambi, lo spazio li vede come moduli distinti ma pronti a convivere nello stesso flusso.
                   </div>
                   <input type="hidden" name="feature_override_form" value="1">
                   <div class="row">
@@ -849,19 +849,19 @@ $oldValue = static function (string $key, $fallback = '') {
                             <div class="text-muted" style="font-size:12px; margin-top:8px; line-height:1.45;">
                               <?= $checked
                                   ? 'Lo spazio vede subito il modulo Fatturazione come area separata per i documenti cliente.'
-                                  : 'Finche resta spenta qui, lo spazio non vedra il modulo Fatturazione nel pannello studio.' ?>
+                                  : 'Finché resta spenta qui, lo spazio non vedrà il modulo Fatturazione nel pannello studio.' ?>
                             </div>
                           <?php endif; ?>
                           <?php if ($isTsBillingCard): ?>
                             <div style="margin-top:8px;">
                               <span class="label label-<?= $checked ? 'success' : 'default' ?>">
-                                <?= $checked ? 'Spazio giÃ  abilitato' : 'Da abilitare qui' ?>
+                                <?= $checked ? 'Spazio già abilitato' : 'Da abilitare qui' ?>
                               </span>
                             </div>
                             <div class="text-muted" style="font-size:12px; margin-top:8px; line-height:1.45;">
                               <?= $checked
-                                  ? 'Lo spazio vedra subito la console Sistema TS e il tenant master potra compilare profilo, credenziali e documenti operativi.'
-                                  : 'Finche resta spenta qui, lo spazio non vedra la configurazione Sistema TS nel pannello studio.' ?>
+                                  ? 'Lo spazio vedrà subito la console Sistema TS e il tenant master potrà compilare profilo, credenziali e documenti operativi.'
+                                  : 'Finché resta spenta qui, lo spazio non vedrà la configurazione Sistema TS nel pannello studio.' ?>
                             </div>
                           <?php endif; ?>
                           <?php if ($featureKey === \App\Services\AgendaTeamColumnColorService::FEATURE_KEY): ?>
@@ -877,17 +877,17 @@ $oldValue = static function (string $key, $fallback = '') {
                               </label>
                             </div>
                             <div class="text-muted" style="font-size:12px; margin-top:6px; line-height:1.45;">
-                              Se attivo, il responsabile dello studio puo accendere una resa cromatica dedicata per Giorno Team e personalizzare i singoli professionisti dal pannello spazio.
+                              Se attivo, il responsabile dello studio può accendere una resa cromatica dedicata per Giorno Team e personalizzare i singoli professionisti dal pannello spazio.
                             </div>
                           <?php endif; ?>
                           <?php if ($featureKey === \App\Services\AgendaHomeBlockOrderService::FEATURE_KEY): ?>
                             <div class="text-muted" style="font-size:12px; margin-top:8px; line-height:1.45;">
-                              Se attiva, il responsabile dello studio puo riordinare i blocchi principali della home agenda e decidere quali lasciare al centro, quali spostare nella colonna sinistra e quali nascondere.
+                              Se attiva, il responsabile dello studio può riordinare i blocchi principali della home agenda e decidere quali lasciare al centro, quali spostare nella colonna sinistra e quali nascondere.
                             </div>
                           <?php endif; ?>
                           <?php if ($featureKey === \App\Services\AgendaSidebarBlockOrderService::FEATURE_KEY): ?>
                             <div class="text-muted" style="font-size:12px; margin-top:8px; line-height:1.45;">
-                              Se attiva, il responsabile dello studio puo ordinare separatamente i blocchi della colonna sinistra dell agenda, compresi quelli che arrivano li dalla configurazione principale della home.
+                              Se attiva, il responsabile dello studio può ordinare separatamente i blocchi della colonna sinistra dell’agenda, compresi quelli che arrivano li dalla configurazione principale della home.
                             </div>
                           <?php endif; ?>
                         </div>
@@ -906,11 +906,11 @@ $oldValue = static function (string $key, $fallback = '') {
                   <hr>
                   <h4 style="margin-top:0;">Governance tipi notifiche appuntamenti</h4>
                   <p class="text-muted">
-                    Qui il master piattaforma decide quali dei tre flussi appuntamento il responsabile dello studio puo davvero attivare dal suo pannello. Se un tipo viene spento qui, nello spazio cliente il relativo flag risulta visibile ma non cliccabile.
+                    Qui il master piattaforma decide quali dei tre flussi appuntamento il responsabile dello studio può davvero attivare dal suo pannello. Se un tipo viene spento qui, nello spazio cliente il relativo flag risulta visibile ma non cliccabile.
                   </p>
                   <?php if (empty($featureMap[\App\Services\AppointmentNotificationSettingsService::FEATURE_NOTIFICATIONS] ?? false)): ?>
                     <div class="alert alert-info" style="margin-bottom:12px;">
-                      Il modulo generale notifiche appuntamenti e attualmente spento per questo studio. Puoi comunque preparare fin da ora quali tipi saranno delegabili quando il modulo verra acceso.
+                      Il modulo generale notifiche appuntamenti e attualmente spento per questo studio. Puoi comunque preparare fin da ora quali tipi saranno delegabili quando il modulo verrà acceso.
                     </div>
                   <?php endif; ?>
                   <input type="hidden" name="appointment_notification_control_form" value="1">
@@ -948,7 +948,7 @@ $oldValue = static function (string $key, $fallback = '') {
                   <div style="height:8px;"></div>
                   <h4 style="margin-top:8px;">Governance canali notifiche appuntamenti</h4>
                   <p class="text-muted">
-                    Qui il master piattaforma decide quali canali lo studio ha realmente acquistato o puo usare. Quando un canale viene spento qui, il tenant lo vede non disponibile e non puo selezionarlo nei suoi flussi.
+                    Qui il master piattaforma decide quali canali lo studio ha realmente acquistato o può usare. Quando un canale viene spento qui, il tenant lo vede non disponibile e non può selezionarlo nei suoi flussi.
                   </p>
                   <div class="row">
                     <?php foreach ($appointmentNotificationChannelMeta as $channelKey => $channelMeta): ?>

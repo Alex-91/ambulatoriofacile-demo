@@ -2,7 +2,7 @@
 
 Questo progetto e' stato preparato per essere pubblicato su Coolify con il minimo numero di passaggi manuali.
 
-## Cosa e' gia pronto
+## Cosa e' già pronto
 
 - `Dockerfile` per build automatica in Coolify
 - `docker/start-container.sh` per creare cartelle runtime, linkare gli upload legacy e lanciare le migration
@@ -21,19 +21,19 @@ Scelta consigliata:
 
 - demo separata: `demo.ambulatoriofacile.it`
 
-Scelta possibile ma piu delicata:
+Scelta possibile ma più delicata:
 
 - sottopercorso: `ambulatoriofacile.it/demo`
 
-Usa il sottopercorso solo se l'intero dominio `ambulatoriofacile.it` e' gia gestito dal server/proxy che sta dietro a Coolify. Se il sito principale e' altrove, la strada semplice e robusta e' il sottodominio `demo.ambulatoriofacile.it`.
+Usa il sottopercorso solo se l'intero dominio `ambulatoriofacile.it` e' già gestito dal server/proxy che sta dietro a Coolify. Se il sito principale e' altrove, la strada semplice e robusta e' il sottodominio `demo.ambulatoriofacile.it`.
 
 ## Quello che devi fare tu
 
 ### 1. Crea il repository GitHub
 
-Se questa cartella non e' ancora su GitHub:
+Se questa cartella non è' ancora su GitHub:
 
-1. Crea un nuovo repository vuoto nel team GitHub dove siete gia entrambi.
+1. Crea un nuovo repository vuoto nel team GitHub dove siete già entrambi.
 2. Inizializza git in questa cartella.
 3. Fai il primo commit.
 4. Collega il remote.
@@ -70,7 +70,7 @@ Se no facciamo la demo su demo.ambulatoriofacile.it.
 Ti servono solo questi:
 
 1. URL del server Coolify
-2. conferma se il dominio root e' gia su quel server
+2. conferma se il dominio root e' già su quel server
 3. accesso al team/progetto Coolify
 4. conferma del repository GitHub da collegare
 

@@ -38,7 +38,7 @@ class AgendaAppointmentModel extends Model
         }
 
         if ($tokenLock === '') {
-            throw new Exception('Lo slot non e piu disponibile. Riapri lo slot e riprova.');
+            throw new Exception('Lo slot non è più disponibile. Riapri lo slot e riprova.');
         }
 
         (new AgendaLockModel())->cleanupExpiredLocks();
@@ -46,7 +46,7 @@ class AgendaAppointmentModel extends Model
         $now = date('Y-m-d H:i:s');
         $lock = $this->loadActiveLock($tokenLock, $idSlot, $createdBy, $now);
         if (!$lock) {
-            throw new Exception('Lo slot non e piu disponibile. Riapri lo slot e riprova.');
+            throw new Exception('Lo slot non è più disponibile. Riapri lo slot e riprova.');
         }
 
         $slot = $this->loadSlotRow($idSlot);
@@ -56,7 +56,7 @@ class AgendaAppointmentModel extends Model
 
         $slotState = strtoupper(trim((string) ($slot['stato'] ?? '')));
         if ($slotState === 'PRENOTATO') {
-            throw new Exception('Lo slot e gia prenotato.');
+            throw new Exception('Lo slot e già prenotato.');
         }
 
         if ($slotState === 'CHIUSO') {
@@ -64,7 +64,7 @@ class AgendaAppointmentModel extends Model
         }
 
         if ($this->slotHasActiveAppointment($idSlot)) {
-            throw new Exception('Lo slot e gia prenotato.');
+            throw new Exception('Lo slot e già prenotato.');
         }
 
         $slotDuration = $this->getSlotDurationMinutes($slot);
@@ -307,7 +307,7 @@ class AgendaAppointmentModel extends Model
 
             if (count($rows) !== count($appointmentIds)) {
                 throw new Exception(
-                    'Uno o piu appuntamenti selezionati non sono piu disponibili.',
+                    'Uno o più appuntamenti selezionati non sono più disponibili.',
                     422
                 );
             }
@@ -315,7 +315,7 @@ class AgendaAppointmentModel extends Model
             foreach ($rows as $row) {
                 if (strtoupper(trim((string) ($row['stato'] ?? ''))) === 'ANNULLATO') {
                     throw new Exception(
-                        'Uno o piu appuntamenti selezionati risultano gia annullati.',
+                        'Uno o più appuntamenti selezionati risultano già annullati.',
                         422
                     );
                 }
@@ -525,7 +525,7 @@ class AgendaAppointmentModel extends Model
             $end = date('Y-m-d H:i:s', $endTimestamp);
             $durationMinutes = (int) round(($endTimestamp - $startTimestamp) / 60);
             if ($durationMinutes <= 0) {
-                throw new Exception('L ora finale personalizzata deve essere successiva all ora iniziale.');
+                throw new Exception('L’ora finale personalizzata deve essere successiva all’ora iniziale.');
             }
 
             $coveredSlots = $this->resolveCoveredSlotsForWindow(
@@ -583,7 +583,7 @@ class AgendaAppointmentModel extends Model
             }
 
             if ($customDuration <= 0) {
-                throw new Exception('Seleziona un orario di fine valido per l impegno personale.');
+                throw new Exception('Seleziona un orario di fine valido per l’impegno personale.');
             }
 
             return [
@@ -623,7 +623,7 @@ class AgendaAppointmentModel extends Model
             }
 
             if ($existingAppointment === null && (int) ($typeRow['attivo'] ?? 0) !== 1) {
-                throw new Exception('Il tipo visita selezionato non e attivo.');
+                throw new Exception('Il tipo visita selezionato non è attivo.');
             }
 
             return [
@@ -718,7 +718,7 @@ class AgendaAppointmentModel extends Model
         $customEnd = date('Y-m-d', $startTimestamp) . ' ' . $customTime . ':00';
         $endTimestamp = strtotime($customEnd);
         if ($endTimestamp === false || $endTimestamp <= $startTimestamp) {
-            throw new Exception('L ora finale personalizzata deve essere successiva all ora iniziale.');
+            throw new Exception('L’ora finale personalizzata deve essere successiva all’ora iniziale.');
         }
 
         return date('Y-m-d H:i:s', $endTimestamp);
@@ -777,7 +777,7 @@ class AgendaAppointmentModel extends Model
             }
 
             if ($rowStartTimestamp > $coverageCursorTimestamp) {
-                throw new Exception('L intervallo personalizzato attraversa una fascia senza slot disponibili.');
+                throw new Exception('L’intervallo personalizzato attraversa una fascia senza slot disponibili.');
             }
 
             if (strtoupper(trim((string) ($row['stato'] ?? ''))) === 'CHIUSO') {
@@ -785,11 +785,11 @@ class AgendaAppointmentModel extends Model
             }
 
             if ($this->slotHasActiveAppointment($slotId, $ignoreAppointmentId)) {
-                throw new Exception('Uno degli slot coinvolti e gia occupato da un altro appuntamento.');
+                throw new Exception('Uno degli slot coinvolti e già occupato da un altro appuntamento.');
             }
 
             if ($this->slotHasActiveLock($slotId, $allowedLockToken)) {
-                throw new Exception('Uno degli slot coinvolti e in modifica da un altro operatore.');
+                throw new Exception('Uno degli slot coinvolti è in modifica da un altro operatore.');
             }
 
             if ($slotId === $primarySlotId) {
@@ -806,7 +806,7 @@ class AgendaAppointmentModel extends Model
         }
 
         if ($coverageCursorTimestamp < $endTimestamp) {
-            throw new Exception('Non ci sono abbastanza slot disponibili per completare l appuntamento.');
+            throw new Exception('Non ci sono abbastanza slot disponibili per completare l’appuntamento.');
         }
 
         array_unshift($coveredSlots, $primaryCoveredSlot);
@@ -868,7 +868,7 @@ class AgendaAppointmentModel extends Model
             }
 
             if ($this->slotHasActiveLock($slotId, $allowedLockToken)) {
-                throw new Exception('Uno degli slot consecutivi necessari e in modifica da un altro operatore.');
+                throw new Exception('Uno degli slot consecutivi necessari è in modifica da un altro operatore.');
             }
 
             $slotDuration = $this->getSlotDurationMinutes($row);
@@ -885,7 +885,7 @@ class AgendaAppointmentModel extends Model
             }
 
             if ($coveredDuration > $requiredDurationMinutes) {
-                throw new Exception('La durata del tipo visita non e compatibile con la griglia degli slot disponibili in questo punto dell agenda.');
+                throw new Exception('La durata del tipo visita non è compatibile con la griglia degli slot disponibili in questo punto dell’agenda.');
             }
         }
 
@@ -1022,7 +1022,7 @@ class AgendaAppointmentModel extends Model
     {
         $slotIds = array_values(array_unique(array_filter(array_map('intval', $slotIds))));
         if ($slotIds === []) {
-            throw new Exception('Nessuno slot disponibile per l appuntamento.');
+            throw new Exception('Nessuno slot disponibile per l’appuntamento.');
         }
 
         sort($slotIds);
@@ -1033,7 +1033,7 @@ class AgendaAppointmentModel extends Model
         )->getResultArray();
 
         if (count($rows) !== count($slotIds)) {
-            throw new Exception('Uno degli slot coinvolti non e piu disponibile.');
+            throw new Exception('Uno degli slot coinvolti non è più disponibile.');
         }
     }
 
@@ -1048,7 +1048,7 @@ class AgendaAppointmentModel extends Model
         foreach (array_values(array_unique(array_filter(array_map('intval', $slotIds)))) as $slotId) {
             $slot = $this->loadSlotRow($slotId);
             if (!$slot) {
-                throw new Exception('Uno degli slot coinvolti non e piu disponibile.');
+                throw new Exception('Uno degli slot coinvolti non è più disponibile.');
             }
 
             if (strtoupper(trim((string) ($slot['stato'] ?? ''))) === 'CHIUSO') {
@@ -1056,11 +1056,11 @@ class AgendaAppointmentModel extends Model
             }
 
             if ($this->slotHasActiveAppointment($slotId, $ignoreAppointmentId)) {
-                throw new Exception('Uno degli slot coinvolti e gia occupato da un altro appuntamento.');
+                throw new Exception('Uno degli slot coinvolti e già occupato da un altro appuntamento.');
             }
 
             if ($this->slotHasActiveLock($slotId, $allowedLockToken)) {
-                throw new Exception('Uno degli slot coinvolti e in modifica da un altro operatore.');
+                throw new Exception('Uno degli slot coinvolti è in modifica da un altro operatore.');
             }
         }
     }
@@ -1194,13 +1194,13 @@ class AgendaAppointmentModel extends Model
 
             foreach (['id_tipo_visita', 'tipo_visita_label', 'durata_minuti', 'ora_fine_appuntamento'] as $field) {
                 if (!$this->appointmentTableHasField($field)) {
-                    throw new Exception('La struttura del database non e aggiornata per gestire i tipi visita.');
+                    throw new Exception('La struttura del database non è aggiornata per gestire i tipi visita.');
                 }
             }
         }
 
         if ($usesSpan && !$this->appointmentSlotLinkTableExists()) {
-            throw new Exception('La struttura del database non e aggiornata per gestire appuntamenti su piu slot.');
+            throw new Exception('La struttura del database non è aggiornata per gestire appuntamenti su più slot.');
         }
     }
 
@@ -1210,7 +1210,7 @@ class AgendaAppointmentModel extends Model
     private function assertAppointmentSpanSchemaReady(array $coveredSlots): void
     {
         if (count($coveredSlots) > 1 && !$this->appointmentSlotLinkTableExists()) {
-            throw new Exception('La struttura del database non e aggiornata per gestire appuntamenti su piu slot.');
+            throw new Exception('La struttura del database non è aggiornata per gestire appuntamenti su più slot.');
         }
     }
 

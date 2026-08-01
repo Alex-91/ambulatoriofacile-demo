@@ -2,7 +2,7 @@
 
 ## Obiettivo
 
-Elencare i punti del codice piu esposti per la demo commerciale, in modo da sapere dove intervenire dopo senza toccare a caso l'applicativo.
+Elencare i punti del codice più esposti per la demo commerciale, in modo da sapere dove intervenire dopo senza toccare a caso l'applicativo.
 
 Questa mappa non cambia il comportamento dell'app: serve solo a guidare il refactoring demo e a mantenere coerente il branding.
 
@@ -13,7 +13,7 @@ Il brand da esporre nella demo e:
 - `AmbulatorioFacile`
 - descrizioni coerenti con una piattaforma operativa moderna
 
-## Punti ad alta visibilita
+## Punti ad alta visibilità
 
 ### PWA e browser shell
 
@@ -97,9 +97,9 @@ Intervenire in questo ordine:
 
 1. branding demo esterno
 2. titoli e descrizioni
-3. testi utente piu visibili
+3. testi utente più visibili
 4. etichette configurabili
-5. solo dopo, eventuale generalizzazione piu profonda
+5. solo dopo, eventuale generalizzazione più profonda
 
 ## Nota importante
 

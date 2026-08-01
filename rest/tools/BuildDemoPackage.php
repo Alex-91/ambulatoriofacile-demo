@@ -428,7 +428,7 @@ function writeRuntimeReadme(string $runtimePath, array $config): void
     $content = [
         (string)$config['brand'] . ' - runtime demo sanitizzata',
         '',
-        'Questa copia e stata generata per una demo condivisibile:',
+        'Questa copia è stata generata per una demo condivisibile:',
         '- brand demo: ' . $config['brand'],
         '- database previsto: ' . $config['target_db'],
         '- nessun allegato reale copiato da upload/',

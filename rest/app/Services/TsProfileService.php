@@ -40,6 +40,7 @@ class TsProfileService
             'sender_types' => $this->config->senderTypes,
             'supported_expense_types' => $this->config->supportedExpenseTypes,
             'supported_expense_details' => $this->config->resolveExpenseTypeDetails(),
+            'supported_document_types' => $this->config->supportedDocumentTypes,
             'payment_modes' => $this->config->paymentModes,
             'supported_environments' => array_keys($this->config->environments),
             'test_presets' => $testPresets,
@@ -52,6 +53,68 @@ class TsProfileService
     public function getDefaultProfileForTenant(int $tenantId): ?array
     {
         return $this->profiles->findDefaultProfileForTenant($tenantId);
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function resolveServiceExpenseTypeMapForTenant(int $tenantId): array
+    {
+        $profile = $this->profiles->findDefaultProfileForTenant($tenantId);
+
+        return is_array($profile) ? $this->resolveServiceExpenseTypeMap($profile) : [];
+    }
+
+    /**
+     * @param array<string, mixed> $profile
+     * @return array<string, string>
+     */
+    public function resolveServiceExpenseTypeMap(array $profile): array
+    {
+        $metadata = $this->decodeMetadata((string) ($profile['metadata_json'] ?? ''));
+        $items = $this->normalizeServiceExpenseTypes(
+            is_array($metadata['service_expense_types'] ?? null) ? $metadata['service_expense_types'] : []
+        );
+        $map = [];
+
+        foreach ($items as $item) {
+            $key = $this->serviceCatalogKey((string) ($item['description'] ?? ''));
+            if ($key !== '') {
+                $map[$key] = (string) ($item['expense_type_code'] ?? '');
+            }
+        }
+
+        return $map;
+    }
+
+    /**
+     * Restituisce un codice automatico solo quando tutte le prestazioni della fattura
+     * sono configurate con lo stesso tipo di spesa TS.
+     *
+     * @param array<int, array<string, mixed>> $lineItems
+     */
+    public function resolveExpenseTypeForLineItems(int $tenantId, array $lineItems): ?string
+    {
+        $map = $this->resolveServiceExpenseTypeMapForTenant($tenantId);
+        if ($map === [] || $lineItems === []) {
+            return null;
+        }
+
+        $resolvedCodes = [];
+        foreach ($lineItems as $lineItem) {
+            if (!is_array($lineItem)) {
+                continue;
+            }
+
+            $key = $this->serviceCatalogKey((string) ($lineItem['description'] ?? ''));
+            if ($key === '' || !isset($map[$key])) {
+                return null;
+            }
+
+            $resolvedCodes[$map[$key]] = true;
+        }
+
+        return count($resolvedCodes) === 1 ? (string) array_key_first($resolvedCodes) : null;
     }
 
     public function findProfileById(int $profileId, ?int $tenantId = null): ?array
@@ -153,7 +216,7 @@ class TsProfileService
 
         $saved = $this->profiles->findDefaultProfileForTenant($tenantId);
         if ($saved === null) {
-            throw new \RuntimeException('Profilo TS salvato ma non piu reperibile.');
+            throw new \RuntimeException('Profilo TS salvato ma non più reperibile.');
         }
 
         return $saved;
@@ -226,7 +289,7 @@ class TsProfileService
                 'asl_code' => '',
                 'ssa_code' => '',
                 'auth_username' => '',
-                'environment' => 'test',
+                'environment' => 'production',
                 'is_enabled' => 1,
                 'has_owner_cf' => false,
                 'has_auth_password' => false,
@@ -237,6 +300,8 @@ class TsProfileService
                 'credential_mode' => 'manual',
                 'test_preset_key' => '',
                 'test_preset_label' => '',
+                'document_defaults' => $this->defaultDocumentDefaults(),
+                'service_expense_types' => [],
             ];
         }
 
@@ -263,6 +328,109 @@ class TsProfileService
             'credential_mode' => trim((string) ($metadata['credential_mode'] ?? 'manual')) ?: 'manual',
             'test_preset_key' => trim((string) ($metadata['test_preset_key'] ?? '')),
             'test_preset_label' => trim((string) ($metadata['test_preset_label'] ?? '')),
+            'document_defaults' => $this->normalizeDocumentDefaults([], (array) ($metadata['document_defaults'] ?? [])),
+            'service_expense_types' => $this->normalizeServiceExpenseTypes(
+                is_array($metadata['service_expense_types'] ?? null) ? $metadata['service_expense_types'] : []
+            ),
+        ];
+    }
+
+    /**
+     * @param array<int, mixed> $items
+     * @return list<array{description: string, expense_type_code: string}>
+     */
+    private function normalizeServiceExpenseTypes(array $items): array
+    {
+        $normalized = [];
+        $known = [];
+
+        foreach ($items as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+
+            $description = $this->normalizeString($item['description'] ?? '', 190);
+            $expenseType = strtoupper($this->normalizeString($item['expense_type_code'] ?? '', 4));
+            $key = $this->serviceCatalogKey($description);
+            if ($key === '' || isset($known[$key]) || !array_key_exists($expenseType, $this->config->supportedExpenseTypes)) {
+                continue;
+            }
+
+            $normalized[] = [
+                'description' => $description,
+                'expense_type_code' => $expenseType,
+            ];
+            $known[$key] = true;
+
+            if (count($normalized) >= 30) {
+                break;
+            }
+        }
+
+        return $normalized;
+    }
+
+    private function serviceCatalogKey(string $description): string
+    {
+        $description = preg_replace('/\s+/', ' ', trim($description)) ?? '';
+
+        return mb_strtolower($description);
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     * @param array<string, mixed> $existing
+     * @return array<string, mixed>
+     */
+    private function normalizeDocumentDefaults(array $payload, array $existing = []): array
+    {
+        $defaults = $this->defaultDocumentDefaults();
+        $documentType = strtoupper($this->normalizeString(
+            $payload['default_document_type'] ?? ($existing['document_type'] ?? $defaults['document_type']),
+            4
+        ));
+        if (!array_key_exists($documentType, $this->config->supportedDocumentTypes)) {
+            $documentType = (string) $defaults['document_type'];
+        }
+
+        $expenseType = strtoupper($this->normalizeString(
+            $payload['default_expense_type_code'] ?? ($existing['expense_type_code'] ?? $defaults['expense_type_code']),
+            4
+        ));
+        if (!array_key_exists($expenseType, $this->config->supportedExpenseTypes)) {
+            $expenseType = (string) $defaults['expense_type_code'];
+        }
+
+        $paymentMode = strtolower($this->normalizeString(
+            $payload['default_payment_mode'] ?? ($existing['payment_mode'] ?? $defaults['payment_mode']),
+            20
+        ));
+        if (!array_key_exists($paymentMode, $this->config->paymentModes)) {
+            $paymentMode = (string) $defaults['payment_mode'];
+        }
+
+        $oppositionValue = array_key_exists('default_opposition_flag', $payload)
+            ? $payload['default_opposition_flag']
+            : ($existing['opposition_flag'] ?? $defaults['opposition_flag']);
+
+        return [
+            'document_type' => $documentType,
+            'expense_type_code' => $expenseType,
+            'payment_mode' => $paymentMode,
+            'opposition_flag' => in_array(strtolower(trim((string) $oppositionValue)), ['1', 'true', 'on', 'yes'], true),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function defaultDocumentDefaults(): array
+    {
+        return [
+            'document_type' => 'F',
+            'expense_type_code' => 'SP',
+            'payment_mode' => 'tracciato',
+            'opposition_flag' => false,
         ];
     }
 
@@ -274,9 +442,6 @@ class TsProfileService
     private function normalizePayloadForSave(array $payload, ?array $current): array
     {
         $currentMetadata = $this->decodeMetadata((string) ($current['metadata_json'] ?? ''));
-        $selectedTestPresetKey = $this->normalizeString($payload['test_preset_key'] ?? '', 120);
-        $selectedTestPreset = $this->findTestPresetByKey($selectedTestPresetKey);
-
         $profileName = $this->normalizeString($payload['profile_name'] ?? 'Profilo TS principale', 120);
         $senderType = $this->normalizeString($payload['sender_type'] ?? '', 40);
         $ownerPiva = preg_replace('/\D+/', '', (string) ($payload['owner_piva'] ?? '')) ?? '';
@@ -287,27 +452,23 @@ class TsProfileService
         $authUsername = $this->normalizeString($payload['auth_username'] ?? '', 120);
         $authPassword = (string) ($payload['auth_password'] ?? '');
         $pincode = trim((string) ($payload['pincode'] ?? ''));
-        $environment = $this->normalizeEnvironment($payload['environment'] ?? 'test');
-
-        if (is_array($selectedTestPreset)) {
-            $profileName = $profileName !== '' ? $profileName : $this->normalizeString($selectedTestPreset['profile_name'] ?? '', 120);
-            $senderType = $senderType !== '' ? $senderType : $this->normalizeString($selectedTestPreset['sender_type'] ?? '', 40);
-            $ownerPiva = $ownerPiva !== '' ? $ownerPiva : (preg_replace('/\D+/', '', (string) ($selectedTestPreset['owner_piva'] ?? '')) ?? '');
-            $ownerCf = $ownerCf !== '' ? $ownerCf : $this->normalizeUpperString($selectedTestPreset['owner_cf'] ?? '');
-            $regionCode = $regionCode !== '' ? $regionCode : $this->normalizeUpperString($selectedTestPreset['region_code'] ?? '', 3);
-            $aslCode = $aslCode !== '' ? $aslCode : $this->normalizeUpperString($selectedTestPreset['asl_code'] ?? '', 3);
-            $ssaCode = $ssaCode !== '' ? $ssaCode : $this->normalizeUpperString($selectedTestPreset['ssa_code'] ?? '', 6);
-            $authUsername = $authUsername !== '' ? $authUsername : $this->normalizeString($selectedTestPreset['auth_username'] ?? '', 120);
-            $authPassword = $authPassword !== '' ? $authPassword : (string) ($selectedTestPreset['auth_password'] ?? '');
-            $pincode = $pincode !== '' ? $pincode : trim((string) ($selectedTestPreset['pincode'] ?? ''));
-            $environment = 'test';
-        }
+        // Il profilo cliente usa sempre l’endpoint operativo: nessuna scelta ambiente in interfaccia.
+        $environment = 'production';
 
         $metadata = $currentMetadata;
-        $metadata['credential_mode'] = is_array($selectedTestPreset) ? 'official_test_preset' : 'manual';
-        $metadata['test_preset_key'] = is_array($selectedTestPreset) ? (string) ($selectedTestPreset['key'] ?? '') : '';
-        $metadata['test_preset_label'] = is_array($selectedTestPreset) ? (string) ($selectedTestPreset['label'] ?? '') : '';
-        $metadata['test_preset_source'] = is_array($selectedTestPreset) ? (string) ($selectedTestPreset['source'] ?? '') : '';
+        $metadata['credential_mode'] = 'manual';
+        $metadata['test_preset_key'] = '';
+        $metadata['test_preset_label'] = '';
+        $metadata['test_preset_source'] = '';
+        $metadata['document_defaults'] = $this->normalizeDocumentDefaults(
+            $payload,
+            is_array($currentMetadata['document_defaults'] ?? null) ? $currentMetadata['document_defaults'] : []
+        );
+        $metadata['service_expense_types'] = $this->normalizeServiceExpenseTypes(
+            is_array($payload['service_expense_types'] ?? null)
+                ? $payload['service_expense_types']
+                : (is_array($currentMetadata['service_expense_types'] ?? null) ? $currentMetadata['service_expense_types'] : [])
+        );
 
         foreach (['test_preset_key', 'test_preset_label', 'test_preset_source'] as $metadataKey) {
             if (trim((string) ($metadata[$metadataKey] ?? '')) === '') {
@@ -361,19 +522,19 @@ class TsProfileService
         if (trim((string) ($state['sender_type'] ?? '')) === '') {
             $errors[] = 'Seleziona il tipo soggetto TS.';
         } elseif (!array_key_exists((string) ($state['sender_type'] ?? ''), $this->config->senderTypes)) {
-            $errors[] = 'Il tipo soggetto TS selezionato non e supportato.';
+            $errors[] = 'Il tipo soggetto TS selezionato non è supportato.';
         }
 
         $ownerPiva = trim((string) ($state['owner_piva'] ?? ''));
         if ($ownerPiva === '') {
-            $errors[] = 'Inserisci la Partita IVA dell erogatore.';
+            $errors[] = 'Inserisci la Partita IVA dell’erogatore.';
         } elseif (!$this->isValidPartitaIva($ownerPiva) && !$isOfficialTestPreset) {
-            $errors[] = 'La Partita IVA inserita non e formalmente valida.';
+            $errors[] = 'La Partita IVA inserita non è formalmente valida.';
         }
 
         $ownerCf = trim((string) ($state['owner_cf'] ?? ''));
         if ($ownerCf !== '' && !$this->isPlausibleCodiceFiscale($ownerCf) && !$isOfficialTestPreset) {
-            $errors[] = 'Il Codice Fiscale del titolare non e formalmente valido.';
+            $errors[] = 'Il Codice Fiscale del titolare non è formalmente valido.';
         }
 
         if (trim((string) ($state['auth_username'] ?? '')) === '') {

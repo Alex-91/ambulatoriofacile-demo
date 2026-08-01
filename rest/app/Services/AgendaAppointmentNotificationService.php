@@ -292,7 +292,7 @@ class AgendaAppointmentNotificationService
     {
         $lines = [
             'Gentile ' . $patientLabel . ',',
-            'il suo appuntamento e stato registrato con ' . $doctorLabel . '.',
+            'il suo appuntamento è stato registrato con ' . $doctorLabel . '.',
             'Data e ora: ' . $scheduledFor . '.',
         ];
 

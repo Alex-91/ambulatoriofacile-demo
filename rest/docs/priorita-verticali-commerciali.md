@@ -1,28 +1,28 @@
-# Priorita verticali commerciali
+# Priorità verticali commerciali
 
 ## Decisione consigliata
 
 Non allargare subito il prodotto a tanti settori insieme.
 
-La scelta piu efficace e:
+La scelta più efficace e:
 
-1. vendere subito il verticale sanitario leggero che esiste gia
+1. vendere subito il verticale sanitario leggero che esiste già
 2. preparare come seconda verticale `sport medicale / fisioterapia / riabilitazione`
 3. preparare come terza verticale `medicina estetica / wellness professionale`
 4. rimandare `parrucchieri / barber / beauty puro` a una fase successiva
 
-## Perche questa scelta
+## Perché questa scelta
 
-Il criterio non e solo "chi usa prenotazioni", ma:
+Il criterio non è solo "chi usa prenotazioni", ma:
 
-- quanto il prodotto attuale e gia compatibile
+- quanto il prodotto attuale e già compatibile
 - quanto poco devi cambiare per venderlo
 - quanto valore percepito puoi avere
 - quanto il cliente medio ha bisogno di ruoli, reminder, comunicazione e agenda avanzata
 
-## Matrice di priorita
+## Matrice di priorità
 
-### Priorita 1: vendere subito
+### Priorità 1: vendere subito
 
 #### Studi medici, specialisti, poliambulatori
 
@@ -30,7 +30,7 @@ Il criterio non e solo "chi usa prenotazioni", ma:
 - sforzo di adattamento: basso
 - valore percepito: alto
 - ticket medio potenziale: alto
-- motivo: agenda, ruoli, reminder, OTP, comunicazione e sedi sono gia centrali nel codice
+- motivo: agenda, ruoli, reminder, OTP, comunicazione e sedi sono già centrali nel codice
 
 #### Centri medici sportivi
 
@@ -46,9 +46,9 @@ Il criterio non e solo "chi usa prenotazioni", ma:
 - sforzo di adattamento: medio-basso
 - valore percepito: alto
 - ticket medio potenziale: medio-alto
-- motivo: multi-operatore, sale, follow-up, reminder e gestione prenotazioni sono gia molto coerenti
+- motivo: multi-operatore, sale, follow-up, reminder e gestione prenotazioni sono già molto coerenti
 
-### Priorita 2: preparare dopo la demo
+### Priorità 2: preparare dopo la demo
 
 #### Medicina estetica
 
@@ -56,7 +56,7 @@ Il criterio non e solo "chi usa prenotazioni", ma:
 - sforzo di adattamento: medio
 - valore percepito: alto
 - ticket medio potenziale: alto
-- motivo: la struttura regge bene, ma servono naming meno clinici e piu orientati a trattamenti e servizi
+- motivo: la struttura regge bene, ma servono naming meno clinici e più orientati a trattamenti e servizi
 
 #### Centri wellness professionali
 
@@ -64,7 +64,7 @@ Il criterio non e solo "chi usa prenotazioni", ma:
 - sforzo di adattamento: medio
 - valore percepito: medio-alto
 - ticket medio potenziale: medio
-- motivo: agenda, staff, stanze e reminder funzionano bene, ma i workflow diventano meno sanitari e piu commerciali
+- motivo: agenda, staff, stanze e reminder funzionano bene, ma i workflow diventano meno sanitari e più commerciali
 
 #### Veterinaria
 
@@ -74,7 +74,7 @@ Il criterio non e solo "chi usa prenotazioni", ma:
 - ticket medio potenziale: medio
 - motivo: la logica appuntamenti e molto vicina, ma serve introdurre il concetto cliente-animale
 
-### Priorita 3: non adesso
+### Priorità 3: non adesso
 
 #### Centri estetici
 
@@ -82,7 +82,7 @@ Il criterio non e solo "chi usa prenotazioni", ma:
 - sforzo di adattamento: medio-alto
 - valore percepito: alto
 - ticket medio potenziale: medio
-- motivo: il mercato e interessante, ma spesso si aspetta gia pacchetti, fidelizzazione, caparre e listini piu dinamici
+- motivo: il mercato e interessante, ma spesso si aspetta già pacchetti, fidelizzazione, caparre e listini più dinamici
 
 #### Parrucchieri e barber shop
 
@@ -90,7 +90,7 @@ Il criterio non e solo "chi usa prenotazioni", ma:
 - sforzo di adattamento: alto
 - valore percepito: medio
 - ticket medio potenziale: medio-basso
-- motivo: il mercato e grande ma molto competitivo e abituato a software piu semplici o molto specializzati
+- motivo: il mercato e grande ma molto competitivo e abituato a software più semplici o molto specializzati
 
 #### Nails, lashes, brow bar
 
@@ -100,16 +100,16 @@ Il criterio non e solo "chi usa prenotazioni", ma:
 - ticket medio potenziale: medio-basso
 - motivo: servono molte funzioni commerciali e customer-oriented che oggi non sono il cuore del prodotto
 
-## Cosa manca ai verticali piu "beauty"
+## Cosa manca ai verticali più "beauty"
 
 Questi verticali non sono sbagliati, ma per entrarci bene servirebbero prima:
 
 - pagamenti online o caparre
 - pacchetti e abbonamenti
 - gift card o loyalty
-- listino servizi piu avanzato
-- gestione tempi per servizio piu flessibile
-- piu marketing e meno linguaggio clinico
+- listino servizi più avanzato
+- gestione tempi per servizio più flessibile
+- più marketing e meno linguaggio clinico
 
 Per questo motivo non li sceglierei come primo ingresso commerciale.
 
@@ -126,7 +126,7 @@ Con questi due verticali:
 
 - riusi quasi tutto il valore attuale
 - fai meno refactoring iniziale
-- hai una demo credibile piu in fretta
+- hai una demo credibile più in fretta
 - mantieni un posizionamento professionale e ad alto valore
 - eviti di entrare subito in mercati dove vincono listino, marketing e pagamenti
 
@@ -170,11 +170,11 @@ Solo in un secondo tempo, se vuoi entrare nel beauty puro:
 
 ## Decisione finale consigliata
 
-La mossa piu intelligente oggi non e:
+La mossa più intelligente oggi non è:
 
 `vendiamolo a tutti quelli che prendono appuntamenti`
 
-La mossa piu intelligente oggi e:
+La mossa più intelligente oggi e:
 
 `vendiamolo prima ai settori dove il prodotto e gia forte e distintivo`
 
@@ -183,7 +183,7 @@ Quindi:
 1. sanitario leggero
 2. sport medicale e riabilitazione
 3. medicina estetica
-4. beauty puro piu avanti
+4. beauty puro più avanti
 
 ## Fonti esterne consultate
 

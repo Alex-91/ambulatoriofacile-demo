@@ -260,7 +260,7 @@
                     <div id="visitTypesFlash" style="display:none;"></div>
 
                     <div class="visit-types-hero">
-                        <h3>Configura una volta, prenota piu veloce</h3>
+                        <h3>Configura una volta, prenota più veloce</h3>
                         <p>
                             Qui decidi nome e durata dei tipi visita. Quando in agenda scegli un tipo visita,
                             il sistema controlla se ci sono abbastanza slot consecutivi liberi e li occupa con un unico appuntamento.
@@ -631,7 +631,7 @@ $(function() {
             attivo: attivo
         }, function(res) {
             if (!res || res.status !== true) {
-                showVisitTypesFlash('error', (res && res.message) ? res.message : 'Errore durante l aggiornamento del tipo visita.');
+                showVisitTypesFlash('error', (res && res.message) ? res.message : 'Errore durante l’aggiornamento del tipo visita.');
                 return;
             }
 
@@ -641,7 +641,7 @@ $(function() {
             }
             showVisitTypesFlash('success', res.message || 'Tipo visita aggiornato correttamente.');
         }, 'json').fail(function(xhr) {
-            var message = 'Errore di rete durante l aggiornamento del tipo visita.';
+            var message = 'Errore di rete durante l’aggiornamento del tipo visita.';
             if (xhr && xhr.responseJSON && xhr.responseJSON.message) {
                 message = xhr.responseJSON.message;
             }

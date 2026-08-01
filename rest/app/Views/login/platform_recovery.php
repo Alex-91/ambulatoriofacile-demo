@@ -67,7 +67,7 @@ $errors = is_array($errors ?? null) ? $errors : [];
         <?= csrf_field() ?>
         <div class="access-card">
           <h3>Recupera accesso spazi cliente</h3>
-          <p>Inserisci l email che usi nel login unico. Se l account esiste, riceverai un link per impostare o reimpostare la password.</p>
+          <p>Inserisci l’email che usi nel login unico. Se l’account esiste, riceverai un link per impostare o reimpostare la password.</p>
         </div>
 
         <div class="row">

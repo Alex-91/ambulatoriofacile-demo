@@ -81,7 +81,7 @@ class ResetController extends BaseController
             }
 
             if (!isset($json->username) || trim((string) $json->username) === '') {
-                $this->logErrorLogin('checkUsername', 'Username mancante o vuoto nel recupero password. Non e possibile cercare l utente in dap01_users.');
+                $this->logErrorLogin('checkUsername', 'Username mancante o vuoto nel recupero password. Non è possibile cercare l’utente in dap01_users.');
                 return $this->response->setJSON(['error' => 'Username mancante'])->setStatusCode(400);
             }
             
@@ -104,7 +104,7 @@ class ResetController extends BaseController
                         (int) ($utentePresente['tipo_user'] ?? 0)
                     );
                 } else {
-                    $this->logErrorLogin('checkUsername', 'Utente non trovato in dap01_users durante il recupero password. Il frontend mostra errorLogin perche il codice fiscale/username non e registrato.', [
+                    $this->logErrorLogin('checkUsername', 'Utente non trovato in dap01_users durante il recupero password. Il frontend mostra errorLogin perché il codice fiscale/username non è registrato.', [
                         'username' => $codice_fiscale,
                     ]);
                     return $this->response->setJSON(['error' => "Utente non trovato."])->setStatusCode(500);
@@ -124,7 +124,7 @@ class ResetController extends BaseController
             );
 
             if (!$cellulareData) {
-                $this->logErrorLogin('checkUsername', 'Cellulare non recuperato per utente esistente. Il reset non puo proseguire perche manca il recapito da usare nel flusso OTP/reset.', [
+                $this->logErrorLogin('checkUsername', 'Cellulare non recuperato per utente esistente. Il reset non può proseguire perché manca il recapito da usare nel flusso OTP/reset.', [
                     'username'  => $codice_fiscale,
                     'id_user'   => (int) ($utentePresente['id_user'] ?? 0),
                     'tipo_user' => (int) ($utentePresente['tipo_user'] ?? 0),
@@ -154,7 +154,7 @@ session()->remove('tipoUser');
 
 return $this->response->setJSON(['success' => true]);
         } catch (\Throwable $e) {
-            $this->logErrorLogin('checkUsername', 'Eccezione durante il recupero password: il frontend ricevera errore e puo mostrare errorLogin. Dettaglio: ' . $e->getMessage(), [
+            $this->logErrorLogin('checkUsername', 'Eccezione durante il recupero password: il frontend riceverà errore e può mostrare errorLogin. Dettaglio: ' . $e->getMessage(), [
                 'file' => $e->getFile(),
                 'line' => $e->getLine(),
             ]);
@@ -176,7 +176,7 @@ return $this->response->setJSON(['success' => true]);
             }
 
             if ((int) session()->get('reset_flow') !== 1) {
-                $this->logErrorLogin('cambioPassword', 'Cambio password reset richiesto senza reset_flow valido in sessione. Possibile sessione scaduta o accesso diretto all endpoint.', [
+                $this->logErrorLogin('cambioPassword', 'Cambio password reset richiesto senza reset_flow valido in sessione. Possibile sessione scaduta o accesso diretto all’endpoint.', [
                     'userId' => (int) (session()->get('userId') ?? 0),
                 ]);
                 return $this->response->setJSON(['error' => 'Sessione reset non valida'])->setStatusCode(403);
@@ -194,7 +194,7 @@ return $this->response->setJSON(['success' => true]);
 
             $idUser = (int) (session()->get('userId') ?? 0);
             if ($idUser <= 0) {
-                $this->logErrorLogin('cambioPassword', 'Cambio password reset senza userId valido in sessione. Non e possibile aggiornare dap01_users in modo sicuro.');
+                $this->logErrorLogin('cambioPassword', 'Cambio password reset senza userId valido in sessione. Non è possibile aggiornare dap01_users in modo sicuro.');
                 return $this->response->setJSON(['error' => 'Utente reset non valido'])->setStatusCode(400);
             }
 
@@ -204,7 +204,7 @@ return $this->response->setJSON(['success' => true]);
                 : (isset($json->password2) ? (string) $json->password2 : null);
 
             if ($plainPassword === '') {
-                $this->logErrorLogin('cambioPassword', 'Password nuova mancante nel cambio password reset. Il box errorLogin deve indicare che la password non e valorizzata.', [
+                $this->logErrorLogin('cambioPassword', 'Password nuova mancante nel cambio password reset. Il box errorLogin deve indicare che la password non è valorizzata.', [
                     'userId' => $idUser,
                 ]);
                 return $this->response->setJSON(['error' => 'Password mancante'])->setStatusCode(400);
@@ -280,7 +280,7 @@ return $this->response->setJSON(['success' => true]);
             
             $this->db->transComplete();
             if ($this->db->transStatus() === false) {
-                $this->logErrorLogin('cambioPassword', 'Transazione fallita durante aggiornamento password reset su dap01_users. La password non e stata aggiornata.', [
+                $this->logErrorLogin('cambioPassword', 'Transazione fallita durante aggiornamento password reset su dap01_users. La password non è stata aggiornata.', [
                     'userId' => $idUser,
                 ]);
                 return $this->response->setJSON(['error' => 'Errore durante la modifica.'])->setStatusCode(500);
@@ -310,7 +310,7 @@ return $this->response->setJSON(['success' => true]);
             'redirectUrl' => base_url('/')   // ✅ TORNA SEMPRE QUI
         ]);
         } catch (\Throwable $e) {
-            $this->logErrorLogin('cambioPassword', 'Eccezione durante il cambio password reset: il frontend ricevera errore e puo mostrare errorLogin. Dettaglio: ' . $e->getMessage(), [
+            $this->logErrorLogin('cambioPassword', 'Eccezione durante il cambio password reset: il frontend riceverà errore e può mostrare errorLogin. Dettaglio: ' . $e->getMessage(), [
                 'userId' => (int) (session()->get('userId') ?? 0),
                 'file'   => $e->getFile(),
                 'line'   => $e->getLine(),
@@ -383,7 +383,7 @@ return $this->response->setJSON(['success' => true]);
 
         if (count($matches) !== 1) {
             if (count($matches) > 1) {
-                $this->logErrorLogin('checkUsername', 'Username presente in piu spazi tenant durante il recupero password. Richiesta non gestita automaticamente per evitare reset sullo spazio sbagliato.', [
+                $this->logErrorLogin('checkUsername', 'Username presente in più spazi tenant durante il recupero password. Richiesta non gestita automaticamente per evitare reset sullo spazio sbagliato.', [
                     'username' => $username,
                     'tenant_ids' => array_map(static fn(array $match): int => (int) ($match['tenant']['id_tenant'] ?? 0), $matches),
                 ]);

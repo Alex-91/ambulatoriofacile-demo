@@ -29,14 +29,14 @@ class TsDocumentValidationService
         if (!is_array($profile) || (int) ($profile['id_ts_profile'] ?? 0) <= 0) {
             $errors[] = 'Nessun profilo TS disponibile per questo spazio.';
         } elseif ((int) ($profile['is_enabled'] ?? 0) !== 1) {
-            $errors[] = 'Il profilo TS dello spazio non e attivo.';
+            $errors[] = 'Il profilo TS dello spazio non è attivo.';
         }
 
         $senderPiva = trim((string) ($payload['sender_piva_snapshot'] ?? ''));
         if ($senderPiva === '') {
             $errors[] = 'Partita IVA erogatore mancante.';
         } elseif (!$this->isValidPartitaIva($senderPiva) && !$isOfficialTestPreset) {
-            $errors[] = 'La Partita IVA erogatore non e formalmente valida.';
+            $errors[] = 'La Partita IVA erogatore non è formalmente valida.';
         }
 
         $documentNumber = trim((string) ($payload['document_number'] ?? ''));
@@ -55,7 +55,7 @@ class TsDocumentValidationService
 
         $issueDate = trim((string) ($payload['issue_date'] ?? ''));
         if (!$this->isValidDate($issueDate)) {
-            $errors[] = 'La data emissione non e valida.';
+            $errors[] = 'La data emissione non è valida.';
         }
 
         if ($isCancellation) {
@@ -68,39 +68,39 @@ class TsDocumentValidationService
 
         $paymentDate = trim((string) ($payload['payment_date'] ?? ''));
         if (!$this->isValidDate($paymentDate)) {
-            $errors[] = 'La data pagamento non e valida.';
+            $errors[] = 'La data pagamento non è valida.';
         }
 
         if ($this->isValidDate($issueDate) && $this->isValidDate($paymentDate) && $paymentDate < $issueDate) {
-            $warnings[] = 'La data pagamento e precedente alla data emissione: verifica se e corretto.';
+            $warnings[] = 'La data pagamento è precedente alla data emissione: verifica se è corretto.';
         }
 
         $documentType = strtoupper(trim((string) ($payload['document_type'] ?? '')));
         if ($documentType === '') {
             $errors[] = 'Seleziona il tipo documento TS.';
         } elseif (!array_key_exists($documentType, $this->config->supportedDocumentTypes)) {
-            $errors[] = 'Il tipo documento selezionato non e supportato dal modulo.';
+            $errors[] = 'Il tipo documento selezionato non è supportato dal modulo.';
         }
 
         $patientCf = strtoupper(trim((string) ($payload['patient_cf_plain'] ?? '')));
         if ($patientCf === '') {
             $errors[] = 'Inserisci il Codice Fiscale del paziente.';
         } elseif (!$this->isPlausibleCodiceFiscale($patientCf)) {
-            $errors[] = 'Il Codice Fiscale del paziente non e formalmente valido.';
+            $errors[] = 'Il Codice Fiscale del paziente non è formalmente valido.';
         }
 
         $expenseTypeCode = strtoupper(trim((string) ($payload['expense_type_code'] ?? '')));
         if ($expenseTypeCode === '') {
             $errors[] = 'Seleziona il tipo spesa.';
         } elseif (!array_key_exists($expenseTypeCode, $this->config->supportedExpenseTypes)) {
-            $errors[] = 'Il tipo spesa selezionato non e supportato dal modulo.';
+            $errors[] = 'Il tipo spesa selezionato non è supportato dal modulo.';
         }
 
         $paymentMode = trim((string) ($payload['payment_mode'] ?? ''));
         if ($paymentMode === '') {
-            $errors[] = 'Seleziona la modalita di pagamento.';
+            $errors[] = 'Seleziona la modalità di pagamento.';
         } elseif (!array_key_exists($paymentMode, $this->config->paymentModes)) {
-            $errors[] = 'La modalita di pagamento selezionata non e valida.';
+            $errors[] = 'La modalità di pagamento selezionata non è valida.';
         }
 
         $amountTotal = (float) ($payload['amount_total'] ?? 0);
@@ -119,9 +119,9 @@ class TsDocumentValidationService
 
         if ($vatRatePresent) {
             if ($vatRate === null || $vatRate < 0 || $vatRate > 100) {
-                $errors[] = 'L aliquota IVA deve essere compresa tra 0,00 e 100,00.';
+                $errors[] = 'L’aliquota IVA deve essere compresa tra 0,00 e 100,00.';
             } elseif (round($vatRate, 2) !== $vatRate) {
-                $errors[] = 'L aliquota IVA puo avere al massimo due decimali.';
+                $errors[] = 'L aliquota IVA può avere al massimo due decimali.';
             }
         }
 
@@ -134,7 +134,7 @@ class TsDocumentValidationService
         }
 
         if ($duplicateFound && $sourceType === 'manual') {
-            $errors[] = 'Esiste gia un documento TS con lo stesso identificativo logico.';
+            $errors[] = 'Esiste già un documento TS con lo stesso identificativo logico.';
         }
 
         return [

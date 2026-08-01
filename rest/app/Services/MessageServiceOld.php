@@ -49,9 +49,9 @@ class MessageService
         $richiesta  = (int)($data['richiesta'] ?? 0); // 1=seg, 2=inf
         $version    = $data['version']      ?? 'desktop';
         $countDiv   = (int)($data['count_div'] ?? 0);
-        $stringDest = $data['string_dest']  ?? '';    // usato quando mittente Ã¨ personale
+        $stringDest = $data['string_dest']  ?? '';    // usato quando mittente è personale
 
-        // id_message pre-generato dal compose (puÃ² essere 0 se arriva da altri flussi)
+        // id_message pre-generato dal compose (può essere 0 se arriva da altri flussi)
         $idMessageFromForm = isset($data['id_message']) ? (int)$data['id_message'] : 0;
 
         // Determina contesto mittente
@@ -67,8 +67,8 @@ class MessageService
                 // MITTENTE: Cliente -> destinazione: Personale / Segreteria / Inf.
                 // =======================================================
 
-                // se ho un id_message giÃ  generato dal compose lo riuso,
-                // altrimenti ne creo uno nuovo (per compatibilitÃ  altri flussi)
+                // se ho un id_message già generato dal compose lo riuso,
+                // altrimenti ne creo uno nuovo (per compatibilità altri flussi)
                 $idMessage = $idMessageFromForm > 0
                     ? $idMessageFromForm
                     : $this->contatore->next('dap10_message');
@@ -80,7 +80,7 @@ class MessageService
                 $mitt      = 'C';
 
                 // Destinazione e flag
-                // Se il controller ti ha giÃ  calcolato dest/seg_flag/inf_flag li puoi usare,
+                // Se il controller ti ha già calcolato dest/seg_flag/inf_flag li puoi usare,
                 // altrimenti ricadi sul vecchio meccanismo con $richiesta.
                 $segFlag = isset($data['seg_flag'])
                     ? (int)$data['seg_flag']
@@ -151,7 +151,7 @@ class MessageService
                         $this->msg->insertDeletePair($idMessage, $idClient, $idMitt);
                         $this->spostaAllegatiTempInDef($idMessage, null);
 
-                        // PUSH: solo se mittente Ã¨ dottore e non bozza
+                        // PUSH: solo se mittente è dottore e non bozza
                         if ($isDoctor && !$draft) {
                             $this->sendPushToClient(
                                 $idClient,
@@ -168,7 +168,7 @@ class MessageService
                     $this->msg->insertDelete($idMessage, $idMitt);
                     $this->spostaAllegatiTempInDef($idMessage, null);
 
-                    // Nessuna push: non Ã¨ dottore â†’ paziente
+                    // Nessuna push: non è dottore → paziente
                 } else {
                     // elenco specifico di id_client passato tipo ",12,45"
                     log_message('debug', 'SERVICE stringDest=' . $stringDest);
@@ -192,7 +192,7 @@ class MessageService
                         $this->msg->insertDeletePair($idMessage, $idClient, $idMitt);
                         $this->spostaAllegatiTempInDef($idMessage, null);
 
-                        // PUSH: solo se mittente Ã¨ dottore e non bozza
+                        // PUSH: solo se mittente è dottore e non bozza
                         if ($isDoctor && !$draft) {
                             $this->sendPushToClient(
                                 $idClient,
@@ -246,7 +246,7 @@ class MessageService
             }
 
             // Mappa completa per dedurre mitt/dest del nuovo reply in base a:
-            // - chi Ã¨ connesso (cliente o personale)
+            // - chi è connesso (cliente o personale)
             // - ultimo mitt/dest nel thread
             $isCliente = ($utente->da_dottore == 1); // coerente con legacy
 
@@ -262,7 +262,7 @@ class MessageService
 
             if (!$isCliente) {
                 // CONNESSO PERSONALE (tipo=2 nel legacy)
-                // Se ultimo mitt Ã¨ P/S/I e dest Ã¨ C, mantieni coppia (id_mitt,id_dest) coerente con legacy
+                // Se ultimo mitt è P/S/I e dest è C, mantieni coppia (id_mitt,id_dest) coerente con legacy
                 if (in_array($context['mitt'], ['P', 'S', 'I'], true)) {
                     if ($context['dest'] === 'C') {
                         $idMitt = $context['id_mitt'];
@@ -285,7 +285,7 @@ class MessageService
                 if ($tipoPers === 2) $mitt = 'I';
                 if ($tipoPers === 3) $mitt = 'S';
 
-                log_message('debug', 'tipoPers=' . $tipoPers . ' â†’ mitt=' . $mitt);
+                log_message('debug', 'tipoPers=' . $tipoPers . ' → mitt=' . $mitt);
 
                 $dest      = 'C';
                 $daDottore = 0;
@@ -334,11 +334,11 @@ class MessageService
             // Notifica (solo al destinatario, come legacy)
             $this->notifiche->inviaMessaggio($dest, $idDest, ($isCliente ? 'R' : 'R'));
 
-            // PUSH: se Ã¨ il dottore che risponde a un paziente
+            // PUSH: se è il dottore che risponde a un paziente
             $tipoPers = (int)($utente->tipo_pers ?? 0);
             $isDoctor = (!$isCliente && $tipoPers === 1);
 
-            // In questo caso, idDest Ã¨ l'id_client del paziente quando dest = 'C'
+            // In questo caso, idDest è l'id_client del paziente quando dest = 'C'
             if ($isDoctor && $dest === 'C' && !$draft) {
                 $this->sendPushToClient(
                     $idDest,
@@ -386,7 +386,7 @@ class MessageService
         $sessid        = $_COOKIE[$sessionCookie] ?? '';
 
         // Tutti gli allegati temporanei legati alla sessione corrente
-        // N.B.: getBySession restituisce giÃ  nome_real e nome_vis DECRITTATI
+        // N.B.: getBySession restituisce già nome_real e nome_vis DECRITTATI
         $temp  = $this->attTemp->getBySession($sessid);
         $moved = 0;
 
@@ -397,11 +397,11 @@ class MessageService
 
             // Inserisco nella tabella definitiva RICRIPTANDO tramite Crypto_helper
             $this->att->insertDefinitivo(
-                $row['nome_real'],   // PLAIN TEXT â†’ sarÃ  cifrato in insertDefinitivo
-                $row['nome_vis'],    // PLAIN TEXT â†’ sarÃ  cifrato in insertDefinitivo
+                $row['nome_real'],   // PLAIN TEXT → sarà cifrato in insertDefinitivo
+                $row['nome_vis'],    // PLAIN TEXT → sarà cifrato in insertDefinitivo
                 $idMessage,
                 $idMessageReply,
-                $row['vector_id_hex'] // lo passo solo per compatibilitÃ  firma, ma verrÃ  ignorato
+                $row['vector_id_hex'] // lo passo solo per compatibilità firma, ma verrà ignorato
             );
 
             // Cancello il record dalla tabella temporanea
@@ -424,7 +424,7 @@ class MessageService
 
     /**
      * Invia una push al paziente (cliente) se collegato ad un utente con dispositivi attivi.
-     * $idClient Ã¨ l'id della tabella clienti (dap01?).
+     * $idClient è l'id della tabella clienti (dap01?).
      */
     protected function sendPushToClient(int $idClient, string $body, ?int $idMessageIni = null): void
     {
@@ -434,7 +434,7 @@ class MessageService
             return;
         }
 
-        // âš ï¸ Cambia 'id_user' se nel tuo schema il campo si chiama in altro modo
+        // ⚠️ Cambia 'id_user' se nel tuo schema il campo si chiama in altro modo
         $userId = (int)($client['id_user'] ?? 0);
         if ($userId <= 0) {
             log_message('error', "[sendPushToClient] Nessun userId associato al cliente {$idClient}");

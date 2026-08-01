@@ -87,7 +87,7 @@ if (empty($menu_items) || !is_array($menu_items)) {
               <h3 class="box-title">Contenuto</h3>
             </div>
             <div class="box-body">
-              <div id="logBox">Seleziona una data e premi â€œCaricaâ€.</div>
+              <div id="logBox">Seleziona una data e premi “Carica”.</div>
             </div>
           </div>
 

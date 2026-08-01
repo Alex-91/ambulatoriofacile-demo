@@ -29,7 +29,7 @@ class RenameTsBillingFeatureToSystemTs extends Migration
 
         $update = [
             'feature_name' => 'Sistema TS',
-            'description' => 'Il master piattaforma attiva il modulo Sistema TS per lo spazio. Lo studio puo configurarlo e usarlo anche separatamente dal modulo Fatturazione.',
+            'description' => 'Il master piattaforma attiva il modulo Sistema TS per lo spazio. Lo studio può configurarlo e usarlo anche separatamente dal modulo Fatturazione.',
             'updated_at' => date('Y-m-d H:i:s'),
         ];
 
@@ -57,7 +57,7 @@ class RenameTsBillingFeatureToSystemTs extends Migration
 
         $update = [
             'feature_name' => 'Fatturazione TS',
-            'description' => 'Il master piattaforma attiva la Fatturazione TS per lo spazio. Una volta concessa, il tenant master dello studio puo configurare il modulo Sistema Tessera Sanitaria e usarlo operativamente.',
+            'description' => 'Il master piattaforma attiva la Fatturazione TS per lo spazio. Una volta concessa, il tenant master dello studio può configurare il modulo Sistema Tessera Sanitaria e usarlo operativamente.',
             'updated_at' => date('Y-m-d H:i:s'),
         ];
 

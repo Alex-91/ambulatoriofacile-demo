@@ -5,11 +5,23 @@ $formContext = is_array($formContext ?? null) ? $formContext : [];
 $document = is_array($formContext['document'] ?? null) ? $formContext['document'] : [];
 $template = is_array($formContext['template'] ?? null) ? $formContext['template'] : [];
 $lineItems = is_array($formContext['line_items'] ?? null) ? $formContext['line_items'] : [];
+$serviceCatalog = is_array($template['service_catalog'] ?? null) ? $template['service_catalog'] : [];
+$serviceCatalog = array_values(array_filter($serviceCatalog, static function ($service): bool {
+    return is_array($service) && trim((string) ($service['description'] ?? '')) !== '';
+}));
 $documentTypeLabels = is_array($formContext['document_type_labels'] ?? null) ? $formContext['document_type_labels'] : [];
 $paymentMethodLabels = is_array($formContext['payment_method_labels'] ?? null) ? $formContext['payment_method_labels'] : [];
 $localStateLabels = is_array($formContext['local_state_labels'] ?? null) ? $formContext['local_state_labels'] : [];
 $tsSyncLabels = is_array($formContext['ts_sync_labels'] ?? null) ? $formContext['ts_sync_labels'] : [];
 $tsExpenseTypes = is_array($formContext['ts_expense_types'] ?? null) ? $formContext['ts_expense_types'] : [];
+$serviceExpenseTypeMap = is_array($formContext['service_expense_type_map'] ?? null) ? $formContext['service_expense_type_map'] : [];
+$serviceExpenseTypeMapJson = json_encode(
+    $serviceExpenseTypeMap,
+    JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT
+);
+if (!is_string($serviceExpenseTypeMapJson) || $serviceExpenseTypeMapJson === '') {
+    $serviceExpenseTypeMapJson = '{}';
+}
 $tsEnabled = !empty($formContext['ts_enabled']);
 $tableAvailable = !array_key_exists('table_available', $formContext) || !empty($formContext['table_available']);
 $schemaMessage = trim((string) ($formContext['schema_message'] ?? ''));
@@ -188,14 +200,14 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
           <?php endif; ?>
           <?php if (!$tableAvailable): ?>
             <div class="alert alert-warning">
-              <?= esc($schemaMessage !== '' ? $schemaMessage : 'Il database di questo spazio non e ancora pronto per salvare documenti fatturazione.') ?>
+              <?= esc($schemaMessage !== '' ? $schemaMessage : 'Il database di questo spazio non è ancora pronto per salvare documenti fatturazione.') ?>
             </div>
           <?php endif; ?>
 
             <div class="intro-box">
             <h3 style="margin-top:0; margin-bottom:8px;">Spazio: <?= esc((string) ($tenantScope['tenant_name'] ?? 'attivo')) ?></h3>
             <p style="margin:0 0 12px 0; color:#556b70;">
-              Questo documento nasce nel modulo Fatturazione. L eventuale collegamento al Sistema TS resta separato e si attiva solo se richiesto.
+              Questo documento nasce nel modulo Fatturazione. L’eventuale collegamento al Sistema TS resta separato e si attiva solo se richiesto.
             </p>
             <?php if ($sourceContext !== []): ?>
               <div class="alert alert-info" style="margin:0 0 12px 0;">
@@ -232,7 +244,7 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
               </a>
               <?php if (trim((string) ($sourceContext['return_url'] ?? '')) !== ''): ?>
                 <a class="btn btn-default" href="<?= esc((string) ($sourceContext['return_url'] ?? '')) ?>" style="margin-left:8px;">
-                  <i class="fa fa-calendar"></i> <?= esc((string) ($sourceContext['return_label'] ?? 'Torna all agenda')) ?>
+                  <i class="fa fa-calendar"></i> <?= esc((string) ($sourceContext['return_label'] ?? 'Torna all’agenda')) ?>
                 </a>
               <?php endif; ?>
               <?php if ($documentId > 0 && $tableAvailable): ?>
@@ -303,7 +315,7 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
                   <?php if ($linkedPatientVisibleId > 0): ?>
                     <div class="col-md-12">
                       <div class="patient-linked-summary">
-                        <strong><i class="fa fa-link"></i> Paziente collegato all appuntamento:</strong>
+                        <strong><i class="fa fa-link"></i> Paziente collegato all’appuntamento:</strong>
                         <?= esc($linkedPatientVisibleLabel) ?>
                         <small>ID anagrafica spazio: <?= (int) $linkedPatientVisibleId ?>. Se salvi la fattura con questo collegamento attivo, aggiorni anche la sua anagrafica.</small>
                       </div>
@@ -378,14 +390,14 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
                   </div>
                   <div class="col-md-6">
                     <div class="form-group">
-                      <label>Citta</label>
+                      <label>Città</label>
                       <input class="form-control" type="text" name="patient_city" maxlength="120" value="<?= esc($fieldValue('patient_city')) ?>" placeholder="Es. Bologna" autocomplete="off">
                     </div>
                   </div>
                   <div class="col-md-12">
                     <div class="patient-autocomplete-menu" data-role="patient-results"></div>
                     <small class="patient-autocomplete-help" data-role="patient-help">
-                      Cerca un paziente gia presente nello spazio oppure compila i campi manualmente.
+                      Cerca un paziente già presente nello spazio oppure compila i campi manualmente.
                     </small>
                     <div class="patient-data-note">
                       Se la fattura resta collegata a un paziente dello spazio, ogni modifica a questi dati aggiorna anche la sua anagrafica.
@@ -394,7 +406,7 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
                   <?php if ($sourceContext !== []): ?>
                     <div class="col-md-12">
                       <div class="alert alert-info" style="margin-top:4px; margin-bottom:8px; padding:12px 14px;">
-                        <strong>Dati cliente importati dall appuntamento</strong>
+                        <strong>Dati cliente importati dall’appuntamento</strong>
                         <div style="margin-top:6px; font-size:12px; color:#425462;">
                           <?= esc($sourcePatientLabel !== '' ? $sourcePatientLabel : 'Anagrafica collegata') ?>
                           | Cognome: <?= esc($sourcePatientLastName !== '' ? $sourcePatientLastName : '-') ?>
@@ -435,6 +447,15 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
 
                 <div class="form-group">
                   <label>Righe documento *</label>
+                  <small class="help-block" style="margin-top:0;">Scrivi liberamente una prestazione oppure scegli un suggerimento: le nuove voci salvate nella fattura saranno disponibili anche la prossima volta.</small>
+                  <?php if ($serviceCatalog !== []): ?>
+                    <datalist id="billing-service-catalog">
+                      <?php foreach ($serviceCatalog as $service): ?>
+                        <?php $serviceDescription = trim((string) ($service['description'] ?? '')); ?>
+                        <option value="<?= esc($serviceDescription) ?>" label="<?= esc('€ ' . number_format((float) ($service['unit_amount'] ?? 0), 2, ',', '.')) ?>"></option>
+                      <?php endforeach; ?>
+                    </datalist>
+                  <?php endif; ?>
                   <div class="table-responsive">
                     <table class="table table-bordered table-striped">
                       <thead>
@@ -448,7 +469,7 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
                         <?php foreach ($itemRows as $row): ?>
                           <tr>
                             <td>
-                              <input class="form-control" type="text" name="item_description[]" value="<?= esc((string) ($row['description'] ?? '')) ?>" maxlength="190" placeholder="Es. Visita specialistica">
+                              <input class="form-control" type="text" name="item_description[]" value="<?= esc((string) ($row['description'] ?? '')) ?>" maxlength="190" placeholder="Es. Visita specialistica" <?= $serviceCatalog !== [] ? 'list="billing-service-catalog"' : '' ?>>
                             </td>
                             <td>
                               <input class="form-control" type="number" name="item_qty[]" step="0.01" min="0" value="<?= esc((string) ($row['quantity'] ?? '')) ?>" placeholder="1">
@@ -461,7 +482,7 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
                       </tbody>
                     </table>
                   </div>
-                  <small class="text-muted">Lascia vuote le righe inutilizzate. Il totale viene calcolato automaticamente dalla somma delle righe piu la marca da bollo.</small>
+                  <small class="text-muted">Lascia vuote le righe inutilizzate. Il totale viene calcolato automaticamente dalla somma delle righe più la marca da bollo.</small>
                 </div>
 
                 <div class="row">
@@ -491,7 +512,7 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
                 </div>
                 <?php if (!$tsEnabled): ?>
                   <div class="alert alert-warning">
-                    Il modulo Sistema TS in questo spazio non e attivo: le impostazioni qui sotto restano salvate e potranno essere riusate quando il modulo verra acceso.
+                    Il modulo Sistema TS in questo spazio non è attivo: le impostazioni qui sotto restano salvate e potranno essere riusate quando il modulo verrà acceso.
                   </div>
                 <?php endif; ?>
                 <div class="row">
@@ -642,7 +663,7 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
         $unlinkButton.prop('disabled', true);
 
         if (forceMessage !== false) {
-          setHelp('Compilazione manuale attiva. Seleziona un paziente dalla lista solo se vuoi agganciare la fattura all anagrafica dello spazio.', 'warning');
+          setHelp('Compilazione manuale attiva. Seleziona un paziente dalla lista solo se vuoi agganciare la fattura all’anagrafica dello spazio.', 'warning');
         }
       }
 
@@ -720,7 +741,7 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
         if (term.length < 2) {
           hideResults();
           if ((parseInt($clientId.val() || '0', 10) || 0) <= 0) {
-            setHelp('Cerca un paziente gia presente nello spazio oppure compila i campi manualmente.', '');
+            setHelp('Cerca un paziente già presente nello spazio oppure compila i campi manualmente.', '');
           }
           return;
         }
@@ -779,8 +800,50 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
       }
     }
 
+    function initServiceExpenseTypeMapping() {
+      var expenseTypeMap = <?= $serviceExpenseTypeMapJson ?>;
+      var $expenseType = $('select[name="ts_expense_type_code"]');
+      if (!$expenseType.length || !expenseTypeMap || typeof expenseTypeMap !== 'object') {
+        return;
+      }
+
+      function normalizeDescription(value) {
+        return $.trim(String(value || '')).replace(/\s+/g, ' ').toLocaleLowerCase('it-IT');
+      }
+
+      function applyMappedExpenseType() {
+        var resolvedCodes = {};
+        var hasDescription = false;
+        var allMapped = true;
+
+        $('input[name="item_description[]"]').each(function () {
+          var key = normalizeDescription($(this).val());
+          if (key === '') {
+            return;
+          }
+
+          hasDescription = true;
+          if (!expenseTypeMap[key]) {
+            allMapped = false;
+            return false;
+          }
+
+          resolvedCodes[expenseTypeMap[key]] = true;
+        });
+
+        var codes = Object.keys(resolvedCodes);
+        if (hasDescription && allMapped && codes.length === 1) {
+          $expenseType.val(codes[0]);
+        }
+      }
+
+      $(document).on('input change', 'input[name="item_description[]"]', applyMappedExpenseType);
+      applyMappedExpenseType();
+    }
+
     $(function () {
       initPatientAutocomplete($('.js-patient-autocomplete'));
+      initServiceExpenseTypeMapping();
     });
   })(jQuery);
 </script>

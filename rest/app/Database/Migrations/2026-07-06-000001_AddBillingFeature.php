@@ -26,7 +26,7 @@ class AddBillingFeature extends Migration
             'feature_key' => self::FEATURE_KEY,
             'feature_name' => 'Fatturazione',
             'feature_scope' => 'billing',
-            'description' => 'Il master piattaforma attiva il modulo Fatturazione per lo spazio. Il cliente puo usarlo da solo oppure insieme al Sistema TS mantenendo i due moduli separati ma coordinabili.',
+            'description' => 'Il master piattaforma attiva il modulo Fatturazione per lo spazio. Il cliente può usarlo da solo oppure insieme al Sistema TS mantenendo i due moduli separati ma coordinabili.',
             'default_enabled' => 0,
             'created_at' => $now,
             'updated_at' => $now,
@@ -56,7 +56,7 @@ class AddBillingFeature extends Migration
         $update = [
             'feature_name' => 'Fatturazione',
             'feature_scope' => 'billing',
-            'description' => 'Il master piattaforma attiva il modulo Fatturazione per lo spazio. Il cliente puo usarlo da solo oppure insieme al Sistema TS mantenendo i due moduli separati ma coordinabili.',
+            'description' => 'Il master piattaforma attiva il modulo Fatturazione per lo spazio. Il cliente può usarlo da solo oppure insieme al Sistema TS mantenendo i due moduli separati ma coordinabili.',
             'default_enabled' => 0,
             'updated_at' => $now,
         ];

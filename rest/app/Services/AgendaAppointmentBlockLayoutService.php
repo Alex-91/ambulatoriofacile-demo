@@ -44,7 +44,7 @@ class AgendaAppointmentBlockLayoutService
         [
             'key' => self::BLOCK_DOCUMENT_WORKFLOW,
             'label' => 'TS e fatturazione',
-            'description' => 'Azioni documento per aprire Fatturazione o Sistema TS partendo dall appuntamento.',
+            'description' => 'Azioni documento per aprire Fatturazione o Sistema TS partendo dall’appuntamento.',
             'default_visibility' => self::VISIBILITY_VISIBLE,
         ],
     ];
@@ -190,7 +190,7 @@ class AgendaAppointmentBlockLayoutService
     ): array {
         $settings = $this->resolveTenantSettings($tenantId);
         if (empty($settings['layout_management_available'])) {
-            throw new \RuntimeException('Il layout del popup appuntamento non e disponibile per questo spazio.');
+            throw new \RuntimeException('Il layout del popup appuntamento non è disponibile per questo spazio.');
         }
 
         $featureId = (int) ($settings['feature_id'] ?? 0);
@@ -361,8 +361,8 @@ class AgendaAppointmentBlockLayoutService
                     'hideable' => !$customAppointmentTimeEnabled,
                     'force_visible' => $customAppointmentTimeEnabled,
                     'note' => $customAppointmentTimeEnabled
-                        ? 'Resta visibile perche contiene i controlli necessari agli orari personalizzati.'
-                        : 'Mostra solo il riepilogo orario dello slot selezionato e puo quindi essere nascosto se preferisci un popup piu compatto.',
+                        ? 'Resta visibile perché contiene i controlli necessari agli orari personalizzati.'
+                        : 'Mostra solo il riepilogo orario dello slot selezionato e può quindi essere nascosto se preferisci un popup più compatto.',
                 ],
                 self::BLOCK_VISIT_TYPE => [
                     'available' => $visitTypesEnabled,
@@ -371,8 +371,8 @@ class AgendaAppointmentBlockLayoutService
                     'note' => $visitTypesEnabled
                         ? (
                             $visitTypeOptional
-                                ? 'In questo spazio il tipo visita e facoltativo, quindi il blocco puo anche essere nascosto.'
-                                : 'In questo spazio il tipo visita e obbligatorio, quindi il blocco resta sempre visibile.'
+                                ? 'In questo spazio il tipo visita e facoltativo, quindi il blocco può anche essere nascosto.'
+                                : 'In questo spazio il tipo visita è obbligatorio, quindi il blocco resta sempre visibile.'
                         )
                         : 'Questo blocco compare appena il modulo tipi visita viene attivato nello spazio.',
                 ],
@@ -387,8 +387,8 @@ class AgendaAppointmentBlockLayoutService
                     'hideable' => true,
                     'force_visible' => false,
                     'note' => $documentWorkflowAvailable
-                        ? 'Qui trovi le azioni documento gia agganciate all appuntamento per Fatturazione e Sistema TS.'
-                        : 'Questo blocco compare quando nello spazio e attivo almeno uno tra Fatturazione e Sistema TS.',
+                        ? 'Qui trovi le azioni documento già agganciate all’appuntamento per Fatturazione e Sistema TS.'
+                        : 'Questo blocco compare quando nello spazio è attivo almeno uno tra Fatturazione e Sistema TS.',
                 ],
             ],
         ];

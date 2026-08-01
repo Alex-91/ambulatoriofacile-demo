@@ -121,7 +121,7 @@
                             </form>
 
                             <div class="alert alert-info" style="margin-bottom:20px;">
-                                La ricerca parte solo dopo aver selezionato un dottore, cosi la pagina resta veloce anche con molti professionisti.
+                                La ricerca parte solo dopo aver selezionato un dottore, così la pagina resta veloce anche con molti professionisti.
                             </div>
 
                             <?php if (empty($hasSearched ?? false)): ?>

@@ -148,7 +148,7 @@ $emailFilterResetUrl = site_url('admin/otp-statistiche') . '?' . http_build_quer
                     </p>
                   <?php else: ?>
                     <p class="text-muted" style="margin-bottom:0;">
-                      Il tracciamento parte da quando e` stata attivata questa funzione.
+                      Il tracciamento parte da quando è` stata attivata questa funzione.
                     </p>
                   <?php endif; ?>
                 </div>
@@ -176,7 +176,7 @@ $emailFilterResetUrl = site_url('admin/otp-statistiche') . '?' . http_build_quer
                           <select class="form-control" id="mail_seen_flag" name="mail_seen_flag">
                             <option value="all" <?= $selectedLoginEmailSeenFlag === 'all' ? 'selected' : '' ?>>Tutte</option>
                             <option value="new" <?= $selectedLoginEmailSeenFlag === 'new' ? 'selected' : '' ?>>Mai viste</option>
-                            <option value="seen" <?= $selectedLoginEmailSeenFlag === 'seen' ? 'selected' : '' ?>>Gia viste</option>
+                            <option value="seen" <?= $selectedLoginEmailSeenFlag === 'seen' ? 'selected' : '' ?>>Già viste</option>
                           </select>
                         </div>
                       </div>
@@ -198,7 +198,7 @@ $emailFilterResetUrl = site_url('admin/otp-statistiche') . '?' . http_build_quer
 
               <?php if (!$hasTrackingTable): ?>
                 <div class="alert alert-warning">
-                  La tabella <strong>otp_delivery_logs</strong> non e` ancora presente nel database. Finche` non viene creata, le statistiche OTP non possono essere raccolte.
+                  La tabella <strong>otp_delivery_logs</strong> non è ancora presente nel database. Finché non viene creata, le statistiche OTP non possono essere raccolte.
                 </div>
               <?php endif; ?>
 
@@ -390,7 +390,7 @@ $emailFilterResetUrl = site_url('admin/otp-statistiche') . '?' . http_build_quer
                           OTP inviati: <strong><?= esc((string)$loginEmailDayStats['total_sent']) ?></strong> |
                           Email uniche: <strong><?= esc((string)$loginEmailDayStats['unique_email_count']) ?></strong> |
                           Mai viste: <strong><?= esc((string)$loginEmailDayStats['new_email_count']) ?></strong> |
-                          Gia viste: <strong><?= esc((string)$loginEmailDayStats['seen_email_count']) ?></strong> |
+                          Già viste: <strong><?= esc((string)$loginEmailDayStats['seen_email_count']) ?></strong> |
                           In elenco: <strong><?= esc((string)$loginEmailDayStats['visible_unique_email_count']) ?></strong>
                         </p>
 
@@ -428,14 +428,14 @@ $emailFilterResetUrl = site_url('admin/otp-statistiche') . '?' . http_build_quer
                                     <td><?= esc((string)$emailRow['sent_count']) ?></td>
                                     <td>
                                       <?php if (!empty($emailRow['is_first_time'])): ?>
-                                        <span class="label label-first-use">Si</span>
+                                        <span class="label label-first-use">Sì</span>
                                       <?php else: ?>
                                         <span class="text-muted">No</span>
                                       <?php endif; ?>
                                     </td>
                                     <td>
                                       <?php if (!empty($emailRow['is_plain'])): ?>
-                                        <span class="text-success">Si</span>
+                                        <span class="text-success">Sì</span>
                                       <?php else: ?>
                                         <span class="text-warning">No</span>
                                       <?php endif; ?>

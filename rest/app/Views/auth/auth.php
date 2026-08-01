@@ -304,11 +304,11 @@ $emailLabel = $hasProfileEmailBool ? (!empty($maskedEmail) ? $maskedEmail : $pro
                 >
               </div>
               <div class="subtle">Token temporaneo attivo per circa 10 minuti.</div>
-              <div class="subtle">Quando il telefono viene collegato, lâ€™OTP push parte automaticamente da questa pagina.</div>
+              <div class="subtle">Quando il telefono viene collegato, l’OTP push parte automaticamente da questa pagina.</div>
             <?php endif; ?>
           </div>
           <div id="mobileLinkMode" style="<?= !empty($isDesktop) && $isDesktop ? 'display:none' : '' ?>">
-            <div>Stai accedendo direttamente da questo smartphone e non Ã¨ ancora collegato.</div>
+            <div>Stai accedendo direttamente da questo smartphone e non è ancora collegato.</div>
             <div class="subtle" style="margin-top:6px">
               Registrando questo dispositivo, eventuali altri telefoni associati al tuo account verranno disattivati.
             </div>
@@ -323,9 +323,9 @@ $emailLabel = $hasProfileEmailBool ? (!empty($maskedEmail) ? $maskedEmail : $pro
     </div>
 
     <div class="alt-channels" style="display:none">
-      Non hai ricevuto la notifica? Puoi ricevere lâ€™OTP anche via
+      Non hai ricevuto la notifica? Puoi ricevere l’OTP anche via
       <a id="newCodiceSMS2" href="#" class="btn-link"><i class="fa-solid fa-comment-sms"></i> SMS</a>:
-      il codice arriverÃ  al numero <strong><?= esc($cellulare ?? '') ?></strong>.
+      il codice arriverà al numero <strong><?= esc($cellulare ?? '') ?></strong>.
     </div>
 
     <div class="alt-channels" id="emailOtpPanel">
@@ -391,8 +391,8 @@ $emailLabel = $hasProfileEmailBool ? (!empty($maskedEmail) ? $maskedEmail : $pro
       <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="emailOtpModalTitle">
         <div class="modal-title" id="emailOtpModalTitle">Conferma email per OTP</div>
         <div class="subtle">
-          Inserisci l'indirizzo email a cui inviare il codice OTP. Se e gia presente verra mostrato qui sotto e potrai aggiornarlo.
-          L'indirizzo verra salvato o aggiornato nel tuo profilo e potra essere modificato successivamente.
+          Inserisci l'indirizzo email a cui inviare il codice OTP. Se è già presente verrà mostrato qui sotto e potrai aggiornarlo.
+          L'indirizzo verrà salvato o aggiornato nel tuo profilo e potrà essere modificato successivamente.
           <?php if ($allowEmailOtpWithoutPasswordBool): ?>
           Se stai cambiando la password scaduta, da qui puoi inviare l'OTP via email senza reinserire la password di login.
           <?php else: ?>
@@ -974,13 +974,13 @@ async function showLocalNotification(title, body) {
 
     if (emailHelpEl) {
       if (!allowEmailOtpProfileEdit && !hasProfileEmail) {
-        emailHelpEl.textContent = 'Nel recupero password puoi usare solo un indirizzo gia presente nel profilo.';
+        emailHelpEl.textContent = 'Nel recupero password puoi usare solo un indirizzo già presente nel profilo.';
       } else if (allowEmailOtpProfileEdit) {
         emailHelpEl.textContent = allowEmailOtpWithoutPassword
           ? 'Prima dell\'invio potrai confermare o aggiornare l\'indirizzo. Controlla anche la cartella Spam.'
           : 'Prima dell\'invio potrai confermare o aggiornare l\'indirizzo e, se richiesto, reinserire la password di login. Controlla anche la cartella Spam.';
       } else {
-        emailHelpEl.textContent = 'Il codice verra inviato all\'indirizzo gia presente nel profilo. Controlla anche la cartella Spam.';
+        emailHelpEl.textContent = 'Il codice verrà inviato all\'indirizzo già presente nel profilo. Controlla anche la cartella Spam.';
       }
     }
 
@@ -1070,7 +1070,7 @@ async function showLocalNotification(title, body) {
     }
 
     if (!hasProfileEmail) {
-      setEmailStatus('Nessun indirizzo email presente nel profilo. Nel recupero password puoi usare solo una mail gia salvata.', true);
+      setEmailStatus('Nessun indirizzo email presente nel profilo. Nel recupero password puoi usare solo una mail già salvata.', true);
       refreshEmailLabel('');
       return;
     }
@@ -1298,7 +1298,7 @@ async function showLocalNotification(title, body) {
       const isVisible = Array.isArray(notifications) && notifications.length > 0;
 
       if (isVisible) {
-        const userConfirmed = window.confirm('Ti abbiamo appena inviato una notifica di prova. Premi OK se l\'hai vista, oppure Annulla se non e comparsa.');
+        const userConfirmed = window.confirm('Ti abbiamo appena inviato una notifica di prova. Premi OK se l\'hai vista, oppure Annulla se non è comparsa.');
         notifications.forEach((notification) => {
           try { notification.close(); } catch (_) {}
         });
@@ -1322,9 +1322,9 @@ async function showLocalNotification(title, body) {
     const isStandalone = mode === 'standalone';
 
     setConnectedBannerState(
-      isStandalone ? 'Preparazione notifica nell app' : 'Preparazione notifica su questo browser',
+      isStandalone ? 'Preparazione notifica nell’app' : 'Preparazione notifica su questo browser',
       isStandalone
-        ? 'Stiamo attivando l app installata come destinazione principale per questo accesso.'
+        ? 'Stiamo attivando l’app installata come destinazione principale per questo accesso.'
         : 'Stiamo attivando il browser corrente come destinazione principale per questo accesso.',
       false
     );
@@ -1376,10 +1376,10 @@ async function showLocalNotification(title, body) {
 
       if (json.otpSent === true) {
         setConnectedBannerState(
-          isStandalone ? 'Controlla la notifica nell app' : 'Controlla la notifica su questo browser',
+          isStandalone ? 'Controlla la notifica nell’app' : 'Controlla la notifica su questo browser',
           isStandalone
-            ? 'L OTP e stato inviato all app installata che stai usando adesso.'
-            : 'L OTP e stato inviato al browser mobile da cui stai effettuando l accesso.',
+            ? 'L’OTP è stato inviato all’app installata che stai usando adesso.'
+            : 'L’OTP è stato inviato al browser mobile da cui stai effettuando l’accesso.',
           false
         );
         return;
@@ -1387,7 +1387,7 @@ async function showLocalNotification(title, body) {
 
       setConnectedBannerState(
         'Dispositivo collegato',
-        'Il dispositivo corrente e stato registrato, ma la notifica OTP non e partita automaticamente. Usa un canale alternativo.',
+        'Il dispositivo corrente è stato registrato, ma la notifica OTP non è partita automaticamente. Usa un canale alternativo.',
         true
       );
     } catch (err) {
@@ -1395,8 +1395,8 @@ async function showLocalNotification(title, body) {
       setConnectedBannerState(
         'Attivazione notifica non riuscita',
         isStandalone
-          ? 'Non sono riuscito ad attivare le notifiche dell app su questo dispositivo. Controlla i permessi o usa l OTP via email.'
-          : 'Non sono riuscito ad attivare le notifiche su questo browser. Controlla i permessi o usa l OTP via email.',
+          ? 'Non sono riuscito ad attivare le notifiche dell’app su questo dispositivo. Controlla i permessi o usa l’OTP via email.'
+          : 'Non sono riuscito ad attivare le notifiche su questo browser. Controlla i permessi o usa l’OTP via email.',
         true
       );
     }
@@ -1476,7 +1476,7 @@ if (perm !== 'granted') {
           linkBtn.textContent = 'Dispositivo registrato, controlla la notifica OTP';
         } else {
           if (titleEl) titleEl.textContent = 'Dispositivo collegato';
-          if (textEl) textEl.textContent = 'Il dispositivo Ã¨ stato registrato, ma la notifica OTP non Ã¨ partita automaticamente. Usa il codice via SMS.';
+          if (textEl) textEl.textContent = 'Il dispositivo è stato registrato, ma la notifica OTP non è partita automaticamente. Usa il codice via SMS.';
           if (banner) banner.classList.add('warn');
           linkBtn.textContent = 'Dispositivo registrato';
         }
@@ -1575,7 +1575,7 @@ async function showLocalNotification(title, body) {
         if (banner) banner.classList.remove('warn');
       } else {
         if (titleEl) titleEl.textContent = 'Dispositivo collegato';
-        if (textEl) textEl.textContent = 'Il telefono Ã¨ stato associato, ma la notifica OTP non Ã¨ partita automaticamente. Richiedi un SMS.';
+        if (textEl) textEl.textContent = 'Il telefono è stato associato, ma la notifica OTP non è partita automaticamente. Richiedi un SMS.';
         if (banner) banner.classList.add('warn');
       }
     } catch (e) {
@@ -1605,4 +1605,3 @@ async function showLocalNotification(title, body) {
 </script>
 </body>
 </html>
-

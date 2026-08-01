@@ -406,7 +406,7 @@ class MenuResolverService
             'spazio/dispositivi-otp' => !empty($context['can_manage_otp_devices']),
             'spazio/funzioni' => !empty($context['can_manage_tenant_features']),
             'spazio/fatturazione' => !empty($context['can_manage_billing']),
-            'spazio/fatturazione-ts' => !empty($context['can_manage_ts_billing']),
+            'spazio/sistema-ts' => !empty($context['can_manage_ts_billing']),
             'spazio/notifiche-appuntamenti' => !empty($context['can_manage_appointment_notifications']),
         ];
 
@@ -443,6 +443,7 @@ class MenuResolverService
         $menuItems = $this->injectVisitTypesMenu($menuItems, $tenantId);
         $menuItems = $this->injectBillingMenu($menuItems, $tenantId);
         $menuItems = $this->injectBillingDocumentsMenu($menuItems, $tenantId);
+        $menuItems = $this->injectBillingReportsMenu($menuItems, $tenantId);
         $menuItems = $this->injectTsBillingMenu($menuItems, $tenantId);
         $menuItems = $this->injectBillingDocumentSettingsMenu($menuItems, $tenantId);
 
@@ -583,6 +584,32 @@ class MenuResolverService
      * @param list<array<string, mixed>> $menuItems
      * @return list<array<string, mixed>>
      */
+    private function injectBillingReportsMenu(array $menuItems, int $tenantId): array
+    {
+        if (!$this->isAdminBillingFeatureEnabled($tenantId)) {
+            return $menuItems;
+        }
+
+        foreach ($menuItems as $menuRow) {
+            $menuLink = strtolower($this->normalizePath((string) ($menuRow['link'] ?? '')));
+            if ($menuLink === 'fatturazione-statistiche') {
+                return $menuItems;
+            }
+        }
+
+        $menuItems[] = [
+            'titolo_menu' => 'Statistiche e report',
+            'link' => 'fatturazione-statistiche',
+            'class_icon' => 'fa-bar-chart',
+        ];
+
+        return $menuItems;
+    }
+
+    /**
+     * @param list<array<string, mixed>> $menuItems
+     * @return list<array<string, mixed>>
+     */
     private function reorderOperationalMenuItems(array $menuItems): array
     {
         $catalogByLink = [];
@@ -681,6 +708,12 @@ class MenuResolverService
 
     private function isAdminTsBillingFeatureEnabled(int $tenantId): bool
     {
+        $context = (new TenantContextService())->getCurrentTenant();
+        if ($context !== null && $context->isValid() && $context->tenantId === $tenantId) {
+            return !empty($context->featureFlags['ts_billing'])
+                || (new TsFeatureService())->allowsLocalTestingBypass($context);
+        }
+
         if ($tenantId > 0) {
             try {
                 $featureMap = (new TenantFeatureService())->resolveEffectiveFeatureMapForTenant($tenantId);

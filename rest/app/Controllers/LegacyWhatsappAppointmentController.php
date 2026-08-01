@@ -7,7 +7,7 @@ use App\Models\LegacyWhatsappAppointmentsModel;
 
 class LegacyWhatsappAppointmentController extends BaseController
 {
-    private const SUPPORT_TEXT = "Se desidera gestire altri appuntamenti, segua queste semplici istruzioni:\nDIGITI 1 per visualizzare e confermare un altro appuntamento (Nel caso in cui esista un altro appuntamento gia' prenotato).\nDIGITI 2 per visualizzare e annullare un altro appuntamento (Nel caso in cui esista un altro appuntamento gia' prenotato). ";
+    private const SUPPORT_TEXT = "Se desidera gestire altri appuntamenti, segua queste semplici istruzioni:\nDIGITI 1 per visualizzare e confermare un altro appuntamento (Nel caso in cui esista un altro appuntamento già' prenotato).\nDIGITI 2 per visualizzare e annullare un altro appuntamento (Nel caso in cui esista un altro appuntamento già' prenotato). ";
 
     private LegacyWhatsappAppointmentsModel $legacyWhatsappAppointmentsModel;
 
@@ -56,7 +56,7 @@ class LegacyWhatsappAppointmentController extends BaseController
             $doctorId = null;
             $appointmentId = null;
             $responseStatus = null;
-            $message = "Sono stati trovati piu' appuntamenti. Digita il numero dell'appuntamento su cui vuoi effettuare l'operazione di{$azione['label']}:\n";
+            $message = "Sono stati trovati più' appuntamenti. Digita il numero dell'appuntamento su cui vuoi effettuare l'operazione di{$azione['label']}:\n";
 
             $this->legacyWhatsappAppointmentsModel->replaceMultipleSelections($cellulare, $appointments);
 
@@ -103,7 +103,7 @@ class LegacyWhatsappAppointmentController extends BaseController
 
         if (!$appointment) {
             return $this->response->setJSON([
-                'errore' => "Appuntamento non trovato o gia' gestito.",
+                'errore' => "Appuntamento non trovato o già' gestito.",
             ]);
         }
 
@@ -224,11 +224,11 @@ class LegacyWhatsappAppointmentController extends BaseController
     {
         $date = new \DateTimeImmutable((string)($appointment['appointment_date'] ?? 'now'), new \DateTimeZone('Europe/Rome'));
         $giorni = [
-            1 => 'Lunedi',
-            2 => 'Martedi',
-            3 => 'Mercoledi',
-            4 => 'Giovedi',
-            5 => 'Venerdi',
+            1 => 'Lunedì',
+            2 => 'Martedì',
+            3 => 'Mercoledì',
+            4 => 'Giovedì',
+            5 => 'Venerdì',
             6 => 'Sabato',
             7 => 'Domenica',
         ];
@@ -306,7 +306,7 @@ class LegacyWhatsappAppointmentController extends BaseController
             $appointmentDate = new \DateTimeImmutable((string)($appointment['appointment_date'] ?? 'now'), new \DateTimeZone('Europe/Rome'));
             $subject = 'Appuntamento annullato via WA - ' . ($doctorLabel !== '' ? $doctorLabel : ('Dottore #' . (int)($appointment['id_dot'] ?? 0)));
             $message = implode("\n", [
-                'E stato annullato un appuntamento via WhatsApp.',
+                'È stato annullato un appuntamento via WhatsApp.',
                 '',
                 'Data/ora appuntamento: ' . $appointmentDate->format('d-m-Y H:i'),
                 'Dottore: ' . ($doctorLabel !== '' ? $doctorLabel : ('ID ' . (int)($appointment['id_dot'] ?? 0))),

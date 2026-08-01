@@ -11,7 +11,7 @@ class TsHealthcheck extends BaseCommand
 {
     protected $group = 'TS';
     protected $name = 'ts:healthcheck';
-    protected $description = 'Esegue l healthcheck locale TS per un tenant e aggiorna lo stato salvato del profilo.';
+    protected $description = 'Esegue l’healthcheck locale TS per un tenant e aggiorna lo stato salvato del profilo.';
     protected $usage = 'ts:healthcheck [options]';
     protected $options = [
         '--tenant-id=' => 'ID tenant da usare. Se omesso usa il tenant runtime corrente risolto dal DB locale.',

@@ -27,7 +27,7 @@ class AddAgendaOptionalVisitTypeFeature extends Migration
             'feature_key' => self::FEATURE_KEY,
             'feature_name' => 'Tipo visita facoltativo in appuntamento',
             'feature_scope' => 'workflow',
-            'description' => 'Il master piattaforma puo attivare per il singolo studio l uso facoltativo del tipo visita nel popup appuntamento. Se il campo resta vuoto, l appuntamento occupa solo lo slot cliccato.',
+            'description' => 'Il master piattaforma può attivare per il singolo studio l’uso facoltativo del tipo visita nel popup appuntamento. Se il campo resta vuoto, l’appuntamento occupa solo lo slot cliccato.',
             'default_enabled' => 0,
             'created_at' => $now,
             'updated_at' => $now,
@@ -57,7 +57,7 @@ class AddAgendaOptionalVisitTypeFeature extends Migration
         $update = [
             'feature_name' => 'Tipo visita facoltativo in appuntamento',
             'feature_scope' => 'workflow',
-            'description' => 'Il master piattaforma puo attivare per il singolo studio l uso facoltativo del tipo visita nel popup appuntamento. Se il campo resta vuoto, l appuntamento occupa solo lo slot cliccato.',
+            'description' => 'Il master piattaforma può attivare per il singolo studio l’uso facoltativo del tipo visita nel popup appuntamento. Se il campo resta vuoto, l’appuntamento occupa solo lo slot cliccato.',
             'default_enabled' => 0,
             'updated_at' => $now,
         ];

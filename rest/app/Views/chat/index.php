@@ -84,7 +84,7 @@ function esc2($s) { return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); } 
               <form method="post"
                     action="<?= site_url('chat/clearAll') ?>"
                     style="display:inline;"
-                    onsubmit="return confirm('Vuoi davvero svuotare TUTTE le chat? Questa operazione non Ã¨ reversibile.');">
+                    onsubmit="return confirm('Vuoi davvero svuotare TUTTE le chat? Questa operazione non è reversibile.');">
                 <input type="hidden" name="return_url" value="<?= site_url('chat') ?>">
                 <button type="submit" class="btn btn-box-tool" title="Svuota tutte le chat">
                   <i class="fa fa-trash"></i>
@@ -202,7 +202,7 @@ if ($isGroup && !empty($selectedThread['group_key'])) {
       $docId = (int)$m[2];
       $docName = null;
 
-      // cerco in $doctors (giÃ  disponibile lato segreteria/infermiere)
+      // cerco in $doctors (già disponibile lato segreteria/infermiere)
       if (!empty($doctors)) {
         foreach ($doctors as $d) {
           if ((int)$d['id_user'] === $docId) {
@@ -227,7 +227,7 @@ if ($isGroup && !empty($selectedThread['group_key'])) {
       <form method="post"
             action="<?= site_url('chat/clear') ?>"
             style="display:inline;"
-            onsubmit="return confirm('Vuoi davvero svuotare questa chat? Questa operazione non Ã¨ reversibile.');">
+            onsubmit="return confirm('Vuoi davvero svuotare questa chat? Questa operazione non è reversibile.');">
         <input type="hidden" name="thread_id" value="<?= (int)$selectedThread['id_thread'] ?>">
         <input type="hidden" name="return_url" value="<?= site_url('chat') . '?thread=' . (int)$selectedThread['id_thread'] ?>">
         <button type="submit" class="btn btn-box-tool" title="Svuota chat">
@@ -429,7 +429,7 @@ $(document).on('click', '.chat-thread-link', function(e){
   });
 
   <?php if (!empty($selectedThread)): ?>
-    // polling embedded (stessa logica che giÃ  usavi: /chat/poll?thread=ID&after=LAST_ID)
+    // polling embedded (stessa logica che già usavi: /chat/poll?thread=ID&after=LAST_ID)
     var ID_THREAD = <?= (int)$selectedThread['id_thread'] ?>;
     var ME_ID = <?= (int)$me->id_user ?>;
     var lastId = <?= (int)($lastId ?? 0) ?>;
@@ -677,14 +677,14 @@ function buildThreadLink(t){
 function ensureThreadsFromServer(serverThreads){
   if(!serverThreads || !serverThreads.length) return;
 
-  var $list = $('#threadList');   // DEVE ESISTERE NELLâ€™HTML
+  var $list = $('#threadList');   // DEVE ESISTERE NELL’HTML
   if(!$list.length) return;
 
   serverThreads.forEach(function(t){
     var tid = parseInt(t.id_thread,10)||0;
     if(!tid) return;
 
-    // se non Ã¨ giÃ  in pagina, lo aggiungo
+    // se non è già in pagina, lo aggiungo
     if($('.chat-thread-link[data-thread-id="'+tid+'"]').length === 0){
       var $a = buildThreadLink(t);
       if($a) $list.prepend($a);
@@ -695,7 +695,7 @@ function ensureThreadsFromServer(serverThreads){
 </body>
 </html>
 <style>
-  /* ===== Lista conversazioni â€“ stile soft ===== */
+  /* ===== Lista conversazioni – stile soft ===== */
 
 .chat-thread-item{
   display: block;
@@ -730,7 +730,7 @@ function ensureThreadsFromServer(serverThreads){
 }
 
 .chat-thread-item.active{
-  background: #dde5ec;          /* grigio-blu piÃ¹ deciso */
+  background: #dde5ec;          /* grigio-blu più deciso */
   border-color: #9fb1c5;
 }
 
@@ -743,7 +743,7 @@ function ensureThreadsFromServer(serverThreads){
 }
 
 
-/* Mobile: un poâ€™ piÃ¹ aria */
+/* Mobile: un po’ più aria */
 @media (max-width: 767px){
   .chat-thread-item{
     padding: 12px 14px;

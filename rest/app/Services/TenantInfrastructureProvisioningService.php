@@ -437,7 +437,7 @@ class TenantInfrastructureProvisioningService
         }
 
         if ($sourceDatabase === $targetDatabase) {
-            throw new \RuntimeException('Il template database non puo coincidere con il tenant di destinazione.');
+            throw new \RuntimeException('Il template database non può coincidere con il tenant di destinazione.');
         }
 
         $exists = $this->queryValue($mysqli, "

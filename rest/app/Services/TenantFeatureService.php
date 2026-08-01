@@ -240,7 +240,7 @@ class TenantFeatureService
             BillingModule::FEATURE_KEY => [
                 'feature_name' => 'Fatturazione',
                 'feature_scope' => 'billing',
-                'description' => 'Il master piattaforma attiva il modulo Fatturazione per lo spazio. Il cliente puo usarlo da solo oppure insieme al Sistema TS mantenendo i due moduli separati ma coordinabili.',
+                'description' => 'Il master piattaforma attiva il modulo Fatturazione per lo spazio. Il cliente può usarlo da solo oppure insieme al Sistema TS mantenendo i due moduli separati ma coordinabili.',
                 'default_enabled' => 0,
                 'icon_class' => 'fa-calculator',
                 'is_tenant_managed' => 0,
@@ -250,7 +250,7 @@ class TenantFeatureService
             TsBilling::FEATURE_KEY => [
                 'feature_name' => 'Sistema TS',
                 'feature_scope' => 'billing',
-                'description' => 'Il master piattaforma attiva il modulo Sistema TS per lo spazio. Lo studio puo usarlo in autonomia oppure insieme alla Fatturazione mantenendo i moduli distinti ma coordinabili.',
+                'description' => 'Il master piattaforma attiva il modulo Sistema TS per lo spazio. Lo studio può usarlo in autonomia oppure insieme alla Fatturazione mantenendo i moduli distinti ma coordinabili.',
                 'default_enabled' => 0,
                 'icon_class' => 'fa-file-text-o',
                 'is_tenant_managed' => 0,
@@ -260,7 +260,7 @@ class TenantFeatureService
             'agenda_visit_type_optional' => [
                 'feature_name' => 'Tipo visita facoltativo in appuntamento',
                 'feature_scope' => 'workflow',
-                'description' => 'Il master piattaforma puo attivare per il singolo studio l uso facoltativo del tipo visita nel popup appuntamento. Se il campo resta vuoto, l appuntamento occupa solo lo slot cliccato.',
+                'description' => 'Il master piattaforma può attivare per il singolo studio l’uso facoltativo del tipo visita nel popup appuntamento. Se il campo resta vuoto, l’appuntamento occupa solo lo slot cliccato.',
                 'default_enabled' => 0,
                 'icon_class' => 'fa-toggle-off',
                 'is_tenant_managed' => 0,
@@ -270,7 +270,7 @@ class TenantFeatureService
             'agenda_personal_commitments' => [
                 'feature_name' => 'Impegni personali multi-slot',
                 'feature_scope' => 'workflow',
-                'description' => 'Il master piattaforma puo attivare per il singolo studio il blocco rapido di slot consecutivi come impegno personale, con durata variabile e voce speciale eliminabile dal calendario.',
+                'description' => 'Il master piattaforma può attivare per il singolo studio il blocco rapido di slot consecutivi come impegno personale, con durata variabile e voce speciale eliminabile dal calendario.',
                 'default_enabled' => 0,
                 'icon_class' => 'fa-calendar-times-o',
                 'is_tenant_managed' => 0,
@@ -280,7 +280,7 @@ class TenantFeatureService
             AgendaHomeBlockOrderService::FEATURE_KEY => [
                 'feature_name' => 'Ordine blocchi home agenda',
                 'feature_scope' => 'workflow',
-                'description' => 'Il master piattaforma puo attivare per il singolo studio un ordinamento personalizzato dei blocchi principali della home agenda: professionista, ricerca paziente, agenda e memo.',
+                'description' => 'Il master piattaforma può attivare per il singolo studio un ordinamento personalizzato dei blocchi principali della home agenda: professionista, ricerca paziente, agenda e memo.',
                 'default_enabled' => 0,
                 'icon_class' => 'fa-th-large',
                 'is_tenant_managed' => 0,
@@ -290,7 +290,7 @@ class TenantFeatureService
             AgendaSidebarBlockOrderService::FEATURE_KEY => [
                 'feature_name' => 'Ordine blocchi laterali agenda',
                 'feature_scope' => 'workflow',
-                'description' => 'Il master piattaforma puo attivare per il singolo studio un ordinamento dedicato dei blocchi della colonna sinistra dell agenda. La sequenza puo includere menu, calendario laterale e anche eventuali blocchi home spostati a sinistra dalla configurazione principale.',
+                'description' => 'Il master piattaforma può attivare per il singolo studio un ordinamento dedicato dei blocchi della colonna sinistra dell’agenda. La sequenza può includere menu, calendario laterale e anche eventuali blocchi home spostati a sinistra dalla configurazione principale.',
                 'default_enabled' => 0,
                 'icon_class' => 'fa-align-left',
                 'is_tenant_managed' => 0,
@@ -300,7 +300,7 @@ class TenantFeatureService
             'agenda_compressed_layout' => [
                 'feature_name' => 'Versione compressa agenda',
                 'feature_scope' => 'workflow',
-                'description' => 'Il tenant master puo attivare per il singolo studio un layout agenda piu compatto: barra giorno con frecce e slot extra in alto, mentre stampa PDF e scelta vista scendono sotto il calendario.',
+                'description' => 'Il tenant master può attivare per il singolo studio un layout agenda più compatto: barra giorno con frecce e slot extra in alto, mentre stampa PDF e scelta vista scendono sotto il calendario.',
                 'default_enabled' => 0,
                 'icon_class' => 'fa-compress',
                 'is_tenant_managed' => 1,
@@ -310,7 +310,7 @@ class TenantFeatureService
             'agenda_team_day_single_slot_height' => [
                 'feature_name' => 'Giorno Team compatto',
                 'feature_scope' => 'workflow',
-                'description' => 'Il tenant master puo attivare per il singolo studio una resa compatta della vista Giorno Team: gli appuntamenti che coprono piu slot restano alti come un solo slot, come nella vista giornaliera del singolo professionista.',
+                'description' => 'Il tenant master può attivare per il singolo studio una resa compatta della vista Giorno Team: gli appuntamenti che coprono più slot restano alti come un solo slot, come nella vista giornaliera del singolo professionista.',
                 'default_enabled' => 0,
                 'icon_class' => 'fa-columns',
                 'is_tenant_managed' => 1,
@@ -320,7 +320,7 @@ class TenantFeatureService
             'agenda_team_day_compact_slot_details' => [
                 'feature_name' => 'Dettagli slot Giorno Team compatto',
                 'feature_scope' => 'workflow',
-                'description' => 'Il tenant master puo attivare per il singolo studio dettagli piu ricchi nella vista Giorno Team compatto: slot appuntamento piu leggibili con nome, recapito principale e note, piu dettaglio completo al passaggio del mouse. Si applica solo quando Giorno Team compatto e attivo.',
+                'description' => 'Il tenant master può attivare per il singolo studio dettagli più ricchi nella vista Giorno Team compatto: slot appuntamento più leggibili con nome, recapito principale e note, più dettaglio completo al passaggio del mouse. Si applica solo quando Giorno Team compatto è attivo.',
                 'default_enabled' => 1,
                 'icon_class' => 'fa-list-alt',
                 'is_tenant_managed' => 1,
@@ -330,7 +330,7 @@ class TenantFeatureService
             'agenda_show_appointment_creator' => [
                 'feature_name' => 'Mostra creatore appuntamento in storico e PDF',
                 'feature_scope' => 'workflow',
-                'description' => 'Il tenant master puo scegliere se mostrare o nascondere il nome dell utente che ha creato l appuntamento nello storico paziente e nei PDF agenda.',
+                'description' => 'Il tenant master può scegliere se mostrare o nascondere il nome dell’utente che ha creato l’appuntamento nello storico paziente e nei PDF agenda.',
                 'default_enabled' => 1,
                 'icon_class' => 'fa-eye',
                 'is_tenant_managed' => 1,
@@ -340,7 +340,7 @@ class TenantFeatureService
             'agenda_show_appointment_creator_in_slots' => [
                 'feature_name' => 'Mostra creatore appuntamento negli slot',
                 'feature_scope' => 'workflow',
-                'description' => 'Il tenant master puo scegliere se mostrare o nascondere il nome dell utente che ha creato l appuntamento dentro gli slot agenda, inclusa la vista Giorno Team.',
+                'description' => 'Il tenant master può scegliere se mostrare o nascondere il nome dell’utente che ha creato l’appuntamento dentro gli slot agenda, inclusa la vista Giorno Team.',
                 'default_enabled' => 1,
                 'icon_class' => 'fa-eye',
                 'is_tenant_managed' => 1,
@@ -350,7 +350,7 @@ class TenantFeatureService
             PatientExcelImportService::FEATURE_KEY => [
                 'feature_name' => 'Importazione pazienti da Excel',
                 'feature_scope' => 'workflow',
-                'description' => 'Il tenant master puo attivare per il singolo studio l importazione guidata dei pazienti da file Excel, con mapping colonne, preview e controlli prima del salvataggio.',
+                'description' => 'Il tenant master può attivare per il singolo studio l’importazione guidata dei pazienti da file Excel, con mapping colonne, preview e controlli prima del salvataggio.',
                 'default_enabled' => 1,
                 'icon_class' => 'fa-upload',
                 'is_tenant_managed' => 1,
@@ -360,7 +360,7 @@ class TenantFeatureService
             'agenda_custom_appointment_time' => [
                 'feature_name' => 'Orari personalizzati appuntamenti',
                 'feature_scope' => 'workflow',
-                'description' => 'Il tenant master puo abilitare appuntamenti con un orario iniziale fuori dalla griglia. Il sistema riserva automaticamente tutti gli slot sovrapposti all intervallo reale.',
+                'description' => 'Il tenant master può abilitare appuntamenti con un orario iniziale fuori dalla griglia. Il sistema riserva automaticamente tutti gli slot sovrapposti all’intervallo reale.',
                 'default_enabled' => 0,
                 'icon_class' => 'fa-clock-o',
                 'is_tenant_managed' => 1,
@@ -368,9 +368,9 @@ class TenantFeatureService
                 'sort_order' => 78,
             ],
             'agenda_patient_registry_visibility' => [
-                'feature_name' => 'Visibilita pazienti in anagrafica',
+                'feature_name' => 'Visibilità pazienti in anagrafica',
                 'feature_scope' => 'workflow',
-                'description' => 'Il master piattaforma puo attivare per il singolo spazio il flag nel popup appuntamento per scegliere se rendere il paziente visibile anche nell anagrafica. Il paziente e gli appuntamenti restano sempre conservati nel database.',
+                'description' => 'Il master piattaforma può attivare per il singolo spazio il flag nel popup appuntamento per scegliere se rendere il paziente visibile anche nell’anagrafica. Il paziente e gli appuntamenti restano sempre conservati nel database.',
                 'default_enabled' => 0,
                 'icon_class' => 'fa-address-card-o',
                 'is_tenant_managed' => 0,
@@ -380,7 +380,7 @@ class TenantFeatureService
             AgendaAppointmentBlockLayoutService::FEATURE_KEY => [
                 'feature_name' => 'Layout popup appuntamento',
                 'feature_scope' => 'workflow',
-                'description' => 'Il master piattaforma puo attivare per il singolo studio un layout personalizzato del popup appuntamento, con ordine dei blocchi e possibilita di nascondere quelli non obbligatori.',
+                'description' => 'Il master piattaforma può attivare per il singolo studio un layout personalizzato del popup appuntamento, con ordine dei blocchi e possibilità di nascondere quelli non obbligatori.',
                 'default_enabled' => 0,
                 'icon_class' => 'fa-columns',
                 'is_tenant_managed' => 0,

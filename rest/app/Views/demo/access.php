@@ -2,7 +2,7 @@
 /**
  * Splash di ingresso alla demo (/demo).
  * Redesign 2026-06: smistamento a 3 ruoli (Responsabile, Segreteria, Professionista).
- * Due varianti grafiche (B = card affiancate, C = split editoriale). Priorita:
+ * Due varianti grafiche (B = card affiancate, C = split editoriale). Priorità:
  *   1. ?variant=B|C  -> anteprima istantanea (vince sempre)
  *   2. scelta "live" di Simone dall'admin del sito (sezione Impostazioni),
  *      letta a runtime da https://ambulatoriofacile.it/api/demo/variant

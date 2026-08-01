@@ -362,7 +362,7 @@ class AuthenticationController extends BaseController
                 'requireEmail' => $this->canEditProfileEmailForOtp(),
                 'message'      => $this->canEditProfileEmailForOtp()
                     ? 'Nessun indirizzo email presente nel profilo.'
-                    : 'Nessun indirizzo email presente nel profilo. Nel recupero password puoi usare solo una mail gia salvata.',
+                    : 'Nessun indirizzo email presente nel profilo. Nel recupero password puoi usare solo una mail già salvata.',
             ]);
         }
 
@@ -414,7 +414,7 @@ class AuthenticationController extends BaseController
         if (!$this->canEditProfileEmailForOtp()) {
             return $this->response->setStatusCode(403)->setJSON([
                 'success' => false,
-                'message' => 'Nel recupero password non e possibile modificare l email da questa schermata.',
+                'message' => 'Nel recupero password non è possibile modificare l’email da questa schermata.',
             ]);
         }
 
@@ -455,7 +455,7 @@ class AuthenticationController extends BaseController
             $this->logOtpDelivery('email', false, 'otp_generation_failed');
             return $this->response->setStatusCode(500)->setJSON([
                 'success' => false,
-                'message' => 'Email salvata, ma non e stato possibile generare l OTP.',
+                'message' => 'Email salvata, ma non è stato possibile generare l’OTP.',
             ]);
         }
 
@@ -465,7 +465,7 @@ class AuthenticationController extends BaseController
             $this->logOtpDelivery('email', false, (string)($send['error'] ?? 'email_send_failed'));
             return $this->response->setStatusCode(500)->setJSON([
                 'success' => false,
-                'message' => 'Email salvata, ma l invio dell OTP non e riuscito.',
+                'message' => 'Email salvata, ma l’invio dell’OTP non è riuscito.',
             ]);
         }
 
@@ -969,10 +969,10 @@ class AuthenticationController extends BaseController
         return [
             'brandName' => trim($fromName) !== '' ? trim($fromName) : 'AmbulatorioFacile',
             'greeting' => $greeting,
-            'notificationTitle' => 'Attiva le notifiche per ricevere gli OTP piu rapidamente',
+            'notificationTitle' => 'Attiva le notifiche per ricevere gli OTP più rapidamente',
             'notificationMessage' => $isClient
-                ? 'Abbiamo notato che stai richiedendo il codice OTP via email. Ti invitiamo ad attivare le notifiche sul tuo smartphone: in questo modo potrai ricevere i prossimi codici direttamente come notifica, in modo piu rapido e immediato, e potrai anche ricevere un avviso quando il team risponde ai tuoi messaggi.'
-                : 'Abbiamo notato che stai richiedendo il codice OTP via email. Per rendere i prossimi accessi piu rapidi e immediati, ti consigliamo di attivare le notifiche sul dispositivo che utilizzi abitualmente.',
+                ? 'Abbiamo notato che stai richiedendo il codice OTP via email. Ti invitiamo ad attivare le notifiche sul tuo smartphone: in questo modo potrai ricevere i prossimi codici direttamente come notifica, in modo più rapido e immediato, e potrai anche ricevere un avviso quando il team risponde ai tuoi messaggi.'
+                : 'Abbiamo notato che stai richiedendo il codice OTP via email. Per rendere i prossimi accessi più rapidi e immediati, ti consigliamo di attivare le notifiche sul dispositivo che utilizzi abitualmente.',
             'ctaCaption' => "Per assistenza o per concordare l'attivazione, puoi rivolgerti direttamente alla struttura di riferimento.",
             'otpLabel' => 'Il tuo codice OTP',
             'otp' => trim($otp),

@@ -102,7 +102,7 @@ class OtpDeviceManagementService
             'tenant' => $tenant,
             'app_user_id' => $appUserId,
             'disconnected' => true,
-            'message' => 'Dispositivi OTP disassociati per l account ' . $accountLabel . '.',
+            'message' => 'Dispositivi OTP disassociati per l’account ' . $accountLabel . '.',
         ];
     }
 

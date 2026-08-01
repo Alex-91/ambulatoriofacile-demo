@@ -135,9 +135,9 @@ $missingLocationNames = array_map(static fn(array $row): string => (string)($row
               </div>
               <div class="col-md-4">
                 <div class="summary-box">
-                  <div class="text-muted">Gia collegati</div>
+                  <div class="text-muted">Già collegati</div>
                   <div class="value" id="selectedCounter"><?= $selectedCount ?></div>
-                  <div class="text-muted">Medici gia selezionati</div>
+                  <div class="text-muted">Medici già selezionati</div>
                 </div>
               </div>
             </div>
@@ -160,7 +160,7 @@ $missingLocationNames = array_map(static fn(array $row): string => (string)($row
 
                 <div class="box-body">
                   <p class="text-muted" style="margin-bottom:14px;">
-                    I medici gia presenti nell'abbinamento <code>dap15_inf_dot</code> risultano gia selezionati. Puoi aggiungere o togliere i collegamenti e poi salvare.
+                    I medici già presenti nell'abbinamento <code>dap15_inf_dot</code> risultano già selezionati. Puoi aggiungere o togliere i collegamenti e poi salvare.
                   </p>
 
                   <div class="toolbar-buttons">
@@ -235,7 +235,7 @@ $missingLocationNames = array_map(static fn(array $row): string => (string)($row
             </div>
           <?php elseif ($selectedNurseId <= 0): ?>
             <div class="alert alert-info">
-              Seleziona un infermiere per vedere quali medici puo gestire e quali risultano gia collegati.
+              Seleziona un infermiere per vedere quali medici può gestire e quali risultano già collegati.
             </div>
           <?php endif; ?>
         </div>

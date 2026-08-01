@@ -78,7 +78,7 @@ $demoRequestContext = is_array($demoRequestContext ?? null) ? $demoRequestContex
         <section class="panel">
             <div class="panel-head">
                 <p class="eyebrow">Modulo contatto</p>
-                <h2>Prepariamo una demo guidata piu precisa</h2>
+                <h2>Prepariamo una demo guidata più precisa</h2>
             </div>
 
             <form method="post" action="<?= site_url('richiesta/invia') ?>" class="demo-form-card">
@@ -101,7 +101,7 @@ $demoRequestContext = is_array($demoRequestContext ?? null) ? $demoRequestContex
                     </div>
 
                     <div class="form-field">
-                        <label for="business_name">Struttura o attivita</label>
+                        <label for="business_name">Struttura o attività</label>
                         <input type="text" id="business_name" name="business_name" value="<?= esc((string) ($requestOld['business_name'] ?? '')) ?>" required>
                         <?php if (!empty($requestErrors['business_name'])): ?><p class="field-error"><?= esc((string) $requestErrors['business_name']) ?></p><?php endif; ?>
                     </div>

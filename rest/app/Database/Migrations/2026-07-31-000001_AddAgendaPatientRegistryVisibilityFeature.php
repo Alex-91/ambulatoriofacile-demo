@@ -23,9 +23,9 @@ class AddAgendaPatientRegistryVisibilityFeature extends Migration
             ->getRowArray();
 
         $payload = [
-            'feature_name' => 'Visibilita pazienti in anagrafica',
+            'feature_name' => 'Visibilità pazienti in anagrafica',
             'feature_scope' => 'workflow',
-            'description' => 'Il master piattaforma puo attivare per il singolo spazio il flag nel popup appuntamento per scegliere se rendere il paziente visibile anche nell anagrafica. Il paziente e gli appuntamenti restano sempre conservati nel database.',
+            'description' => 'Il master piattaforma può attivare per il singolo spazio il flag nel popup appuntamento per scegliere se rendere il paziente visibile anche nell’anagrafica. Il paziente e gli appuntamenti restano sempre conservati nel database.',
             'default_enabled' => 0,
             'updated_at' => $now,
         ];

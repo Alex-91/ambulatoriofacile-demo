@@ -49,7 +49,7 @@ $selectedTenantName = trim((string) ($selectedTenant['tenant_name'] ?? ''));
     <section class="content-header">
       <h1>Dispositivi OTP</h1>
       <p class="text-muted" style="margin:8px 0 0 0;">
-        Dalla console piattaforma puoi controllare gli account applicativi che hanno device OTP attivi nei singoli studi e disassociarli quando un account cambia telefono o resta bloccato su un device non piu disponibile.
+        Dalla console piattaforma puoi controllare gli account applicativi che hanno device OTP attivi nei singoli studi e disassociarli quando un account cambia telefono o resta bloccato su un device non più disponibile.
       </p>
     </section>
 
@@ -83,7 +83,7 @@ $selectedTenantName = trim((string) ($selectedTenant['tenant_name'] ?? ''));
             <?php endif; ?>
             <span class="summary-badge">Account con OTP attivo: <?= (int) ($summary['total_accounts'] ?? 0) ?></span>
             <span class="summary-badge">Dispositivi attivi: <?= (int) ($summary['active_devices'] ?? 0) ?></span>
-            <span class="summary-badge">Account con piu device: <?= (int) ($summary['multiple_devices_accounts'] ?? 0) ?></span>
+            <span class="summary-badge">Account con più device: <?= (int) ($summary['multiple_devices_accounts'] ?? 0) ?></span>
           </div>
 
           <div class="box box-default">

@@ -140,7 +140,7 @@
       <div class="alert alert-success" style="margin-bottom:10px;">
         <b>Attivo:</b> <?= esc($activeDevice['device_label'] ?? 'Dispositivo') ?><br>
         <small class="text-muted">
-          <?= esc($activeDevice['device_os'] ?? '') ?> â€” <?= esc($activeDevice['device_type'] ?? '') ?>
+          <?= esc($activeDevice['device_os'] ?? '') ?> — <?= esc($activeDevice['device_type'] ?? '') ?>
         </small>
       </div>
 
@@ -235,7 +235,7 @@
               <select name="avviso_mail" class="form-control">
                 <?php $avv = (int)old('avviso_mail', (int)($cliente['avviso_mail'] ?? 0)); ?>
                 <option value="0" <?= $avv === 0 ? 'selected' : '' ?>>No</option>
-                <option value="1" <?= $avv === 1 ? 'selected' : '' ?>>SÃ¬</option>
+                <option value="1" <?= $avv === 1 ? 'selected' : '' ?>>Sì</option>
               </select>
             </div>
           </div>
@@ -263,7 +263,7 @@
         <div class="row">
           <div class="col-md-6">
             <div class="form-group">
-              <label>CittÃ </label>
+              <label>Città</label>
               <input type="text" name="citta" class="form-control"
                      value="<?= esc(old('citta', $cliente['citta'] ?? '')) ?>">
             </div>
@@ -495,7 +495,7 @@
       const isVisible = Array.isArray(notifications) && notifications.length > 0;
 
       if (isVisible) {
-        const userConfirmed = window.confirm('Ti abbiamo appena inviato una notifica di prova. Premi OK se l\'hai vista, oppure Annulla se non e comparsa.');
+        const userConfirmed = window.confirm('Ti abbiamo appena inviato una notifica di prova. Premi OK se l\'hai vista, oppure Annulla se non è comparsa.');
         notifications.forEach((notification) => {
           try { notification.close(); } catch (_) {}
         });
@@ -634,7 +634,7 @@
   const rLow = document.getElementById('rule-lowercase');
   const rSp  = document.getElementById('rule-special');
 
-  // testo fisso (cosÃ¬ non perdi le icone)
+  // testo fisso (così non perdi le icone)
   rLen.setAttribute('data-text', 'Almeno 8 caratteri');
   rUp.setAttribute('data-text',  'Almeno una lettera maiuscola');
   rLow.setAttribute('data-text', 'Almeno una lettera minuscola');

@@ -113,7 +113,7 @@ function displayNameFromMsg(array $msg): string {
 <div id="page-loader" style="display:none; position:fixed; inset:0; background:rgba(255,255,255,.85); z-index:9999;">
   <div class="spinner" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;">
     <i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i>
-    <div class="msg" style="margin-top:10px;font-size:13px;color:#444">Caricamentoâ€¦</div>
+    <div class="msg" style="margin-top:10px;font-size:13px;color:#444">Caricamento…</div>
   </div>
 </div>
 
@@ -307,7 +307,7 @@ function displayNameFromMsg(array $msg): string {
 
                 <?php if (($isSeg || $isInf) && $selectedDoctorId <= 0): ?>
                   <small class="text-danger">
-                    Attenzione: medico non selezionato. Seleziona un medico dalla colonna â€œDottoriâ€ prima di inoltrare al dottore.
+                    Attenzione: medico non selezionato. Seleziona un medico dalla colonna “Dottori” prima di inoltrare al dottore.
                   </small>
                 <?php endif; ?>
               <?php endif; ?>
@@ -322,7 +322,7 @@ function displayNameFromMsg(array $msg): string {
               <input type="hidden" name="version" id="hid-version" value="desktop">
               <input type="hidden" name="id_message" id="hid-id_message" value="<?= (int)($ctx['id_message_ini'] ?? 0) ?>">
 
-              <!-- âœ… dest_code / dest_id (dest_id obbligatorio SOLO per medico) -->
+              <!-- ✅ dest_code / dest_id (dest_id obbligatorio SOLO per medico) -->
               <?php
                 // default radio iniziale:
                 // - Doc: S (3)
@@ -348,11 +348,11 @@ function displayNameFromMsg(array $msg): string {
                   <textarea id="forward-textarea"
                             class="form-control"
                             style="height: 180px"
-                            placeholder="Aggiungi un commentoâ€¦"></textarea>
+                            placeholder="Aggiungi un commento…"></textarea>
                 </div>
 
                 <div class="form-group">
-                  <label>Allega nuovi file (oltre a quelli giÃ  presenti)</label><br>
+                  <label>Allega nuovi file (oltre a quelli già presenti)</label><br>
                   <div class="btn btn-default btn-file">
                     <i class="fa fa-paperclip"></i> Allega file
                     <input type="file" name="attachment[]" multiple />
@@ -424,7 +424,7 @@ function displayNameFromMsg(array $msg): string {
 
     if (IS_PATIENT) return;
 
-    // âœ… sync radio -> hidden dest_code + dest_id
+    // ✅ sync radio -> hidden dest_code + dest_id
     $('input[name="dest_code_radio"]').on('ifChecked', function(){
       var code = parseInt($(this).val(), 10) || 0;
       $('#hid-dest-code').val(String(code));
@@ -498,9 +498,9 @@ function displayNameFromMsg(array $msg): string {
       }
       var fileCount = fileInput.files.length;
       if (fileCount > 0) {
-        $('#page-loader .msg').text('Inoltro e caricamento allegati in corsoâ€¦');
+        $('#page-loader .msg').text('Inoltro e caricamento allegati in corso…');
       } else {
-        $('#page-loader .msg').text('Inoltro in corsoâ€¦');
+        $('#page-loader .msg').text('Inoltro in corso…');
       }
       $('#page-loader').show();
 
@@ -526,7 +526,7 @@ function displayNameFromMsg(array $msg): string {
       })
       .done(function(resp) {
         $('#page-loader').fadeOut(150, function(){
-          $('#page-loader .msg').text('Ritorno alla postaâ€¦');
+          $('#page-loader .msg').text('Ritorno alla posta…');
           $('#page-loader').fadeIn(100, function(){ window.location = inboxUrl; });
         });
 
@@ -544,11 +544,11 @@ function displayNameFromMsg(array $msg): string {
         }
         alert(msg);
         return;
-        // se il backend blocca (es 403), mostro messaggio piÃ¹ chiaro
+        // se il backend blocca (es 403), mostro messaggio più chiaro
         if (xhr && xhr.status === 403) {
           alert('Operazione non consentita.');
         } else {
-          alert('Errore durante lâ€™inoltro del messaggio. Riprova.');
+          alert('Errore durante l’inoltro del messaggio. Riprova.');
         }
       });
     });

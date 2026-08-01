@@ -46,7 +46,7 @@ class TsSoapClientFactory
     private function createClientForProfile(array $profile, string $contract): \SoapClient
     {
         if (!extension_loaded('soap')) {
-            throw new \RuntimeException('L estensione SOAP non e disponibile nel runtime attuale.');
+            throw new \RuntimeException('L’estensione SOAP non è disponibile nel runtime attuale.');
         }
 
         $environment = trim((string) ($profile['environment'] ?? 'test'));
@@ -64,8 +64,8 @@ class TsSoapClientFactory
         if ($endpoint === '') {
             throw new \RuntimeException(
                 ($contract === 'receipts'
-                    ? 'Endpoint ricevute TS non configurato per l ambiente "'
-                    : 'Endpoint documento TS non configurato per l ambiente "')
+                    ? 'Endpoint ricevute TS non configurato per l’ambiente "'
+                    : 'Endpoint documento TS non configurato per l’ambiente "')
                 . $environment . '".'
             );
         }

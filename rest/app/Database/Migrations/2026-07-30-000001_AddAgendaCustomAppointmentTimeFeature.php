@@ -25,7 +25,7 @@ class AddAgendaCustomAppointmentTimeFeature extends Migration
         $payload = [
             'feature_name' => 'Orari personalizzati appuntamenti',
             'feature_scope' => 'workflow',
-            'description' => 'Il tenant master puo abilitare appuntamenti con un orario iniziale fuori dalla griglia. Il sistema riserva automaticamente tutti gli slot sovrapposti all intervallo reale.',
+            'description' => 'Il tenant master può abilitare appuntamenti con un orario iniziale fuori dalla griglia. Il sistema riserva automaticamente tutti gli slot sovrapposti all’intervallo reale.',
             'default_enabled' => 0,
             'updated_at' => $now,
         ];

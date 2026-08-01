@@ -32,7 +32,7 @@ class DoctorDeletionService
         }
 
         if ((int)($doctor['tipo'] ?? 0) !== 1) {
-            throw new \RuntimeException('Il record selezionato non e un dottore.');
+            throw new \RuntimeException('Il record selezionato non è un dottore.');
         }
 
         return $this->deletePersonnel($doctorPersonaleId, $currentSessionPersonaleId, $currentSessionUserId);
@@ -112,8 +112,8 @@ class DoctorDeletionService
             if (!$this->db->transStatus()) {
                 throw new \RuntimeException(
                     $isDoctor
-                        ? 'La cancellazione del dottore non e andata a buon fine.'
-                        : 'La cancellazione dell\'account personale non e andata a buon fine.'
+                        ? 'La cancellazione del dottore non è andata a buon fine.'
+                        : 'La cancellazione dell\'account personale non è andata a buon fine.'
                 );
             }
 

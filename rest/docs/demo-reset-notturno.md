@@ -26,7 +26,7 @@ DEMO_RESET_ACCESS_TOKEN=CHANGE_ME
 
 Note:
 
-- `DEMO_RESET_ACCESS_TOKEN` puo restare vuoto se vuoi riusare `CRON_ACCESS_TOKEN`
+- `DEMO_RESET_ACCESS_TOKEN` può restare vuoto se vuoi riusare `CRON_ACCESS_TOKEN`
 - `DEMO_SEED_AGENDA_BUSINESS_DAYS` controlla sia il seed a bootstrap sia il reset notturno
 - `DEMO_AUTO_RESET_ENABLED=1` attiva il loop interno al container: non serve tenere aperto Coolify e non serve configurare uno scheduler esterno
 - `DEMO_AUTO_RESET_HOUR` e `DEMO_AUTO_RESET_MINUTE` definiscono l'orario locale del reset

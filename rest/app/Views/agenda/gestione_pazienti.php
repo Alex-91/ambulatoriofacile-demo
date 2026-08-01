@@ -226,7 +226,7 @@
                     <div class="col-md-4 form-group">
                         <label>Cliente attivo (Excel)</label>
                         <select id="cliente_attivo" class="form-control">
-                            <option value="1">Si</option>
+                            <option value="1">Sì</option>
                             <option value="0">No</option>
                         </select>
                     </div>
@@ -283,7 +283,7 @@
                         <label>IVA differita</label>
                         <select id="iva_differita" class="form-control">
                             <option value="0">No</option>
-                            <option value="1">Si</option>
+                            <option value="1">Sì</option>
                         </select>
                     </div>
 
@@ -382,7 +382,7 @@
                         <label>Bloccato in agenda</label>
                         <select id="bloccato" class="form-control">
                             <option value="0">No</option>
-                            <option value="1">Si</option>
+                            <option value="1">Sì</option>
                         </select>
                     </div>
                 </div>

@@ -28,7 +28,7 @@ class AddAgendaSkipEmptyDaysFeature extends Migration
                 'feature_key' => self::FEATURE_KEY,
                 'feature_name' => 'Salta giorni senza agenda',
                 'feature_scope' => 'workflow',
-                'description' => 'Il tenant master decide se la navigazione dell agenda deve saltare i giorni senza agenda e fermarsi direttamente al primo giorno utile del professionista o dello spazio.',
+                'description' => 'Il tenant master decide se la navigazione dell’agenda deve saltare i giorni senza agenda e fermarsi direttamente al primo giorno utile del professionista o dello spazio.',
                 'default_enabled' => 0,
                 'created_at' => $now,
                 'updated_at' => $now,
@@ -60,7 +60,7 @@ class AddAgendaSkipEmptyDaysFeature extends Migration
             $update = [
                 'feature_name' => 'Salta giorni senza agenda',
                 'feature_scope' => 'workflow',
-                'description' => 'Il tenant master decide se la navigazione dell agenda deve saltare i giorni senza agenda e fermarsi direttamente al primo giorno utile del professionista o dello spazio.',
+                'description' => 'Il tenant master decide se la navigazione dell’agenda deve saltare i giorni senza agenda e fermarsi direttamente al primo giorno utile del professionista o dello spazio.',
                 'default_enabled' => 0,
                 'updated_at' => $now,
             ];

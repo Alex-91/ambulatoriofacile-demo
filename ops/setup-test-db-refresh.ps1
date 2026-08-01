@@ -205,7 +205,7 @@ function Find-SingleResourceByName {
         throw "$Label non trovato con nome '$Name'."
     }
 
-    throw "Trovati piu' elementi per $Label con nome '$Name'. Specifica l'UUID in dbRefresh."
+    throw "Trovati più elementi per $Label con nome '$Name'. Specifica l'UUID in dbRefresh."
 }
 
 function Resolve-Project {
@@ -297,7 +297,7 @@ function Resolve-Database {
     }
 
     $available = $matches | ForEach-Object { "$($_.uuid) [$($_.status)]" }
-    throw "Trovati piu' database per $Label con nome '$FallbackName': $($available -join ', '). Imposta dbRefresh.$UuidPropertyName nel config locale."
+    throw "Trovati più database per $Label con nome '$FallbackName': $($available -join ', '). Imposta dbRefresh.$UuidPropertyName nel config locale."
 }
 
 function Resolve-ExistingApp {

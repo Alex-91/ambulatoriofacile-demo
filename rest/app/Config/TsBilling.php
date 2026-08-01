@@ -68,51 +68,51 @@ class TsBilling extends BaseConfig
     public array $expenseTypeMetadata = [
         'TK' => [
             'confidence' => 'verified',
-            'note' => 'Descrizione stabile e allineata all uso corrente del tracciato TS.',
+            'note' => 'Descrizione stabile e allineata all’uso corrente del tracciato TS.',
         ],
         'FC' => [
             'confidence' => 'verified',
-            'note' => 'Descrizione stabile e allineata all uso corrente del tracciato TS.',
+            'note' => 'Descrizione stabile e allineata all’uso corrente del tracciato TS.',
         ],
         'FV' => [
             'confidence' => 'verified',
-            'note' => 'Descrizione stabile e allineata all uso corrente del tracciato TS.',
+            'note' => 'Descrizione stabile e allineata all’uso corrente del tracciato TS.',
         ],
         'AS' => [
             'confidence' => 'verified',
-            'note' => 'Descrizione stabile e allineata all uso corrente del tracciato TS.',
+            'note' => 'Descrizione stabile e allineata all’uso corrente del tracciato TS.',
         ],
         'SR' => [
             'confidence' => 'verified',
-            'note' => 'Descrizione stabile e gia collaudata nel flusso TEST reale del modulo.',
+            'note' => 'Descrizione stabile e già collaudata nel flusso TEST reale del modulo.',
         ],
         'CT' => [
             'confidence' => 'provisional',
-            'note' => 'Codice ufficiale presente nell XSD TS; la descrizione estesa resta prudente finche non la validiamo su casi reali o documentazione piu esplicita.',
+            'note' => 'Codice ufficiale presente nell’XSD TS; la descrizione estesa resta prudente finché non la validiamo su casi reali o documentazione più esplicita.',
         ],
         'PI' => [
             'confidence' => 'provisional',
-            'note' => 'Codice ufficiale presente nell XSD TS; la descrizione estesa resta prudente finche non la validiamo su casi reali o documentazione piu esplicita.',
+            'note' => 'Codice ufficiale presente nell’XSD TS; la descrizione estesa resta prudente finché non la validiamo su casi reali o documentazione più esplicita.',
         ],
         'IC' => [
             'confidence' => 'provisional',
-            'note' => 'Codice ufficiale presente nell XSD TS; la descrizione estesa resta prudente finche non la validiamo su casi reali o documentazione piu esplicita.',
+            'note' => 'Codice ufficiale presente nell’XSD TS; la descrizione estesa resta prudente finché non la validiamo su casi reali o documentazione più esplicita.',
         ],
         'AA' => [
             'confidence' => 'provisional',
-            'note' => 'Codice ufficiale presente nell XSD TS; la descrizione estesa resta prudente finche non la validiamo su casi reali o documentazione piu esplicita.',
+            'note' => 'Codice ufficiale presente nell’XSD TS; la descrizione estesa resta prudente finché non la validiamo su casi reali o documentazione più esplicita.',
         ],
         'AD' => [
             'confidence' => 'provisional',
-            'note' => 'Codice ufficiale presente nell XSD TS; la descrizione estesa resta prudente finche non la validiamo su casi reali o documentazione piu esplicita.',
+            'note' => 'Codice ufficiale presente nell’XSD TS; la descrizione estesa resta prudente finché non la validiamo su casi reali o documentazione più esplicita.',
         ],
         'SV' => [
             'confidence' => 'provisional',
-            'note' => 'Codice ufficiale presente nell XSD TS; la descrizione estesa resta prudente finche non la validiamo su casi reali o documentazione piu esplicita.',
+            'note' => 'Codice ufficiale presente nell’XSD TS; la descrizione estesa resta prudente finché non la validiamo su casi reali o documentazione più esplicita.',
         ],
         'SP' => [
             'confidence' => 'verified',
-            'note' => 'Descrizione stabile e allineata all uso corrente del tracciato TS.',
+            'note' => 'Descrizione stabile e allineata all’uso corrente del tracciato TS.',
         ],
     ];
 

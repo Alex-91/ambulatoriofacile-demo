@@ -184,11 +184,11 @@ class PlatformImpersonationController extends BaseController
         ];
 
         if (!$this->platformAdminAccess->hasPersistentPlatformAdmins()) {
-            $warnings[] = 'Non esiste ancora un account master piattaforma persistente. Creane almeno uno dal pannello degli spazi cliente prima di uscire dalla modalita bootstrap.';
+            $warnings[] = 'Non esiste ancora un account master piattaforma persistente. Creane almeno uno dal pannello degli spazi cliente prima di uscire dalla modalità bootstrap.';
         }
 
         if ($this->platformAdminAccess->configuredMasterEmails() === []) {
-            $warnings[] = 'PLATFORM_MASTER_EMAILS non e configurata in Coolify. Va bene: da ora i master possono essere gestiti dal pannello. Usa la env solo se vuoi tenere una scorciatoia bootstrap tecnica.';
+            $warnings[] = 'PLATFORM_MASTER_EMAILS non è configurata in Coolify. Va bene: da ora i master possono essere gestiti dal pannello. Usa la env solo se vuoi tenere una scorciatoia bootstrap tecnica.';
         }
 
         return $warnings;

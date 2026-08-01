@@ -62,7 +62,7 @@ $msgErr = session()->getFlashdata('message_error');
 
       <?php if (!empty($existing)): ?>
         <div class="alert alert-warning">
-          <b>Hai giÃ  una prenotazione futura.</b><br>
+          <b>Hai già una prenotazione futura.</b><br>
           <?= esc(($existing['data_ora_ini'] ?? '')) ?> - <?= esc(($existing['data_ora_fin'] ?? '')) ?>
           (<?= esc(($existing['cognome_med'] ?? '')) ?> <?= esc(($existing['nome_med'] ?? '')) ?>)
           <br><br>
@@ -79,7 +79,7 @@ $msgErr = session()->getFlashdata('message_error');
           <div class="box box-primary choice-box">
             <div class="box-header with-border">
               <h3 class="box-title">
-                <i class="fa fa-calendar"></i> Cerca disponibilitÃ 
+                <i class="fa fa-calendar"></i> Cerca disponibilità
                 <small>&nbsp;| scegli da che data partire</small>
               </h3>
             </div>
@@ -119,11 +119,11 @@ $msgErr = session()->getFlashdata('message_error');
                   <?php
                     $giorniIt = [
                       'Sunday'    => 'Domenica',
-                      'Monday'    => 'LunedÃ¬',
-                      'Tuesday'   => 'MartedÃ¬',
-                      'Wednesday' => 'MercoledÃ¬',
-                      'Thursday'  => 'GiovedÃ¬',
-                      'Friday'    => 'VenerdÃ¬',
+                      'Monday'    => 'Lunedì',
+                      'Tuesday'   => 'Martedì',
+                      'Wednesday' => 'Mercoledì',
+                      'Thursday'  => 'Giovedì',
+                      'Friday'    => 'Venerdì',
                       'Saturday'  => 'Sabato',
                     ];
                   ?>
@@ -166,7 +166,7 @@ $msgErr = session()->getFlashdata('message_error');
                             <div class="slot-row">
                               <div class="btn-row">
 
-                                <!-- âœ… FORM PRENOTA con NOTE -->
+                                <!-- ✅ FORM PRENOTA con NOTE -->
                                 <form method="post" action="<?= site_url('prenotazioni/mmg/prenota') ?>"
                                       style="margin:0; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
                                   <?= csrf_field() ?>

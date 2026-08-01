@@ -29,7 +29,7 @@ function main(array $argv): void
     ensureDirectory(DEMO_REPORT_DIR);
 
     if (in_array(strtolower($options['target_db']), DEMO_FORBIDDEN_TARGETS, true)) {
-        throw new RuntimeException('Il target demo non puo essere farmacia, mail o mailsimo.');
+        throw new RuntimeException('Il target demo non può essere farmacia, mail o mailsimo.');
     }
 
     if (strcasecmp($options['source_db'], $options['target_db']) === 0) {

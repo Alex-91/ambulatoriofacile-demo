@@ -7,7 +7,7 @@
 
 ## Uso base
 
-Prerequisito: il codice da rilasciare deve essere gia' stato portato su `main` e pushato su `origin/main`.
+Prerequisito: il codice da rilasciare deve essere già stato portato su `main` e pushato su `origin/main`.
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\ops\release-prod.ps1 -Target demo
@@ -15,7 +15,7 @@ powershell -ExecutionPolicy Bypass -File .\ops\release-prod.ps1 -Target login
 powershell -ExecutionPolicy Bypass -File .\ops\release-prod.ps1 -Target both
 ```
 
-## Modalita sicura
+## Modalità sicura
 
 Per provare il flusso senza chiamate remote:
 
@@ -58,5 +58,5 @@ Quindi:
 
 - `deployMode: webhook` usa direttamente il `deployWebhookUrl`
 - `deployMode: api` usa `coolifyBaseUrl` + `coolifyToken` + `appUuid`
-- `-Force` imposta `force=true` solo in modalita `api`
+- `-Force` imposta `force=true` solo in modalità `api`
 - se il webhook Coolify accetta solo `GET` o solo `POST`, lo script prova prima `POST` e poi fa fallback

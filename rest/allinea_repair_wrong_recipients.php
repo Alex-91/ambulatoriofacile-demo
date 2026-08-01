@@ -10,7 +10,7 @@ mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
  * nel mailbox medico/staff sbagliato nel nuovo modulo.
  *
  * Considera sia i root legacy (dap10_message) sia le reply legacy
- * (dap10_message_reply), ma in modalita' automatica corregge solo i casi
+ * (dap10_message_reply), ma in modalità automatica corregge solo i casi
  * in cui il destinatario legacy (id_dest) e' un medico reale.
  *
  * I casi dove id_dest punta a segreteria/infermiere vengono esclusi dal
@@ -527,7 +527,7 @@ function printSummary(array $candidates, array $flagSummaries, array $filters, b
     });
 
     echo "== REPAIR WRONG RECIPIENTS ==\n";
-    echo 'Modalita              : ' . ($apply ? 'APPLY' : 'DRY RUN') . "\n";
+    echo 'Modalità              : ' . ($apply ? 'APPLY' : 'DRY RUN') . "\n";
     printFilters($filters);
     echo 'Messaggi candidati    : ' . count($candidates) . "\n";
     echo 'Thread coinvolti      : ' . count($threadIds) . "\n";

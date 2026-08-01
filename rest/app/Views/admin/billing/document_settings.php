@@ -167,20 +167,38 @@ $oldChecked = static function (string $key, bool $default = false): bool {
   <?= view('partials/header', ['menu_items' => $menu_items]) ?>
 
   <div class="content-wrapper">
-    <section class="content-header">
-      <h1>Documento fatturazione</h1>
-      <p class="text-muted" style="margin:8px 0 0 0;">
-        Configura il modello base del documento cliente: campi, logo, blocchi grafici e comportamento quando il Sistema TS e attivo.
-      </p>
-    </section>
-
-    <section class="content">
+    <section class="content billing-settings-content">
       <div class="row">
         <div class="col-md-3">
           <?= view('partials/sidebar_admin', ['menu_items' => $menu_items]) ?>
         </div>
 
-        <div class="col-md-9">
+        <div class="col-md-9 billing-settings-main">
+          <div class="billing-modulebar billing-settings-modulebar">
+            <div class="billing-modulebar-copy">
+              <div class="billing-eyebrow">Fatturazione</div>
+              <div class="billing-title-row">
+                <span class="billing-module-icon"><i class="fa fa-file-text-o"></i></span>
+                <div>
+                  <h1>Documento fatturazione</h1>
+                  <p>Personalizza il modello che il tuo studio applica a ogni fattura e ricevuta.</p>
+                </div>
+              </div>
+              <div class="billing-settings-statuses">
+                <span class="billing-settings-status <?= $billingEnabled ? 'is-success' : 'is-neutral' ?>"><i class="fa <?= $billingEnabled ? 'fa-check' : 'fa-minus' ?>"></i> Fatturazione <?= $billingEnabled ? 'attiva' : 'spenta' ?></span>
+                <span class="billing-settings-status <?= $tsEnabled ? 'is-ts' : 'is-neutral' ?>"><i class="fa fa-id-card-o"></i> Sistema TS <?= $tsEnabled ? 'attivo' : 'spento' ?></span>
+                <span class="billing-settings-status is-neutral"><i class="fa fa-link"></i> <?= esc($modeTitle) ?></span>
+              </div>
+              <div class="billing-module-actions billing-settings-module-actions">
+                <a class="billing-action billing-action-plain" href="<?= site_url('admin/fatturazione') ?>"><i class="fa fa-arrow-left"></i> Torna alla dashboard</a>
+                <a class="billing-action billing-action-plain" href="<?= site_url('admin/fatturazione-documenti') ?>"><i class="fa fa-folder-open-o"></i> Archivio documenti</a>
+                <?php if ($tsEnabled): ?>
+                  <a class="billing-action billing-action-secondary billing-settings-ts-action" href="<?= site_url('admin/sistema-ts') ?>"><i class="fa fa-id-card-o"></i> Apri modulo Sistema TS</a>
+                <?php endif; ?>
+                <button class="billing-action billing-action-primary" form="billing-document-settings-form" type="submit"><i class="fa fa-check"></i> Salva</button>
+              </div>
+            </div>
+          </div>
           <?php if (!empty($errors['generic'])): ?>
             <div class="alert alert-danger"><?= esc((string) $errors['generic']) ?></div>
           <?php endif; ?>
@@ -188,87 +206,43 @@ $oldChecked = static function (string $key, bool $default = false): bool {
             <div class="alert alert-success"><?= esc((string) $success) ?></div>
           <?php endif; ?>
 
-          <div class="hero-box">
-            <h3 style="margin-top:0; margin-bottom:8px;">
-              Spazio: <?= esc((string) ($tenantScope['tenant_name'] ?? 'attivo')) ?>
-            </h3>
-            <p style="margin:0 0 12px 0; color:#556b70;">
-              <?= esc($modeMessage) ?>
-            </p>
-            <span class="state-chip">Fatturazione: <?= $billingEnabled ? 'attiva' : 'spenta' ?></span>
-            <span class="state-chip">Sistema TS: <?= $tsEnabled ? 'attivo' : 'spento' ?></span>
-            <span class="state-chip">Modalita: <?= esc($modeTitle) ?></span>
-            <?php if ($lastUpdatedAt !== ''): ?>
-              <span class="state-chip">Ultimo salvataggio: <?= esc($lastUpdatedAt) ?></span>
-            <?php endif; ?>
-            <div style="margin-top:12px;">
-              <a class="btn btn-default" href="<?= site_url('admin/fatturazione') ?>">
-                <i class="fa fa-arrow-left"></i> Torna alla dashboard fatturazione
-              </a>
-              <a class="btn btn-success" href="<?= site_url('admin/fatturazione-documenti') ?>" style="margin-left:8px;">
-                <i class="fa fa-folder-open-o"></i> Apri archivio documenti
-              </a>
-              <?php if ($tsEnabled): ?>
-                <a class="btn btn-primary" href="<?= site_url('admin/sistema-ts') ?>" style="margin-left:8px;">
-                  <i class="fa fa-exchange"></i> Apri modulo Sistema TS
-                </a>
-              <?php endif; ?>
+          <div class="billing-settings-statebar">
+            <span>Anteprima stato</span>
+            <div class="billing-settings-state-options" role="group" aria-label="Stato anteprima">
+              <button class="is-active" type="button">Normale</button>
+              <button type="button">Caricamento anteprima</button>
+              <button type="button">Logo non valido</button>
+              <button type="button">Salvataggio</button>
             </div>
           </div>
 
-          <div class="row">
-            <div class="col-md-4">
-              <div class="summary-card">
-                <div class="label-top">Titolo documento</div>
-                <div class="value" id="summary-document-title"><?= esc(trim((string) ($config['document_title'] ?? 'Documento fatturazione'))) ?></div>
-                <div class="hint">Nome base del documento mostrato in testata e nel flusso operativo.</div>
-              </div>
-            </div>
-            <div class="col-md-4">
-              <div class="summary-card">
-                <div class="label-top">Campi attivi</div>
-                <div class="value" id="summary-field-count"><?= $enabledFieldCount ?></div>
-                <div class="hint">Puoi accendere o spegnere i campi che devono comparire sul documento consegnato al cliente.</div>
-              </div>
-            </div>
-            <div class="col-md-4">
-              <div class="summary-card">
-                <div class="label-top">Blocchi layout</div>
-                <div class="value" id="summary-layout-count"><?= $enabledLayoutCount ?></div>
-                <div class="hint">Header, footer, box pagamento e sezioni opzionali restano indipendenti dal Sistema TS.</div>
-              </div>
-            </div>
+          <div class="billing-settings-summary-row">
+            <span class="billing-settings-summary-chip"><span>Titolo:</span><strong id="summary-document-title"><?= esc(trim((string) ($config['document_title'] ?? 'Documento fatturazione'))) ?></strong></span>
+            <span class="billing-settings-summary-chip"><span>Campi attivi:</span><strong id="summary-field-count"><?= $enabledFieldCount ?></strong></span>
+            <span class="billing-settings-summary-chip"><span>Blocchi layout:</span><strong id="summary-layout-count"><?= $enabledLayoutCount ?></strong></span>
           </div>
 
-          <div class="alert alert-info" style="margin-bottom:16px;">
-            Questa schermata prepara il <strong>modello del documento</strong>, non l invio TS. L anteprima qui sotto usa dati fittizi e si aggiorna in tempo reale mentre cambi layout, campi, logo e personalizzazioni.
+          <div class="billing-settings-banner">
+            <i class="fa fa-info-circle"></i>
+            Le modifiche si vedono subito nell&rsquo;anteprima a destra e si applicano ai documenti futuri dopo il salvataggio.
           </div>
 
-          <?php if (!$tsEnabled): ?>
-            <div class="alert alert-warning" style="margin-bottom:16px;">
-              Il Sistema TS in questo spazio e spento. Puoi comunque preconfigurare le regole di integrazione: entreranno in gioco solo quando il modulo verra attivato.
-            </div>
-          <?php endif; ?>
-
-          <form method="post" action="<?= site_url('admin/fatturazione-documento/save') ?>">
+          <form id="billing-document-settings-form" method="post" action="<?= site_url('admin/fatturazione-documento/save') ?>">
             <?= csrf_field() ?>
 
-            <div class="box box-default">
-              <div class="box-header with-border">
-                <h3 class="box-title">Personalizzazione documento</h3>
-              </div>
-              <div class="box-body">
-                <div class="row">
-                  <div class="col-md-7 editor-pane">
+            <div class="billing-settings-card">
+              <div class="billing-settings-builder">
+                  <div class="billing-settings-editor">
                 <ul class="nav nav-tabs" role="tablist">
-                  <li role="presentation" class="active"><a href="#tab-layout" aria-controls="tab-layout" role="tab" data-toggle="tab">Layout</a></li>
-                  <li role="presentation"><a href="#tab-fields" aria-controls="tab-fields" role="tab" data-toggle="tab">Campi</a></li>
-                  <li role="presentation"><a href="#tab-branding" aria-controls="tab-branding" role="tab" data-toggle="tab">Branding</a></li>
-                  <li role="presentation"><a href="#tab-ts" aria-controls="tab-ts" role="tab" data-toggle="tab">Integrazione TS</a></li>
+                  <li role="presentation" class="active"><a href="#tab-layout" aria-controls="tab-layout" role="tab" data-toggle="tab"><i class="fa fa-columns"></i> Layout</a></li>
+                  <li role="presentation"><a href="#tab-fields" aria-controls="tab-fields" role="tab" data-toggle="tab"><i class="fa fa-list-ul"></i> Campi</a></li>
+                  <li role="presentation"><a href="#tab-branding" aria-controls="tab-branding" role="tab" data-toggle="tab"><i class="fa fa-picture-o"></i> Branding</a></li>
+                  <li role="presentation"><a href="#tab-ts" aria-controls="tab-ts" role="tab" data-toggle="tab"><i class="fa fa-id-card-o"></i> Integrazione TS</a></li>
                 </ul>
 
                 <div class="tab-content">
                   <div role="tabpanel" class="tab-pane active" id="tab-layout">
+                    <div class="billing-settings-group-title">Documento</div>
                     <div class="row">
                       <div class="col-md-6">
                         <div class="form-group">
@@ -292,6 +266,7 @@ $oldChecked = static function (string $key, bool $default = false): bool {
                       </div>
                     </div>
 
+                    <div class="billing-settings-group-title">Blocchi del documento</div>
                     <div class="option-box checkbox-list">
                       <label><input type="checkbox" name="layout_show_header" value="1" <?= $oldChecked('layout_show_header', !empty($layout['show_header'])) ? 'checked' : '' ?>> Mostra header documento</label>
                       <small>Accende la parte alta del documento con titolo, studio e informazioni iniziali.</small>
@@ -303,7 +278,7 @@ $oldChecked = static function (string $key, bool $default = false): bool {
                       <small>Il logo appare solo se sotto viene impostato un path o URL valido.</small>
 
                       <label><input type="checkbox" name="layout_show_patient_box" value="1" <?= $oldChecked('layout_show_patient_box', !empty($layout['show_patient_box'])) ? 'checked' : '' ?>> Mostra box dati paziente</label>
-                      <small>Sezione dedicata all intestazione cliente o paziente.</small>
+                      <small>Sezione dedicata all’intestazione cliente o paziente.</small>
 
                       <label><input type="checkbox" name="layout_show_payment_box" value="1" <?= $oldChecked('layout_show_payment_box', !empty($layout['show_payment_box'])) ? 'checked' : '' ?>> Mostra box pagamento</label>
                       <small>Raccoglie metodo, data e riepilogo del pagamento in un blocco separato.</small>
@@ -317,6 +292,7 @@ $oldChecked = static function (string $key, bool $default = false): bool {
                   </div>
 
                   <div role="tabpanel" class="tab-pane" id="tab-fields">
+                    <div class="billing-settings-group-title">Campi del documento</div>
                     <div class="row">
                       <div class="col-md-6">
                         <div class="option-box checkbox-list">
@@ -330,7 +306,7 @@ $oldChecked = static function (string $key, bool $default = false): bool {
                           <small>Campo base per identificare il destinatario del documento.</small>
 
                           <label><input type="checkbox" name="field_show_patient_tax_code" value="1" <?= $oldChecked('field_show_patient_tax_code', !empty($fields['show_patient_tax_code'])) ? 'checked' : '' ?>> Codice fiscale paziente</label>
-                          <small>Puoi tenerlo visibile sul documento anche se il TS non e attivo.</small>
+                          <small>Puoi tenerlo visibile sul documento anche se il TS non è attivo.</small>
 
                           <label><input type="checkbox" name="field_show_notes" value="1" <?= $oldChecked('field_show_notes', !empty($fields['show_notes'])) ? 'checked' : '' ?>> Campo note</label>
                           <small>Mostra eventuali annotazioni operative o descrittive.</small>
@@ -339,7 +315,7 @@ $oldChecked = static function (string $key, bool $default = false): bool {
                       <div class="col-md-6">
                         <div class="option-box checkbox-list">
                           <label><input type="checkbox" name="field_show_payment_date" value="1" <?= $oldChecked('field_show_payment_date', !empty($fields['show_payment_date'])) ? 'checked' : '' ?>> Data pagamento</label>
-                          <small>Separata dalla data emissione quando serve uno storico piu preciso.</small>
+                          <small>Separata dalla data emissione quando serve uno storico più preciso.</small>
 
                           <label><input type="checkbox" name="field_show_payment_method" value="1" <?= $oldChecked('field_show_payment_method', !empty($fields['show_payment_method'])) ? 'checked' : '' ?>> Metodo pagamento</label>
                           <small>Contanti, POS, bonifico o altro canale scelto dallo studio.</small>
@@ -351,11 +327,12 @@ $oldChecked = static function (string $key, bool $default = false): bool {
                           <small>Mostra il totale imponibile e la sintesi IVA quando necessario.</small>
 
                           <label><input type="checkbox" name="field_show_stamp_duty" value="1" <?= $oldChecked('field_show_stamp_duty', !empty($fields['show_stamp_duty'])) ? 'checked' : '' ?>> Marca da bollo</label>
-                          <small>Lascia il posto per riportare l eventuale bollo sul documento.</small>
+                          <small>Lascia il posto per riportare l’eventuale bollo sul documento.</small>
                         </div>
                       </div>
                     </div>
 
+                    <div class="billing-settings-group-title">Etichette delle sezioni</div>
                     <div class="row">
                       <div class="col-md-6">
                         <div class="form-group">
@@ -393,6 +370,7 @@ $oldChecked = static function (string $key, bool $default = false): bool {
                   </div>
 
                   <div role="tabpanel" class="tab-pane" id="tab-branding">
+                    <div class="billing-settings-group-title">Logo</div>
                     <div class="row">
                       <div class="col-md-4">
                         <div class="form-group">
@@ -408,11 +386,12 @@ $oldChecked = static function (string $key, bool $default = false): bool {
                         <div class="form-group">
                           <label>URL o path logo</label>
                           <input class="form-control" type="text" name="branding_logo_url" maxlength="255" value="<?= esc($oldValue('branding_logo_url', $logoUrl)) ?>" placeholder="Es. /upload/logo-studio.png oppure https://...">
-                          <small class="text-muted">Puoi agganciare un file gia presente negli upload oppure un URL esterno.</small>
+                          <small class="text-muted">Puoi agganciare un file già presente negli upload oppure un URL esterno.</small>
                         </div>
                       </div>
                     </div>
 
+                    <div class="billing-settings-group-title">Intestazione e footer</div>
                     <div class="row">
                       <div class="col-md-6">
                         <div class="form-group">
@@ -435,8 +414,9 @@ $oldChecked = static function (string $key, bool $default = false): bool {
                   </div>
 
                   <div role="tabpanel" class="tab-pane" id="tab-ts">
+                    <div class="billing-settings-group-title">Integrazione con Sistema TS</div>
                     <div class="option-box checkbox-list">
-                      <label><input type="checkbox" name="ts_enabled_when_available" value="1" <?= $oldChecked('ts_enabled_when_available', !empty($integrationTs['enabled_when_available'])) ? 'checked' : '' ?>> Attiva integrazione quando il Sistema TS e disponibile</label>
+                      <label><input type="checkbox" name="ts_enabled_when_available" value="1" <?= $oldChecked('ts_enabled_when_available', !empty($integrationTs['enabled_when_available'])) ? 'checked' : '' ?>> Attiva integrazione quando il Sistema TS è disponibile</label>
                       <small>Lascia il documento fatturazione autonomo, ma pronto a generare dati collegabili al TS appena il modulo viene acceso.</small>
 
                       <label><input type="checkbox" name="ts_show_ts_reference" value="1" <?= $oldChecked('ts_show_ts_reference', !empty($integrationTs['show_ts_reference'])) ? 'checked' : '' ?>> Mostra riferimenti TS sul documento cliente</label>
@@ -451,26 +431,15 @@ $oldChecked = static function (string $key, bool $default = false): bool {
 
                     <div class="alert alert-info" style="margin-bottom:0;">
                       <?= $tsEnabled
-                          ? 'Il modulo Sistema TS e attivo: queste regole possono convivere subito con i documenti TS mantenendo separati i due percorsi.'
-                          : 'Il modulo Sistema TS non e attivo: le impostazioni salvate qui restano in standby finche non verra abilitato.' ?>
+                          ? 'Il modulo Sistema TS è attivo: queste regole possono convivere subito con i documenti TS mantenendo separati i due percorsi.'
+                          : 'Il modulo Sistema TS non è attivo: le impostazioni salvate qui restano in standby finché non verrà abilitato.' ?>
                     </div>
                   </div>
-                </div>
                   </div>
-                  <div class="col-md-5 preview-pane">
+                  </div>
+                  <aside class="billing-settings-preview">
+                    <div class="billing-settings-preview-label"><i class="fa fa-eye"></i> Anteprima realtime</div>
                     <div class="live-preview-stage">
-                      <div class="live-preview-intro">
-                        <div style="font-size:12px; text-transform:uppercase; letter-spacing:.08em; color:#6a7f85; font-weight:700; margin-bottom:6px;">Anteprima realtime</div>
-                        <div style="font-size:18px; font-weight:700; color:#244149; margin-bottom:6px;">Documento con dati fittizi</div>
-                        <div class="text-muted" style="line-height:1.55;">
-                          Mentre cambi campi, blocchi, logo e note, qui vedi subito come apparira il documento finale consegnato al cliente.
-                        </div>
-                        <div class="live-preview-tags">
-                          <span class="preview-chip" id="live-preview-prefix-chip">Prefisso <?= esc(trim((string) ($config['document_code_prefix'] ?? 'FT'))) ?></span>
-                          <span class="preview-chip" id="live-preview-mode-chip"><?= $integratedEnabled ? 'Convivenza TS pronta' : 'Standalone' ?></span>
-                        </div>
-                      </div>
-
                       <div class="live-preview-canvas">
                         <div class="live-preview-sheet">
                           <div class="live-preview-header" id="live-preview-header" style="background:<?= esc($accentColor) ?>;<?= $oldChecked('layout_show_header', !empty($layout['show_header'])) ? '' : ' display:none;' ?>">
@@ -598,22 +567,23 @@ $oldChecked = static function (string $key, bool $default = false): bool {
                       </div>
 
                       <div class="live-preview-tags" style="margin-top:14px;">
+                        <span class="preview-chip" id="live-preview-prefix-chip">Prefisso <?= esc(trim((string) ($config['document_code_prefix'] ?? 'FT'))) ?></span>
+                        <span class="preview-chip" id="live-preview-mode-chip"><?= $integratedEnabled ? 'Convivenza TS pronta' : 'Standalone' ?></span>
                         <span class="preview-chip" id="live-preview-ts-chip"<?= $oldChecked('ts_enabled_when_available', !empty($integrationTs['enabled_when_available'])) ? '' : ' style="display:none;"' ?>>Integrazione TS pronta</span>
                         <span class="preview-chip" id="live-preview-ts-ref-chip"<?= $oldChecked('ts_show_ts_reference', !empty($integrationTs['show_ts_reference'])) ? '' : ' style="display:none;"' ?>>Riferimento TS visibile</span>
                         <span class="preview-chip" id="live-preview-ts-expense-chip"<?= $oldChecked('ts_require_expense_type', !empty($integrationTs['require_expense_type'])) ? '' : ' style="display:none;"' ?>>Tipo spesa richiesto</span>
                         <span class="preview-chip" id="live-preview-ts-privacy-chip"<?= $oldChecked('ts_require_opposition_flag', !empty($integrationTs['require_opposition_flag'])) ? '' : ' style="display:none;"' ?>>Opposizione privacy richiesta</span>
                       </div>
                     </div>
+                  </aside>
+                </div>
+                <div class="billing-settings-sticky-actions">
+                  <span>Le modifiche si applicano ai documenti futuri</span>
+                  <div>
+                    <a class="billing-action billing-action-secondary" href="<?= site_url('admin/fatturazione') ?>">Annulla</a>
+                    <button class="billing-action billing-action-primary" type="submit"><i class="fa fa-check"></i> Salva</button>
                   </div>
                 </div>
-              </div>
-              <div class="box-footer">
-                <button class="btn btn-primary" type="submit">
-                  <i class="fa fa-save"></i> Salva impostazioni documento
-                </button>
-                <a class="btn btn-default" href="<?= site_url('admin/fatturazione') ?>" style="margin-left:8px;">
-                  Annulla
-                </a>
               </div>
             </div>
           </form>
@@ -860,7 +830,7 @@ document.addEventListener('DOMContentLoaded', function () {
     var footerText = footerNote !== '' ? footerNote : ('Documento di esempio generato il ' + previewData.generated_at + '.');
     var termsText = footerNote !== '' ? footerNote : previewData.terms;
 
-    previewHeader.style.background = accentColor;
+    previewHeader.style.setProperty('--billing-preview-accent', accentColor);
     setVisible(previewHeader, showHeader, 'block');
     setText(previewTitle, headerTitle);
     setText(previewSubtitle, headerSubtitle);

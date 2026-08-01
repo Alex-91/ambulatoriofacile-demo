@@ -42,7 +42,7 @@ Esempio da evitare:
 
 - `/home/tuoutente/public_html/cron_send_appointment_reminders.php`
 
-## Modalita
+## Modalità
 
 - in `development` parte in `dry-run` se non passi opzioni
 - in `production` invia davvero anche senza opzioni
@@ -131,7 +131,7 @@ Se vuoi partire in modo prudente il primo giorno:
 php /percorso/del/progetto/cron_send_appointment_reminders.php --dry-run >> /percorso/del/progetto/writable/logs/cron_send_appointment_reminders.out 2>&1
 ```
 
-Poi, quando il risultato e corretto:
+Poi, quando il risultato è corretto:
 
 ```bash
 php /percorso/del/progetto/cron_send_appointment_reminders.php --send >> /percorso/del/progetto/writable/logs/cron_send_appointment_reminders.out 2>&1
@@ -151,4 +151,4 @@ Se Aruba esegue lo script come una richiesta web e ricevi `403`, usa il tipo `HT
 
 - il batch storico usava davvero `UltraMsg` per WhatsApp, non l'API SMS Aruba, anche se nel progetto erano presenti entrambe le strade
 - la conversione nuova non tocca `farmacia`: lavora sul database `mail`
-- se rilanci il cron lo stesso giorno, gli appuntamenti gia marcati nel file stato non vengono reinviati
+- se rilanci il cron lo stesso giorno, gli appuntamenti già marcati nel file stato non vengono reinviati

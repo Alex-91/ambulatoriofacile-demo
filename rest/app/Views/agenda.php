@@ -212,7 +212,7 @@
                               <th style="width:110px;">Data</th>
                               <th>Titolo</th>
                               <th>Nota</th>
-                              <th style="width:110px;">PrioritÃ </th>
+                              <th style="width:110px;">Priorità</th>
                             </tr>
                           </thead>
                           <tbody>

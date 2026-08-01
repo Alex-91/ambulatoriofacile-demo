@@ -196,7 +196,7 @@ $locationCatalogList = array_values(is_array($locationCatalog ?? null) ? $locati
                     </div>
 
                     <div class="alert alert-warning">
-                        Il sistema crea slot consecutivi dalla <strong>ora inizio</strong> alla <strong>ora fine</strong> usando la <strong>durata scelta</strong>. Gli slot sovrapposti sono consentiti: vengono saltati solo quelli gia presenti con lo stesso identico orario.
+                        Il sistema crea slot consecutivi dalla <strong>ora inizio</strong> alla <strong>ora fine</strong> usando la <strong>durata scelta</strong>. Gli slot sovrapposti sono consentiti: vengono saltati solo quelli già presenti con lo stesso identico orario.
                     </div>
                 </div>
             </div>
@@ -349,7 +349,7 @@ $(function () {
         }
 
         if (result.collisioni && result.collisioni.length) {
-            lines.push('SLOT GIA PRESENTI');
+            lines.push('SLOT Già PRESENTI');
             $.each(result.collisioni, function(i, row) {
                 lines.push('- ' + row.data + '  ' + row.ora_inizio + ' - ' + row.ora_fine + ' -> ' + row.motivo);
             });

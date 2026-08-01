@@ -226,11 +226,11 @@
 <body class="skin-blue sidebar-mini">
 <?php
 $giorniLabel = [
-    1 => 'Lunedi',
-    2 => 'Martedi',
-    3 => 'Mercoledi',
-    4 => 'Giovedi',
-    5 => 'Venerdi',
+    1 => 'Lunedì',
+    2 => 'Martedì',
+    3 => 'Mercoledì',
+    4 => 'Giovedì',
+    5 => 'Venerdì',
     6 => 'Sabato',
     7 => 'Domenica',
 ];
@@ -424,7 +424,7 @@ foreach (($config['giorni'] ?? []) as $g) {
                                             </div>
                                             <label class="doctor-picker-label" for="id_dot">Seleziona il dottore o infermiere da configurare</label>
                                             <p class="doctor-picker-help">
-                                                Ogni giorno puo avere piu fasce orarie con durate slot diverse. La rigenerazione agenda usera esattamente queste fasce.
+                                                Ogni giorno può avere più fasce orarie con durate slot diverse. La rigenerazione agenda userà esattamente queste fasce.
                                             </p>
                                             <select name="id_dot" id="id_dot" class="form-control doctor-picker-select">
                                                 <?php foreach (($medici ?? []) as $m): ?>
@@ -452,7 +452,7 @@ foreach (($config['giorni'] ?? []) as $g) {
                                         <label>Data fine</label>
                                         <input type="date" name="data_fine" class="form-control"
                                                value="<?= esc($config['data_fine'] ?? '') ?>">
-                                        <small class="text-muted">Se vuota verra usato `2039-12-31`</small>
+                                        <small class="text-muted">Se vuota verrà usato `2039-12-31`</small>
                                     </div>
 
                                     <div class="col-md-12 form-group">
@@ -463,7 +463,7 @@ foreach (($config['giorni'] ?? []) as $g) {
                                 </div>
 
                                 <div class="alert alert-info">
-                                    Per ogni giorno puoi inserire una o piu fasce. Esempio: `09:00-10:00` con slot da `15` minuti e `10:00-11:00` con slot da `5` minuti.
+                                    Per ogni giorno puoi inserire una o più fasce. Esempio: `09:00-10:00` con slot da `15` minuti e `10:00-11:00` con slot da `5` minuti.
                                 </div>
 
                                 <?php for ($i = 1; $i <= 7; $i++): ?>
@@ -487,7 +487,7 @@ foreach (($config['giorni'] ?? []) as $g) {
                                         <div class="agenda-day-header">
                                             <div>
                                                 <h3 class="agenda-day-title"><?= esc($giorniLabel[$i]) ?></h3>
-                                                <span class="agenda-day-help">Aggiungi una o piu fasce per questo giorno.</span>
+                                                <span class="agenda-day-help">Aggiungi una o più fasce per questo giorno.</span>
                                             </div>
                                             <label class="agenda-day-toggle">
                                                 <input type="checkbox"
@@ -588,7 +588,7 @@ foreach (($config['giorni'] ?? []) as $g) {
                                                     </div>
                                                 <?php endforeach; ?>
                                             </div>
-                                            <p class="agenda-day-empty" style="display:none;">Questo giorno e segnato come libero. Togli la spunta per inserire una o piu fasce orarie.</p>
+                                            <p class="agenda-day-empty" style="display:none;">Questo giorno e segnato come libero. Togli la spunta per inserire una o più fasce orarie.</p>
                                             <div class="range-summary-note">
                                                 Le fasce non devono sovrapporsi. Ogni fascia genera slot in base alla sua durata.
                                             </div>
@@ -616,7 +616,7 @@ foreach (($config['giorni'] ?? []) as $g) {
                     </div>
 
                     <div class="alert alert-info">
-                        Se nel periodo selezionato esistono gia slot o appuntamenti, il sistema crea un file di backup, elimina i vecchi dati e rigenera i nuovi slot. Per periodi molto ampi il backup viene salvato in CSV per evitare blocchi.
+                        Se nel periodo selezionato esistono già slot o appuntamenti, il sistema crea un file di backup, elimina i vecchi dati e rigenera i nuovi slot. Per periodi molto ampi il backup viene salvato in CSV per evitare blocchi.
                     </div>
                 </div>
             </div>
@@ -719,7 +719,7 @@ $(function () {
         }
 
         var status = String(job.status || '').toUpperCase();
-        var title = 'Rigenerazione agenda';
+        var title='Rigenerazione agenda';
         var boxClass = 'alert-info';
         var barClass = 'progress-bar-info';
         var percent = parseInt(job.progress_percent, 10) || 0;
@@ -727,17 +727,17 @@ $(function () {
         var meta = [];
 
         if (status === 'QUEUED') {
-            title = 'Rigenerazione agenda in coda';
+            title='Rigenerazione agenda in coda';
         } else if (status === 'RUNNING') {
-            title = 'Rigenerazione agenda in corso';
+            title='Rigenerazione agenda in corso';
         } else if (status === 'COMPLETED') {
-            title = 'Rigenerazione agenda completata';
+            title='Rigenerazione agenda completata';
             boxClass = 'alert-success';
             barClass = 'progress-bar-success';
             percent = 100;
             message = job.message || 'Operazione completata.';
         } else if (status === 'FAILED') {
-            title = 'Rigenerazione agenda non completata';
+            title='Rigenerazione agenda non completata';
             boxClass = 'alert-danger';
             barClass = 'progress-bar-danger';
             percent = percent > 0 ? percent : 100;
@@ -1004,7 +1004,7 @@ $(function () {
 
     function buildStanzaOptions(idAmb, selectedRoomId) {
         var rooms = getRoomsForAmbulatorio(idAmb);
-        var placeholder = 'Prima scegli la sede';
+        var placeholder='Prima scegli la sede';
         var html = '';
 
         if (idAmb > 0) {
@@ -1249,7 +1249,7 @@ $(function () {
     loadActiveJobForSelectedDoctor();
 
     $('#btnSalvaEGeneraAgenda').on('click', function () {
-        if (!confirm('Vuoi salvare la configurazione e generare subito l\'agenda? Se nel periodo selezionato esistono gia slot o appuntamenti, il sistema creera un file di backup e rigenerera tutto. Per periodi molto ampi il backup verra salvato in CSV.')) {
+        if (!confirm('Vuoi salvare la configurazione e generare subito l\'agenda? Se nel periodo selezionato esistono già slot o appuntamenti, il sistema creerà un file di backup e rigenererà tutto. Per periodi molto ampi il backup verrà salvato in CSV.')) {
             return;
         }
 

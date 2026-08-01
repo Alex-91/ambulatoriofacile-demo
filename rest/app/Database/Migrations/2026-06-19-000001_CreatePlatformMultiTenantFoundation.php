@@ -519,7 +519,7 @@ class CreatePlatformMultiTenantFoundation extends Migration
             [
                 'package_code' => 'team',
                 'package_name' => 'Team',
-                'description' => 'Pacchetto per studi con piu operatori e sedi leggere.',
+                'description' => 'Pacchetto per studi con più operatori e sedi leggere.',
                 'max_users' => 25,
             ],
             [

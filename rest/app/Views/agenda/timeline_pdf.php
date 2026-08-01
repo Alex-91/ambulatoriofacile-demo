@@ -295,7 +295,7 @@ $isTeamDay = (($pageMode ?? '') === 'team_day');
         <?php endif; ?>
         <div class="mode-note">
             <?php if (($pageMode ?? '') === 'team_day'): ?>
-                Gli appuntamenti che coprono piu slot vengono stampati come un unico blocco continuo per tutto il loro orario. Se l'agenda e lunga, la stampa prosegue su piu pagine in altezza mantenendo invariata la larghezza delle colonne.
+                Gli appuntamenti che coprono più slot vengono stampati come un unico blocco continuo per tutto il loro orario. Se l'agenda e lunga, la stampa prosegue su più pagine in altezza mantenendo invariata la larghezza delle colonne.
             <?php else: ?>
                 La timeline stampa un unico riquadro per ogni appuntamento che copre slot consecutivi.
             <?php endif; ?>

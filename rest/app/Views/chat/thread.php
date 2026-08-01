@@ -96,7 +96,7 @@ echo esc($title);
              <form method="post"
                     action="<?= site_url('chat/clearAll') ?>"
                     style="display:inline;"
-                    onsubmit="return confirm('Vuoi davvero svuotare TUTTE le chat? Questa operazione non Ã¨ reversibile.');">
+                    onsubmit="return confirm('Vuoi davvero svuotare TUTTE le chat? Questa operazione non è reversibile.');">
                 <input type="hidden" name="return_url" value="<?= site_url('chat') ?>">
                 <button type="submit" class="btn btn-box-tool" title="Svuota tutte le chat">
                   <i class="fa fa-trash"></i>
@@ -245,7 +245,7 @@ echo esc($title);
 </body>
 </html>
 <style>
-  /* ===== Lista conversazioni â€“ stile soft ===== */
+  /* ===== Lista conversazioni – stile soft ===== */
 
 .chat-thread-item{
   display: block;
@@ -280,7 +280,7 @@ echo esc($title);
 }
 
 .chat-thread-item.active{
-  background: #dde5ec;          /* grigio-blu piÃ¹ deciso */
+  background: #dde5ec;          /* grigio-blu più deciso */
   border-color: #9fb1c5;
 }
 
@@ -293,7 +293,7 @@ echo esc($title);
 }
 
 
-/* Mobile: un poâ€™ piÃ¹ aria */
+/* Mobile: un po’ più aria */
 @media (max-width: 767px){
   .chat-thread-item{
     padding: 12px 14px;

@@ -141,7 +141,7 @@ class LegacyLoginHandoffService
         $key = 'auth_handoff_nonce_' . sha1($nonce);
 
         if ($cache->get($key) !== null) {
-            throw new \RuntimeException('Handoff gia utilizzato.');
+            throw new \RuntimeException('Handoff già utilizzato.');
         }
 
         if (!$cache->save($key, '1', max(60, min(600, $ttl)))) {

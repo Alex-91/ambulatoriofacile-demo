@@ -181,12 +181,12 @@ class VisiteDomiciliari extends BaseController
         }
 
         if ($this->agendaModel->isGiornoBloccato($idDot, $agendaData)) {
-            throw new Exception('La giornata agenda e bloccata: anche le domiciliari non sono modificabili.');
+            throw new Exception('La giornata agenda è bloccata: anche le domiciliari non sono modificabili.');
         }
 
         // Domiciliary actions are blocked only by the dedicated domiciliary day lock.
         if ($this->agendaModel->isDomiciliareGiornoBloccato($idDot, $agendaData)) {
-            throw new Exception('Il giorno selezionato e bloccato per le domiciliari.');
+            throw new Exception('Il giorno selezionato è bloccato per le domiciliari.');
         }
     }
 }

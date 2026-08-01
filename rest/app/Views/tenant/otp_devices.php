@@ -53,7 +53,7 @@ $tenantName = trim((string) ($tenantContext->tenantName ?? ($tenant['tenant_name
     <section class="content-header">
       <h1>Dispositivi OTP</h1>
       <p class="text-muted" style="margin:8px 0 0 0;">
-        Qui puoi vedere gli account applicativi dello studio che hanno almeno un device collegato per ricevere gli OTP push e disassociare rapidamente i collegamenti non piu validi.
+        Qui puoi vedere gli account applicativi dello studio che hanno almeno un device collegato per ricevere gli OTP push e disassociare rapidamente i collegamenti non più validi.
       </p>
     </section>
 
@@ -81,7 +81,7 @@ $tenantName = trim((string) ($tenantContext->tenantName ?? ($tenant['tenant_name
             </p>
             <span class="summary-badge">Account con OTP attivo: <?= (int) ($summary['total_accounts'] ?? 0) ?></span>
             <span class="summary-badge">Dispositivi attivi: <?= (int) ($summary['active_devices'] ?? 0) ?></span>
-            <span class="summary-badge">Account con piu device: <?= (int) ($summary['multiple_devices_accounts'] ?? 0) ?></span>
+            <span class="summary-badge">Account con più device: <?= (int) ($summary['multiple_devices_accounts'] ?? 0) ?></span>
           </div>
 
           <div class="box box-primary">

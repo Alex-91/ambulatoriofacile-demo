@@ -37,7 +37,7 @@ abstract class TsAdminBaseController extends BaseController
 
         if (!$isPlatformAdminSession && !$hasTenantOperationalAccess) {
             return redirect()->to(site_url('/'))
-                ->with('error', 'La console operativa Sistema TS e disponibile solo per admin piattaforma o responsabili dello spazio.');
+                ->with('error', 'La console operativa Sistema TS è disponibile solo per admin piattaforma o responsabili dello spazio.');
         }
 
         if ((int) ($tenantScope['tenant_id'] ?? 0) <= 0) {

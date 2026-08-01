@@ -27,7 +27,7 @@ class AddAgendaCompressedLayoutFeature extends Migration
             'feature_key' => self::FEATURE_KEY,
             'feature_name' => 'Versione compressa agenda',
             'feature_scope' => 'workflow',
-            'description' => 'Il tenant master puo attivare per il singolo studio un layout agenda piu compatto: barra giorno con frecce e slot extra in alto, mentre stampa PDF e scelta vista scendono sotto il calendario.',
+            'description' => 'Il tenant master può attivare per il singolo studio un layout agenda più compatto: barra giorno con frecce e slot extra in alto, mentre stampa PDF e scelta vista scendono sotto il calendario.',
             'default_enabled' => 0,
             'created_at' => $now,
             'updated_at' => $now,
@@ -60,7 +60,7 @@ class AddAgendaCompressedLayoutFeature extends Migration
             $update = [
                 'feature_name' => 'Versione compressa agenda',
                 'feature_scope' => 'workflow',
-                'description' => 'Il tenant master puo attivare per il singolo studio un layout agenda piu compatto: barra giorno con frecce e slot extra in alto, mentre stampa PDF e scelta vista scendono sotto il calendario.',
+                'description' => 'Il tenant master può attivare per il singolo studio un layout agenda più compatto: barra giorno con frecce e slot extra in alto, mentre stampa PDF e scelta vista scendono sotto il calendario.',
                 'default_enabled' => 0,
                 'updated_at' => $now,
             ];

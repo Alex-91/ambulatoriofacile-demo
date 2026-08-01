@@ -4,6 +4,7 @@ namespace App\Controllers\Admin;
 
 use App\Services\BillingDocumentService;
 use App\Services\BillingTsBridgeService;
+use App\Services\BillingTsModuleStatusService;
 use App\Services\TenantPatientLookupService;
 use Dompdf\Dompdf;
 use Dompdf\Options;
@@ -12,6 +13,7 @@ class BillingDocumentsController extends BillingAdminBaseController
 {
     private BillingDocumentService $documents;
     private BillingTsBridgeService $billingTsBridge;
+    private BillingTsModuleStatusService $moduleStatus;
     private TenantPatientLookupService $patientLookup;
 
     public function __construct()
@@ -19,6 +21,7 @@ class BillingDocumentsController extends BillingAdminBaseController
         parent::__construct();
         $this->documents = new BillingDocumentService();
         $this->billingTsBridge = new BillingTsBridgeService();
+        $this->moduleStatus = new BillingTsModuleStatusService();
         $this->patientLookup = new TenantPatientLookupService();
     }
 
@@ -30,7 +33,10 @@ class BillingDocumentsController extends BillingAdminBaseController
 
         $tenantScope = $this->resolveTenantScope();
         $tenantId = (int) ($tenantScope['tenant_id'] ?? 0);
-        $listing = $this->documents->listDocumentsForTenant($tenantId);
+        $moduleStatus = $this->moduleStatus->describe($this->currentTenantContext(), $tenantId);
+        // The archive handles paging in the interface, so load enough rows to
+        // keep the current filters and bulk TS selection complete.
+        $listing = $this->documents->listDocumentsForTenant($tenantId, 250);
         $documentIds = array_values(array_filter(array_map(
             static fn(array $row): int => (int) ($row['id_billing_document'] ?? 0),
             is_array($listing['documents'] ?? null) ? $listing['documents'] : []
@@ -51,6 +57,7 @@ class BillingDocumentsController extends BillingAdminBaseController
         return view('admin/billing/documents', [
             'menu_items' => $this->adminMenuItems(),
             'tenantScope' => $tenantScope,
+            'tsEnabled' => !empty($moduleStatus['ts_enabled']),
             'listing' => $listing,
             'success' => session()->getFlashdata('success'),
             'warning' => session()->getFlashdata('warning'),
@@ -150,7 +157,7 @@ class BillingDocumentsController extends BillingAdminBaseController
                 if (empty($actionState['can_edit'])) {
                     return redirect()->to($editUrl)->with(
                         'warning',
-                        trim((string) ($actionState['locked_reason'] ?? 'Questa fattura non puo piu essere modificata.'))
+                        trim((string) ($actionState['locked_reason'] ?? 'Questa fattura non può più essere modificata.'))
                     );
                 }
             }
@@ -211,7 +218,7 @@ class BillingDocumentsController extends BillingAdminBaseController
 
                     return redirect()->to($targetUrl)
                         ->with('success', 'Fattura salvata correttamente.')
-                        ->with('warning', trim((string) ($dispatchResult['message'] ?? 'La fattura e stata salvata ma non e pronta per l invio TS.')));
+                        ->with('warning', trim((string) ($dispatchResult['message'] ?? 'La fattura è stata salvata ma non è pronta per l’invio TS.')));
                 } catch (\Throwable $dispatchError) {
                     log_message('error', 'Admin\\BillingDocumentsController::save dispatch failed: ' . $dispatchError->getMessage());
 
@@ -226,7 +233,7 @@ class BillingDocumentsController extends BillingAdminBaseController
                 : 'Bozza documento fatturazione salvata correttamente.';
 
             if ($normalizedSaveMode === 'final' && (int) ($result['document']['ts_sync_enabled'] ?? 0) === 1) {
-                $successMessage .= ' La fattura comparira nel modulo Sistema TS tra quelle da inviare.';
+                $successMessage .= ' La fattura comparirà nel modulo Sistema TS tra quelle da inviare.';
             }
 
             return redirect()->to($normalizedSaveMode === 'final' ? $listUrl : $targetUrl)->with('success', $successMessage);

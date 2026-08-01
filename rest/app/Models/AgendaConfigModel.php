@@ -97,7 +97,7 @@ class AgendaConfigModel extends Model
         }
 
         if ($dataInizio === '') {
-            throw new Exception('La data inizio e obbligatoria.');
+            throw new Exception('La data inizio è obbligatoria.');
         }
 
         if ($dataFine === '') {
@@ -105,7 +105,7 @@ class AgendaConfigModel extends Model
         }
 
         if ($dataFine < $dataInizio) {
-            throw new Exception('La data fine non puo essere precedente alla data inizio.');
+            throw new Exception('La data fine non può essere precedente alla data inizio.');
         }
 
         $giorni = $this->normalizeGiorniPayload($payload['giorni'] ?? []);
@@ -261,7 +261,7 @@ class AgendaConfigModel extends Model
             return 'Il giorno selezionato non ha fasce attive nella configurazione.';
         }
 
-        return 'La configurazione esiste, ma l\'agenda non e stata ancora generata per questo giorno.';
+        return 'La configurazione esiste, ma l\'agenda non è stata ancora generata per questo giorno.';
     }
 
     public function getNoAgendaMessageForRange(int $idDot, string $dataInizio, string $dataFine): string
@@ -327,7 +327,7 @@ class AgendaConfigModel extends Model
         if ((int)($giorno['giorno_libero'] ?? 0) === 1) {
             return [
                 'status'           => false,
-                'message'          => 'Il giorno e configurato come libero.',
+                'message'          => 'Il giorno è configurato come libero.',
                 'durata'           => 0,
                 'id_config'        => (int)$config['id_config'],
                 'id_config_giorno' => (int)($giorno['id_config_giorno'] ?? 0),
@@ -398,7 +398,7 @@ class AgendaConfigModel extends Model
 
             $fasce = $row['fasce'] ?? [];
             if (empty($fasce)) {
-                throw new Exception("Il giorno {$num} non e libero ma non ha fasce configurate.");
+                throw new Exception("Il giorno {$num} non è libero ma non ha fasce configurate.");
             }
 
             $lastOraFine = null;

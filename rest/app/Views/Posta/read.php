@@ -150,7 +150,7 @@ function displayTo(array $m): string {
 
 function displayFrom(array $m): string {
 
-  // âœ… se il service ha giÃ  calcolato la label (SEGRETERIA/INFERMIERE o Nome Cognome)
+  // ✅ se il service ha già calcolato la label (SEGRETERIA/INFERMIERE o Nome Cognome)
   $senderDisplay = trim((string)($m['sender_display'] ?? ''));
 
   $type = strtoupper((string)($m['message_type'] ?? ''));
@@ -239,7 +239,7 @@ if ($folder === 'inbox') {
 
 $backUrl = $base . '?' . http_build_query($params);
 
-// Header â€œDa/Aâ€
+// Header “Da/A”
 $fromName = $current ? displayFrom($current) : 'Mittente';
 $toName = $current ? displayTo($current) : 'Destinatario';
 $brandName = 'AmbulatorioFacile';
@@ -407,7 +407,7 @@ $brandName = 'AmbulatorioFacile';
 <div id="page-loader" aria-hidden="true">
   <div class="spinner">
     <i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i>
-    <div class="msg">Caricamentoâ€¦</div>
+    <div class="msg">Caricamento…</div>
   </div>
 </div>
 
@@ -561,7 +561,7 @@ $brandName = 'AmbulatorioFacile';
                       </form>
 
                       <small class="text-muted">
-                        La risposta verrÃ  inviata al mittente del messaggio selezionato (se Ã¨ un forward, rispondi al forwarder).
+                        La risposta verrà inviata al mittente del messaggio selezionato (se è un forward, rispondi al forwarder).
                       </small>
                     </div>
                   </div>

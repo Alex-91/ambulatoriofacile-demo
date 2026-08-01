@@ -50,12 +50,12 @@ class TenantAppSessionBootstrapService
         }
 
         if ((int) ($membership['tenant_is_active'] ?? 0) !== 1) {
-            throw new \RuntimeException('Lo spazio cliente non e attivo.');
+            throw new \RuntimeException('Lo spazio cliente non è attivo.');
         }
 
         $tenantStatus = strtolower(trim((string) ($membership['tenant_status'] ?? '')));
         if (in_array($tenantStatus, ['archived', 'suspended'], true)) {
-            throw new \RuntimeException('Lo spazio cliente non e disponibile per il login.');
+            throw new \RuntimeException('Lo spazio cliente non è disponibile per il login.');
         }
 
         $tenant = $this->catalog->getTenantById($tenantId);

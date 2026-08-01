@@ -62,7 +62,7 @@
   const baseUrl   = "<?= rtrim(site_url(''), '/') ?>";
 
   function redirectTo(path){
-    // path puo essere '' (home)
+    // path può essere '' (home)
     if (typeof path !== "string") path = "";
     window.location.href = baseUrl + "/" + path;
   }

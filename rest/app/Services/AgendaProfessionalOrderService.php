@@ -151,7 +151,7 @@ class AgendaProfessionalOrderService
     ): array {
         $settings = $this->resolveTenantSettings($tenantId, $professionals);
         if (empty($settings['order_management_available'])) {
-            throw new \RuntimeException('L ordinamento professionisti agenda non e disponibile per questo spazio.');
+            throw new \RuntimeException('L’ordinamento professionisti agenda non è disponibile per questo spazio.');
         }
 
         $featureId = (int) ($settings['feature_id'] ?? 0);

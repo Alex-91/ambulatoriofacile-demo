@@ -60,8 +60,8 @@ Puoi aggiungere una sezione opzionale `dbRefresh`:
 
 Note:
 
-- `pollFrequency` puo' restare `* * * * *`: la task gira ogni minuto ma esegue il dump solo all'orario locale desiderato.
-- usare gli UUID evita ambiguita' se su Coolify esistono piu' database con lo stesso nome.
+- `pollFrequency` può restare `* * * * *`: la task gira ogni minuto ma esegue il dump solo all'orario locale desiderato.
+- usare gli UUID evita ambiguità se su Coolify esistono più database con lo stesso nome.
 - i secret del DB non vengono salvati nel repo: lo script li legge dalle API Coolify e li scrive come env della toolbox interna.
 
 ## Risultato atteso

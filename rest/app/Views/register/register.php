@@ -62,7 +62,7 @@
         <input type="text" id="cognome" placeholder="Cognome" required>
       </div>
 	  <div class="row">
-        <label for="codice_fiscale">Codice Fiscale* (VerrÃ  utilizzato come username):</label>
+        <label for="codice_fiscale">Codice Fiscale* (Verrà utilizzato come username):</label>
         <input type="text" id="codice_fiscale" placeholder="Codice Fiscale" required>
       </div>
 

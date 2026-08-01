@@ -93,7 +93,7 @@ class PlatformAccessService
     {
         $pending = $this->getPendingPasswordSetup();
         if ($pending === null) {
-            throw new \RuntimeException('La sessione di impostazione password e scaduta. Effettua di nuovo il login.');
+            throw new \RuntimeException('La sessione di impostazione password è scaduta. Effettua di nuovo il login.');
         }
 
         $platformUser = (array) ($pending['platform_user'] ?? []);
@@ -235,7 +235,7 @@ class PlatformAccessService
 
         $email = strtolower(trim((string) ($platformUser['email'] ?? '')));
         if ($email === '') {
-            throw new \RuntimeException('L account piattaforma non ha una email valida.');
+            throw new \RuntimeException('L’account piattaforma non ha un’email valida.');
         }
 
         $isPlatformAdmin = (new PlatformAdminAccessService())->isPlatformAdmin($platformUser);
@@ -248,7 +248,7 @@ class PlatformAccessService
 
         $tenant = $tenantId > 0 ? $this->catalog->getTenantById($tenantId) : null;
         if ($tenantId > 0 && !$tenant) {
-            throw new \RuntimeException('Spazio cliente non trovato per l invio accesso.');
+            throw new \RuntimeException('Spazio cliente non trovato per l’invio accesso.');
         }
 
         $tokenType = $forcedTokenType ?: $this->resolveTokenTypeForUser($platformUser);
@@ -266,8 +266,8 @@ class PlatformAccessService
                 : 'Reimposta la password di accesso ad AmbulatorioFacile';
         } else {
             $subject = $isPlatformAdmin && $selectableTenants === []
-                ? 'Completa l accesso alla console AmbulatorioFacile'
-                : 'Completa l accesso al tuo spazio su AmbulatorioFacile';
+                ? 'Completa l’accesso alla console AmbulatorioFacile'
+                : 'Completa l’accesso al tuo spazio su AmbulatorioFacile';
         }
 
         $body = $this->buildEmailBody($platformUser, $tenant, $selectableTenants, $tokenType, $setupUrl, $loginUrl, $isPlatformAdmin);
@@ -420,7 +420,7 @@ class PlatformAccessService
         return implode("\n", [
             $greeting,
             '',
-            'Ti abbiamo preparato l accesso ad AmbulatorioFacile.',
+            'Ti abbiamo preparato l’accesso ad AmbulatorioFacile.',
             $tenantLine,
             '',
             $actionLabel,

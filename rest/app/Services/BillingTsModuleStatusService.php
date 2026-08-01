@@ -46,16 +46,16 @@ class BillingTsModuleStatusService
 
         if ($integratedEnabled) {
             $modeKey = 'integrated';
-            $modeTitle = 'Modalita integrata';
+            $modeTitle = 'Modalità integrata';
             $modeMessage = 'Fatturazione e Sistema TS sono attivi insieme: i due moduli restano separati ma possono convivere nello stesso flusso operativo.';
         } elseif ($billingEnabled) {
             $modeKey = 'billing_only';
             $modeTitle = 'Fatturazione standalone';
-            $modeMessage = 'La Fatturazione e attiva da sola: lo studio puo gestire documenti cliente in autonomia e collegare il Sistema TS in un secondo momento.';
+            $modeMessage = 'La Fatturazione è attiva da sola: lo studio può gestire documenti cliente in autonomia e collegare il Sistema TS in un secondo momento.';
         } elseif ($tsEnabled) {
             $modeKey = 'ts_only';
             $modeTitle = 'Sistema TS standalone';
-            $modeMessage = 'Il Sistema TS e attivo da solo: lo studio puo continuare a preparare e inviare documenti TS anche senza il modulo Fatturazione.';
+            $modeMessage = 'Il Sistema TS è attivo da solo: lo studio può continuare a preparare e inviare documenti TS anche senza il modulo Fatturazione.';
         }
 
         return [

@@ -9,7 +9,7 @@ class TenantAdminMenuService
     private MenuRegistryService $menuRegistry;
 
     /**
-     * Link da retro-inserire negli studi gia esistenti quando mancavano
+     * Link da retro-inserire negli studi già esistenti quando mancavano
      * nei menu creati prima dell'introduzione della nuova voce.
      *
      * @return list<string>
@@ -220,7 +220,7 @@ class TenantAdminMenuService
     public function syncConfiguredLinks(BaseConnection $db, array $selectedLinks): array
     {
         if (!$db->tableExists('dap06_mnu')) {
-            throw new \RuntimeException('La tabella menu admin del tenant non e disponibile.');
+            throw new \RuntimeException('La tabella menu admin del tenant non è disponibile.');
         }
 
         $catalogByLink = [];

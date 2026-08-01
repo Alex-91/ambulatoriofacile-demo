@@ -104,7 +104,7 @@ $expiresInMinutes = $activeImpersonation !== null
 
           <?php if ($activeImpersonation !== null): ?>
             <div class="alert alert-info">
-              Sessione delegata gia attiva come <strong><?= esc((string) ($activeImpersonation['target_display_name'] ?? $activeImpersonation['target_username'] ?? 'account')) ?></strong>
+              Sessione delegata già attiva come <strong><?= esc((string) ($activeImpersonation['target_display_name'] ?? $activeImpersonation['target_username'] ?? 'account')) ?></strong>
               nello spazio <strong><?= esc((string) ($activeImpersonation['tenant_name'] ?? '')) ?></strong>.
               Motivo: <strong><?= esc((string) ($activeImpersonation['reason'] ?? '')) ?></strong>.
               Scadenza stimata tra circa <strong><?= $expiresInMinutes ?></strong> minuti.
@@ -114,7 +114,7 @@ $expiresInMinutes = $activeImpersonation !== null
           <div class="intro-box">
             <h3 style="margin-top:0; margin-bottom:8px;">Impersonificazione operativa controllata</h3>
             <p style="margin:0 0 12px 0; color:#52676c;">
-              Seleziona lo spazio, filtra l account da aprire e avvia una sessione temporanea. Ogni accesso delegato resta tracciato con inizio, fine e motivo.
+              Seleziona lo spazio, filtra l’account da aprire e avvia una sessione temporanea. Ogni accesso delegato resta tracciato con inizio, fine e motivo.
             </p>
             <?php if ($selectedTenantName !== ''): ?>
               <span class="summary-badge">Spazio selezionato: <?= esc($selectedTenantName) ?></span>

@@ -189,7 +189,7 @@ class BillingTsBridgeService
         $actionState = $this->buildBillingDocumentActionState($billingDocument, $primaryTsDocument);
 
         if (empty($actionState['can_delete'])) {
-            throw new \RuntimeException(trim((string) ($actionState['locked_reason'] ?? 'La fattura non puo essere eliminata.')));
+            throw new \RuntimeException(trim((string) ($actionState['locked_reason'] ?? 'La fattura non può essere eliminata.')));
         }
 
         $relatedTsDocumentIds = [];
@@ -204,7 +204,7 @@ class BillingTsBridgeService
             }
 
             if ($this->isBillingTsDocumentSent($tsDocument) || trim((string) ($tsDocument['local_state'] ?? '')) === 'sending') {
-                throw new \RuntimeException('La fattura risulta gia inviata o in invio a TS e non puo essere eliminata.');
+                throw new \RuntimeException('La fattura risulta già inviata o in invio a TS e non può essere eliminata.');
             }
 
             $relatedTsDocumentIds[] = $tsDocumentId;
@@ -311,7 +311,7 @@ class BillingTsBridgeService
 
             return [
                 'status' => 'sent',
-                'message' => 'La fattura risulta gia inviata a TS.',
+                'message' => 'La fattura risulta già inviata a TS.',
                 'billing_document' => $billingDocuments->find($billingDocumentId) ?? $billingDocument,
                 'ts_document' => $existingTsDocument,
                 'validation' => [
@@ -338,7 +338,7 @@ class BillingTsBridgeService
         $validationPayload = $this->buildTsValidationPayload($billingDocument, $profile, $deviceNumber);
         $validation = $this->validation->validateDraft($validationPayload, $profile, $duplicateFound, 'manual');
         $message = $duplicateFound
-            ? 'Esiste gia un documento TS con lo stesso identificativo logico.'
+            ? 'Esiste già un documento TS con lo stesso identificativo logico.'
             : trim(implode(' ', (array) ($validation['errors'] ?? [])));
 
         $record = $this->buildTsDocumentRecord(
@@ -380,7 +380,7 @@ class BillingTsBridgeService
         $savedTsDocument = $tsDocuments->find($tsDocumentId);
         if (!is_array($savedTsDocument)) {
             $this->updateBillingLinkState($billingDocuments, $billingDocumentId, $tsDocumentId, 'error', $userId);
-            throw new \RuntimeException('Documento TS preparato ma non piu reperibile.');
+            throw new \RuntimeException('Documento TS preparato ma non più reperibile.');
         }
 
         $billingState = $this->resolveBillingTsStateFromTsDocument($savedTsDocument);
@@ -394,7 +394,7 @@ class BillingTsBridgeService
             'status' => !empty($validation['valid']) && !$duplicateFound ? 'ready' : 'blocked',
             'message' => !empty($validation['valid']) && !$duplicateFound
                 ? 'Fattura preparata correttamente per il Sistema TS.'
-                : ($message !== '' ? $message : 'La fattura e stata collegata a TS ma richiede correzioni prima dell invio.'),
+                : ($message !== '' ? $message : 'La fattura è stata collegata a TS ma richiede correzioni prima dell’invio.'),
             'billing_document' => $billingDocuments->find($billingDocumentId) ?? $billingDocument,
             'ts_document' => $savedTsDocument,
             'validation' => $validation,
@@ -715,11 +715,11 @@ class BillingTsBridgeService
     private function buildBillingDocumentLockMessage(array $billingDocument, ?array $tsDocument): string
     {
         if ($this->isBillingDocumentSent($billingDocument, $tsDocument)) {
-            return 'Questa fattura risulta gia inviata a TS: puoi aprirla e scaricare i documenti, ma non modificarla o cancellarla.';
+            return 'Questa fattura risulta già inviata a TS: puoi aprirla e scaricare i documenti, ma non modificarla o cancellarla.';
         }
 
         if ($this->isBillingDocumentSending($billingDocument, $tsDocument)) {
-            return 'Questa fattura e attualmente in invio a TS e non puo essere modificata o cancellata finche il processo non si conclude.';
+            return 'Questa fattura e attualmente in invio a TS e non può essere modificata o cancellata finché il processo non si conclude.';
         }
 
         return '';
@@ -795,7 +795,7 @@ class BillingTsBridgeService
         if ((int) ($billingDocument['ts_sync_enabled'] ?? 0) !== 1) {
             return [
                 'blocked' => true,
-                'message' => 'La fattura non e marcata per il Sistema TS.',
+                'message' => 'La fattura non è marcata per il Sistema TS.',
             ];
         }
 
@@ -851,7 +851,7 @@ class BillingTsBridgeService
             'issue_date' => trim((string) ($billingDocument['issue_date'] ?? '')),
             'payment_date' => trim((string) ($billingDocument['payment_date'] ?? '')),
             'document_type' => $this->mapBillingDocumentTypeToTs((string) ($billingDocument['document_type'] ?? 'invoice')),
-            'expense_type_code' => $this->resolveExpenseTypeCode($billingDocument),
+            'expense_type_code' => $this->resolveExpenseTypeCode($billingDocument, $profile),
             'payment_mode' => $this->mapPaymentMethodToTs((string) ($billingDocument['payment_method'] ?? '')),
             'amount_total' => round((float) ($billingDocument['amount_total'] ?? 0), 2),
             'vat_rate' => $this->normalizeNullableDecimal($billingDocument['vat_rate'] ?? null),
@@ -905,7 +905,7 @@ class BillingTsBridgeService
             'issue_date' => trim((string) ($billingDocument['issue_date'] ?? '')),
             'payment_date' => trim((string) ($billingDocument['payment_date'] ?? '')),
             'document_type' => $this->mapBillingDocumentTypeToTs((string) ($billingDocument['document_type'] ?? 'invoice')),
-            'expense_type_code' => $this->resolveExpenseTypeCode($billingDocument),
+            'expense_type_code' => $this->resolveExpenseTypeCode($billingDocument, $profile),
             'payment_mode' => $this->mapPaymentMethodToTs((string) ($billingDocument['payment_method'] ?? '')),
             'amount_total' => round((float) ($billingDocument['amount_total'] ?? 0), 2),
             'vat_rate' => $this->normalizeNullableDecimal($billingDocument['vat_rate'] ?? null),
@@ -1050,8 +1050,38 @@ class BillingTsBridgeService
     /**
      * @param array<string, mixed> $billingDocument
      */
-    private function resolveExpenseTypeCode(array $billingDocument): string
+    private function resolveExpenseTypeCode(array $billingDocument, array $profile = []): string
     {
+        $lineItems = json_decode((string) ($billingDocument['line_items_json'] ?? ''), true);
+        if (is_array($lineItems) && $lineItems !== [] && $profile !== []) {
+            $map = $this->tsProfiles->resolveServiceExpenseTypeMap($profile);
+            $resolvedCodes = [];
+            $allMapped = $map !== [];
+
+            foreach ($lineItems as $lineItem) {
+                if (!is_array($lineItem)) {
+                    continue;
+                }
+
+                $description = preg_replace('/\s+/', ' ', trim((string) ($lineItem['description'] ?? ''))) ?? '';
+                if ($description === '') {
+                    continue;
+                }
+
+                $key = mb_strtolower($description);
+                if (!isset($map[$key])) {
+                    $allMapped = false;
+                    break;
+                }
+
+                $resolvedCodes[$map[$key]] = true;
+            }
+
+            if ($allMapped && count($resolvedCodes) === 1) {
+                return (string) array_key_first($resolvedCodes);
+            }
+        }
+
         $value = strtoupper(trim((string) ($billingDocument['ts_expense_type_code'] ?? '')));
 
         return $value !== '' ? $value : 'SP';

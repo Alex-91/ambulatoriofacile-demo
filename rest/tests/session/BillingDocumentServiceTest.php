@@ -62,7 +62,7 @@ final class BillingDocumentServiceTest extends CIUnitTestCase
             ->willReturn([
                 'ready' => false,
                 'status' => 'error',
-                'message' => 'La tabella billing_documents non e ancora disponibile nel database di questo spazio.',
+                'message' => 'La tabella billing_documents non è ancora disponibile nel database di questo spazio.',
             ]);
 
         $service = new BillingDocumentService(
@@ -77,7 +77,7 @@ final class BillingDocumentServiceTest extends CIUnitTestCase
 
         $this->assertFalse((bool) ($formContext['table_available'] ?? true));
         $this->assertSame(
-            'La tabella billing_documents non e ancora disponibile nel database di questo spazio.',
+            'La tabella billing_documents non è ancora disponibile nel database di questo spazio.',
             $formContext['schema_message'] ?? ''
         );
         $this->assertSame(0, (int) ($formContext['document']['id_billing_document'] ?? -1));

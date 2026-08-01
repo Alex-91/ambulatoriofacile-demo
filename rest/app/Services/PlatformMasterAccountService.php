@@ -221,7 +221,7 @@ class PlatformMasterAccountService
         }
 
         if ($platformUser && !$isBootstrapEmail && !$isPersistentAdmin) {
-            throw new \RuntimeException('Questo account non e abilitato come master piattaforma.');
+            throw new \RuntimeException('Questo account non è abilitato come master piattaforma.');
         }
 
         $account = $this->ensureMasterUser($email, [
@@ -269,11 +269,11 @@ class PlatformMasterAccountService
         }
 
         if ((int) ($platformUser['is_platform_admin'] ?? 0) !== 1) {
-            throw new \RuntimeException('Questo account non e marcato come master piattaforma.');
+            throw new \RuntimeException('Questo account non è marcato come master piattaforma.');
         }
 
         if ((int) (session()->get('platform_user_id') ?? 0) === $platformUserId) {
-            throw new \RuntimeException('Non puoi revocare l accesso master all account con cui stai usando la console.');
+            throw new \RuntimeException('Non puoi revocare l’accesso master all’account con cui stai usando la console.');
         }
 
         if ($this->adminAccess->persistentPlatformAdminCount() <= 1) {

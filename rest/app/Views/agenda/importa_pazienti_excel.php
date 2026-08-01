@@ -137,7 +137,7 @@ foreach ($previewColumns as $previewColumn) {
         <section class="content-header">
             <h1>Importa pazienti da Excel</h1>
             <p class="text-muted" style="margin:8px 0 0 0;">
-                Carica il file Excel, controlla il mapping delle colonne e importa o aggiorna l anagrafica pazienti senza modificare il popup appuntamento.
+                Carica il file Excel, controlla il mapping delle colonne e importa o aggiorna l’anagrafica pazienti senza modificare il popup appuntamento.
             </p>
         </section>
 
@@ -183,12 +183,12 @@ foreach ($previewColumns as $previewColumn) {
                     <div class="import-intro-box">
                         <h3 style="margin:0 0 8px 0;">Flusso guidato</h3>
                         <p style="margin:0; color:#526c74;">
-                            Il sistema legge il primo foglio del workbook, mantiene l ordine originale delle colonne e propone automaticamente i campi paziente piu coerenti. Le celle vuote non sovrascrivono i dati gia presenti.
+                            Il sistema legge il primo foglio del workbook, mantiene l’ordine originale delle colonne e propone automaticamente i campi paziente più coerenti. Le celle vuote non sovrascrivono i dati già presenti.
                         </p>
                         <ul class="import-help-list">
                             <li>Aggiorno pazienti esistenti solo quando trovo un match forte su codice fiscale o partita IVA.</li>
                             <li>Se non trovo match, creo un nuovo paziente collegandolo al medico selezionato.</li>
-                            <li>Il popup di gestione appuntamento resta invariato: qui lavori solo sull anagrafica completa.</li>
+                            <li>Il popup di gestione appuntamento resta invariato: qui lavori solo sull’anagrafica completa.</li>
                         </ul>
                     </div>
 
@@ -261,7 +261,7 @@ foreach ($previewColumns as $previewColumn) {
                                 <span class="import-stat">Righe dati: <?= esc((string) ((int) ($previewContext['data_row_count'] ?? 0))) ?></span>
 
                                 <p class="text-muted" style="margin:14px 0 0;">
-                                    Ogni colonna viene mostrata nell ordine originale del file. Puoi assegnarla a un campo paziente oppure ignorarla.
+                                    Ogni colonna viene mostrata nell’ordine originale del file. Puoi assegnarla a un campo paziente oppure ignorarla.
                                 </p>
 
                                 <form method="post" action="<?= base_url('agenda/importa-pazienti-excel/conferma') ?>" style="margin-top:16px;">
@@ -298,7 +298,7 @@ foreach ($previewColumns as $previewColumn) {
                                         </div>
                                         <div class="col-md-5">
                                             <p class="help-block" style="margin:24px 0 0;">
-                                                Le celle vuote vengono ignorate e non cancellano il valore gia presente sul paziente. Se il sistema trova un match forte su codice fiscale o partita IVA aggiorna il paziente esistente, altrimenti crea una nuova anagrafica.
+                                                Le celle vuote vengono ignorate e non cancellano il valore già presente sul paziente. Se il sistema trova un match forte su codice fiscale o partita IVA aggiorna il paziente esistente, altrimenti crea una nuova anagrafica.
                                             </p>
                                         </div>
                                     </div>
@@ -353,7 +353,7 @@ foreach ($previewColumns as $previewColumn) {
 
                                     <div style="display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-top:16px;">
                                         <div class="text-muted" style="font-size:12px; line-height:1.5;">
-                                            Suggerimento: lascia almeno <strong>codice fiscale</strong> o <strong>partita IVA</strong> mappati se vuoi aggiornare le anagrafiche gia esistenti in modo sicuro.
+                                            Suggerimento: lascia almeno <strong>codice fiscale</strong> o <strong>partita IVA</strong> mappati se vuoi aggiornare le anagrafiche già esistenti in modo sicuro.
                                         </div>
                                         <button type="submit" class="btn btn-success">
                                             <i class="fa fa-upload"></i> Importa pazienti
@@ -369,7 +369,7 @@ foreach ($previewColumns as $previewColumn) {
                             </div>
                             <div class="box-body">
                                 <?php if ($previewRows === []): ?>
-                                    <p class="text-muted" style="margin:0;">Il file e stato letto ma non contiene righe dati dopo l intestazione.</p>
+                                    <p class="text-muted" style="margin:0;">Il file è stato letto ma non contiene righe dati dopo l’intestazione.</p>
                                 <?php else: ?>
                                     <div class="table-responsive">
                                         <table class="table table-bordered table-striped preview-table">
@@ -442,7 +442,7 @@ foreach ($previewColumns as $previewColumn) {
                                     </div>
                                 <?php elseif ((int) ($importResult['rows_examined'] ?? 0) > 0): ?>
                                     <div class="alert alert-success" style="margin-top:18px; margin-bottom:0;">
-                                        Importazione completata. Puoi tornare alla gestione pazienti per controllare l anagrafica aggiornata.
+                                        Importazione completata. Puoi tornare alla gestione pazienti per controllare l’anagrafica aggiornata.
                                     </div>
                                 <?php endif; ?>
 

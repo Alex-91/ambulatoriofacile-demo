@@ -45,4 +45,4 @@ Se fai una correzione urgente nata per la farmacia:
 2. pubblicala su Aruba
 3. poi riporta la parte generica anche su `main`
 
-Cosi il cliente resta aggiornato, ma il prodotto non si biforca.
+Così il cliente resta aggiornato, ma il prodotto non si biforca.

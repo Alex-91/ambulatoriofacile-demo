@@ -105,7 +105,7 @@ class TenantAppUserProvisioningService
             }
 
             if ($appUserId <= 0) {
-                throw new \RuntimeException('Impossibile determinare l app user del tenant.');
+                throw new \RuntimeException('Impossibile determinare l’app user del tenant.');
             }
 
             $this->ensureDefaultSchedeAccess($tenantDb, $appUserId, $profile);
@@ -271,7 +271,7 @@ class TenantAppUserProvisioningService
         }
 
         if (count($matches) > 1) {
-            throw new \RuntimeException('Email presente piu volte nel tenant. Collega manualmente App user ID.');
+            throw new \RuntimeException('Email presente più volte nel tenant. Collega manualmente App user ID.');
         }
 
         return $matches[0] ?? 0;

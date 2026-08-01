@@ -24,7 +24,7 @@ Ritorno al DB locale originale:
 powershell -ExecutionPolicy Bypass -File .\ops\use-local-db.ps1
 ```
 
-Script principale con scelta esplicita della modalita':
+Script principale con scelta esplicita della modalità:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\ops\switch-local-db-mode.ps1 -Mode test

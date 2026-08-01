@@ -177,7 +177,7 @@ function renderWebUsage(): void
     <div class="box">
         <h1>Sync visibilita legacy -> dap14_seg_dot / dap15_inf_dot</h1>
         <p>Questo step legge i permessi legacy dalla tabella <code>far10_vis_dot</code> del DB che indichi tu in <code>source-db</code> e importa in modo additivo solo i link compatibili con <code>ambulatoriofacile.it</code>.</p>
-        <p>Lo script non usa piu nessun database legacy in modo implicito: <code>source-db</code> va indicato esplicitamente solo per una migrazione una tantum.</p>
+        <p>Lo script non usa più nessun database legacy in modo implicito: <code>source-db</code> va indicato esplicitamente solo per una migrazione una tantum.</p>
         <p>Non cancella nulla da <code>mail</code>. I log e i report vengono salvati in <code>writable/dap_visibility_sync</code>.</p>
     </div>
 
@@ -1099,7 +1099,7 @@ final class DapVisibilitySync
         $entry = ['reason' => $reason] + $context;
         $this->skipped[] = $entry;
         if (count($this->skipped) <= 40) {
-            $this->logger->warning('Visibilita legacy non importata', $entry);
+            $this->logger->warning('Visibilità legacy non importata', $entry);
         }
     }
 
@@ -1183,7 +1183,7 @@ final class DapVisibilitySync
         $lines[] = 'SYNC VISIBILITA FARMACIA -> DAP14_SEG_DOT / DAP15_INF_DOT';
         $lines[] = str_repeat('=', 64);
         $lines[] = 'Stato: ' . (string)($this->report['status'] ?? 'n/d');
-        $lines[] = 'Modalita: ' . (string)($this->report['mode'] ?? 'n/d');
+        $lines[] = 'Modalità: ' . (string)($this->report['mode'] ?? 'n/d');
         $lines[] = 'Source DB: ' . (string)($this->report['source_db'] ?? 'n/d');
         $lines[] = 'Target DB: ' . (string)($this->report['target_db'] ?? 'n/d');
         $lines[] = 'Inizio: ' . (string)($this->report['started_at'] ?? 'n/d');
@@ -1227,9 +1227,9 @@ final class DapVisibilitySync
         $lines[] = 'AZIONI PREVISTE / ESEGUITE';
         $lines[] = '-------------------------';
         $lines[] = 'Nuovi link dap15 inseriti: ' . $this->summaryNumber($migration, 'dap15_inf_inserted');
-        $lines[] = 'Link dap15 saltati perche esistenti: ' . $this->summaryNumber($migration, 'dap15_inf_skipped_existing');
+        $lines[] = 'Link dap15 saltati perché esistenti: ' . $this->summaryNumber($migration, 'dap15_inf_skipped_existing');
         $lines[] = 'Nuovi link dap14 inseriti: ' . $this->summaryNumber($migration, 'dap14_seg_inserted');
-        $lines[] = 'Link dap14 saltati perche esistenti: ' . $this->summaryNumber($migration, 'dap14_seg_skipped_existing');
+        $lines[] = 'Link dap14 saltati perché esistenti: ' . $this->summaryNumber($migration, 'dap14_seg_skipped_existing');
         $lines[] = '';
 
         $lines[] = 'SCARTI LEGACY';
@@ -1307,7 +1307,7 @@ final class DapVisibilitySync
 
         $html .= '<div class="box"><h1>Sync visibilita farmacia -> dap14_seg_dot / dap15_inf_dot</h1>'
             . '<p><strong>Stato:</strong> ' . $this->html((string)($this->report['status'] ?? 'n/d')) . '</p>'
-            . '<p><strong>Modalita:</strong> ' . $this->html((string)($this->report['mode'] ?? 'n/d')) . '</p>'
+            . '<p><strong>Modalità:</strong> ' . $this->html((string)($this->report['mode'] ?? 'n/d')) . '</p>'
             . '<p><strong>Source DB:</strong> ' . $this->html((string)($this->report['source_db'] ?? 'n/d')) . '<br>'
             . '<strong>Target DB:</strong> ' . $this->html((string)($this->report['target_db'] ?? 'n/d')) . '</p>'
             . '<p><strong>Log:</strong> <code>' . $this->html((string)($this->report['log_path'] ?? '')) . '</code><br>'

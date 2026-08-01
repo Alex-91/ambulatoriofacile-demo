@@ -17,7 +17,7 @@ class AgendaSidebarBlockOrderService
         [
             'key' => 'sidebar_menu',
             'label' => 'Menu',
-            'description' => 'Menu laterale dell agenda con le voci operative dello spazio.',
+            'description' => 'Menu laterale dell’agenda con le voci operative dello spazio.',
             'left_origin' => 'fixed',
         ],
         [
@@ -29,31 +29,31 @@ class AgendaSidebarBlockOrderService
         [
             'key' => 'doctor_selector',
             'label' => 'Scelta professionista',
-            'description' => 'Entra nell ordine sinistro solo quando il blocco viene spostato a sinistra dalla configurazione della home agenda.',
+            'description' => 'Entra nell’ordine sinistro solo quando il blocco viene spostato a sinistra dalla configurazione della home agenda.',
             'left_origin' => 'home',
         ],
         [
             'key' => 'patient_search',
             'label' => 'Ricerca visite paziente',
-            'description' => 'Entra nell ordine sinistro solo quando il blocco viene spostato a sinistra dalla configurazione della home agenda.',
+            'description' => 'Entra nell’ordine sinistro solo quando il blocco viene spostato a sinistra dalla configurazione della home agenda.',
             'left_origin' => 'home',
         ],
         [
             'key' => 'day_note',
             'label' => 'Note del giorno',
-            'description' => 'Entra nell ordine sinistro solo quando il blocco viene spostato a sinistra dalla configurazione della home agenda.',
+            'description' => 'Entra nell’ordine sinistro solo quando il blocco viene spostato a sinistra dalla configurazione della home agenda.',
             'left_origin' => 'home',
         ],
         [
             'key' => 'calendar',
             'label' => 'Agenda',
-            'description' => 'Entra nell ordine sinistro solo quando il blocco viene spostato a sinistra dalla configurazione della home agenda.',
+            'description' => 'Entra nell’ordine sinistro solo quando il blocco viene spostato a sinistra dalla configurazione della home agenda.',
             'left_origin' => 'home',
         ],
         [
             'key' => 'memo',
             'label' => 'Memo',
-            'description' => 'Entra nell ordine sinistro solo quando il blocco viene spostato a sinistra dalla configurazione della home agenda.',
+            'description' => 'Entra nell’ordine sinistro solo quando il blocco viene spostato a sinistra dalla configurazione della home agenda.',
             'left_origin' => 'home',
         ],
     ];
@@ -148,7 +148,7 @@ class AgendaSidebarBlockOrderService
     ): array {
         $settings = $this->resolveTenantSettings($tenantId);
         if (empty($settings['order_management_available'])) {
-            throw new \RuntimeException('L ordinamento blocchi laterali agenda non e disponibile per questo spazio.');
+            throw new \RuntimeException('L’ordinamento blocchi laterali agenda non è disponibile per questo spazio.');
         }
 
         $featureId = (int) ($settings['feature_id'] ?? 0);

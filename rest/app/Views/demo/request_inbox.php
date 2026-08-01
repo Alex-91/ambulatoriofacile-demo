@@ -27,7 +27,7 @@
                     <p class="eyebrow">Archivio locale</p>
                     <h1>Richieste demo salvate</h1>
                     <p class="hero-copy">
-                        Questa pagina e visibile solo in locale e serve a controllare rapidamente i lead raccolti dalla linea commerciale.
+                        Questa pagina è visibile solo in locale e serve a controllare rapidamente i lead raccolti dalla linea commerciale.
                     </p>
                     <p class="hero-copy hero-copy-secondary">
                         I file restano salvati separatamente in <strong><?= esc((string) $storagePath) ?></strong>.
@@ -113,7 +113,7 @@
                     <article class="inbox-stat-card">
                         <p class="status-label">Notifiche inviate</p>
                         <h3><?= esc((string) ($requestStats['sent'] ?? 0)) ?></h3>
-                        <p class="status-note">Lead gia notificati via email.</p>
+                        <p class="status-note">Lead già notificati via email.</p>
                     </article>
                     <article class="inbox-stat-card">
                         <p class="status-label">Da verificare</p>
@@ -129,7 +129,7 @@
                 <div class="note-box">
                     <p>
                         <?= $activeFilters > 0
-                            ? 'Nessun lead corrisponde ai filtri attuali. Puoi resettarli o esportare l archivio completo.'
+                            ? 'Nessun lead corrisponde ai filtri attuali. Puoi resettarli o esportare l’archivio completo.'
                             : 'Non ci sono ancora richieste demo salvate in locale.' ?>
                     </p>
                 </div>

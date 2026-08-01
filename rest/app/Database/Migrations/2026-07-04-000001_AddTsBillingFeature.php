@@ -27,7 +27,7 @@ class AddTsBillingFeature extends Migration
             'feature_key' => self::FEATURE_KEY,
             'feature_name' => 'Fatturazione TS',
             'feature_scope' => 'billing',
-            'description' => 'Il master piattaforma attiva la Fatturazione TS per lo spazio. Una volta concessa, il tenant master dello studio puo configurare il modulo Sistema Tessera Sanitaria e usarlo operativamente.',
+            'description' => 'Il master piattaforma attiva la Fatturazione TS per lo spazio. Una volta concessa, il tenant master dello studio può configurare il modulo Sistema Tessera Sanitaria e usarlo operativamente.',
             'default_enabled' => 0,
             'created_at' => $now,
             'updated_at' => $now,
@@ -57,7 +57,7 @@ class AddTsBillingFeature extends Migration
         $update = [
             'feature_name' => 'Fatturazione TS',
             'feature_scope' => 'billing',
-            'description' => 'Il master piattaforma attiva la Fatturazione TS per lo spazio. Una volta concessa, il tenant master dello studio puo configurare il modulo Sistema Tessera Sanitaria e usarlo operativamente.',
+            'description' => 'Il master piattaforma attiva la Fatturazione TS per lo spazio. Una volta concessa, il tenant master dello studio può configurare il modulo Sistema Tessera Sanitaria e usarlo operativamente.',
             'default_enabled' => 0,
             'updated_at' => $now,
         ];

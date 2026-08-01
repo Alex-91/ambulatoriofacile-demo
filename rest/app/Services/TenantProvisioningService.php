@@ -433,7 +433,7 @@ class TenantProvisioningService
 
         $tenantByKey = $this->tenantsModel->findByTenantKey($tenantKey);
         if ($tenantByKey && (int) ($tenantByKey['id_tenant'] ?? 0) !== (int) ($tenantId ?? 0)) {
-            throw new \RuntimeException('Esiste gia un tenant con chiave ' . $tenantKey . '.');
+            throw new \RuntimeException('Esiste già un tenant con chiave ' . $tenantKey . '.');
         }
 
         $packageCode = trim(strtolower((string) ($payload['package_code'] ?? '')));

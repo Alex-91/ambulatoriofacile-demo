@@ -1502,14 +1502,14 @@ class PazientiModel extends Model
 
         if (count($matchesByCodiceFiscale) > 1) {
             $result['conflict'] = true;
-            $result['message'] = 'Esistono piu pazienti con lo stesso codice fiscale.';
+            $result['message'] = 'Esistono più pazienti con lo stesso codice fiscale.';
             $result['candidates'] = array_values($matchesByCodiceFiscale);
             return $result;
         }
 
         if (count($matchesByPartitaIva) > 1) {
             $result['conflict'] = true;
-            $result['message'] = 'Esistono piu pazienti con la stessa partita IVA.';
+            $result['message'] = 'Esistono più pazienti con la stessa partita IVA.';
             $result['candidates'] = array_values($matchesByPartitaIva);
             return $result;
         }

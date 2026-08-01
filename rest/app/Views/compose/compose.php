@@ -80,7 +80,7 @@
 <div id="page-loader" aria-hidden="true">
   <div class="spinner">
     <i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i>
-    <div class="msg">Caricamentoâ€¦</div>
+    <div class="msg">Caricamento…</div>
   </div>
 </div>
 
@@ -462,7 +462,7 @@ sendForm.addEventListener('submit', async function(e){
   var loader = document.getElementById('page-loader');
   if (loader) {
     var msgEl = loader.querySelector('.msg');
-    if (msgEl) msgEl.textContent = 'Invio in corsoâ€¦';
+    if (msgEl) msgEl.textContent = 'Invio in corso…';
     loader.style.display = 'block';
   }
   if (tmr) {
@@ -513,7 +513,7 @@ sendForm.addEventListener('submit', async function(e){
       return { q: params.term };
     },
     processResults: function (data) {
-      // data.items Ã¨ giÃ  [{id:'33', text:'Bassi Alessio'}, ...]
+      // data.items è già [{id:'33', text:'Bassi Alessio'}, ...]
       return { results: data.items || [] };
     },
     cache: true
@@ -526,7 +526,7 @@ sendForm.addEventListener('submit', async function(e){
       scheduleAutosave();
     });
 
-    // se bozza giÃ  con recipient_user_id, prefill label (richiede una fetch; qui semplice placeholder)
+    // se bozza già con recipient_user_id, prefill label (richiede una fetch; qui semplice placeholder)
   }
 
   async function ensureDraftExists(){
@@ -586,7 +586,7 @@ sendForm.addEventListener('submit', async function(e){
       var loader = document.getElementById('page-loader');
       if (loader) {
         var msgEl = loader.querySelector('.msg');
-        if (msgEl) msgEl.textContent = 'Caricamento allegato in corsoâ€¦';
+        if (msgEl) msgEl.textContent = 'Caricamento allegato in corso…';
         loader.style.display = 'block';
       }
 
@@ -634,7 +634,7 @@ sendForm.addEventListener('submit', async function(e){
         credentials: 'same-origin'
       });
       
-      // Se lo status non Ã¨ 200/400 o se non Ã¨ JSON, cattura l'errore
+      // Se lo status non è 200/400 o se non è JSON, cattura l'errore
       var text = await res.text();
       var json = null;
       try { json = JSON.parse(text); } catch(e) {}
@@ -646,7 +646,7 @@ sendForm.addEventListener('submit', async function(e){
 
       // Rimuovo dal DOM
       if (li) li.remove();
-      // Se la lista Ã¨ vuota mostro il placeholder
+      // Se la lista è vuota mostro il placeholder
       if (attachList.children.length === 0) {
         var ph = document.createElement('li');
         ph.className = 'text-muted';

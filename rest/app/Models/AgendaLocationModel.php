@@ -280,7 +280,7 @@ class AgendaLocationModel extends Model
         $ordinamento = max(0, (int)($data['ordinamento'] ?? 0));
 
         if ($nome === '') {
-            throw new Exception('Il nome della sede e obbligatorio.');
+            throw new Exception('Il nome della sede è obbligatorio.');
         }
 
         $payload = [
@@ -336,7 +336,7 @@ class AgendaLocationModel extends Model
         }
 
         if ($nome === '') {
-            throw new Exception('Il nome della stanza e obbligatorio.');
+            throw new Exception('Il nome della stanza è obbligatorio.');
         }
 
         $existing = $this->db->table('dap43_ambulatori_stanze')
@@ -349,7 +349,7 @@ class AgendaLocationModel extends Model
         }
 
         if ($existing->countAllResults() > 0) {
-            throw new Exception('Esiste gia una stanza con questo nome per la sede selezionata.');
+            throw new Exception('Esiste già una stanza con questo nome per la sede selezionata.');
         }
 
         $payload = [

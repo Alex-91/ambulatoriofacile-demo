@@ -178,11 +178,11 @@ $oldIsGeneralAdmin = (int)($old['is_general_admin'] ?? 0) === 1;
                       <label>Rendi amministratore?</label>
                       <select class="form-control" name="is_general_admin" id="is_general_admin">
                         <option value="0" <?= !$oldIsGeneralAdmin ? 'selected' : '' ?>>No</option>
-                        <option value="1" <?= $oldIsGeneralAdmin ? 'selected' : '' ?>>Si</option>
+                        <option value="1" <?= $oldIsGeneralAdmin ? 'selected' : '' ?>>Sì</option>
                       </select>
                       <p class="text-muted" style="margin:6px 0 0 0;">
                         Disponibile solo per il tipo Generale.
-                        Se scegli "Si", questo medico potra entrare anche nel profilo admin.
+                        Se scegli "Sì", questo medico potrà entrare anche nel profilo admin.
                       </p>
                     </div>
                   </div>
@@ -208,7 +208,7 @@ $oldIsGeneralAdmin = (int)($old['is_general_admin'] ?? 0) === 1;
                       </select>
                       <?php if ($hasLuoghi): ?>
                         <p class="text-muted" style="margin:6px 0 0 0;">
-                          Per segretaria e infermiera puoi selezionare piu luoghi o "Tutti i luoghi".
+                          Per segretaria e infermiera puoi selezionare più luoghi o "Tutti i luoghi".
                         </p>
                       <?php else: ?>
                         <p class="text-warning" style="margin:6px 0 0 0;">
@@ -242,7 +242,7 @@ $oldIsGeneralAdmin = (int)($old['is_general_admin'] ?? 0) === 1;
 
                 <div class="row" style="margin-top:6px;">
                   <div class="col-md-12">
-                    <label>Visibilita moduli</label>
+                    <label>Visibilità moduli</label>
                     <p class="text-muted" style="margin:4px 0 8px 0;">
                       Decide in quali moduli il personale deve comparire. Per i dottori puoi tenerlo visibile in agenda ma nasconderlo da posta e chat.
                     </p>
@@ -319,7 +319,7 @@ $oldIsGeneralAdmin = (int)($old['is_general_admin'] ?? 0) === 1;
     return String(s || '')
       .trim()
       .toLowerCase()
-      .replace(/Ã /g,'a').replace(/Ã¨/g,'e').replace(/Ã©/g,'e').replace(/Ã¬/g,'i').replace(/Ã²/g,'o').replace(/Ã¹/g,'u')
+      .replace(/à/g,'a').replace(/è/g,'e').replace(/é/g,'e').replace(/ì/g,'i').replace(/ò/g,'o').replace(/ù/g,'u')
       .replace(/[^a-z0-9]+/g,'.')
       .replace(/^\.+|\.+$/g,'')
       .replace(/\.+/g,'.');
@@ -346,7 +346,7 @@ $oldIsGeneralAdmin = (int)($old['is_general_admin'] ?? 0) === 1;
     $user.value = buildUsername();
   }
 
-  // Se l'utente modifica username a mano => auto = false (finchÃ© non cambia nome/cognome)
+  // Se l'utente modifica username a mano => auto = false (finché non cambia nome/cognome)
   $user.addEventListener('input', function(){
     auto = false;
   });
@@ -360,8 +360,8 @@ $oldIsGeneralAdmin = (int)($old['is_general_admin'] ?? 0) === 1;
   $nome.addEventListener('input', onNameChange);
   $cognome.addEventListener('input', onNameChange);
 
-  // init: se username Ã¨ vuoto => auto
-  // se username giÃ  valorizzato (old) => lascialo, ma appena tocchi nome/cognome si rigenera
+  // init: se username è vuoto => auto
+  // se username già valorizzato (old) => lascialo, ma appena tocchi nome/cognome si rigenera
   if (!$user.value) applyAuto();
 })();
 </script>
@@ -412,4 +412,3 @@ $oldIsGeneralAdmin = (int)($old['is_general_admin'] ?? 0) === 1;
   syncGeneralAdminChoice();
 })();
 </script>
-

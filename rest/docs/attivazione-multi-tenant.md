@@ -18,10 +18,10 @@ Env minime consigliate sulla app reale:
 
 ## 1. Database centrale piattaforma
 
-Scegli una delle due modalita:
+Scegli una delle due modalità:
 
-- piu semplice: usa lo stesso DB gia configurato in `database.default.*`
-- piu pulita: usa un DB centrale separato impostando `PLATFORM_DB_*`
+- più semplice: usa lo stesso DB già configurato in `database.default.*`
+- più pulita: usa un DB centrale separato impostando `PLATFORM_DB_*`
 
 Nel DB centrale verranno create e usate queste tabelle:
 
@@ -47,7 +47,7 @@ In ambiente deploy normale basta mantenere `RUN_MIGRATIONS=1`.
 
 ## 3. Email obbligatoria
 
-Per inviti e reset password il canale email deve essere gia funzionante.
+Per inviti e reset password il canale email deve essere già funzionante.
 
 Variabili minime:
 
@@ -64,7 +64,7 @@ Variabili minime:
 
 Per la gestione ordinaria puoi creare e governare gli account master direttamente dal pannello `login/piattaforma/spazi-clienti`.
 
-`PLATFORM_MASTER_EMAILS` diventa opzionale e serve solo come seed/bootstrap tecnico iniziale se vuoi importare automaticamente una o piu email master da Coolify.
+`PLATFORM_MASTER_EMAILS` diventa opzionale e serve solo come seed/bootstrap tecnico iniziale se vuoi importare automaticamente un’o più email master da Coolify.
 
 Esempio facoltativo:
 
@@ -85,7 +85,7 @@ Il pulsante `Salva e provisiona` del pannello admin usa queste env:
 
 Nota pratica:
 
-- `TENANT_PROVISIONING_RUNTIME_PASSWORD_REF` deve contenere il nome di una env reale che custodisce la password DB
+- `TENANT_PROVISIONING_RUNTIME_PASSWORD_REF` deve contenere il nome di un’env reale che custodisce la password DB
 - esempio: `TENANT_PROVISIONING_RUNTIME_PASSWORD_REF=TENANT_SHARED_RUNTIME_PASSWORD`
 - e quindi deve esistere anche `TENANT_SHARED_RUNTIME_PASSWORD=...`
 
@@ -114,13 +114,13 @@ Ordine consigliato:
 4. se serve, definisci o aggiorna la funzione globale da `login/piattaforma/funzioni`
 5. spunta `Invia accesso al tenant master dopo il salvataggio`
 6. usa `Salva e provisiona`
-7. verifica che nel pannello compaia il riepilogo dell ultimo provisioning
+7. verifica che nel pannello compaia il riepilogo dell’ultimo provisioning
 8. il provisioning crea o collega automaticamente anche l `app_user_id` del tenant master nel DB del tenant
 9. apri il link email del tenant master
 10. imposta la password
 11. entra da `ambulatoriofacile.it/login`
 12. verifica che il tenant master veda solo il suo spazio
-13. verifica che l account master centrale apra `ambulatoriofacile.it/login/piattaforma/spazi-clienti`
+13. verifica che l’account master centrale apra `ambulatoriofacile.it/login/piattaforma/spazi-clienti`
 14. se la funzione e delegabile, verifica che il tenant master la possa governare da `login/spazio/funzioni`
 15. aggiungi un utente da `login/spazio/utenti`
 16. invia accesso anche a lui e verifica il flusso
@@ -136,7 +136,7 @@ Ordine consigliato:
 ## 8. Cosa controllare se qualcosa non va
 
 - email non arriva: controlla config SMTP e log mail
-- `Salva e provisiona` fallisce: controlla `TENANT_PROVISIONING_*` e i permessi MySQL dell utente admin
+- `Salva e provisiona` fallisce: controlla `TENANT_PROVISIONING_*` e i permessi MySQL dell’utente admin
 - utente entra ma non apre il tenant: probabilmente manca `app_user_id` e non c e match automatico via email nel DB tenant
 - se salvi utenti prima che il DB tenant sia pronto, il pannello mostra un warning e la sincronizzazione dell `app_user_id` viene rimandata
 - lo spazio non compare nel login: controlla `is_active`, `status` tenant e membership del platform user

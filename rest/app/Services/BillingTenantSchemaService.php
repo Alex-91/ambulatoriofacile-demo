@@ -67,7 +67,7 @@ class BillingTenantSchemaService
                     'applied' => false,
                     'tenant_id' => $resolvedTenantId,
                     'tenant_name' => trim((string) ($tenant['tenant_name'] ?? '')),
-                    'message' => 'Schema Fatturazione gia pronto per questo spazio.',
+                    'message' => 'Schema Fatturazione già pronto per questo spazio.',
                     'cli_messages' => [],
                 ];
             }
@@ -79,7 +79,7 @@ class BillingTenantSchemaService
                     'applied' => false,
                     'tenant_id' => $resolvedTenantId,
                     'tenant_name' => trim((string) ($tenant['tenant_name'] ?? '')),
-                    'message' => 'La tabella billing_documents non e ancora disponibile nel database di questo spazio.',
+                    'message' => 'La tabella billing_documents non è ancora disponibile nel database di questo spazio.',
                     'cli_messages' => [],
                 ];
             }

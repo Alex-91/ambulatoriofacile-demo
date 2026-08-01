@@ -168,7 +168,7 @@
                     <div class="box box-primary">
                         <div class="box-header with-border">
                             <h3 class="box-title">
-                                <i class="fa fa-history"></i> Memo gia fatte
+                                <i class="fa fa-history"></i> Memo già fatte
                             </h3>
                         </div>
 
@@ -246,8 +246,8 @@
                                     <?= $searchTerm !== ''
                                         ? 'Nessuna memo trovata per il nome/cognome cercato.'
                                         : ($sharedMemoManagementEnabled && $selectedDot === 0
-                                            ? 'Nessuna memo gia fatta nello spazio.'
-                                            : 'Nessuna memo gia fatta per il dottore selezionato.') ?>
+                                            ? 'Nessuna memo già fatta nello spazio.'
+                                            : 'Nessuna memo già fatta per il dottore selezionato.') ?>
                                 </div>
                             <?php else: ?>
                                 <?php foreach ($rows as $row): ?>
@@ -299,7 +299,7 @@
                                                 <?= esc($row['indirizzo'] ?? '') ?>
                                             </div>
                                             <div class="col-sm-4 riga">
-                                                <span class="memo-label">Citta:</span>
+                                                <span class="memo-label">Città:</span>
                                                 <?= esc($row['citta'] ?? '') ?>
                                             </div>
                                         </div>

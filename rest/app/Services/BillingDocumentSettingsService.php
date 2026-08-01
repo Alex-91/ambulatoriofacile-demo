@@ -60,7 +60,7 @@ class BillingDocumentSettingsService
     {
         $current = $this->resolveTenantSettings($tenantId);
         if (empty($current['feature']['available'])) {
-            throw new \RuntimeException('Il modulo Fatturazione non e disponibile per questo spazio.');
+            throw new \RuntimeException('Il modulo Fatturazione non è disponibile per questo spazio.');
         }
 
         $featureId = (int) ($current['feature']['feature_id'] ?? 0);
@@ -87,14 +87,76 @@ class BillingDocumentSettingsService
     }
 
     /**
+     * Aggiunge al catalogo le prestazioni effettivamente usate in un documento.
+     * Le voci già presenti non vengono duplicate ne sovrascritte.
+     *
+     * @param array<int, array<string, mixed>> $lineItems
+     */
+    public function rememberServiceCatalogItems(int $tenantId, array $lineItems, int $updatedByPlatformUserId = 0): void
+    {
+        if ($tenantId <= 0 || $lineItems === []) {
+            return;
+        }
+
+        $current = $this->resolveTenantSettings($tenantId);
+        $config = is_array($current['config'] ?? null) ? $current['config'] : [];
+        $catalog = is_array($config['service_catalog'] ?? null) ? $config['service_catalog'] : [];
+        $knownDescriptions = [];
+
+        foreach ($catalog as $service) {
+            if (!is_array($service)) {
+                continue;
+            }
+
+            $key = $this->serviceCatalogKey((string) ($service['description'] ?? ''));
+            if ($key !== '') {
+                $knownDescriptions[$key] = true;
+            }
+        }
+
+        $hasNewItem = false;
+        foreach ($lineItems as $lineItem) {
+            $description = $this->sanitizeText($lineItem['description'] ?? '', 190, '');
+            $key = $this->serviceCatalogKey($description);
+            if ($key === '' || isset($knownDescriptions[$key])) {
+                continue;
+            }
+
+            $catalog[] = [
+                'description' => $description,
+                'unit_amount' => $this->sanitizeDecimal($lineItem['unit_amount'] ?? 0, 0, 999999.99),
+            ];
+            $knownDescriptions[$key] = true;
+            $hasNewItem = true;
+
+            if (count($catalog) >= 30) {
+                break;
+            }
+        }
+
+        if (!$hasNewItem) {
+            return;
+        }
+
+        $config['service_catalog'] = $catalog;
+        $this->saveTenantSettings($tenantId, $config, $updatedByPlatformUserId);
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public function defaultConfig(): array
     {
         return [
-            'version' => 1,
+            'version' => 2,
             'document_title' => 'Documento fatturazione',
             'document_code_prefix' => 'FT',
+            'defaults' => [
+                'document_type' => 'invoice',
+                'payment_method' => 'bank_transfer',
+                'ts_expense_type_code' => 'SP',
+                'ts_opposition_flag' => false,
+            ],
             'branding' => [
                 'logo_mode' => 'none',
                 'logo_url' => '',
@@ -137,6 +199,28 @@ class BillingDocumentSettingsService
                 'require_expense_type' => false,
                 'require_opposition_flag' => false,
             ],
+            'service_catalog' => [],
+            'vat' => [
+                'default_rate' => '0.00',
+                'default_nature' => '',
+            ],
+            'pension_fund' => [
+                'enabled' => false,
+                'name' => '',
+                'registration_number' => '',
+                'contribution_rate' => '0.00',
+            ],
+            'fiscal_data' => [
+                'business_name' => '',
+                'tax_code' => '',
+                'vat_number' => '',
+                'address' => '',
+                'postal_code' => '',
+                'city' => '',
+                'province' => '',
+                'pec' => '',
+                'recipient_code' => '',
+            ],
         ];
     }
 
@@ -149,10 +233,15 @@ class BillingDocumentSettingsService
         $defaults = $this->defaultConfig();
         $rawConfig = is_array($rawConfig) ? $rawConfig : [];
         $branding = is_array($rawConfig['branding'] ?? null) ? $rawConfig['branding'] : [];
+        $documentDefaults = is_array($rawConfig['defaults'] ?? null) ? $rawConfig['defaults'] : [];
         $layout = is_array($rawConfig['layout'] ?? null) ? $rawConfig['layout'] : [];
         $fields = is_array($rawConfig['fields'] ?? null) ? $rawConfig['fields'] : [];
         $labels = is_array($rawConfig['labels'] ?? null) ? $rawConfig['labels'] : [];
         $integrationTs = is_array($rawConfig['integration_ts'] ?? null) ? $rawConfig['integration_ts'] : [];
+        $serviceCatalog = is_array($rawConfig['service_catalog'] ?? null) ? $rawConfig['service_catalog'] : [];
+        $vat = is_array($rawConfig['vat'] ?? null) ? $rawConfig['vat'] : [];
+        $pensionFund = is_array($rawConfig['pension_fund'] ?? null) ? $rawConfig['pension_fund'] : [];
+        $fiscalData = is_array($rawConfig['fiscal_data'] ?? null) ? $rawConfig['fiscal_data'] : [];
 
         $logoMode = trim(strtolower((string) ($branding['logo_mode'] ?? $defaults['branding']['logo_mode'])));
         if (!in_array($logoMode, ['none', 'path'], true)) {
@@ -173,14 +262,39 @@ class BillingDocumentSettingsService
             $documentCodePrefix = (string) $defaults['document_code_prefix'];
         }
 
+        $defaultDocumentType = trim((string) ($documentDefaults['document_type'] ?? $defaults['defaults']['document_type']));
+        if (!in_array($defaultDocumentType, ['invoice', 'receipt', 'service_note'], true)) {
+            $defaultDocumentType = (string) $defaults['defaults']['document_type'];
+        }
+
+        $defaultPaymentMethod = trim((string) ($documentDefaults['payment_method'] ?? $defaults['defaults']['payment_method']));
+        if (!in_array($defaultPaymentMethod, ['cash', 'pos', 'bank_transfer', 'mixed', 'other'], true)) {
+            $defaultPaymentMethod = (string) $defaults['defaults']['payment_method'];
+        }
+
+        $defaultExpenseType = strtoupper(trim((string) (
+            $documentDefaults['ts_expense_type_code'] ?? $defaults['defaults']['ts_expense_type_code']
+        )));
+        if (!preg_match('/^[A-Z]{2}$/', $defaultExpenseType)) {
+            $defaultExpenseType = (string) $defaults['defaults']['ts_expense_type_code'];
+        }
+
         return [
-            'version' => 1,
+            'version' => 2,
             'document_title' => $this->sanitizeText(
                 $rawConfig['document_title'] ?? $defaults['document_title'],
                 120,
                 (string) $defaults['document_title']
             ),
             'document_code_prefix' => substr($documentCodePrefix, 0, 12),
+            'defaults' => [
+                'document_type' => $defaultDocumentType,
+                'payment_method' => $defaultPaymentMethod,
+                'ts_expense_type_code' => $defaultExpenseType,
+                'ts_opposition_flag' => $this->toBool(
+                    $documentDefaults['ts_opposition_flag'] ?? $defaults['defaults']['ts_opposition_flag']
+                ),
+            ],
             'branding' => [
                 'logo_mode' => $logoMode,
                 'logo_url' => $this->sanitizeText($branding['logo_url'] ?? '', 255, ''),
@@ -251,7 +365,96 @@ class BillingDocumentSettingsService
                     $integrationTs['require_opposition_flag'] ?? $defaults['integration_ts']['require_opposition_flag']
                 ),
             ],
+            'service_catalog' => $this->sanitizeServiceCatalog($serviceCatalog),
+            'vat' => [
+                'default_rate' => $this->sanitizeDecimal(
+                    $vat['default_rate'] ?? $defaults['vat']['default_rate'],
+                    0,
+                    100
+                ),
+                'default_nature' => strtoupper($this->sanitizeText(
+                    $vat['default_nature'] ?? $defaults['vat']['default_nature'],
+                    16,
+                    ''
+                )),
+            ],
+            'pension_fund' => [
+                'enabled' => $this->toBool($pensionFund['enabled'] ?? $defaults['pension_fund']['enabled']),
+                'name' => $this->sanitizeText($pensionFund['name'] ?? '', 120, ''),
+                'registration_number' => $this->sanitizeText($pensionFund['registration_number'] ?? '', 80, ''),
+                'contribution_rate' => $this->sanitizeDecimal(
+                    $pensionFund['contribution_rate'] ?? $defaults['pension_fund']['contribution_rate'],
+                    0,
+                    100
+                ),
+            ],
+            'fiscal_data' => [
+                'business_name' => $this->sanitizeText($fiscalData['business_name'] ?? '', 140, ''),
+                'tax_code' => strtoupper($this->sanitizeText($fiscalData['tax_code'] ?? '', 32, '')),
+                'vat_number' => strtoupper($this->sanitizeText($fiscalData['vat_number'] ?? '', 32, '')),
+                'address' => $this->sanitizeText($fiscalData['address'] ?? '', 160, ''),
+                'postal_code' => strtoupper($this->sanitizeText($fiscalData['postal_code'] ?? '', 12, '')),
+                'city' => $this->sanitizeText($fiscalData['city'] ?? '', 100, ''),
+                'province' => strtoupper($this->sanitizeText($fiscalData['province'] ?? '', 4, '')),
+                'pec' => strtolower($this->sanitizeText($fiscalData['pec'] ?? '', 190, '')),
+                'recipient_code' => strtoupper($this->sanitizeText($fiscalData['recipient_code'] ?? '', 16, '')),
+            ],
         ];
+    }
+
+    /**
+     * @param array<int, mixed> $items
+     * @return list<array{description: string, unit_amount: string}>
+     */
+    private function sanitizeServiceCatalog(array $items): array
+    {
+        $catalog = [];
+
+        foreach ($items as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+
+            $description = $this->sanitizeText($item['description'] ?? '', 190, '');
+            if ($description === '') {
+                continue;
+            }
+
+            $catalog[] = [
+                'description' => $description,
+                'unit_amount' => $this->sanitizeDecimal($item['unit_amount'] ?? 0, 0, 999999.99),
+            ];
+
+            if (count($catalog) >= 30) {
+                break;
+            }
+        }
+
+        return $catalog;
+    }
+
+    private function serviceCatalogKey(string $description): string
+    {
+        $description = preg_replace('/\s+/', ' ', trim($description)) ?? '';
+        return strtolower($description);
+    }
+
+    /**
+     * @param mixed $value
+     */
+    private function sanitizeDecimal($value, float $min, float $max): string
+    {
+        $normalized = str_replace(',', '.', trim((string) $value));
+        if (!is_numeric($normalized)) {
+            return number_format($min, 2, '.', '');
+        }
+
+        $amount = (float) $normalized;
+        if ($amount < $min || $amount > $max) {
+            $amount = $min;
+        }
+
+        return number_format($amount, 2, '.', '');
     }
 
     /**

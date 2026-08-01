@@ -1,6 +1,6 @@
 # Shortcut chat
 
-Queste frasi possono essere usate direttamente nelle chat future per attivare i flussi operativi gia' presenti nel repository.
+Queste frasi possono essere usate direttamente nelle chat future per attivare i flussi operativi già presenti nel repository.
 
 ## Deploy produzione
 
@@ -8,7 +8,7 @@ Frase rapida:
 
 - `rilascia in prod`
 
-Se non specifichi il target, verra' chiesto solo:
+Se non specifichi il target, verrà chiesto solo:
 
 - `demo`
 - `login`
@@ -32,7 +32,7 @@ powershell -ExecutionPolicy Bypass -File .\ops\release-prod.ps1 -Target both
 
 Nota:
 
-- `release-prod.ps1` blocca il rilascio se il working tree non e' pulito, se il branch corrente non e' `main` o se `main` non e' allineato a `origin/main`
+- `release-prod.ps1` blocca il rilascio se il working tree non è' pulito, se il branch corrente non è' `main` o se `main` non è' allineato a `origin/main`
 
 ## Refresh DB test
 

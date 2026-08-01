@@ -55,7 +55,7 @@ class TsHealthcheckService
             ];
         }
 
-        $supportLog->step('profile_loaded', 'Profilo TS default caricato per l healthcheck.', [
+        $supportLog->step('profile_loaded', 'Profilo TS default caricato per l’healthcheck.', [
             'profile_id' => (int) ($profile['id_ts_profile'] ?? 0),
             'environment' => trim((string) ($profile['environment'] ?? '')),
             'sender_type' => trim((string) ($profile['sender_type'] ?? '')),
@@ -120,7 +120,7 @@ class TsHealthcheckService
             ];
 
             if (!$decryptable) {
-                $errors[] = 'Il segreto "' . $label . '" non e decifrabile con la chiave locale attuale.';
+                $errors[] = 'Il segreto "' . $label . '" non è decifrabile con la chiave locale attuale.';
             }
         }
         $supportLog->step('secrets_checked', 'Controllo segreti cifrati completato.', [
@@ -133,10 +133,10 @@ class TsHealthcheckService
             'status' => $soapLoaded ? 'ok' : 'error',
             'message' => $soapLoaded
                 ? 'SOAP disponibile nel runtime PHP attuale.'
-                : 'L estensione SOAP non risulta caricata in questo runtime.',
+                : 'L’estensione SOAP non risulta caricata in questo runtime.',
         ];
         if (!$soapLoaded) {
-            $errors[] = 'L estensione SOAP non risulta caricata nel runtime.';
+            $errors[] = 'L’estensione SOAP non risulta caricata nel runtime.';
         }
         $supportLog->step('soap_extension_checked', 'Verifica runtime SOAP completata.', [
             'soap_loaded' => $soapLoaded,
@@ -154,9 +154,9 @@ class TsHealthcheckService
             ];
 
             if (!$exists && $isRequired) {
-                $errors[] = 'Manca l asset tecnico richiesto: ' . $this->assetLabel((string) ($assetCheck['key'] ?? 'asset')) . '.';
+                $errors[] = 'Manca l’asset tecnico richiesto: ' . $this->assetLabel((string) ($assetCheck['key'] ?? 'asset')) . '.';
             } elseif (!$exists) {
-                $warnings[] = 'Manca l asset opzionale: ' . $this->assetLabel((string) ($assetCheck['key'] ?? 'asset')) . '.';
+                $warnings[] = 'Manca l’asset opzionale: ' . $this->assetLabel((string) ($assetCheck['key'] ?? 'asset')) . '.';
             }
         }
         $supportLog->step('assets_checked', 'Controllo asset locali TS completato.', [
@@ -165,10 +165,10 @@ class TsHealthcheckService
 
         $environmentConfig = $this->config->resolveEnvironmentConfig((string) ($profile['environment'] ?? 'test'));
         if (trim((string) ($environmentConfig['document_endpoint'] ?? '')) === '') {
-            $warnings[] = 'Endpoint documento TS non ancora configurato via env per l ambiente selezionato.';
+            $warnings[] = 'Endpoint documento TS non ancora configurato via env per l’ambiente selezionato.';
         }
         if (trim((string) ($environmentConfig['receipts_endpoint'] ?? '')) === '') {
-            $warnings[] = 'Endpoint ricevute TS non ancora configurato via env per l ambiente selezionato.';
+            $warnings[] = 'Endpoint ricevute TS non ancora configurato via env per l’ambiente selezionato.';
         }
 
         $operationConfigured = trim($this->config->documentOperationName) !== '';
@@ -199,7 +199,7 @@ class TsHealthcheckService
             $checks[] = [
                 'label' => 'Endpoint ambiente',
                 'status' => 'ok',
-                'message' => 'Gli endpoint dell ambiente risultano valorizzati.',
+                'message' => 'Gli endpoint dell’ambiente risultano valorizzati.',
             ];
         }
 
@@ -239,7 +239,7 @@ class TsHealthcheckService
         $message = match ($status) {
             'ok' => 'Healthcheck locale TS completato: configurazione pronta per lo step tecnico successivo.',
             'warning' => 'Healthcheck locale TS completato con avvisi: la base c e, ma restano elementi da completare.',
-            default => 'Healthcheck locale TS fallito: correggi i blocchi indicati prima di procedere con l integrazione.',
+            default => 'Healthcheck locale TS fallito: correggi i blocchi indicati prima di procedere con l’integrazione.',
         };
         $supportReference = $supportLog->finish($status, $message, [
             'checks' => $checks,
@@ -274,8 +274,8 @@ class TsHealthcheckService
     }
 
     /**
-     * Per l healthcheck tenant ignoriamo il drift di migration App non TS
-     * quando lo schema TS del target e gia allineato.
+     * Per l’healthcheck tenant ignoriamo il drift di migration App non TS
+     * quando lo schema TS del target e già allineato.
      *
      * @param array<string, mixed> $inspection
      * @return array<string, mixed>

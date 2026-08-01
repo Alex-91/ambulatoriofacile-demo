@@ -131,7 +131,7 @@ $baseUrl = site_url($baseRoute);
                     <input type="text" name="indirizzo" class="form-control" value="<?= esc($selectedAmbulatorio['indirizzo'] ?? '') ?>">
                   </div>
                   <div class="col-md-2 form-group">
-                    <label>Citta</label>
+                    <label>Città</label>
                     <input type="text" name="citta" class="form-control" value="<?= esc($selectedAmbulatorio['citta'] ?? '') ?>">
                   </div>
                   <div class="col-md-2 form-group">

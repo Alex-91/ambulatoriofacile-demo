@@ -191,7 +191,7 @@ class TsMigrationSafetyService
                 'status' => $applied ? 'ok' : 'warning',
                 'applied' => $applied,
                 'message' => $applied
-                    ? 'Migration TS gia registrata nella history del database.'
+                    ? 'Migration TS già registrata nella history del database.'
                     : 'Migration TS ancora pendente nella history del database.',
             ];
 
@@ -610,7 +610,7 @@ class TsMigrationSafetyService
             $checks[] = [
                 'label' => 'Schema ' . $table,
                 'status' => 'ok',
-                'message' => 'La tabella `' . $table . '` e presente con le colonne chiave attese.',
+                'message' => 'La tabella `' . $table . '` è presente con le colonne chiave attese.',
             ];
         }
 
@@ -626,7 +626,7 @@ class TsMigrationSafetyService
             return [[
                 'label' => 'Feature catalog platform',
                 'status' => 'error',
-                'message' => 'La tabella `platform_features` non e disponibile nel database platform.',
+                'message' => 'La tabella `platform_features` non è disponibile nel database platform.',
             ]];
         }
 
@@ -654,7 +654,7 @@ class TsMigrationSafetyService
             return [[
                 'label' => 'Runtime tenant locale',
                 'status' => 'warning',
-                'message' => 'Il database default locale non e associato automaticamente a un tenant platform: la UI admin TS lavorera comunque sul runtime corrente, quindi verifica a mano l allineamento.',
+                'message' => 'Il database default locale non è associato automaticamente a un tenant platform: la UI admin TS lavorerà comunque sul runtime corrente, quindi verifica a mano l’allineamento.',
             ]];
         }
 
@@ -676,7 +676,7 @@ class TsMigrationSafetyService
                 . trim((string) ($runtimeTenant['tenant_name'] ?? $runtimeTenant['tenant_key'] ?? $runtimeTenantId))
                 . '`, mentre questo controllo sta leggendo il tenant `'
                 . trim((string) ($tenant['tenant_name'] ?? $tenant['tenant_key'] ?? $targetTenantId))
-                . '`. La configurazione TS e corretta, ma la UI admin documenti usera il DB runtime attuale finche non riallinei l ambiente.',
+                . '`. La configurazione TS è corretta, ma la UI admin documenti userà il DB runtime attuale finché non riallinei l’ambiente.',
         ]];
     }
 

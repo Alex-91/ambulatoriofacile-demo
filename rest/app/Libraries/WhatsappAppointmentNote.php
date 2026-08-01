@@ -139,11 +139,11 @@ final class WhatsappAppointmentNote
     private static function italianWeekdayLabel(\DateTimeInterface $occurredAt): string
     {
         $weekdays = [
-            1 => 'Lunedi',
-            2 => 'Martedi',
-            3 => 'Mercoledi',
-            4 => 'Giovedi',
-            5 => 'Venerdi',
+            1 => 'Lunedì',
+            2 => 'Martedì',
+            3 => 'Mercoledì',
+            4 => 'Giovedì',
+            5 => 'Venerdì',
             6 => 'Sabato',
             7 => 'Domenica',
         ];

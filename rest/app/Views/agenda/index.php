@@ -3784,7 +3784,7 @@
                                     </div>
                                     <div class="box-footer text-right">
                                         <div id="domiciliariLockNotice" class="agenda-domiciliari-lock-notice">
-                                            La giornata agenda e bloccata: non puoi inserire o modificare le visite domiciliari per questo giorno.
+                                            La giornata agenda è bloccata: non puoi inserire o modificare le visite domiciliari per questo giorno.
                                         </div>
                                         <span class="text-muted small">Le visite domiciliari sono separate dal calendario</span>
                                     </div>
@@ -3908,7 +3908,7 @@ $renderAppointmentModalBlock = static function (string $blockKey) use (
                                         </label>
                                     </div>
                                     <p class="help-block">
-                                        Scegli l ora reale di inizio e di fine: verranno riservati automaticamente tutti gli slot coinvolti.
+                                        Scegli l’ora reale di inizio e di fine: verranno riservati automaticamente tutti gli slot coinvolti.
                                     </p>
                                 </div>
                             </div>
@@ -3950,7 +3950,7 @@ $renderAppointmentModalBlock = static function (string $blockKey) use (
                         </select>
                         <p id="app_visit_type_help" class="help-block" style="margin:6px 0 0;">
                             <?= !empty($visitTypeSelectionOptionalEnabled)
-                                ? 'Facoltativo: se lo lasci vuoto, l appuntamento occupa solo lo slot cliccato.'
+                                ? 'Facoltativo: se lo lasci vuoto, l’appuntamento occupa solo lo slot cliccato.'
                                 : 'Selezionalo per applicare durata automatica e regole del tipo visita.' ?>
                         </p>
                         <div id="app_visit_type_preview" class="agenda-visit-type-select-preview is-empty">
@@ -3959,8 +3959,8 @@ $renderAppointmentModalBlock = static function (string $blockKey) use (
                                 <span id="app_visit_type_preview_label" class="agenda-visit-type-select-label">Nessun tipo visita selezionato</span>
                                 <span id="app_visit_type_preview_meta" class="agenda-visit-type-select-meta">
                                     <?= !empty($visitTypeSelectionOptionalEnabled)
-                                        ? 'Se non selezioni un tipo visita, l appuntamento usera solo lo slot cliccato.'
-                                        : 'Seleziona un tipo visita per definire durata e copertura dell appuntamento.' ?>
+                                        ? 'Se non selezioni un tipo visita, l’appuntamento userà solo lo slot cliccato.'
+                                        : 'Seleziona un tipo visita per definire durata e copertura dell’appuntamento.' ?>
                                 </span>
                             </div>
                         </div>
@@ -3988,14 +3988,14 @@ $renderAppointmentModalBlock = static function (string $blockKey) use (
                             <button type="button" class="btn btn-default" data-appointment-mode="personal_commitment">Impegno personale</button>
                         </div>
                         <p class="help-block" style="margin:6px 0 0;">
-                            Gli impegni personali bloccano piu slot consecutivi con una voce speciale rossa, senza creare un paziente reale.
+                            Gli impegni personali bloccano più slot consecutivi con una voce speciale rossa, senza creare un paziente reale.
                         </p>
                     </div>
 
                     <div class="col-md-12">
                         <div id="appointmentPersonalCommitmentNotice" class="appointment-personal-commitment-note" style="display:none;">
                             <strong>Impegno personale</strong>
-                            Questo blocco usa una voce speciale condivisa nello studio. Puoi scegliere liberamente l ora di fine in base agli slot consecutivi davvero disponibili.
+                            Questo blocco usa una voce speciale condivisa nello studio. Puoi scegliere liberamente l’ora di fine in base agli slot consecutivi davvero disponibili.
                         </div>
                     </div>
                     <?php endif; ?>
@@ -4045,11 +4045,11 @@ $renderAppointmentModalBlock = static function (string $blockKey) use (
                         <div class="checkbox" style="margin:0 0 4px;">
                             <label>
                                 <input type="checkbox" id="app_visibile_in_anagrafica" value="1">
-                                Salva anche nell anagrafica pazienti
+                                Salva anche nell’anagrafica pazienti
                             </label>
                         </div>
                         <p class="help-block" style="margin:0 0 12px;">
-                            Se non selezionato, il paziente resta collegato all appuntamento e nel database, ma non compare nell anagrafica pazienti.
+                            Se non selezionato, il paziente resta collegato all’appuntamento e nel database, ma non compare nell’anagrafica pazienti.
                         </p>
                     </div>
                     <?php endif; ?>
@@ -4099,7 +4099,7 @@ $renderAppointmentModalBlock = static function (string $blockKey) use (
                             </span>
                             <span class="appointment-document-workflow-action-copy">
                                 <span class="appointment-document-workflow-action-title">Apri fattura</span>
-                                <span class="appointment-document-workflow-action-text">Crea il documento di fatturazione gia precompilato e pronto anche per l eventuale invio a TS.</span>
+                                <span class="appointment-document-workflow-action-text">Crea il documento di fatturazione già precompilato e pronto anche per l’eventuale invio a TS.</span>
                             </span>
                         </button>
                         <button type="button" class="btn appointment-document-workflow-action appointment-document-workflow-action-ts" id="btnAppointmentTsWorkflow" style="<?= $appointmentTsWorkflowEnabled ? '' : 'display:none;' ?>"<?= $appointmentTsWorkflowEnabled ? ' disabled' : '' ?>>
@@ -4108,7 +4108,7 @@ $renderAppointmentModalBlock = static function (string $blockKey) use (
                             </span>
                             <span class="appointment-document-workflow-action-copy">
                                 <span class="appointment-document-workflow-action-title">Apri solo TS</span>
-                                <span class="appointment-document-workflow-action-text">Salta la fattura e prepara subito il documento TS con il paziente gia agganciato.</span>
+                                <span class="appointment-document-workflow-action-text">Salta la fattura e prepara subito il documento TS con il paziente già agganciato.</span>
                             </span>
                         </button>
                     </div>
@@ -4228,7 +4228,7 @@ if ($appointmentModalRenderOrderKeys === []) {
                     <?php endif; ?>
 
                     <div class="col-md-4 form-group">
-                        <label for="nota_data_inizio_validita">Data inizio validitÃ  *</label>
+                        <label for="nota_data_inizio_validita">Data inizio validità *</label>
                         <input type="date" id="nota_data_inizio_validita" class="form-control" value="<?= esc(date('Y-m-d')) ?>">
                     </div>
 
@@ -4254,7 +4254,7 @@ if ($appointmentModalRenderOrderKeys === []) {
                     </div>
 
                     <div class="col-md-4 form-group">
-                        <label for="nota_citta">CittÃ </label>
+                        <label for="nota_citta">Città</label>
                         <input type="text" id="nota_citta" class="form-control">
                     </div>
 
@@ -4302,7 +4302,7 @@ if ($appointmentModalRenderOrderKeys === []) {
             <div class="modal-body">
                 <div class="alert alert-danger" id="extraSlotModalError" style="display:none; margin-bottom:15px;"></div>
                 <p class="text-muted" style="margin-bottom:15px;">
-                    Inserisci solo ora di inizio e ora di fine. La durata dello slot verrÃ  calcolata automaticamente.
+                    Inserisci solo ora di inizio e ora di fine. La durata dello slot verrà calcolata automaticamente.
                 </p>
 
                 <div class="form-group" id="extra_slot_doctor_group" style="display:none;">
@@ -4405,7 +4405,7 @@ if ($appointmentModalRenderOrderKeys === []) {
                 </div>
 
                 <div class="form-group">
-                    <label for="vd_citta">CittÃ </label>
+                    <label for="vd_citta">Città</label>
                     <input type="text" id="vd_citta" class="form-control">
                 </div>
 
@@ -4685,7 +4685,7 @@ if (window.moment && typeof window.moment.locale === 'function') {
     window.moment.locale('it', {
         months: ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'],
         monthsShort: ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'],
-        weekdays: ['domenica', 'lunedi', 'martedi', 'mercoledi', 'giovedi', 'venerdi', 'sabato'],
+        weekdays: ['domenica', 'lunedì', 'martedì', 'mercoledì', 'giovedì', 'venerdì', 'sabato'],
         weekdaysShort: ['dom', 'lun', 'mar', 'mer', 'gio', 'ven', 'sab'],
         weekdaysMin: ['do', 'lu', 'ma', 'me', 'gi', 've', 'sa'],
         longDateFormat: {
@@ -4977,7 +4977,7 @@ function navigateAgendaToNearestAvailableDay(direction) {
     var idDot = parseInt($('#id_dot').val(), 10) || 0;
 
     if (!moment(currentDate, 'YYYY-MM-DD', true).isValid()) {
-        showAgendaToast('La data selezionata non e valida.', 'error');
+        showAgendaToast('La data selezionata non è valida.', 'error');
         return;
     }
 
@@ -5300,8 +5300,8 @@ function updateAppointmentVisitTypePreview(row) {
         $sample.css('background', '#dbe7ef');
         $label.text('Nessun tipo visita selezionato');
         $meta.text(isAgendaVisitTypeSelectionOptional()
-            ? 'Se non selezioni un tipo visita, l appuntamento usera solo lo slot cliccato.'
-            : 'Seleziona un tipo visita per definire durata e copertura dell appuntamento.');
+            ? 'Se non selezioni un tipo visita, l’appuntamento userà solo lo slot cliccato.'
+            : 'Seleziona un tipo visita per definire durata e copertura dell’appuntamento.');
         return;
     }
 
@@ -5699,7 +5699,7 @@ function computeAppointmentCoverageForSlot(slot, durationMinutes, currentAppoint
         if (totalDuration > requestedDuration) {
             return {
                 ok: false,
-                message: 'La durata scelta non e compatibile con la griglia degli slot in questo punto dell agenda.'
+                message: 'La durata scelta non è compatibile con la griglia degli slot in questo punto dell’agenda.'
             };
         }
     }
@@ -5782,7 +5782,7 @@ function computeCustomAppointmentCoverage(slot, customStartTime, customEndTime, 
     ) {
         return {
             ok: false,
-            message: 'L ora personalizzata deve rientrare nello slot iniziale selezionato.'
+            message: 'L’ora personalizzata deve rientrare nello slot iniziale selezionato.'
         };
     }
 
@@ -5808,7 +5808,7 @@ function computeCustomAppointmentCoverage(slot, customStartTime, customEndTime, 
     ) {
         return {
             ok: false,
-            message: 'L ora finale personalizzata deve essere successiva all ora iniziale.'
+            message: 'L’ora finale personalizzata deve essere successiva all’ora iniziale.'
         };
     }
 
@@ -5835,7 +5835,7 @@ function computeCustomAppointmentCoverage(slot, customStartTime, customEndTime, 
     if (!contextSlots.length) {
         return {
             ok: false,
-            message: 'L ora personalizzata deve partire dallo slot selezionato.'
+            message: 'L’ora personalizzata deve partire dallo slot selezionato.'
         };
     }
 
@@ -5855,7 +5855,7 @@ function computeCustomAppointmentCoverage(slot, customStartTime, customEndTime, 
         if (rowStart.isAfter(coverageCursor)) {
             return {
                 ok: false,
-                message: 'L intervallo attraversa una fascia senza slot disponibili.'
+                message: 'L’intervallo attraversa una fascia senza slot disponibili.'
             };
         }
 
@@ -5869,7 +5869,7 @@ function computeCustomAppointmentCoverage(slot, customStartTime, customEndTime, 
         if (occupiedByOtherAppointment) {
             return {
                 ok: false,
-                message: 'Uno degli slot coinvolti e gia occupato.'
+                message: 'Uno degli slot coinvolti e già occupato.'
             };
         }
 
@@ -5887,14 +5887,14 @@ function computeCustomAppointmentCoverage(slot, customStartTime, customEndTime, 
     if (!primarySlotFound) {
         return {
             ok: false,
-            message: 'L ora personalizzata deve partire dallo slot selezionato.'
+            message: 'L’ora personalizzata deve partire dallo slot selezionato.'
         };
     }
 
     if (coverageCursor.isBefore(endMoment)) {
         return {
             ok: false,
-            message: 'Non ci sono abbastanza slot disponibili per completare l appuntamento.'
+            message: 'Non ci sono abbastanza slot disponibili per completare l’appuntamento.'
         };
     }
 
@@ -6021,7 +6021,7 @@ function refreshAppointmentVisitTypePreview() {
     $duration.val(durationMinutes > 0 ? (durationMinutes + ' minuti') : '');
 
     if (isAppointmentCustomTimeEnabled()) {
-        $coverage.removeClass('is-error').addClass('is-ok').text('La copertura viene calcolata sull orario personalizzato.');
+        $coverage.removeClass('is-error').addClass('is-ok').text('La copertura viene calcolata sull’orario personalizzato.');
         return refreshAppointmentCustomTimeCoverage(durationMinutes);
     }
 
@@ -6302,7 +6302,7 @@ function caricaDisponibilitaMiniCalendario(options) {
     if (idDot <= 0) {
         agendaMiniCalendarAvailabilityMap = {};
         agendaMiniCalendarAvailabilityCounts = {};
-        setAgendaMiniCalendarStatus('Seleziona un professionista per vedere le disponibilita.');
+        setAgendaMiniCalendarStatus('Seleziona un professionista per vedere le disponibilità.');
         renderAgendaMiniCalendar();
         return;
     }
@@ -6312,7 +6312,7 @@ function caricaDisponibilitaMiniCalendario(options) {
     }
 
     var requestSeq = ++agendaMiniCalendarRequestSeq;
-    setAgendaMiniCalendarStatus('Aggiorno le disponibilita del mese...');
+    setAgendaMiniCalendarStatus('Aggiorno le disponibilità del mese...');
 
     agendaMiniCalendarXhr = $.get("<?= base_url('agenda/disponibilita-mese') ?>", {
         id_dot: idDot,
@@ -6558,7 +6558,7 @@ function renderDomiciliariBlockDayButton() {
 
     var blockedByAgenda = giornoBloccato;
     var title = blockedByAgenda
-        ? 'La giornata agenda e bloccata: le domiciliari sono gia ferme insieme al resto.'
+        ? 'La giornata agenda è bloccata: le domiciliari sono già ferme insieme al resto.'
         : '';
 
     $button.show();
@@ -7811,7 +7811,7 @@ function applicaStatoGiornoBloccato() {
     var memoDisabled = isMemoActionBlocked();
     var domDisabled = isDomiciliariActionBlocked();
     var domTitle = giornoBloccato
-        ? 'La giornata agenda e bloccata: anche le domiciliari sono bloccate.'
+        ? 'La giornata agenda è bloccata: anche le domiciliari sono bloccate.'
         : (domiciliareGiornoBloccato ? 'Giorno bloccato per domiciliari' : '');
 
     $('#btnOpenNoteModal, #btnOpenNoteModalTop')
@@ -8548,8 +8548,8 @@ function submitAppointmentDocumentWorkflow(mode) {
 
     if (targetUrl === '') {
         alert(mode === 'billing'
-            ? 'Salva prima l appuntamento per aprire la fatturazione da questo slot.'
-            : 'Salva prima l appuntamento per aprire il documento TS da questo slot.');
+            ? 'Salva prima l’appuntamento per aprire la fatturazione da questo slot.'
+            : 'Salva prima l’appuntamento per aprire il documento TS da questo slot.');
         return;
     }
 
@@ -8594,14 +8594,14 @@ function refreshAppointmentDocumentWorkflowState() {
     if (appointmentId <= 0) {
         $billingButton.prop('disabled', true);
         $tsButton.prop('disabled', true);
-        $hint.text('Le azioni documento si attivano dopo il primo salvataggio dell appuntamento.');
+        $hint.text('Le azioni documento si attivano dopo il primo salvataggio dell’appuntamento.');
         return;
     }
 
     if (hasSpecialPatient) {
         $billingButton.prop('disabled', true);
         $tsButton.prop('disabled', true);
-        $hint.text('Il paziente speciale non puo generare documenti fiscali o TS. Collega prima un paziente reale.');
+        $hint.text('Il paziente speciale non può generare documenti fiscali o TS. Collega prima un paziente reale.');
         return;
     }
 
@@ -8614,11 +8614,11 @@ function refreshAppointmentDocumentWorkflowState() {
     }
 
     if (billingEnabled) {
-        $hint.text('Apri una nuova fattura gia precompilata con i dati attuali del paziente e dell appuntamento.');
+        $hint.text('Apri una nuova fattura già precompilata con i dati attuali del paziente e dell’appuntamento.');
         return;
     }
 
-    $hint.text('Apri un nuovo documento TS gia precompilato con i dati attuali del paziente e dell appuntamento.');
+    $hint.text('Apri un nuovo documento TS già precompilato con i dati attuali del paziente e dell’appuntamento.');
 }
 
 function setAppointmentSavingState(isSaving) {
@@ -8713,7 +8713,7 @@ function renderAppointmentLinkedPatientInfo() {
             .addClass('text-danger')
             .html(
                 '<i class="fa fa-calendar-times-o"></i> Voce speciale: <strong>' + escapeHtml(getAgendaPersonalCommitmentLabel()) + '</strong>. ' +
-                'Non crea un paziente reale e puo bloccare piu slot consecutivi.'
+                'Non crea un paziente reale e può bloccare più slot consecutivi.'
             );
         return;
     }
@@ -8733,7 +8733,7 @@ function renderAppointmentLinkedPatientInfo() {
         .removeClass('text-primary text-danger')
         .addClass('text-muted')
         .html(
-            '<i class="fa fa-user-plus"></i> Nessun paziente collegato. Salvando verra creato un nuovo paziente e collegato all\\\'appuntamento.'
+            '<i class="fa fa-user-plus"></i> Nessun paziente collegato. Salvando verrà creato un nuovo paziente e collegato all\\\'appuntamento.'
         );
 }
 
@@ -10472,7 +10472,7 @@ function renderNoteLaterali() {
                 + '       </div>'
                 + '       <div class="row">'
                 + '           <div class="col-sm-8"><span class="agenda-note-label">Indirizzo:</span> ' + escapeHtml(indirizzo) + '</div>'
-                + '           <div class="col-sm-4"><span class="agenda-note-label">CittÃ :</span> ' + escapeHtml(citta) + '</div>'
+                + '           <div class="col-sm-4"><span class="agenda-note-label">Città:</span> ' + escapeHtml(citta) + '</div>'
                 + '       </div>'
                 + '       <div class="row">'
                 + '           <div class="col-sm-12"><span class="agenda-note-label">Note:</span> ' + nl2br(escapeHtml(note)) + '</div>'
@@ -11154,7 +11154,7 @@ function apriModificaNota(idNota) {
         var row = res.row;
 
         if (isMemoActionBlockedForNoteRow(row)) {
-            alert('Il giorno selezionato e bloccato per le memo del dottore assegnato a questa nota.');
+            alert('Il giorno selezionato è bloccato per le memo del dottore assegnato a questa nota.');
             renderNoteLaterali();
             return;
         }
@@ -12281,7 +12281,7 @@ $('#nota_giorno_text').on('blur', function() {
         if (supportsAgendaVisitTypes() || isPersonalCommitment || isAppointmentCustomTimeEnabled()) {
             coverage = refreshAppointmentVisitTypePreview();
             if (!coverage || !coverage.ok) {
-                alert((coverage && coverage.message) ? coverage.message : 'La durata selezionata non e compatibile con gli slot disponibili.');
+                alert((coverage && coverage.message) ? coverage.message : 'La durata selezionata non è compatibile con gli slot disponibili.');
                 if (!isPersonalCommitment && isAgendaVisitTypeSelectionRequired() && $.trim($('#app_id_tipo_visita').val() || '') === '') {
                     $('#app_id_tipo_visita').trigger('focus');
                 } else if (isPersonalCommitment) {
@@ -12467,7 +12467,7 @@ $('#nota_giorno_text').on('blur', function() {
 
         var messaggio = giornoBloccato
             ? 'Vuoi sbloccare la giornata?'
-            : 'Vuoi bloccare tutta lâ€™agenda per questo giorno? Dopo non sarÃ  piÃ¹ possibile inserire appuntamenti.';
+            : 'Vuoi bloccare tutta l’agenda per questo giorno? Dopo non sarà più possibile inserire appuntamenti.';
 
         if (!confirm(messaggio)) {
             return;
@@ -12554,7 +12554,7 @@ $('#nota_giorno_text').on('blur', function() {
 
     $('#btnSaveExtraSlotModal').on('click', function() {
         if (giornoBloccato) {
-            setExtraSlotModalError('La giornata Ã¨ bloccata. Non puoi aggiungere slot extra.');
+            setExtraSlotModalError('La giornata è bloccata. Non puoi aggiungere slot extra.');
             return;
         }
 
@@ -12629,4 +12629,3 @@ $('#nota_giorno_text').on('blur', function() {
 <script src="<?= base_url('public/js/agenda-menu.js') . $assetVersion('public/js/agenda-menu.js') ?>"></script>
 </body>
 </html>
-

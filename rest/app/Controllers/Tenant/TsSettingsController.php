@@ -3,6 +3,7 @@
 namespace App\Controllers\Tenant;
 
 use App\Controllers\BaseController;
+use App\Services\BillingDocumentSettingsService;
 use App\Services\BillingTsModuleStatusService;
 use App\Services\TenantContextService;
 use App\Services\TsFeatureService;
@@ -18,6 +19,7 @@ class TsSettingsController extends BaseController
     private TsHealthcheckService $healthcheckService;
     private TsMigrationSafetyService $migrationSafety;
     private BillingTsModuleStatusService $moduleStatus;
+    private BillingDocumentSettingsService $billingSettings;
 
     public function __construct()
     {
@@ -28,6 +30,7 @@ class TsSettingsController extends BaseController
         $this->healthcheckService = new TsHealthcheckService();
         $this->migrationSafety = new TsMigrationSafetyService();
         $this->moduleStatus = new BillingTsModuleStatusService();
+        $this->billingSettings = new BillingDocumentSettingsService();
     }
 
     public function index()
@@ -45,9 +48,13 @@ class TsSettingsController extends BaseController
             return $this->sessionExpiredRedirect();
         }
 
+        $billingSettings = $this->billingSettings->resolveTenantSettings($context->tenantId);
+        $billingConfig = is_array($billingSettings['config'] ?? null) ? $billingSettings['config'] : [];
+
         return view('tenant/ts_settings', [
             'tenantContext' => $context,
             'settings' => $this->profileService->resolveTenantSettings($context->tenantId),
+            'serviceCatalog' => is_array($billingConfig['service_catalog'] ?? null) ? $billingConfig['service_catalog'] : [],
             'moduleStatus' => $this->moduleStatus->describe($context, $context->tenantId),
             'success' => session()->getFlashdata('success'),
             'errors' => session()->getFlashdata('errors') ?? [],
@@ -71,7 +78,6 @@ class TsSettingsController extends BaseController
             $this->profileService->saveDefaultProfile(
                 $context->tenantId,
                 [
-                    'test_preset_key' => $this->request->getPost('test_preset_key'),
                     'profile_name' => $this->request->getPost('profile_name'),
                     'sender_type' => $this->request->getPost('sender_type'),
                     'owner_piva' => $this->request->getPost('owner_piva'),
@@ -82,8 +88,12 @@ class TsSettingsController extends BaseController
                     'auth_username' => $this->request->getPost('auth_username'),
                     'auth_password' => $this->request->getPost('auth_password'),
                     'pincode' => $this->request->getPost('pincode'),
-                    'environment' => $this->request->getPost('environment'),
                     'is_enabled' => $this->request->getPost('is_enabled'),
+                    'default_document_type' => $this->request->getPost('default_document_type'),
+                    'default_expense_type_code' => $this->request->getPost('default_expense_type_code'),
+                    'default_payment_mode' => $this->request->getPost('default_payment_mode'),
+                    'default_opposition_flag' => $this->request->getPost('default_opposition_flag'),
+                    'service_expense_types' => $this->requestServiceExpenseTypes(),
                 ],
                 (int) (session()->get('platform_user_id') ?? 0)
             );
@@ -120,6 +130,37 @@ class TsSettingsController extends BaseController
                 ->withInput()
                 ->with('errors', ['generic' => $e->getMessage()]);
         }
+    }
+
+    /**
+     * @return list<array{description: string, expense_type_code: string}>
+     */
+    private function requestServiceExpenseTypes(): array
+    {
+        $descriptions = $this->request->getPost('service_expense_description');
+        $expenseTypes = $this->request->getPost('service_expense_type_code');
+        $descriptions = is_array($descriptions) ? $descriptions : [];
+        $expenseTypes = is_array($expenseTypes) ? $expenseTypes : [];
+        $items = [];
+
+        foreach ($descriptions as $index => $description) {
+            $description = trim((string) $description);
+            $expenseType = strtoupper(trim((string) ($expenseTypes[$index] ?? '')));
+            if ($description === '' || $expenseType === '') {
+                continue;
+            }
+
+            $items[] = [
+                'description' => substr($description, 0, 190),
+                'expense_type_code' => substr($expenseType, 0, 4),
+            ];
+
+            if (count($items) >= 30) {
+                break;
+            }
+        }
+
+        return $items;
     }
 
     public function healthcheck()
@@ -162,7 +203,7 @@ class TsSettingsController extends BaseController
         if (defined('ENVIRONMENT') && ENVIRONMENT === 'production') {
             return redirect()
                 ->to(portal_tenant_space_url('sistema-ts'))
-                ->with('errors', ['generic' => 'Lo strumento di riallineamento schema locale e disponibile solo in ambienti non production.']);
+                ->with('errors', ['generic' => 'Lo strumento di riallineamento schema locale è disponibile solo in ambienti non production.']);
         }
 
         $context = $this->tenantContext->getCurrentTenant();
@@ -200,7 +241,7 @@ class TsSettingsController extends BaseController
                 }
 
                 return $redirect->with('errors', [
-                    'generic' => 'Schema locale TS aggiornato, ma l healthcheck resta bloccato: controlla i dettagli sotto.',
+                    'generic' => 'Schema locale TS aggiornato, ma l’healthcheck resta bloccato: controlla i dettagli sotto.',
                 ]);
             }
 
@@ -228,7 +269,7 @@ class TsSettingsController extends BaseController
         }
 
         if ($context->tenantRole !== 'tenant_master') {
-            return redirect()->to(site_url('/'))->with('error', 'Solo il responsabile dello studio puo configurare il Sistema TS.');
+            return redirect()->to(site_url('/'))->with('error', 'Solo il responsabile dello studio può configurare il Sistema TS.');
         }
 
         if ((int) (session()->get('platform_user_id') ?? 0) <= 0) {
@@ -238,7 +279,7 @@ class TsSettingsController extends BaseController
         if (!$this->featureService->isEnabledForContext($context)
             && !$this->featureService->allowsLocalTestingBypass($context)) {
             return redirect()->to(portal_tenant_space_url('funzioni'))
-                ->with('error', 'Il Sistema TS non e attivo per questo spazio cliente. Deve essere abilitato dal master piattaforma nella scheda dello spazio.');
+                ->with('error', 'Il Sistema TS non è attivo per questo spazio cliente. Deve essere abilitato dal master piattaforma nella scheda dello spazio.');
         }
 
         return null;

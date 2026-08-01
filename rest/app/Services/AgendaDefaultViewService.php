@@ -85,7 +85,7 @@ class AgendaDefaultViewService
     ): array {
         $settings = $this->resolveTenantSettings($tenantId);
         if (empty($settings['default_view_management_available'])) {
-            throw new \RuntimeException('La vista iniziale agenda non e disponibile per questo spazio.');
+            throw new \RuntimeException('La vista iniziale agenda non è disponibile per questo spazio.');
         }
 
         $featureId = (int) ($settings['feature_id'] ?? 0);
@@ -190,7 +190,7 @@ class AgendaDefaultViewService
             [
                 'key' => self::VIEW_DAY,
                 'label' => 'Giorno',
-                'description' => 'Apre l agenda sulla giornata del professionista selezionato.',
+                'description' => 'Apre l’agenda sulla giornata del professionista selezionato.',
             ],
             [
                 'key' => self::VIEW_WEEK,

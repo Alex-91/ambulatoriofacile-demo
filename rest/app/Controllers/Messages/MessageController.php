@@ -773,7 +773,7 @@ public function drafts()
 
                 return redirect()
                     ->to(site_url('messaggi/scrivi'))
-                    ->with('err', 'Bozza non trovata o non piu accessibile.');
+                    ->with('err', 'Bozza non trovata o non più accessibile.');
             }
         }
 

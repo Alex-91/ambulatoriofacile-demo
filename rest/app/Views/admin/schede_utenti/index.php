@@ -115,7 +115,7 @@ function hasErr($k, $errors) { return !empty($errors[$k]); }
                 </button>
 
                 <span class="mini-muted" style="margin-left:10px;">
-                  Regole: se togli <b>VIEW</b> â†’ toglie anche <b>ACCESS</b>. Se metti <b>ACCESS</b> â†’ mette anche <b>VIEW</b>.
+                  Regole: se togli <b>VIEW</b> → toglie anche <b>ACCESS</b>. Se metti <b>ACCESS</b> → mette anche <b>VIEW</b>.
                 </span>
               </div>
 
@@ -152,7 +152,7 @@ function hasErr($k, $errors) { return !empty($errors[$k]); }
                   <i class="fa fa-eye-slash"></i> Nascondi tutte
                 </button>
                 <span class="mini-muted" style="margin-left:10px;">
-                  Qui controlli le voci del menu operativo/admin visibili all utente selezionato.
+                  Qui controlli le voci del menu operativo/admin visibili all’utente selezionato.
                 </span>
               </div>
 

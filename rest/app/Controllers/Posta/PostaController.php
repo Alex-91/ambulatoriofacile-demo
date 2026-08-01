@@ -337,9 +337,9 @@ public function pdfThread()
         $viewerLabel = ($patientName !== '') ? $patientName : 'Paziente';
     } else {
         $viewerLabel = match ($tipoPers) {
-            1       => $doctorName,     // âœ… nome dottore
-            2       => 'Infermieri',    // âœ… maschera
-            3       => 'Segreteria',    // âœ… maschera
+            1       => $doctorName,     // ✅ nome dottore
+            2       => 'Infermieri',    // ✅ maschera
+            3       => 'Segreteria',    // ✅ maschera
             default => 'Operatore',
         };
     }
@@ -350,7 +350,7 @@ public function pdfThread()
         return match ($c) {
             'S' => 'Segreteria',
             'I' => 'Infermieri',
-            'P' => $doctorName,     // âœ… nome vero dottore (non mascherare)
+            'P' => $doctorName,     // ✅ nome vero dottore (non mascherare)
             'C' => 'Paziente',
             default => $c !== '' ? $c : 'Utente',
         };
@@ -426,13 +426,13 @@ CSS;
     $html .= "<div class='meta'>";
     $html .= "<div class='kv'><strong>Oggetto:</strong> {$safeSubject}<span class='badge'>AmbulatorioFacile</span></div>";
 
-    // âœ… qui mettiamo chiaro paziente + dottore
+    // ✅ qui mettiamo chiaro paziente + dottore
     if ($patientName !== '') {
         $html .= "<div class='kv'><strong>Paziente:</strong> ".esc($patientName)."</div>";
     }
     $html .= "<div class='kv'><strong>Dottore:</strong> ".esc($doctorName)."</div>";
 
-    // âœ… stampato da: mai nome segreteria/infermieri
+    // ✅ stampato da: mai nome segreteria/infermieri
     $html .= "<div class='kv'><strong>Stampato da:</strong> ".esc($viewerLabel)."</div>";
 
     // Meta base
@@ -472,7 +472,7 @@ CSS;
         $html .= "</div>";
     }
 
-    $html .= "<div class='footer'>Conversazione â€” {$safeSubject}</div>";
+    $html .= "<div class='footer'>Conversazione — {$safeSubject}</div>";
     $html .= "</body></html>";
 
     // PDF
@@ -499,8 +499,8 @@ CSS;
     /**
      * Ritorna l'id "proprietario" della mailbox corrente.
      *
-     * - Se sei dottore (tipo_pers = 1) â†’ il tuo id_personale.
-     * - Se sei infermiera/segreteria (2/3) â†’ l'id del dottore selezionato in sessione.
+     * - Se sei dottore (tipo_pers = 1) → il tuo id_personale.
+     * - Se sei infermiera/segreteria (2/3) → l'id del dottore selezionato in sessione.
      * - Altrimenti cade sul vecchio meccanismo (userId).
      */
     protected function getMailboxOwnerId(): ?int
@@ -514,7 +514,7 @@ CSS;
 
         $tipoPers = $this->normalizeMailboxTipoPers((int) ($utente->tipo_pers ?? 0));
 
-        // Se infermiera o segreteria â†’ lavoro sempre per conto del dottore selezionato
+        // Se infermiera o segreteria → lavoro sempre per conto del dottore selezionato
         if ($this->isSegreteriaOrInfermiere($tipoPers)) {
             $selectedDoctorId = $this->getValidatedSelectedDoctorId($tipoPers);
             if ($selectedDoctorId > 0) {
@@ -522,7 +522,7 @@ CSS;
             }
         }
 
-        // Dottore o altri casi â†’ uso id_personale se presente
+        // Dottore o altri casi → uso id_personale se presente
         if (isset($utente->id_personale)) {
             return (int) $utente->id_personale;
         }
@@ -574,7 +574,7 @@ public function index()
     $userId   = $this->getCurrentUserId();          // id_personale dell'utente loggato
     $tipoPers = $this->normalizeMailboxTipoPers((int) ($utente->tipo_pers ?? 1));    // 1 = dottore, 2 = infermiera, 3 = segreteria
 
-    // id_dottore passato in GET (se c'Ã¨)
+    // id_dottore passato in GET (se c'è)
     $idDottoreGet = (int) ($this->request->getGet('id_dottore') ?? 0);
 
     // Dottore selezionato salvato in sessione (solo per segreteria/infermiera)
@@ -585,13 +585,13 @@ public function index()
 
     if ($isSegOrInf) {
         if ($idDottoreGet > 0) {
-            // Ho scelto un dottore via GET â†’ lo salvo in sessione
+            // Ho scelto un dottore via GET → lo salvo in sessione
             $selectedDoctorId = $this->getValidatedSelectedDoctorId($tipoPers, $idDottoreGet);
         } elseif ($storedDoctorId > 0) {
-            // Nessun id in GET ma ho giÃ  selezionato un dottore prima â†’ uso quello
+            // Nessun id in GET ma ho già selezionato un dottore prima → uso quello
             $selectedDoctorId = $this->getValidatedSelectedDoctorId($tipoPers, $storedDoctorId);
         } else {
-            // Nessun dottore selezionato â†’ costringo a scegliere
+            // Nessun dottore selezionato → costringo a scegliere
             $selectedDoctorId = 0;
             session()->remove('selectedDoctorId');
         }
@@ -616,7 +616,7 @@ public function index()
         'sel'    => $selectedDoctorId,
     ]);
 
-    // Se Ã¨ segreteria / infermiera e NON ha ancora scelto un dottore â†’ mostro solo messaggio
+    // Se è segreteria / infermiera e NON ha ancora scelto un dottore → mostro solo messaggio
     if ($isSegOrInf && $selectedDoctorId <= 0) {
         log_message('info', 'POSTA index(): segreteria/infermiera senza dottore selezionato -> richiedo selezione');
 
@@ -634,7 +634,7 @@ public function index()
             'requireDoctorSelection' => true,
             'selectedDoctorId'       => null,
             'gestitaFilter'          => 'all',
-            'folder'                 => 'inbox', // ðŸ‘ˆ aggiungi
+            'folder'                 => 'inbox', // 👈 aggiungi
         ]);
     }
 
@@ -642,11 +642,11 @@ public function index()
         $isDoctor = true; // sto lavorando sulla mailbox di un dottore, seppur loggato come segreteria/infermiera
     }
 
-    // Se ho un dottore selezionato â†’ uso QUELLO come proprietario mailbox
+    // Se ho un dottore selezionato → uso QUELLO come proprietario mailbox
     $targetUserId = $selectedDoctorId > 0 ? $selectedDoctorId : $userId;
 
     // ===============================
-    //  FILTRI: q e gestita
+    //  FILTRI: q è gestita
     // ===============================
     $model   = new MessagesModel();
     $q       = $this->request->getGet('q');
@@ -687,7 +687,7 @@ public function index()
 }
 
     /**
-     * ðŸ“¤ Posta inviata
+     * 📤 Posta inviata
      */
     public function sent()
     {
@@ -728,7 +728,7 @@ public function index()
                 'requireDoctorSelection' => true,
                 'selectedDoctorId'       => null,
                 'gestitaFilter'          => 'all',
-                'folder'                 => 'sent', // ðŸ‘ˆ importante
+                'folder'                 => 'sent', // 👈 importante
             ]);
         }
 
@@ -770,7 +770,7 @@ public function index()
             'requireDoctorSelection' => false,
             'selectedDoctorId'       => $selectedDoctorId ?: null,
             'gestitaFilter'          => 'all',     // nelle inviate non ha molto senso il filtro gestita
-            'folder'                 => 'sent',    // ðŸ‘ˆ fondamentale per la view
+            'folder'                 => 'sent',    // 👈 fondamentale per la view
         ]);
     }
 
@@ -906,7 +906,7 @@ public function read()
         return redirect()->to(site_url('posta'));
     }
 
-    // âœ… BOX: inbox / sent (arriva dalla view)
+    // ✅ BOX: inbox / sent (arriva dalla view)
     $box = (string) ($this->request->getPost('box') ?? $this->request->getGet('box') ?? 'inbox');
     $box = in_array($box, ['inbox', 'sent'], true) ? $box : 'inbox';
 
@@ -938,7 +938,7 @@ public function read()
     /** @var MessagesModel $model */
     $model = model(MessagesModel::class);
 
-    // âœ… 4) Carica messaggio corrente: inbox vs sent
+    // ✅ 4) Carica messaggio corrente: inbox vs sent
     $msg = $model->getOne($box, $src, $id, $userId);
     if (!$msg) {
         log_message('info', 'read(): nessun messaggio trovato per src={src}, id={id}, ownerId={uid}, box={box}', [
@@ -955,7 +955,7 @@ public function read()
         'letto' => $msg['letto'] ?? null,
     ]);
 
-    // âœ… 5) Marca come letto SOLO inbox (consigliato)
+    // ✅ 5) Marca come letto SOLO inbox (consigliato)
     if ($box === 'inbox' && (int) ($msg['letto'] ?? 0) === 0) {
         try {
             $model->markRead($src, $id, $userId);
@@ -976,7 +976,7 @@ public function read()
         /** @var MessageModel $threadModel */
         $threadModel = model(MessageModel::class);
 
-        // âœ… rootId corretto: se apro una reply, il thread Ã¨ id_message_ini
+        // ✅ rootId corretto: se apro una reply, il thread è id_message_ini
         $rootId = 0;
         if ($src === 'R') {
             $rootId = (int) ($msg['id_message_ini'] ?? 0);
@@ -1013,7 +1013,7 @@ public function read()
     // 7) View
     return view('Posta/read', [
         'src'              => $src,
-        'box'              => $box,          // âœ… PASSALO ALLA VIEW
+        'box'              => $box,          // ✅ PASSALO ALLA VIEW
         'compoundId'       => $compoundId,
         'thread'           => $thread,
         'tipoPers'         => $tipoPers,
@@ -1058,7 +1058,7 @@ public function attachment(int $id)
     $encryptedFilename = basename(str_replace('\\', '/', $nomeReal));
     log_message('error', '[ATTACHMENT] encryptedFilename=' . $encryptedFilename);
 
-    // âœ… Base upload = /upload nella root del sito (filesystem)
+    // ✅ Base upload = /upload nella root del sito (filesystem)
     $baseUpload = rtrim(
         (string) (env('LEGACY_UPLOAD_PATH') ?: (dirname(rtrim(ROOTPATH, DIRECTORY_SEPARATOR)) . DIRECTORY_SEPARATOR . 'upload')),
         DIRECTORY_SEPARATOR
@@ -1140,7 +1140,7 @@ public function attachment(int $id)
 
 /*public function attachment(int $id)
 {
-    // ðŸ” Verifica login
+    // 🔐 Verifica login
     $utente = session()->get('utente_sess');
     if (!$utente) {
         return redirect()->to(base_url('login'));
@@ -1193,7 +1193,7 @@ $fullPath = 'https://www.ambulatoriofacile.it/upload/'.$row['id_message']
         $mime = $map[$ext];
     }
 
-    // ðŸ‘‰ se c'Ã¨ ?download=1 forzo attachment, altrimenti inline per immagini/pdf
+    // 👉 se c'è ?download=1 forzo attachment, altrimenti inline per immagini/pdf
     $forceDownload = (bool) $this->request->getGet('download');
 
     if ($forceDownload) {
@@ -1311,7 +1311,7 @@ $fullPath = 'https://www.ambulatoriofacile.it/upload/'.$row['id_message']
                 'id_user'          => $utente->id_user ?? null,
             ]);
   log_message('debug', "ID REPLY:".$id);
-            // Thread dal piÃ¹ vecchio al piÃ¹ recente
+            // Thread dal più vecchio al più recente
             $thread = $model->getThread($id);
           //  log_message('debug', $thread);
         } catch (\Throwable $e) {
@@ -1440,7 +1440,7 @@ $fullPath = 'https://www.ambulatoriofacile.it/upload/'.$row['id_message']
         'immagineProfilo'  => session()->get('immagine_profilo') ?: 'user.png',
         'nomeVisualizzato' => session()->get('nome_visualizzato') ?: '',
 
-        // âœ… per la view inoltro
+        // ✅ per la view inoltro
         'tipoPers'         => $tipoPers,
         'isDoc'            => $isDoc,
         'isSeg'            => $isSeg,
@@ -1512,7 +1512,7 @@ if ($destId <= 0) {
              [
         'tipoUser'     => session()->get('tipoUser'),
         'tipoPers'     => $tipoPers,
-        'id_personale' => $utente->id_personale ?? null,   // âœ… AGGIUNGI QUESTO
+        'id_personale' => $utente->id_personale ?? null,   // ✅ AGGIUNGI QUESTO
         'id_user'      => $utente->id_user ?? null,        // (facoltativo se ti serve)
     ]
         );
@@ -1553,7 +1553,7 @@ if ($destId <= 0) {
     }
 
     /**
-     * Upload di uno o piÃ¹ allegati in tabella dap11_attachments_temp
+     * Upload di uno o più allegati in tabella dap11_attachments_temp
      * e salvataggio file in /upload/.
      */
   public function uploadAttachmentTemp()
@@ -1571,7 +1571,7 @@ if ($destId <= 0) {
     $idMessage      = (int) ($this->request->getPost('id_message') ?? 0);
     $idMessageReply = (int) ($this->request->getPost('id_message_reply') ?? 0);
 
-    // Nel tuo flusso reale, l'allegato Ã¨ legato al thread del messaggio "principale"
+    // Nel tuo flusso reale, l'allegato è legato al thread del messaggio "principale"
     // Se vuoi tenere la logica vecchia, qui puoi scegliere msgIdForPath:
     $msgIdForPath = $idMessage > 0 ? $idMessage : $idMessageReply;
 
@@ -1605,7 +1605,7 @@ if ($destId <= 0) {
         ]);
     }
 
-    // âœ… Upload base: /upload nella root pubblica del sito (filesystem)
+    // ✅ Upload base: /upload nella root pubblica del sito (filesystem)
     $baseDir = rtrim(
         (string) (env('LEGACY_UPLOAD_PATH') ?: (dirname(rtrim(ROOTPATH, DIRECTORY_SEPARATOR)) . DIRECTORY_SEPARATOR . 'upload')),
         DIRECTORY_SEPARATOR
@@ -1624,14 +1624,14 @@ if ($destId <= 0) {
 
     log_message('error', 'uploadAttachmentTemp: targetDir=' . $targetDir);
 
-    // ðŸ” Parametri encrypt (stessi del decrypt)
+    // 🔐 Parametri encrypt (stessi del decrypt)
     $ALGORITHM = getenv('FILE_CRYPT_ALGO') ?: 'AES-256-CBC';
     $IV        = getenv('FILE_CRYPT_IV')   ?: '12dasdq3g5b2434b';
     $password  = getenv('FILE_CRYPT_KEY')  ?: '123456';
 
     foreach ($files as $file) {
         if (!$file || $file->hasMoved()) {
-            log_message('error', 'uploadAttachmentTemp: file non valido o giÃ  mosso');
+            log_message('error', 'uploadAttachmentTemp: file non valido o già mosso');
             continue;
         }
 
@@ -1658,11 +1658,11 @@ if ($destId <= 0) {
         }
 
         // Nome su disco: random + ".crypto"
-        // (mantengo anche l'estensione originale prima di .crypto per debug/leggibilitÃ )
+        // (mantengo anche l'estensione originale prima di .crypto per debug/leggibilità)
         $clientExt = strtolower(pathinfo($nomeVis, PATHINFO_EXTENSION));
         $rand = random_int(100000, 999999);
-        $baseName = $file->getRandomName(); // include giÃ  estensione casuale di CI
-        // alternativa piÃ¹ leggibile:
+        $baseName = $file->getRandomName(); // include già estensione casuale di CI
+        // alternativa più leggibile:
         $finalName = $rand . '_' . preg_replace('/[^a-zA-Z0-9\-\_\.]+/', '_', pathinfo($nomeVis, PATHINFO_FILENAME));
         if ($clientExt !== '') $finalName .= '.' . $clientExt;
         $finalName .= '.crypto';
@@ -1682,7 +1682,7 @@ if ($destId <= 0) {
 
         log_message('error', 'uploadAttachmentTemp: salvato criptato=' . $destPath);
 
-        // ðŸ‘‰ nel DB SALVO SOLO IL FILENAME (cosÃ¬ attachment() trova /upload/{id_message}/{filename})
+        // 👉 nel DB SALVO SOLO IL FILENAME (così attachment() trova /upload/{id_message}/{filename})
         $attTemp->insertTemp([
             'nome_real'        => $finalName,
             'nome_vis'         => $nomeVis,

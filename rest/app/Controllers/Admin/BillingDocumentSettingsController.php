@@ -53,9 +53,10 @@ class BillingDocumentSettingsController extends BillingAdminBaseController
         }
 
         try {
+            $currentSettings = $this->settingsService->resolveTenantSettings($tenantId);
             $this->settingsService->saveTenantSettings(
                 $tenantId,
-                $this->requestConfigPayload(),
+                $this->requestConfigPayload((array) ($currentSettings['config'] ?? [])),
                 $this->resolveUpdaterUserId()
             );
 
@@ -73,11 +74,33 @@ class BillingDocumentSettingsController extends BillingAdminBaseController
     /**
      * @return array<string, mixed>
      */
-    private function requestConfigPayload(): array
+    private function requestConfigPayload(array $currentConfig = []): array
     {
+        $currentDefaults = is_array($currentConfig['defaults'] ?? null) ? $currentConfig['defaults'] : [];
+
         return [
             'document_title' => $this->requestString('document_title', 'Documento fatturazione', 120),
             'document_code_prefix' => $this->requestString('document_code_prefix', 'FT', 12),
+            'defaults' => [
+                'document_type' => $this->requestString(
+                    'default_document_type',
+                    (string) ($currentDefaults['document_type'] ?? 'invoice'),
+                    20
+                ),
+                'payment_method' => $this->requestString(
+                    'default_payment_method',
+                    (string) ($currentDefaults['payment_method'] ?? 'bank_transfer'),
+                    30
+                ),
+                'ts_expense_type_code' => $this->requestString(
+                    'default_ts_expense_type_code',
+                    (string) ($currentDefaults['ts_expense_type_code'] ?? 'SP'),
+                    4
+                ),
+                'ts_opposition_flag' => $this->request->getPost('default_ts_opposition_flag') === null
+                    ? !empty($currentDefaults['ts_opposition_flag'])
+                    : $this->requestBool('default_ts_opposition_flag'),
+            ],
             'branding' => [
                 'logo_mode' => $this->requestString('branding_logo_mode', 'none', 20),
                 'logo_url' => $this->requestString('branding_logo_url', '', 255),
@@ -120,6 +143,19 @@ class BillingDocumentSettingsController extends BillingAdminBaseController
                 'require_expense_type' => $this->requestBool('ts_require_expense_type'),
                 'require_opposition_flag' => $this->requestBool('ts_require_opposition_flag'),
             ],
+            // The client-document catalog and fiscal defaults are managed from Configura Fatturazione.
+            'service_catalog' => is_array($currentConfig['service_catalog'] ?? null)
+                ? $currentConfig['service_catalog']
+                : [],
+            'vat' => is_array($currentConfig['vat'] ?? null)
+                ? $currentConfig['vat']
+                : [],
+            'pension_fund' => is_array($currentConfig['pension_fund'] ?? null)
+                ? $currentConfig['pension_fund']
+                : [],
+            'fiscal_data' => is_array($currentConfig['fiscal_data'] ?? null)
+                ? $currentConfig['fiscal_data']
+                : [],
         ];
     }
 

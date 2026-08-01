@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8" />
-  <title>AmbulatorioFacile â€” Menu</title>
+  <title>AmbulatorioFacile — Menu</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
   <meta name="theme-color" content="#2c8895">
@@ -69,7 +69,7 @@
     .icon { width: 72px; height: 72px; margin-bottom: 12px; }
     .label { font-weight: 600; font-size: 15px; color: #2c3e50; letter-spacing: .2px; }
 
-    /* SVG â€œbrandâ€ colori neutri con accento #2c8895 */
+    /* SVG “brand” colori neutri con accento #2c8895 */
     .stroke { stroke: #2c3e50; }
     .fill   { fill: #2c8895; }
     .muted  { stroke: #9aa5b1; }
@@ -106,7 +106,7 @@
 }
 
 .topbar .title{
-  flex: 1 1 320px;           /* il titolo cresce e puÃ² andare a capo */
+  flex: 1 1 320px;           /* il titolo cresce e può andare a capo */
   min-width: 220px;
   height: 72px;
   background-size: auto 40px;
@@ -263,13 +263,13 @@
     </div>
 
     <div id="access-not-configured-copy" style="font-size:14.5px;line-height:1.5;">
-      Il tuo account Ã¨ attualmente attivo, ma non risulta abilitato ad alcuna funzionalitÃ  operative della piattaforma.<br><br>
-      Per poter accedere ai servizi di <strong>AmbulatorioFacile</strong>, Ã¨ necessario che un amministratore assegni
+      Il tuo account è attualmente attivo, ma non risulta abilitato ad alcuna funzionalità operative della piattaforma.<br><br>
+      Per poter accedere ai servizi di <strong>AmbulatorioFacile</strong>, è necessario che un amministratore assegni
       le autorizzazioni appropriate al tuo profilo.
     </div>
 
     <div id="access-not-configured-support" style="margin-top:14px;font-size:13px;color:#6b7280;">
-      Per informazioni o supporto, contatta lâ€™amministrazione della struttura.
+      Per informazioni o supporto, contatta l’amministrazione della struttura.
     </div>
   </div>
 <?php endif; ?>
@@ -290,8 +290,8 @@
     var accessCopy = document.getElementById('access-not-configured-copy');
     if (accessCopy) {
       accessCopy.innerHTML =
-        'Il tuo account e attualmente attivo, ma non risulta abilitato ad alcuna funzionalita operative della piattaforma.<br><br>' +
-        'Per poter accedere ai servizi di <strong><?= esc('AmbulatorioFacile') ?></strong>, e necessario che un amministratore assegni le autorizzazioni appropriate al tuo profilo.';
+        'Il tuo account e attualmente attivo, ma non risulta abilitato ad alcuna funzionalità operative della piattaforma.<br><br>' +
+        'Per poter accedere ai servizi di <strong><?= esc('AmbulatorioFacile') ?></strong>, è necessario che un amministratore assegni le autorizzazioni appropriate al tuo profilo.';
     }
 
     var accessSupport = document.getElementById('access-not-configured-support');
@@ -301,4 +301,3 @@
   </script>
 </body>
 </html>
-

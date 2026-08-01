@@ -27,7 +27,7 @@ class AddPatientRegistryVisibilityToClients extends Migration
             ]);
         }
 
-        // I pazienti gia presenti devono restare sempre disponibili in anagrafica.
+        // I pazienti già presenti devono restare sempre disponibili in anagrafica.
         $this->db->table(self::TABLE)
             ->where(self::COLUMN, null)
             ->update([self::COLUMN => 1]);

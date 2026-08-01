@@ -36,7 +36,7 @@ class PlatformAccessController extends BaseController
 
             return redirect()
                 ->to(portal_public_access_url('login/recupero'))
-                ->with('success', 'Se l account esiste, abbiamo inviato una email con le istruzioni per l accesso.');
+                ->with('success', 'Se l’account esiste, abbiamo inviato un’email con le istruzioni per l’accesso.');
         } catch (\Throwable $e) {
             log_message('error', 'PlatformAccessController::sendRecovery failed: ' . $e->getMessage());
 
@@ -56,13 +56,13 @@ class PlatformAccessController extends BaseController
         if ($token !== '' && $resolved === null) {
             return redirect()
                 ->to(portal_public_access_url('login'))
-                ->with('login_error', 'Il link di accesso non e valido oppure e scaduto.');
+                ->with('login_error', 'Il link di accesso non è valido oppure è scaduto.');
         }
 
         if ($token === '' && $pending === null) {
             return redirect()
                 ->to(portal_public_access_url('login'))
-                ->with('login_error', 'La sessione per impostare la password e scaduta. Effettua di nuovo il login.');
+                ->with('login_error', 'La sessione per impostare la password è scaduta. Effettua di nuovo il login.');
         }
 
         $platformUser = (array) (($resolved['platform_user'] ?? null) ?: ($pending['platform_user'] ?? null) ?: []);

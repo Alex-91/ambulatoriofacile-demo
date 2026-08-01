@@ -27,7 +27,7 @@ class AddPatientExcelImportFeature extends Migration
             'feature_key' => self::FEATURE_KEY,
             'feature_name' => 'Importazione pazienti da Excel',
             'feature_scope' => 'workflow',
-            'description' => 'Il tenant master puo attivare per il singolo studio l importazione guidata dei pazienti da file Excel, con mapping colonne, preview e controlli prima del salvataggio.',
+            'description' => 'Il tenant master può attivare per il singolo studio l’importazione guidata dei pazienti da file Excel, con mapping colonne, preview e controlli prima del salvataggio.',
             'default_enabled' => 1,
             'created_at' => $now,
             'updated_at' => $now,

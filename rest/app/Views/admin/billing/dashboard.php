@@ -4,11 +4,11 @@ $tenantScope = is_array($tenantScope ?? null) ? $tenantScope : [];
 $moduleStatus = is_array($moduleStatus ?? null) ? $moduleStatus : [];
 $documentSettings = is_array($documentSettings ?? null) ? $documentSettings : [];
 $documentsDashboard = is_array($documentsDashboard ?? null) ? $documentsDashboard : [];
-$billingEnabled = !empty($moduleStatus['billing_enabled']);
+$summary = is_array($documentsDashboard['summary'] ?? null) ? $documentsDashboard['summary'] : [];
+$recentDocuments = is_array($documentsDashboard['recent_documents'] ?? null) ? $documentsDashboard['recent_documents'] : [];
+$documentsTableAvailable = !empty($documentsDashboard['table_available']);
+$documentsSchemaMessage = trim((string) ($documentsDashboard['schema_message'] ?? ''));
 $tsEnabled = !empty($moduleStatus['ts_enabled']);
-$integratedEnabled = !empty($moduleStatus['integrated_enabled']);
-$modeTitle = trim((string) ($moduleStatus['mode_title'] ?? 'Fatturazione'));
-$modeMessage = trim((string) ($moduleStatus['mode_message'] ?? ''));
 $documentConfig = is_array($documentSettings['config'] ?? null) ? $documentSettings['config'] : [];
 $documentBranding = is_array($documentConfig['branding'] ?? null) ? $documentConfig['branding'] : [];
 $documentLayout = is_array($documentConfig['layout'] ?? null) ? $documentConfig['layout'] : [];
@@ -27,9 +27,7 @@ $enabledBlockCount = count(array_filter([
     return (bool) $enabled;
 }));
 $logoConfigured = trim((string) ($documentBranding['logo_url'] ?? '')) !== '';
-$recentDocuments = is_array($documentsDashboard['recent_documents'] ?? null) ? $documentsDashboard['recent_documents'] : [];
-$documentsTableAvailable = !empty($documentsDashboard['table_available']);
-$documentsSchemaMessage = trim((string) ($documentsDashboard['schema_message'] ?? ''));
+$environmentLabel = defined('ENVIRONMENT') && ENVIRONMENT === 'production' ? 'Produzione' : 'Locale';
 ?>
 <!DOCTYPE html>
 <html>
@@ -42,15 +40,6 @@ $documentsSchemaMessage = trim((string) ($documentsDashboard['schema_message'] ?
   <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css" rel="stylesheet" />
   <link href="<?= base_url('public/dist/css/AdminLTE.css') ?>" rel="stylesheet" />
   <link href="<?= base_url('public/dist/css/skins/_all-skins.min.css') ?>" rel="stylesheet" />
-  <style>
-    .nav-pills.nav-stacked > li.active > a { background-color:#2c8895; color:#fff; }
-    .hero-box { border:1px solid #dbe8eb; border-radius:16px; padding:22px; background:linear-gradient(135deg, #fffdf7 0%, #f8f4e8 55%, #eef7f8 100%); margin-bottom:16px; }
-    .metric-card { border:1px solid #e5ecee; border-radius:14px; background:#fff; padding:16px; min-height:150px; margin-bottom:16px; }
-    .metric-card .value { font-size:24px; font-weight:700; color:#8a5b10; line-height:1.15; margin-bottom:8px; }
-    .metric-card .label-top { color:#7d6c4b; font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; }
-    .metric-card .hint { color:#60757a; line-height:1.55; }
-    .state-chip { display:inline-block; padding:5px 10px; border-radius:999px; background:#f4efe2; color:#7a5818; font-size:12px; font-weight:700; margin:0 8px 8px 0; }
-  </style>
   <link href="<?= base_url('public/assets/css/billing-ts-ui.css') ?>" rel="stylesheet" />
 </head>
 <body class="skin-blue sidebar-mini billing-ts-ui module-fatturazione">
@@ -58,141 +47,182 @@ $documentsSchemaMessage = trim((string) ($documentsDashboard['schema_message'] ?
   <?= view('partials/header', ['menu_items' => $menu_items]) ?>
 
   <div class="content-wrapper">
-    <section class="content-header">
-      <h1>Fatturazione</h1>
-      <p class="text-muted" style="margin:8px 0 0 0;">
-        Modulo separato per i documenti cliente dello spazio <?= esc((string) ($tenantScope['tenant_name'] ?? 'attivo')) ?>.
-      </p>
-    </section>
-
-    <section class="content">
-      <div class="row">
-        <div class="col-md-3">
+    <section class="content billing-dashboard-content">
+      <div class="row billing-dashboard-layout">
+        <aside class="col-md-3 billing-dashboard-nav">
           <?= view('partials/sidebar_admin', ['menu_items' => $menu_items]) ?>
-        </div>
+        </aside>
 
-        <div class="col-md-9">
-          <div class="hero-box">
-            <h3 style="margin-top:0; margin-bottom:8px;"><?= esc($modeTitle) ?></h3>
-            <p style="margin:0 0 12px 0; color:#556b70;">
-              <?= esc($modeMessage) ?>
-            </p>
-            <span class="state-chip">Fatturazione: <?= $billingEnabled ? 'attiva' : 'spenta' ?></span>
-            <span class="state-chip">Sistema TS: <?= $tsEnabled ? 'attivo' : 'spento' ?></span>
-            <span class="state-chip">Convivenza: <?= $integratedEnabled ? 'integrata' : 'standalone' ?></span>
-            <div style="margin-top:12px;">
-              <a class="btn btn-default" href="<?= portal_tenant_space_url('fatturazione') ?>">
-                <i class="fa fa-cog"></i> Apri spazio fatturazione
-              </a>
-              <a class="btn btn-warning" href="<?= site_url('admin/fatturazione-documento') ?>" style="margin-left:8px;">
-                <i class="fa fa-file-text-o"></i> Configura documento fatturazione
-              </a>
-              <a class="btn btn-success" href="<?= site_url('admin/fatturazione-documenti') ?>" style="margin-left:8px;">
-                <i class="fa fa-folder-open-o"></i> Apri archivio documenti
-              </a>
-              <?php if ($tsEnabled): ?>
-                <a class="btn btn-primary" href="<?= site_url('admin/sistema-ts') ?>" style="margin-left:8px;">
-                  <i class="fa fa-exchange"></i> Apri modulo Sistema TS
+        <main class="col-md-9">
+          <div class="billing-dashboard">
+            <header class="billing-modulebar">
+              <div class="billing-modulebar-copy">
+                <div class="billing-eyebrow">Modulo</div>
+                <div class="billing-title-row">
+                  <span class="billing-module-icon"><i class="fa fa-file-text-o"></i></span>
+                  <div>
+                    <h1>Fatturazione</h1>
+                    <p>Documenti e ricevute per i pazienti dello studio.</p>
+                  </div>
+                  <span class="billing-environment"><?= esc($environmentLabel) ?></span>
+                </div>
+                <?php if ($tsEnabled): ?>
+                  <a class="billing-ts-shortcut" href="<?= site_url('admin/sistema-ts') ?>">
+                    Invio al Sistema TS: attivo <i class="fa fa-arrow-right"></i>
+                  </a>
+                <?php endif; ?>
+              </div>
+              <div class="billing-module-actions">
+                <a class="billing-action billing-action-secondary" href="<?= site_url('admin/fatturazione-statistiche') ?>">
+                  <i class="fa fa-bar-chart"></i> Statistiche e report
                 </a>
-              <?php endif; ?>
-            </div>
-          </div>
-
-          <div class="box box-default">
-            <div class="box-header with-border">
-              <h3 class="box-title">Primi documenti fatturazione</h3>
-              <div class="box-tools">
-                <a class="btn btn-xs btn-success" href="<?= site_url('admin/fatturazione-documenti/nuovo') ?>">
+                <a class="billing-action billing-action-secondary" href="<?= site_url('admin/fatturazione-documento') ?>">
+                  <i class="fa fa-file-text-o"></i> Personalizza documento
+                </a>
+                <a class="billing-action billing-action-secondary" href="<?= site_url('admin/fatturazione-documenti') ?>">
+                  <i class="fa fa-archive"></i> Archivio
+                </a>
+                <a class="billing-action billing-action-primary" href="<?= site_url('admin/fatturazione-documenti/nuovo') ?>">
                   <i class="fa fa-plus"></i> Nuovo documento
                 </a>
               </div>
-            </div>
-            <div class="box-body">
-              <?php if (!$documentsTableAvailable): ?>
-                <div class="alert alert-warning" style="margin-bottom:0;">
-                  <?= esc($documentsSchemaMessage !== '' ? $documentsSchemaMessage : 'L archivio documenti non e ancora disponibile nel database runtime corrente. La migration del modulo Fatturazione dovra essere eseguita prima di usare il flusso completo.') ?>
-                </div>
-              <?php elseif ($recentDocuments === []): ?>
-                <p class="text-muted" style="margin:0;">
-                  Nessun documento creato finora. Il prossimo step e aprire l archivio e salvare la prima fattura o ricevuta dello studio.
-                </p>
-              <?php else: ?>
-                <div class="table-responsive">
-                  <table class="table table-striped table-bordered" style="margin-bottom:0;">
-                    <thead>
-                      <tr>
-                        <th>#</th>
-                        <th>Documento</th>
-                        <th>Cliente</th>
-                        <th>Data</th>
-                        <th>Totale</th>
-                        <th>Stato</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <?php foreach ($recentDocuments as $row): ?>
-                        <tr>
-                          <td>#<?= (int) ($row['id_billing_document'] ?? 0) ?></td>
-                          <td>
-                            <a href="<?= site_url('admin/fatturazione-documenti/modifica/' . (int) ($row['id_billing_document'] ?? 0)) ?>">
-                              <?= esc((string) ($row['document_number'] ?? '-')) ?>
-                            </a>
-                          </td>
-                          <td><?= esc((string) ($row['patient_name'] ?? '-')) ?></td>
-                          <td><?= esc((string) ($row['issue_date'] ?? '-')) ?></td>
-                          <td>&euro; <?= number_format((float) ($row['amount_total'] ?? 0), 2, ',', '.') ?></td>
-                          <td><?= esc((string) ($row['local_state_label'] ?? $row['local_state'] ?? '-')) ?></td>
-                        </tr>
-                      <?php endforeach; ?>
-                    </tbody>
-                  </table>
-                </div>
-              <?php endif; ?>
-            </div>
-          </div>
+            </header>
 
-          <div class="box box-default">
-            <div class="box-header with-border">
-              <h3 class="box-title">Profilo documento attuale</h3>
+            <div class="billing-kpi-grid">
+              <article class="billing-kpi-card">
+                <span>Documenti totali</span>
+                <strong><?= (int) ($summary['total_documents'] ?? 0) ?></strong>
+                <p>emessi in totale</p>
+              </article>
+              <article class="billing-kpi-card billing-kpi-neutral">
+                <span>Bozze</span>
+                <strong><?= (int) ($summary['draft_count'] ?? 0) ?></strong>
+                <p>da completare</p>
+              </article>
+              <article class="billing-kpi-card">
+                <span>Definitivi</span>
+                <strong><?= (int) ($summary['issued_count'] ?? 0) ?></strong>
+                <p>documenti chiusi</p>
+              </article>
+              <article class="billing-kpi-card">
+                <span>Totale fatturato del mese</span>
+                <strong>&euro; <?= number_format((float) ($summary['month_revenue'] ?? 0), 2, ',', '.') ?></strong>
+                <p>documenti definitivi</p>
+              </article>
             </div>
-            <div class="box-body">
-              <div class="row">
-                <div class="col-md-4">
-                  <strong><?= esc($documentTitle) ?></strong>
-                  <div class="text-muted" style="margin-top:6px;">
-                    <?= $logoConfigured ? 'Logo configurato' : 'Logo non ancora impostato' ?>
-                  </div>
-                </div>
-                <div class="col-md-3">
-                  <strong><?= $enabledFieldCount ?></strong>
-                  <div class="text-muted">campi visibili nel documento</div>
-                </div>
-                <div class="col-md-3">
-                  <strong><?= $enabledBlockCount ?></strong>
-                  <div class="text-muted">blocchi layout attivi</div>
-                </div>
-                <div class="col-md-2" style="text-align:right;">
-                  <a class="btn btn-default" href="<?= site_url('admin/fatturazione-documento') ?>">
-                    <i class="fa fa-pencil"></i> Personalizza
+
+            <div class="billing-main-grid">
+              <section class="billing-panel billing-documents-panel">
+                <div class="billing-panel-heading">
+                  <h2>Ultimi documenti</h2>
+                  <a class="billing-text-action" href="<?= site_url('admin/fatturazione-documenti') ?>">
+                    Vedi tutte <i class="fa fa-arrow-right"></i>
                   </a>
                 </div>
-              </div>
-            </div>
-          </div>
 
-          <div class="box box-default">
-            <div class="box-header with-border">
-              <h3 class="box-title">Regole del nuovo assetto</h3>
+                <?php if (!$documentsTableAvailable): ?>
+                  <div class="billing-panel-body">
+                    <div class="alert alert-warning" style="margin:0;">
+                      <?= esc($documentsSchemaMessage !== '' ? $documentsSchemaMessage : 'L’archivio documenti non è ancora disponibile nel database runtime corrente.') ?>
+                    </div>
+                  </div>
+                <?php elseif ($recentDocuments === []): ?>
+                  <div class="billing-empty-state">
+                    <span class="billing-empty-icon"><i class="fa fa-file-text-o"></i></span>
+                    <h3>Non hai ancora emesso documenti</h3>
+                    <p>I documenti e le ricevute che emetti compaiono qui.</p>
+                    <a class="billing-action billing-action-primary" href="<?= site_url('admin/fatturazione-documenti/nuovo') ?>">
+                      <i class="fa fa-plus"></i> Nuovo documento
+                    </a>
+                  </div>
+                <?php else: ?>
+                  <div class="table-responsive billing-dashboard-table-wrap">
+                    <table class="table billing-dashboard-table">
+                      <thead>
+                        <tr>
+                          <th>Numero</th>
+                          <th>Cliente</th>
+                          <th>Data</th>
+                          <th class="text-right">Totale</th>
+                          <th>Stato</th>
+                          <th class="text-right">Azioni</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <?php foreach ($recentDocuments as $row): ?>
+                          <?php
+                            $documentId = (int) ($row['id_billing_document'] ?? 0);
+                            $isIssued = (string) ($row['local_state'] ?? '') === 'issued';
+                          ?>
+                          <tr>
+                            <td>
+                              <a class="billing-document-number" href="<?= site_url('admin/fatturazione-documenti/modifica/' . $documentId) ?>">
+                                <?= esc((string) ($row['document_number'] ?? '-')) ?>
+                              </a>
+                            </td>
+                            <td><?= esc((string) ($row['patient_name'] ?? '-')) ?></td>
+                            <td class="billing-table-muted"><?= esc((string) ($row['issue_date'] ?? '-')) ?></td>
+                            <td class="text-right billing-table-total">&euro; <?= number_format((float) ($row['amount_total'] ?? 0), 2, ',', '.') ?></td>
+                            <td><span class="billing-state-pill <?= $isIssued ? 'is-issued' : 'is-draft' ?>"><?= esc((string) ($row['local_state_label'] ?? $row['local_state'] ?? '-')) ?></span></td>
+                            <td class="text-right">
+                              <a class="billing-icon-action" href="<?= site_url('admin/fatturazione-documenti/modifica/' . $documentId) ?>" aria-label="Apri documento">
+                                <i class="fa fa-eye"></i>
+                              </a>
+                              <a class="billing-icon-action" href="<?= site_url('admin/fatturazione-documenti/pdf/' . $documentId) ?>" aria-label="Scarica PDF">
+                                <i class="fa fa-download"></i>
+                              </a>
+                            </td>
+                          </tr>
+                        <?php endforeach; ?>
+                      </tbody>
+                    </table>
+                  </div>
+                <?php endif; ?>
+              </section>
+
+              <aside class="billing-side-rail">
+                <section class="billing-panel billing-profile-panel">
+                  <div class="billing-panel-heading">
+                    <h2>Profilo documento</h2>
+                  </div>
+                  <div class="billing-profile-rows">
+                    <div class="billing-profile-row">
+                      <i class="fa fa-image"></i>
+                      <span>Logo</span>
+                      <strong><span class="billing-profile-badge"><?= $logoConfigured ? 'Impostato' : 'Non impostato' ?></span></strong>
+                    </div>
+                    <div class="billing-profile-row">
+                      <i class="fa fa-list"></i>
+                      <span>Campi visibili</span>
+                      <strong><?= $enabledFieldCount ?></strong>
+                    </div>
+                    <div class="billing-profile-row">
+                      <i class="fa fa-columns"></i>
+                      <span>Blocchi layout attivi</span>
+                      <strong><?= $enabledBlockCount ?></strong>
+                    </div>
+                  </div>
+                  <a class="billing-action billing-action-secondary billing-full-width" href="<?= site_url('admin/fatturazione-documento') ?>">
+                    <i class="fa fa-file-text-o"></i> Personalizza
+                  </a>
+                </section>
+
+                <section class="billing-panel billing-ts-panel">
+                  <span class="billing-ts-icon"><i class="fa fa-id-card-o"></i></span>
+                  <div>
+                    <p>I documenti definitivi possono essere inviati al Sistema Tessera Sanitaria per il 730 precompilato.</p>
+                    <?php if ($tsEnabled): ?>
+                      <a class="billing-text-action" href="<?= site_url('admin/sistema-ts') ?>">
+                        Vai al modulo Sistema TS <i class="fa fa-arrow-right"></i>
+                      </a>
+                    <?php endif; ?>
+                  </div>
+                </section>
+              </aside>
             </div>
-            <div class="box-body">
-              <ul style="margin:0 0 0 18px; line-height:1.7;">
-                <li>Il modulo <strong>Fatturazione</strong> deve poter funzionare da solo per creare e consegnare documenti al cliente.</li>
-                <li>Il modulo <strong>Sistema TS</strong> deve poter funzionare da solo per preparare e inviare documenti TS quando serve.</li>
-                <li>Quando entrambi sono attivi, il collegamento tra i due deve essere opzionale e trasparente, senza fondere i modelli in un unico blocco rigido.</li>
-              </ul>
-            </div>
+
           </div>
-        </div>
+        </main>
       </div>
     </section>
   </div>

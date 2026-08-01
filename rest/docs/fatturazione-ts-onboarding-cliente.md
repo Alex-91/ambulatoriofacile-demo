@@ -86,10 +86,10 @@ flowchart TD
 - il documento finisce in stato `sent`
 - il protocollo TS viene salvato sul record
 - la ricevuta PDF viene archiviata in `writable/tenants/<storage_key>/ts/receipts/...`
-- non restano errori locali o drift tecnico bloccante nell healthcheck
+- non restano errori locali o drift tecnico bloccante nell’healthcheck
 
 ## Note pratiche
 
-- il modulo puo essere preparato quasi interamente senza toccare subito credenziali reali del cliente
+- il modulo può essere preparato quasi interamente senza toccare subito credenziali reali del cliente
 - il collaudo tecnico con preset `TEST` non sostituisce il go-live con il soggetto obbligato reale
 - i codici `tipoSpesa` marcati come `Descrizione prudente` sono comunque codici validi nel tracciato TS: va solo confermata meglio la semantica business sul primo caso reale

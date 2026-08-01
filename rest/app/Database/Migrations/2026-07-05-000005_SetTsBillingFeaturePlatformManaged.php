@@ -28,7 +28,7 @@ class SetTsBillingFeaturePlatformManaged extends Migration
         }
 
         $update = [
-            'description' => 'Il master piattaforma attiva la Fatturazione TS per lo spazio. Una volta concessa, il tenant master dello studio puo configurare il modulo Sistema Tessera Sanitaria e usarlo operativamente.',
+            'description' => 'Il master piattaforma attiva la Fatturazione TS per lo spazio. Una volta concessa, il tenant master dello studio può configurare il modulo Sistema Tessera Sanitaria e usarlo operativamente.',
             'updated_at' => date('Y-m-d H:i:s'),
         ];
 
@@ -69,7 +69,7 @@ class SetTsBillingFeaturePlatformManaged extends Migration
         }
 
         $update = [
-            'description' => 'Il tenant puo configurare il modulo Sistema Tessera Sanitaria, preparare documenti di spesa sanitaria e inviarli ai servizi TS.',
+            'description' => 'Il tenant può configurare il modulo Sistema Tessera Sanitaria, preparare documenti di spesa sanitaria e inviarli ai servizi TS.',
             'updated_at' => date('Y-m-d H:i:s'),
         ];
 

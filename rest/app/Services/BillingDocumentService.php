@@ -16,6 +16,7 @@ class BillingDocumentService
     private TsBilling $tsConfig;
     private BillingTenantSchemaService $schema;
     private DatabaseConfig $databaseConfig;
+    private TsProfileService $tsProfiles;
 
     public function __construct(
         ?BillingDocumentSettingsService $settings = null,
@@ -23,7 +24,8 @@ class BillingDocumentService
         ?TsFeatureService $tsFeatures = null,
         ?TsBilling $tsConfig = null,
         ?BillingTenantSchemaService $schema = null,
-        ?DatabaseConfig $databaseConfig = null
+        ?DatabaseConfig $databaseConfig = null,
+        ?TsProfileService $tsProfiles = null
     ) {
         $this->db = Database::connect();
         $this->settings = $settings ?? new BillingDocumentSettingsService();
@@ -32,6 +34,7 @@ class BillingDocumentService
         $this->tsConfig = $tsConfig ?? config(TsBilling::class);
         $this->schema = $schema ?? new BillingTenantSchemaService();
         $this->databaseConfig = $databaseConfig ?? new DatabaseConfig();
+        $this->tsProfiles = $tsProfiles ?? new TsProfileService();
     }
 
     /**
@@ -72,6 +75,17 @@ class BillingDocumentService
         foreach ($this->localStateLabels() as $state => $label) {
             $summary[$state . '_count'] = (int) ($summary['by_state'][$state] ?? 0);
         }
+
+        $monthStart = date('Y-m-01');
+        $nextMonthStart = date('Y-m-01', strtotime('+1 month'));
+        $monthRevenue = $db->table('billing_documents')
+            ->selectSum('amount_total', 'total_amount')
+            ->where('local_state', 'issued')
+            ->where('issue_date >=', $monthStart)
+            ->where('issue_date <', $nextMonthStart)
+            ->get()
+            ->getRowArray();
+        $summary['month_revenue'] = (float) ($monthRevenue['total_amount'] ?? 0);
 
         $recent = $db->table('billing_documents')
             ->select('id_billing_document, document_number, patient_name, issue_date, amount_total, local_state')
@@ -115,7 +129,7 @@ class BillingDocumentService
         $context = $this->resolveTenantDocumentContext($tenantId);
         $db = $context['db'];
         $documents = $db->table('billing_documents')
-            ->select('id_billing_document, document_number, document_type, issue_date, payment_date, patient_name, payment_method, amount_total, local_state, ts_sync_state, linked_ts_document_id, updated_at')
+            ->select('id_billing_document, document_number, document_type, issue_date, payment_date, patient_name, patient_tax_code, payment_method, amount_total, local_state, ts_sync_enabled, ts_sync_state, linked_ts_document_id, updated_at')
             ->orderBy('issue_date', 'DESC')
             ->orderBy('id_billing_document', 'DESC')
             ->get(max(1, $limit))
@@ -154,6 +168,7 @@ class BillingDocumentService
                 'local_state_labels' => $this->localStateLabels(),
                 'ts_sync_labels' => $this->tsSyncStateLabels(),
                 'ts_expense_types' => $this->tsConfig->supportedExpenseTypes,
+                'service_expense_type_map' => $this->tsProfiles->resolveServiceExpenseTypeMapForTenant($tenantId),
                 'table_available' => false,
                 'schema_message' => $this->documentsUnavailableMessage($schemaStatus),
             ];
@@ -179,6 +194,7 @@ class BillingDocumentService
             'local_state_labels' => $this->localStateLabels(),
             'ts_sync_labels' => $this->tsSyncStateLabels(),
             'ts_expense_types' => $this->tsConfig->supportedExpenseTypes,
+            'service_expense_type_map' => $this->tsProfiles->resolveServiceExpenseTypeMapForTenant($tenantId),
             'table_available' => true,
             'schema_message' => $this->schemaStatusMessage($schemaStatus),
         ];
@@ -218,7 +234,7 @@ class BillingDocumentService
             (string) ($normalized['issue_date'] ?? '')
         );
         if (is_array($existing) && (int) ($existing['id_billing_document'] ?? 0) !== $documentId) {
-            throw new \RuntimeException('Esiste gia un documento fatturazione con lo stesso numero e la stessa data.');
+            throw new \RuntimeException('Esiste già un documento fatturazione con lo stesso numero e la stessa data.');
         }
 
         $normalizedSaveMode = trim(strtolower($saveMode));
@@ -279,6 +295,13 @@ class BillingDocumentService
             }
 
             $db->transCommit();
+
+            try {
+                $this->settings->rememberServiceCatalogItems($tenantId, $normalized['line_items'], $userId);
+            } catch (\Throwable $catalogError) {
+                // Il documento e già stato salvato: il catalogo non deve bloccare la fatturazione.
+                log_message('warning', 'BillingDocumentService::saveDraftForTenant service catalog update failed: ' . $catalogError->getMessage());
+            }
 
             return [
                 'document' => $documents->find($savedId) ?? [],
@@ -358,13 +381,31 @@ class BillingDocumentService
      */
     private function buildDefaultDocument(array $template, bool $tsEnabled, ?BillingDocumentModel $documents = null): array
     {
+        $defaults = is_array($template['defaults'] ?? null) ? $template['defaults'] : [];
+        $vat = is_array($template['vat'] ?? null) ? $template['vat'] : [];
+        $documentType = trim((string) ($defaults['document_type'] ?? 'invoice'));
+        $paymentMethod = trim((string) ($defaults['payment_method'] ?? 'bank_transfer'));
+        $tsExpenseType = strtoupper(trim((string) ($defaults['ts_expense_type_code'] ?? 'SP')));
+        $vatRate = $this->normalizeMoney($vat['default_rate'] ?? 0);
+        $vatNature = strtoupper(substr(trim((string) ($vat['default_nature'] ?? '')), 0, 16));
+
+        if (!array_key_exists($documentType, $this->documentTypeLabels())) {
+            $documentType = 'invoice';
+        }
+        if (!array_key_exists($paymentMethod, $this->paymentMethodLabels())) {
+            $paymentMethod = 'bank_transfer';
+        }
+        if (!array_key_exists($tsExpenseType, $this->tsConfig->supportedExpenseTypes)) {
+            $tsExpenseType = 'SP';
+        }
+
         return [
             'id_billing_document' => 0,
             'id_client' => 0,
             'document_number' => $documents instanceof BillingDocumentModel
                 ? $this->suggestDocumentNumber($documents, $template)
                 : $this->fallbackDocumentNumber($template),
-            'document_type' => 'invoice',
+            'document_type' => $documentType,
             'issue_date' => date('Y-m-d'),
             'payment_date' => date('Y-m-d'),
             'patient_name' => '',
@@ -376,16 +417,16 @@ class BillingDocumentService
             'patient_email' => '',
             'patient_address' => '',
             'patient_city' => '',
-            'payment_method' => 'bank_transfer',
+            'payment_method' => $paymentMethod,
             'subtotal_amount' => 0,
             'stamp_duty_amount' => 0,
-            'vat_rate' => 0,
-            'vat_nature' => '',
+            'vat_rate' => $vatRate,
+            'vat_nature' => $vatNature,
             'amount_total' => 0,
             'notes' => '',
             'ts_sync_enabled' => !empty($template['integration_ts']['enabled_when_available']) ? 1 : 0,
-            'ts_expense_type_code' => 'SP',
-            'ts_opposition_flag' => 0,
+            'ts_expense_type_code' => $tsExpenseType,
+            'ts_opposition_flag' => !empty($defaults['ts_opposition_flag']) ? 1 : 0,
             'ts_sync_state' => !empty($template['integration_ts']['enabled_when_available'])
                 ? ($tsEnabled ? 'ready' : 'waiting_module')
                 : 'not_requested',
@@ -403,6 +444,7 @@ class BillingDocumentService
             'by_state' => [],
             'draft_count' => 0,
             'issued_count' => 0,
+            'month_revenue' => 0.0,
         ];
     }
 
@@ -506,7 +548,7 @@ class BillingDocumentService
             return $message;
         }
 
-        return 'La tabella billing_documents non e disponibile nel database corrente.';
+        return 'La tabella billing_documents non è disponibile nel database corrente.';
     }
 
     /**
@@ -561,6 +603,7 @@ class BillingDocumentService
             $payload['item_qty'] ?? [],
             $payload['item_unit_amount'] ?? []
         );
+        $mappedExpenseType = $this->tsProfiles->resolveExpenseTypeForLineItems($tenantId, $lineItems);
         $subtotal = 0.0;
         foreach ($lineItems as $item) {
             $subtotal += (float) ($item['line_total'] ?? 0);
@@ -596,7 +639,9 @@ class BillingDocumentService
             'amount_total' => $amountTotal,
             'notes' => trim((string) ($payload['notes'] ?? '')),
             'ts_sync_enabled' => $tsSyncEnabled,
-            'ts_expense_type_code' => strtoupper(trim((string) ($payload['ts_expense_type_code'] ?? ''))),
+            'ts_expense_type_code' => $mappedExpenseType !== null
+                ? $mappedExpenseType
+                : strtoupper(trim((string) ($payload['ts_expense_type_code'] ?? ''))),
             'ts_opposition_flag' => $this->toBool($payload['ts_opposition_flag'] ?? false),
             'ts_sync_state' => $this->resolveTsSyncState($tsSyncEnabled, $tsEnabled),
             'template' => $template,
@@ -674,7 +719,7 @@ class BillingDocumentService
         }
 
         if ($tsSyncEnabled && !empty($integrationTs['require_expense_type']) && trim((string) ($normalized['ts_expense_type_code'] ?? '')) === '') {
-            $errors[] = 'Il template documento richiede il tipo spesa TS quando l integrazione e attiva.';
+            $errors[] = 'Il template documento richiede il tipo spesa TS quando l’integrazione è attiva.';
         }
 
         if ($tsSyncEnabled && trim((string) ($normalized['ts_expense_type_code'] ?? '')) !== '') {

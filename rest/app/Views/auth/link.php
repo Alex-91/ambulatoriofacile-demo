@@ -8,7 +8,7 @@ $token = $_GET['token'] ?? '';
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Collegamento dispositivo â€¢ AmbulatorioFacile</title>
+<title>Collegamento dispositivo • AmbulatorioFacile</title>
 <meta name="theme-color" content="#2c8895">
 <script>document.title = <?= json_encode('Collegamento dispositivo - ' . 'AmbulatorioFacile') ?>;</script>
 <style>
@@ -44,7 +44,7 @@ $token = $_GET['token'] ?? '';
   </div>
 
   <div id="installHint" class="hint">
-    Il telefono Ã¨ stato collegato correttamente. Ora torna sul PC: la pagina rileverÃ  il dispositivo e invierÃ  automaticamente la notifica OTP.
+    Il telefono è stato collegato correttamente. Ora torna sul PC: la pagina rileverà il dispositivo e invierà automaticamente la notifica OTP.
   </div>
 </div>
 
@@ -167,7 +167,7 @@ $token = $_GET['token'] ?? '';
       const isVisible = Array.isArray(notifications) && notifications.length > 0;
 
       if (isVisible) {
-        const userConfirmed = window.confirm('Ti abbiamo appena inviato una notifica di prova. Premi OK se l\'hai vista, oppure Annulla se non e comparsa.');
+        const userConfirmed = window.confirm('Ti abbiamo appena inviato una notifica di prova. Premi OK se l\'hai vista, oppure Annulla se non è comparsa.');
         notifications.forEach((notification) => {
           try { notification.close(); } catch (_) {}
         });
@@ -273,7 +273,7 @@ if (Notification.permission === 'denied') {
   throw new Error(blockedNotificationsMessage());
 }
 
-      setStatus('Registrazione service workerâ€¦');
+      setStatus('Registrazione service worker…');
       const reg = await window.PushRegistration.ensureServiceWorker("<?= base_url('sw.js') ?>");
 
      let permission = 'default';
@@ -281,7 +281,7 @@ if (Notification.permission === 'denied') {
 if (typeof Notification !== 'undefined') {
   permission = Notification.permission;
   if (permission !== 'granted') {
-    setStatus('Richiesta permesso notificheâ€¦');
+    setStatus('Richiesta permesso notifiche…');
     permission = await Notification.requestPermission();
   }
 } else {
@@ -298,7 +298,7 @@ if (typeof Notification !== 'undefined') {
 
       await ensureDeviceNotificationsAvailable(reg);
 
-      setStatus('Registrazione dispositivoâ€¦');
+      setStatus('Registrazione dispositivo…');
 
       const pushState = await window.PushRegistration.ensurePushSubscription("<?= base_url('sw.js') ?>", vapidKey);
       const sub = pushState.subscription;
@@ -312,7 +312,7 @@ if (typeof Notification !== 'undefined') {
         [csrfName]: csrfHash
       });
 
-      setStatus('Invio dati al serverâ€¦');
+      setStatus('Invio dati al server…');
 
       const res = await fetch('<?= base_url('auth/link-complete') ?>', {
         method: 'POST',
@@ -326,7 +326,7 @@ if (typeof Notification !== 'undefined') {
         throw new Error(json?.msg || 'Errore durante il collegamento del dispositivo.');
       }
 
-      setStatus('Dispositivo collegato correttamente. Torna ora sul PC: la notifica OTP partirÃ  automaticamente dalla schermata di accesso.', 'ok');
+      setStatus('Dispositivo collegato correttamente. Torna ora sul PC: la notifica OTP partirà automaticamente dalla schermata di accesso.', 'ok');
       installHint.style.display = 'block';
       enableBtn.style.display = 'none';
     } catch (err) {

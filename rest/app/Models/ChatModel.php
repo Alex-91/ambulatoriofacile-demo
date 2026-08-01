@@ -279,7 +279,7 @@ class ChatModel extends Model
         $a = $this->getThreadListItem($tSeg, 'Segreteria');
         $b = $this->getThreadListItem($tInf, 'Infermieri');
 
-        // se sono vuoti last_preview sarÃ  "", ma il medico li deve vedere comunque
+        // se sono vuoti last_preview sarà "", ma il medico li deve vedere comunque
         return [$a, $b];
     }
 
@@ -740,7 +740,7 @@ log_message('error', 'CHAT PUSH - FINE INVIO NOTIFICHE');
 }
 
     /**
- * Ritorna l'id_thread se esiste giÃ  il group thread per quel medico e baseKey, altrimenti 0.
+ * Ritorna l'id_thread se esiste già il group thread per quel medico e baseKey, altrimenti 0.
  */
 public function findDoctorGroupThread(int $doctorUserId, string $baseKey): int
 {
@@ -890,7 +890,7 @@ private function syncDoctorGroupMembersForStaffScope(string $baseKey, array $doc
 
 /**
  * Lista thread di gruppo NON VUOTI per segreteria/infermiere:
- * - prende solo thread dove l'utente Ã¨ membro
+ * - prende solo thread dove l'utente è membro
  * - esclude i thread senza messaggi (join sull'ultimo messaggio)
  * - ricava il medico da group_key (es. segreteria_35 -> doctor_user_id = 35)
  */
@@ -948,7 +948,7 @@ private function getNonEmptyStaffThreads(int $meUserId, string $baseKey, string 
         if ($docName === '') $docName = 'Medico #' . (int)$r['doctor_user_id'];
 
         // sovrascrivo title per render in lista
-        $r['title'] = $label . ' â€¢ ' . $docName;
+        $r['title'] = $label . ' • ' . $docName;
 
         // normalizzo preview
         $r['last_preview'] = (string)($r['last_preview'] ?? '');

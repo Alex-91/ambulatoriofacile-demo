@@ -31,7 +31,7 @@ La demo deve usare:
 
 Questo progetto oggi non ha ancora uno schema completamente ricostruibile da zero solo con le migration.
 
-Per questo motivo il bootstrap demo sicuro viene fatto cosi:
+Per questo motivo il bootstrap demo sicuro viene fatto così:
 
 1. crea un database demo vuoto
 2. clona solo la struttura tabelle dal database prodotto locale `mail`
@@ -46,7 +46,7 @@ Questo approccio:
 
 ## Step catalogo sicuro
 
-Dopo il clone struttura, e disponibile anche uno step che copia solo dati di sistema:
+Dopo il clone struttura, è disponibile anche uno step che copia solo dati di sistema:
 
 - ruoli
 - menu

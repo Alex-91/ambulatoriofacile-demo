@@ -9,7 +9,7 @@ Preparare una base tecnica per:
 - spazi cliente separati dietro le quinte
 - pacchetti e feature flag gestibili senza hardcodare eccezioni per username
 
-Questo step introduce gia il primo aggancio al login unico, mantenendo come fallback il login legacy esistente.
+Questo step introduce già il primo aggancio al login unico, mantenendo come fallback il login legacy esistente.
 
 ## Cosa introduce
 
@@ -37,7 +37,7 @@ Tabelle create:
 
 - `platform_users`: account centrali di login basati su email unica
 - `platform_tenants`: anagrafica del cliente business, non del paziente
-- `platform_user_tenants`: collega un utente piattaforma a uno o piu spazi
+- `platform_user_tenants`: collega un utente piattaforma a uno o più spazi
 - `platform_packages`: definisce il pacchetto commerciale
 - `platform_tenant_features`: override puntuali centrali per singolo cliente
 - `platform_tenant_feature_preferences`: preferenze operative del tenant master, applicate solo alle funzioni che la piattaforma decide di delegare
@@ -74,7 +74,7 @@ Per il database tenant sono previsti questi campi:
 - `TenantDatabaseConnector`: costruisce la connessione DB tenant
 - `TenantProvisioningService`: crea tenant, tenant master e blueprint runtime
 - `TenantInfrastructureProvisioningService`: provisiona DB tenant, template, migration e cartelle dal pannello admin
-- `TenantAppUserProvisioningService`: crea o collega automaticamente l utente legacy/app del tenant partendo dalla membership piattaforma
+- `TenantAppUserProvisioningService`: crea o collega automaticamente l’utente legacy/app del tenant partendo dalla membership piattaforma
 - `PlatformAccessService`: gestisce inviti email, reset password e token di primo accesso
 
 ## Comando rapido
@@ -102,7 +102,7 @@ Il pannello permette di:
 - creare un nuovo spazio cliente
 - creare o promuovere direttamente dal pannello gli account master piattaforma
 - importare facoltativamente gli account master seed configurati in `PLATFORM_MASTER_EMAILS`
-- inviare o reinviare il primo accesso agli account master anche senza tenant gia associati
+- inviare o reinviare il primo accesso agli account master anche senza tenant già associati
 - gestire il catalogo funzioni globale da `login/piattaforma/funzioni`
 - assegnare o cambiare il tenant master
 - aggiungere utenti allo spazio e collegarli al tenant
@@ -112,21 +112,21 @@ Il pannello permette di:
 - rispettare il limite utenti del pacchetto scelto
 - preparare le cartelle locali tenant senza passare da console
 - lanciare il provisioning tecnico del tenant con il pulsante `Salva e provisiona`
-- inviare o reinviare l accesso email a tenant master e membri dello spazio
+- inviare o reinviare l’accesso email a tenant master e membri dello spazio
 
 Accesso:
 
 - la console master resta sotto `/login/...`
 - gli account master persistenti vengono governati dal DB centrale con il flag `is_platform_admin`
 - `PLATFORM_MASTER_EMAILS` resta solo una scorciatoia bootstrap facoltativa
-- il primo accesso dei master puo essere preparato dalla sezione `Account master piattaforma` dentro `login/piattaforma/spazi-clienti`
-- il namespace `/admin` resta riservato al gestionale legacy e non e la home del nuovo login unico
+- il primo accesso dei master può essere preparato dalla sezione `Account master piattaforma` dentro `login/piattaforma/spazi-clienti`
+- il namespace `/admin` resta riservato al gestionale legacy e non è la home del nuovo login unico
 
 Confine operativo:
 
-- il database tenant resta gestito solo dall amministrazione centrale
+- il database tenant resta gestito solo dall’amministrazione centrale
 - il cliente non vede host, credenziali o impostazioni infrastrutturali
-- il cliente puo gestire soltanto gli utenti del proprio spazio, se il pacchetto lo consente
+- il cliente può gestire soltanto gli utenti del proprio spazio, se il pacchetto lo consente
 
 ## Login unico
 
@@ -147,35 +147,35 @@ Route autenticata introdotta:
 
 Comportamento attuale:
 
-- se l utente inserisce una email che appartiene a `platform_users` e non collide con un vecchio username legacy, il login passa dal catalogo piattaforma
-- se l utente appartiene a un solo tenant disponibile entra direttamente nel suo spazio
-- se appartiene a piu tenant, sceglie lo spazio direttamente dalla stessa pagina di login
-- se l account ha `must_reset_password = 1`, prima imposta la password e solo dopo entra nello spazio
-- dopo il login puo cambiare spazio dal menu utente senza uscire dall applicazione
+- se l’utente inserisce un’email che appartiene a `platform_users` e non collide con un vecchio username legacy, il login passa dal catalogo piattaforma
+- se l’utente appartiene a un solo tenant disponibile entra direttamente nel suo spazio
+- se appartiene a più tenant, sceglie lo spazio direttamente dalla stessa pagina di login
+- se l’account ha `must_reset_password = 1`, prima imposta la password e solo dopo entra nello spazio
+- dopo il login può cambiare spazio dal menu utente senza uscire dall’applicazione
 - dopo la scelta, la richiesta successiva usa il DB applicativo del tenant come connessione `default`
 - i moduli principali `agenda`, `posta`, `chat` vengono filtrati in base alle feature effettive del tenant
 - le feature effettive nascono da due livelli: concessione centrale e attivazione eventuale del tenant master
-- il tenant master vede una pagina di onboarding iniziale finche lo spazio non viene segnato come `ready`
+- il tenant master vede una pagina di onboarding iniziale finché lo spazio non viene segnato come `ready`
 
 Nota importante:
 
-- per entrare davvero nell app, la membership tenant deve conoscere `app_user_id` oppure il sistema deve riuscire a ricavarlo automaticamente dall email del profilo nel DB tenant
+- per entrare davvero nell’app, la membership tenant deve conoscere `app_user_id` oppure il sistema deve riuscire a ricavarlo automaticamente dall’email del profilo nel DB tenant
 
 ## Provisioning tecnico da pannello
 
-Il provisioning tecnico ora puo essere lanciato dal pannello admin con il bottone `Salva e provisiona`.
-Durante il provisioning viene sincronizzato anche l `app_user_id` del tenant master, cosi il login unico puo aprire subito il portale corretto.
+Il provisioning tecnico ora può essere lanciato dal pannello admin con il bottone `Salva e provisiona`.
+Durante il provisioning viene sincronizzato anche l `app_user_id` del tenant master, così il login unico può aprire subito il portale corretto.
 
 Flusso previsto:
 
 1. salva o aggiorna il tenant nel catalogo piattaforma
 2. risolve i default DB mancanti
 3. crea il database tenant se non esiste
-4. assegna i permessi al runtime user, se la `db_password_ref` punta a una env valida
-5. se il DB e vuoto, clona un template database oppure importa un template SQL
+4. assegna i permessi al runtime user, se la `db_password_ref` punta a un’env valida
+5. se il DB è vuoto, clona un template database oppure importa un template SQL
 6. applica le migration applicative filtrando quelle solo piattaforma
 7. prepara cartelle `upload` e `writable` del tenant
-8. registra l esito in `platform_tenants.metadata_json`
+8. registra l’esito in `platform_tenants.metadata_json`
 
 Env previste per il provisioning:
 
@@ -194,8 +194,8 @@ Env previste per il provisioning:
 
 Note operative:
 
-- per il percorso piu semplice si puo usare un runtime user condiviso per tutti i tenant, variando solo `db_name`
-- se si vuole un utente DB dedicato per tenant, la `db_password_ref` deve puntare a una env gia valorizzata
+- per il percorso più semplice si può usare un runtime user condiviso per tutti i tenant, variando solo `db_name`
+- se si vuole un utente DB dedicato per tenant, la `db_password_ref` deve puntare a un’env già valorizzata
 - il template database deve essere una base pulita e aggiornata del prodotto, non il DB live del cliente
 
 ## Inviti e reset piattaforma
@@ -210,7 +210,7 @@ Flussi introdotti:
 Regola pratica:
 
 - utenti nuovi o con `must_reset_password = 1` ricevono un link di primo accesso
-- utenti gia attivi ricevono un link di reset password
+- utenti già attivi ricevono un link di reset password
 
 ## Pacchetti seeded
 
@@ -230,15 +230,15 @@ Regola pratica:
 - `advanced_reporting`
 - `custom_branding`
 
-Ogni feature puo avere anche questi attributi operativi:
+Ogni feature può avere anche questi attributi operativi:
 
-- `is_tenant_managed`: decide se il tenant master la puo governare
+- `is_tenant_managed`: decide se il tenant master la può governare
 - `tenant_default_enabled`: stato iniziale lato cliente quando la funzione e delegabile
-- `sort_order` e `icon_class`: supportano l ordinamento e la UI dei pannelli
+- `sort_order` e `icon_class`: supportano l’ordinamento e la UI dei pannelli
 
 ## Punti ancora aperti
 
 1. Definire e mantenere un template database pulito dedicato ai nuovi tenant.
 2. Decidere se tenere un solo runtime user DB condiviso oppure passare a utenti DB dedicati per tenant.
-3. Valutare se portare anche l OTP nel flusso login piattaforma, oltre al bootstrap tenant gia attivo.
-4. Quando nasce una nuova feature applicativa, aggiungerla nel catalogo globale e nel registro centralizzato di mapping route/menu, cosi i controlli restano concentrati in un solo punto.
+3. Valutare se portare anche l’OTP nel flusso login piattaforma, oltre al bootstrap tenant già attivo.
+4. Quando nasce una nuova feature applicativa, aggiungerla nel catalogo globale e nel registro centralizzato di mapping route/menu, così i controlli restano concentrati in un solo punto.

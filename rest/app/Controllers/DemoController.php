@@ -431,7 +431,7 @@ class DemoController extends Controller
         }
 
         if (mb_strlen($payload['business_name']) < 2) {
-            $errors['business_name'] = 'Inserisci il nome della struttura o attivita.';
+            $errors['business_name'] = 'Inserisci il nome della struttura o attività.';
         }
 
         if (!filter_var($payload['email'], FILTER_VALIDATE_EMAIL)) {
@@ -451,7 +451,7 @@ class DemoController extends Controller
         }
 
         if ($payload['team_size'] !== '' && mb_strlen($payload['team_size']) > 60) {
-            $errors['team_size'] = 'Indica una dimensione team piu breve.';
+            $errors['team_size'] = 'Indica una dimensione team più breve.';
         }
 
         if ($payload['preferred_slot'] !== '' && !in_array($payload['preferred_slot'], ['mattina', 'pomeriggio', 'sera', 'flessibile'], true)) {
@@ -614,7 +614,7 @@ class DemoController extends Controller
                     'attempted' => true,
                     'sent' => false,
                     'recipients' => $recipients,
-                    'message' => 'Lead salvato, ma la notifica email non e stata inviata. Controlla la configurazione SMTP/demo.',
+                    'message' => 'Lead salvato, ma la notifica email non è stata inviata. Controlla la configurazione SMTP/demo.',
                     'checked_at' => date('c'),
                 ];
             }
@@ -867,7 +867,7 @@ class DemoController extends Controller
     {
         $handle = fopen('php://temp', 'w+');
         if ($handle === false) {
-            throw new \RuntimeException('Impossibile generare l export CSV delle richieste demo.');
+            throw new \RuntimeException('Impossibile generare l’export CSV delle richieste demo.');
         }
 
         try {
@@ -1163,7 +1163,7 @@ class DemoController extends Controller
                 'outcomes' => [
                     'Riduzione del tempo speso tra chiamate, spostamenti agenda e conferme manuali.',
                     'Controllo chiaro su professionisti, stanze e appuntamenti nello stesso flusso operativo.',
-                    'Maggiore continuita tra segreteria, dietista, collaboratrice e paziente.',
+                    'Maggiore continuità tra segreteria, dietista, collaboratrice e paziente.',
                 ],
                 'buyer_signals' => [
                     'Studio con titolare, collaboratrice e una persona di segreteria.',
@@ -1214,7 +1214,7 @@ class DemoController extends Controller
                 'outcomes' => [
                     'Gestione fluida di sale, terapisti, professionisti e coordinamento front desk.',
                     'Riduzione dei no-show con reminder e accesso OTP controllato.',
-                    'Maggiore continuita tra presa appuntamento, follow-up e comunicazione con il cliente.',
+                    'Maggiore continuità tra presa appuntamento, follow-up e comunicazione con il cliente.',
                 ],
                 'buyer_signals' => [
                     'Centro con più terapisti o più sale da coordinare.',
@@ -1236,7 +1236,7 @@ class DemoController extends Controller
                         ],
                     ],
                     [
-                        'title' => 'Team e continuita',
+                        'title' => 'Team e continuità',
                         'steps' => [
                             'Evidenzio chat e posta interna per seguire il caso senza uscire dalla piattaforma.',
                             'Mostro ruoli e visibilità per coordinatore, professionista e assistente.',

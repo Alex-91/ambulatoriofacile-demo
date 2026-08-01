@@ -22,8 +22,8 @@ function isMeFromMitt(array $msg): bool {
 
 function msgBodyHtml(array $msg): string {
   if (array_key_exists('testo', $msg)) {
-    if (!empty($msg['is_html'])) return (string)$msg['testo'];      // giÃ  HTML (sanificato lato model)
-    return nl2br(esc((string)$msg['testo']));                        // plain â†’ HTML safe
+    if (!empty($msg['is_html'])) return (string)$msg['testo'];      // già HTML (sanificato lato model)
+    return nl2br(esc((string)$msg['testo']));                        // plain → HTML safe
   }
   // Fallback legacy
   if (!empty($msg['body_html'])) return (string)$msg['body_html'];
@@ -90,7 +90,7 @@ function displayNameFromMsg(array $msg): string {
 <div id="page-loader" style="display:none; position:fixed; inset:0; background:rgba(255,255,255,.85); z-index:9999;">
   <div class="spinner" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;">
     <i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i>
-    <div class="msg" style="margin-top:10px;font-size:13px;color:#444">Caricamentoâ€¦</div>
+    <div class="msg" style="margin-top:10px;font-size:13px;color:#444">Caricamento…</div>
   </div>
 </div>
 
@@ -238,7 +238,7 @@ function displayNameFromMsg(array $msg): string {
                   <input name="subject" class="form-control" value="<?= 'Re: '.esc($ctx['oggetto']) ?>" />
                 </div>
                 <div class="form-group">
-                  <textarea id="reply-textarea" name="body" class="form-control" style="height: 180px" placeholder="Scrivi la rispostaâ€¦"></textarea>
+                  <textarea id="reply-textarea" name="body" class="form-control" style="height: 180px" placeholder="Scrivi la risposta…"></textarea>
                 </div>
                 <div class="form-group">
                   <div class="btn btn-default btn-file">
@@ -343,9 +343,9 @@ function displayNameFromMsg(array $msg): string {
       }
       var fileCount = fileInput.files.length;
       if (fileCount > 0) {
-        $('#page-loader .msg').text('Invio e caricamento allegati in corsoâ€¦');
+        $('#page-loader .msg').text('Invio e caricamento allegati in corso…');
       } else {
-        $('#page-loader .msg').text('Invio in corsoâ€¦');
+        $('#page-loader .msg').text('Invio in corso…');
       }
       $('#page-loader').show();
 
@@ -381,13 +381,13 @@ function displayNameFromMsg(array $msg): string {
               buttons: {
                 "Ok letto": function() {
                   $(this).dialog("close");
-                  $('#page-loader .msg').text('Ritorno alla postaâ€¦');
+                  $('#page-loader .msg').text('Ritorno alla posta…');
                   $('#page-loader').fadeIn(100, function(){ window.location = inboxUrl; });
                 }
               }
             });
           } else {
-            $('#page-loader .msg').text('Ritorno alla postaâ€¦');
+            $('#page-loader .msg').text('Ritorno alla posta…');
             $('#page-loader').fadeIn(100, function(){ window.location = inboxUrl; });
           }
         });
@@ -404,7 +404,7 @@ function displayNameFromMsg(array $msg): string {
         }
         alert(msg);
         return;
-        alert('Errore durante lâ€™invio della risposta. Riprova.');
+        alert('Errore durante l’invio della risposta. Riprova.');
       });
     });
 

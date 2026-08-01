@@ -108,7 +108,7 @@ class RegisterController extends BaseController
             $existingClientId = (int)($existingClient['id_client'] ?? 0);
             $existingClientUserId = (int)($existingClient['id_user'] ?? 0);
             if ($existingClientUserId > 0 && $existingClientUserId !== $id_user) {
-                throw new \RuntimeException('Esiste gia un profilo paziente collegato a un altro account.');
+                throw new \RuntimeException('Esiste già un profilo paziente collegato a un altro account.');
             }
 
             $doctorSnapshot = $clientDoctorModel->getPreferredDoctorLinkForClient($existingClientId);
@@ -119,7 +119,7 @@ class RegisterController extends BaseController
             }
 
             if ($doctorToAssign > 0 && $doctorToAssign !== $dottore) {
-                log_message('warning', 'Registrazione paziente con dottore selezionato diverso dal profilo importato; mantengo il dottore gia assegnato', [
+                log_message('warning', 'Registrazione paziente con dottore selezionato diverso dal profilo importato; mantengo il dottore già assegnato', [
                     'codice_fiscale' => $codice_fiscale,
                     'selected_doctor' => $dottore,
                     'existing_doctor' => $doctorToAssign,
@@ -136,7 +136,7 @@ class RegisterController extends BaseController
             ], $doctorToAssign);
 
             if (!$linked) {
-                throw new \RuntimeException('Errore durante l\'aggancio del paziente gia presente.');
+                throw new \RuntimeException('Errore durante l\'aggancio del paziente già presente.');
             }
 
             $id_client = $existingClientId;

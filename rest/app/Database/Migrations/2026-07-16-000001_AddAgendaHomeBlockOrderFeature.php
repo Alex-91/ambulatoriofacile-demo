@@ -27,7 +27,7 @@ class AddAgendaHomeBlockOrderFeature extends Migration
             'feature_key' => self::FEATURE_KEY,
             'feature_name' => 'Ordine blocchi home agenda',
             'feature_scope' => 'workflow',
-            'description' => 'Il master piattaforma puo attivare per il singolo studio un ordinamento personalizzato dei blocchi principali della home agenda: professionista, ricerca paziente, agenda e memo.',
+            'description' => 'Il master piattaforma può attivare per il singolo studio un ordinamento personalizzato dei blocchi principali della home agenda: professionista, ricerca paziente, agenda e memo.',
             'default_enabled' => 0,
             'created_at' => $now,
             'updated_at' => $now,
@@ -57,7 +57,7 @@ class AddAgendaHomeBlockOrderFeature extends Migration
         $update = [
             'feature_name' => 'Ordine blocchi home agenda',
             'feature_scope' => 'workflow',
-            'description' => 'Il master piattaforma puo attivare per il singolo studio un ordinamento personalizzato dei blocchi principali della home agenda: professionista, ricerca paziente, agenda e memo.',
+            'description' => 'Il master piattaforma può attivare per il singolo studio un ordinamento personalizzato dei blocchi principali della home agenda: professionista, ricerca paziente, agenda e memo.',
             'default_enabled' => 0,
             'updated_at' => $now,
         ];

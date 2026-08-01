@@ -81,7 +81,7 @@ class ClientDoctorModel extends Model
                     ]);
                     log_message('debug', 'INSERT dap09_client_doctor => id_client=' . $idClient . ', id_dot=' . $idDot);
                 } else {
-                    log_message('debug', 'KEEP dap09_client_doctor => id_client=' . $idClient . ', id_dot=' . $idDot . ' (link gia presente)');
+                    log_message('debug', 'KEEP dap09_client_doctor => id_client=' . $idClient . ', id_dot=' . $idDot . ' (link già presente)');
                 }
             }
 

@@ -52,7 +52,7 @@ class WhatsappReminders extends BaseController
         $forceRecipient = trim((string)$this->request->getPost('force_recipient'));
 
         if (!in_array($mode, ['dry-run', 'send'], true)) {
-            return $this->redirectWithLaunchFeedback(false, 'Modalita non valida.');
+            return $this->redirectWithLaunchFeedback(false, 'Modalità non valida.');
         }
 
         if (!in_array($channel, ['wa', 'sms'], true)) {

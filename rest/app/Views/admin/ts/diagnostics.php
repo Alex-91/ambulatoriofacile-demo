@@ -149,7 +149,7 @@ $selectedRawPreview = $truncateText($selectedRaw, $rawPreviewLimit);
           <div class="hero-box">
             <h3 style="margin-top:0; margin-bottom:8px;">Supporto tecnico TS pronto per assistenza</h3>
             <p style="margin:0 0 12px 0; color:#556b70;">
-              Qui possiamo cercare trace per documento, protocollo o data, aprire la timeline della singola operazione e scaricare il JSON completo gia sanificato per analisi interna o confronto con il cliente.
+              Qui possiamo cercare trace per documento, protocollo o data, aprire la timeline della singola operazione e scaricare il JSON completo già sanificato per analisi interna o confronto con il cliente.
             </p>
             <div class="toolbar-row">
               <a class="btn btn-primary" href="<?= site_url('admin/sistema-ts') ?>">
@@ -280,7 +280,7 @@ $selectedRawPreview = $truncateText($selectedRaw, $rawPreviewLimit);
 
           <?php if (!empty($selectedTraceMissing) && trim((string) ($selectedTraceId ?? '')) !== ''): ?>
             <div class="alert alert-danger">
-              Il trace richiesto <code><?= esc((string) ($selectedTraceId ?? '')) ?></code> non e disponibile nei log TS del tenant corrente.
+              Il trace richiesto <code><?= esc((string) ($selectedTraceId ?? '')) ?></code> non è disponibile nei log TS del tenant corrente.
             </div>
           <?php endif; ?>
 
@@ -350,7 +350,7 @@ $selectedRawPreview = $truncateText($selectedRaw, $rawPreviewLimit);
 
                 <?php if (!empty($listing['truncated'])): ?>
                   <div class="text-muted" style="margin-top:12px;">
-                    La lista e limitata ai primi 80 trace ordinati dal piu recente. Affina i filtri per restringere meglio il risultato.
+                    La lista è limitata ai primi 80 trace ordinati dal più recente. Affina i filtri per restringere meglio il risultato.
                   </div>
                 <?php endif; ?>
               <?php endif; ?>

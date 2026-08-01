@@ -78,30 +78,30 @@ class TsDispatchService
 
         $localState = trim((string) ($document['local_state'] ?? 'draft'));
         if ($localState === 'sent') {
-            $supportLog->step('state_blocked', 'Documento gia inviato: nuovo invio non consentito.', [
+            $supportLog->step('state_blocked', 'Documento già inviato: nuovo invio non consentito.', [
                 'local_state' => $localState,
             ], 'warning');
-            $supportLog->finish('blocked', 'Documento TS gia inviato: invio bloccato.', [
+            $supportLog->finish('blocked', 'Documento TS già inviato: invio bloccato.', [
                 'document' => $this->buildDocumentLogContext($document),
             ]);
-            throw new \RuntimeException('Il documento TS risulta gia inviato.');
+            throw new \RuntimeException('Il documento TS risulta già inviato.');
         }
 
         if ($localState === 'sending') {
-            $supportLog->step('state_blocked', 'Documento gia in stato di invio.', [
+            $supportLog->step('state_blocked', 'Documento già in stato di invio.', [
                 'local_state' => $localState,
             ], 'warning');
-            $supportLog->finish('blocked', 'Documento TS gia in stato di invio.', [
+            $supportLog->finish('blocked', 'Documento TS già in stato di invio.', [
                 'document' => $this->buildDocumentLogContext($document),
             ]);
-            throw new \RuntimeException('Il documento TS risulta gia in stato di invio.');
+            throw new \RuntimeException('Il documento TS risulta già in stato di invio.');
         }
 
         if ($localState !== 'ready') {
             $supportLog->step('state_blocked', 'Documento non nello stato Pronto.', [
                 'local_state' => $localState,
             ], 'warning');
-            $supportLog->finish('blocked', 'Documento TS non pronto per l invio.', [
+            $supportLog->finish('blocked', 'Documento TS non pronto per l’invio.', [
                 'document' => $this->buildDocumentLogContext($document),
             ]);
             throw new \RuntimeException('Il documento deve essere nello stato Pronto prima del tentativo di invio TS.');
@@ -128,7 +128,7 @@ class TsDispatchService
                 'document' => $this->buildDocumentLogContext($document),
                 'profile' => $this->buildProfileLogContext($profile),
             ]);
-            throw new \RuntimeException('Il profilo TS collegato al documento non e attivo.');
+            throw new \RuntimeException('Il profilo TS collegato al documento non è attivo.');
         }
 
         $supportLog->step('profile_loaded', 'Profilo TS collegato al documento risolto.', [
@@ -151,7 +151,7 @@ class TsDispatchService
         ]);
 
         if (empty($validation['valid'])) {
-            $supportLog->step('validation_failed', 'Validazione locale non superata prima dell invio TS.', [
+            $supportLog->step('validation_failed', 'Validazione locale non superata prima dell’invio TS.', [
                 'validation' => $validation,
             ], 'warning');
             $validationJson = $this->encodeJson([
@@ -192,7 +192,7 @@ class TsDispatchService
 
             return [
                 'status' => 'blocked',
-                'message' => 'Il documento non supera piu la validazione locale.',
+                'message' => 'Il documento non supera più la validazione locale.',
                 'document' => $documents->find($documentId),
                 'validation' => $validation,
                 'support_log' => $supportReference,
@@ -256,7 +256,7 @@ class TsDispatchService
 
             if (trim((string) ($operation['soap_operation'] ?? '')) === '') {
                 throw new \RuntimeException(
-                    'Preflight SOAP completato: client e WSDL risultano caricabili, ma il nome operazione ufficiale TS non e ancora configurato.'
+                    'Preflight SOAP completato: client e WSDL risultano caricabili, ma il nome operazione ufficiale TS non è ancora configurato.'
                 );
             }
 
@@ -496,7 +496,7 @@ class TsDispatchService
             $audit->record(
                 $parentId,
                 'variation_applied',
-                'Una variazione TS collegata al documento e stata inviata con successo.',
+                'Una variazione TS collegata al documento è stata inviata con successo.',
                 'info',
                 [
                     'child_document_id' => (int) ($document['id_ts_document'] ?? 0),
@@ -516,7 +516,7 @@ class TsDispatchService
             $audit->record(
                 $parentId,
                 'cancellation_applied',
-                'Una cancellazione TS collegata al documento e stata inviata con successo.',
+                'Una cancellazione TS collegata al documento è stata inviata con successo.',
                 'warning',
                 [
                     'child_document_id' => (int) ($document['id_ts_document'] ?? 0),

@@ -489,7 +489,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Caso 2: Samsung Internet spesso usa il menu del browser invece del prompt automatico
         if (/SamsungBrowser/i.test(navigator.userAgent) && !isInStandaloneMode()) {
-            alert("Su Samsung Internet il prompt automatico puo non comparire. Apri il menu del browser e scegli 'Installa app' oppure 'Aggiungi pagina a' e poi 'Schermata Home'.");
+            alert("Su Samsung Internet il prompt automatico può non comparire. Apri il menu del browser e scegli 'Installa app' oppure 'Aggiungi pagina a' e poi 'Schermata Home'.");
             return;
         }
 

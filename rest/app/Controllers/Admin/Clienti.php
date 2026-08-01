@@ -310,7 +310,7 @@ class Clienti extends BaseController
         $userConflict = $users->findOtherByUsernameInsensitive($username, $idUser);
         if ($userConflict) {
             return redirect()->back()->withInput()->with('errors', [
-                'generic' => 'Esiste gia un altro utente con questo codice fiscale/username.',
+                'generic' => 'Esiste già un altro utente con questo codice fiscale/username.',
             ]);
         }
 
@@ -385,13 +385,13 @@ class Clienti extends BaseController
 
         if ($users->findByUsernameInsensitive($username)) {
             return redirect()->back()->withInput()->with('errors', [
-                'generic' => 'Esiste gia un account con questo codice fiscale/username.',
+                'generic' => 'Esiste già un account con questo codice fiscale/username.',
             ]);
         }
 
         if ($clients->findClientByCodiceFiscaleInsensitive($username)) {
             return redirect()->back()->withInput()->with('errors', [
-                'generic' => 'Esiste gia un cliente con questo codice fiscale. Apri "Modifica cliente" per aggiornarlo.',
+                'generic' => 'Esiste già un cliente con questo codice fiscale. Apri "Modifica cliente" per aggiornarlo.',
             ]);
         }
 

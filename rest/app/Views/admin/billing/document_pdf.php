@@ -8,6 +8,8 @@ $branding = is_array($template['branding'] ?? null) ? $template['branding'] : []
 $layout = is_array($template['layout'] ?? null) ? $template['layout'] : [];
 $fields = is_array($template['fields'] ?? null) ? $template['fields'] : [];
 $labels = is_array($template['labels'] ?? null) ? $template['labels'] : [];
+$fiscalData = is_array($template['fiscal_data'] ?? null) ? $template['fiscal_data'] : [];
+$pensionFund = is_array($template['pension_fund'] ?? null) ? $template['pension_fund'] : [];
 $accentColor = trim((string) ($branding['accent_color'] ?? '#2c8895'));
 $logoUrl = trim((string) ($branding['logo_url'] ?? ''));
 $resolvedLogoUrl = $logoUrl;
@@ -21,6 +23,33 @@ $headerTitle = trim((string) ($branding['header_title'] ?? '')) !== ''
     : trim((string) ($template['document_title'] ?? 'Documento fatturazione'));
 $headerSubtitle = trim((string) ($branding['header_subtitle'] ?? ''));
 $footerNote = trim((string) ($branding['footer_note'] ?? ''));
+$issuerName = trim((string) ($fiscalData['business_name'] ?? ''));
+if ($issuerName === '') {
+    $issuerName = trim((string) ($tenant['tenant_name'] ?? 'Studio attivo'));
+}
+$issuerLocation = trim(implode(' ', array_filter([
+    trim((string) ($fiscalData['address'] ?? '')),
+    trim(implode(' ', array_filter([
+        trim((string) ($fiscalData['postal_code'] ?? '')),
+        trim((string) ($fiscalData['city'] ?? '')),
+        trim((string) ($fiscalData['province'] ?? '')),
+    ]))),
+])));
+$issuerIdentifiers = array_filter([
+    trim((string) ($fiscalData['vat_number'] ?? '')) !== '' ? 'P. IVA ' . trim((string) $fiscalData['vat_number']) : '',
+    trim((string) ($fiscalData['tax_code'] ?? '')) !== '' ? 'CF ' . trim((string) $fiscalData['tax_code']) : '',
+    trim((string) ($fiscalData['pec'] ?? '')) !== '' ? 'PEC ' . trim((string) $fiscalData['pec']) : '',
+]);
+$pensionFundLabel = '';
+if (!empty($pensionFund['enabled']) && trim((string) ($pensionFund['name'] ?? '')) !== '') {
+    $pensionFundLabel = trim((string) $pensionFund['name']);
+    if (trim((string) ($pensionFund['registration_number'] ?? '')) !== '') {
+        $pensionFundLabel .= ' n. ' . trim((string) $pensionFund['registration_number']);
+    }
+    if ((float) ($pensionFund['contribution_rate'] ?? 0) > 0) {
+        $pensionFundLabel .= ' · contributo integrativo ' . number_format((float) $pensionFund['contribution_rate'], 2, ',', '.') . '%';
+    }
+}
 ?>
 <!DOCTYPE html>
 <html>
@@ -55,7 +84,12 @@ $footerNote = trim((string) ($branding['footer_note'] ?? ''));
       <?php if ($headerSubtitle !== ''): ?>
         <div class="subtitle"><?= esc($headerSubtitle) ?></div>
       <?php endif; ?>
-      <div class="subtitle" style="margin-top:6px;"><?= esc((string) ($tenant['tenant_name'] ?? 'Studio attivo')) ?></div>
+      <div class="subtitle" style="margin-top:6px;">
+        <?= esc($issuerName) ?>
+        <?php if ($issuerLocation !== ''): ?><br><?= esc($issuerLocation) ?><?php endif; ?>
+        <?php if ($issuerIdentifiers !== []): ?><br><?= esc(implode(' · ', $issuerIdentifiers)) ?><?php endif; ?>
+        <?php if ($pensionFundLabel !== ''): ?><br><?= esc('Cassa previdenziale: ' . $pensionFundLabel) ?><?php endif; ?>
+      </div>
       <?php if (!empty($layout['show_logo']) && trim((string) ($branding['logo_mode'] ?? 'none')) !== 'none' && $resolvedLogoUrl !== ''): ?>
         <div style="margin-top:10px;">
           <img src="<?= esc($resolvedLogoUrl) ?>" alt="Logo studio" style="max-width:160px; max-height:56px;">

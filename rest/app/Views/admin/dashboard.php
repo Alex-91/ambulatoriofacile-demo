@@ -198,7 +198,7 @@ $seedSummary = (array)($demoSeedStatus['summary'] ?? []);
                   <i class="fa fa-link"></i> Segreteria e professionisti
                 </a>
                 <a href="<?= site_url('admin/personale/visibilita-moduli') ?>" class="btn btn-default">
-                  <i class="fa fa-toggle-on"></i> Visibilita moduli
+                  <i class="fa fa-toggle-on"></i> Visibilità moduli
                 </a>
               </div>
             </div>

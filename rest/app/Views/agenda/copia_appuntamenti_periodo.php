@@ -134,9 +134,9 @@
                                 </div>
 
                                 <div class="alert alert-info">
-                                    Il sistema usera lo stesso slot selezionato nel giorno di riferimento e provera a inserire
+                                    Il sistema userà lo stesso slot selezionato nel giorno di riferimento e proverà a inserire
                                     l'appuntamento solo nei giorni del periodo che cadono nello stesso giorno della settimana.
-                                    Se uno slot e gia occupato o non esiste, verra segnalato nel riepilogo finale.
+                                    Se uno slot e già occupato o non esiste, verrà segnalato nel riepilogo finale.
                                 </div>
 
                                 <button type="button" class="btn btn-primary" id="btnEseguiCopiaPeriodo">
@@ -291,7 +291,7 @@ $(function () {
 
             righe.push('Creati: ' + (result.creati || 0));
             righe.push('Giorni bloccati: ' + ((result.giorni_bloccati || []).length));
-            righe.push('Slot gia pieni: ' + ((result.gia_pieni || []).length));
+            righe.push('Slot già pieni: ' + ((result.gia_pieni || []).length));
             righe.push('Slot non trovati: ' + ((result.slot_non_trovati || []).length));
             righe.push('');
 
@@ -304,7 +304,7 @@ $(function () {
             }
 
             if ((result.gia_pieni || []).length) {
-                righe.push('--- Slot gia pieni ---');
+                righe.push('--- Slot già pieni ---');
                 $.each(result.gia_pieni, function(i, row) {
                     righe.push((row.data || '') + ' ' + (row.ora || ''));
                 });

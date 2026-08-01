@@ -2279,7 +2279,7 @@ public function bloccaDomiciliareGiorno(int $idDot, string $dataAgenda): bool
     $this->ensureDomiciliaryBlockTableExists();
 
     if ($this->isDomiciliareGiornoBloccato($idDot, $dataAgenda)) {
-        throw new \Exception('Le domiciliari risultano gia bloccate per questo giorno.');
+        throw new \Exception('Le domiciliari risultano già bloccate per questo giorno.');
     }
 
     $now = date('Y-m-d H:i:s');
@@ -2422,7 +2422,7 @@ private function ensureDomiciliaryBlockTableExists(): void
     }
 
     if ($this->domBlockTableExists !== true) {
-        throw new \Exception('La tabella per il blocco delle domiciliari non e disponibile.');
+        throw new \Exception('La tabella per il blocco delle domiciliari non è disponibile.');
     }
 }
 }

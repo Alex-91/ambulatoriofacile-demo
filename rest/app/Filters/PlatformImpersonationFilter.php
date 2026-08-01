@@ -25,7 +25,7 @@ class PlatformImpersonationFilter implements FilterInterface
 
             return redirect()
                 ->to(site_url('login'))
-                ->with('login_error', 'Autorizzazione master non piu valida. Effettua di nuovo il login.');
+                ->with('login_error', 'Autorizzazione master non più valida. Effettua di nuovo il login.');
         }
 
         if ($path === 'logout' || $path === 'admin/personale/logout') {

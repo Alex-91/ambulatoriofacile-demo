@@ -27,7 +27,7 @@ class AddAgendaShowAppointmentCreatorFeature extends Migration
             'feature_key' => self::FEATURE_KEY,
             'feature_name' => 'Mostra creatore appuntamento',
             'feature_scope' => 'workflow',
-            'description' => 'Il tenant master puo scegliere se mostrare o nascondere il nome dell utente che ha creato l appuntamento nel calendario, nello storico paziente e nei PDF agenda.',
+            'description' => 'Il tenant master può scegliere se mostrare o nascondere il nome dell’utente che ha creato l’appuntamento nel calendario, nello storico paziente e nei PDF agenda.',
             'default_enabled' => 1,
             'created_at' => $now,
             'updated_at' => $now,
@@ -57,7 +57,7 @@ class AddAgendaShowAppointmentCreatorFeature extends Migration
         $update = [
             'feature_name' => 'Mostra creatore appuntamento',
             'feature_scope' => 'workflow',
-            'description' => 'Il tenant master puo scegliere se mostrare o nascondere il nome dell utente che ha creato l appuntamento nel calendario, nello storico paziente e nei PDF agenda.',
+            'description' => 'Il tenant master può scegliere se mostrare o nascondere il nome dell’utente che ha creato l’appuntamento nel calendario, nello storico paziente e nei PDF agenda.',
             'default_enabled' => 1,
             'updated_at' => $now,
         ];

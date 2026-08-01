@@ -12,7 +12,7 @@ Obiettivo della presentazione:
 
 - far vedere ordine operativo
 - far percepire risparmio di tempo
-- far capire che il prodotto non e solo agenda, ma coordinamento studio
+- far capire che il prodotto non è solo agenda, ma coordinamento studio
 
 ## Accessi da usare
 
@@ -29,53 +29,53 @@ Accesso rapido utile:
 ## Scaletta consigliata
 
 1. Apertura, 45 secondi
-   Frase utile: "Non vi faccio vedere una semplice agenda, ma come puo lavorare uno studio nutrizionale quando ci sono piu persone coinvolte."
+   Frase utile: "Non vi faccio vedere una semplice agenda, ma come può lavorare uno studio nutrizionale quando ci sono più persone coinvolte."
 
 2. Admin, 2 minuti
    Vai su admin.
-   Racconta struttura demo, ruoli, visibilita moduli e relazione segreteria-professionisti.
+   Racconta struttura demo, ruoli, visibilità moduli e relazione segreteria-professionisti.
    Frase utile: "La parte admin serve per impostare lo studio una volta sola e poi lasciare ogni ruolo lavorare con la propria vista."
 
 3. Segreteria, 3 minuti
    Entra preferibilmente come `demo.admin->demo.segreteria`.
    Apri agenda.
-   Mostra disponibilita, prima visita, controllo, spostamento appuntamento e conferma.
-   Frase utile: "Qui la segreteria guadagna velocita senza dover inseguire il professionista su WhatsApp per ogni micro-variazione."
+   Mostra disponibilità, prima visita, controllo, spostamento appuntamento e conferma.
+   Frase utile: "Qui la segreteria guadagna velocità senza dover inseguire il professionista su WhatsApp per ogni micro-variazione."
 
 4. Dietista, 3 minuti
    Entra come `demo.dietista`.
    Mostra agenda, posta e chat.
-   Collega il calendario alla continuita del percorso.
-   Frase utile: "Il professionista non vede solo l orario: vede il contesto del paziente, il follow-up e la comunicazione operativa."
+   Collega il calendario alla continuità del percorso.
+   Frase utile: "Il professionista non vede solo l’orario: vede il contesto del paziente, il follow-up e la comunicazione operativa."
 
 5. OTP e sicurezza, 1 minuto
    Quando serve, fai vedere il passaggio OTP con `2510`.
-   Frase utile: "L accesso resta semplice per il team, ma abbastanza controllato da non lasciare account sensibili aperti senza verifica."
+   Frase utile: "L’accesso resta semplice per il team, ma abbastanza controllato da non lasciare account sensibili aperti senza verifica."
 
 6. Chiusura, 90 secondi
    Riporta il discorso sul valore.
-   Frase utile: "Il beneficio non e solo prenotare meglio. E lavorare meglio come studio, con meno caos, meno no-show e piu continuita col paziente."
+   Frase utile: "Il beneficio non è solo prenotare meglio. È lavorare meglio come studio, con meno caos, meno no-show e più continuità col paziente."
 
 ## Cose da far notare
 
 - le prime visite e i controlli ricorrenti stanno nello stesso flusso
-- la segreteria puo lavorare bene senza invadere il lavoro clinico
-- piu professionisti convivono nella stessa struttura senza perdere ordine
-- reminder, messaggi e accesso sicuro sono gia dentro il prodotto
+- la segreteria può lavorare bene senza invadere il lavoro clinico
+- più professionisti convivono nella stessa struttura senza perdere ordine
+- reminder, messaggi e accesso sicuro sono già dentro il prodotto
 
 ## Domande da aspettarsi
 
-- "Si puo adattare ai nostri ruoli?"
-  Risposta utile: "Si, la struttura ruoli e gia pronta e si puo rifinire nel layer visibile."
+- "Si può adattare ai nostri ruoli?"
+  Risposta utile: "Sì, la struttura ruoli è già pronta e si può rifinire nel layer visibile."
 
 - "Serve cambiare il nostro modo di lavorare?"
   Risposta utile: "No, il valore e proprio prendere il flusso attuale e togliere passaggi sparsi tra telefono, fogli e chat."
 
-- "E adatto a uno studio piccolo?"
-  Risposta utile: "E proprio il caso migliore: quando siete in 2 o 3 persone, ogni passaggio perso pesa di piu e il ritorno si sente subito."
+- "È adatto a uno studio piccolo?"
+  Risposta utile: "È proprio il caso migliore: quando siete in 2 o 3 persone, ogni passaggio perso pesa di più e il ritorno si sente subito."
 
 ## Piano B se qualcosa rallenta
 
-- se una schermata e lenta, torna subito su agenda o posta: sono le aree con piu valore percepito
+- se una schermata e lenta, torna subito su agenda o posta: sono le aree con più valore percepito
 - se non vuoi mostrare OTP, basta raccontarlo e continuare sul valore operativo
 - se il cliente chiede numeri, insisti su tempo risparmiato, riduzione errori e riduzione no-show

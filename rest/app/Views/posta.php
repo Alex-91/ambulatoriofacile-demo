@@ -139,7 +139,7 @@ $mkListUrl = function(array $params) use ($listUrl): string {
   $clean = [];
   foreach ($params as $k => $v) {
     if ($v === null) continue;
-    if ($v === '' && $k !== 'q') continue; // q puÃ² essere ''
+    if ($v === '' && $k !== 'q') continue; // q può essere ''
     $clean[$k] = $v;
   }
   return $listUrl . (empty($clean) ? '' : ('?' . http_build_query($clean)));
@@ -219,14 +219,14 @@ $threadQs = http_build_query($threadParams);
                   <?php
                     $searchParams = $baseParams;
                     $searchParams['page'] = 1;
-                    // q sarÃ  l'input visibile, gli altri hidden
+                    // q sarà l'input visibile, gli altri hidden
                     foreach ($searchParams as $k => $v) {
                       if ($k === 'q') continue;
                       echo '<input type="hidden" name="'.esc($k).'" value="'.esc((string)$v).'">';
                     }
                   ?>
                   <div class="has-feedback" style="max-width:180px;">
-                    <input type="text" name="q" class="form-control input-sm" placeholder="Cercaâ€¦"
+                    <input type="text" name="q" class="form-control input-sm" placeholder="Cerca…"
                            value="<?= esc($q ?? '') ?>">
                     <span class="glyphicon glyphicon-search form-control-feedback"></span>
                   </div>
@@ -404,7 +404,7 @@ $threadQs = http_build_query($threadParams);
                 <?php if ($pages > 1): ?>
                   <div style="padding:10px 15px; display:flex; justify-content:space-between; align-items:center; border-top:1px solid #f4f4f4;">
                     <div style="color:#777;">
-                      Totale: <?= (int)$total ?> â€” Pagina <?= (int)$page ?> di <?= (int)$pages ?>
+                      Totale: <?= (int)$total ?> — Pagina <?= (int)$page ?> di <?= (int)$pages ?>
                     </div>
 
                     <ul class="pagination pagination-sm" style="margin:0;">
@@ -415,7 +415,7 @@ $threadQs = http_build_query($threadParams);
                         $start = max(1, $page-2);
                         $end   = min($pages, $page+2);
 
-                        // se ci sono molte pagine, allarga un po' la finestra
+                        // Se ci sono molte pagine, allarga un po’ la finestra
                         if ($pages <= 7) { $start = 1; $end = $pages; }
                       ?>
 
@@ -425,7 +425,7 @@ $threadQs = http_build_query($threadParams);
 
                       <?php if ($start > 1): ?>
                         <li><a href="<?= esc($mkListUrl(array_merge($baseParams, ['page'=>1]))) ?>">1</a></li>
-                        <?php if ($start > 2): ?><li class="disabled"><span>â€¦</span></li><?php endif; ?>
+                        <?php if ($start > 2): ?><li class="disabled"><span>…</span></li><?php endif; ?>
                       <?php endif; ?>
 
                       <?php for ($p=$start; $p<=$end; $p++): ?>
@@ -435,7 +435,7 @@ $threadQs = http_build_query($threadParams);
                       <?php endfor; ?>
 
                       <?php if ($end < $pages): ?>
-                        <?php if ($end < $pages-1): ?><li class="disabled"><span>â€¦</span></li><?php endif; ?>
+                        <?php if ($end < $pages-1): ?><li class="disabled"><span>…</span></li><?php endif; ?>
                         <li><a href="<?= esc($mkListUrl(array_merge($baseParams, ['page'=>$pages]))) ?>"><?= (int)$pages ?></a></li>
                       <?php endif; ?>
 
@@ -565,7 +565,7 @@ $threadQs = http_build_query($threadParams);
       $("#bulkForm").attr("action", "<?= site_url('messaggi/elimina-multiplo') ?>").submit();
     });
 
-    // submit bulkForm: conferma solo quando Ã¨ delete multiplo
+    // submit bulkForm: conferma solo quando è delete multiplo
     $("#bulkForm").on("submit", function(e){
       if ($(".mailbox-messages input[name='ids[]']:checked").length === 0){
         e.preventDefault();
@@ -615,4 +615,3 @@ $threadQs = http_build_query($threadParams);
 
 </body>
 </html>
-

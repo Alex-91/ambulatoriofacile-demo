@@ -11,7 +11,7 @@ La demo deve:
 
 - sembrare un prodotto vendibile
 - evitare riferimenti a clienti reali
-- riusare il piu possibile cio che il software gia fa bene
+- riusare il più possibile cio che il software già fa bene
 - non introdurre rischi per la versione attuale in uso
 
 ## Principio guida
@@ -72,7 +72,7 @@ Da mostrare:
 1. login
 2. dashboard moduli
 3. agenda del giorno
-4. ricerca disponibilita
+4. ricerca disponibilità
 5. inserimento appuntamento
 6. reminder
 7. ticket o riepilogo appuntamento
@@ -82,7 +82,7 @@ Da mostrare:
 Da mostrare:
 
 1. gestione staff
-2. visibilita moduli
+2. visibilità moduli
 3. collegamenti tra operatori
 4. posta interna
 5. chat
@@ -180,7 +180,7 @@ Sport rehab:
 2. censire tutti i punti di branding e linguaggio esposto
 3. preparare i due profili verticali
 4. definire dataset finto
-5. adattare login, home e titoli piu visibili
+5. adattare login, home e titoli più visibili
 6. creare script demo guidato
 
 ## Deliverable minimi
@@ -193,7 +193,7 @@ Per considerare pronta la demo commerciale servono almeno:
 - dataset demo pianificato
 - script di presentazione
 
-## Output gia pronti in questo repository
+## Output già pronti in questo repository
 
 Questa roadmap lavora insieme a:
 

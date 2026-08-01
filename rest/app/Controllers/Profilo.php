@@ -36,7 +36,7 @@ class Profilo extends BaseController
     $cliente = $clients->getClientDecryptedByUserId((int)$me->id_user);
 
     // =========================
-    // 2) SE NON ÃƒË† CLIENTE, PROVO PERSONALE
+    // 2) SE NON È CLIENTE, PROVO PERSONALE
     // =========================
     $personaleRow = null;
     $doctors = [];
@@ -93,7 +93,7 @@ class Profilo extends BaseController
         'personale'        => $personaleRow ?: null,
         'gruppi'           => $gruppi,
 
-        // device: la view usa $activeDevice Ã¢â€ â€™ alias senza cambiare view
+        // device: la view usa $activeDevice → alias senza cambiare view
         'activeMobile'     => $activeMobile ?: null,
         'hasMobile'        => !empty($activeMobile),
         'activeDevice'     => $activeMobile ?: null,
@@ -158,7 +158,7 @@ private function buildHeaderMenuItemsForCurrentUser(): array
     $cd      = new \App\Models\ClientDoctorModel(); // usato per setDoctorForClient
     $users   = new \App\Models\UsersModel();
 
-    // provo a capire se ÃƒÂ¨ paziente
+    // provo a capire se è paziente
     $cliente = $clients->getClientDecryptedByUserId((int)$me->id_user);
 
     // =========================
@@ -205,7 +205,7 @@ private function buildHeaderMenuItemsForCurrentUser(): array
         if ($userConflict) {
             return redirect()->back()
                 ->withInput()
-                ->with('error', 'Esiste gia un altro account con questo codice fiscale.');
+                ->with('error', 'Esiste già un altro account con questo codice fiscale.');
         }
 
         $idDot = (int)($this->request->getPost('id_dot') ?? 0);

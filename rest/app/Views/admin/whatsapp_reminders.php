@@ -146,7 +146,7 @@ function monitor_run_detail_rows(?array $run): array
         'sent_details' => ['status' => 'Inviato', 'class' => 'label-success'],
         'failed_details' => ['status' => 'Errore invio', 'class' => 'label-danger'],
         'skipped_invalid_details' => ['status' => 'Numero non valido', 'class' => 'label-warning'],
-        'already_sent_details' => ['status' => 'Gia inviato', 'class' => 'label-default'],
+        'already_sent_details' => ['status' => 'Già inviato', 'class' => 'label-default'],
     ];
 
     $rows = [];
@@ -395,7 +395,7 @@ if (empty($ultramsg['available'])) {
     $gatewayHelp = 'Stato gateway: ' . ($ultramsgInstanceStatus !== '-' ? $ultramsgInstanceStatus : 'non disponibile');
 } elseif ($ultramsgInstanceStatus !== '-') {
     $gatewayValue = ucfirst($ultramsgInstanceStatus);
-    $gatewayHelp = 'Verifica se il gateway e` pronto per l invio.';
+    $gatewayHelp = 'Verifica se il gateway e` pronto per l’invio.';
 }
 
 $recentErrorCount = count($cron['recent_errors'] ?? []);
@@ -447,7 +447,7 @@ $summaryLines = [];
 $summaryAlertClass = 'alert-success';
 
 if (!empty($cron['running_automatic_run'])) {
-    $summaryLines[] = 'L invio automatico e` in corso e la pagina si aggiorna da sola ogni ' . $autoRefreshSeconds . ' secondi.';
+    $summaryLines[] = 'L’invio automatico e` in corso e la pagina si aggiorna da sola ogni ' . $autoRefreshSeconds . ' secondi.';
 }
 
 if (empty($cron['ran_today_automatic']) && empty($cron['running_automatic_run'])) {
@@ -456,10 +456,10 @@ if (empty($cron['ran_today_automatic']) && empty($cron['running_automatic_run'])
 }
 
 if ($automaticRun && ($automaticRun['status'] ?? '') === 'fatal') {
-    $summaryLines[] = 'L ultimo run automatico si e` fermato con errore.';
+    $summaryLines[] = 'L’ultimo run automatico si e` fermato con errore.';
     $summaryAlertClass = 'alert-danger';
 } elseif ($automaticRun && ($automaticRun['status'] ?? '') === 'completed_with_errors') {
-    $summaryLines[] = 'L ultimo run automatico e` terminato con errori di invio.';
+    $summaryLines[] = 'L’ultimo run automatico e` terminato con errori di invio.';
     if ($summaryAlertClass === 'alert-success') {
         $summaryAlertClass = 'alert-warning';
     }
@@ -473,7 +473,7 @@ if (!empty($cron['running_manual_run'])) {
 }
 
 if (is_array($launchFeedback) && empty($launchFeedback['ok'])) {
-    $summaryLines[] = 'L ultimo tentativo di avvio manuale non e` partito correttamente.';
+    $summaryLines[] = 'L’ultimo tentativo di avvio manuale non è` partito correttamente.';
     $summaryAlertClass = 'alert-danger';
 }
 
@@ -792,7 +792,7 @@ if ($summaryLines === []) {
                           <div class="run-hero__kicker">Automatico giornaliero</div>
                           <h3 class="run-hero__title"><?= esc($automaticStatusMeta['text']) ?></h3>
                           <p class="run-hero__sub">
-                            <?= $automaticRun ? esc('Target: ' . monitor_run_target_dates($automaticRun) . ' | Modalita: ' . monitor_run_mode_label($automaticRun)) : 'Nessun run automatico disponibile.' ?>
+                            <?= $automaticRun ? esc('Target: ' . monitor_run_target_dates($automaticRun) . ' | Modalità: ' . monitor_run_mode_label($automaticRun)) : 'Nessun run automatico disponibile.' ?>
                           </p>
                         </div>
                         <span class="label <?= esc($automaticStatusMeta['class']) ?>"><?= esc($automaticStatusMeta['text']) ?></span>
@@ -826,7 +826,7 @@ if ($summaryLines === []) {
                           <div class="run-hero__kicker">Ultimo lancio manuale</div>
                           <h3 class="run-hero__title"><?= esc($manualStatusMeta['text']) ?></h3>
                           <p class="run-hero__sub">
-                            <?= $manualRun ? esc('Target: ' . monitor_run_target_dates($manualRun) . ' | Modalita: ' . monitor_run_mode_label($manualRun)) : 'Nessun run manuale disponibile.' ?>
+                            <?= $manualRun ? esc('Target: ' . monitor_run_target_dates($manualRun) . ' | Modalità: ' . monitor_run_mode_label($manualRun)) : 'Nessun run manuale disponibile.' ?>
                           </p>
                         </div>
                         <span class="label <?= esc($manualStatusMeta['class']) ?>"><?= esc($manualStatusMeta['text']) ?></span>
@@ -929,8 +929,8 @@ if ($summaryLines === []) {
                   </div>
 
                   <div class="run-meta-grid">
-                    <div class="run-meta-grid__item"><strong>Partito oggi</strong><?= !empty($cron['ran_today_automatic']) ? 'Si' : 'No' ?></div>
-                    <div class="run-meta-grid__item"><strong>Modalita</strong><?= esc(monitor_run_mode_label($automaticRun)) ?></div>
+                    <div class="run-meta-grid__item"><strong>Partito oggi</strong><?= !empty($cron['ran_today_automatic']) ? 'Sì' : 'No' ?></div>
+                    <div class="run-meta-grid__item"><strong>Modalità</strong><?= esc(monitor_run_mode_label($automaticRun)) ?></div>
                     <div class="run-meta-grid__item"><strong>Canale</strong><?= esc(monitor_run_channel_label($automaticRun)) ?></div>
                     <div class="run-meta-grid__item"><strong>Pausa</strong><?= monitor_number(monitor_run_delay_ms($automaticRun)) ?> ms</div>
                     <div class="run-meta-grid__item"><strong>Avviato</strong><?= esc(monitor_run_started_at($automaticRun)) ?></div>
@@ -979,7 +979,7 @@ if ($summaryLines === []) {
                     <div class="small-box bg-gray">
                       <div class="inner">
                         <h3><?= monitor_number($automaticCounts['already_sent']) ?></h3>
-                        <p>Gia inviati</p>
+                        <p>Già inviati</p>
                       </div>
                       <div class="icon"><i class="fa fa-history"></i></div>
                     </div>
@@ -1012,7 +1012,7 @@ if ($summaryLines === []) {
                           <div class="metric-kv"><strong>Paziente:</strong> <?= esc((string)($automaticLastEvent['patient'] ?: '-')) ?></div>
                           <div class="metric-kv"><strong>Destinatario:</strong> <?= esc((string)($automaticLastEvent['recipient'] ?: '-')) ?></div>
                         <?php else: ?>
-                          <p class="text-muted">Nessun evento disponibile per l ultimo run automatico.</p>
+                          <p class="text-muted">Nessun evento disponibile per l’ultimo run automatico.</p>
                         <?php endif; ?>
                       </div>
                     </div>
@@ -1032,10 +1032,10 @@ if ($summaryLines === []) {
                           <div class="metric-kv"><strong>Inviati:</strong> <?= monitor_number($automaticSendCounts['sent']) ?></div>
                           <div class="metric-kv"><strong>Falliti:</strong> <?= monitor_number($automaticSendCounts['failed']) ?></div>
                           <div class="metric-kv"><strong>Scarti numero:</strong> <?= monitor_number($automaticSendCounts['invalid']) ?></div>
-                          <div class="metric-kv"><strong>Gia inviati:</strong> <?= monitor_number($automaticSendCounts['already_sent']) ?></div>
+                          <div class="metric-kv"><strong>Già inviati:</strong> <?= monitor_number($automaticSendCounts['already_sent']) ?></div>
                           <div class="metric-kv"><strong>Terminato:</strong> <?= esc(monitor_run_finished_at($automaticSendRun)) ?></div>
                         <?php else: ?>
-                          <p class="text-muted">Non risulta ancora nessun invio automatico in modalita send.</p>
+                          <p class="text-muted">Non risulta ancora nessun invio automatico in modalità send.</p>
                         <?php endif; ?>
                       </div>
                     </div>
@@ -1093,7 +1093,7 @@ if ($summaryLines === []) {
                           </tr>
                         <?php endforeach; ?>
                         <?php if ($automaticRows === []): ?>
-                          <tr><td colspan="7" class="text-muted">Nessun dettaglio disponibile per l ultimo run automatico.</td></tr>
+                          <tr><td colspan="7" class="text-muted">Nessun dettaglio disponibile per l’ultimo run automatico.</td></tr>
                         <?php endif; ?>
                       </tbody>
                     </table>
@@ -1108,7 +1108,7 @@ if ($summaryLines === []) {
                     <?php if ($automaticLogLines !== []): ?>
                       <div class="log-tail"><?= esc(implode("\n", $automaticLogLines)) ?></div>
                     <?php else: ?>
-                      <p class="text-muted">Nessun estratto log disponibile per l ultimo run automatico.</p>
+                      <p class="text-muted">Nessun estratto log disponibile per l’ultimo run automatico.</p>
                     <?php endif; ?>
                   </div>
                 </div>
@@ -1135,7 +1135,7 @@ if ($summaryLines === []) {
                       <div class="row">
                         <div class="col-md-3">
                           <div class="form-group">
-                            <label for="mode">Modalita</label>
+                            <label for="mode">Modalità</label>
                             <select name="mode" id="mode" class="form-control">
                               <option value="dry-run">Controllo senza invio</option>
                               <option value="send">Invio reale</option>
@@ -1155,7 +1155,7 @@ if ($summaryLines === []) {
                           <div class="form-group">
                             <label for="target_date">Giorno appuntamenti</label>
                             <input type="date" name="target_date" id="target_date" class="form-control" value="<?= esc((string)($manualDefaults['target_date'] ?? $manualDefaults['start_date'] ?? '')) ?>">
-                            <p class="help-block" style="margin-bottom:0;">Prima dell avvio ti verra chiesta una conferma esplicita della data selezionata.</p>
+                            <p class="help-block" style="margin-bottom:0;">Prima dell’avvio ti verrà chiesta una conferma esplicita della data selezionata.</p>
                           </div>
                         </div>
                       </div>
@@ -1228,7 +1228,7 @@ if ($summaryLines === []) {
                   </div>
 
                   <div class="run-meta-grid">
-                    <div class="run-meta-grid__item"><strong>Modalita</strong><?= esc(monitor_run_mode_label($manualRun)) ?></div>
+                    <div class="run-meta-grid__item"><strong>Modalità</strong><?= esc(monitor_run_mode_label($manualRun)) ?></div>
                     <div class="run-meta-grid__item"><strong>Canale</strong><?= esc(monitor_run_channel_label($manualRun)) ?></div>
                     <div class="run-meta-grid__item"><strong>Avviato</strong><?= esc(monitor_run_started_at($manualRun)) ?></div>
                     <div class="run-meta-grid__item"><strong>Terminato</strong><?= esc(monitor_run_finished_at($manualRun)) ?></div>
@@ -1258,7 +1258,7 @@ if ($summaryLines === []) {
                           <?= esc('Target: ' . monitor_run_target_dates($manualDryRun)) ?><br>
                           Pronti: <?= monitor_number($manualDryCounts['ready']) ?> |
                           Scarti: <?= monitor_number($manualDryCounts['invalid']) ?> |
-                          Gia inviati: <?= monitor_number($manualDryCounts['already_sent']) ?>
+                          Già inviati: <?= monitor_number($manualDryCounts['already_sent']) ?>
                         </div>
                       <?php else: ?>
                         <div class="run-mini-card__help">Nessun controllo manuale registrato.</div>
@@ -1334,7 +1334,7 @@ if ($summaryLines === []) {
                           </tr>
                         <?php endforeach; ?>
                         <?php if ($manualRows === []): ?>
-                          <tr><td colspan="7" class="text-muted">Nessun dettaglio disponibile per l ultimo lancio manuale.</td></tr>
+                          <tr><td colspan="7" class="text-muted">Nessun dettaglio disponibile per l’ultimo lancio manuale.</td></tr>
                         <?php endif; ?>
                       </tbody>
                     </table>
@@ -1349,7 +1349,7 @@ if ($summaryLines === []) {
                     <?php if ($manualLogLines !== []): ?>
                       <div class="log-tail"><?= esc(implode("\n", $manualLogLines)) ?></div>
                     <?php else: ?>
-                      <p class="text-muted">Nessun estratto log disponibile per l ultimo lancio manuale.</p>
+                      <p class="text-muted">Nessun estratto log disponibile per l’ultimo lancio manuale.</p>
                     <?php endif; ?>
                   </div>
                 </div>
@@ -1368,7 +1368,7 @@ if ($summaryLines === []) {
                             <tr>
                               <th>Data target</th>
                               <th>Ultimo stato</th>
-                              <th>Ultima modalita</th>
+                              <th>Ultima modalità</th>
                               <th>Run</th>
                               <th>Inviati</th>
                               <th>Falliti</th>
@@ -1573,10 +1573,10 @@ if ($summaryLines === []) {
         <p>Stai per avviare il batch manuale con questi parametri:</p>
         <ul style="padding-left:18px; margin-bottom:10px;">
           <li><strong>Data appuntamenti:</strong> <span id="manualReminderConfirmDate">-</span></li>
-          <li><strong>Modalita:</strong> <span id="manualReminderConfirmMode">-</span></li>
+          <li><strong>Modalità:</strong> <span id="manualReminderConfirmMode">-</span></li>
           <li><strong>Canale:</strong> <span id="manualReminderConfirmChannel">-</span></li>
         </ul>
-        <p class="text-warning" style="margin-bottom:0;"><strong>Conferma solo se il giorno e corretto.</strong></p>
+        <p class="text-warning" style="margin-bottom:0;"><strong>Conferma solo se il giorno è corretto.</strong></p>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-default" data-dismiss="modal">Annulla</button>

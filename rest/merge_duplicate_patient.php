@@ -646,7 +646,7 @@ $targetUsername = (string)($targetClient['username'] ?? '');
 $usernamesDiffer = $sourceUsername !== '' && $targetUsername !== '' && strcasecmp($sourceUsername, $targetUsername) !== 0;
 
 echo "== MERGE DUPLICATE PATIENT ==\n";
-echo "Modalita             : " . ($apply ? 'APPLY' : 'DRY RUN') . "\n";
+echo "Modalità             : " . ($apply ? 'APPLY' : 'DRY RUN') . "\n";
 echo "Source client        : {$sourceClientId} (id_user=" . (int)($sourceClient['id_user'] ?? 0) . ", username={$sourceUsername})\n";
 echo "Target client        : {$targetClientId} (id_user=" . (int)($targetClient['id_user'] ?? 0) . ", username={$targetUsername})\n";
 echo "Source doctors       : " . implode(',', $sourceClient['doctor_ids']) . "\n";

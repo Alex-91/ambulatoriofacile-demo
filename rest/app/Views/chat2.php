@@ -74,7 +74,7 @@
                   <ul class="nav nav-pills nav-stacked">
                     <li><a href="#"><i class="fa fa-circle text-green"></i> Alice</a></li>
                     <li><a href="#"><i class="fa fa-circle text-green"></i> Marco</a></li>
-                    <li><a href="#"><i class="fa fa-circle text-muted"></i> Sara</a></li>
+                    <li><a href="#"><i class="fa fa-circle text-muted"></i> Sarà</a></li>
                   </ul>
                 </div>
               </div>
@@ -110,7 +110,7 @@
                         <span class="direct-chat-timestamp pull-left">11/08/2025 15:22</span>
                       </div>
                       <img class="direct-chat-img" src="https://i.pravatar.cc/64?img=1" alt="Tu">
-                      <div class="direct-chat-text">SÃ¬, tutto ok. Lo invio in posta tra poco.</div>
+                      <div class="direct-chat-text">Sì, tutto ok. Lo invio in posta tra poco.</div>
                     </div>
 
                     <div class="direct-chat-msg">
@@ -119,7 +119,7 @@
                         <span class="direct-chat-timestamp pull-right">11/08/2025 15:23</span>
                       </div>
                       <img class="direct-chat-img" src="https://i.pravatar.cc/64?img=11" alt="Marco">
-                      <div class="direct-chat-text">Perfetto, grazie! ðŸ‘Œ</div>
+                      <div class="direct-chat-text">Perfetto, grazie! 👌</div>
                     </div>
                   </div>
 
@@ -148,7 +148,7 @@
                         <a href="#">
                           <img class="contacts-list-img" src="https://i.pravatar.cc/64?img=2" alt="Sara">
                           <div class="contacts-list-info">
-                            <span class="contacts-list-name">Sara <small class="contacts-list-date pull-right">5 min fa</small></span>
+                            <span class="contacts-list-name">Sarà <small class="contacts-list-date pull-right">5 min fa</small></span>
                             <span class="contacts-list-msg">In pausa</span>
                           </div>
                         </a>

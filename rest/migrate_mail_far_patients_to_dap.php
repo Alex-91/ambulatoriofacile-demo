@@ -180,7 +180,7 @@ function renderWebUsage(): void
     <div class="box">
         <h1>Sync far05_pazienti -> dap02_clients / dap09_client_doctor</h1>
         <p>Questo step allinea i pazienti legacy di <code>far05_pazienti</code> dentro <code>dap02_clients</code> e collega ogni record al professionista corretto in <code>dap09_client_doctor</code>.</p>
-        <p>Lo script non usa piu nessun database legacy in modo implicito: <code>source-db</code> va indicato esplicitamente solo per una migrazione una tantum.</p>
+        <p>Lo script non usa più nessun database legacy in modo implicito: <code>source-db</code> va indicato esplicitamente solo per una migrazione una tantum.</p>
         <p>Il matching usa prima il codice fiscale, poi fallback prudente per medico su anagrafica + cellulare/email. I dati gia presenti in <code>mail</code> non vengono sovrascritti se non sono vuoti.</p>
         <p>I log e i report vengono salvati in <code>writable/dap_patient_sync</code>.</p>
     </div>
@@ -582,7 +582,7 @@ final class FarPatientsToDapSync
                         'insert_new_client',
                     ],
                     'registration' => 'I pazienti senza accesso restano con id_user nullo; la registrazione successiva aggancera dap01_users al profilo gia importato.',
-                    'multi_doctor_cf_policy' => 'Se un codice fiscale valido compare sotto piu dottori in far05, il merge automatico viene fermato e segnalato come conflitto, salvo il caso in cui tra i dottori legacy coinvolti ce ne sia uno solo attivo nel nuovo DB: in quel caso il paziente viene agganciato a quel dottore.',
+                    'multi_doctor_cf_policy' => 'Se un codice fiscale valido compare sotto più dottori in far05, il merge automatico viene fermato e segnalato come conflitto, salvo il caso in cui tra i dottori legacy coinvolti ce ne sia uno solo attivo nel nuovo DB: in quel caso il paziente viene agganciato a quel dottore.',
                 ],
                 'audit' => [],
                 'migration' => [],
@@ -1829,7 +1829,7 @@ final class FarPatientsToDapSync
         $lines[] = 'Sync far05_pazienti -> dap02_clients / dap09_client_doctor';
         $lines[] = '======================================================';
         $lines[] = 'Stato: ' . (string)($this->report['status'] ?? 'n/d');
-        $lines[] = 'Modalita: ' . (string)($this->report['mode'] ?? 'n/d');
+        $lines[] = 'Modalità: ' . (string)($this->report['mode'] ?? 'n/d');
         $lines[] = 'Database: ' . (string)($this->report['database'] ?? 'n/d');
         $lines[] = 'Inizio: ' . (string)($this->report['started_at'] ?? 'n/d');
         $lines[] = 'Fine: ' . (string)($this->report['finished_at'] ?? 'n/d');
@@ -1847,7 +1847,7 @@ final class FarPatientsToDapSync
             'source_far05_with_usable_cf' => 'far05 con CF usabile',
             'source_far05_without_usable_cf' => 'far05 senza CF usabile',
             'source_far05_distinct_usable_cf' => 'CF usabili distinti in far05',
-            'source_far05_multi_doctor_usable_cf' => 'CF usabili con piu dottori',
+            'source_far05_multi_doctor_usable_cf' => 'CF usabili con più dottori',
             'source_far05_multi_doctor_single_active_resolvable' => 'CF multi-dottore con un solo dottore attivo nel nuovo',
             'target_dap01_patient_users' => 'Utenti pazienti gia presenti in dap01',
             'target_dap02_total' => 'Clienti gia presenti in dap02',
@@ -1917,7 +1917,7 @@ final class FarPatientsToDapSync
 
         $html .= '<div class="box"><h1>Sync far05_pazienti -> dap02_clients / dap09_client_doctor</h1>'
             . '<p><strong>Stato:</strong> ' . $this->html((string)($this->report['status'] ?? 'n/d')) . '</p>'
-            . '<p><strong>Modalita:</strong> ' . $this->html((string)($this->report['mode'] ?? 'n/d')) . '</p>'
+            . '<p><strong>Modalità:</strong> ' . $this->html((string)($this->report['mode'] ?? 'n/d')) . '</p>'
             . '<p><strong>Database:</strong> ' . $this->html((string)($this->report['database'] ?? 'n/d')) . '</p>'
             . '<p><strong>Inizio:</strong> ' . $this->html((string)($this->report['started_at'] ?? 'n/d')) . '<br>'
             . '<strong>Fine:</strong> ' . $this->html((string)($this->report['finished_at'] ?? 'n/d')) . '</p>'
@@ -1931,7 +1931,7 @@ final class FarPatientsToDapSync
                 'source_far05_with_usable_cf' => 'far05 con CF usabile',
                 'source_far05_without_usable_cf' => 'far05 senza CF usabile',
                 'source_far05_distinct_usable_cf' => 'CF usabili distinti in far05',
-                'source_far05_multi_doctor_usable_cf' => 'CF usabili con piu dottori',
+                'source_far05_multi_doctor_usable_cf' => 'CF usabili con più dottori',
                 'source_far05_multi_doctor_single_active_resolvable' => 'CF multi-dottore con un solo dottore attivo nel nuovo',
                 'target_dap01_patient_users' => 'Utenti pazienti gia presenti in dap01',
                 'target_dap02_total' => 'Clienti gia presenti in dap02',

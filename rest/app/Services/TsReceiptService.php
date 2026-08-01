@@ -84,13 +84,13 @@ class TsReceiptService
 
         $existingReceipt = $receipts->findLatestForDocumentAndType($documentId, 'pdf', $protocol);
         if (is_array($existingReceipt) && is_file((string) ($existingReceipt['storage_path'] ?? ''))) {
-            $supportReference = $supportLog->finish('success', 'Ricevuta TS gia disponibile in cache locale.', [
+            $supportReference = $supportLog->finish('success', 'Ricevuta TS già disponibile in cache locale.', [
                 'receipt' => $this->buildReceiptLogContext($existingReceipt),
                 'cached' => true,
             ]);
             return [
                 'status' => 'cached',
-                'message' => 'Ricevuta TS gia disponibile localmente.',
+                'message' => 'Ricevuta TS già disponibile localmente.',
                 'receipt' => $existingReceipt,
                 'document' => $document,
                 'support_log' => $supportReference,
@@ -118,7 +118,7 @@ class TsReceiptService
                 'document' => $this->buildDocumentLogContext($document),
                 'profile' => $this->buildProfileLogContext($profile),
             ]);
-            throw new \RuntimeException('Il profilo TS collegato al documento non e attivo.');
+            throw new \RuntimeException('Il profilo TS collegato al documento non è attivo.');
         }
 
         $supportLog->step('profile_loaded', 'Profilo TS collegato al documento risolto per il recupero ricevuta.', [
@@ -190,7 +190,7 @@ class TsReceiptService
 
             $receipt = $receiptId > 0 ? $receipts->find($receiptId) : null;
             if (!is_array($receipt)) {
-                throw new \RuntimeException('Ricevuta TS salvata ma non piu reperibile.');
+                throw new \RuntimeException('Ricevuta TS salvata ma non più reperibile.');
             }
 
             $supportReference = $supportLog->finish('success', 'Ricevuta TS recuperata con successo.', [
