@@ -105,6 +105,7 @@
                             </div>
                         </div>
                         <div class="box-body">
+                            <form id="formCercaPazienti" action="#" method="get">
                             <div class="row" style="margin-bottom:15px;">
                                 <div class="col-md-4">
                                     <label>Medico</label>
@@ -129,11 +130,12 @@
 
                                 <div class="col-md-3">
                                     <label>&nbsp;</label>
-                                    <button type="button" class="btn btn-primary btn-block" id="btnCercaPazienti">
+                                    <button type="submit" class="btn btn-primary btn-block" id="btnCercaPazienti">
                                         <i class="fa fa-search"></i> Cerca
                                     </button>
                                 </div>
                             </div>
+                            </form>
 
                             <div class="table-responsive">
                                 <table class="table table-bordered table-striped">
@@ -692,18 +694,13 @@ function eliminaPaziente(idPaziente) {
 $(function() {
     caricaPazienti(1);
 
-    $('#btnCercaPazienti').on('click', function() {
+    $('#formCercaPazienti').on('submit', function(e) {
+        e.preventDefault();
         caricaPazienti(1);
     });
 
     $('#id_dot').on('change', function() {
         caricaPazienti(1);
-    });
-
-    $('#searchTerm').on('keyup', function(e) {
-        if (e.keyCode === 13) {
-            caricaPazienti(1);
-        }
     });
 
     $('#btnNuovoPaziente').on('click', function() {
