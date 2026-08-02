@@ -36,7 +36,7 @@ $isLinkActive = static function (string $href) use ($normalizePath, $currentPath
     return $currentPath === $itemPath || str_starts_with($currentPath, $itemPath . '/');
 };
 ?>
-<div class="box box-solid" style="margin-bottom:0 !important">
+<div class="box box-solid admin-sidebar-menu" style="margin-bottom:0 !important">
   <div class="box-header with-border">
     <h3 class="box-title">Menu</h3>
     <?php if ($tenantName !== ''): ?>

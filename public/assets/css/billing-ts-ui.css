@@ -882,7 +882,6 @@ body.billing-ts-ui.module-sistema-ts {
 }
 @media (max-width: 991px) {
   .billing-ts-ui .billing-settings-content > .row { margin: 0; }
-  .billing-ts-ui .billing-settings-content > .row > .col-md-3 { display: none; }
   .billing-ts-ui .billing-settings-content > .row > .billing-settings-main { float: none; width: 100%; padding: 0; }
   .billing-ts-ui .billing-settings-builder { grid-template-columns: 1fr; }
   .billing-ts-ui .billing-settings-editor { border-right: 0; border-bottom: 1px solid var(--af-border); }
@@ -1025,7 +1024,6 @@ body.billing-ts-ui.module-sistema-ts {
 }
 @media (max-width: 991px) {
   .billing-ts-ui .ts-dashboard-layout { grid-template-columns: 1fr; }
-  .billing-ts-ui .ts-dashboard-nav { display: none; }
   .billing-ts-ui .ts-pipeline { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; }
   .billing-ts-ui .ts-pipeline-arrow { display: none; }
 }
@@ -1140,8 +1138,6 @@ body.billing-ts-ui.module-sistema-ts {
 }
 @media (max-width: 991px) {
   .billing-ts-ui .billing-config-layout { grid-template-columns: 1fr; }
-  .billing-ts-ui .billing-config-nav { display: none; }
-  .billing-ts-ui.ts-settings-page .content > .row > .col-md-3 { display: none; }
   .billing-ts-ui.ts-settings-page .content > .row > .col-md-9 { float: none; width: 100%; }
 }
 @media (max-width: 767px) {
@@ -1161,4 +1157,131 @@ body.billing-ts-ui.module-sistema-ts {
   .billing-ts-ui.ts-settings-page .content-header { margin: 16px 12px 0; padding: 16px; }
   .billing-ts-ui.ts-settings-page .content { padding-left: 12px; padding-right: 12px; }
   .billing-ts-ui.ts-settings-page .quick-grid { grid-template-columns: 1fr; }
+}
+
+/* Keep the shared administrative menu identical to the established AdminLTE
+ * sidebar. Module card, button and navigation styles must not restyle it. */
+.billing-ts-ui .admin-sidebar-menu {
+  overflow: visible;
+  border: 0 !important;
+  border-top: 0 !important;
+  border-radius: 3px !important;
+  background: #fff !important;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, .1);
+  color: #444;
+  font-family: 'Source Sans Pro', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.42857143;
+}
+.billing-ts-ui .admin-sidebar-menu > .box-header {
+  position: relative;
+  display: block;
+  min-height: 0;
+  padding: 10px;
+  border-bottom: 1px solid #f4f4f4 !important;
+  background: #fff;
+}
+.billing-ts-ui .admin-sidebar-menu > .box-header .box-title {
+  display: inline-block;
+  margin: 0;
+  color: #444;
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 1;
+}
+.billing-ts-ui .admin-sidebar-menu > .box-header > .box-tools {
+  position: absolute;
+  top: 5px;
+  right: 10px;
+}
+.billing-ts-ui .admin-sidebar-menu > .box-body {
+  padding: 0;
+  border-radius: 0 0 3px 3px;
+}
+.billing-ts-ui .admin-sidebar-menu .text-muted { color: #777 !important; }
+.billing-ts-ui .admin-sidebar-menu .nav-pills.nav-stacked {
+  margin-right: 0;
+  margin-bottom: 0;
+  margin-left: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.billing-ts-ui .admin-sidebar-menu .nav-pills.nav-stacked > li,
+.billing-ts-ui .admin-sidebar-menu .nav-pills.nav-stacked > li + li {
+  margin: 0;
+  border-bottom: 1px solid #f4f4f4;
+}
+.billing-ts-ui .admin-sidebar-menu .nav-pills.nav-stacked > li:last-of-type { border-bottom: 0; }
+.billing-ts-ui .admin-sidebar-menu .nav-pills.nav-stacked > li > a {
+  padding: 10px 15px;
+  border-top: 0;
+  border-left: 3px solid transparent;
+  border-radius: 0;
+  color: #444;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.42857143;
+}
+.billing-ts-ui .admin-sidebar-menu .nav-pills.nav-stacked > li > a:hover,
+.billing-ts-ui .admin-sidebar-menu .nav-pills.nav-stacked > li > a:focus {
+  background: #eee;
+  color: #444;
+}
+.billing-ts-ui .admin-sidebar-menu .nav-pills.nav-stacked > li.active > a,
+.billing-ts-ui .admin-sidebar-menu .nav-pills.nav-stacked > li.active > a:hover,
+.billing-ts-ui .admin-sidebar-menu .nav-pills.nav-stacked > li.active > a:focus {
+  border-left-color: #2c8895;
+  background: #2c8895;
+  color: #fff;
+  font-weight: 600;
+}
+.billing-ts-ui .admin-sidebar-menu .label {
+  border: 0;
+  border-radius: .25em;
+  font-size: 75%;
+  font-weight: 700;
+}
+.billing-ts-ui .admin-sidebar-menu .btn {
+  min-height: 0;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.42857143;
+  transform: none;
+  transition: none;
+}
+.billing-ts-ui .admin-sidebar-menu .btn:hover,
+.billing-ts-ui .admin-sidebar-menu .btn:active,
+.billing-ts-ui .admin-sidebar-menu .btn:focus { transform: none; }
+.billing-ts-ui .admin-sidebar-menu .btn-info {
+  border-color: #46b8da;
+  background: #5bc0de;
+  color: #fff;
+}
+.billing-ts-ui .admin-sidebar-menu .btn-info:hover,
+.billing-ts-ui .admin-sidebar-menu .btn-info:focus,
+.billing-ts-ui .admin-sidebar-menu .btn-info:active {
+  border-color: #269abc;
+  background: #31b0d5;
+  color: #fff;
+}
+.billing-ts-ui .admin-sidebar-menu .btn-box-tool {
+  min-height: 0;
+  margin: 0;
+  padding: 5px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none !important;
+  color: #97a0b3;
+  font-size: 12px;
+}
+.billing-ts-ui .admin-sidebar-menu .btn-box-tool:hover,
+.billing-ts-ui .admin-sidebar-menu .btn-box-tool:focus {
+  background: rgba(0, 0, 0, .1) !important;
+  color: #606c84;
 }
