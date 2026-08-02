@@ -371,8 +371,13 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
                   <?php if ($serviceCatalog !== []): ?>
                     <datalist id="billing-service-catalog">
                       <?php foreach ($serviceCatalog as $service): ?>
-                        <?php $serviceDescription = trim((string) ($service['description'] ?? '')); ?>
-                        <option value="<?= esc($serviceDescription) ?>" label="<?= esc('€ ' . number_format((float) ($service['unit_amount'] ?? 0), 2, ',', '.')) ?>"></option>
+                        <?php
+                          $serviceDescription = trim((string) ($service['description'] ?? ''));
+                          $serviceOptionLabel = ($service['source'] ?? '') === 'visit_type'
+                              ? 'Tipo visita'
+                              : '€ ' . number_format((float) ($service['unit_amount'] ?? 0), 2, ',', '.');
+                        ?>
+                        <option value="<?= esc($serviceDescription) ?>" label="<?= esc($serviceOptionLabel) ?>"></option>
                       <?php endforeach; ?>
                     </datalist>
                   <?php endif; ?>

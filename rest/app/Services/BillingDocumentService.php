@@ -9,6 +9,9 @@ use Config\Database;
 
 class BillingDocumentService
 {
+    private const VISIT_TYPES_TABLE = 'dap44_agenda_tipi_visita';
+    private const FORM_SERVICE_CATALOG_LIMIT = 200;
+
     private \CodeIgniter\Database\BaseConnection $db;
     private BillingDocumentSettingsService $settings;
     private BillingTenantDatabaseContextService $tenantDbContext;
@@ -175,6 +178,7 @@ class BillingDocumentService
         }
 
         $context = $this->resolveTenantDocumentContext($tenantId);
+        $template = $this->mergeActiveVisitTypesIntoServiceCatalog($template, $context['db']);
         /** @var BillingDocumentModel $documents */
         $documents = $context['documents'];
         $document = $documentId > 0 ? $documents->find($documentId) : null;
@@ -368,6 +372,90 @@ class BillingDocumentService
     private function resolveTenantDocumentContext(int $tenantId): array
     {
         return $this->tenantDbContext->resolveTenantContext($tenantId);
+    }
+
+    /**
+     * Espone nell'autocomplete della fattura anche i tipi visita attivi.
+     * Le prestazioni configurate in Fatturazione restano prioritarie, così un
+     * eventuale importo già salvato non viene sostituito dal tipo visita.
+     *
+     * @param array<string, mixed> $template
+     * @return array<string, mixed>
+     */
+    private function mergeActiveVisitTypesIntoServiceCatalog(
+        array $template,
+        \CodeIgniter\Database\BaseConnection $db
+    ): array {
+        $catalog = is_array($template['service_catalog'] ?? null)
+            ? array_values($template['service_catalog'])
+            : [];
+        $knownDescriptions = [];
+
+        foreach ($catalog as $service) {
+            if (!is_array($service)) {
+                continue;
+            }
+
+            $key = $this->serviceCatalogDescriptionKey((string) ($service['description'] ?? ''));
+            if ($key !== '') {
+                $knownDescriptions[$key] = true;
+            }
+        }
+
+        try {
+            if (
+                !$db->tableExists(self::VISIT_TYPES_TABLE)
+                || !$db->fieldExists('nome', self::VISIT_TYPES_TABLE)
+            ) {
+                $template['service_catalog'] = $catalog;
+                return $template;
+            }
+
+            $builder = $db->table(self::VISIT_TYPES_TABLE)->select('nome');
+            if ($db->fieldExists('attivo', self::VISIT_TYPES_TABLE)) {
+                $builder->where('attivo', 1);
+            }
+            if ($db->fieldExists('ordinamento', self::VISIT_TYPES_TABLE)) {
+                $builder->orderBy('ordinamento', 'ASC');
+            }
+
+            $visitTypes = $builder
+                ->orderBy('nome', 'ASC')
+                ->get()
+                ->getResultArray();
+
+            foreach ($visitTypes as $visitType) {
+                $description = trim((string) ($visitType['nome'] ?? ''));
+                $key = $this->serviceCatalogDescriptionKey($description);
+                if ($key === '' || isset($knownDescriptions[$key])) {
+                    continue;
+                }
+
+                $catalog[] = [
+                    'description' => $description,
+                    'unit_amount' => '0.00',
+                    'source' => 'visit_type',
+                ];
+                $knownDescriptions[$key] = true;
+
+                if (count($catalog) >= self::FORM_SERVICE_CATALOG_LIMIT) {
+                    break;
+                }
+            }
+        } catch (\Throwable $e) {
+            log_message('warning', 'BillingDocumentService visit type catalog merge failed: {message}', [
+                'message' => $e->getMessage(),
+            ]);
+        }
+
+        $template['service_catalog'] = $catalog;
+        return $template;
+    }
+
+    private function serviceCatalogDescriptionKey(string $description): string
+    {
+        $normalized = trim((string) (preg_replace('/\s+/u', ' ', $description) ?? ''));
+        return $normalized === '' ? '' : mb_strtolower($normalized, 'UTF-8');
     }
 
     private function isDocumentsTableAvailable(\CodeIgniter\Database\BaseConnection $db): bool
