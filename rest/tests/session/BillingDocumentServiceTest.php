@@ -8,12 +8,70 @@ use App\Services\BillingTenantSchemaService;
 use App\Services\TsFeatureService;
 use CodeIgniter\Database\BaseConnection;
 use CodeIgniter\Test\CIUnitTestCase;
+use Config\Database;
 
 /**
  * @internal
  */
 final class BillingDocumentServiceTest extends CIUnitTestCase
 {
+    public function testSearchServiceCatalogReturnsSavedServicesAndActiveVisitTypes(): void
+    {
+        $settings = $this->getMockBuilder(BillingDocumentSettingsService::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['resolveTenantSettings'])
+            ->getMock();
+
+        $settings->expects($this->exactly(2))
+            ->method('resolveTenantSettings')
+            ->with(21)
+            ->willReturn([
+                'config' => [
+                    'service_catalog' => [
+                        ['description' => 'Visita Test', 'unit_amount' => '75.00'],
+                        ['description' => 'Controllo', 'unit_amount' => '40.00'],
+                    ],
+                ],
+            ]);
+
+        $db = Database::connect([
+            'DSN' => '',
+            'hostname' => '',
+            'username' => '',
+            'password' => '',
+            'database' => ':memory:',
+            'DBDriver' => 'SQLite3',
+            'DBPrefix' => '',
+            'pConnect' => false,
+            'DBDebug' => true,
+            'charset' => 'utf8',
+            'DBCollat' => 'utf8_general_ci',
+        ]);
+        $db->query('CREATE TABLE dap44_agenda_tipi_visita (id INTEGER PRIMARY KEY AUTOINCREMENT, nome VARCHAR(120), attivo INTEGER, ordinamento INTEGER)');
+        $db->query("INSERT INTO dap44_agenda_tipi_visita (nome, attivo, ordinamento) VALUES ('Visita Test', 1, 1), ('Test rapido', 1, 2), ('Test disattivato', 0, 3)");
+
+        $tenantDbContext = $this->getMockBuilder(BillingTenantDatabaseContextService::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['resolveTenantContext'])
+            ->getMock();
+
+        $tenantDbContext->expects($this->exactly(2))
+            ->method('resolveTenantContext')
+            ->with(21)
+            ->willReturn(['db' => $db]);
+
+        $service = new BillingDocumentService($settings, $tenantDbContext);
+
+        $allResults = $service->searchServiceCatalogForTenant(21, '', 20);
+        $filteredResults = $service->searchServiceCatalogForTenant(21, 'test', 20);
+
+        $this->assertSame(['Visita Test', 'Controllo', 'Test rapido'], array_column($allResults, 'description'));
+        $this->assertSame(['Test rapido', 'Visita Test'], array_column($filteredResults, 'description'));
+        $this->assertSame('75.00', $filteredResults[1]['unit_amount']);
+        $this->assertSame('service_catalog', $filteredResults[1]['source']);
+        $this->assertSame('visit_type', $filteredResults[0]['source']);
+    }
+
     public function testBuildFormContextReturnsSafeFallbackWhenTenantSchemaIsMissing(): void
     {
         $settings = $this->getMockBuilder(BillingDocumentSettingsService::class)

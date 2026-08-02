@@ -193,6 +193,7 @@ $routes->group('admin', static function($routes){
     $routes->get('fatturazione-documenti/nuovo', 'Admin\BillingDocumentsController::create');
     $routes->get('fatturazione-documenti/modifica/(:num)', 'Admin\BillingDocumentsController::edit/$1');
     $routes->get('fatturazione-documenti/pazienti/search', 'Admin\BillingDocumentsController::searchPatients');
+    $routes->get('fatturazione-documenti/prestazioni/search', 'Admin\BillingDocumentsController::searchServices');
     $routes->post('fatturazione-documenti/save', 'Admin\BillingDocumentsController::save');
     $routes->post('fatturazione-documenti/elimina/(:num)', 'Admin\BillingDocumentsController::delete/$1');
     $routes->get('fatturazione-documenti/preview/(:num)', 'Admin\BillingDocumentsController::preview/$1');

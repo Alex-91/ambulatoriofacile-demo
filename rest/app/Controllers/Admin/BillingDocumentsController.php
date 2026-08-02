@@ -286,6 +286,41 @@ class BillingDocumentsController extends BillingAdminBaseController
         }
     }
 
+    public function searchServices()
+    {
+        if ($this->ensureAccess() !== null) {
+            return $this->response->setStatusCode(403)->setJSON([
+                'ok' => false,
+                'results' => [],
+                'error' => 'Accesso non autorizzato.',
+            ]);
+        }
+
+        $tenantScope = $this->resolveTenantScope();
+        $tenantId = (int) ($tenantScope['tenant_id'] ?? 0);
+        $term = trim((string) ($this->request->getGet('term') ?? ''));
+
+        try {
+            return $this->response
+                ->setHeader('Cache-Control', 'no-store, max-age=0')
+                ->setJSON([
+                    'ok' => true,
+                    'results' => $this->documents->searchServiceCatalogForTenant($tenantId, $term, 50),
+                ]);
+        } catch (\Throwable $e) {
+            log_message('error', 'Admin\\BillingDocumentsController::searchServices failed: ' . $e->getMessage(), [
+                'tenant_id' => $tenantId,
+                'term' => $term,
+            ]);
+
+            return $this->response->setStatusCode(500)->setJSON([
+                'ok' => false,
+                'results' => [],
+                'error' => 'Ricerca prestazioni non disponibile al momento.',
+            ]);
+        }
+    }
+
     /**
      * @return array<string, mixed>
      */

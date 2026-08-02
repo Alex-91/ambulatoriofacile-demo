@@ -4,10 +4,6 @@ $formContext = is_array($formContext ?? null) ? $formContext : [];
 $document = is_array($formContext['document'] ?? null) ? $formContext['document'] : [];
 $template = is_array($formContext['template'] ?? null) ? $formContext['template'] : [];
 $lineItems = is_array($formContext['line_items'] ?? null) ? $formContext['line_items'] : [];
-$serviceCatalog = is_array($template['service_catalog'] ?? null) ? $template['service_catalog'] : [];
-$serviceCatalog = array_values(array_filter($serviceCatalog, static function ($service): bool {
-    return is_array($service) && trim((string) ($service['description'] ?? '')) !== '';
-}));
 $documentTypeLabels = is_array($formContext['document_type_labels'] ?? null) ? $formContext['document_type_labels'] : [];
 $paymentMethodLabels = is_array($formContext['payment_method_labels'] ?? null) ? $formContext['payment_method_labels'] : [];
 $tsExpenseTypes = is_array($formContext['ts_expense_types'] ?? null) ? $formContext['ts_expense_types'] : [];
@@ -129,6 +125,15 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
     .patient-autocomplete-help { display:block; margin-top:8px; color:#70848b; }
     .patient-autocomplete-help.is-success { color:#1f7a3f; }
     .patient-autocomplete-help.is-warning { color:#9a6a06; }
+    .billing-service-cell { position:relative; min-width:280px; }
+    .billing-service-cell.is-open { z-index:1210; }
+    .service-autocomplete-menu { display:none; position:absolute; z-index:1200; top:calc(100% - 4px); left:8px; right:8px; border:1px solid #cddfe4; border-radius:10px; background:#fff; box-shadow:0 12px 28px rgba(27, 76, 84, 0.18); max-height:250px; overflow:auto; }
+    .service-autocomplete-item { display:flex; align-items:center; justify-content:space-between; gap:16px; width:100%; padding:10px 12px; border:0; border-bottom:1px solid #edf3f5; background:#fff; color:#263c42; text-align:left; }
+    .service-autocomplete-item:last-child { border-bottom:0; }
+    .service-autocomplete-item:hover, .service-autocomplete-item:focus { background:#eef8f9; outline:none; }
+    .service-autocomplete-item strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .service-autocomplete-meta { flex:0 0 auto; color:#60767d; font-size:12px; }
+    .service-autocomplete-empty { padding:11px 12px; color:#70848b; font-size:12px; }
     .patient-link-state { display:flex; min-height:74px; align-items:center; justify-content:flex-end; }
     .patient-link-pill { display:inline-flex; align-items:center; gap:8px; padding:10px 14px; border-radius:14px; background:#eef7f8; color:#1d6770; font-weight:700; font-size:12px; }
     .patient-link-pill.is-manual { background:#f6f7f8; color:#607278; }
@@ -204,7 +209,7 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
             </div>
           <?php endif; ?>
 
-          <form method="post" action="<?= site_url('admin/fatturazione-documenti/save') ?>">
+          <form class="js-billing-document-form" method="post" action="<?= site_url('admin/fatturazione-documenti/save') ?>" data-service-autocomplete-url="<?= esc(site_url('admin/fatturazione-documenti/prestazioni/search')) ?>">
             <?= csrf_field() ?>
             <input type="hidden" name="id_billing_document" value="<?= $documentId ?>">
             <input type="hidden" name="id_client" value="<?= esc($fieldValue('id_client', '0')) ?>">
@@ -367,20 +372,7 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
 
                 <div class="form-group">
                   <label>Righe documento *</label>
-                  <small class="help-block" style="margin-top:0;">Scrivi liberamente una prestazione oppure scegli un suggerimento: le nuove voci salvate nella fattura saranno disponibili anche la prossima volta.</small>
-                  <?php if ($serviceCatalog !== []): ?>
-                    <datalist id="billing-service-catalog">
-                      <?php foreach ($serviceCatalog as $service): ?>
-                        <?php
-                          $serviceDescription = trim((string) ($service['description'] ?? ''));
-                          $serviceOptionLabel = ($service['source'] ?? '') === 'visit_type'
-                              ? 'Tipo visita'
-                              : '€ ' . number_format((float) ($service['unit_amount'] ?? 0), 2, ',', '.');
-                        ?>
-                        <option value="<?= esc($serviceDescription) ?>" label="<?= esc($serviceOptionLabel) ?>"></option>
-                      <?php endforeach; ?>
-                    </datalist>
-                  <?php endif; ?>
+                  <small class="help-block" style="margin-top:0;">Clicca nel campo per vedere le prestazioni salvate oppure inizia a scrivere per cercarle. Le nuove voci vengono memorizzate al salvataggio della fattura.</small>
                   <div class="table-responsive">
                     <table class="table table-bordered table-striped">
                       <thead>
@@ -393,8 +385,9 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
                       <tbody>
                         <?php foreach ($itemRows as $row): ?>
                           <tr>
-                            <td>
-                              <input class="form-control" type="text" name="item_description[]" value="<?= esc((string) ($row['description'] ?? '')) ?>" maxlength="190" placeholder="Es. Visita specialistica" <?= $serviceCatalog !== [] ? 'list="billing-service-catalog"' : '' ?>>
+                            <td class="billing-service-cell">
+                              <input class="form-control js-service-autocomplete-input" type="text" name="item_description[]" value="<?= esc((string) ($row['description'] ?? '')) ?>" maxlength="190" placeholder="Es. Visita specialistica" autocomplete="off" aria-autocomplete="list" aria-expanded="false">
+                              <div class="service-autocomplete-menu" data-role="service-results"></div>
                             </td>
                             <td>
                               <input class="form-control" type="number" name="item_qty[]" step="0.01" min="0" value="<?= esc((string) ($row['quantity'] ?? '')) ?>" placeholder="1">
@@ -725,6 +718,208 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
       }
     }
 
+    function initServiceAutocomplete($form) {
+      if (!$form.length) {
+        return;
+      }
+
+      var endpoint = $.trim($form.data('service-autocomplete-url') || '');
+      var inputSelector = '.js-service-autocomplete-input';
+      var debounceTimer = null;
+      var pendingRequest = null;
+
+      if (endpoint === '') {
+        return;
+      }
+
+      function hideResults($cell) {
+        var $targetCells = $cell && $cell.length ? $cell : $form.find('.billing-service-cell');
+        $targetCells
+          .removeClass('is-open')
+          .find('[data-role="service-results"]')
+          .hide()
+          .empty();
+        $targetCells.find(inputSelector).attr('aria-expanded', 'false');
+      }
+
+      function renderResults($input, items) {
+        var $cell = $input.closest('.billing-service-cell');
+        var $menu = $cell.find('[data-role="service-results"]');
+        hideResults();
+
+        if (!items.length) {
+          $menu.append($('<div class="service-autocomplete-empty"></div>').text(
+            'Nessuna prestazione salvata trovata. Puoi scriverne una nuova.'
+          ));
+        } else {
+          $.each(items, function (_, service) {
+            var description = $.trim(service.description || '');
+            if (description === '') {
+              return;
+            }
+
+            var source = $.trim(service.source || 'service_catalog');
+            var amount = $.trim(service.unit_amount || '0.00');
+            var meta = source === 'visit_type'
+              ? 'Tipo visita'
+              : '€ ' + amount.replace('.', ',');
+            var $button = $('<button type="button" class="service-autocomplete-item"></button>');
+            $button.append($('<strong></strong>').text(description));
+            $button.append($('<span class="service-autocomplete-meta"></span>').text(meta));
+            $button.data('service', service);
+            $menu.append($button);
+          });
+        }
+
+        $cell.addClass('is-open');
+        $menu.show();
+        $input.attr('aria-expanded', 'true');
+      }
+
+      function search($input) {
+        var term = $.trim($input.val() || '');
+
+        if (pendingRequest && typeof pendingRequest.abort === 'function') {
+          pendingRequest.abort();
+        }
+
+        $input.attr('aria-busy', 'true');
+        var request = $.getJSON(endpoint, { term: term });
+        pendingRequest = request;
+
+        request
+          .done(function (response) {
+            if (!response || response.ok !== true) {
+              renderResults($input, []);
+              return;
+            }
+
+            renderResults($input, $.isArray(response.results) ? response.results : []);
+          })
+          .fail(function (_, status) {
+            if (status === 'abort') {
+              return;
+            }
+
+            var $cell = $input.closest('.billing-service-cell');
+            var $menu = $cell.find('[data-role="service-results"]');
+            hideResults();
+            $menu.append($('<div class="service-autocomplete-empty"></div>').text(
+              'Ricerca prestazioni momentaneamente non disponibile.'
+            ));
+            $cell.addClass('is-open');
+            $menu.show();
+            $input.attr('aria-expanded', 'true');
+          })
+          .always(function () {
+            $input.removeAttr('aria-busy');
+            if (pendingRequest === request) {
+              pendingRequest = null;
+            }
+          });
+      }
+
+      function scheduleSearch($input, immediate) {
+        window.clearTimeout(debounceTimer);
+        if (immediate) {
+          search($input);
+          return;
+        }
+
+        debounceTimer = window.setTimeout(function () {
+          search($input);
+        }, 180);
+      }
+
+      function applySelection($button) {
+        var service = $button.data('service') || {};
+        var $row = $button.closest('tr');
+        var $input = $row.find(inputSelector);
+        var $quantity = $row.find('input[name="item_qty[]"]');
+        var $unitAmount = $row.find('input[name="item_unit_amount[]"]');
+        var description = $.trim(service.description || '');
+
+        if (description === '') {
+          return;
+        }
+
+        $input.val(description);
+        if ($.trim($quantity.val() || '') === '') {
+          $quantity.val('1');
+        }
+        if ($.trim(service.source || '') === 'service_catalog') {
+          $unitAmount.val($.trim(service.unit_amount || '0.00'));
+        }
+
+        hideResults();
+        $input.trigger('change').focus();
+        $quantity.trigger('change');
+        $unitAmount.trigger('input').trigger('change');
+      }
+
+      $form.on('focus', inputSelector, function () {
+        scheduleSearch($(this), true);
+      });
+
+      $form.on('input', inputSelector, function () {
+        scheduleSearch($(this), false);
+      });
+
+      $form.on('keydown', inputSelector, function (event) {
+        var $cell = $(this).closest('.billing-service-cell');
+        var $menu = $cell.find('[data-role="service-results"]');
+
+        if (event.key === 'Escape') {
+          hideResults($cell);
+          return;
+        }
+
+        if (event.key === 'ArrowDown' && $menu.is(':visible')) {
+          event.preventDefault();
+          $menu.find('.service-autocomplete-item').first().focus();
+        }
+      });
+
+      $form.on('mousedown', '.service-autocomplete-item', function (event) {
+        event.preventDefault();
+      });
+
+      $form.on('click', '.service-autocomplete-item', function () {
+        applySelection($(this));
+      });
+
+      $form.on('keydown', '.service-autocomplete-item', function (event) {
+        var $items = $(this).closest('[data-role="service-results"]').find('.service-autocomplete-item');
+        var currentIndex = $items.index(this);
+
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          applySelection($(this));
+        } else if (event.key === 'ArrowDown') {
+          event.preventDefault();
+          $items.eq(Math.min(currentIndex + 1, $items.length - 1)).focus();
+        } else if (event.key === 'ArrowUp') {
+          event.preventDefault();
+          if (currentIndex <= 0) {
+            $(this).closest('.billing-service-cell').find(inputSelector).focus();
+          } else {
+            $items.eq(currentIndex - 1).focus();
+          }
+        } else if (event.key === 'Escape') {
+          event.preventDefault();
+          var $cell = $(this).closest('.billing-service-cell');
+          hideResults($cell);
+          $cell.find(inputSelector).focus();
+        }
+      });
+
+      $(document).on('click', function (event) {
+        if (!$(event.target).closest('.billing-service-cell').length) {
+          hideResults();
+        }
+      });
+    }
+
     function initServiceExpenseTypeMapping() {
       var expenseTypeMap = <?= $serviceExpenseTypeMapJson ?>;
       var $expenseType = $('select[name="ts_expense_type_code"]');
@@ -768,6 +963,7 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
 
     $(function () {
       initPatientAutocomplete($('.js-patient-autocomplete'));
+      initServiceAutocomplete($('.js-billing-document-form'));
       initServiceExpenseTypeMapping();
     });
   })(jQuery);

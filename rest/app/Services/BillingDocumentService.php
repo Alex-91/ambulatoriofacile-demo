@@ -205,6 +205,71 @@ class BillingDocumentService
     }
 
     /**
+     * Restituisce le prestazioni configurate e i tipi visita attivi usabili
+     * nell'autocomplete delle righe fattura.
+     *
+     * @return array<int, array<string, string>>
+     */
+    public function searchServiceCatalogForTenant(
+        int $tenantId,
+        string $term = '',
+        int $limit = 20
+    ): array {
+        $settings = $this->settings->resolveTenantSettings($tenantId);
+        $template = is_array($settings['config'] ?? null) ? $settings['config'] : [];
+        $context = $this->resolveTenantDocumentContext($tenantId);
+        $template = $this->mergeActiveVisitTypesIntoServiceCatalog($template, $context['db']);
+        $catalog = is_array($template['service_catalog'] ?? null)
+            ? array_values($template['service_catalog'])
+            : [];
+        $normalizedTerm = $this->serviceCatalogDescriptionKey($term);
+        $limit = max(1, min(50, $limit));
+        $results = [];
+
+        foreach ($catalog as $index => $service) {
+            if (!is_array($service)) {
+                continue;
+            }
+
+            $description = trim((string) ($service['description'] ?? ''));
+            $descriptionKey = $this->serviceCatalogDescriptionKey($description);
+            if ($descriptionKey === '') {
+                continue;
+            }
+
+            $matchPosition = $normalizedTerm === '' ? 0 : strpos($descriptionKey, $normalizedTerm);
+            if ($matchPosition === false) {
+                continue;
+            }
+
+            $results[] = [
+                'description' => $description,
+                'unit_amount' => number_format((float) ($service['unit_amount'] ?? 0), 2, '.', ''),
+                'source' => ($service['source'] ?? '') === 'visit_type' ? 'visit_type' : 'service_catalog',
+                '_match_position' => (int) $matchPosition,
+                '_catalog_order' => (int) $index,
+            ];
+        }
+
+        usort($results, static function (array $left, array $right): int {
+            $positionComparison = ((int) $left['_match_position']) <=> ((int) $right['_match_position']);
+            if ($positionComparison !== 0) {
+                return $positionComparison;
+            }
+
+            return ((int) $left['_catalog_order']) <=> ((int) $right['_catalog_order']);
+        });
+
+        $results = array_slice($results, 0, $limit);
+        foreach ($results as &$result) {
+            unset($result['_match_position'], $result['_catalog_order']);
+        }
+        unset($result);
+
+        return $results;
+    }
+
+    /**
      * @param array<string, mixed> $payload
      * @return array<string, mixed>
      */
