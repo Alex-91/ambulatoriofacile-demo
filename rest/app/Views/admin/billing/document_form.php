@@ -1,6 +1,5 @@
 <?php
 $menu_items = $menu_items ?? ((session()->get('menuDataAdmin')['result'] ?? []));
-$tenantScope = is_array($tenantScope ?? null) ? $tenantScope : [];
 $formContext = is_array($formContext ?? null) ? $formContext : [];
 $document = is_array($formContext['document'] ?? null) ? $formContext['document'] : [];
 $template = is_array($formContext['template'] ?? null) ? $formContext['template'] : [];
@@ -11,8 +10,6 @@ $serviceCatalog = array_values(array_filter($serviceCatalog, static function ($s
 }));
 $documentTypeLabels = is_array($formContext['document_type_labels'] ?? null) ? $formContext['document_type_labels'] : [];
 $paymentMethodLabels = is_array($formContext['payment_method_labels'] ?? null) ? $formContext['payment_method_labels'] : [];
-$localStateLabels = is_array($formContext['local_state_labels'] ?? null) ? $formContext['local_state_labels'] : [];
-$tsSyncLabels = is_array($formContext['ts_sync_labels'] ?? null) ? $formContext['ts_sync_labels'] : [];
 $tsExpenseTypes = is_array($formContext['ts_expense_types'] ?? null) ? $formContext['ts_expense_types'] : [];
 $serviceExpenseTypeMap = is_array($formContext['service_expense_type_map'] ?? null) ? $formContext['service_expense_type_map'] : [];
 $serviceExpenseTypeMapJson = json_encode(
@@ -37,33 +34,6 @@ $oldInput = session()->getFlashdata('_ci_old_input');
 $oldInput = is_array($oldInput) ? $oldInput : [];
 $documentId = (int) ($document['id_billing_document'] ?? 0);
 $saveDisabled = !$tableAvailable || $editLocked;
-$sourcePatientMetaParts = [];
-$sourcePatientLabel = trim((string) ($sourceContext['patient_label'] ?? ''));
-$sourcePatientLastName = trim((string) ($sourceContext['patient_last_name'] ?? ''));
-$sourcePatientFirstName = trim((string) ($sourceContext['patient_first_name'] ?? ''));
-$sourcePatientTaxCode = strtoupper(trim((string) ($sourceContext['patient_tax_code'] ?? '')));
-$sourcePatientPhone = trim((string) ($sourceContext['patient_phone'] ?? ''));
-$sourcePatientMobile = trim((string) ($sourceContext['patient_mobile'] ?? ''));
-$sourcePatientEmail = trim((string) ($sourceContext['patient_email'] ?? ''));
-$sourcePatientAddress = trim((string) ($sourceContext['patient_address'] ?? ''));
-$sourcePatientCity = trim((string) ($sourceContext['patient_city'] ?? ''));
-$sourcePatientPhoneLabel = $sourcePatientMobile !== '' ? $sourcePatientMobile : ($sourcePatientPhone !== '' ? $sourcePatientPhone : 'Non disponibile');
-$sourcePatientEmailLabel = $sourcePatientEmail !== '' ? $sourcePatientEmail : 'Non disponibile';
-$sourcePatientTaxCodeLabel = $sourcePatientTaxCode !== '' ? $sourcePatientTaxCode : 'Da completare';
-$sourcePatientAddressLabel = trim(preg_replace('/\s+/', ' ', $sourcePatientAddress . ' ' . $sourcePatientCity) ?? '');
-$sourcePatientAddressLabel = $sourcePatientAddressLabel !== '' ? $sourcePatientAddressLabel : 'Non disponibile';
-
-if ($sourcePatientTaxCode !== '') {
-    $sourcePatientMetaParts[] = 'CF ' . $sourcePatientTaxCode;
-}
-if ($sourcePatientMobile !== '') {
-    $sourcePatientMetaParts[] = 'Cell. ' . $sourcePatientMobile;
-} elseif ($sourcePatientPhone !== '') {
-    $sourcePatientMetaParts[] = 'Tel. ' . $sourcePatientPhone;
-}
-if ($sourcePatientEmail !== '') {
-    $sourcePatientMetaParts[] = $sourcePatientEmail;
-}
 
 $fieldValue = static function (string $key, $default = '') use ($document): string {
     $old = old($key);
@@ -148,8 +118,8 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
   <link href="<?= base_url('public/dist/css/skins/_all-skins.min.css') ?>" rel="stylesheet" />
   <style>
     .nav-pills.nav-stacked > li.active > a { background-color:#2c8895; color:#fff; }
-    .intro-box { border:1px solid #dce9ec; border-radius:16px; padding:20px 22px; background:linear-gradient(135deg, #fffdf8 0%, #f6f0e0 52%, #edf7f8 100%); margin-bottom:16px; }
-    .status-chip { display:inline-block; margin:0 8px 8px 0; padding:6px 10px; border-radius:999px; background:#eef5f6; color:#1d6770; font-size:12px; font-weight:700; }
+    .document-form-actions { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px; }
+    .document-form-actions .btn { margin:0 !important; }
     .item-total { font-weight:700; color:#8a5b10; }
     .patient-autocomplete-menu { display:none; margin-top:6px; border:1px solid #dce7eb; border-radius:12px; background:#fff; box-shadow:0 8px 24px rgba(44, 136, 149, 0.08); max-height:240px; overflow:auto; }
     .patient-autocomplete-item { display:block; width:100%; padding:10px 12px; border:0; border-bottom:1px solid #edf3f5; background:#fff; text-align:left; }
@@ -204,63 +174,28 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
             </div>
           <?php endif; ?>
 
-            <div class="intro-box">
-            <h3 style="margin-top:0; margin-bottom:8px;">Spazio: <?= esc((string) ($tenantScope['tenant_name'] ?? 'attivo')) ?></h3>
-            <p style="margin:0 0 12px 0; color:#556b70;">
-              Questo documento nasce nel modulo Fatturazione. L’eventuale collegamento al Sistema TS resta separato e si attiva solo se richiesto.
-            </p>
-            <?php if ($sourceContext !== []): ?>
-              <div class="alert alert-info" style="margin:0 0 12px 0;">
-                <strong><?= esc((string) ($sourceContext['title'] ?? 'Origine appuntamento')) ?></strong>
-                <?php if (trim((string) ($sourceContext['patient_label'] ?? '')) !== ''): ?>
-                  per <?= esc((string) ($sourceContext['patient_label'] ?? '')) ?>
-                <?php endif; ?>
-                <?php if (trim((string) ($sourceContext['appointment_date_label'] ?? '')) !== ''): ?>
-                  del <?= esc((string) ($sourceContext['appointment_date_label'] ?? '')) ?>
-                <?php endif; ?>
-                <?php if (trim((string) ($sourceContext['appointment_time_label'] ?? '')) !== ''): ?>
-                  alle <?= esc((string) ($sourceContext['appointment_time_label'] ?? '')) ?>
-                <?php endif; ?>
-                <?php if (trim((string) ($sourceContext['doctor_label'] ?? '')) !== ''): ?>
-                  con <?= esc((string) ($sourceContext['doctor_label'] ?? '')) ?>
-                <?php endif; ?>.
-                <div style="margin-top:6px;"><?= esc((string) ($sourceContext['message'] ?? '')) ?></div>
-                <div style="margin-top:10px; padding:10px 12px; border:1px solid #d8e6ee; border-radius:12px; background:#f9fcfd; font-size:12px; color:#425462;">
-                  <div><strong>Cliente collegato:</strong> <?= esc($sourcePatientLabel !== '' ? $sourcePatientLabel : 'Anagrafica dello spazio') ?></div>
-                  <div style="margin-top:4px;"><strong>Cognome:</strong> <?= esc($sourcePatientLastName !== '' ? $sourcePatientLastName : 'Non disponibile') ?></div>
-                  <div style="margin-top:4px;"><strong>Nome:</strong> <?= esc($sourcePatientFirstName !== '' ? $sourcePatientFirstName : 'Non disponibile') ?></div>
-                  <div style="margin-top:4px;"><strong>Codice fiscale:</strong> <?= esc($sourcePatientTaxCodeLabel) ?></div>
-                  <div style="margin-top:4px;"><strong>Recapito:</strong> <?= esc($sourcePatientPhoneLabel) ?></div>
-                  <div style="margin-top:4px;"><strong>Email:</strong> <?= esc($sourcePatientEmailLabel) ?></div>
-                  <div style="margin-top:4px;"><strong>Indirizzo:</strong> <?= esc($sourcePatientAddressLabel) ?></div>
-                </div>
-              </div>
-            <?php endif; ?>
-            <span class="status-chip">Stato: <?= esc((string) ($localStateLabels[(string) ($document['local_state'] ?? '')] ?? $document['local_state'] ?? 'Bozza')) ?></span>
-            <span class="status-chip">TS: <?= esc((string) ($tsSyncLabels[(string) ($document['ts_sync_state'] ?? '')] ?? $document['ts_sync_state'] ?? 'Non richiesto')) ?></span>
-            <div style="margin-top:12px;">
-              <a class="btn btn-default" href="<?= site_url('admin/fatturazione-documenti') ?>">
-                <i class="fa fa-arrow-left"></i> Torna alla lista fatture
+          <div class="document-form-actions">
+            <a class="btn btn-default" href="<?= site_url('admin/fatturazione-documenti') ?>">
+              <i class="fa fa-arrow-left"></i> Torna alla lista fatture
+            </a>
+            <?php if (trim((string) ($sourceContext['return_url'] ?? '')) !== ''): ?>
+              <a class="btn btn-default" href="<?= esc((string) ($sourceContext['return_url'] ?? '')) ?>" style="margin-left:8px;">
+                <i class="fa fa-calendar"></i> <?= esc((string) ($sourceContext['return_label'] ?? 'Torna all’agenda')) ?>
               </a>
-              <?php if (trim((string) ($sourceContext['return_url'] ?? '')) !== ''): ?>
-                <a class="btn btn-default" href="<?= esc((string) ($sourceContext['return_url'] ?? '')) ?>" style="margin-left:8px;">
-                  <i class="fa fa-calendar"></i> <?= esc((string) ($sourceContext['return_label'] ?? 'Torna all’agenda')) ?>
+            <?php endif; ?>
+            <?php if ($documentId > 0 && $tableAvailable): ?>
+              <a class="btn btn-info" href="<?= site_url('admin/fatturazione-documenti/preview/' . $documentId) ?>" style="margin-left:8px;">
+                <i class="fa fa-eye"></i> Preview
+              </a>
+              <a class="btn btn-success" href="<?= site_url('admin/fatturazione-documenti/pdf/' . $documentId) ?>" style="margin-left:8px;">
+                <i class="fa fa-file-pdf-o"></i> PDF
+              </a>
+              <?php if ($linkedTsDocumentId > 0): ?>
+                <a class="btn btn-warning" href="<?= site_url('admin/sistema-ts/documenti/modifica/' . $linkedTsDocumentId) ?>" style="margin-left:8px;">
+                  <i class="fa fa-exchange"></i> Apri TS
                 </a>
               <?php endif; ?>
-              <?php if ($documentId > 0 && $tableAvailable): ?>
-                <a class="btn btn-info" href="<?= site_url('admin/fatturazione-documenti/preview/' . $documentId) ?>" style="margin-left:8px;">
-                  <i class="fa fa-eye"></i> Preview
-                </a>
-                <a class="btn btn-success" href="<?= site_url('admin/fatturazione-documenti/pdf/' . $documentId) ?>" style="margin-left:8px;">
-                  <i class="fa fa-file-pdf-o"></i> PDF
-                </a>
-                <?php if ($linkedTsDocumentId > 0): ?>
-                  <a class="btn btn-warning" href="<?= site_url('admin/sistema-ts/documenti/modifica/' . $linkedTsDocumentId) ?>" style="margin-left:8px;">
-                    <i class="fa fa-exchange"></i> Apri TS
-                  </a>
-                <?php endif; ?>
-              <?php endif; ?>
-            </div>
+            <?php endif; ?>
           </div>
 
           <?php if ($editLocked && $editLockReason !== ''): ?>
@@ -403,21 +338,6 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
                       Se la fattura resta collegata a un paziente dello spazio, ogni modifica a questi dati aggiorna anche la sua anagrafica.
                     </div>
                   </div>
-                  <?php if ($sourceContext !== []): ?>
-                    <div class="col-md-12">
-                      <div class="alert alert-info" style="margin-top:4px; margin-bottom:8px; padding:12px 14px;">
-                        <strong>Dati cliente importati dall’appuntamento</strong>
-                        <div style="margin-top:6px; font-size:12px; color:#425462;">
-                          <?= esc($sourcePatientLabel !== '' ? $sourcePatientLabel : 'Anagrafica collegata') ?>
-                          | Cognome: <?= esc($sourcePatientLastName !== '' ? $sourcePatientLastName : '-') ?>
-                          | Nome: <?= esc($sourcePatientFirstName !== '' ? $sourcePatientFirstName : '-') ?>
-                          | CF: <?= esc($sourcePatientTaxCodeLabel) ?>
-                          | Recapito: <?= esc($sourcePatientPhoneLabel) ?>
-                          | Email: <?= esc($sourcePatientEmailLabel) ?>
-                        </div>
-                      </div>
-                    </div>
-                  <?php endif; ?>
                 </div>
 
                 <div class="row">
