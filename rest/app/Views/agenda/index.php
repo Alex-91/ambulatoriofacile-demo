@@ -34,8 +34,7 @@
         $agendaSidebarBlockOrderSettings = is_array($agendaSidebarBlockOrderSettings ?? null) ? $agendaSidebarBlockOrderSettings : [];
         $appointmentDocumentActions = is_array($appointmentDocumentActions ?? null) ? $appointmentDocumentActions : [];
         $appointmentBillingWorkflowEnabled = !empty($appointmentDocumentActions['billing_enabled']);
-        $appointmentTsWorkflowEnabled = !empty($appointmentDocumentActions['ts_enabled']);
-        $appointmentDocumentWorkflowVisible = $appointmentBillingWorkflowEnabled || $appointmentTsWorkflowEnabled;
+        $appointmentDocumentWorkflowVisible = $appointmentBillingWorkflowEnabled;
         $personalCommitmentsFeatureEnabled = !empty($personalCommitmentsFeatureEnabled);
         $customAppointmentTimeFeatureEnabled = !empty($customAppointmentTimeFeatureEnabled);
         $patientRegistryVisibilityFeatureEnabled = !empty($patientRegistryVisibilityFeatureEnabled);
@@ -241,26 +240,9 @@
             margin-top: 4px;
         }
 
-        .appointment-document-workflow-copy {
-            margin-bottom: 14px;
-        }
-
-        .appointment-document-workflow-title {
-            font-size: 14px;
-            font-weight: 700;
-            color: #234357;
-            margin-bottom: 4px;
-        }
-
-        .appointment-document-workflow-note {
-            color: #647987;
-            font-size: 12px;
-            line-height: 1.5;
-        }
-
         .appointment-document-workflow-buttons {
             display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+            grid-template-columns: minmax(0, 1fr);
             gap: 12px;
         }
 
@@ -326,12 +308,6 @@
         .appointment-document-workflow-action-billing {
             background: linear-gradient(135deg, #14a85a 0%, #0f8a4a 100%);
             border-color: #10884a !important;
-            color: #fff !important;
-        }
-
-        .appointment-document-workflow-action-ts {
-            background: linear-gradient(135deg, #f6ad1a 0%, #ea8f04 100%);
-            border-color: #da8504 !important;
             color: #fff !important;
         }
 
@@ -456,8 +432,7 @@
             min-width: 200px;
         }
 
-        #btnAppointmentBillingWorkflow,
-        #btnAppointmentTsWorkflow {
+        #btnAppointmentBillingWorkflow {
             min-width: 0;
         }
 
@@ -470,14 +445,6 @@
 
         #btnSaveAppointment {
             min-width: 170px;
-        }
-
-        #appointmentDocumentWorkflowHint {
-            max-width: 520px;
-            margin-top: 8px;
-            color: #667683;
-            font-size: 12px;
-            line-height: 1.5;
         }
 
         @media (max-width: 991px) {
@@ -3864,8 +3831,7 @@ $renderAppointmentModalBlock = static function (string $blockKey) use (
     $patientSmsReminderPreferenceAvailable,
     $patientRegistryVisibilityFeatureEnabled,
     $appointmentDocumentWorkflowVisible,
-    $appointmentBillingWorkflowEnabled,
-    $appointmentTsWorkflowEnabled
+    $appointmentBillingWorkflowEnabled
 ): string {
     ob_start();
 
@@ -4085,30 +4051,14 @@ $renderAppointmentModalBlock = static function (string $blockKey) use (
             ?>
             <div class="appointment-modal-block" data-appointment-block-key="document_workflow">
                 <div id="appointmentDocumentWorkflow" class="appointment-document-workflow-panel">
-                    <div class="appointment-document-workflow-copy">
-                        <div class="appointment-document-workflow-title">Azioni documento</div>
-                        <div class="appointment-document-workflow-note">
-                            Da qui apri subito il flusso giusto senza reinserire il paziente: nome, recapiti e collegamento allo spazio vengono riportati automaticamente.
-                        </div>
-                        <div id="appointmentDocumentWorkflowHint"></div>
-                    </div>
                     <div class="appointment-document-workflow-buttons">
                         <button type="button" class="btn appointment-document-workflow-action appointment-document-workflow-action-billing" id="btnAppointmentBillingWorkflow" style="<?= $appointmentBillingWorkflowEnabled ? '' : 'display:none;' ?>"<?= $appointmentBillingWorkflowEnabled ? ' disabled' : '' ?>>
                             <span class="appointment-document-workflow-action-icon">
                                 <i class="fa fa-file-text-o"></i>
                             </span>
                             <span class="appointment-document-workflow-action-copy">
-                                <span class="appointment-document-workflow-action-title">Apri fattura</span>
-                                <span class="appointment-document-workflow-action-text">Crea il documento di fatturazione già precompilato e pronto anche per l’eventuale invio a TS.</span>
-                            </span>
-                        </button>
-                        <button type="button" class="btn appointment-document-workflow-action appointment-document-workflow-action-ts" id="btnAppointmentTsWorkflow" style="<?= $appointmentTsWorkflowEnabled ? '' : 'display:none;' ?>"<?= $appointmentTsWorkflowEnabled ? ' disabled' : '' ?>>
-                            <span class="appointment-document-workflow-action-icon">
-                                <i class="fa fa-paper-plane-o"></i>
-                            </span>
-                            <span class="appointment-document-workflow-action-copy">
-                                <span class="appointment-document-workflow-action-title">Apri solo TS</span>
-                                <span class="appointment-document-workflow-action-text">Salta la fattura e prepara subito il documento TS con il paziente già agganciato.</span>
+                                <span class="appointment-document-workflow-action-title">Crea fattura</span>
+                                <span class="appointment-document-workflow-action-text">Apri una nuova fattura già precompilata con i dati dell’appuntamento.</span>
                             </span>
                         </button>
                     </div>
@@ -4467,10 +4417,8 @@ window.AGENDA_CONFIG = {
     personalCommitmentSpecialCode: "IMPEGNO_PERSONALE",
     personalCommitmentLabel: "Impegno personale",
     appointmentBillingWorkflowEnabled: <?= !empty($appointmentDocumentActions['billing_enabled']) ? 'true' : 'false' ?>,
-    appointmentTsWorkflowEnabled: <?= !empty($appointmentDocumentActions['ts_enabled']) ? 'true' : 'false' ?>,
     patientSmsReminderPreferenceAvailable: <?= !empty($patientSmsReminderPreferenceAvailable) ? 'true' : 'false' ?>,
     appointmentBillingWorkflowUrlBase: "<?= site_url('agenda/fatturazione-da-appuntamento') ?>",
-    appointmentTsWorkflowUrlBase: "<?= site_url('agenda/ts-da-appuntamento') ?>",
     csrfTokenName: "<?= esc(csrf_token()) ?>",
     csrfTokenValue: "<?= esc(csrf_hash()) ?>"
 };
@@ -8148,16 +8096,12 @@ function resetAppointmentModal() {
 }
 
 function setAppointmentModalActionsDisabled(isDisabled) {
-    $('#btnDeleteAppointment, #btnDeleteExtraSlot, #btnAppointmentBillingWorkflow, #btnAppointmentTsWorkflow, #btnCancelAppointmentModal, .btn-close-appointment-modal, #btnSaveAppointment')
+    $('#btnDeleteAppointment, #btnDeleteExtraSlot, #btnAppointmentBillingWorkflow, #btnCancelAppointmentModal, .btn-close-appointment-modal, #btnSaveAppointment')
         .prop('disabled', !!isDisabled);
 }
 
 function supportsAppointmentBillingWorkflow() {
     return !!window.AGENDA_CONFIG.appointmentBillingWorkflowEnabled;
-}
-
-function supportsAppointmentTsWorkflow() {
-    return !!window.AGENDA_CONFIG.appointmentTsWorkflowEnabled;
 }
 
 function supportsPatientSmsReminderPreference() {
@@ -8490,15 +8434,13 @@ function setAppointmentMode(mode, options) {
     refreshAppointmentDocumentWorkflowState();
 }
 
-function buildAppointmentDocumentWorkflowUrl(mode, appointmentId) {
+function buildAppointmentBillingWorkflowUrl(appointmentId) {
     appointmentId = parseInt(appointmentId || 0, 10) || 0;
     if (appointmentId <= 0) {
         return '';
     }
 
-    var base = mode === 'billing'
-        ? $.trim(window.AGENDA_CONFIG.appointmentBillingWorkflowUrlBase || '')
-        : $.trim(window.AGENDA_CONFIG.appointmentTsWorkflowUrlBase || '');
+    var base = $.trim(window.AGENDA_CONFIG.appointmentBillingWorkflowUrlBase || '');
 
     if (base === '') {
         return '';
@@ -8542,14 +8484,12 @@ function buildAppointmentDocumentWorkflowPayload() {
     return payload;
 }
 
-function submitAppointmentDocumentWorkflow(mode) {
+function submitAppointmentBillingWorkflow() {
     var appointmentId = parseInt($('#app_id_appuntamento').val() || 0, 10) || 0;
-    var targetUrl = buildAppointmentDocumentWorkflowUrl(mode, appointmentId);
+    var targetUrl = buildAppointmentBillingWorkflowUrl(appointmentId);
 
     if (targetUrl === '') {
-        alert(mode === 'billing'
-            ? 'Salva prima l’appuntamento per aprire la fatturazione da questo slot.'
-            : 'Salva prima l’appuntamento per aprire il documento TS da questo slot.');
+        alert('Salva prima l’appuntamento per aprire la fatturazione da questo slot.');
         return;
     }
 
@@ -8570,55 +8510,34 @@ function submitAppointmentDocumentWorkflow(mode) {
 
 function refreshAppointmentDocumentWorkflowState() {
     var billingEnabled = supportsAppointmentBillingWorkflow();
-    var tsEnabled = supportsAppointmentTsWorkflow();
     var appointmentId = parseInt($('#app_id_appuntamento').val() || 0, 10) || 0;
     var hasSpecialPatient = getAppointmentSpecialPatientCode() !== '' || isAppointmentPersonalCommitmentMode();
     var $wrapper = $('#appointmentDocumentWorkflow');
     var $billingButton = $('#btnAppointmentBillingWorkflow');
-    var $tsButton = $('#btnAppointmentTsWorkflow');
-    var $hint = $('#appointmentDocumentWorkflowHint');
 
     if (!$wrapper.length) {
         return;
     }
 
-    if (!billingEnabled && !tsEnabled) {
+    if (!billingEnabled) {
         $wrapper.hide();
         return;
     }
 
     $wrapper.css('display', 'block');
-    $billingButton.toggle(billingEnabled);
-    $tsButton.toggle(tsEnabled);
+    $billingButton.show();
 
     if (appointmentId <= 0) {
         $billingButton.prop('disabled', true);
-        $tsButton.prop('disabled', true);
-        $hint.text('Le azioni documento si attivano dopo il primo salvataggio dell’appuntamento.');
         return;
     }
 
     if (hasSpecialPatient) {
         $billingButton.prop('disabled', true);
-        $tsButton.prop('disabled', true);
-        $hint.text('Il paziente speciale non può generare documenti fiscali o TS. Collega prima un paziente reale.');
         return;
     }
 
     $billingButton.prop('disabled', false);
-    $tsButton.prop('disabled', false);
-
-    if (billingEnabled && tsEnabled) {
-        $hint.text('I pulsanti aprono i moduli portando dietro i dati attuali del paziente da questo modal. Se qualche dato fiscale manca, lo completi nel passaggio successivo.');
-        return;
-    }
-
-    if (billingEnabled) {
-        $hint.text('Apri una nuova fattura già precompilata con i dati attuali del paziente e dell’appuntamento.');
-        return;
-    }
-
-    $hint.text('Apri un nuovo documento TS già precompilato con i dati attuali del paziente e dell’appuntamento.');
 }
 
 function setAppointmentSavingState(isSaving) {
@@ -11849,11 +11768,7 @@ $('#nota_giorno_text').on('blur', function() {
     });
 
     $('#btnAppointmentBillingWorkflow').on('click', function() {
-        submitAppointmentDocumentWorkflow('billing');
-    });
-
-    $('#btnAppointmentTsWorkflow').on('click', function() {
-        submitAppointmentDocumentWorkflow('ts');
+        submitAppointmentBillingWorkflow();
     });
 
     $('#btnDeleteExtraSlot').on('click', function() {
