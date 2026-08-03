@@ -29,6 +29,70 @@
             margin: 0;
         }
 
+        .patient-search-autocomplete {
+            position: relative;
+        }
+
+        .patient-search-suggestions {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            left: 0;
+            z-index: 1060;
+            display: none;
+            max-height: 290px;
+            margin-top: 2px;
+            overflow-y: auto;
+            background: #fff;
+            border: 1px solid #d2d6de;
+            border-radius: 3px;
+            box-shadow: 0 3px 8px rgba(0, 0, 0, .15);
+        }
+
+        .patient-search-suggestion {
+            display: block;
+            width: 100%;
+            padding: 9px 12px;
+            overflow: hidden;
+            color: #333;
+            text-align: left;
+            background: #fff;
+            border: 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .patient-search-suggestion:last-child {
+            border-bottom: 0;
+        }
+
+        .patient-search-suggestion:hover,
+        .patient-search-suggestion:focus {
+            color: #1f4e6e;
+            background: #f4f8fa;
+            outline: 0;
+        }
+
+        .patient-search-suggestion-name {
+            display: block;
+            font-weight: 600;
+        }
+
+        .patient-search-suggestion-detail {
+            display: block;
+            margin-top: 2px;
+            overflow: hidden;
+            color: #777;
+            font-size: 12px;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .patient-search-suggestion-empty {
+            padding: 9px 12px;
+            color: #777;
+            font-size: 12px;
+        }
+
         .patient-form-section-title {
             margin: 8px 0 12px;
             padding-top: 8px;
@@ -125,7 +189,20 @@
 
                                 <div class="col-md-5">
                                     <label>Cerca</label>
-                                    <input type="text" id="searchTerm" class="form-control" placeholder="Cognome, nome, codice fiscale, telefono...">
+                                    <div class="patient-search-autocomplete">
+                                        <input
+                                            type="text"
+                                            id="searchTerm"
+                                            class="form-control"
+                                            placeholder="Cognome, nome, codice fiscale, telefono..."
+                                            autocomplete="off"
+                                            role="combobox"
+                                            aria-autocomplete="list"
+                                            aria-expanded="false"
+                                            aria-controls="patientSearchSuggestions"
+                                        >
+                                        <div id="patientSearchSuggestions" class="patient-search-suggestions" role="listbox" aria-label="Suggerimenti pazienti"></div>
+                                    </div>
                                 </div>
 
                                 <div class="col-md-3">
@@ -410,9 +487,111 @@
 var currentPage = 1;
 var lastPage = 1;
 var patientRowsById = {};
+var patientSearchSuggestionsById = {};
+var patientSearchSuggestionTimer = null;
+var patientSearchSuggestionXhr = null;
+var patientSearchSuggestionRequestId = 0;
 
 function escapeHtml(text) {
     return $('<div>').text(text == null ? '' : text).html();
+}
+
+function getPatientSearchLabel(row) {
+    var primary = $.trim((row && (row.cognome || row.denominazione)) || '');
+    var firstName = $.trim((row && row.nome) || '');
+    return $.trim(primary + ' ' + firstName) || 'Paziente senza nominativo';
+}
+
+function hidePatientSearchSuggestions() {
+    if (patientSearchSuggestionTimer) {
+        clearTimeout(patientSearchSuggestionTimer);
+        patientSearchSuggestionTimer = null;
+    }
+
+    patientSearchSuggestionRequestId += 1;
+    patientSearchSuggestionsById = {};
+    $('#patientSearchSuggestions').empty().hide();
+    $('#searchTerm').attr('aria-expanded', 'false');
+}
+
+function renderPatientSearchSuggestions(rows) {
+    var html = '';
+    var visibleRows = (rows || []).slice(0, 8);
+
+    patientSearchSuggestionsById = {};
+
+    if (!visibleRows.length) {
+        $('#patientSearchSuggestions').html('<div class="patient-search-suggestion-empty">Nessun paziente trovato</div>').show();
+        $('#searchTerm').attr('aria-expanded', 'true');
+        return;
+    }
+
+    $.each(visibleRows, function(_, row) {
+        var id = parseInt((row && row.id_paziente) || 0, 10) || 0;
+        if (!id) {
+            return;
+        }
+
+        patientSearchSuggestionsById[id] = row;
+
+        var details = [];
+        if (row.cod_fis) {
+            details.push('CF ' + row.cod_fis);
+        }
+        if (row.cellulare || row.telefono) {
+            details.push(row.cellulare || row.telefono);
+        }
+
+        html += '<button type="button" class="patient-search-suggestion" role="option" data-id="' + id + '">';
+        html += '<span class="patient-search-suggestion-name">' + escapeHtml(getPatientSearchLabel(row)) + '</span>';
+        if (details.length) {
+            html += '<span class="patient-search-suggestion-detail">' + escapeHtml(details.join(' · ')) + '</span>';
+        }
+        html += '</button>';
+    });
+
+    if (html === '') {
+        html = '<div class="patient-search-suggestion-empty">Nessun paziente trovato</div>';
+    }
+
+    $('#patientSearchSuggestions').html(html).show();
+    $('#searchTerm').attr('aria-expanded', 'true');
+}
+
+function loadPatientSearchSuggestions(term) {
+    var normalizedTerm = $.trim(term || '');
+    var requestId;
+
+    if (normalizedTerm.length < 2 || !$('#id_dot').val()) {
+        hidePatientSearchSuggestions();
+        return;
+    }
+
+    if (patientSearchSuggestionXhr && patientSearchSuggestionXhr.readyState !== 4) {
+        patientSearchSuggestionXhr.abort();
+    }
+
+    requestId = ++patientSearchSuggestionRequestId;
+    patientSearchSuggestionXhr = $.get("<?= base_url('agenda/lista-pazienti') ?>", {
+        id_dot: $('#id_dot').val(),
+        term: normalizedTerm,
+        page: 1
+    }, function(res) {
+        if (requestId !== patientSearchSuggestionRequestId || $.trim($('#searchTerm').val() || '') !== normalizedTerm) {
+            return;
+        }
+
+        if (!res || !res.status) {
+            hidePatientSearchSuggestions();
+            return;
+        }
+
+        renderPatientSearchSuggestions(res.rows || []);
+    }, 'json').fail(function(xhr, status) {
+        if (status !== 'abort' && requestId === patientSearchSuggestionRequestId) {
+            hidePatientSearchSuggestions();
+        }
+    });
 }
 
 function renderSummary(total, from, to) {
@@ -696,11 +875,57 @@ $(function() {
 
     $('#formCercaPazienti').on('submit', function(e) {
         e.preventDefault();
+        hidePatientSearchSuggestions();
         caricaPazienti(1);
     });
 
+    $('#searchTerm').on('input', function() {
+        var term = $(this).val() || '';
+
+        if (patientSearchSuggestionTimer) {
+            clearTimeout(patientSearchSuggestionTimer);
+            patientSearchSuggestionTimer = null;
+        }
+
+        if ($.trim(term).length < 2) {
+            hidePatientSearchSuggestions();
+            return;
+        }
+
+        patientSearchSuggestionTimer = setTimeout(function() {
+            loadPatientSearchSuggestions(term);
+        }, 250);
+    }).on('keydown', function(e) {
+        if (e.key === 'Escape') {
+            hidePatientSearchSuggestions();
+        }
+    });
+
     $('#id_dot').on('change', function() {
+        hidePatientSearchSuggestions();
         caricaPazienti(1);
+    });
+
+    $(document).on('mousedown', '.patient-search-suggestion', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        var id = parseInt($(this).data('id'), 10) || 0;
+        var row = patientSearchSuggestionsById[id];
+
+        if (!row) {
+            return;
+        }
+
+        $('#searchTerm').val(getPatientSearchLabel(row));
+        hidePatientSearchSuggestions();
+        caricaPazienti(1);
+    });
+
+    $(document).on('mousedown', function(e) {
+        if (!$(e.target).closest('.patient-search-autocomplete').length) {
+            hidePatientSearchSuggestions();
+        }
     });
 
     $('#btnNuovoPaziente').on('click', function() {
