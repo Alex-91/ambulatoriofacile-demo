@@ -3,7 +3,10 @@
 <head>
  <link href="<?= base_url('public/css/agenda-menu.css') ?>" rel="stylesheet" type="text/css" />
     <meta charset="UTF-8">
-    <?php $patientPageTitle = 'Gestione pazienti'; ?>
+    <?php
+    $patientPageTitle = 'Gestione pazienti';
+    $patientRegistryVisibilityFeatureEnabled = !empty($patientRegistryVisibilityFeatureEnabled);
+    ?>
     <title><?= esc($patientPageTitle . (' | AmbulatorioFacile')) ?></title>
     <meta content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" name="viewport">
 
@@ -575,7 +578,8 @@ function loadPatientSearchSuggestions(term) {
     patientSearchSuggestionXhr = $.get("<?= base_url('agenda/lista-pazienti') ?>", {
         id_dot: $('#id_dot').val(),
         term: normalizedTerm,
-        page: 1
+        page: 1,
+        registry_visibility: <?= $patientRegistryVisibilityFeatureEnabled ? '1' : '0' ?>
     }, function(res) {
         if (requestId !== patientSearchSuggestionRequestId || $.trim($('#searchTerm').val() || '') !== normalizedTerm) {
             return;
@@ -712,7 +716,8 @@ function caricaPazienti(page) {
     $.get("<?= base_url('agenda/lista-pazienti') ?>", {
         id_dot: $('#id_dot').val(),
         term: searchTerm,
-        page: currentPage
+        page: currentPage,
+        registry_visibility: <?= $patientRegistryVisibilityFeatureEnabled ? '1' : '0' ?>
     }, function(res) {
         var html = '';
 

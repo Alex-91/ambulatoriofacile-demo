@@ -10947,7 +10947,8 @@ function cercaPazientiAgenda(term) {
     agendaPatientSearchTimer = setTimeout(function() {
         agendaPatientSearchXhr = $.get("<?= base_url('agenda/cerca-pazienti') ?>", {
             id_dot: idDot,
-            term: term
+            term: term,
+            appointment_history: 1
         }, function(res) {
             var html = '';
 

@@ -66,7 +66,8 @@ class PazientiModel extends Model
         string $term,
         bool $onlyFutureAppointments = false,
         int $actingUserId = 0,
-        bool $onlyVisibleInRegistry = false
+        bool $onlyVisibleInRegistry = false,
+        bool $onlyWithAppointments = false
     ): array
     {
         $term = trim($term);
@@ -95,7 +96,7 @@ class PazientiModel extends Model
             );
         }
 
-        if ($this->doctorPatientSearchModel->tableExists()) {
+        if (!$onlyWithAppointments && $this->doctorPatientSearchModel->tableExists()) {
             try {
                 $lookupLimit = $onlyVisibleInRegistry ? 100 : 20;
                 $ids = count((array) ($scope['legacy_dot_ids'] ?? [])) > 1
@@ -121,6 +122,36 @@ class PazientiModel extends Model
         $registryVisibilityWhere = $onlyVisibleInRegistry
             ? "\n              AND " . $this->buildRegistryVisibilitySql('c')
             : '';
+        $appointmentPresenceWhere = '';
+
+        if ($onlyWithAppointments) {
+            $legacyIdDots = $this->normalizeIdList((array) ($scope['legacy_dot_ids'] ?? []));
+            if ($legacyIdDots === []) {
+                return [];
+            }
+
+            $doctorListSql = implode(',', $legacyIdDots);
+            $hasAppointmentClientColumn = $this->db->fieldExists('id_client', self::APPOINTMENTS_TABLE);
+            $appointmentPatientMatch = $hasAppointmentClientColumn
+                ? "(
+                    COALESCE(a.id_client, 0) = c.id_client
+                    OR (
+                        COALESCE(a.id_client, 0) = 0
+                        AND a.id_paziente IN (c.id_client, COALESCE(c.legacy_id_paziente, 0))
+                    )
+                )"
+                : 'a.id_paziente IN (c.id_client, COALESCE(c.legacy_id_paziente, 0))';
+
+            $appointmentPresenceWhere = "
+              AND EXISTS (
+                    SELECT 1
+                    FROM " . self::APPOINTMENTS_TABLE . " a
+                    WHERE a.id_dot IN ({$doctorListSql})
+                      AND a.stato <> 'ANNULLATO'
+                      AND {$appointmentPatientMatch}
+                )
+            ";
+        }
         $sql = "
             SELECT
                 c.id_client AS id_paziente,
@@ -143,6 +174,7 @@ class PazientiModel extends Model
                 ON scope.id_client = c.id_client
             WHERE 1 = 1
               {$registryVisibilityWhere}
+              {$appointmentPresenceWhere}
               AND (
                     LOWER(COALESCE({$this->decExpr('c.cognome')}, '')) LIKE ?
                  OR LOWER(COALESCE({$this->decExpr('c.nome')}, '')) LIKE ?

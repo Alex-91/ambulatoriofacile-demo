@@ -3774,6 +3774,7 @@ public function eseguiRepairRecurringExtraSlots()
             $term  = trim((string)$this->request->getGet('term'));
             $idDot = (int)$this->request->getGet('id_dot');
             $onlyFutureAppointments = (int)$this->request->getGet('only_future_appointments') === 1;
+            $appointmentHistorySearch = (int)$this->request->getGet('appointment_history') === 1;
             $memoScope = (int)$this->request->getGet('memo_scope') === 1;
 
             if ($memoScope && $this->isSharedAgendaMemosFeatureEnabled()) {
@@ -3789,7 +3790,10 @@ public function eseguiRepairRecurringExtraSlots()
                     $term,
                     $onlyFutureAppointments,
                     $this->getCurrentUserId(),
-                    $this->isPatientRegistryVisibilityFeatureEnabled()
+                    // La ricerca della cronologia appuntamenti deve mantenere
+                    // disponibili anche i pazienti nascosti in anagrafica.
+                    !$appointmentHistorySearch && $this->isPatientRegistryVisibilityFeatureEnabled(),
+                    $appointmentHistorySearch
                 ),
             ]);
         } catch (\Throwable $e) {
@@ -3797,6 +3801,7 @@ public function eseguiRepairRecurringExtraSlots()
                 'id_dot' => (int)$this->request->getGet('id_dot'),
                 'term' => (string)$this->request->getGet('term'),
                 'only_future_appointments' => (int)$this->request->getGet('only_future_appointments'),
+                'appointment_history' => (int)$this->request->getGet('appointment_history'),
             ]);
 
             return $this->respondJsonSafe([
@@ -5189,6 +5194,7 @@ public function eseguiRepairRecurringExtraSlots()
     public function gestionePazienti()
     {
         $medici = $this->getOrderedVisibleDoctorsForCurrentUser();
+        $patientRegistryVisibilityFeatureEnabled = $this->isPatientRegistryVisibilityFeatureEnabled();
 
         $selectedDot = (int)($this->request->getGet('id_dot') ?: $this->getFirstVisibleDoctorId($medici));
 
@@ -5200,6 +5206,7 @@ public function eseguiRepairRecurringExtraSlots()
             'pageTitle'   => 'Gestione pazienti',
             'medici'      => $medici,
             'selectedDot' => $selectedDot,
+            'patientRegistryVisibilityFeatureEnabled' => $patientRegistryVisibilityFeatureEnabled,
             'patientSmsReminderPreferenceAvailable' => $this->isPatientSmsReminderPreferenceAvailable(),
             'patientExcelImportEnabled' => $this->isPatientExcelImportEnabled(),
             'menuAgenda'  => method_exists($this->agendaModel, 'getMenuVisibleByUser')
@@ -5392,6 +5399,7 @@ public function eseguiRepairRecurringExtraSlots()
             $term  = trim((string)$this->request->getGet('term'));
             $page  = max(1, (int)($this->request->getGet('page') ?? 1));
             $perPage = 20;
+            $onlyVisibleInRegistry = (int)($this->request->getGet('registry_visibility') ?? 0) === 1;
 
             if ($idDot <= 0) {
                 throw new \Exception('Medico non valido.');
@@ -5405,7 +5413,7 @@ public function eseguiRepairRecurringExtraSlots()
                 $page,
                 $perPage,
                 $this->getCurrentUserId(),
-                $this->isPatientRegistryVisibilityFeatureEnabled()
+                $onlyVisibleInRegistry
             );
 
             return $this->respondJsonSafe([
