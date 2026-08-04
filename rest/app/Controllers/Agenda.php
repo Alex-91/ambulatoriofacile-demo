@@ -5194,7 +5194,6 @@ public function eseguiRepairRecurringExtraSlots()
     public function gestionePazienti()
     {
         $medici = $this->getOrderedVisibleDoctorsForCurrentUser();
-        $patientRegistryVisibilityFeatureEnabled = $this->isPatientRegistryVisibilityFeatureEnabled();
 
         $selectedDot = (int)($this->request->getGet('id_dot') ?: $this->getFirstVisibleDoctorId($medici));
 
@@ -5206,7 +5205,6 @@ public function eseguiRepairRecurringExtraSlots()
             'pageTitle'   => 'Gestione pazienti',
             'medici'      => $medici,
             'selectedDot' => $selectedDot,
-            'patientRegistryVisibilityFeatureEnabled' => $patientRegistryVisibilityFeatureEnabled,
             'patientSmsReminderPreferenceAvailable' => $this->isPatientSmsReminderPreferenceAvailable(),
             'patientExcelImportEnabled' => $this->isPatientExcelImportEnabled(),
             'menuAgenda'  => method_exists($this->agendaModel, 'getMenuVisibleByUser')
@@ -5399,7 +5397,6 @@ public function eseguiRepairRecurringExtraSlots()
             $term  = trim((string)$this->request->getGet('term'));
             $page  = max(1, (int)($this->request->getGet('page') ?? 1));
             $perPage = 20;
-            $onlyVisibleInRegistry = (int)($this->request->getGet('registry_visibility') ?? 0) === 1;
 
             if ($idDot <= 0) {
                 throw new \Exception('Medico non valido.');
@@ -5413,7 +5410,11 @@ public function eseguiRepairRecurringExtraSlots()
                 $page,
                 $perPage,
                 $this->getCurrentUserId(),
-                $onlyVisibleInRegistry
+                // Questo è l'endpoint dell'anagrafica: deve rispettare
+                // sempre il flag persistito sul paziente. Negli spazi senza
+                // funzione attiva il valore salvato resta quello predefinito
+                // (visibile), quindi il comportamento non cambia.
+                true
             );
 
             return $this->respondJsonSafe([
