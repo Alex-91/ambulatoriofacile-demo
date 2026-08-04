@@ -3784,7 +3784,13 @@ public function eseguiRepairRecurringExtraSlots()
 
             return $this->respondJsonSafe([
                 'status' => true,
-                'rows'   => $this->pazientiModel->autocompleteByDoctor($idDot, $term, $onlyFutureAppointments, $this->getCurrentUserId()),
+                'rows'   => $this->pazientiModel->autocompleteByDoctor(
+                    $idDot,
+                    $term,
+                    $onlyFutureAppointments,
+                    $this->getCurrentUserId(),
+                    $this->isPatientRegistryVisibilityFeatureEnabled()
+                ),
             ]);
         } catch (\Throwable $e) {
             log_message('error', 'Agenda::cercaPazienti failed: ' . $e->getMessage(), [

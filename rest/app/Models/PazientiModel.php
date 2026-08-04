@@ -61,7 +61,13 @@ class PazientiModel extends Model
         $dbConfig->setEncryptionConfig($this->db);
     }
 
-    public function autocompleteByDoctor(int $idDot, string $term, bool $onlyFutureAppointments = false, int $actingUserId = 0): array
+    public function autocompleteByDoctor(
+        int $idDot,
+        string $term,
+        bool $onlyFutureAppointments = false,
+        int $actingUserId = 0,
+        bool $onlyVisibleInRegistry = false
+    ): array
     {
         $term = trim($term);
         if ($term === '') {
@@ -75,17 +81,32 @@ class PazientiModel extends Model
         }
 
         if ($onlyFutureAppointments) {
-            $ids = $this->searchFutureAppointmentClientIdsByDoctor($idDot, $term, 20, $actingUserId);
-            return $this->getPatientsByIds($ids, true);
+            $ids = $this->searchFutureAppointmentClientIdsByDoctor(
+                $idDot,
+                $term,
+                $onlyVisibleInRegistry ? 100 : 20,
+                $actingUserId
+            );
+
+            return array_slice(
+                $this->getPatientsByIds($ids, true, $onlyVisibleInRegistry),
+                0,
+                20
+            );
         }
 
         if ($this->doctorPatientSearchModel->tableExists()) {
             try {
+                $lookupLimit = $onlyVisibleInRegistry ? 100 : 20;
                 $ids = count((array) ($scope['legacy_dot_ids'] ?? [])) > 1
-                    ? $this->doctorPatientSearchModel->searchClientIdsForDoctors((array) ($scope['legacy_dot_ids'] ?? []), $term, 20)
-                    : $this->doctorPatientSearchModel->searchClientIdsForDoctor($idDot, $term, 20);
+                    ? $this->doctorPatientSearchModel->searchClientIdsForDoctors((array) ($scope['legacy_dot_ids'] ?? []), $term, $lookupLimit)
+                    : $this->doctorPatientSearchModel->searchClientIdsForDoctor($idDot, $term, $lookupLimit);
                 if ($ids !== []) {
-                    return $this->getPatientsByIds($ids, true);
+                    return array_slice(
+                        $this->getPatientsByIds($ids, true, $onlyVisibleInRegistry),
+                        0,
+                        20
+                    );
                 }
             } catch (\Throwable $e) {
                 log_message('warning', 'PazientiModel autocomplete indexed search fallback: ' . $e->getMessage(), [
@@ -97,6 +118,9 @@ class PazientiModel extends Model
 
         $needle = '%' . mb_strtolower($term) . '%';
         $params = [];
+        $registryVisibilityWhere = $onlyVisibleInRegistry
+            ? "\n              AND " . $this->buildRegistryVisibilitySql('c')
+            : '';
         $sql = "
             SELECT
                 c.id_client AS id_paziente,
@@ -118,6 +142,7 @@ class PazientiModel extends Model
             ) scope
                 ON scope.id_client = c.id_client
             WHERE 1 = 1
+              {$registryVisibilityWhere}
               AND (
                     LOWER(COALESCE({$this->decExpr('c.cognome')}, '')) LIKE ?
                  OR LOWER(COALESCE({$this->decExpr('c.nome')}, '')) LIKE ?
@@ -1692,7 +1717,11 @@ class PazientiModel extends Model
         return $idClient;
     }
 
-    private function getPatientsByIds(array $ids, bool $autocompleteMode): array
+    private function getPatientsByIds(
+        array $ids,
+        bool $autocompleteMode,
+        bool $onlyVisibleInRegistry = false
+    ): array
     {
         $ids = array_values(array_unique(array_map('intval', $ids)));
         $ids = array_values(array_filter($ids, static fn(int $id): bool => $id > 0));
@@ -1702,6 +1731,9 @@ class PazientiModel extends Model
         }
 
         $idListSql = implode(',', $ids);
+        $registryVisibilityWhere = $onlyVisibleInRegistry
+            ? "\n                  AND " . $this->buildRegistryVisibilitySql('c')
+            : '';
 
         if ($autocompleteMode) {
             $sql = "
@@ -1722,6 +1754,7 @@ class PazientiModel extends Model
                     CONCAT({$this->decExpr('c.cognome')}, ' ', {$this->decExpr('c.nome')}) AS label
                 FROM " . self::CLIENTS_TABLE . " c
                 WHERE c.id_client IN ({$idListSql})
+                  {$registryVisibilityWhere}
                 ORDER BY FIELD(c.id_client, {$idListSql})
             ";
         } else {
@@ -1752,6 +1785,7 @@ class PazientiModel extends Model
                     COALESCE(c.bloccato, 0) AS bloccato
                 FROM " . self::CLIENTS_TABLE . " c
                 WHERE c.id_client IN ({$idListSql})
+                  {$registryVisibilityWhere}
                 ORDER BY FIELD(c.id_client, {$idListSql})
             ";
         }
