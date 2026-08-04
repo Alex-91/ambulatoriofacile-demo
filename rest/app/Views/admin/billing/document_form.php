@@ -220,13 +220,13 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
               </div>
               <div class="box-body">
                 <div class="row">
-                  <div class="col-md-4">
+                  <div class="col-md-3">
                     <div class="form-group">
                       <label>Numero documento *</label>
                       <input class="form-control" type="text" name="document_number" maxlength="32" value="<?= esc($fieldValue('document_number')) ?>">
                     </div>
                   </div>
-                  <div class="col-md-4">
+                  <div class="col-md-3">
                     <div class="form-group">
                       <label>Tipo documento *</label>
                       <select class="form-control" name="document_type">
@@ -244,8 +244,14 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
                   </div>
                   <div class="col-md-2">
                     <div class="form-group">
+                      <label>Data scadenza</label>
+                      <input class="form-control" type="date" name="due_date" value="<?= esc($fieldValue('due_date')) ?>">
+                    </div>
+                  </div>
+                  <div class="col-md-2">
+                    <div class="form-group">
                       <label>Data pagamento</label>
-                      <input class="form-control" type="date" name="payment_date" value="<?= esc($fieldValue('payment_date', date('Y-m-d'))) ?>">
+                      <input class="form-control" type="date" name="payment_date" value="<?= esc($fieldValue('payment_date')) ?>">
                     </div>
                   </div>
                 </div>

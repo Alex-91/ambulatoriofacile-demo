@@ -7,6 +7,8 @@ $summary = is_array($listing['summary'] ?? null) ? $listing['summary'] : [];
 $documents = is_array($listing['documents'] ?? null) ? $listing['documents'] : [];
 $localStateLabels = is_array($listing['local_state_labels'] ?? null) ? $listing['local_state_labels'] : [];
 $documentTypeLabels = is_array($listing['document_type_labels'] ?? null) ? $listing['document_type_labels'] : [];
+$paymentMethodLabels = is_array($listing['payment_method_labels'] ?? null) ? $listing['payment_method_labels'] : [];
+$paymentStatusLabels = is_array($listing['payment_status_labels'] ?? null) ? $listing['payment_status_labels'] : [];
 $tsSyncLabels = is_array($listing['ts_sync_labels'] ?? null) ? $listing['ts_sync_labels'] : [];
 $tableAvailable = !empty($listing['table_available']);
 $schemaMessage = trim((string) ($listing['schema_message'] ?? ''));
@@ -64,6 +66,9 @@ $environmentLabel = defined('ENVIRONMENT') && ENVIRONMENT === 'production' ? 'Pr
                 </div>
               </div>
               <div class="billing-archive-actions">
+                <a class="billing-action billing-action-secondary" href="<?= site_url('admin/fatturazione-scadenzario') ?>">
+                  <i class="fa fa-calendar"></i> Scadenzario
+                </a>
                 <a class="billing-action billing-action-secondary" href="<?= site_url('admin/fatturazione-statistiche') ?>">
                   <i class="fa fa-bar-chart"></i> Statistiche e report
                 </a>
@@ -81,24 +86,24 @@ $environmentLabel = defined('ENVIRONMENT') && ENVIRONMENT === 'production' ? 'Pr
 
             <div class="billing-kpi-grid billing-archive-kpis">
               <article class="billing-kpi-card">
-                <span>Totali</span>
-                <strong><?= (int) ($summary['total_documents'] ?? 0) ?></strong>
-                <p>documenti in archivio</p>
+                <span>Da inviare via email</span>
+                <strong><?= (int) ($summary['to_send_count'] ?? 0) ?></strong>
+                <p>fatture definitive</p>
               </article>
               <article class="billing-kpi-card billing-kpi-neutral">
-                <span>Bozze</span>
-                <strong><?= (int) ($summary['draft_count'] ?? 0) ?></strong>
-                <p>da completare</p>
+                <span>Da incassare</span>
+                <strong><?= (int) ($summary['unpaid_count'] ?? 0) ?></strong>
+                <p>€ <?= number_format((float) ($summary['outstanding_amount'] ?? 0), 2, ',', '.') ?></p>
               </article>
-              <article class="billing-kpi-card">
-                <span>Definitivi</span>
-                <strong><?= (int) ($summary['issued_count'] ?? 0) ?></strong>
-                <p>documenti chiusi</p>
+              <article class="billing-kpi-card billing-kpi-danger">
+                <span>Scadute</span>
+                <strong><?= (int) ($summary['overdue_count'] ?? 0) ?></strong>
+                <p>da sollecitare</p>
               </article>
               <article class="billing-kpi-card">
                 <span>Totale incassato del mese</span>
                 <strong>&euro; <?= number_format((float) ($summary['month_revenue'] ?? 0), 2, ',', '.') ?></strong>
-                <p>documenti definitivi</p>
+                <p>fatture pagate</p>
               </article>
             </div>
 
@@ -126,6 +131,16 @@ $environmentLabel = defined('ENVIRONMENT') && ENVIRONMENT === 'production' ? 'Pr
                   </div>
                 </div>
                 <div class="billing-filter-group">
+                  <span>Pagamento</span>
+                  <div class="billing-filter-segment" data-filter-group="payment">
+                    <button type="button" class="is-active" data-filter-value="all">Tutte</button>
+                    <button type="button" data-filter-value="to_send">Da inviare</button>
+                    <button type="button" data-filter-value="unpaid">Da pagare</button>
+                    <button type="button" data-filter-value="overdue">Scadute</button>
+                    <button type="button" data-filter-value="paid">Pagate</button>
+                  </div>
+                </div>
+                <div class="billing-filter-group">
                   <span>Tipo</span>
                   <div class="billing-filter-segment" data-filter-group="type">
                     <button type="button" class="is-active" data-filter-value="all">Tutti</button>
@@ -148,7 +163,7 @@ $environmentLabel = defined('ENVIRONMENT') && ENVIRONMENT === 'production' ? 'Pr
                     <option value="month">Questo mese</option>
                     <option value="last_month">Mese scorso</option>
                     <option value="year">Tutto l’anno</option>
-                    <option value="all">Tutti i periodi</option>
+                    <option value="all" selected>Tutti i periodi</option>
                   </select>
                 </label>
               </div>
@@ -213,7 +228,9 @@ $environmentLabel = defined('ENVIRONMENT') && ENVIRONMENT === 'production' ? 'Pr
                         <th><button class="billing-table-sort" type="button" data-sort-key="client">Cliente <i class="fa fa-sort"></i></button></th>
                         <th><button class="billing-table-sort" type="button" data-sort-key="date">Emissione <i class="fa fa-sort"></i></button></th>
                         <th class="text-right"><button class="billing-table-sort" type="button" data-sort-key="amount">Totale <i class="fa fa-sort"></i></button></th>
+                        <th>Pagamento</th>
                         <th>Stato</th>
+                        <th>Email</th>
                         <th>TS</th>
                         <th class="text-right">Azioni</th>
                       </tr>
@@ -228,6 +245,15 @@ $environmentLabel = defined('ENVIRONMENT') && ENVIRONMENT === 'production' ? 'Pr
                           $canEdit = !array_key_exists('can_edit', $row) || !empty($row['can_edit']);
                           $canDelete = !array_key_exists('can_delete', $row) || !empty($row['can_delete']);
                           $lockedReason = trim((string) ($row['locked_reason'] ?? ''));
+                          $paymentStatus = trim((string) ($row['payment_status'] ?? 'unpaid'));
+                          $paymentMethod = trim((string) ($row['payment_method'] ?? ''));
+                          $dueDate = trim((string) ($row['due_date'] ?? ''));
+                          $invoiceSentAt = trim((string) ($row['invoice_email_sent_at'] ?? ''));
+                          $reminderCount = (int) ($row['reminder_count'] ?? 0);
+                          $isOverdue = $localState === 'issued'
+                            && $paymentStatus !== 'paid'
+                            && $dueDate !== ''
+                            && $dueDate < date('Y-m-d');
                           $tsSelectable = $tsEnabled
                             && $localState === 'issued'
                             && !empty($row['ts_sync_enabled'])
@@ -236,12 +262,17 @@ $environmentLabel = defined('ENVIRONMENT') && ENVIRONMENT === 'production' ? 'Pr
                             (string) ($row['document_number'] ?? ''),
                             (string) ($row['patient_name'] ?? ''),
                             (string) ($row['patient_tax_code'] ?? ''),
+                            (string) ($row['patient_email'] ?? ''),
+                            (string) ($paymentMethodLabels[$paymentMethod] ?? $paymentMethod),
                           ]);
                         ?>
                         <tr class="billing-archive-row"
                             data-id="<?= $documentId ?>"
                             data-search="<?= esc(mb_strtolower($searchText), 'attr') ?>"
                             data-status="<?= esc($localState, 'attr') ?>"
+                            data-payment="<?= esc($paymentStatus, 'attr') ?>"
+                            data-email-sent="<?= $invoiceSentAt !== '' ? '1' : '0' ?>"
+                            data-overdue="<?= $isOverdue ? '1' : '0' ?>"
                             data-type="<?= esc($type, 'attr') ?>"
                             data-ts="<?= esc($tsState, 'attr') ?>"
                             data-date="<?= esc((string) ($row['issue_date'] ?? ''), 'attr') ?>"
@@ -270,12 +301,48 @@ $environmentLabel = defined('ENVIRONMENT') && ENVIRONMENT === 'production' ? 'Pr
                           </td>
                           <td class="billing-table-muted"><?= esc((string) ($row['issue_date'] ?? '-')) ?></td>
                           <td class="text-right billing-table-total">&euro; <?= number_format((float) ($row['amount_total'] ?? 0), 2, ',', '.') ?></td>
+                          <td class="billing-payment-cell">
+                            <span class="billing-payment-method"><i class="fa fa-credit-card"></i> <?= esc((string) ($paymentMethodLabels[$paymentMethod] ?? $paymentMethod ?: '-')) ?></span>
+                            <?php if ($localState === 'issued'): ?>
+                              <span class="billing-payment-status <?= $paymentStatus === 'paid' ? 'is-paid' : ($isOverdue ? 'is-overdue' : 'is-unpaid') ?>"><?= esc((string) ($paymentStatusLabels[$paymentStatus] ?? $paymentStatus)) ?></span>
+                              <?php if ($paymentStatus !== 'paid' && $dueDate !== ''): ?><small>Scadenza <?= esc(date('d/m/Y', strtotime($dueDate))) ?></small><?php endif; ?>
+                              <?php if ($paymentStatus === 'paid' && trim((string) ($row['payment_date'] ?? '')) !== ''): ?><small>Incassata il <?= esc(date('d/m/Y', strtotime((string) $row['payment_date']))) ?></small><?php endif; ?>
+                            <?php endif; ?>
+                          </td>
                           <td><span class="billing-state-pill <?= $localState === 'issued' ? 'is-issued' : 'is-draft' ?>"><?= esc((string) ($localStateLabels[$localState] ?? $localState ?: '-')) ?></span></td>
+                          <td class="billing-email-status">
+                            <?php if ($localState !== 'issued'): ?>
+                              <span class="billing-table-muted">—</span>
+                            <?php elseif ($invoiceSentAt === ''): ?>
+                              <strong class="is-pending"><i class="fa fa-envelope-o"></i> Da inviare</strong>
+                            <?php else: ?>
+                              <strong class="is-sent"><i class="fa fa-check-circle"></i> Inviata</strong>
+                              <small><?= esc(date('d/m/Y H:i', strtotime($invoiceSentAt))) ?></small>
+                              <?php if ($reminderCount > 0): ?><small><?= $reminderCount ?> <?= $reminderCount === 1 ? 'sollecito' : 'solleciti' ?></small><?php endif; ?>
+                            <?php endif; ?>
+                          </td>
                           <td><span class="billing-ts-state billing-ts-<?= esc($tsState, 'attr') ?>"><?= esc((string) ($tsSyncLabels[$tsState] ?? $tsState ?: '-')) ?></span></td>
                           <td class="text-right billing-archive-actions-cell">
                             <a class="billing-icon-action" href="<?= site_url('admin/fatturazione-documenti/modifica/' . $documentId) ?>" aria-label="<?= $canEdit ? 'Modifica' : 'Apri' ?> documento"><i class="fa <?= $canEdit ? 'fa-pencil' : 'fa-folder-open-o' ?>"></i></a>
                             <a class="billing-icon-action" href="<?= site_url('admin/fatturazione-documenti/preview/' . $documentId) ?>" aria-label="Anteprima documento"><i class="fa fa-eye"></i></a>
                             <a class="billing-icon-action" href="<?= site_url('admin/fatturazione-documenti/pdf/' . $documentId) ?>" aria-label="Scarica PDF"><i class="fa fa-download"></i></a>
+                            <?php if ($localState === 'issued'): ?>
+                              <a class="billing-icon-action billing-email-action" href="<?= site_url('admin/fatturazione-documenti/email/' . $documentId) ?>" title="Invia fattura via email" aria-label="Invia fattura via email"><i class="fa fa-envelope-o"></i></a>
+                              <?php if ($paymentStatus !== 'paid' && $invoiceSentAt !== ''): ?>
+                                <a class="billing-icon-action billing-reminder-action" href="<?= site_url('admin/fatturazione-documenti/email/' . $documentId . '?type=reminder') ?>" title="Invia sollecito" aria-label="Invia sollecito"><i class="fa fa-bell-o"></i></a>
+                              <?php endif; ?>
+                              <?php if ($paymentStatus !== 'paid'): ?>
+                                <form method="post" action="<?= site_url('admin/fatturazione-documenti/pagamento/' . $documentId) ?>" class="billing-inline-form" onsubmit="return confirm('Segnare questa fattura come pagata?');">
+                                  <?= csrf_field() ?><input type="hidden" name="payment_status" value="paid"><input type="hidden" name="payment_date" value="<?= esc(date('Y-m-d'), 'attr') ?>">
+                                  <button class="billing-icon-action billing-payment-action" type="submit" title="Segna come pagata" aria-label="Segna come pagata"><i class="fa fa-check"></i></button>
+                                </form>
+                              <?php else: ?>
+                                <form method="post" action="<?= site_url('admin/fatturazione-documenti/pagamento/' . $documentId) ?>" class="billing-inline-form" onsubmit="return confirm('Annullare la registrazione del pagamento?');">
+                                  <?= csrf_field() ?><input type="hidden" name="payment_status" value="unpaid">
+                                  <button class="billing-icon-action" type="submit" title="Segna come non pagata" aria-label="Segna come non pagata"><i class="fa fa-undo"></i></button>
+                                </form>
+                              <?php endif; ?>
+                            <?php endif; ?>
                             <?php if ((int) ($row['linked_ts_document_id'] ?? 0) > 0): ?>
                               <a class="billing-icon-action billing-ts-link-action" href="<?= site_url('admin/sistema-ts/documenti/modifica/' . (int) ($row['linked_ts_document_id'] ?? 0)) ?>" aria-label="Apri documento TS"><i class="fa fa-exchange"></i></a>
                             <?php endif; ?>
@@ -354,7 +421,7 @@ $environmentLabel = defined('ENVIRONMENT') && ENVIRONMENT === 'production' ? 'Pr
     var bulkInputs = document.getElementById('billing-bulk-inputs');
     var bulkSummary = document.getElementById('billing-bulk-summary');
     var bulkButton = document.getElementById('billing-bulk-send');
-    var filters = { status: 'all', type: 'all', ts: 'all' };
+    var filters = { status: 'all', payment: 'all', type: 'all', ts: 'all' };
     var currentPage = 1;
     var rowLimit = 10;
     var sortKey = 'date';
@@ -389,8 +456,14 @@ $environmentLabel = defined('ENVIRONMENT') && ENVIRONMENT === 'production' ? 'Pr
 
     function isMatching(row) {
       var term = normalize(search.value).trim();
+      var paymentMatches = filters.payment === 'all'
+        || (filters.payment === 'to_send' && row.getAttribute('data-status') === 'issued' && row.getAttribute('data-email-sent') === '0')
+        || (filters.payment === 'overdue' && row.getAttribute('data-overdue') === '1')
+        || (filters.payment === 'unpaid' && row.getAttribute('data-status') === 'issued' && row.getAttribute('data-payment') === 'unpaid')
+        || (filters.payment === 'paid' && row.getAttribute('data-payment') === 'paid');
       return (!term || normalize(row.getAttribute('data-search')).indexOf(term) !== -1)
         && (filters.status === 'all' || row.getAttribute('data-status') === filters.status)
+        && paymentMatches
         && (filters.type === 'all' || row.getAttribute('data-type') === filters.type)
         && (filters.ts === 'all' || row.getAttribute('data-ts') === filters.ts)
         && inPeriod(row.getAttribute('data-date'));
@@ -448,9 +521,9 @@ $environmentLabel = defined('ENVIRONMENT') && ENVIRONMENT === 'production' ? 'Pr
     }
 
     function resetFilters() {
-      filters = { status: 'all', type: 'all', ts: 'all' };
+      filters = { status: 'all', payment: 'all', type: 'all', ts: 'all' };
       search.value = '';
-      period.value = 'month';
+      period.value = 'all';
       Array.prototype.slice.call(root.querySelectorAll('.billing-filter-segment button')).forEach(function (button) {
         button.classList.toggle('is-active', button.getAttribute('data-filter-value') === 'all');
       });
@@ -461,11 +534,11 @@ $environmentLabel = defined('ENVIRONMENT') && ENVIRONMENT === 'production' ? 'Pr
     function updateActiveFilters() {
       var labels = [];
       if (search.value.trim()) { labels.push('Ricerca: “' + search.value.trim() + '”'); }
-      var filterLabels = { status: { draft: 'Stato: Bozza', issued: 'Stato: Definitivo' }, type: { invoice: 'Tipo: Fattura', receipt: 'Tipo: Ricevuta' }, ts: { not_requested: 'TS: Non richiesto', ready: 'TS: Pronto', sent: 'TS: Inviato' } };
+      var filterLabels = { status: { draft: 'Stato: Bozza', issued: 'Stato: Definitivo' }, payment: { to_send: 'Pagamento: Da inviare', unpaid: 'Pagamento: Da pagare', overdue: 'Pagamento: Scadute', paid: 'Pagamento: Pagate' }, type: { invoice: 'Tipo: Fattura', receipt: 'Tipo: Ricevuta' }, ts: { not_requested: 'TS: Non richiesto', ready: 'TS: Pronto', sent: 'TS: Inviato' } };
       Object.keys(filters).forEach(function (key) {
         if (filters[key] !== 'all' && filterLabels[key][filters[key]]) { labels.push(filterLabels[key][filters[key]]); }
       });
-      if (period.value !== 'month') { labels.push('Periodo: ' + period.options[period.selectedIndex].text); }
+      if (period.value !== 'all') { labels.push('Periodo: ' + period.options[period.selectedIndex].text); }
       activeFilters.innerHTML = '';
       labels.forEach(function (label) {
         var chip = document.createElement('span');

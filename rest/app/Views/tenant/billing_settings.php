@@ -14,6 +14,7 @@ $defaults = is_array($config['defaults'] ?? null) ? $config['defaults'] : [];
 $vat = is_array($config['vat'] ?? null) ? $config['vat'] : [];
 $pensionFund = is_array($config['pension_fund'] ?? null) ? $config['pension_fund'] : [];
 $fiscalData = is_array($config['fiscal_data'] ?? null) ? $config['fiscal_data'] : [];
+$emailDelivery = is_array($config['email_delivery'] ?? null) ? $config['email_delivery'] : [];
 $documentTypes = is_array($documentTypes ?? null) ? $documentTypes : [];
 $paymentMethods = is_array($paymentMethods ?? null) ? $paymentMethods : [];
 $errors = is_array($errors ?? null) ? $errors : [];
@@ -273,6 +274,57 @@ if ($serviceRows === []) {
                       <input class="form-control" name="fiscal_recipient_code" maxlength="16" value="<?= esc($fieldValue('fiscal_recipient_code', $fiscalData['recipient_code'] ?? '')) ?>" placeholder="0000000">
                     </div>
                   </div>
+                </section>
+
+                <section class="config-card config-card-full config-email-card">
+                  <div class="config-card-head">
+                    <div>
+                      <span class="config-card-eyebrow">Email fatture</span>
+                      <h2>Invio al paziente e solleciti</h2>
+                    </div>
+                    <i class="fa fa-envelope-o"></i>
+                  </div>
+                  <p class="config-help config-section-help">
+                    Personalizza i testi predefiniti. Prima dell'invio potrai comunque modificare destinatario, oggetto e messaggio sulla singola fattura.
+                  </p>
+                  <div class="config-form-grid">
+                    <div class="form-group">
+                      <label>Scadenza predefinita</label>
+                      <div class="input-group">
+                        <input class="form-control" type="number" min="0" max="365" name="email_default_due_days" value="<?= esc($fieldValue('email_default_due_days', $emailDelivery['default_due_days'] ?? '30')) ?>">
+                        <span class="input-group-addon">giorni</span>
+                      </div>
+                    </div>
+                    <div class="form-group">
+                      <label>Allegato fattura</label>
+                      <div class="checkbox" style="margin-top:8px;">
+                        <label>
+                          <input type="hidden" name="email_attach_pdf" value="0">
+                          <input type="checkbox" name="email_attach_pdf" value="1" <?= $fieldBool('email_attach_pdf', !empty($emailDelivery['attach_pdf'])) ? 'checked' : '' ?>>
+                          Allega automaticamente il PDF
+                        </label>
+                      </div>
+                    </div>
+                    <div class="form-group config-form-wide">
+                      <label>Oggetto email fattura</label>
+                      <input class="form-control" name="email_invoice_subject" maxlength="255" value="<?= esc($fieldValue('email_invoice_subject', $emailDelivery['invoice_subject'] ?? '')) ?>">
+                    </div>
+                    <div class="form-group config-form-wide">
+                      <label>Messaggio email fattura</label>
+                      <textarea class="form-control" name="email_invoice_body" rows="7" maxlength="5000"><?= esc($fieldValue('email_invoice_body', $emailDelivery['invoice_body'] ?? '')) ?></textarea>
+                    </div>
+                    <div class="form-group config-form-wide">
+                      <label>Oggetto sollecito</label>
+                      <input class="form-control" name="email_reminder_subject" maxlength="255" value="<?= esc($fieldValue('email_reminder_subject', $emailDelivery['reminder_subject'] ?? '')) ?>">
+                    </div>
+                    <div class="form-group config-form-wide">
+                      <label>Messaggio sollecito</label>
+                      <textarea class="form-control" name="email_reminder_body" rows="8" maxlength="5000"><?= esc($fieldValue('email_reminder_body', $emailDelivery['reminder_body'] ?? '')) ?></textarea>
+                    </div>
+                  </div>
+                  <span class="config-help">
+                    Segnaposto disponibili: <strong>{paziente}</strong>, <strong>{numero}</strong>, <strong>{data_emissione}</strong>, <strong>{scadenza}</strong>, <strong>{totale}</strong>, <strong>{modalita_pagamento}</strong>, <strong>{studio}</strong>.
+                  </span>
                 </section>
               </div>
 

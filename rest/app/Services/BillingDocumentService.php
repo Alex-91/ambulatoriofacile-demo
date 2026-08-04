@@ -84,14 +84,52 @@ class BillingDocumentService
         $monthRevenue = $db->table('billing_documents')
             ->selectSum('amount_total', 'total_amount')
             ->where('local_state', 'issued')
-            ->where('issue_date >=', $monthStart)
-            ->where('issue_date <', $nextMonthStart)
+            ->where('payment_status', 'paid')
+            ->where('payment_date >=', $monthStart)
+            ->where('payment_date <', $nextMonthStart)
             ->get()
             ->getRowArray();
         $summary['month_revenue'] = (float) ($monthRevenue['total_amount'] ?? 0);
 
+        $collectionRows = $db->table('billing_documents')
+            ->select('payment_status, COUNT(*) AS total_count, SUM(amount_total) AS total_amount')
+            ->where('local_state', 'issued')
+            ->groupBy('payment_status')
+            ->get()
+            ->getResultArray();
+        foreach ($collectionRows as $row) {
+            $paymentStatus = trim((string) ($row['payment_status'] ?? 'unpaid'));
+            $count = (int) ($row['total_count'] ?? 0);
+            $amount = (float) ($row['total_amount'] ?? 0);
+            if ($paymentStatus === 'paid') {
+                $summary['paid_count'] += $count;
+                continue;
+            }
+
+            $summary['unpaid_count'] += $count;
+            $summary['outstanding_amount'] += $amount;
+        }
+
+        $overdue = $db->table('billing_documents')
+            ->select('COUNT(*) AS total_count')
+            ->where('local_state', 'issued')
+            ->where('payment_status !=', 'paid')
+            ->where('due_date IS NOT NULL', null, false)
+            ->where('due_date <', date('Y-m-d'))
+            ->get()
+            ->getRowArray();
+        $summary['overdue_count'] = (int) ($overdue['total_count'] ?? 0);
+
+        $toSend = $db->table('billing_documents')
+            ->select('COUNT(*) AS total_count')
+            ->where('local_state', 'issued')
+            ->where('invoice_email_sent_at IS NULL', null, false)
+            ->get()
+            ->getRowArray();
+        $summary['to_send_count'] = (int) ($toSend['total_count'] ?? 0);
+
         $recent = $db->table('billing_documents')
-            ->select('id_billing_document, document_number, patient_name, issue_date, amount_total, local_state')
+            ->select('id_billing_document, document_number, patient_name, issue_date, due_date, amount_total, local_state, payment_status')
             ->orderBy('issue_date', 'DESC')
             ->orderBy('id_billing_document', 'DESC')
             ->get(max(1, $recentLimit))
@@ -124,6 +162,7 @@ class BillingDocumentService
                 'local_state_labels' => $this->localStateLabels(),
                 'document_type_labels' => $this->documentTypeLabels(),
                 'payment_method_labels' => $this->paymentMethodLabels(),
+                'payment_status_labels' => $this->paymentStatusLabels(),
                 'ts_sync_labels' => $this->tsSyncStateLabels(),
                 'schema_message' => $dashboard['schema_message'] ?? '',
             ];
@@ -132,7 +171,7 @@ class BillingDocumentService
         $context = $this->resolveTenantDocumentContext($tenantId);
         $db = $context['db'];
         $documents = $db->table('billing_documents')
-            ->select('id_billing_document, document_number, document_type, issue_date, payment_date, patient_name, patient_tax_code, payment_method, amount_total, local_state, ts_sync_enabled, ts_sync_state, linked_ts_document_id, updated_at')
+            ->select('id_billing_document, document_number, document_type, issue_date, payment_date, due_date, patient_name, patient_tax_code, patient_email, payment_method, payment_status, paid_at, amount_total, local_state, invoice_email_sent_at, last_reminder_sent_at, reminder_count, email_last_recipient, email_last_error, ts_sync_enabled, ts_sync_state, linked_ts_document_id, updated_at')
             ->orderBy('issue_date', 'DESC')
             ->orderBy('id_billing_document', 'DESC')
             ->get(max(1, $limit))
@@ -145,6 +184,7 @@ class BillingDocumentService
             'local_state_labels' => $this->localStateLabels(),
             'document_type_labels' => $this->documentTypeLabels(),
             'payment_method_labels' => $this->paymentMethodLabels(),
+            'payment_status_labels' => $this->paymentStatusLabels(),
             'ts_sync_labels' => $this->tsSyncStateLabels(),
             'schema_message' => $dashboard['schema_message'] ?? '',
         ];
@@ -202,6 +242,189 @@ class BillingDocumentService
             'table_available' => true,
             'schema_message' => $this->schemaStatusMessage($schemaStatus),
         ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function buildPaymentScheduleForTenant(int $tenantId, int $limit = 500): array
+    {
+        $schemaStatus = $this->schema->ensureTenantSchemaReady($tenantId);
+        if (!$this->schemaIsReady($schemaStatus)) {
+            return [
+                'table_available' => false,
+                'documents' => [],
+                'summary' => $this->emptyScheduleSummary(),
+                'payment_method_labels' => $this->paymentMethodLabels(),
+                'schema_message' => $this->documentsUnavailableMessage($schemaStatus),
+            ];
+        }
+
+        $context = $this->resolveTenantDocumentContext($tenantId);
+        $db = $context['db'];
+        $documents = $db->table('billing_documents')
+            ->select('id_billing_document, document_number, issue_date, due_date, payment_date, patient_name, patient_email, payment_method, payment_status, amount_total, invoice_email_sent_at, last_reminder_sent_at, reminder_count')
+            ->where('local_state', 'issued')
+            ->get(max(1, min(1000, $limit)))
+            ->getResultArray();
+        $today = new \DateTimeImmutable('today');
+        $summary = $this->emptyScheduleSummary();
+
+        foreach ($documents as &$document) {
+            $paymentStatus = trim((string) ($document['payment_status'] ?? 'unpaid'));
+            $dueDateValue = trim((string) ($document['due_date'] ?? ''));
+            $scheduleState = 'without_due_date';
+            $daysToDue = null;
+
+            if ($paymentStatus === 'paid') {
+                $scheduleState = 'paid';
+                $summary['paid_count']++;
+            } elseif ($dueDateValue === '') {
+                $summary['without_due_date_count']++;
+                $summary['outstanding_count']++;
+                $summary['outstanding_amount'] += (float) ($document['amount_total'] ?? 0);
+            } else {
+                $dueDate = \DateTimeImmutable::createFromFormat('!Y-m-d', $dueDateValue);
+                if ($dueDate instanceof \DateTimeImmutable) {
+                    $daysToDue = (int) $today->diff($dueDate)->format('%r%a');
+                    $scheduleState = $daysToDue < 0 ? 'overdue' : ($daysToDue === 0 ? 'due_today' : 'upcoming');
+                }
+
+                $summary[$scheduleState . '_count']++;
+                $summary['outstanding_count']++;
+                $summary['outstanding_amount'] += (float) ($document['amount_total'] ?? 0);
+            }
+
+            $document['schedule_state'] = $scheduleState;
+            $document['days_to_due'] = $daysToDue;
+            $document['payment_method_label'] = $this->paymentMethodLabels()[(string) ($document['payment_method'] ?? '')]
+                ?? (string) ($document['payment_method'] ?? '');
+        }
+        unset($document);
+
+        $stateOrder = [
+            'overdue' => 0,
+            'due_today' => 1,
+            'upcoming' => 2,
+            'without_due_date' => 3,
+            'paid' => 4,
+        ];
+        usort($documents, static function (array $left, array $right) use ($stateOrder): int {
+            $leftState = (string) ($left['schedule_state'] ?? 'without_due_date');
+            $rightState = (string) ($right['schedule_state'] ?? 'without_due_date');
+            $stateComparison = ($stateOrder[$leftState] ?? 99) <=> ($stateOrder[$rightState] ?? 99);
+            if ($stateComparison !== 0) {
+                return $stateComparison;
+            }
+
+            $dateComparison = strcmp((string) ($left['due_date'] ?? '9999-12-31'), (string) ($right['due_date'] ?? '9999-12-31'));
+            if ($dateComparison !== 0) {
+                return $dateComparison;
+            }
+
+            return ((int) ($right['id_billing_document'] ?? 0)) <=> ((int) ($left['id_billing_document'] ?? 0));
+        });
+
+        return [
+            'table_available' => true,
+            'documents' => $documents,
+            'summary' => $summary,
+            'payment_method_labels' => $this->paymentMethodLabels(),
+            'schema_message' => $this->schemaStatusMessage($schemaStatus),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function setPaymentStatusForTenant(
+        int $tenantId,
+        int $documentId,
+        bool $paid,
+        string $paymentDate = '',
+        int $userId = 0
+    ): array {
+        $this->assertDocumentsSchemaReady($tenantId);
+        $context = $this->resolveTenantDocumentContext($tenantId);
+        /** @var BillingDocumentModel $documents */
+        $documents = $context['documents'];
+        $document = $documents->find($documentId);
+        if (!is_array($document)) {
+            throw new \RuntimeException('Fattura non trovata.');
+        }
+        if (trim((string) ($document['local_state'] ?? '')) !== 'issued') {
+            throw new \RuntimeException('Solo una fattura definitiva può essere segnata come pagata.');
+        }
+
+        $paymentDate = trim($paymentDate);
+        if ($paid && $paymentDate === '') {
+            $paymentDate = date('Y-m-d');
+        }
+        if (!$this->isValidOptionalDate($paymentDate)) {
+            throw new \RuntimeException('Data pagamento non valida.');
+        }
+
+        $documents->update($documentId, [
+            'payment_status' => $paid ? 'paid' : 'unpaid',
+            'payment_date' => $paid ? $paymentDate : null,
+            'paid_at' => $paid ? date('Y-m-d H:i:s') : null,
+            'updated_by' => $userId > 0 ? $userId : null,
+        ]);
+
+        return $documents->find($documentId) ?? [];
+    }
+
+    public function recordEmailDeliveryForTenant(
+        int $tenantId,
+        int $documentId,
+        string $deliveryType,
+        string $recipient,
+        string $subject,
+        string $messageBody,
+        bool $sent,
+        string $errorMessage = '',
+        int $userId = 0
+    ): void {
+        $this->assertDocumentsSchemaReady($tenantId);
+        $context = $this->resolveTenantDocumentContext($tenantId);
+        $db = $context['db'];
+        /** @var BillingDocumentModel $documents */
+        $documents = $context['documents'];
+        $document = $documents->find($documentId);
+        if (!is_array($document)) {
+            throw new \RuntimeException('Fattura non trovata per la registrazione email.');
+        }
+
+        $deliveryType = $deliveryType === 'reminder' ? 'reminder' : 'invoice';
+        $now = date('Y-m-d H:i:s');
+        if ($db->tableExists('billing_document_email_log')) {
+            $db->table('billing_document_email_log')->insert([
+                'id_billing_document' => $documentId,
+                'delivery_type' => $deliveryType,
+                'recipient' => substr(trim($recipient), 0, 190),
+                'subject' => substr(trim($subject), 0, 255),
+                'message_body' => substr(trim($messageBody), 0, 5000),
+                'delivery_status' => $sent ? 'sent' : 'error',
+                'error_message' => $errorMessage !== '' ? substr($errorMessage, 0, 5000) : null,
+                'created_by' => $userId > 0 ? $userId : null,
+                'created_at' => $now,
+            ]);
+        }
+
+        $update = [
+            'email_last_recipient' => substr(trim($recipient), 0, 190),
+            'email_last_error' => $sent ? null : substr($errorMessage, 0, 5000),
+            'updated_by' => $userId > 0 ? $userId : null,
+        ];
+        if ($sent && $deliveryType === 'invoice') {
+            $update['invoice_email_sent_at'] = $now;
+        }
+        if ($sent && $deliveryType === 'reminder') {
+            $update['last_reminder_sent_at'] = $now;
+            $update['reminder_count'] = max(0, (int) ($document['reminder_count'] ?? 0)) + 1;
+        }
+
+        $documents->update($documentId, $update);
     }
 
     /**
@@ -308,16 +531,30 @@ class BillingDocumentService
 
         $normalizedSaveMode = trim(strtolower($saveMode));
         $localState = str_starts_with($normalizedSaveMode, 'final') ? 'issued' : 'draft';
+        $paymentDate = trim((string) ($normalized['payment_date'] ?? ''));
+        if ($paymentDate === '' && trim((string) ($current['payment_status'] ?? '')) === 'paid') {
+            $paymentDate = trim((string) ($current['payment_date'] ?? '')) ?: date('Y-m-d');
+        }
+        $paymentStatus = $paymentDate !== ''
+            ? 'paid'
+            : 'unpaid';
+        $paidAt = $paymentStatus === 'paid'
+            ? (trim((string) ($current['paid_at'] ?? '')) ?: date('Y-m-d H:i:s'))
+            : null;
 
         $record = [
             'id_client' => (int) ($normalized['id_client'] ?? 0) > 0 ? (int) ($normalized['id_client'] ?? 0) : null,
             'document_number' => $normalized['document_number'],
             'document_type' => $normalized['document_type'],
             'issue_date' => $normalized['issue_date'],
-            'payment_date' => $normalized['payment_date'] !== '' ? $normalized['payment_date'] : null,
+            'payment_date' => $paymentDate !== '' ? $paymentDate : null,
+            'due_date' => $normalized['due_date'] !== '' ? $normalized['due_date'] : null,
             'patient_name' => $normalized['patient_name'],
             'patient_tax_code' => $normalized['patient_tax_code'] !== '' ? $normalized['patient_tax_code'] : null,
+            'patient_email' => $normalized['patient_email'] !== '' ? strtolower($normalized['patient_email']) : null,
             'payment_method' => $normalized['payment_method'],
+            'payment_status' => $paymentStatus,
+            'paid_at' => $paidAt,
             'line_items_json' => json_encode($normalized['line_items'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
             'subtotal_amount' => $normalized['subtotal_amount'],
             'stamp_duty_amount' => $normalized['stamp_duty_amount'],
@@ -536,11 +773,13 @@ class BillingDocumentService
     {
         $defaults = is_array($template['defaults'] ?? null) ? $template['defaults'] : [];
         $vat = is_array($template['vat'] ?? null) ? $template['vat'] : [];
+        $emailDelivery = is_array($template['email_delivery'] ?? null) ? $template['email_delivery'] : [];
         $documentType = trim((string) ($defaults['document_type'] ?? 'invoice'));
         $paymentMethod = trim((string) ($defaults['payment_method'] ?? 'bank_transfer'));
         $tsExpenseType = strtoupper(trim((string) ($defaults['ts_expense_type_code'] ?? 'SP')));
         $vatRate = $this->normalizeMoney($vat['default_rate'] ?? 0);
         $vatNature = strtoupper(substr(trim((string) ($vat['default_nature'] ?? '')), 0, 16));
+        $defaultDueDays = max(0, min(365, (int) ($emailDelivery['default_due_days'] ?? 30)));
 
         if (!array_key_exists($documentType, $this->documentTypeLabels())) {
             $documentType = 'invoice';
@@ -560,7 +799,8 @@ class BillingDocumentService
                 : $this->fallbackDocumentNumber($template),
             'document_type' => $documentType,
             'issue_date' => date('Y-m-d'),
-            'payment_date' => date('Y-m-d'),
+            'payment_date' => '',
+            'due_date' => date('Y-m-d', strtotime('+' . $defaultDueDays . ' days')),
             'patient_name' => '',
             'patient_last_name' => '',
             'patient_first_name' => '',
@@ -571,6 +811,7 @@ class BillingDocumentService
             'patient_address' => '',
             'patient_city' => '',
             'payment_method' => $paymentMethod,
+            'payment_status' => 'unpaid',
             'subtotal_amount' => 0,
             'stamp_duty_amount' => 0,
             'vat_rate' => $vatRate,
@@ -588,7 +829,7 @@ class BillingDocumentService
     }
 
     /**
-     * @return array<string, int|array<string, int>>
+     * @return array<string, int|float|array<string, int>>
      */
     private function emptySummary(): array
     {
@@ -598,6 +839,11 @@ class BillingDocumentService
             'draft_count' => 0,
             'issued_count' => 0,
             'month_revenue' => 0.0,
+            'to_send_count' => 0,
+            'unpaid_count' => 0,
+            'paid_count' => 0,
+            'overdue_count' => 0,
+            'outstanding_amount' => 0.0,
         ];
     }
 
@@ -631,10 +877,38 @@ class BillingDocumentService
     {
         return [
             'cash' => 'Contanti',
+            'card' => 'Carta',
             'pos' => 'POS',
             'bank_transfer' => 'Bonifico',
             'mixed' => 'Misto',
             'other' => 'Altro',
+        ];
+    }
+
+    /**
+     * @return array<string, int|float>
+     */
+    private function emptyScheduleSummary(): array
+    {
+        return [
+            'outstanding_count' => 0,
+            'outstanding_amount' => 0.0,
+            'overdue_count' => 0,
+            'due_today_count' => 0,
+            'upcoming_count' => 0,
+            'without_due_date_count' => 0,
+            'paid_count' => 0,
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function paymentStatusLabels(): array
+    {
+        return [
+            'unpaid' => 'Da pagare',
+            'paid' => 'Pagata',
         ];
     }
 
@@ -774,6 +1048,7 @@ class BillingDocumentService
             'document_type' => $documentType,
             'issue_date' => trim((string) ($payload['issue_date'] ?? '')),
             'payment_date' => trim((string) ($payload['payment_date'] ?? '')),
+            'due_date' => trim((string) ($payload['due_date'] ?? '')),
             'patient_name' => $patientName,
             'patient_last_name' => $patientLastName,
             'patient_first_name' => $patientFirstName,
@@ -852,6 +1127,16 @@ class BillingDocumentService
         }
         if (trim((string) ($normalized['issue_date'] ?? '')) === '') {
             $errors[] = 'Data emissione obbligatoria.';
+        }
+        if (!$this->isValidOptionalDate((string) ($normalized['due_date'] ?? ''))) {
+            $errors[] = 'Data scadenza non valida.';
+        }
+        if (!$this->isValidOptionalDate((string) ($normalized['payment_date'] ?? ''))) {
+            $errors[] = 'Data pagamento non valida.';
+        }
+        $patientEmail = trim((string) ($normalized['patient_email'] ?? ''));
+        if ($patientEmail !== '' && filter_var($patientEmail, FILTER_VALIDATE_EMAIL) === false) {
+            $errors[] = 'Email del paziente non valida.';
         }
         if (trim((string) ($normalized['patient_name'] ?? '')) === '') {
             $errors[] = 'Nome cliente o paziente obbligatorio.';
@@ -1017,6 +1302,18 @@ class BillingDocumentService
         }
 
         return round((float) $value, 2);
+    }
+
+    private function isValidOptionalDate(string $value): bool
+    {
+        $value = trim($value);
+        if ($value === '') {
+            return true;
+        }
+
+        $date = \DateTimeImmutable::createFromFormat('!Y-m-d', $value);
+
+        return $date instanceof \DateTimeImmutable && $date->format('Y-m-d') === $value;
     }
 
     /**

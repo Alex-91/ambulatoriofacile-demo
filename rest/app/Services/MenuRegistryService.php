@@ -285,6 +285,19 @@ class MenuRegistryService
                 ],
             ],
             [
+                'key' => 'fatturazione-scadenzario',
+                'link' => 'fatturazione-scadenzario',
+                'title' => 'Scadenzario fatture',
+                'icon' => 'fa-calendar',
+                'order' => 1415,
+                'default' => false,
+                'group' => 'Menu operativo',
+                'description' => 'Controlla scadenze, incassi e solleciti delle fatture definitive.',
+                'route_prefixes' => [
+                    'admin/fatturazione-scadenzario',
+                ],
+            ],
+            [
                 'key' => 'fatturazione-statistiche',
                 'link' => 'fatturazione-statistiche',
                 'title' => 'Statistiche e report',

@@ -104,6 +104,7 @@ class BillingSettingsController extends BaseController
         $vat = is_array($current['vat'] ?? null) ? $current['vat'] : [];
         $pensionFund = is_array($current['pension_fund'] ?? null) ? $current['pension_fund'] : [];
         $fiscalData = is_array($current['fiscal_data'] ?? null) ? $current['fiscal_data'] : [];
+        $emailDelivery = is_array($current['email_delivery'] ?? null) ? $current['email_delivery'] : [];
 
         return [
             'document_title' => $this->requestString('document_title', (string) ($current['document_title'] ?? 'Documento fatturazione'), 120),
@@ -142,6 +143,34 @@ class BillingSettingsController extends BaseController
                 'province' => $this->requestString('fiscal_province', (string) ($fiscalData['province'] ?? ''), 4),
                 'pec' => $this->requestString('fiscal_pec', (string) ($fiscalData['pec'] ?? ''), 190),
                 'recipient_code' => $this->requestString('fiscal_recipient_code', (string) ($fiscalData['recipient_code'] ?? ''), 16),
+            ],
+            'email_delivery' => [
+                'default_due_days' => $this->requestString(
+                    'email_default_due_days',
+                    (string) ($emailDelivery['default_due_days'] ?? '30'),
+                    3
+                ),
+                'attach_pdf' => $this->requestBool('email_attach_pdf'),
+                'invoice_subject' => $this->requestString(
+                    'email_invoice_subject',
+                    (string) ($emailDelivery['invoice_subject'] ?? ''),
+                    255
+                ),
+                'invoice_body' => $this->requestString(
+                    'email_invoice_body',
+                    (string) ($emailDelivery['invoice_body'] ?? ''),
+                    5000
+                ),
+                'reminder_subject' => $this->requestString(
+                    'email_reminder_subject',
+                    (string) ($emailDelivery['reminder_subject'] ?? ''),
+                    255
+                ),
+                'reminder_body' => $this->requestString(
+                    'email_reminder_body',
+                    (string) ($emailDelivery['reminder_body'] ?? ''),
+                    5000
+                ),
             ],
         ];
     }

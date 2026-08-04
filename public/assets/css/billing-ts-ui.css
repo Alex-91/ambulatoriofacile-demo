@@ -460,7 +460,7 @@ body.billing-ts-ui.module-sistema-ts {
 .billing-ts-ui .billing-document-number { color: var(--af-module-ink); font-weight: 600; text-decoration: none; font-variant-numeric: tabular-nums; }
 .billing-ts-ui .billing-document-number:hover { color: var(--af-module-hover); text-decoration: underline; }
 .billing-ts-ui .billing-table-muted { color: var(--af-muted) !important; font-variant-numeric: tabular-nums; }
-.billing-ts-ui .billing-table-total { color: var(--af-ink) !important; font-weight: 600; font-variant-numeric: tabular-nums; }
+.billing-ts-ui .billing-table-total { color: var(--af-ink) !important; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .billing-ts-ui .billing-state-pill,
 .billing-ts-ui .billing-profile-badge {
   display: inline-flex;
@@ -669,6 +669,7 @@ body.billing-ts-ui.module-sistema-ts {
   background: #f3f8fc;
 }
 .billing-ts-ui .billing-bulk-bar > div { display: flex; align-items: center; gap: 8px; color: #344054; font-size: 13px; }
+.billing-ts-ui .billing-bulk-bar[hidden] { display: none !important; }
 .billing-ts-ui .billing-bulk-bar > div > span:last-child { color: var(--af-muted); }
 .billing-ts-ui .billing-bulk-icon { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 7px; background: #e7f0f7; color: #005486; }
 .billing-ts-ui .billing-bulk-send {
@@ -1077,6 +1078,7 @@ body.billing-ts-ui.module-sistema-ts {
 .billing-ts-ui .config-pension-card { order: 3; }
 .billing-ts-ui .config-services-card { order: 4; }
 .billing-ts-ui .config-document-card { order: 5; }
+.billing-ts-ui .config-email-card { order: 6; }
 .billing-ts-ui .config-card { overflow: hidden; border: 1px solid var(--af-border); border-radius: 12px; background: var(--af-surface); box-shadow: 0 1px 2px rgba(16,24,40,.05); }
 .billing-ts-ui .config-card-full { grid-column: 1 / -1; }
 .billing-ts-ui .config-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 16px 16px 12px; border-bottom: 1px solid var(--af-border); }
@@ -1157,6 +1159,87 @@ body.billing-ts-ui.module-sistema-ts {
   .billing-ts-ui.ts-settings-page .content-header { margin: 16px 12px 0; padding: 16px; }
   .billing-ts-ui.ts-settings-page .content { padding-left: 12px; padding-right: 12px; }
   .billing-ts-ui.ts-settings-page .quick-grid { grid-template-columns: 1fr; }
+}
+
+/* Email delivery, collections and payment schedule. */
+.billing-ts-ui .billing-payment-method { display: inline-flex; align-items: center; gap: 6px; padding: 5px 9px; border: 1px solid #c9dfe2; border-radius: 7px; background: #f0f8f9; color: #1d6770; font-size: 12px; font-weight: 700; white-space: nowrap; }
+.billing-ts-ui .billing-payment-method .fa { color: #2c8895; }
+.billing-ts-ui .billing-payment-cell small, .billing-ts-ui .billing-email-status small, .billing-ts-ui .billing-schedule-table td small { display: block; margin-top: 5px; color: var(--af-muted); font-size: 11px; line-height: 1.35; }
+.billing-ts-ui .billing-payment-status { display: block; width: max-content; margin-top: 6px; padding: 2px 7px; border-radius: 999px; background: #f2f4f7; color: #475467; font-size: 10px; font-weight: 700; }
+.billing-ts-ui .billing-payment-status.is-paid { background: var(--af-success-bg); color: var(--af-success-ink); }
+.billing-ts-ui .billing-payment-status.is-overdue { background: #fff0f0; color: #b42318; }
+.billing-ts-ui .billing-email-status strong { display: block; font-size: 12px; white-space: nowrap; }
+.billing-ts-ui .billing-email-status .is-sent { color: var(--af-success-ink); }
+.billing-ts-ui .billing-email-status .is-pending { color: #9a6700; }
+.billing-ts-ui .billing-inline-form { display: inline-block; margin: 0; }
+.billing-ts-ui .billing-payment-action { border-color: var(--af-success-border); color: var(--af-success-ink); }
+.billing-ts-ui .billing-payment-action:hover, .billing-ts-ui .billing-payment-action:focus { border-color: var(--af-success-ink); background: var(--af-success-bg); color: var(--af-success-ink); }
+.billing-ts-ui .billing-email-action { color: var(--af-module-ink); }
+.billing-ts-ui .billing-reminder-action { color: #9a6700; }
+.billing-ts-ui .billing-kpi-danger strong { color: #b42318; }
+.billing-ts-ui .billing-kpi-warning strong { color: #9a6700; }
+.billing-ts-ui .billing-kpi-success strong { color: var(--af-success-ink); }
+
+.billing-ts-ui .billing-email-content, .billing-ts-ui .billing-schedule-content { padding: 20px; }
+.billing-ts-ui .billing-email-layout, .billing-ts-ui .billing-schedule-layout { display: flex; align-items: flex-start; }
+.billing-ts-ui .billing-email-nav, .billing-ts-ui .billing-schedule-nav { float: none; }
+.billing-ts-ui .billing-email-layout > main, .billing-ts-ui .billing-schedule-layout > main { float: none; }
+.billing-ts-ui .billing-email-grid { display: grid; grid-template-columns: minmax(230px,.72fr) minmax(0,1.6fr); gap: 16px; margin-top: 16px; }
+.billing-ts-ui .billing-email-card { overflow: hidden; margin: 0; border: 1px solid var(--af-border); border-radius: 12px; background: var(--af-surface); box-shadow: 0 1px 2px rgba(16,24,40,.05); }
+.billing-ts-ui .billing-email-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 16px; border-bottom: 1px solid var(--af-border); }
+.billing-ts-ui .billing-email-card-head span { color: var(--af-muted); font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.billing-ts-ui .billing-email-card-head h2 { margin: 3px 0 0; color: var(--af-ink); font-size: 18px; font-weight: 600; }
+.billing-ts-ui .billing-email-card-head > i { color: var(--af-module-ink); font-size: 18px; }
+.billing-ts-ui .billing-email-document-summary { margin: 0; padding: 5px 16px 10px; }
+.billing-ts-ui .billing-email-document-summary > div { padding: 11px 0; border-bottom: 1px solid var(--af-border); }
+.billing-ts-ui .billing-email-document-summary > div:last-child { border-bottom: 0; }
+.billing-ts-ui .billing-email-document-summary dt { margin-bottom: 4px; color: var(--af-muted); font-size: 11px; font-weight: 600; }
+.billing-ts-ui .billing-email-document-summary dd { margin: 0; color: var(--af-ink); font-size: 13px; }
+.billing-ts-ui .billing-email-document-summary .billing-email-total { color: var(--af-module-ink); font-size: 19px; font-weight: 700; }
+.billing-ts-ui .billing-email-attachment { margin: 0 16px 16px; padding: 11px 12px; border: 1px solid var(--af-module-border); border-radius: 8px; background: #f1fafb; color: var(--af-module-ink); font-size: 12px; line-height: 1.45; }
+.billing-ts-ui .billing-email-attachment.is-reminder { border-color: #f0d99c; background: #fffaf0; color: #7a5d00; }
+.billing-ts-ui .billing-email-form-body { padding: 16px; }
+.billing-ts-ui .billing-email-form .form-group { margin-bottom: 16px; }
+.billing-ts-ui .billing-email-form .form-control { border-color: var(--af-border-strong); border-radius: 7px; box-shadow: none; font-size: 13px; }
+.billing-ts-ui .billing-email-form input.form-control { height: 42px; }
+.billing-ts-ui .billing-email-form textarea.form-control { min-height: 240px; resize: vertical; line-height: 1.55; }
+.billing-ts-ui .billing-email-form .form-control:focus { border-color: var(--af-module-accent); box-shadow: 0 0 0 3px rgba(44,136,149,.10); }
+.billing-ts-ui .billing-field-warning { display: block; margin-top: 6px; color: #9a6700; }
+.billing-ts-ui .billing-email-placeholders { margin: 2px 0 0; color: var(--af-muted); font-size: 11.5px; line-height: 1.6; }
+.billing-ts-ui .billing-email-placeholders code { color: var(--af-module-ink); background: #edf6f7; }
+.billing-ts-ui .billing-email-form-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 13px 16px; border-top: 1px solid var(--af-border); background: var(--af-surface-alt); }
+
+.billing-ts-ui .billing-schedule-kpis { margin-top: 16px; }
+.billing-ts-ui .billing-schedule-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin: 16px 0; padding: 13px 14px; border: 1px solid var(--af-border); border-radius: 10px; background: var(--af-surface); }
+.billing-ts-ui .billing-schedule-toolbar .billing-archive-search { flex: 1 1 280px; max-width: 440px; }
+.billing-ts-ui .billing-schedule-panel { margin-top: 0; }
+.billing-ts-ui .billing-schedule-table td { vertical-align: middle; }
+.billing-ts-ui .billing-schedule-table td:first-child small { white-space: nowrap; }
+.billing-ts-ui .billing-schedule-due { font-weight: 600; white-space: nowrap; }
+.billing-ts-ui .billing-schedule-due.is-overdue { color: #b42318; }
+.billing-ts-ui .billing-schedule-state { display: inline-flex; padding: 4px 8px; border-radius: 999px; background: #f2f4f7; color: #475467; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.billing-ts-ui .billing-schedule-state.is-overdue { background: #fff0f0; color: #b42318; }
+.billing-ts-ui .billing-schedule-state.is-due_today { background: #fff7e8; color: #9a6700; }
+.billing-ts-ui .billing-schedule-state.is-upcoming { background: #eef6ff; color: #175cd3; }
+.billing-ts-ui .billing-schedule-state.is-paid { background: var(--af-success-bg); color: var(--af-success-ink); }
+.billing-ts-ui .billing-schedule-actions { min-width: 132px; white-space: nowrap; }
+
+@media (max-width: 1199px) {
+  .billing-ts-ui .billing-email-grid { grid-template-columns: 1fr; }
+  .billing-ts-ui .billing-email-document-summary { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 0 16px; }
+}
+@media (max-width: 991px) {
+  .billing-ts-ui .billing-email-layout, .billing-ts-ui .billing-schedule-layout { display: block; }
+  .billing-ts-ui .billing-email-layout > main, .billing-ts-ui .billing-schedule-layout > main { width: 100%; }
+  .billing-ts-ui .billing-schedule-toolbar { align-items: stretch; flex-direction: column; }
+  .billing-ts-ui .billing-schedule-toolbar .billing-archive-search { flex-basis: auto; max-width: none; }
+}
+@media (max-width: 767px) {
+  .billing-ts-ui .billing-email-content, .billing-ts-ui .billing-schedule-content { padding: 12px; }
+  .billing-ts-ui .billing-email-document-summary { display: block; }
+  .billing-ts-ui .billing-email-form-actions { align-items: stretch; flex-direction: column-reverse; }
+  .billing-ts-ui .billing-email-form-actions .billing-action { width: 100%; }
+  .billing-ts-ui .billing-schedule-toolbar .billing-filter-segment { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); }
 }
 
 /* Keep the shared administrative menu identical to the established AdminLTE

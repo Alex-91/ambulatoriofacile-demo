@@ -14,6 +14,7 @@ class BillingTenantSchemaService
      */
     private const TENANT_MIGRATION_FILES = [
         '2026-07-06-000003_CreateBillingDocumentsTable.php',
+        '2026-08-03-000001_AddBillingCollectionsAndEmailDelivery.php',
     ];
 
     private TenantCatalogService $tenantCatalog;
@@ -128,10 +129,28 @@ class BillingTenantSchemaService
         }
 
         $fieldNames = array_map('strtolower', $db->getFieldNames('billing_documents'));
-        foreach (['document_number', 'document_type', 'issue_date', 'patient_name', 'amount_total', 'ts_sync_state', 'local_state'] as $field) {
+        foreach ([
+            'document_number',
+            'document_type',
+            'issue_date',
+            'patient_name',
+            'patient_email',
+            'amount_total',
+            'due_date',
+            'payment_status',
+            'invoice_email_sent_at',
+            'last_reminder_sent_at',
+            'reminder_count',
+            'ts_sync_state',
+            'local_state',
+        ] as $field) {
             if (!in_array($field, $fieldNames, true)) {
                 return false;
             }
+        }
+
+        if (!$db->tableExists('billing_document_email_log')) {
+            return false;
         }
 
         return true;

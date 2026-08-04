@@ -443,6 +443,7 @@ class MenuResolverService
         $menuItems = $this->injectVisitTypesMenu($menuItems, $tenantId);
         $menuItems = $this->injectBillingMenu($menuItems, $tenantId);
         $menuItems = $this->injectBillingDocumentsMenu($menuItems, $tenantId);
+        $menuItems = $this->injectBillingScheduleMenu($menuItems, $tenantId);
         $menuItems = $this->injectBillingReportsMenu($menuItems, $tenantId);
         $menuItems = $this->injectTsBillingMenu($menuItems, $tenantId);
         $menuItems = $this->injectBillingDocumentSettingsMenu($menuItems, $tenantId);
@@ -601,6 +602,32 @@ class MenuResolverService
             'titolo_menu' => 'Statistiche e report',
             'link' => 'fatturazione-statistiche',
             'class_icon' => 'fa-bar-chart',
+        ];
+
+        return $menuItems;
+    }
+
+    /**
+     * @param list<array<string, mixed>> $menuItems
+     * @return list<array<string, mixed>>
+     */
+    private function injectBillingScheduleMenu(array $menuItems, int $tenantId): array
+    {
+        if (!$this->isAdminBillingFeatureEnabled($tenantId)) {
+            return $menuItems;
+        }
+
+        foreach ($menuItems as $menuRow) {
+            $menuLink = strtolower($this->normalizePath((string) ($menuRow['link'] ?? '')));
+            if ($menuLink === 'fatturazione-scadenzario') {
+                return $menuItems;
+            }
+        }
+
+        $menuItems[] = [
+            'titolo_menu' => 'Scadenzario fatture',
+            'link' => 'fatturazione-scadenzario',
+            'class_icon' => 'fa-calendar',
         ];
 
         return $menuItems;

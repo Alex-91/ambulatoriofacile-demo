@@ -156,6 +156,9 @@ class BillingDocumentSettingsController extends BillingAdminBaseController
             'fiscal_data' => is_array($currentConfig['fiscal_data'] ?? null)
                 ? $currentConfig['fiscal_data']
                 : [],
+            'email_delivery' => is_array($currentConfig['email_delivery'] ?? null)
+                ? $currentConfig['email_delivery']
+                : [],
         ];
     }
 

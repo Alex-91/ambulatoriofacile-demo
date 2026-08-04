@@ -162,9 +162,13 @@ if (!empty($pensionFund['enabled']) && trim((string) ($pensionFund['name'] ?? ''
             <?php if (!empty($fields['show_payment_method'])): ?>
               <div class="value"><?= esc((string) ($preview['payment_method_label'] ?? '-')) ?></div>
             <?php endif; ?>
-            <?php if (!empty($fields['show_payment_date'])): ?>
+            <?php if (trim((string) ($document['due_date'] ?? '')) !== ''): ?>
+              <div class="label" style="margin-top:8px;">Data scadenza</div>
+              <div class="value"><?= esc((string) $document['due_date']) ?></div>
+            <?php endif; ?>
+            <?php if (!empty($fields['show_payment_date']) && trim((string) ($document['payment_date'] ?? '')) !== ''): ?>
               <div class="label" style="margin-top:8px;">Data pagamento</div>
-              <div class="value"><?= esc((string) ($document['payment_date'] ?? '-')) ?></div>
+              <div class="value"><?= esc((string) $document['payment_date']) ?></div>
             <?php endif; ?>
           </div>
         </div>

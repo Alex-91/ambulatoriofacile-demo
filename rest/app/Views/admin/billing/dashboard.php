@@ -73,6 +73,9 @@ $environmentLabel = defined('ENVIRONMENT') && ENVIRONMENT === 'production' ? 'Pr
                 <?php endif; ?>
               </div>
               <div class="billing-module-actions">
+                <a class="billing-action billing-action-secondary" href="<?= site_url('admin/fatturazione-scadenzario') ?>">
+                  <i class="fa fa-calendar"></i> Scadenzario
+                </a>
                 <a class="billing-action billing-action-secondary" href="<?= site_url('admin/fatturazione-statistiche') ?>">
                   <i class="fa fa-bar-chart"></i> Statistiche e report
                 </a>
@@ -105,9 +108,9 @@ $environmentLabel = defined('ENVIRONMENT') && ENVIRONMENT === 'production' ? 'Pr
                 <p>documenti chiusi</p>
               </article>
               <article class="billing-kpi-card">
-                <span>Totale fatturato del mese</span>
+                <span>Totale incassato del mese</span>
                 <strong>&euro; <?= number_format((float) ($summary['month_revenue'] ?? 0), 2, ',', '.') ?></strong>
-                <p>documenti definitivi</p>
+                <p>fatture pagate</p>
               </article>
             </div>
 

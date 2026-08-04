@@ -3,6 +3,7 @@
 namespace App\Controllers\Admin;
 
 use App\Services\BillingDocumentService;
+use App\Services\BillingDocumentEmailService;
 use App\Services\BillingTsBridgeService;
 use App\Services\BillingTsModuleStatusService;
 use App\Services\TenantPatientLookupService;
@@ -12,6 +13,7 @@ use Dompdf\Options;
 class BillingDocumentsController extends BillingAdminBaseController
 {
     private BillingDocumentService $documents;
+    private BillingDocumentEmailService $emailDelivery;
     private BillingTsBridgeService $billingTsBridge;
     private BillingTsModuleStatusService $moduleStatus;
     private TenantPatientLookupService $patientLookup;
@@ -20,6 +22,7 @@ class BillingDocumentsController extends BillingAdminBaseController
     {
         parent::__construct();
         $this->documents = new BillingDocumentService();
+        $this->emailDelivery = new BillingDocumentEmailService($this->documents);
         $this->billingTsBridge = new BillingTsBridgeService();
         $this->moduleStatus = new BillingTsModuleStatusService();
         $this->patientLookup = new TenantPatientLookupService();
@@ -175,6 +178,7 @@ class BillingDocumentsController extends BillingAdminBaseController
                     'document_type' => $this->request->getPost('document_type'),
                     'issue_date' => $this->request->getPost('issue_date'),
                     'payment_date' => $this->request->getPost('payment_date'),
+                    'due_date' => $this->request->getPost('due_date'),
                     'patient_name' => $this->request->getPost('patient_name'),
                     'patient_last_name' => $this->request->getPost('patient_last_name'),
                     'patient_first_name' => $this->request->getPost('patient_first_name'),
@@ -318,6 +322,100 @@ class BillingDocumentsController extends BillingAdminBaseController
                 'results' => [],
                 'error' => 'Ricerca prestazioni non disponibile al momento.',
             ]);
+        }
+    }
+
+    public function email(int $documentId = 0)
+    {
+        if ($guard = $this->ensureAccess()) {
+            return $guard;
+        }
+
+        $tenantScope = $this->resolveTenantScope();
+        $tenantId = (int) ($tenantScope['tenant_id'] ?? 0);
+        $deliveryType = trim((string) ($this->request->getGet('type') ?? 'invoice')) === 'reminder'
+            ? 'reminder'
+            : 'invoice';
+
+        try {
+            return view('admin/billing/document_email', [
+                'menu_items' => $this->adminMenuItems(),
+                'tenantScope' => $tenantScope,
+                'composer' => $this->emailDelivery->buildComposerContext($tenantId, max(0, $documentId), $deliveryType),
+                'errors' => session()->getFlashdata('errors') ?? [],
+            ]);
+        } catch (\Throwable $e) {
+            return redirect()->to(site_url('admin/fatturazione-documenti'))->with('warning', $e->getMessage());
+        }
+    }
+
+    public function sendEmail(int $documentId = 0)
+    {
+        if ($guard = $this->ensureAccess()) {
+            return $guard;
+        }
+
+        $tenantScope = $this->resolveTenantScope();
+        $tenantId = (int) ($tenantScope['tenant_id'] ?? 0);
+        $deliveryType = trim((string) ($this->request->getPost('delivery_type') ?? 'invoice')) === 'reminder'
+            ? 'reminder'
+            : 'invoice';
+        $composerUrl = site_url('admin/fatturazione-documenti/email/' . max(0, $documentId))
+            . '?type=' . rawurlencode($deliveryType);
+
+        try {
+            $result = $this->emailDelivery->send(
+                $tenantId,
+                max(0, $documentId),
+                $deliveryType,
+                (string) ($this->request->getPost('recipient') ?? ''),
+                (string) ($this->request->getPost('subject') ?? ''),
+                (string) ($this->request->getPost('message_body') ?? ''),
+                $this->currentAdminUserId()
+            );
+
+            $message = $deliveryType === 'reminder'
+                ? 'Sollecito inviato correttamente a ' . (string) ($result['recipient'] ?? '') . '.'
+                : 'Fattura inviata correttamente a ' . (string) ($result['recipient'] ?? '') . '.';
+
+            return redirect()->to(site_url('admin/fatturazione-documenti'))->with('success', $message);
+        } catch (\Throwable $e) {
+            return redirect()->to($composerUrl)->withInput()->with('errors', [
+                'generic' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    public function paymentStatus(int $documentId = 0)
+    {
+        if ($guard = $this->ensureAccess()) {
+            return $guard;
+        }
+
+        $tenantScope = $this->resolveTenantScope();
+        $tenantId = (int) ($tenantScope['tenant_id'] ?? 0);
+        $paid = trim((string) ($this->request->getPost('payment_status') ?? 'paid')) === 'paid';
+        $returnTo = trim((string) ($this->request->getPost('return_to') ?? ''));
+        $targetUrl = $returnTo === 'schedule'
+            ? site_url('admin/fatturazione-scadenzario')
+            : site_url('admin/fatturazione-documenti');
+
+        try {
+            $document = $this->documents->setPaymentStatusForTenant(
+                $tenantId,
+                max(0, $documentId),
+                $paid,
+                (string) ($this->request->getPost('payment_date') ?? ''),
+                $this->currentAdminUserId()
+            );
+            $number = trim((string) ($document['document_number'] ?? ''));
+            $message = $paid
+                ? 'Fattura ' . $number . ' segnata come pagata.'
+                : 'Pagamento della fattura ' . $number . ' annullato.';
+
+            return redirect()->to($targetUrl)->with('success', $message);
+        } catch (\Throwable $e) {
+            return redirect()->to($targetUrl)->with('warning', $e->getMessage());
         }
     }
 

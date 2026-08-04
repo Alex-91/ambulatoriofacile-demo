@@ -221,6 +221,14 @@ class BillingDocumentSettingsService
                 'pec' => '',
                 'recipient_code' => '',
             ],
+            'email_delivery' => [
+                'default_due_days' => 30,
+                'attach_pdf' => true,
+                'invoice_subject' => 'Fattura {numero} - {studio}',
+                'invoice_body' => "Gentile {paziente},\n\nin allegato trova la fattura {numero} di {totale}.\nScadenza: {scadenza}.\nModalità di pagamento: {modalita_pagamento}.\n\nCordiali saluti,\n{studio}",
+                'reminder_subject' => 'Promemoria pagamento fattura {numero}',
+                'reminder_body' => "Gentile {paziente},\n\nle ricordiamo che la fattura {numero} di {totale}, con scadenza {scadenza}, risulta ancora da pagare.\nModalità di pagamento: {modalita_pagamento}.\n\nSe ha già effettuato il pagamento può ignorare questo messaggio.\n\nCordiali saluti,\n{studio}",
+            ],
         ];
     }
 
@@ -242,6 +250,7 @@ class BillingDocumentSettingsService
         $vat = is_array($rawConfig['vat'] ?? null) ? $rawConfig['vat'] : [];
         $pensionFund = is_array($rawConfig['pension_fund'] ?? null) ? $rawConfig['pension_fund'] : [];
         $fiscalData = is_array($rawConfig['fiscal_data'] ?? null) ? $rawConfig['fiscal_data'] : [];
+        $emailDelivery = is_array($rawConfig['email_delivery'] ?? null) ? $rawConfig['email_delivery'] : [];
 
         $logoMode = trim(strtolower((string) ($branding['logo_mode'] ?? $defaults['branding']['logo_mode'])));
         if (!in_array($logoMode, ['none', 'path'], true)) {
@@ -398,6 +407,34 @@ class BillingDocumentSettingsService
                 'province' => strtoupper($this->sanitizeText($fiscalData['province'] ?? '', 4, '')),
                 'pec' => strtolower($this->sanitizeText($fiscalData['pec'] ?? '', 190, '')),
                 'recipient_code' => strtoupper($this->sanitizeText($fiscalData['recipient_code'] ?? '', 16, '')),
+            ],
+            'email_delivery' => [
+                'default_due_days' => max(0, min(365, (int) (
+                    $emailDelivery['default_due_days'] ?? $defaults['email_delivery']['default_due_days']
+                ))),
+                'attach_pdf' => $this->toBool(
+                    $emailDelivery['attach_pdf'] ?? $defaults['email_delivery']['attach_pdf']
+                ),
+                'invoice_subject' => $this->sanitizeText(
+                    $emailDelivery['invoice_subject'] ?? $defaults['email_delivery']['invoice_subject'],
+                    255,
+                    (string) $defaults['email_delivery']['invoice_subject']
+                ),
+                'invoice_body' => $this->sanitizeText(
+                    $emailDelivery['invoice_body'] ?? $defaults['email_delivery']['invoice_body'],
+                    5000,
+                    (string) $defaults['email_delivery']['invoice_body']
+                ),
+                'reminder_subject' => $this->sanitizeText(
+                    $emailDelivery['reminder_subject'] ?? $defaults['email_delivery']['reminder_subject'],
+                    255,
+                    (string) $defaults['email_delivery']['reminder_subject']
+                ),
+                'reminder_body' => $this->sanitizeText(
+                    $emailDelivery['reminder_body'] ?? $defaults['email_delivery']['reminder_body'],
+                    5000,
+                    (string) $defaults['email_delivery']['reminder_body']
+                ),
             ],
         ];
     }
