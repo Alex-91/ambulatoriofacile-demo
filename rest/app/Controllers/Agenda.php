@@ -5395,6 +5395,7 @@ public function eseguiRepairRecurringExtraSlots()
         try {
             $idDot = (int)$this->request->getGet('id_dot');
             $term  = trim((string)$this->request->getGet('term'));
+            $idPaziente = max(0, (int)($this->request->getGet('id_paziente') ?? 0));
             $page  = max(1, (int)($this->request->getGet('page') ?? 1));
             $perPage = 20;
 
@@ -5414,7 +5415,8 @@ public function eseguiRepairRecurringExtraSlots()
                 // sempre il flag persistito sul paziente. Negli spazi senza
                 // funzione attiva il valore salvato resta quello predefinito
                 // (visibile), quindi il comportamento non cambia.
-                true
+                true,
+                $idPaziente
             );
 
             return $this->respondJsonSafe([

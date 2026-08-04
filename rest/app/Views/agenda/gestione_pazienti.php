@@ -491,6 +491,7 @@ var patientSearchSuggestionsById = {};
 var patientSearchSuggestionTimer = null;
 var patientSearchSuggestionXhr = null;
 var patientSearchSuggestionRequestId = 0;
+var selectedPatientId = 0;
 
 function escapeHtml(text) {
     return $('<div>').text(text == null ? '' : text).html();
@@ -704,6 +705,7 @@ function fillPazienteForm(row) {
 function caricaPazienti(page) {
     currentPage = parseInt(page || 1, 10) || 1;
     var searchTerm = $.trim($('#searchTerm').val() || '');
+    var selectedId = parseInt(selectedPatientId || 0, 10) || 0;
     $('#searchTerm').val(searchTerm);
     patientRowsById = {};
     $('#tabellaPazientiBody').html('<tr><td colspan="7" class="text-center text-muted">Caricamento...</td></tr>');
@@ -712,6 +714,7 @@ function caricaPazienti(page) {
     $.get("<?= base_url('agenda/lista-pazienti') ?>", {
         id_dot: $('#id_dot').val(),
         term: searchTerm,
+        id_paziente: selectedId,
         page: currentPage
     }, function(res) {
         var html = '';
@@ -881,6 +884,7 @@ $(function() {
 
     $('#searchTerm').on('input', function() {
         var term = $(this).val() || '';
+        selectedPatientId = 0;
 
         if (patientSearchSuggestionTimer) {
             clearTimeout(patientSearchSuggestionTimer);
@@ -902,6 +906,7 @@ $(function() {
     });
 
     $('#id_dot').on('change', function() {
+        selectedPatientId = 0;
         hidePatientSearchSuggestions();
         caricaPazienti(1);
     });
@@ -917,6 +922,7 @@ $(function() {
             return;
         }
 
+        selectedPatientId = id;
         $('#searchTerm').val(getPatientSearchLabel(row));
         hidePatientSearchSuggestions();
         caricaPazienti(1);

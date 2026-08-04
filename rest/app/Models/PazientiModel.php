@@ -863,7 +863,8 @@ class PazientiModel extends Model
         int $page = 1,
         int $perPage = 20,
         int $actingUserId = 0,
-        bool $onlyVisibleInRegistry = false
+        bool $onlyVisibleInRegistry = false,
+        int $idPaziente = 0
     ): array
     {
         $scope = $this->resolveDoctorPatientScope($idDot, $actingUserId);
@@ -914,11 +915,22 @@ class PazientiModel extends Model
         $perPage = max(1, $perPage);
         $params = [];
         $whereSearch = '';
+        $whereSelectedPatient = '';
         $registryVisibilityWhere = $onlyVisibleInRegistry
             ? "\n              AND " . $this->buildRegistryVisibilitySql('c')
             : '';
 
+        $idPaziente = max(0, $idPaziente);
         $term = trim($term);
+        if ($idPaziente > 0) {
+            // Il suggerimento identifica il paziente con il suo ID: non
+            // riusare l'etichetta completa come filtro testuale, altrimenti
+            // "Cognome Nome" non trova i due campi separati.
+            $term = '';
+            $whereSelectedPatient = "\n              AND c.id_client = ?";
+            $params[] = $idPaziente;
+        }
+
         if ($term !== '') {
             $needle = '%' . mb_strtolower($term) . '%';
             $whereSearch = "
@@ -945,6 +957,7 @@ class PazientiModel extends Model
               AND {$this->buildNonEmptyPatientDataSql('c')}
               {$registryVisibilityWhere}
               {$whereSearch}
+              {$whereSelectedPatient}
         ";
 
         $countSql = "SELECT COUNT(*) AS total {$baseFromSql}";
