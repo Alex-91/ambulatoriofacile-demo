@@ -10961,9 +10961,17 @@ function cercaPazientiAgenda(term) {
 
             $.each(res.rows, function(_, row) {
                 var fullName = $.trim(((row.cognome || '') + ' ' + (row.nome || '')).replace(/\s+/g, ' '));
-                var secondary = $.trim(row.paz_spec || '');
+                var secondary = $.trim(row.cod_fis || '');
+
+                if (secondary !== '') {
+                    secondary = 'Codice fiscale: ' + secondary;
+                }
+
                 if (secondary === '') {
-                    secondary = $.trim((row.cellulare || row.telefono || row.email || ''));
+                    secondary = $.trim(row.telefono || '');
+                    if (secondary !== '') {
+                        secondary = 'Telefono: ' + secondary;
+                    }
                 }
 
                 html += '<div class="agenda-patient-search-item' + (isAgendaSpecialPatient(row, row.paz_spec || '') ? ' is-special' : '') + '" ' +
