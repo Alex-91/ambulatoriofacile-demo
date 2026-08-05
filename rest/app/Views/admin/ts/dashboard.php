@@ -10,8 +10,6 @@ $uiStateLabels = is_array($dashboard['ui_state_labels'] ?? null) ? $dashboard['u
 $tableAvailable = !empty($dashboard['table_available']);
 $billingEnabled = !empty($moduleStatus['billing_enabled']);
 $integratedEnabled = !empty($moduleStatus['integrated_enabled']);
-$profileName = trim((string) ($profile['profile_name'] ?? ''));
-$profilePiva = trim((string) ($profile['owner_piva'] ?? ''));
 $profileEnvironment = strtolower(trim((string) ($profile['environment'] ?? 'test')));
 $profileEnvironmentLabel = $profileEnvironment === 'production' ? 'Produzione' : 'Test';
 $formatDate = static function ($value): string {
@@ -189,22 +187,6 @@ $moduleRelationship = $billingEnabled
                 <?php endif; ?>
               </section>
 
-              <aside class="ts-side-rail">
-                <section class="ts-panel ts-profile-panel">
-                  <div class="ts-profile-eyebrow">Profilo TS attivo</div>
-                  <strong><?= esc($profileName !== '' ? $profileName : 'Profilo TS da configurare') ?></strong>
-                  <span>P.IVA erogatore <?= esc($profilePiva !== '' ? $profilePiva : 'non impostata') ?></span>
-                  <span class="ts-profile-environment"><i class="fa fa-flask"></i> Ambiente: <?= esc($profileEnvironmentLabel) ?></span>
-                  <a class="ts-empty-secondary" href="<?= portal_tenant_space_url('sistema-ts') ?>"><i class="fa fa-cog"></i> Configura profilo</a>
-                </section>
-
-                <?php if ($billingEnabled): ?>
-                  <section class="ts-coexist-panel">
-                    <p>Modulo autonomo, convive con Fatturazione.</p>
-                    <a class="ts-text-action ts-billing-action" href="<?= site_url('admin/fatturazione') ?>">Apri modulo Fatturazione <i class="fa fa-arrow-right"></i></a>
-                  </section>
-                <?php endif; ?>
-              </aside>
             </div>
           </main>
         </div>
