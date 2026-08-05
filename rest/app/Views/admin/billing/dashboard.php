@@ -1,32 +1,10 @@
 <?php
 $menu_items = $menu_items ?? ((session()->get('menuDataAdmin')['result'] ?? []));
-$tenantScope = is_array($tenantScope ?? null) ? $tenantScope : [];
-$moduleStatus = is_array($moduleStatus ?? null) ? $moduleStatus : [];
-$documentSettings = is_array($documentSettings ?? null) ? $documentSettings : [];
 $documentsDashboard = is_array($documentsDashboard ?? null) ? $documentsDashboard : [];
 $summary = is_array($documentsDashboard['summary'] ?? null) ? $documentsDashboard['summary'] : [];
 $recentDocuments = is_array($documentsDashboard['recent_documents'] ?? null) ? $documentsDashboard['recent_documents'] : [];
 $documentsTableAvailable = !empty($documentsDashboard['table_available']);
 $documentsSchemaMessage = trim((string) ($documentsDashboard['schema_message'] ?? ''));
-$tsEnabled = !empty($moduleStatus['ts_enabled']);
-$documentConfig = is_array($documentSettings['config'] ?? null) ? $documentSettings['config'] : [];
-$documentBranding = is_array($documentConfig['branding'] ?? null) ? $documentConfig['branding'] : [];
-$documentLayout = is_array($documentConfig['layout'] ?? null) ? $documentConfig['layout'] : [];
-$documentFields = is_array($documentConfig['fields'] ?? null) ? $documentConfig['fields'] : [];
-$documentTitle = trim((string) ($documentConfig['document_title'] ?? 'Documento fatturazione'));
-$enabledFieldCount = count(array_filter($documentFields, static function ($enabled): bool {
-    return (bool) $enabled;
-}));
-$enabledBlockCount = count(array_filter([
-    !empty($documentLayout['show_header']),
-    !empty($documentLayout['show_footer']),
-    !empty($documentLayout['show_payment_box']),
-    !empty($documentLayout['show_signature_box']),
-    !empty($documentLayout['show_terms_box']),
-], static function ($enabled): bool {
-    return (bool) $enabled;
-}));
-$logoConfigured = trim((string) ($documentBranding['logo_url'] ?? '')) !== '';
 $environmentLabel = defined('ENVIRONMENT') && ENVIRONMENT === 'production' ? 'Produzione' : 'Locale';
 ?>
 <!DOCTYPE html>
@@ -66,11 +44,6 @@ $environmentLabel = defined('ENVIRONMENT') && ENVIRONMENT === 'production' ? 'Pr
                   </div>
                   <span class="billing-environment"><?= esc($environmentLabel) ?></span>
                 </div>
-                <?php if ($tsEnabled): ?>
-                  <a class="billing-ts-shortcut" href="<?= site_url('admin/sistema-ts') ?>">
-                    Invio al Sistema TS: attivo <i class="fa fa-arrow-right"></i>
-                  </a>
-                <?php endif; ?>
               </div>
               <div class="billing-module-actions">
                 <a class="billing-action billing-action-secondary" href="<?= site_url('admin/fatturazione-scadenzario') ?>">
@@ -183,45 +156,6 @@ $environmentLabel = defined('ENVIRONMENT') && ENVIRONMENT === 'production' ? 'Pr
                 <?php endif; ?>
               </section>
 
-              <aside class="billing-side-rail">
-                <section class="billing-panel billing-profile-panel">
-                  <div class="billing-panel-heading">
-                    <h2>Profilo documento</h2>
-                  </div>
-                  <div class="billing-profile-rows">
-                    <div class="billing-profile-row">
-                      <i class="fa fa-image"></i>
-                      <span>Logo</span>
-                      <strong><span class="billing-profile-badge"><?= $logoConfigured ? 'Impostato' : 'Non impostato' ?></span></strong>
-                    </div>
-                    <div class="billing-profile-row">
-                      <i class="fa fa-list"></i>
-                      <span>Campi visibili</span>
-                      <strong><?= $enabledFieldCount ?></strong>
-                    </div>
-                    <div class="billing-profile-row">
-                      <i class="fa fa-columns"></i>
-                      <span>Blocchi layout attivi</span>
-                      <strong><?= $enabledBlockCount ?></strong>
-                    </div>
-                  </div>
-                  <a class="billing-action billing-action-secondary billing-full-width" href="<?= site_url('admin/fatturazione-documento') ?>">
-                    <i class="fa fa-file-text-o"></i> Personalizza
-                  </a>
-                </section>
-
-                <section class="billing-panel billing-ts-panel">
-                  <span class="billing-ts-icon"><i class="fa fa-id-card-o"></i></span>
-                  <div>
-                    <p>I documenti definitivi possono essere inviati al Sistema Tessera Sanitaria per il 730 precompilato.</p>
-                    <?php if ($tsEnabled): ?>
-                      <a class="billing-text-action" href="<?= site_url('admin/sistema-ts') ?>">
-                        Vai al modulo Sistema TS <i class="fa fa-arrow-right"></i>
-                      </a>
-                    <?php endif; ?>
-                  </div>
-                </section>
-              </aside>
             </div>
 
           </div>
