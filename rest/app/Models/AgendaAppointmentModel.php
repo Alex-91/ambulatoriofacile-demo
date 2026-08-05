@@ -32,21 +32,26 @@ class AgendaAppointmentModel extends Model
         $visitTypesFeatureEnabled = !empty($data['visit_types_feature_enabled']);
         $visitTypeRequired = !array_key_exists('visit_type_required', $data) || !empty($data['visit_type_required']);
         $customTimeFeatureEnabled = !empty($data['custom_appointment_time_feature_enabled']);
+        $slotLockRequired = !array_key_exists('slot_lock_required', $data) || !empty($data['slot_lock_required']);
 
         if ($idSlot <= 0 || $idDot <= 0) {
             throw new Exception('Slot o dottore non valorizzati.');
         }
 
-        if ($tokenLock === '') {
+        if ($slotLockRequired && $tokenLock === '') {
             throw new Exception('Lo slot non è più disponibile. Riapri lo slot e riprova.');
         }
 
-        (new AgendaLockModel())->cleanupExpiredLocks();
+        if ($slotLockRequired) {
+            (new AgendaLockModel())->cleanupExpiredLocks();
+        }
 
         $now = date('Y-m-d H:i:s');
-        $lock = $this->loadActiveLock($tokenLock, $idSlot, $createdBy, $now);
-        if (!$lock) {
-            throw new Exception('Lo slot non è più disponibile. Riapri lo slot e riprova.');
+        if ($slotLockRequired) {
+            $lock = $this->loadActiveLock($tokenLock, $idSlot, $createdBy, $now);
+            if (!$lock) {
+                throw new Exception('Lo slot non è più disponibile. Riapri lo slot e riprova.');
+            }
         }
 
         $slot = $this->loadSlotRow($idSlot);
@@ -78,7 +83,8 @@ class AgendaAppointmentModel extends Model
             null,
             $customTimeFeatureEnabled,
             0,
-            $tokenLock
+            $tokenLock,
+            $slotLockRequired
         );
         if (!empty($window['custom_start'])) {
             $plan['duration_minutes'] = (int) ($window['duration_minutes'] ?? 0);
@@ -101,7 +107,7 @@ class AgendaAppointmentModel extends Model
 
         try {
             $this->lockSlotRowsForUpdate($coveredSlotIds);
-            $this->assertCoveredSlotsAvailable($coveredSlotIds, 0, $tokenLock);
+            $this->assertCoveredSlotsAvailable($coveredSlotIds, 0, $tokenLock, $slotLockRequired);
 
             $this->db->table($this->table)->insert($insert);
             $idAppuntamento = (int) $this->db->insertID();
@@ -452,7 +458,8 @@ class AgendaAppointmentModel extends Model
         ?array $existingAppointment,
         bool $customTimeFeatureEnabled,
         int $ignoreAppointmentId = 0,
-        string $allowedLockToken = ''
+        string $allowedLockToken = '',
+        bool $checkActiveLocks = true
     ): array {
         $durationMinutes = (int) ($plan['duration_minutes'] ?? 0);
         if ($durationMinutes <= 0) {
@@ -533,7 +540,8 @@ class AgendaAppointmentModel extends Model
                 $customStart,
                 $end,
                 $ignoreAppointmentId,
-                $allowedLockToken
+                $allowedLockToken,
+                $checkActiveLocks
             );
 
             return [
@@ -548,7 +556,8 @@ class AgendaAppointmentModel extends Model
             $primarySlot,
             $durationMinutes,
             $ignoreAppointmentId,
-            $allowedLockToken
+            $allowedLockToken,
+            $checkActiveLocks
         );
         $lastCoveredSlot = end($coveredSlots);
 
@@ -732,7 +741,8 @@ class AgendaAppointmentModel extends Model
         string $customStart,
         string $customEnd,
         int $ignoreAppointmentId = 0,
-        string $allowedLockToken = ''
+        string $allowedLockToken = '',
+        bool $checkActiveLocks = true
     ): array {
         $startTimestamp = strtotime($customStart);
         $endTimestamp = strtotime($customEnd);
@@ -788,7 +798,7 @@ class AgendaAppointmentModel extends Model
                 throw new Exception('Uno degli slot coinvolti e già occupato da un altro appuntamento.');
             }
 
-            if ($this->slotHasActiveLock($slotId, $allowedLockToken)) {
+            if ($checkActiveLocks && $this->slotHasActiveLock($slotId, $allowedLockToken)) {
                 throw new Exception('Uno degli slot coinvolti è in modifica da un altro operatore.');
             }
 
@@ -818,7 +828,8 @@ class AgendaAppointmentModel extends Model
         array $primarySlot,
         int $requiredDurationMinutes,
         int $ignoreAppointmentId = 0,
-        string $allowedLockToken = ''
+        string $allowedLockToken = '',
+        bool $checkActiveLocks = true
     ): array {
         if ($requiredDurationMinutes <= 0) {
             throw new Exception('Durata appuntamento non valida.');
@@ -867,7 +878,7 @@ class AgendaAppointmentModel extends Model
                 throw new Exception('Non ci sono abbastanza slot consecutivi liberi per il tipo visita selezionato.');
             }
 
-            if ($this->slotHasActiveLock($slotId, $allowedLockToken)) {
+            if ($checkActiveLocks && $this->slotHasActiveLock($slotId, $allowedLockToken)) {
                 throw new Exception('Uno degli slot consecutivi necessari è in modifica da un altro operatore.');
             }
 
@@ -1043,7 +1054,8 @@ class AgendaAppointmentModel extends Model
     private function assertCoveredSlotsAvailable(
         array $slotIds,
         int $ignoreAppointmentId = 0,
-        string $allowedLockToken = ''
+        string $allowedLockToken = '',
+        bool $checkActiveLocks = true
     ): void {
         foreach (array_values(array_unique(array_filter(array_map('intval', $slotIds)))) as $slotId) {
             $slot = $this->loadSlotRow($slotId);
@@ -1059,7 +1071,7 @@ class AgendaAppointmentModel extends Model
                 throw new Exception('Uno degli slot coinvolti e già occupato da un altro appuntamento.');
             }
 
-            if ($this->slotHasActiveLock($slotId, $allowedLockToken)) {
+            if ($checkActiveLocks && $this->slotHasActiveLock($slotId, $allowedLockToken)) {
                 throw new Exception('Uno degli slot coinvolti è in modifica da un altro operatore.');
             }
         }

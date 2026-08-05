@@ -54,6 +54,7 @@ class Agenda extends BaseController
     private const SHOW_APPOINTMENT_CREATOR_IN_SLOTS_FEATURE = 'agenda_show_appointment_creator_in_slots';
     private const CUSTOM_APPOINTMENT_TIME_FEATURE = 'agenda_custom_appointment_time';
     private const PATIENT_REGISTRY_VISIBILITY_FEATURE = 'agenda_patient_registry_visibility';
+    private const DISABLE_SLOT_LOCK_FEATURE = 'agenda_disable_slot_lock';
     private const PATIENT_EXCEL_IMPORT_FEATURE = PatientExcelImportService::FEATURE_KEY;
     private const PERSONAL_COMMITMENT_SPECIAL_CODE = 'IMPEGNO_PERSONALE';
     private const PERSONAL_COMMITMENT_LABEL = 'Impegno personale';
@@ -877,6 +878,11 @@ public function eseguiRepairRecurringExtraSlots()
     protected function isAgendaAutoRefreshFeatureEnabled(): bool
     {
         return $this->tenantFeatureEnabled(self::AUTO_REFRESH_FEATURE);
+    }
+
+    protected function isSlotLockDisabledForCurrentTenant(): bool
+    {
+        return $this->tenantFeatureEnabled(self::DISABLE_SLOT_LOCK_FEATURE);
     }
 
     protected function assertPersonalCommitmentsFeatureEnabled(): void
@@ -3745,6 +3751,14 @@ public function eseguiRepairRecurringExtraSlots()
             ]);
         }
 
+        if ($this->isSlotLockDisabledForCurrentTenant()) {
+            return $this->response->setJSON([
+                'status' => true,
+                'message' => 'Blocco temporaneo slot non richiesto per questo spazio.',
+                'lock_disabled' => true,
+            ]);
+        }
+
         return $this->response->setJSON(
             $this->lockModel->lockSlot($idSlot, $userId)
         );
@@ -4208,6 +4222,7 @@ public function eseguiRepairRecurringExtraSlots()
             $payload['visit_types_feature_enabled'] = $this->isVisitTypesFeatureEnabled();
             $payload['visit_type_required'] = $this->isVisitTypeSelectionRequired();
             $payload['custom_appointment_time_feature_enabled'] = $this->isCustomAppointmentTimeFeatureEnabled();
+            $payload['slot_lock_required'] = !$this->isSlotLockDisabledForCurrentTenant();
 
             $idSlot = (int)($payload['id_slot'] ?? 0);
 

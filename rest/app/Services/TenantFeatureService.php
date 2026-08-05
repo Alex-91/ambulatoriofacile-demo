@@ -377,6 +377,16 @@ class TenantFeatureService
                 'tenant_default_enabled' => 0,
                 'sort_order' => 79,
             ],
+            'agenda_disable_slot_lock' => [
+                'feature_name' => 'Disattiva blocco temporaneo slot',
+                'feature_scope' => 'workflow',
+                'description' => 'Il master piattaforma può disattivare per questo singolo spazio il blocco temporaneo all’apertura del popup appuntamento. Il salvataggio continua a verificare che gli slot non siano già prenotati.',
+                'default_enabled' => 0,
+                'icon_class' => 'fa-unlock-alt',
+                'is_tenant_managed' => 0,
+                'tenant_default_enabled' => 0,
+                'sort_order' => 80,
+            ],
             AgendaAppointmentBlockLayoutService::FEATURE_KEY => [
                 'feature_name' => 'Layout popup appuntamento',
                 'feature_scope' => 'workflow',
