@@ -12109,10 +12109,6 @@ $('#nota_giorno_text').on('blur', function() {
     });
 
     $('#app_cognome, #app_nome').on('input', function() {
-        var normalized = normalizeAppointmentPatientName($(this).val());
-        if ($(this).val() !== normalized) {
-            $(this).val(normalized);
-        }
         renderAppointmentLinkedPatientInfo();
     });
 
