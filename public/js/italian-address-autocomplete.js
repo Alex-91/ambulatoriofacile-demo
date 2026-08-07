@@ -377,9 +377,95 @@
         return results.slice(0, 12);
     }
 
+    function setLinkedValue($input, value) {
+        if (!$input || !$input.length) {
+            return;
+        }
+
+        $input.val(value).trigger('change');
+    }
+
+    function findBoundControl($input, type) {
+        var match = null;
+
+        if (!$input || !$input.length) {
+            return match;
+        }
+
+        $.each(controls, function (_, candidate) {
+            if (candidate.type === type && candidate.$input[0] === $input[0]) {
+                match = candidate;
+                return false;
+            }
+        });
+
+        return match;
+    }
+
+    function municipalityPostalCodeResults(municipality) {
+        var results = [];
+
+        $.each(municipality.caps, function (_, capValue) {
+            var cap = preparedData && preparedData.capByValue[capValue];
+
+            if (!cap) {
+                return;
+            }
+
+            results.push({
+                type: 'postalCode',
+                value: cap.value,
+                title: cap.value,
+                detail: capDetail(cap),
+                item: cap,
+                score: 0
+            });
+        });
+
+        return results;
+    }
+
     function selectResult(control, result) {
-        control.$input.val(result.value).trigger('change');
+        var group = control.group;
+        var municipality;
+        var currentCap;
+        var postalCodeControl;
+        var shouldChooseCap = false;
+
+        setLinkedValue(control.$input, result.value);
+
+        if (result.type === 'municipality') {
+            municipality = result.item;
+
+            if (municipality.province) {
+                setLinkedValue(group.$province, municipality.province);
+            }
+
+            if (group.$postalCode.length && municipality.caps.length === 1) {
+                setLinkedValue(group.$postalCode, municipality.caps[0]);
+            } else if (group.$postalCode.length && municipality.caps.length > 1) {
+                currentCap = $.trim(group.$postalCode.val() || '');
+                if ($.inArray(currentCap, municipality.caps) === -1) {
+                    setLinkedValue(group.$postalCode, '');
+                    shouldChooseCap = true;
+                }
+            }
+        }
+
         hideMenu(control);
+
+        if (shouldChooseCap) {
+            window.setTimeout(function () {
+                postalCodeControl = findBoundControl(group.$postalCode, 'postalCode');
+                group.$postalCode.first().focus();
+
+                if (postalCodeControl) {
+                    window.clearTimeout(postalCodeControl.timer);
+                    postalCodeControl.isFocused = true;
+                    renderResults(postalCodeControl, municipalityPostalCodeResults(municipality));
+                }
+            }, 0);
+        }
     }
 
     function setActive(control, index) {
