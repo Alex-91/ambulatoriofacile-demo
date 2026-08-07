@@ -27,6 +27,7 @@ $selectedDoctorOld = trim((string) old('id_personale'));
   <link href="https://code.ionicframework.com/ionicons/2.0.1/css/ionicons.min.css" rel="stylesheet" type="text/css">
   <link href="<?= base_url('public/dist/css/AdminLTE.css') ?>" rel="stylesheet" type="text/css">
   <link href="<?= base_url('public/dist/css/skins/_all-skins.min.css') ?>" rel="stylesheet" type="text/css">
+  <?= view('partials/italian_address_autocomplete_style') ?>
 
   <style>
     .nav-pills.nav-stacked > li.active > a { background-color:#2c8895; color:#fff; }
@@ -160,13 +161,13 @@ $selectedDoctorOld = trim((string) old('id_personale'));
                   <div class="col-md-3">
                     <div class="form-group">
                       <label>Città</label>
-                      <input class="form-control" name="citta" id="citta" value="<?= esc((string) old('citta')) ?>">
+                      <input class="form-control" name="citta" id="citta" value="<?= esc((string) old('citta')) ?>" placeholder="Cerca comune">
                     </div>
                   </div>
                   <div class="col-md-3">
                     <div class="form-group">
                       <label>Provincia</label>
-                      <input class="form-control" name="provincia" id="provincia" value="<?= esc((string) old('provincia')) ?>">
+                      <input class="form-control" name="provincia" id="provincia" value="<?= esc((string) old('provincia')) ?>" placeholder="Nome o sigla">
                     </div>
                   </div>
                 </div>
@@ -290,6 +291,12 @@ $selectedDoctorOld = trim((string) old('id_personale'));
 <script src="<?= base_url('public/plugins/slimScroll/jquery.slimscroll.min.js') ?>"></script>
 <script src="<?= base_url('public/plugins/fastclick/fastclick.min.js') ?>"></script>
 <script src="<?= base_url('public/dist/js/app.min.js') ?>"></script>
+<?= view('partials/italian_address_autocomplete_init', [
+    'groups' => [[
+        'municipality' => '#citta',
+        'province' => '#provincia',
+    ]],
+]) ?>
 
 <script>
 (function () {

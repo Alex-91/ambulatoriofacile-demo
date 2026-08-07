@@ -212,6 +212,7 @@
     <link href="<?= base_url('public/plugins/iCheck/flat/blue.css') . $assetVersion('public/plugins/iCheck/flat/blue.css') ?>" rel="stylesheet" type="text/css" />
 
     <link href="<?= base_url('public/css/agenda.css') . $assetVersion('public/css/agenda.css') ?>" rel="stylesheet" type="text/css" />
+    <?= view('partials/italian_address_autocomplete_style') ?>
 
     <style>
    
@@ -4205,7 +4206,7 @@ if ($appointmentModalRenderOrderKeys === []) {
 
                     <div class="col-md-4 form-group">
                         <label for="nota_citta">Città</label>
-                        <input type="text" id="nota_citta" class="form-control">
+                        <input type="text" id="nota_citta" class="form-control" placeholder="Cerca comune">
                     </div>
 
                     <div class="col-md-12 form-group">
@@ -4356,7 +4357,7 @@ if ($appointmentModalRenderOrderKeys === []) {
 
                 <div class="form-group">
                     <label for="vd_citta">Città</label>
-                    <input type="text" id="vd_citta" class="form-control">
+                    <input type="text" id="vd_citta" class="form-control" placeholder="Cerca comune">
                 </div>
 
                 <div class="form-group" style="margin-bottom:0;">
@@ -4431,6 +4432,12 @@ window.AGENDA_CONFIG = {
 
 <script src="<?= base_url('public/plugins/daterangepicker/moment.min.js') . $assetVersion('public/plugins/daterangepicker/moment.min.js') ?>"></script>
 <script src="<?= base_url('public/plugins/fullcalendar/fullcalendar.min.js') . $assetVersion('public/plugins/fullcalendar/fullcalendar.min.js') ?>"></script>
+<?= view('partials/italian_address_autocomplete_init', [
+    'groups' => [
+        ['municipality' => '#nota_citta'],
+        ['municipality' => '#vd_citta'],
+    ],
+]) ?>
 <script>
 (function() {
     var layout = document.getElementById('agendaLayout');

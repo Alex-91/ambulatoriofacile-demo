@@ -66,6 +66,7 @@ if ($serviceRows === []) {
   <link href="<?= base_url('public/dist/css/AdminLTE.css') ?>" rel="stylesheet" />
   <link href="<?= base_url('public/dist/css/skins/_all-skins.min.css') ?>" rel="stylesheet" />
   <link href="<?= base_url('public/assets/css/billing-ts-ui.css') ?>" rel="stylesheet" />
+  <?= view('partials/italian_address_autocomplete_style') ?>
 </head>
 <body class="skin-blue sidebar-mini billing-ts-ui module-fatturazione billing-settings-page">
 <div class="wrapper">
@@ -255,15 +256,15 @@ if ($serviceRows === []) {
                     </div>
                     <div class="form-group">
                       <label>CAP</label>
-                      <input class="form-control" name="fiscal_postal_code" maxlength="12" value="<?= esc($fieldValue('fiscal_postal_code', $fiscalData['postal_code'] ?? '')) ?>">
+                      <input class="form-control" name="fiscal_postal_code" maxlength="12" value="<?= esc($fieldValue('fiscal_postal_code', $fiscalData['postal_code'] ?? '')) ?>" placeholder="Cerca CAP" inputmode="numeric">
                     </div>
                     <div class="form-group">
                       <label>Comune</label>
-                      <input class="form-control" name="fiscal_city" maxlength="100" value="<?= esc($fieldValue('fiscal_city', $fiscalData['city'] ?? '')) ?>">
+                      <input class="form-control" name="fiscal_city" maxlength="100" value="<?= esc($fieldValue('fiscal_city', $fiscalData['city'] ?? '')) ?>" placeholder="Cerca comune">
                     </div>
                     <div class="form-group">
                       <label>Provincia</label>
-                      <input class="form-control" name="fiscal_province" maxlength="4" value="<?= esc($fieldValue('fiscal_province', $fiscalData['province'] ?? '')) ?>" placeholder="BO">
+                      <input class="form-control" name="fiscal_province" maxlength="4" value="<?= esc($fieldValue('fiscal_province', $fiscalData['province'] ?? '')) ?>" placeholder="Nome o sigla">
                     </div>
                     <div class="form-group">
                       <label>PEC</label>
@@ -349,6 +350,13 @@ if ($serviceRows === []) {
 </div>
 <script src="<?= base_url('public/plugins/jQuery/jQuery-2.1.4.min.js') ?>"></script>
 <script src="<?= base_url('public/bootstrap/js/bootstrap.min.js') ?>"></script>
+<?= view('partials/italian_address_autocomplete_init', [
+    'groups' => [[
+        'municipality' => 'input[name="fiscal_city"]',
+        'province' => 'input[name="fiscal_province"]',
+        'postalCode' => 'input[name="fiscal_postal_code"]',
+    ]],
+]) ?>
 <script>
   (function ($) {
     var emptyServiceRow = '<tr><td><input class="form-control" name="service_description[]" maxlength="190" placeholder="Es. Visita specialistica"></td><td><input class="form-control" type="number" min="0" max="999999.99" step="0.01" name="service_amount[]" placeholder="0,00"></td><td><button class="btn btn-default btn-sm js-remove-service" type="button" title="Rimuovi prestazione"><i class="fa fa-trash-o"></i></button></td></tr>';

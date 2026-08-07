@@ -1,7 +1,17 @@
 <!DOCTYPE html>
 <html>
 <head>
- <link href="<?= base_url('public/css/agenda-menu.css') ?>" rel="stylesheet" type="text/css" />
+    <?php
+        $patientAssetVersion = static function (string $relativePath): string {
+            $normalizedPath = str_replace(['/', '\\'], DIRECTORY_SEPARATOR, ltrim($relativePath, '/\\'));
+            $absolutePath = rtrim(FCPATH, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $normalizedPath;
+            $mtime = is_file($absolutePath) ? @filemtime($absolutePath) : false;
+
+            return $mtime ? '?v=' . rawurlencode((string) $mtime) : '';
+        };
+    ?>
+    <link href="<?= base_url('public/css/agenda-menu.css') ?>" rel="stylesheet" type="text/css" />
+    <link href="<?= base_url('public/css/italian-address-autocomplete.css') . $patientAssetVersion('public/css/italian-address-autocomplete.css') ?>" rel="stylesheet" type="text/css" />
     <meta charset="UTF-8">
     <?php $patientPageTitle = 'Gestione pazienti'; ?>
     <title><?= esc($patientPageTitle . (' | AmbulatorioFacile')) ?></title>
@@ -261,6 +271,11 @@
             <div class="modal-body">
                 <input type="hidden" id="id_paziente">
 
+                <p class="help-block" style="margin-top:0;">
+                    <i class="fa fa-info-circle"></i>
+                    Comune, provincia e CAP sono indipendenti e facoltativi: puoi compilarne anche uno solo oppure inserire liberamente un valore non suggerito.
+                </p>
+
                 <div class="row">
                     <div class="col-md-12">
                         <div class="patient-form-section-title">Anagrafica</div>
@@ -296,11 +311,11 @@
 
                     <div class="col-md-4 form-group">
                         <label>Comune nascita</label>
-                        <input type="text" id="comune_nascita" class="form-control">
+                        <input type="text" id="comune_nascita" class="form-control" placeholder="Cerca comune">
                     </div>
                     <div class="col-md-4 form-group">
                         <label>Provincia nascita</label>
-                        <input type="text" id="provincia_nascita" class="form-control">
+                        <input type="text" id="provincia_nascita" class="form-control" placeholder="Nome o sigla">
                     </div>
                     <div class="col-md-4 form-group">
                         <label>Cliente attivo (Excel)</label>
@@ -398,15 +413,15 @@
                     </div>
                     <div class="col-md-3 form-group">
                         <label>Comune</label>
-                        <input type="text" id="citta" class="form-control">
+                        <input type="text" id="citta" class="form-control" placeholder="Cerca comune">
                     </div>
                     <div class="col-md-2 form-group">
                         <label>CAP</label>
-                        <input type="text" id="cap" class="form-control">
+                        <input type="text" id="cap" class="form-control" placeholder="Cerca CAP" inputmode="numeric">
                     </div>
                     <div class="col-md-2 form-group">
                         <label>Provincia</label>
-                        <input type="text" id="provincia" class="form-control">
+                        <input type="text" id="provincia" class="form-control" placeholder="Nome o sigla">
                     </div>
 
                     <div class="col-md-12">
@@ -422,15 +437,15 @@
                     </div>
                     <div class="col-md-3 form-group">
                         <label>2o comune</label>
-                        <input type="text" id="comune_secondario" class="form-control">
+                        <input type="text" id="comune_secondario" class="form-control" placeholder="Cerca comune">
                     </div>
                     <div class="col-md-1 form-group">
                         <label>2o CAP</label>
-                        <input type="text" id="cap_secondario" class="form-control">
+                        <input type="text" id="cap_secondario" class="form-control" placeholder="CAP" inputmode="numeric">
                     </div>
                     <div class="col-md-1 form-group">
                         <label>2a prov.</label>
-                        <input type="text" id="provincia_secondaria" class="form-control">
+                        <input type="text" id="provincia_secondaria" class="form-control" placeholder="Sigla">
                     </div>
 
                     <div class="col-md-12">
@@ -442,16 +457,16 @@
                     </div>
                     <div class="col-md-3 form-group">
                         <label>Residenza comune</label>
-                        <input type="text" id="residenza_comune" class="form-control">
+                        <input type="text" id="residenza_comune" class="form-control" placeholder="Cerca comune">
                     </div>
                     <div class="col-md-3 form-group">
                         <label>Residenza CAP</label>
-                        <input type="text" id="residenza_cap" class="form-control">
+                        <input type="text" id="residenza_cap" class="form-control" placeholder="Cerca CAP" inputmode="numeric">
                     </div>
 
                     <div class="col-md-3 form-group">
                         <label>Residenza provincia</label>
-                        <input type="text" id="residenza_provincia" class="form-control">
+                        <input type="text" id="residenza_provincia" class="form-control" placeholder="Nome o sigla">
                     </div>
                     <div class="col-md-3 form-group">
                         <label>Paziente speciale</label>
@@ -482,6 +497,7 @@
 <script src="<?= base_url('public/plugins/jQuery/jQuery-2.1.4.min.js') ?>"></script>
 <script src="<?= base_url('public/bootstrap/js/bootstrap.min.js') ?>"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/admin-lte/2.4.18/js/adminlte.min.js"></script>
+<script src="<?= base_url('public/js/italian-address-autocomplete.js') . $patientAssetVersion('public/js/italian-address-autocomplete.js') ?>"></script>
 
 <script>
 var currentPage = 1;
@@ -874,6 +890,18 @@ function eliminaPaziente(idPaziente) {
 }
 
 $(function() {
+    if (window.ItalianAddressAutocomplete) {
+        window.ItalianAddressAutocomplete.init({
+            dataUrl: "<?= base_url('public/data/italian-addresses.json') . $patientAssetVersion('public/data/italian-addresses.json') ?>",
+            groups: [
+                { municipality: '#comune_nascita', province: '#provincia_nascita' },
+                { municipality: '#citta', province: '#provincia', postalCode: '#cap' },
+                { municipality: '#comune_secondario', province: '#provincia_secondaria', postalCode: '#cap_secondario' },
+                { municipality: '#residenza_comune', province: '#residenza_provincia', postalCode: '#residenza_cap' }
+            ]
+        });
+    }
+
     caricaPazienti(1);
 
     $('#formCercaPazienti').on('submit', function(e) {

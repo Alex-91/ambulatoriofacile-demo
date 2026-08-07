@@ -24,6 +24,7 @@
     <link href="<?= base_url('public/dist/css/skins/_all-skins.min.css') ?>" rel="stylesheet" type="text/css" />
     <!-- iCheck -->
     <link href="<?= base_url('public/plugins/iCheck/flat/blue.css') ?>" rel="stylesheet" type="text/css" />
+    <?= view('partials/italian_address_autocomplete_style') ?>
 </head>
 
   <body class="skin-blue sidebar-mini">
@@ -255,7 +256,7 @@
             <div class="form-group">
               <label>Provincia</label>
               <input type="text" name="provincia" class="form-control"
-                     value="<?= esc(old('provincia', $cliente['provincia'] ?? '')) ?>">
+                     value="<?= esc(old('provincia', $cliente['provincia'] ?? '')) ?>" placeholder="Nome o sigla">
             </div>
           </div>
         </div>
@@ -265,7 +266,7 @@
             <div class="form-group">
               <label>Città</label>
               <input type="text" name="citta" class="form-control"
-                     value="<?= esc(old('citta', $cliente['citta'] ?? '')) ?>">
+                     value="<?= esc(old('citta', $cliente['citta'] ?? '')) ?>" placeholder="Cerca comune">
             </div>
           </div>
 
@@ -617,6 +618,12 @@
 })();
 </script>
 
+<?= view('partials/italian_address_autocomplete_init', [
+    'groups' => [[
+        'municipality' => 'input[name="citta"]',
+        'province' => 'input[name="provincia"]',
+    ]],
+]) ?>
 </body>
 </html>
 <script>
@@ -680,4 +687,3 @@
   validate();
 })();
 </script>
-

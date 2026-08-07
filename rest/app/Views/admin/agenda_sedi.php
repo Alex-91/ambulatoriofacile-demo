@@ -27,6 +27,7 @@ $baseUrl = site_url($baseRoute);
   <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css" rel="stylesheet" />
   <link href="<?= base_url('public/dist/css/AdminLTE.css') ?>" rel="stylesheet" />
   <link href="<?= base_url('public/dist/css/skins/_all-skins.min.css') ?>" rel="stylesheet" />
+  <?= view('partials/italian_address_autocomplete_style') ?>
   <style>
     .summary-box {
       border: 1px solid #e5e5e5;
@@ -132,7 +133,7 @@ $baseUrl = site_url($baseRoute);
                   </div>
                   <div class="col-md-2 form-group">
                     <label>Città</label>
-                    <input type="text" name="citta" class="form-control" value="<?= esc($selectedAmbulatorio['citta'] ?? '') ?>">
+                    <input type="text" name="citta" class="form-control" value="<?= esc($selectedAmbulatorio['citta'] ?? '') ?>" placeholder="Cerca comune">
                   </div>
                   <div class="col-md-2 form-group">
                     <label>Telefono</label>
@@ -327,5 +328,8 @@ $baseUrl = site_url($baseRoute);
 <script src="<?= base_url('public/bootstrap/js/bootstrap.min.js') ?>"></script>
 <script src="<?= base_url('public/dist/js/app.min.js') ?>"></script>
 <script src="<?= base_url('public/js/agenda-menu.js') ?>"></script>
+<?= view('partials/italian_address_autocomplete_init', [
+    'groups' => [['municipality' => 'input[name="citta"]']],
+]) ?>
 </body>
 </html>

@@ -112,6 +112,7 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
   <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css" rel="stylesheet" />
   <link href="<?= base_url('public/dist/css/AdminLTE.css') ?>" rel="stylesheet" />
   <link href="<?= base_url('public/dist/css/skins/_all-skins.min.css') ?>" rel="stylesheet" />
+  <?= view('partials/italian_address_autocomplete_style') ?>
   <style>
     .nav-pills.nav-stacked > li.active > a { background-color:#2c8895; color:#fff; }
     .document-form-actions { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px; }
@@ -337,7 +338,7 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
                   <div class="col-md-6">
                     <div class="form-group">
                       <label>Città</label>
-                      <input class="form-control" type="text" name="patient_city" maxlength="120" value="<?= esc($fieldValue('patient_city')) ?>" placeholder="Es. Bologna" autocomplete="off">
+                      <input class="form-control" type="text" name="patient_city" maxlength="120" value="<?= esc($fieldValue('patient_city')) ?>" placeholder="Cerca comune" autocomplete="off">
                     </div>
                   </div>
                   <div class="col-md-12">
@@ -501,6 +502,11 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
 </div>
 <script src="<?= base_url('public/plugins/jQuery/jQuery-2.1.4.min.js') ?>"></script>
 <script src="<?= base_url('public/bootstrap/js/bootstrap.min.js') ?>"></script>
+<?= view('partials/italian_address_autocomplete_init', [
+    'groups' => [
+        ['municipality' => 'input[name="patient_city"]'],
+    ],
+]) ?>
 <script>
   (function ($) {
     function initPatientAutocomplete($root) {

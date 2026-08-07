@@ -1,0 +1,86 @@
+.italian-address-autocomplete {
+    position: relative;
+}
+
+.italian-address-autocomplete-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 1070;
+    display: none;
+    min-width: 290px;
+    max-width: 420px;
+    max-height: 260px;
+    margin-top: 2px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    background: #fff;
+    border: 1px solid #d2d6de;
+    border-radius: 3px;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, .15);
+}
+
+.italian-address-autocomplete.is-right-aligned .italian-address-autocomplete-menu {
+    right: 0;
+    left: auto;
+}
+
+.italian-address-autocomplete-item {
+    display: block;
+    width: 100%;
+    padding: 8px 10px;
+    overflow: hidden;
+    color: #333;
+    text-align: left;
+    background: #fff;
+    border: 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.italian-address-autocomplete-item:last-child {
+    border-bottom: 0;
+}
+
+.italian-address-autocomplete-item:hover,
+.italian-address-autocomplete-item:focus,
+.italian-address-autocomplete-item.is-active {
+    color: #1f4e6e;
+    background: #f4f8fa;
+    outline: 0;
+}
+
+.italian-address-autocomplete-title,
+.italian-address-autocomplete-detail {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.italian-address-autocomplete-title {
+    font-weight: 600;
+}
+
+.italian-address-autocomplete-detail,
+.italian-address-autocomplete-message {
+    color: #777;
+    font-size: 12px;
+}
+
+.italian-address-autocomplete-detail {
+    margin-top: 2px;
+}
+
+.italian-address-autocomplete-message {
+    padding: 8px 10px;
+}
+
+@media (max-width: 767px) {
+    .italian-address-autocomplete-menu,
+    .italian-address-autocomplete.is-right-aligned .italian-address-autocomplete-menu {
+        right: auto;
+        left: 0;
+        min-width: 100%;
+        max-width: calc(100vw - 60px);
+    }
+}
