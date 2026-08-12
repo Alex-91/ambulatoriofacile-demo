@@ -186,7 +186,8 @@ foreach ($previewColumns as $previewColumn) {
                             Il sistema legge il primo foglio del workbook, mantiene l’ordine originale delle colonne e propone automaticamente i campi paziente più coerenti. Le celle vuote non sovrascrivono i dati già presenti.
                         </p>
                         <ul class="import-help-list">
-                            <li>Aggiorno pazienti esistenti solo quando trovo un match forte su codice fiscale o partita IVA.</li>
+                            <li>Se il codice fiscale esiste già nello spazio, aggiorno quel paziente e non creo un doppione, anche se era collegato a un altro medico.</li>
+                            <li>In assenza di codice fiscale posso aggiornare anche tramite un match forte sulla partita IVA.</li>
                             <li>Se non trovo match, creo un nuovo paziente collegandolo al medico selezionato.</li>
                             <li>Il popup di gestione appuntamento resta invariato: qui lavori solo sull’anagrafica completa.</li>
                         </ul>
@@ -298,7 +299,7 @@ foreach ($previewColumns as $previewColumn) {
                                         </div>
                                         <div class="col-md-5">
                                             <p class="help-block" style="margin:24px 0 0;">
-                                                Le celle vuote vengono ignorate e non cancellano il valore già presente sul paziente. Se il sistema trova un match forte su codice fiscale o partita IVA aggiorna il paziente esistente, altrimenti crea una nuova anagrafica.
+                                                Le celle vuote vengono ignorate e non cancellano il valore già presente sul paziente. Se il codice fiscale esiste già nello spazio, il sistema aggiorna quel paziente e lo collega al medico scelto senza creare doppioni; altrimenti usa la partita IVA come match forte o crea una nuova anagrafica.
                                             </p>
                                         </div>
                                     </div>

@@ -1524,6 +1524,9 @@ class PazientiModel extends Model
             return $result;
         }
 
+        // L'importazione deve impedire i doppioni nell'intero spazio tenant,
+        // anche quando il paziente esistente non e' ancora collegato al medico
+        // selezionato. Il database corrente e' gia' quello isolato del tenant.
         $sql = "
             SELECT
                 c.id_client AS id_paziente,
@@ -1532,10 +1535,6 @@ class PazientiModel extends Model
                 {$this->buildAdditionalPatientSelectSql('c')},
                 {$this->dec('c.codice_fiscale')} AS cod_fis
             FROM " . self::CLIENTS_TABLE . " c
-            INNER JOIN (
-                {$this->buildDoctorScopedPatientIdsSqlForScope((array) ($scope['personale_ids'] ?? []), (array) ($scope['legacy_dot_ids'] ?? []))}
-            ) scope
-                ON scope.id_client = c.id_client
             WHERE " . implode(' OR ', $conditions) . "
             ORDER BY c.id_client ASC
             LIMIT 25
@@ -1572,7 +1571,7 @@ class PazientiModel extends Model
 
         if (count($matchesByCodiceFiscale) > 1) {
             $result['conflict'] = true;
-            $result['message'] = 'Esistono più pazienti con lo stesso codice fiscale.';
+            $result['message'] = 'Esistono più pazienti nello spazio con lo stesso codice fiscale: la riga non è stata importata per evitare altri doppioni.';
             $result['candidates'] = array_values($matchesByCodiceFiscale);
             return $result;
         }
@@ -1619,7 +1618,12 @@ class PazientiModel extends Model
         return $result;
     }
 
-    public function savePatientAndLink(array $payload, int $idDot, int $actingUserId = 0): int
+    public function savePatientAndLink(
+        array $payload,
+        int $idDot,
+        int $actingUserId = 0,
+        bool $allowExistingOutsideDoctorScope = false
+    ): int
     {
         $scope = $this->resolveDoctorPatientScope($idDot, $actingUserId);
         $idPersonale = (int) ($scope['selected_personale_id'] ?? 0);
@@ -1689,20 +1693,30 @@ class PazientiModel extends Model
 
         $idClient = (int)($payload['id_paziente'] ?? 0);
         $existing = null;
+        $existingOutsideDoctorScope = false;
         if ($idClient > 0) {
             $existing = $this->getVisiblePatientSnapshotForScope(
                 $idClient,
                 (array) ($scope['personale_ids'] ?? []),
                 (array) ($scope['legacy_dot_ids'] ?? [])
             );
+
+            if (!$existing && $allowExistingOutsideDoctorScope) {
+                $existing = $this->getClientSnapshot($idClient);
+                $existingOutsideDoctorScope = (bool) $existing;
+            }
+
             if (!$existing) {
-                throw new Exception('Paziente non trovato per il medico selezionato.');
+                throw new Exception($allowExistingOutsideDoctorScope
+                    ? 'Paziente esistente non trovato nello spazio.'
+                    : 'Paziente non trovato per il medico selezionato.');
             }
         }
 
         $persistDoctorLink = !$useSharedScope
             || !empty($allDoctorsAssociation['provided'])
             || $idClient <= 0
+            || $existingOutsideDoctorScope
             || $this->hasDirectDoctorRelationship($idClient, $idPersonale)
             || $this->isPatientAssociatedToAllDoctors($idClient);
 

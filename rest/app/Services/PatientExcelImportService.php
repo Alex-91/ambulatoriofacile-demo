@@ -440,7 +440,12 @@ class PatientExcelImportService
                 }
 
                 try {
-                    $savedId = $patientsModel->savePatientAndLink($payload, $idDot, $actingUserId);
+                    $savedId = $patientsModel->savePatientAndLink(
+                        $payload,
+                        $idDot,
+                        $actingUserId,
+                        $matchedId > 0
+                    );
                     if ($savedId <= 0) {
                         throw new RuntimeException('Salvataggio paziente non riuscito.');
                     }
