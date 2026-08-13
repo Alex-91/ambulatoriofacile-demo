@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <title>AmbulatorioFacile — Menu</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="<?= base_url('public/js/device-layout.js') ?>"></script>
   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
   <meta name="theme-color" content="#2c8895">
   <meta name="mobile-web-app-capable" content="yes">

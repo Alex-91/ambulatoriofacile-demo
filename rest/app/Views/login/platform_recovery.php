@@ -9,6 +9,7 @@ $errors = is_array($errors ?? null) ? $errors : [];
   <meta charset="UTF-8">
   <title>AmbulatorioFacile | Recupero accesso</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="<?= base_url('public/js/device-layout.js') ?>"></script>
   <link rel="stylesheet" href="<?= base_url('public/assets/css/login.css'); ?>">
   <style>
     .access-card {
