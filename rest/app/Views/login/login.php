@@ -20,7 +20,7 @@ $installWorkerUrl = $demoMode
 <link rel="shortcut icon"  href="<?= base_url('public/assets/images/logonew.jpg'); ?>" />
 <title><?= esc('AmbulatorioFacile') ?></title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<script src="<?= base_url('public/js/device-layout.js') ?>"></script>
+<script src="<?= base_url('public/js/device-layout.js') . '?v=' . filemtime(FCPATH . 'public/js/device-layout.js') ?>"></script>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 <meta name="theme-color" content="#2c8895">
 <meta name="mobile-web-app-capable" content="yes">

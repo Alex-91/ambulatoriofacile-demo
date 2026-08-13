@@ -63,7 +63,7 @@ test('usa la viewport desktop su iPad', () => {
 
   assert.equal(result.isTablet, true);
   assert.equal(result.applied, true);
-  assert.equal(result.content, 'width=1024, initial-scale=1.0');
+  assert.equal(result.content, 'width=1024, initial-scale=0.7500');
 });
 
 test('usa la viewport desktop su tablet Android', () => {
@@ -103,6 +103,35 @@ test('mantiene la viewport mobile su Android phone', () => {
   assert.equal(result.isTablet, false);
   assert.equal(result.applied, false);
   assert.equal(result.content, 'width=device-width, initial-scale=1.0');
+});
+
+test('riconosce un tablet Android piccolo anche se dichiara mobile', () => {
+  const result = runDeviceLayout({
+    userAgent: 'Mozilla/5.0 (Linux; Android 13; Tablet) Mobile Safari/537.36',
+    userAgentData: { mobile: true },
+    maxTouchPoints: 5,
+    coarsePointer: true,
+    screenWidth: 533,
+    screenHeight: 853
+  });
+
+  assert.equal(result.isTablet, true);
+  assert.equal(result.applied, true);
+  assert.equal(result.content, 'width=1024, initial-scale=0.5205');
+});
+
+test('riconosce un tablet touch compatto dalla risoluzione', () => {
+  const result = runDeviceLayout({
+    userAgent: 'Mozilla/5.0 (Linux; x86_64)',
+    maxTouchPoints: 5,
+    coarsePointer: true,
+    screenWidth: 520,
+    screenHeight: 760
+  });
+
+  assert.equal(result.isTablet, true);
+  assert.equal(result.applied, true);
+  assert.equal(result.content, 'width=1024, initial-scale=0.5078');
 });
 
 test('mantiene la viewport mobile su iPhone', () => {

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script src="<?= base_url('public/js/device-layout.js') ?>"></script>
+  <script src="<?= base_url('public/js/device-layout.js') . '?v=' . filemtime(FCPATH . 'public/js/device-layout.js') ?>"></script>
   <title>Scelta accesso</title>
 
   <script src="<?= base_url('public/assets/js/jquery.min.js'); ?>"></script>

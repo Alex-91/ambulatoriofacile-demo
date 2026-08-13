@@ -462,7 +462,7 @@ if (!$chatFeatureEnabled) {
   }
 </style>
 
-<script src="<?= base_url('public/js/device-layout.js') ?>"></script>
+<script src="<?= base_url('public/js/device-layout.js') . '?v=' . filemtime(FCPATH . 'public/js/device-layout.js') ?>"></script>
 <header class="main-header af-app-header">
   <!-- Logo -->
   <a href="<?= esc($headerLogoUrl) ?>" class="logo af-app-header-logo" aria-label="AmbulatorioFacile">

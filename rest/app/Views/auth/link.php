@@ -8,7 +8,7 @@ $token = $_GET['token'] ?? '';
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<script src="<?= base_url('public/js/device-layout.js') ?>"></script>
+<script src="<?= base_url('public/js/device-layout.js') . '?v=' . filemtime(FCPATH . 'public/js/device-layout.js') ?>"></script>
 <title>Collegamento dispositivo • AmbulatorioFacile</title>
 <meta name="theme-color" content="#2c8895">
 <script>document.title = <?= json_encode('Collegamento dispositivo - ' . 'AmbulatorioFacile') ?>;</script>
