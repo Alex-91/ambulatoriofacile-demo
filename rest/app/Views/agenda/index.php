@@ -10441,6 +10441,10 @@ function shouldRunPatientAutocomplete(term) {
     return /[^A-Za-z0-9]/.test(value);
 }
 
+function shouldRunAgendaPatientSearch(term) {
+    return $.trim((term || '').toString()) !== '';
+}
+
 function getAgendaPatientHistoryDefaultMessage() {
     if (isSharedAgendaPatientsEnabled()) {
         return 'La ricerca usa lo spazio condiviso dei pazienti; dopo la selezione qui vedi appuntamenti passati e futuri su tutte le agende dei medici.';
@@ -10946,7 +10950,7 @@ function cercaPazientiAgenda(term) {
         agendaPatientSearchXhr.abort();
     }
 
-    if (!shouldRunPatientAutocomplete(term)) {
+    if (!shouldRunAgendaPatientSearch(term)) {
         $('#agendaPatientAutocomplete').addClass('d-none').html('');
         return;
     }
@@ -11210,6 +11214,7 @@ function cercaPazientiAutocomplete(term) {
 
         $.each(res.rows, function(i, row) {
             var isSpecialPatient = isAgendaSpecialPatient(row, row.paz_spec || '');
+            var codiceFiscale = $.trim(row.cod_fis || '');
             html += '<div class="agenda-autocomplete-item' + (isSpecialPatient ? ' is-special' : '') + '" ' +
                 'data-id="' + escapeHtml(row.id_paziente || '') + '" ' +
                 'data-cognome="' + escapeHtml(row.cognome || '') + '" ' +
@@ -11221,6 +11226,7 @@ function cercaPazientiAutocomplete(term) {
                     'data-visible-in-registry="' + escapeHtml(row.visibile_in_anagrafica == null ? 1 : row.visibile_in_anagrafica) + '" ' +
                     'data-email="' + escapeHtml(row.email || '') + '">' +
                     '<strong>' + escapeHtml((row.cognome || '') + ' ' + (row.nome || '')) + '</strong>' +
+                    (codiceFiscale ? ' <span class="text-muted">&middot; CF: ' + escapeHtml(codiceFiscale) + '</span>' : '') +
                     '</div>';
             });
 
@@ -12023,12 +12029,13 @@ $('#nota_giorno_text').on('blur', function() {
         });
     });
 
-    $('#agendaPatientSearch').on('keyup', function(e) {
+    $('#agendaPatientSearch').on('keydown', function(e) {
         if (e.key === 'Escape') {
             clearAgendaPatientSearchSelection();
-            return;
         }
+    });
 
+    $('#agendaPatientSearch').on('input', function() {
         var value = $(this).val();
         var hasSelectedPatient = $.trim($('#agendaPatientSearchIdPaziente').val() || '') !== '';
 
