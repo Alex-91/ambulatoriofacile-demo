@@ -45,3 +45,7 @@ tmp_ts_sync.pdf
 AGENTS.md
 CODEX_TASK_TEMPLATE.md
 ops/*.local.json
+
+# Generated patient duplicate audits (may contain personal data)
+ops/patient-duplicate-audit-report-*.md
+ops/patient-duplicate-merge-plan-*.json
