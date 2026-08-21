@@ -2,6 +2,7 @@
 param(
     [string]$ArchivePath = '',
     [string]$OutputPath = '',
+    [string]$FiscalOutputPath = '',
     [string]$SourcePage = 'https://www.gardainformatica.it/database-comuni-italiani'
 )
 
@@ -11,8 +12,12 @@ $repoRoot = Split-Path -Parent $PSScriptRoot
 if ([string]::IsNullOrWhiteSpace($OutputPath)) {
     $OutputPath = Join-Path $repoRoot 'public\data\italian-addresses.json'
 }
+if ([string]::IsNullOrWhiteSpace($FiscalOutputPath)) {
+    $FiscalOutputPath = Join-Path $repoRoot 'rest\app\Data\italian-fiscal-birthplaces.json'
+}
 
 $OutputPath = [System.IO.Path]::GetFullPath($OutputPath)
+$FiscalOutputPath = [System.IO.Path]::GetFullPath($FiscalOutputPath)
 $temporaryRoot = Join-Path ([System.IO.Path]::GetTempPath()) ('ambulatoriofacile-address-data-' + [guid]::NewGuid().ToString('N'))
 $downloadedArchive = $false
 $datasetUpdatedAt = ''
@@ -56,6 +61,11 @@ try {
         $dateMatch = [regex]::Match($page.Content, '(?i)Dati aggiornati al\s*(\d{2})/(\d{2})/(\d{4})')
         if ($dateMatch.Success) {
             $datasetUpdatedAt = '{0}-{1}-{2}' -f $dateMatch.Groups[3].Value, $dateMatch.Groups[2].Value, $dateMatch.Groups[1].Value
+        } else {
+            $archiveDateMatch = [regex]::Match($archiveUrl, '(\d{4})-(\d{2})-(\d{2})')
+            if ($archiveDateMatch.Success) {
+                $datasetUpdatedAt = $archiveDateMatch.Value
+            }
         }
     }
 
@@ -81,6 +91,7 @@ try {
     $validityRows = Get-Content -LiteralPath (Join-Path $jsonPath 'gi_comuni_validita.json') -Raw | ConvertFrom-Json
     $capRows = Get-Content -LiteralPath (Join-Path $jsonPath 'gi_cap.json') -Raw | ConvertFrom-Json
     $provinceRows = Get-Content -LiteralPath (Join-Path $jsonPath 'gi_province.json') -Raw | ConvertFrom-Json
+    $fiscalBirthplaceRows = Get-Content -LiteralPath (Join-Path $jsonPath 'gi_comuni_nazioni_cf.json') -Raw | ConvertFrom-Json
 
     $capsByMunicipality = @{}
     foreach ($row in $capRows) {
@@ -143,6 +154,20 @@ try {
         }
     )
 
+    $compactFiscalBirthplaces = @(
+        $fiscalBirthplaceRows |
+            Sort-Object denominazione_ita, sigla_provincia, data_inizio_validita |
+            ForEach-Object {
+                [ordered]@{
+                    n = ([string]$_.denominazione_ita).Trim()
+                    p = ([string]$_.sigla_provincia).Trim()
+                    b = ([string]$_.codice_belfiore).Trim()
+                    d = ([string]$_.data_inizio_validita).Trim()
+                    u = ([string]$_.data_fine_validita).Trim()
+                }
+            }
+    )
+
     $payload = [ordered]@{
         v = 1
         updated = $datasetUpdatedAt
@@ -152,18 +177,31 @@ try {
         m = $compactMunicipalities
         h = @($compactHistorical)
     }
+    $fiscalPayload = [ordered]@{
+        v = 1
+        updated = $datasetUpdatedAt
+        source = $SourcePage
+        license = 'MIT - Garda Informatica'
+        p = $compactProvinces
+        f = $compactFiscalBirthplaces
+    }
 
     $outputDirectory = Split-Path -Parent $OutputPath
     New-Item -ItemType Directory -Path $outputDirectory -Force | Out-Null
     $json = $payload | ConvertTo-Json -Depth 6 -Compress
+    $fiscalOutputDirectory = Split-Path -Parent $FiscalOutputPath
+    New-Item -ItemType Directory -Path $fiscalOutputDirectory -Force | Out-Null
+    $fiscalJson = $fiscalPayload | ConvertTo-Json -Depth 6 -Compress
     $utf8WithoutBom = New-Object System.Text.UTF8Encoding($false)
     [System.IO.File]::WriteAllText($OutputPath, $json, $utf8WithoutBom)
+    [System.IO.File]::WriteAllText($FiscalOutputPath, $fiscalJson, $utf8WithoutBom)
 
     Write-Host ("Creato {0}: {1} comuni attuali, {2} comuni storici, {3} province." -f `
         $OutputPath,
         $compactMunicipalities.Count,
         $compactHistorical.Count,
         $compactProvinces.Count)
+    Write-Host ("Creato {0}: {1} luoghi fiscali." -f $FiscalOutputPath, $compactFiscalBirthplaces.Count)
 } finally {
     $resolvedTemporaryRoot = [System.IO.Path]::GetFullPath($temporaryRoot)
     $systemTemporaryRoot = [System.IO.Path]::GetFullPath([System.IO.Path]::GetTempPath())

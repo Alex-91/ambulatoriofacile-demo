@@ -4,6 +4,11 @@ Il file `italian-addresses.json` contiene un estratto compatto di comuni attuali
 comuni storici, province e CAP. Viene caricato localmente dal browser e non invia
 le ricerche dell'utente a servizi esterni.
 
+Lo stesso aggiornamento genera `rest/app/Data/italian-fiscal-birthplaces.json`,
+un archivio separato lato server con i codici Belfiore e i periodi di validità
+dei luoghi di nascita italiani ed esteri. Questo archivio è usato dal controllo
+di coerenza del codice fiscale dei pazienti senza appesantire il browser.
+
 Fonte: [Database dei comuni italiani di Garda Informatica](https://www.gardainformatica.it/database-comuni-italiani),
 derivato e normalizzato da fonti ufficiali tra cui ISTAT. Il dataset è distribuito
 con licenza MIT; si veda `italian-addresses.LICENSE.txt`.

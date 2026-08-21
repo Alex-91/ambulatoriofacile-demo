@@ -120,6 +120,21 @@
             border-top: 0;
         }
 
+        .fiscal-code-input-group .input-group-addon {
+            background: #fff;
+            white-space: nowrap;
+        }
+
+        .fiscal-code-input-group .checkbox-inline {
+            padding-top: 0;
+            font-weight: 400;
+        }
+
+        #cfValidationFeedback {
+            min-height: 18px;
+            margin-bottom: 0;
+        }
+
         @media (max-width: 767px) {
             .patient-list-summary,
             .pagination-wrapper {
@@ -296,15 +311,24 @@
                         <input type="text" id="nome" class="form-control">
                     </div>
 
-                    <div class="col-md-4 form-group">
+                    <div class="col-md-6 form-group" id="codFisFormGroup">
                         <label>Codice fiscale</label>
-                        <input type="text" id="cod_fis" class="form-control">
+                        <div class="input-group fiscal-code-input-group">
+                            <input type="text" id="cod_fis" class="form-control" maxlength="24" autocomplete="off" autocapitalize="characters">
+                            <span class="input-group-addon">
+                                <label class="checkbox-inline" title="Consente il salvataggio anche se il codice fiscale non supera i controlli">
+                                    <input type="checkbox" id="ignore_cf_validation" value="1">
+                                    Ignora controllo CF
+                                </label>
+                            </span>
+                        </div>
+                        <p class="help-block" id="cfValidationFeedback" aria-live="polite"></p>
                     </div>
-                    <div class="col-md-4 form-group">
+                    <div class="col-md-3 form-group">
                         <label>Partita IVA</label>
                         <input type="text" id="partita_iva" class="form-control">
                     </div>
-                    <div class="col-md-4 form-group">
+                    <div class="col-md-3 form-group">
                         <label>Data nascita</label>
                         <input type="date" id="data_nascita" class="form-control">
                     </div>
@@ -508,6 +532,9 @@ var patientSearchSuggestionTimer = null;
 var patientSearchSuggestionXhr = null;
 var patientSearchSuggestionRequestId = 0;
 var selectedPatientId = 0;
+var fiscalCodeValidationTimer = null;
+var fiscalCodeValidationXhr = null;
+var fiscalCodeValidationRequestId = 0;
 
 function escapeHtml(text) {
     return $('<div>').text(text == null ? '' : text).html();
@@ -624,6 +651,123 @@ function renderSummary(total, from, to) {
     $('#tabellaPazientiSummary').text('Visualizzati ' + from + ' - ' + to + ' di ' + total + ' pazienti');
 }
 
+function fiscalCodeValidationPayload() {
+    return {
+        id_dot: $('#id_dot').val(),
+        cod_fis: $('#cod_fis').val(),
+        cognome: $('#cognome').val(),
+        nome: $('#nome').val(),
+        data_nascita: $('#data_nascita').val(),
+        comune_nascita: $('#comune_nascita').val(),
+        provincia_nascita: $('#provincia_nascita').val()
+    };
+}
+
+function renderFiscalCodeValidation(state, message) {
+    var $group = $('#codFisFormGroup');
+    var $feedback = $('#cfValidationFeedback');
+
+    $group.removeClass('has-error has-success');
+    $feedback.removeClass('text-danger text-success text-warning text-muted');
+
+    if (state === 'error') {
+        $group.addClass('has-error');
+        $feedback.addClass('text-danger');
+    } else if (state === 'success') {
+        $group.addClass('has-success');
+        $feedback.addClass('text-success');
+    } else if (state === 'warning') {
+        $feedback.addClass('text-warning');
+    } else {
+        $feedback.addClass('text-muted');
+    }
+
+    $feedback.text(message || '');
+}
+
+function requestFiscalCodeValidation(showAlert) {
+    var deferred = $.Deferred();
+    var code = $.trim($('#cod_fis').val() || '').toUpperCase();
+    var requestId;
+
+    $('#cod_fis').val(code);
+
+    if (code === '') {
+        renderFiscalCodeValidation('', '');
+        deferred.resolve(true);
+        return deferred.promise();
+    }
+
+    if ($('#ignore_cf_validation').is(':checked')) {
+        renderFiscalCodeValidation('warning', 'Controllo disattivato per questo salvataggio.');
+        deferred.resolve(true);
+        return deferred.promise();
+    }
+
+    if (fiscalCodeValidationXhr && fiscalCodeValidationXhr.readyState !== 4) {
+        fiscalCodeValidationXhr.abort();
+    }
+
+    requestId = ++fiscalCodeValidationRequestId;
+    renderFiscalCodeValidation('', 'Controllo del codice fiscale in corso...');
+
+    fiscalCodeValidationXhr = $.post(
+        "<?= base_url('agenda/verifica-codice-fiscale') ?>",
+        fiscalCodeValidationPayload(),
+        null,
+        'json'
+    ).done(function(res) {
+        var valid;
+        var message;
+
+        if (requestId !== fiscalCodeValidationRequestId) {
+            return;
+        }
+
+        valid = !!(res && res.status);
+        message = (res && res.message) || (valid
+            ? 'Codice fiscale valido.'
+            : 'Il codice fiscale non supera i controlli.');
+
+        if (res && res.normalized) {
+            $('#cod_fis').val(res.normalized);
+        }
+
+        renderFiscalCodeValidation(valid ? 'success' : 'error', message);
+        if (!valid && showAlert) {
+            alert(message);
+        }
+        deferred.resolve(valid);
+    }).fail(function(xhr, status) {
+        var message;
+
+        if (status === 'abort' || requestId !== fiscalCodeValidationRequestId) {
+            return;
+        }
+
+        message = (xhr && xhr.responseJSON && xhr.responseJSON.message)
+            ? xhr.responseJSON.message
+            : 'Impossibile completare il controllo del codice fiscale.';
+        renderFiscalCodeValidation('error', message);
+        if (showAlert) {
+            alert(message);
+        }
+        deferred.resolve(false);
+    });
+
+    return deferred.promise();
+}
+
+function scheduleFiscalCodeValidation() {
+    if (fiscalCodeValidationTimer) {
+        clearTimeout(fiscalCodeValidationTimer);
+    }
+
+    fiscalCodeValidationTimer = setTimeout(function() {
+        requestFiscalCodeValidation(false);
+    }, 350);
+}
+
 function renderPagination(page, last) {
     var html = '';
 
@@ -658,6 +802,8 @@ function resetFormPaziente() {
     $('#iva_differita').val('0');
     $('#appointment_reminder_sms_enabled').prop('checked', false);
     $('#associate_all_doctors').prop('checked', false);
+    $('#ignore_cf_validation').prop('checked', false);
+    renderFiscalCodeValidation('', '');
     $('#btnEliminaPaziente').hide();
     $('#pazienteModalTitle').text('Nuovo paziente');
 }
@@ -713,6 +859,8 @@ function fillPazienteForm(row) {
     $('#cliente_attivo').val((row.cliente_attivo == null ? 1 : row.cliente_attivo).toString() === '0' ? '0' : '1');
     $('#appointment_reminder_sms_enabled').prop('checked', parseInt(row.appointment_reminder_sms_enabled || 0, 10) === 1);
     $('#associate_all_doctors').prop('checked', parseInt(row.associate_all_doctors || 0, 10) === 1);
+    $('#ignore_cf_validation').prop('checked', false);
+    renderFiscalCodeValidation('', '');
 
     $('#pazienteModalTitle').text('Modifica paziente');
     $('#btnEliminaPaziente').show();
@@ -822,6 +970,14 @@ function caricaDettaglioPaziente(idPaziente) {
 }
 
 function salvaPaziente() {
+    requestFiscalCodeValidation(true).done(function(valid) {
+        if (valid) {
+            inviaPaziente();
+        }
+    });
+}
+
+function inviaPaziente() {
     var existingPatientId = $.trim($('#id_paziente').val() || '');
 
     $.post("<?= base_url('agenda/salva-paziente-gestione') ?>", {
@@ -832,6 +988,7 @@ function salvaPaziente() {
         nome: $('#nome').val(),
         data_nascita: $('#data_nascita').val(),
         cod_fis: $('#cod_fis').val(),
+        ignore_cf_validation: $('#ignore_cf_validation').is(':checked') ? 1 : 0,
         partita_iva: $('#partita_iva').val(),
         comune_nascita: $('#comune_nascita').val(),
         provincia_nascita: $('#provincia_nascita').val(),
@@ -968,6 +1125,29 @@ $(function() {
     });
 
     $('#btnSalvaPaziente').on('click', salvaPaziente);
+
+    $('#cod_fis,#cognome,#nome,#data_nascita,#comune_nascita,#provincia_nascita').on('input change', function() {
+        if ($.trim($('#cod_fis').val() || '') !== '' && !$('#ignore_cf_validation').is(':checked')) {
+            scheduleFiscalCodeValidation();
+        }
+    });
+
+    $('#cod_fis').on('blur', function() {
+        $(this).val($.trim($(this).val() || '').toUpperCase());
+    });
+
+    $('#ignore_cf_validation').on('change', function() {
+        if ($(this).is(':checked')) {
+            fiscalCodeValidationRequestId += 1;
+            if (fiscalCodeValidationXhr && fiscalCodeValidationXhr.readyState !== 4) {
+                fiscalCodeValidationXhr.abort();
+            }
+            renderFiscalCodeValidation('warning', 'Controllo disattivato per questo salvataggio.');
+            return;
+        }
+
+        scheduleFiscalCodeValidation();
+    });
 
     $(document).on('click', '.btnModificaPaziente', function() {
         resetFormPaziente();

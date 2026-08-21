@@ -25,6 +25,7 @@ use App\Services\AgendaTextColorThemeService;
 use App\Services\AgendaTeamColumnColorService;
 use App\Services\AppointmentNotificationSettingsService;
 use App\Services\BillingTsModuleStatusService;
+use App\Services\FiscalCodeValidator;
 use App\Services\NotificationService;
 use App\Services\PatientExcelImportService;
 use App\Services\SmsReminderDashboardService;
@@ -79,6 +80,7 @@ class Agenda extends BaseController
     protected AgendaTextColorThemeService $agendaTextColorThemeService;
     protected AgendaTeamColumnColorService $agendaTeamColumnColorService;
     protected BillingTsModuleStatusService $billingTsModuleStatusService;
+    protected FiscalCodeValidator $fiscalCodeValidator;
     protected TenantContextService $tenantContextService;
     protected TenantFeatureService $tenantFeatureService;
     protected $db;
@@ -109,6 +111,7 @@ class Agenda extends BaseController
         $this->agendaTextColorThemeService = new AgendaTextColorThemeService();
         $this->agendaTeamColumnColorService = new AgendaTeamColumnColorService();
         $this->billingTsModuleStatusService = new BillingTsModuleStatusService();
+        $this->fiscalCodeValidator = new FiscalCodeValidator();
         $this->tenantContextService = new TenantContextService();
         $this->tenantFeatureService = new TenantFeatureService();
 
@@ -5464,6 +5467,7 @@ public function eseguiRepairRecurringExtraSlots()
             }
 
             $this->assertDoctorAllowed($idDot);
+            $this->assertPatientFiscalCodeIsValid($payload);
 
             $idPaziente = $this->pazientiModel->savePatientAndLink($payload, $idDot, $this->getCurrentUserId());
 
@@ -5477,6 +5481,52 @@ public function eseguiRepairRecurringExtraSlots()
                 'status'  => false,
                 'message' => $e->getMessage()
             ]);
+        }
+    }
+
+    public function verificaCodiceFiscale()
+    {
+        try {
+            $payload = $this->request->getPost();
+            $idDot = (int) ($payload['id_dot'] ?? 0);
+            if ($idDot <= 0) {
+                throw new \Exception('Medico non valido.');
+            }
+
+            $this->assertDoctorAllowed($idDot);
+            $result = $this->fiscalCodeValidator->validate(
+                (string) ($payload['cod_fis'] ?? ($payload['codice_fiscale'] ?? '')),
+                $payload
+            );
+
+            return $this->response->setJSON([
+                'status' => $result['valid'],
+                'normalized' => $result['normalized'],
+                'errors' => $result['errors'],
+                'message' => $result['message'],
+            ]);
+        } catch (\Exception $e) {
+            return $this->response->setJSON([
+                'status' => false,
+                'errors' => [$e->getMessage()],
+                'message' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     */
+    private function assertPatientFiscalCodeIsValid(array $payload): void
+    {
+        $code = trim((string) ($payload['cod_fis'] ?? ($payload['codice_fiscale'] ?? '')));
+        if ($code === '' || $this->requestBooleanFlag($payload['ignore_cf_validation'] ?? false)) {
+            return;
+        }
+
+        $result = $this->fiscalCodeValidator->validate($code, $payload);
+        if (!$result['valid']) {
+            throw new \Exception($result['message']);
         }
     }
 

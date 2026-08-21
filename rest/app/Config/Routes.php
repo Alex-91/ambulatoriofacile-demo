@@ -515,6 +515,7 @@ $routes->get('agenda/importa-pazienti-excel', 'Agenda::importaPazientiExcel');
 $routes->post('agenda/importa-pazienti-excel/preview', 'Agenda::importaPazientiExcelPreview');
 $routes->post('agenda/importa-pazienti-excel/conferma', 'Agenda::importaPazientiExcelConferma');
 $routes->get('agenda/lista-pazienti', 'Agenda::listaPazienti');
+$routes->post('agenda/verifica-codice-fiscale', 'Agenda::verificaCodiceFiscale');
 $routes->post('agenda/salva-paziente-gestione', 'Agenda::salvaPazienteGestione');
 $routes->post('agenda/elimina-paziente', 'Agenda::eliminaPaziente');
 $routes->get('agenda/get-paziente/(:num)', 'Agenda::getPaziente/$1');
