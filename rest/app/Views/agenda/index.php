@@ -10067,9 +10067,6 @@ function renderAgendaTeamDay(res) {
             columnBodyStyle += 'border-left:0;';
         }
 
-        if ($.isArray(column && column.slots)) {
-            agendaTeamAllSlots = agendaTeamAllSlots.concat(column.slots);
-        }
         html += '<div class="agenda-team-column-body'
             + (column.giorno_bloccato ? ' is-day-locked' : '')
             + (compactSingleSlotHeight ? ' is-compact-stack' : '')
