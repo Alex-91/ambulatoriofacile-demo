@@ -1,10 +1,17 @@
 <?php
 
 use App\Services\AgendaSlotFragmentService;
+use App\Services\AgendaSlotFragmentSchemaService;
 use CodeIgniter\Test\CIUnitTestCase;
 
 final class AgendaSlotFragmentServiceTest extends CIUnitTestCase
 {
+    public function testRuntimeSchemaCreatorIsAutoloadable(): void
+    {
+        self::assertTrue(class_exists(AgendaSlotFragmentSchemaService::class));
+        self::assertSame('dap46_agenda_slot_frammenti', AgendaSlotFragmentSchemaService::TABLE);
+    }
+
     public function testResidualSlotsRequireBothFeatureFlags(): void
     {
         self::assertFalse(AgendaSlotFragmentService::isFeatureEnabled(false, false));

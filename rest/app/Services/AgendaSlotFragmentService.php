@@ -2,9 +2,7 @@
 
 namespace App\Services;
 
-use App\Database\Migrations\CreateAgendaSlotFragments;
 use CodeIgniter\Database\BaseConnection;
-use Config\Database;
 use Exception;
 
 class AgendaSlotFragmentService
@@ -39,8 +37,7 @@ class AgendaSlotFragmentService
         }
 
         try {
-            $migration = new CreateAgendaSlotFragments(Database::forge($this->db));
-            $migration->up();
+            AgendaSlotFragmentSchemaService::create($this->db);
         } catch (\Throwable $e) {
             log_message('error', 'AgendaSlotFragmentService runtime migration failed: {message}', [
                 'message' => $e->getMessage(),
