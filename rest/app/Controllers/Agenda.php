@@ -1427,6 +1427,23 @@ public function eseguiRepairRecurringExtraSlots()
             ->setBody($body ?: '{}');
     }
 
+    /**
+     * @return array<string, mixed>
+     */
+    protected function patientSaveErrorPayload(\Throwable $exception): array
+    {
+        $payload = [
+            'status' => false,
+            'message' => $exception->getMessage(),
+        ];
+
+        if ($exception->getCode() === PazientiModel::SAVE_REQUIRES_EXISTING_PATIENT_CONFIRMATION) {
+            $payload['requires_existing_patient_confirmation'] = true;
+        }
+
+        return $payload;
+    }
+
     protected function sanitizeJsonValue($value)
     {
         if (is_array($value)) {
@@ -4209,10 +4226,7 @@ public function eseguiRepairRecurringExtraSlots()
                 'message'     => 'Paziente salvato correttamente.'
             ]);
         } catch (Exception $e) {
-            return $this->response->setJSON([
-                'status'  => false,
-                'message' => $e->getMessage()
-            ]);
+            return $this->response->setJSON($this->patientSaveErrorPayload($e));
         }
     }
 
@@ -4268,10 +4282,7 @@ public function eseguiRepairRecurringExtraSlots()
                 'message'         => 'Prenotazione confermata correttamente.'
             ]);
         } catch (Exception $e) {
-            return $this->response->setJSON([
-                'status'  => false,
-                'message' => $e->getMessage()
-            ]);
+            return $this->response->setJSON($this->patientSaveErrorPayload($e));
         }
     }
 
@@ -4308,10 +4319,7 @@ public function eseguiRepairRecurringExtraSlots()
                 'message' => 'Appuntamento aggiornato correttamente.'
             ]);
         } catch (Exception $e) {
-            return $this->response->setJSON([
-                'status'  => false,
-                'message' => $e->getMessage()
-            ]);
+            return $this->response->setJSON($this->patientSaveErrorPayload($e));
         }
     }
 
@@ -5477,10 +5485,7 @@ public function eseguiRepairRecurringExtraSlots()
                 'message'     => 'Paziente salvato correttamente.'
             ]);
         } catch (\Exception $e) {
-            return $this->response->setJSON([
-                'status'  => false,
-                'message' => $e->getMessage()
-            ]);
+            return $this->response->setJSON($this->patientSaveErrorPayload($e));
         }
     }
 
@@ -5499,11 +5504,56 @@ public function eseguiRepairRecurringExtraSlots()
                 $payload
             );
 
+            $existingPatientFound = false;
+            $existingPatientLabel = '';
+            $duplicateConflict = false;
+            $currentPatientId = (int) ($payload['id_paziente'] ?? 0);
+            if (!empty($result['valid']) && trim((string) ($result['normalized'] ?? '')) !== '') {
+                $match = $this->pazientiModel->resolveFiscalCodePatientMatch(
+                    $payload,
+                    $idDot,
+                    $this->getCurrentUserId(),
+                    $currentPatientId
+                );
+
+                if (!empty($match['conflict'])) {
+                    $duplicateConflict = true;
+                    $result['valid'] = false;
+                    $result['errors'] = [(string) ($match['message'] ?? '')];
+                    $result['message'] = (string) ($match['message'] ?? 'Esistono più pazienti con lo stesso codice fiscale.');
+                } elseif ((int) ($match['id_paziente'] ?? 0) > 0) {
+                    $existingPatientFound = true;
+                    $row = is_array($match['row'] ?? null) ? $match['row'] : [];
+                    $existingPatientLabel = trim((string) ($row['denominazione'] ?? ''));
+                    if ($existingPatientLabel === '') {
+                        $existingPatientLabel = trim(
+                            (string) ($row['cognome'] ?? '') . ' ' . (string) ($row['nome'] ?? '')
+                        );
+                    }
+
+                    if ($currentPatientId > 0) {
+                        $duplicateConflict = true;
+                        $result['valid'] = false;
+                        $result['message'] = 'Questo codice fiscale appartiene già a un’altra anagrafica'
+                            . ($existingPatientLabel !== '' ? ' (' . $existingPatientLabel . ')' : '')
+                            . '. Apri il paziente già presente per modificarlo.';
+                        $result['errors'] = [$result['message']];
+                    } else {
+                        $result['message'] = 'Codice fiscale valido, ma già presente'
+                            . ($existingPatientLabel !== '' ? ' per il paziente ' . $existingPatientLabel : '')
+                            . '. Al salvataggio ti verrà chiesta conferma prima di aggiornare l’anagrafica esistente.';
+                    }
+                }
+            }
+
             return $this->response->setJSON([
                 'status' => $result['valid'],
                 'normalized' => $result['normalized'],
                 'errors' => $result['errors'],
                 'message' => $result['message'],
+                'existing_patient_found' => $existingPatientFound,
+                'existing_patient_label' => $existingPatientLabel,
+                'duplicate_conflict' => $duplicateConflict,
             ]);
         } catch (\Exception $e) {
             return $this->response->setJSON([

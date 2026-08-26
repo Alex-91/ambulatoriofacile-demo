@@ -653,6 +653,7 @@ function renderSummary(total, from, to) {
 
 function fiscalCodeValidationPayload() {
     return {
+        id_paziente: $('#id_paziente').val(),
         id_dot: $('#id_dot').val(),
         cod_fis: $('#cod_fis').val(),
         cognome: $('#cognome').val(),
@@ -733,7 +734,10 @@ function requestFiscalCodeValidation(showAlert) {
             $('#cod_fis').val(res.normalized);
         }
 
-        renderFiscalCodeValidation(valid ? 'success' : 'error', message);
+        renderFiscalCodeValidation(
+            valid && res && res.existing_patient_found ? 'warning' : (valid ? 'success' : 'error'),
+            message
+        );
         if (!valid && showAlert) {
             alert(message);
         }
@@ -977,7 +981,7 @@ function salvaPaziente() {
     });
 }
 
-function inviaPaziente() {
+function inviaPaziente(confirmExistingPatientUpdate) {
     var existingPatientId = $.trim($('#id_paziente').val() || '');
 
     $.post("<?= base_url('agenda/salva-paziente-gestione') ?>", {
@@ -988,6 +992,7 @@ function inviaPaziente() {
         nome: $('#nome').val(),
         data_nascita: $('#data_nascita').val(),
         cod_fis: $('#cod_fis').val(),
+        confirm_existing_patient_update: confirmExistingPatientUpdate ? 1 : 0,
         ignore_cf_validation: $('#ignore_cf_validation').is(':checked') ? 1 : 0,
         partita_iva: $('#partita_iva').val(),
         comune_nascita: $('#comune_nascita').val(),
@@ -1021,6 +1026,13 @@ function inviaPaziente() {
         paz_spec: $('#paz_spec').val(),
         bloccato: $('#bloccato').val()
     }, function(res) {
+        if (res && res.requires_existing_patient_confirmation) {
+            if (window.confirm(res.message || 'Il paziente è già presente. Vuoi aggiornare l\'anagrafica esistente?')) {
+                inviaPaziente(true);
+            }
+            return;
+        }
+
         alert(res.message || 'Operazione completata');
         if (res.status) {
             $('#pazienteModal').modal('hide');

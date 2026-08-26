@@ -10,6 +10,9 @@ use Exception;
 
 class PazientiModel extends Model
 {
+    public const SAVE_REQUIRES_EXISTING_PATIENT_CONFIRMATION = 40901;
+    public const SAVE_FISCAL_CODE_CONFLICT = 40902;
+
     private const CLIENTS_TABLE = 'dap02_clients';
     private const CLIENT_DOCTOR_TABLE = 'dap09_client_doctor';
     private const APPOINTMENTS_TABLE = 'dap12_agenda_appuntamenti';
@@ -1445,6 +1448,86 @@ class PazientiModel extends Model
      * @param array<string, mixed> $payload
      * @return array<string, mixed>
      */
+    public function resolveFiscalCodePatientMatch(
+        array $payload,
+        int $idDot,
+        int $actingUserId = 0,
+        int $excludePatientId = 0
+    ): array {
+        $result = [
+            'id_paziente' => 0,
+            'conflict' => false,
+            'message' => '',
+            'row' => null,
+            'candidates' => [],
+        ];
+
+        $codiceFiscale = $this->normalizeFiscalCode(
+            (string) ($payload['cod_fis'] ?? ($payload['codice_fiscale'] ?? ''))
+        );
+        if ($codiceFiscale === '' || $idDot <= 0) {
+            return $result;
+        }
+
+        $scope = $this->resolveDoctorPatientScope($idDot, $actingUserId);
+        if ((int) ($scope['selected_personale_id'] ?? 0) <= 0) {
+            return $result;
+        }
+
+        $sql = "
+            SELECT
+                c.id_client AS id_paziente,
+                {$this->dec('c.nome')} AS nome,
+                {$this->dec('c.cognome')} AS cognome,
+                {$this->buildAdditionalPatientSelectSql('c')},
+                {$this->dec('c.codice_fiscale')} AS cod_fis
+            FROM " . self::CLIENTS_TABLE . " c
+            WHERE " . $this->buildNormalizedComparableSql($this->decExpr('c.codice_fiscale')) . " = ?
+            ORDER BY c.id_client ASC
+            LIMIT 25
+        ";
+
+        $rows = $this->sanitizePatientRows(
+            $this->db->query($sql, [$codiceFiscale])->getResultArray(),
+            false
+        );
+        $matches = [];
+
+        foreach ($rows as $row) {
+            $idPaziente = (int) ($row['id_paziente'] ?? 0);
+            if (
+                $idPaziente <= 0
+                || $idPaziente === $excludePatientId
+                || $this->normalizeFiscalCode((string) ($row['cod_fis'] ?? '')) !== $codiceFiscale
+            ) {
+                continue;
+            }
+
+            $matches[$idPaziente] = $row;
+        }
+
+        if (count($matches) > 1) {
+            $result['conflict'] = true;
+            $result['message'] = 'Esistono più pazienti nello spazio con lo stesso codice fiscale. Nessun dato è stato aggiornato: occorre prima risolvere i doppioni già presenti.';
+            $result['candidates'] = array_values($matches);
+            return $result;
+        }
+
+        if ($matches !== []) {
+            $matchedRow = reset($matches) ?: null;
+            if (is_array($matchedRow)) {
+                $result['id_paziente'] = (int) ($matchedRow['id_paziente'] ?? 0);
+                $result['row'] = $matchedRow;
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     * @return array<string, mixed>
+     */
     public function resolveImportPatientMatch(array $payload, int $idDot, int $actingUserId = 0): array
     {
         $result = [
@@ -1658,6 +1741,25 @@ class PazientiModel extends Model
         }
 
         $idClient = (int)($payload['id_paziente'] ?? 0);
+        if ($data['codice_fiscale'] !== '') {
+            $fiscalCodeMatch = $this->resolveFiscalCodePatientMatch(
+                $payload,
+                $idDot,
+                $actingUserId,
+                $idClient
+            );
+            $saveTarget = $this->resolveFiscalCodeSaveTarget(
+                $idClient,
+                $data['codice_fiscale'],
+                $fiscalCodeMatch,
+                $this->normalizeBooleanFlag($payload['confirm_existing_patient_update'] ?? false)
+            );
+            $idClient = (int) $saveTarget['id_client'];
+            if (!empty($saveTarget['allow_existing_outside_scope'])) {
+                $allowExistingOutsideDoctorScope = true;
+            }
+        }
+
         $existing = null;
         $existingOutsideDoctorScope = false;
         if ($idClient > 0) {
@@ -1740,6 +1842,75 @@ class PazientiModel extends Model
         $this->doctorPatientSearchModel->syncClient($idClient);
 
         return $idClient;
+    }
+
+    /**
+     * @param array<string, mixed> $match
+     * @return array{id_client: int, allow_existing_outside_scope: bool}
+     */
+    private function resolveFiscalCodeSaveTarget(
+        int $requestedPatientId,
+        string $codiceFiscale,
+        array $match,
+        bool $confirmed
+    ): array {
+        if (!empty($match['conflict'])) {
+            throw new Exception(
+                (string) ($match['message'] ?? 'Esistono più pazienti con lo stesso codice fiscale.'),
+                self::SAVE_FISCAL_CODE_CONFLICT
+            );
+        }
+
+        $matchedPatientId = (int) ($match['id_paziente'] ?? 0);
+        if ($matchedPatientId <= 0) {
+            return [
+                'id_client' => $requestedPatientId,
+                'allow_existing_outside_scope' => false,
+            ];
+        }
+
+        $row = is_array($match['row'] ?? null) ? $match['row'] : [];
+        $patientLabel = $this->buildFiscalCodeMatchLabel($row);
+
+        if ($requestedPatientId > 0) {
+            throw new Exception(
+                'Il codice fiscale ' . $codiceFiscale . ' appartiene già a un’altra anagrafica'
+                . ($patientLabel !== '' ? ' (' . $patientLabel . ')' : '')
+                . '. Nessun dato è stato aggiornato: apri il paziente già presente per modificarlo.',
+                self::SAVE_FISCAL_CODE_CONFLICT
+            );
+        }
+
+        if (!$confirmed) {
+            throw new Exception(
+                'Il codice fiscale ' . $codiceFiscale . ' è già presente'
+                . ($patientLabel !== '' ? ' per il paziente ' . $patientLabel : '')
+                . '. Confermando, i dati inseriti verranno aggiornati sull’anagrafica già esistente e non sarà creato un doppione. Vuoi continuare?',
+                self::SAVE_REQUIRES_EXISTING_PATIENT_CONFIRMATION
+            );
+        }
+
+        return [
+            'id_client' => $matchedPatientId,
+            'allow_existing_outside_scope' => true,
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $row
+     */
+    private function buildFiscalCodeMatchLabel(array $row): string
+    {
+        $label = trim((string) ($row['denominazione'] ?? ''));
+        if ($label !== '') {
+            return $label;
+        }
+
+        return trim((string) (preg_replace(
+            '/\s+/u',
+            ' ',
+            trim((string) ($row['cognome'] ?? '') . ' ' . (string) ($row['nome'] ?? ''))
+        ) ?? ''));
     }
 
     private function getPatientsByIds(
