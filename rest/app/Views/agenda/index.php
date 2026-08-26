@@ -1427,6 +1427,20 @@
             border-color: rgba(30, 126, 52, 0.42);
         }
 
+        .agenda-custom-slot.is-adapted {
+            border: 2px dashed #8b5a00;
+            background: linear-gradient(180deg, #fffaf0 0%, #fff2cf 100%);
+            color: #704600;
+            box-shadow: inset 4px 0 0 rgba(243, 156, 18, 0.48);
+        }
+
+        .agenda-custom-slot.is-adapted:hover,
+        .agenda-custom-slot.is-adapted:focus {
+            border-color: #704600;
+            background: linear-gradient(180deg, #fff7df 0%, #ffe7ad 100%);
+            box-shadow: inset 4px 0 0 rgba(230, 126, 34, 0.7), 0 8px 16px rgba(112, 70, 0, 0.12);
+        }
+
         .agenda-custom-slot.is-booked {
             background: #3c8dbc;
             border-color: #2f74a0;
@@ -2559,6 +2573,20 @@
             border-color: var(--agenda-team-column-entry-border, rgba(60, 141, 188, 0.65));
             box-shadow: 0 10px 20px var(--agenda-team-column-shadow, rgba(31, 45, 61, 0.10));
             outline: none;
+        }
+
+        .agenda-team-entry-free-slot.is-adapted,
+        .agenda-team-mobile-entry.is-free.is-adapted {
+            border: 2px dashed #8b5a00;
+            background: linear-gradient(180deg, #fffaf0 0%, #fff0c7 100%);
+            color: #704600;
+            box-shadow: inset 4px 0 0 rgba(243, 156, 18, 0.48);
+        }
+
+        .agenda-team-entry-free-slot.is-adapted .agenda-team-entry-time,
+        .agenda-team-mobile-entry.is-free.is-adapted .agenda-team-mobile-entry-time {
+            background: rgba(243, 156, 18, 0.18);
+            color: #704600;
         }
 
         .agenda-team-entry-free-slot-chip-only {
@@ -7198,6 +7226,7 @@ function renderAgendaSlotLayer() {
             ? ('Cell: ' + cellulareEvento)
             : (telefonoEvento !== '' ? ('Tel: ' + telefonoEvento) : '');
         var hasAppointment = !!slot.id_appuntamento || (stato !== 'LIBERO' && stato !== 'BLOCCATO' && stato !== 'CHIUSO');
+        var isAdaptedSlot = (parseInt(slot.is_slot_adattato || 0, 10) || 0) === 1;
         var slotDayBlocked = isAgendaSlotDayBlocked(slot, entry.dayKey);
         var visitTypeVisualStyle = (!slotDayBlocked && hasAppointment) ? getAgendaVisitTypeVisualStyleById(slot.id_tipo_visita) : null;
         var titolo = 'Slot libero';
@@ -7303,6 +7332,18 @@ function renderAgendaSlotLayer() {
         }
 
         if ((stato === 'LIBERO' || stato === 'BLOCCATO') && !hasAppointment && !slotDayBlocked) {
+            if (isAdaptedSlot) {
+                var adaptedEndLabel = entry.slotEnd && entry.slotEnd.isValid()
+                    ? entry.slotEnd.format('HH:mm')
+                    : '';
+                var adaptedDuration = getAgendaSlotActualDurationMinutes(slot);
+                timeLabel = adaptedEndLabel !== ''
+                    ? (entry.slotStart.format('HH:mm') + ' - ' + adaptedEndLabel)
+                    : timeLabel;
+                titoloVisuale = 'Slot adattato' + (adaptedDuration > 0 ? (' · ' + adaptedDuration + ' min') : '');
+                tooltipParts[0] = timeLabel;
+                tooltipParts[tooltipParts.length - 1] = titoloVisuale + ' · prenotabile';
+            }
             var freeSlotTooltip = tooltipParts.join(' - ');
             var $freeSlot = $('<button type="button" class="agenda-custom-slot is-free"></button>')
                 .attr('title', freeSlotTooltip)
@@ -7324,6 +7365,9 @@ function renderAgendaSlotLayer() {
 
             if (((slot.origine_slot || '') + '').toUpperCase() === 'EXTRA') {
                 $freeSlot.addClass('is-extra');
+            }
+            if (isAdaptedSlot) {
+                $freeSlot.addClass('is-adapted');
             }
 
             $layer.append($freeSlot);
@@ -8574,9 +8618,10 @@ function isAppointmentExtraSlot() {
 
 function setAppointmentExtraSlotState(slot) {
     var origine = ((slot && slot.origine_slot) ? String(slot.origine_slot) : '');
-    var isExtra = $.trim(origine).toUpperCase() === 'EXTRA';
+    var isAdapted = (parseInt((slot && slot.is_slot_adattato) || 0, 10) || 0) === 1;
+    var isExtra = $.trim(origine).toUpperCase() === 'EXTRA' && !isAdapted;
 
-    $('#app_origine_slot').val(origine);
+    $('#app_origine_slot').val(isExtra ? origine : '');
     $('#btnDeleteExtraSlot').toggle(isExtra);
 }
 
@@ -9519,6 +9564,7 @@ function buildAgendaTeamDayMobileRecords(columns) {
             var pazSpec = $.trim(slot.paz_spec || '');
             var isSpecialPatient = isAgendaSpecialPatient(slot, pazSpec);
             var hasAppointment = !!slot.id_appuntamento || (stato !== 'LIBERO' && stato !== 'BLOCCATO' && stato !== 'CHIUSO');
+            var isAdaptedSlot = (parseInt(slot.is_slot_adattato || 0, 10) || 0) === 1;
             var hourStartMinutes = Math.floor(startMinutes / 60) * 60;
             var record = {
                 columnKey: String(column.id_dot || column.label || ''),
@@ -9544,10 +9590,14 @@ function buildAgendaTeamDayMobileRecords(columns) {
             if ((stato === 'LIBERO' || stato === 'BLOCCATO') && !hasAppointment && !column.giorno_bloccato) {
                 record.kind = 'free';
                 record.interactiveType = 'free';
-                record.extraClass = 'is-free';
-                record.primaryLabel = 'Libero';
-                record.secondaryLabel = 'Slot disponibile';
-                record.tooltipText = orarioLabel + '\nSlot libero';
+                record.extraClass = 'is-free' + (isAdaptedSlot ? ' is-adapted' : '');
+                record.primaryLabel = isAdaptedSlot ? 'Slot adattato' : 'Libero';
+                record.secondaryLabel = isAdaptedSlot
+                    ? (durationMinutes + ' min · prenotabile')
+                    : 'Slot disponibile';
+                record.tooltipText = orarioLabel + '\n' + (isAdaptedSlot
+                    ? ('Slot adattato · ' + durationMinutes + ' min · prenotabile')
+                    : 'Slot libero');
                 appendAgendaTeamDayMobileRecord(records, record);
                 return true;
             }
@@ -9877,6 +9927,7 @@ function buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute, entryH
         var pazSpec = $.trim(slot.paz_spec || '');
         var isSpecialPatient = isAgendaSpecialPatient(slot, pazSpec);
         var hasAppointment = !!slot.id_appuntamento || (stato !== 'LIBERO' && stato !== 'BLOCCATO' && stato !== 'CHIUSO');
+        var isAdaptedSlot = (parseInt(slot.is_slot_adattato || 0, 10) || 0) === 1;
 
         if (compactSingleSlotHeight && !hasAppointment && compactRenderedUntilMinutes !== null && startMinutes < compactRenderedUntilMinutes) {
             return true;
@@ -9909,13 +9960,22 @@ function buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute, entryH
         var bookedTimeLabel = orarioLabel;
 
         if ((stato === 'LIBERO' || stato === 'BLOCCATO') && !hasAppointment && !column.giorno_bloccato) {
+            var freeSlotClass = 'agenda-team-entry agenda-team-entry-free-slot js-agenda-team-free-slot'
+                + (isAdaptedSlot ? ' is-adapted' : '');
+            var freeSlotPrimaryLabel = isAdaptedSlot ? 'Slot adattato' : 'Libero';
+            var freeSlotSecondaryLabel = isAdaptedSlot
+                ? (durationMinutes + ' min · prenotabile')
+                : 'Slot disponibile';
+            var freeSlotTitle = orarioLabel + '\n' + (isAdaptedSlot
+                ? ('Slot adattato · ' + durationMinutes + ' min · prenotabile')
+                : 'Slot libero');
             html += ''
                 + '<button type="button"'
-                + ' class="agenda-team-entry agenda-team-entry-free-slot js-agenda-team-free-slot"'
+                + ' class="' + freeSlotClass + '"'
                 + ' style="' + entryStyle + '"'
                 + ' data-slot-id="' + slotId + '"'
-                + ' title="' + buildAgendaTeamEntryTitleAttr(orarioLabel + '\nSlot libero') + '">'
-                + buildAgendaTeamEntryContent(orarioLabel, 'Libero', 'Slot disponibile')
+                + ' title="' + buildAgendaTeamEntryTitleAttr(freeSlotTitle) + '">'
+                + buildAgendaTeamEntryContent(orarioLabel, freeSlotPrimaryLabel, freeSlotSecondaryLabel)
                 + '</button>';
             if (compactSingleSlotHeight) {
                 compactRenderedUntilMinutes = Math.max(compactRenderedUntilMinutes || 0, startMinutes + displayDurationMinutes);

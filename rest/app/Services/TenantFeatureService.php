@@ -92,6 +92,8 @@ class TenantFeatureService
         }
         unset($row);
 
+        $this->applyFeatureDependencies($rows);
+
         return $rows;
     }
 
@@ -111,6 +113,30 @@ class TenantFeatureService
         }
 
         return $map;
+    }
+
+    /** @param array<int, array<string, mixed>> $rows */
+    private function applyFeatureDependencies(array &$rows): void
+    {
+        $effectiveByKey = [];
+        foreach ($rows as $row) {
+            $featureKey = trim((string) ($row['feature_key'] ?? ''));
+            if ($featureKey !== '') {
+                $effectiveByKey[$featureKey] = (bool) ($row['effective_enabled'] ?? false);
+            }
+        }
+
+        $parentEnabled = !empty($effectiveByKey[AgendaSlotFragmentService::PARENT_FEATURE_KEY]);
+        foreach ($rows as &$row) {
+            if (trim((string) ($row['feature_key'] ?? '')) !== AgendaSlotFragmentService::FEATURE_KEY) {
+                continue;
+            }
+
+            $row['dependency_feature_key'] = AgendaSlotFragmentService::PARENT_FEATURE_KEY;
+            $row['dependency_satisfied'] = $parentEnabled;
+            $row['effective_enabled'] = $parentEnabled && !empty($row['effective_enabled']);
+        }
+        unset($row);
     }
 
     /**
@@ -367,6 +393,16 @@ class TenantFeatureService
                 'tenant_default_enabled' => 0,
                 'sort_order' => 78,
             ],
+            AgendaSlotFragmentService::FEATURE_KEY => [
+                'feature_name' => 'Slot residui degli orari personalizzati',
+                'feature_scope' => 'workflow',
+                'description' => 'Crea slot prenotabili negli spazi liberi lasciati da un appuntamento con orario personalizzato. Richiede la funzione Orari personalizzati appuntamenti.',
+                'default_enabled' => 0,
+                'icon_class' => 'fa-clock-o',
+                'is_tenant_managed' => 0,
+                'tenant_default_enabled' => 0,
+                'sort_order' => 79,
+            ],
             'agenda_patient_registry_visibility' => [
                 'feature_name' => 'Visibilità pazienti in anagrafica',
                 'feature_scope' => 'workflow',
@@ -375,7 +411,7 @@ class TenantFeatureService
                 'icon_class' => 'fa-address-card-o',
                 'is_tenant_managed' => 0,
                 'tenant_default_enabled' => 0,
-                'sort_order' => 79,
+                'sort_order' => 80,
             ],
             'agenda_disable_slot_lock' => [
                 'feature_name' => 'Disattiva blocco temporaneo slot',
@@ -385,7 +421,7 @@ class TenantFeatureService
                 'icon_class' => 'fa-unlock-alt',
                 'is_tenant_managed' => 0,
                 'tenant_default_enabled' => 0,
-                'sort_order' => 80,
+                'sort_order' => 81,
             ],
             AgendaAppointmentBlockLayoutService::FEATURE_KEY => [
                 'feature_name' => 'Layout popup appuntamento',

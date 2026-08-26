@@ -816,6 +816,9 @@ $oldValue = static function (string $key, $fallback = '') {
                         }
                         $isBillingCard = $featureKey === $billingFeatureKey;
                         $isTsBillingCard = $featureKey === $tsBillingFeatureKey;
+                        $requiredFeatureKey = $featureKey === \App\Services\AgendaSlotFragmentService::FEATURE_KEY
+                            ? \App\Services\AgendaSlotFragmentService::PARENT_FEATURE_KEY
+                            : '';
                       ?>
                       <div class="col-md-4">
                         <div
@@ -828,10 +831,22 @@ $oldValue = static function (string $key, $fallback = '') {
                           <p><?= esc((string)($feature['description'] ?? '')) ?></p>
                           <div class="checkbox" style="margin:0;">
                             <label>
-                              <input type="checkbox" name="enabled_features[]" value="<?= esc($featureKey) ?>" <?= $checked ? 'checked' : '' ?>>
+                              <input
+                                type="checkbox"
+                                name="enabled_features[]"
+                                value="<?= esc($featureKey) ?>"
+                                data-feature-key="<?= esc($featureKey, 'attr') ?>"
+                                <?= $requiredFeatureKey !== '' ? 'data-requires-feature="' . esc($requiredFeatureKey, 'attr') . '"' : '' ?>
+                                <?= $checked ? 'checked' : '' ?>
+                              >
                               Abilitata
                             </label>
                           </div>
+                          <?php if ($requiredFeatureKey !== ''): ?>
+                            <div class="text-muted js-feature-dependency-note" style="font-size:12px; margin-top:7px; line-height:1.4;">
+                              Richiede la funzione <strong>Orari personalizzati appuntamenti</strong>. Se la funzione principale viene spenta, questa resta inattiva e non crea nuovi slot residui.
+                            </div>
+                          <?php endif; ?>
                           <div class="text-muted" style="font-size:12px; margin-top:6px;">
                             Scope: <?= esc((string)($feature['feature_scope'] ?? 'module')) ?>
                           </div>
@@ -1318,6 +1333,49 @@ $oldValue = static function (string $key, $fallback = '') {
 
 <script src="<?= base_url('public/plugins/jQuery/jQuery-2.1.4.min.js') ?>"></script>
 <script src="<?= base_url('public/bootstrap/js/bootstrap.min.js') ?>"></script>
+<script>
+(function () {
+  var featureInputs = Array.prototype.slice.call(document.querySelectorAll('input[name="enabled_features[]"][data-feature-key]'));
+  if (featureInputs.length === 0) {
+    return;
+  }
+
+  function findFeatureInput(featureKey) {
+    for (var i = 0; i < featureInputs.length; i++) {
+      if ((featureInputs[i].getAttribute('data-feature-key') || '') === featureKey) {
+        return featureInputs[i];
+      }
+    }
+    return null;
+  }
+
+  function syncFeatureDependencies() {
+    featureInputs.forEach(function (input) {
+      var requiredFeatureKey = input.getAttribute('data-requires-feature') || '';
+      if (requiredFeatureKey === '') {
+        return;
+      }
+
+      var parentInput = findFeatureInput(requiredFeatureKey);
+      var dependencySatisfied = !!parentInput && parentInput.checked;
+      input.disabled = !dependencySatisfied;
+      if (!dependencySatisfied) {
+        input.checked = false;
+      }
+
+      var card = input.closest('.feature-card');
+      if (card) {
+        card.style.opacity = dependencySatisfied ? '1' : '0.65';
+      }
+    });
+  }
+
+  featureInputs.forEach(function (input) {
+    input.addEventListener('change', syncFeatureDependencies);
+  });
+  syncFeatureDependencies();
+})();
+</script>
 <script>
 (function () {
   var form = document.getElementById('tenant-member-form');

@@ -784,6 +784,8 @@ class TenantProvisioningService
             return;
         }
 
+        AgendaSlotFragmentService::assertFeatureDependencies($enabledFeatureKeys);
+
         $this->db->table('platform_tenant_features')
             ->where('id_tenant', $tenantId)
             ->delete();

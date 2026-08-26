@@ -40,6 +40,7 @@ class AgendaSlotModel extends Model
     private ?bool $hasAppointmentSlotLinkTable = null;
     private ?bool $hasFasceTable = null;
     private ?bool $hasAmbulatoriTable = null;
+    private ?bool $hasSlotFragmentTable = null;
     private ?bool $hasPatientReminderSmsColumn = null;
     private ?bool $hasPatientRegistryVisibilityColumn = null;
     private ?bool $hasSlotRoomColumn = null;
@@ -87,6 +88,13 @@ public function getSlotsCalendario(int $idDot, string $date, string $view = 'day
     $appointmentStartExpr = $this->appointmentTableHasField('ora_inizio_appuntamento')
         ? 'COALESCE(a.ora_inizio_appuntamento, s.ora_inizio)'
         : 's.ora_inizio';
+    $slotFragmentSelect = $this->slotFragmentTableExists()
+        ? 'CASE WHEN sf.id_frammento IS NULL THEN 0 ELSE 1 END AS is_slot_adattato,
+           sf.ora_inizio_originale AS slot_ora_inizio_originale,
+           sf.ora_fine_originale AS slot_ora_fine_originale,'
+        : '0 AS is_slot_adattato,
+           NULL AS slot_ora_inizio_originale,
+           NULL AS slot_ora_fine_originale,';
 
     // Keep MySQL session vars like @key_str untouched inside AES_DECRYPT.
     $builder->select("
@@ -105,6 +113,7 @@ public function getSlotsCalendario(int $idDot, string $date, string $view = 'day
     s.stanza,
     s.note_interne,
     TIMESTAMPDIFF(MINUTE, s.ora_inizio, s.ora_fine) AS durata_slot_minuti,
+    {$slotFragmentSelect}
 
     a.id_appuntamento,
     a.id_paziente,
@@ -144,6 +153,14 @@ public function getSlotsCalendario(int $idDot, string $date, string $view = 'day
         ,
         false
     );
+
+    if ($this->slotFragmentTableExists()) {
+        $builder->join(
+            'dap46_agenda_slot_frammenti sf',
+            'sf.id_slot = s.id_slot',
+            'left'
+        );
+    }
 
     if ($hasAppointmentClientColumn) {
         $builder->join(
@@ -409,6 +426,15 @@ private function mapAvailabilityDays(array $rows): array
         }
 
         return $this->hasAppointmentSlotLinkTable;
+    }
+
+    private function slotFragmentTableExists(): bool
+    {
+        if ($this->hasSlotFragmentTable === null) {
+            $this->hasSlotFragmentTable = $this->db->tableExists('dap46_agenda_slot_frammenti');
+        }
+
+        return $this->hasSlotFragmentTable;
     }
 
     private function appointmentTableHasField(string $field): bool

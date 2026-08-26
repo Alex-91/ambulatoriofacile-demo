@@ -21,6 +21,7 @@ use App\Services\AgendaDefaultViewService;
 use App\Services\AgendaHomeBlockOrderService;
 use App\Services\AgendaProfessionalOrderService;
 use App\Services\AgendaSidebarBlockOrderService;
+use App\Services\AgendaSlotFragmentService;
 use App\Services\AgendaTextColorThemeService;
 use App\Services\AgendaTeamColumnColorService;
 use App\Services\AppointmentNotificationSettingsService;
@@ -861,6 +862,14 @@ public function eseguiRepairRecurringExtraSlots()
     protected function isCustomAppointmentTimeFeatureEnabled(): bool
     {
         return $this->tenantFeatureEnabled(self::CUSTOM_APPOINTMENT_TIME_FEATURE);
+    }
+
+    protected function isCustomTimeResidualSlotsFeatureEnabled(): bool
+    {
+        return AgendaSlotFragmentService::isFeatureEnabled(
+            $this->isCustomAppointmentTimeFeatureEnabled(),
+            $this->tenantFeatureEnabled(AgendaSlotFragmentService::FEATURE_KEY)
+        );
     }
 
     protected function isPatientRegistryVisibilityFeatureEnabled(): bool
@@ -4239,6 +4248,7 @@ public function eseguiRepairRecurringExtraSlots()
             $payload['visit_types_feature_enabled'] = $this->isVisitTypesFeatureEnabled();
             $payload['visit_type_required'] = $this->isVisitTypeSelectionRequired();
             $payload['custom_appointment_time_feature_enabled'] = $this->isCustomAppointmentTimeFeatureEnabled();
+            $payload['custom_time_residual_slots_feature_enabled'] = $this->isCustomTimeResidualSlotsFeatureEnabled();
             $payload['slot_lock_required'] = !$this->isSlotLockDisabledForCurrentTenant();
 
             $idSlot = (int)($payload['id_slot'] ?? 0);
@@ -4294,6 +4304,7 @@ public function eseguiRepairRecurringExtraSlots()
             $payload['visit_types_feature_enabled'] = $this->isVisitTypesFeatureEnabled();
             $payload['visit_type_required'] = $this->isVisitTypeSelectionRequired();
             $payload['custom_appointment_time_feature_enabled'] = $this->isCustomAppointmentTimeFeatureEnabled();
+            $payload['custom_time_residual_slots_feature_enabled'] = $this->isCustomTimeResidualSlotsFeatureEnabled();
 
             $idAppuntamento = (int)($payload['id_appuntamento'] ?? 0);
             if ($idAppuntamento > 0) {

@@ -26,6 +26,7 @@ class AgendaModel extends Model
     private ?bool $domBlockTableExists = null;
     private ?string $blockedDayPrimaryKey = null;
     private ?bool $smsAppointmentMenuAvailableCache = null;
+    private ?bool $slotFragmentTableExists = null;
     private array $personaleFieldExistsCache = [];
 
     private function normalizeLegacyString($value)
@@ -660,6 +661,18 @@ public function getSlotExtraByDoctorPaginate(
         ->where('s.id_dot', $idDot)
         ->where('s.origine_slot', 'EXTRA');
 
+    if ($this->slotFragmentTableExists()) {
+        $builder->where(
+            'NOT EXISTS (
+                SELECT 1
+                FROM dap46_agenda_slot_frammenti sf_extra
+                WHERE sf_extra.id_slot = s.id_slot
+            )',
+            null,
+            false
+        );
+    }
+
     if (!empty($dataInizio)) {
         $builder->where('s.data_slot >=', $dataInizio);
     }
@@ -693,13 +706,34 @@ public function getExtraSlotsByIds(array $ids, int $idDot): array
         return [];
     }
 
-    return $this->db->table('dap11_agenda_slot')
+    $builder = $this->db->table('dap11_agenda_slot s')
         ->select('id_slot, id_dot, data_slot, ora_inizio, ora_fine, origine_slot, titolo_libero')
-        ->where('id_dot', $idDot)
-        ->where('origine_slot', 'EXTRA')
-        ->whereIn('id_slot', $ids)
-        ->get()
-        ->getResultArray();
+        ->where('s.id_dot', $idDot)
+        ->where('s.origine_slot', 'EXTRA')
+        ->whereIn('s.id_slot', $ids);
+
+    if ($this->slotFragmentTableExists()) {
+        $builder->where(
+            'NOT EXISTS (
+                SELECT 1
+                FROM dap46_agenda_slot_frammenti sf_extra
+                WHERE sf_extra.id_slot = s.id_slot
+            )',
+            null,
+            false
+        );
+    }
+
+    return $builder->get()->getResultArray();
+}
+
+private function slotFragmentTableExists(): bool
+{
+    if ($this->slotFragmentTableExists === null) {
+        $this->slotFragmentTableExists = $this->db->tableExists('dap46_agenda_slot_frammenti');
+    }
+
+    return $this->slotFragmentTableExists;
 }
 public function countActiveAppointmentsBySlotIds(array $slotIds): int
 {

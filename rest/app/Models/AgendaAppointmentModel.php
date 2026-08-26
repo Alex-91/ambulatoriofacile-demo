@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\AgendaSlotFragmentService;
 use App\Services\AgendaVisitTypeSchemaService;
 use CodeIgniter\Model;
 use Exception;
@@ -16,6 +17,7 @@ class AgendaAppointmentModel extends Model
     private array $fieldExistsCache = [];
     private ?bool $hasAppointmentSlotLinkTable = null;
     private ?AgendaVisitTypeSchemaService $visitTypeSchemaService = null;
+    private ?AgendaSlotFragmentService $slotFragmentService = null;
 
     public function __construct()
     {
@@ -32,6 +34,10 @@ class AgendaAppointmentModel extends Model
         $visitTypesFeatureEnabled = !empty($data['visit_types_feature_enabled']);
         $visitTypeRequired = !array_key_exists('visit_type_required', $data) || !empty($data['visit_type_required']);
         $customTimeFeatureEnabled = !empty($data['custom_appointment_time_feature_enabled']);
+        $residualSlotsFeatureEnabled = AgendaSlotFragmentService::isFeatureEnabled(
+            $customTimeFeatureEnabled,
+            !empty($data['custom_time_residual_slots_feature_enabled'])
+        );
         $slotLockRequired = !array_key_exists('slot_lock_required', $data) || !empty($data['slot_lock_required']);
 
         if ($idSlot <= 0 || $idDot <= 0) {
@@ -92,13 +98,11 @@ class AgendaAppointmentModel extends Model
         $coveredSlots = $window['covered_slots'];
         $this->assertAppointmentSpanSchemaReady($coveredSlots);
 
-        $insert = $this->buildAppointmentPayload($data, $plan, $coveredSlots, $window, $createdBy, $now);
-
-        if ($insert['cognome'] === '' || $insert['nome'] === '') {
+        if (trim((string) ($data['cognome'] ?? '')) === '' || trim((string) ($data['nome'] ?? '')) === '') {
             throw new Exception('Nome e cognome sono obbligatori.');
         }
 
-        $coveredSlotIds = array_map(
+        $initialCoveredSlotIds = array_map(
             static fn(array $row): int => (int) ($row['id_slot'] ?? 0),
             $coveredSlots
         );
@@ -106,8 +110,38 @@ class AgendaAppointmentModel extends Model
         $this->db->transBegin();
 
         try {
-            $this->lockSlotRowsForUpdate($coveredSlotIds);
-            $this->assertCoveredSlotsAvailable($coveredSlotIds, 0, $tokenLock, $slotLockRequired);
+            $this->lockSlotRowsForUpdate($initialCoveredSlotIds);
+            $this->assertCoveredSlotsAvailable($initialCoveredSlotIds, 0, $tokenLock, $slotLockRequired);
+
+            if (
+                !empty($window['custom_start'])
+                && AgendaSlotFragmentService::shouldManageCustomWindow($residualSlotsFeatureEnabled)
+            ) {
+                $freshPrimarySlot = $this->loadSlotRow($idSlot);
+                $freshCoveredSlots = $this->resolveCoveredSlotsForWindow(
+                    $freshPrimarySlot,
+                    (string) $window['custom_start'],
+                    (string) $window['end'],
+                    0,
+                    $tokenLock,
+                    $slotLockRequired
+                );
+                $this->assertCoveredSlotSetUnchanged($initialCoveredSlotIds, $freshCoveredSlots);
+                $coveredSlots = $this->slotFragments()->splitForWindow(
+                    $freshCoveredSlots,
+                    (string) $window['custom_start'],
+                    (string) $window['end'],
+                    $now
+                );
+                $window['covered_slots'] = $coveredSlots;
+            }
+
+            $coveredSlotIds = array_map(
+                static fn(array $row): int => (int) ($row['id_slot'] ?? 0),
+                $coveredSlots
+            );
+            $this->assertAppointmentSpanSchemaReady($coveredSlots);
+            $insert = $this->buildAppointmentPayload($data, $plan, $coveredSlots, $window, $createdBy, $now);
 
             $this->db->table($this->table)->insert($insert);
             $idAppuntamento = (int) $this->db->insertID();
@@ -141,6 +175,10 @@ class AgendaAppointmentModel extends Model
         $visitTypesFeatureEnabled = !empty($data['visit_types_feature_enabled']);
         $visitTypeRequired = !array_key_exists('visit_type_required', $data) || !empty($data['visit_type_required']);
         $customTimeFeatureEnabled = !empty($data['custom_appointment_time_feature_enabled']);
+        $residualSlotsFeatureEnabled = AgendaSlotFragmentService::isFeatureEnabled(
+            $customTimeFeatureEnabled,
+            !empty($data['custom_time_residual_slots_feature_enabled'])
+        );
 
         if ($idAppuntamento <= 0) {
             throw new Exception('ID appuntamento mancante.');
@@ -173,26 +211,56 @@ class AgendaAppointmentModel extends Model
         }
         $coveredSlots = $window['covered_slots'];
         $this->assertAppointmentSpanSchemaReady($coveredSlots);
-        $coveredSlotIds = array_map(
+        $initialCoveredSlotIds = array_map(
             static fn(array $row): int => (int) ($row['id_slot'] ?? 0),
             $coveredSlots
         );
         $previousSlotIds = $this->getAppointmentCoveredSlotIds($idAppuntamento);
+        $manageExistingFragments = $this->slotFragments()->hasFragmentsForSlots($previousSlotIds);
 
         $timestamp = date('Y-m-d H:i:s');
-        $update = $this->buildAppointmentPayload($data, $plan, $coveredSlots, $window, 0, $timestamp);
-
-        unset($update['id_slot'], $update['id_dot'], $update['stato'], $update['created_at'], $update['created_by']);
-
-        if ($this->appointmentTableHasField('updated_at')) {
-            $update['updated_at'] = $timestamp;
-        }
-
         $this->db->transBegin();
 
         try {
-            $this->lockSlotRowsForUpdate(array_values(array_unique(array_merge($previousSlotIds, $coveredSlotIds))));
-            $this->assertCoveredSlotsAvailable($coveredSlotIds, $idAppuntamento);
+            $this->lockSlotRowsForUpdate(array_values(array_unique(array_merge($previousSlotIds, $initialCoveredSlotIds))));
+            $this->assertCoveredSlotsAvailable($initialCoveredSlotIds, $idAppuntamento);
+
+            if (
+                !empty($window['custom_start'])
+                && AgendaSlotFragmentService::shouldManageCustomWindow(
+                    $residualSlotsFeatureEnabled,
+                    $manageExistingFragments
+                )
+            ) {
+                $freshPrimarySlot = $this->loadSlotRow((int) ($appointment['id_slot'] ?? 0));
+                $freshCoveredSlots = $this->resolveCoveredSlotsForWindow(
+                    $freshPrimarySlot,
+                    (string) $window['custom_start'],
+                    (string) $window['end'],
+                    $idAppuntamento
+                );
+                $this->assertCoveredSlotSetUnchanged($initialCoveredSlotIds, $freshCoveredSlots);
+                $coveredSlots = $this->slotFragments()->splitForWindow(
+                    $freshCoveredSlots,
+                    (string) $window['custom_start'],
+                    (string) $window['end'],
+                    $timestamp
+                );
+                $window['covered_slots'] = $coveredSlots;
+            }
+
+            $coveredSlotIds = array_map(
+                static fn(array $row): int => (int) ($row['id_slot'] ?? 0),
+                $coveredSlots
+            );
+            $this->assertAppointmentSpanSchemaReady($coveredSlots);
+            $update = $this->buildAppointmentPayload($data, $plan, $coveredSlots, $window, 0, $timestamp);
+
+            unset($update['id_dot'], $update['stato'], $update['created_at'], $update['created_by']);
+
+            if ($this->appointmentTableHasField('updated_at')) {
+                $update['updated_at'] = $timestamp;
+            }
 
             $this->db->table($this->table)
                 ->where('id_appuntamento', $idAppuntamento)
@@ -205,6 +273,7 @@ class AgendaAppointmentModel extends Model
             foreach ($slotIdsToRestore as $slotIdToRestore) {
                 $this->restoreSlotState($slotIdToRestore, $timestamp);
             }
+            $this->slotFragments()->compactGroupsForSlots($slotIdsToRestore, $timestamp);
 
             if (!$this->db->transStatus()) {
                 throw new Exception('Errore durante l\'aggiornamento della prenotazione.');
@@ -256,6 +325,7 @@ class AgendaAppointmentModel extends Model
         foreach ($coveredSlotIds as $slotId) {
             $this->restoreSlotState($slotId, $timestamp);
         }
+        $this->slotFragments()->compactGroupsForSlots($coveredSlotIds, $timestamp);
 
         $this->db->transComplete();
 
@@ -349,6 +419,7 @@ class AgendaAppointmentModel extends Model
             foreach ($coveredSlotIds as $slotId) {
                 $this->restoreSlotState($slotId, $timestamp);
             }
+            $this->slotFragments()->compactGroupsForSlots($coveredSlotIds, $timestamp);
 
             if (!$this->db->transStatus() || !$this->db->transCommit()) {
                 throw new \RuntimeException('Bulk appointment transaction failed.');
@@ -696,8 +767,16 @@ class AgendaAppointmentModel extends Model
 
         $customStart = $date . ' ' . $customTime . ':00';
         $customTimestamp = strtotime($customStart);
-        $slotStartTimestamp = strtotime((string) ($primarySlot['ora_inizio'] ?? ''));
-        $slotEndTimestamp = strtotime((string) ($primarySlot['ora_fine'] ?? ''));
+        $slotStartTimestamp = strtotime((string) (
+            $primarySlot['slot_ora_inizio_originale']
+            ?? $primarySlot['ora_inizio']
+            ?? ''
+        ));
+        $slotEndTimestamp = strtotime((string) (
+            $primarySlot['slot_ora_fine_originale']
+            ?? $primarySlot['ora_fine']
+            ?? ''
+        ));
 
         if (
             $customTimestamp === false
@@ -755,7 +834,7 @@ class AgendaAppointmentModel extends Model
         $primarySlotId = (int) ($primarySlot['id_slot'] ?? 0);
 
         $rows = $this->db->table('dap11_agenda_slot')
-            ->select('id_slot, id_dot, data_slot, ora_inizio, ora_fine, stato')
+            ->select('*')
             ->where('id_dot', $idDot)
             ->where('data_slot', $dataSlot)
             ->where('ora_inizio <', $customEnd)
@@ -769,8 +848,10 @@ class AgendaAppointmentModel extends Model
         }
 
         $coveredSlots = [];
-        $primaryCoveredSlot = null;
+        $primaryCoveredSlotFound = false;
         $coverageCursorTimestamp = $startTimestamp;
+        $allowAdaptedPrimaryReplacement = $ignoreAppointmentId > 0
+            && !empty($primarySlot['is_slot_adattato']);
 
         foreach ($rows as $row) {
             $slotId = (int) ($row['id_slot'] ?? 0);
@@ -790,6 +871,10 @@ class AgendaAppointmentModel extends Model
                 throw new Exception('L’intervallo personalizzato attraversa una fascia senza slot disponibili.');
             }
 
+            if ($coveredSlots !== [] && $rowStartTimestamp < $coverageCursorTimestamp) {
+                throw new Exception('La fascia selezionata contiene slot sovrapposti e non può essere adattata in sicurezza.');
+            }
+
             if (strtoupper(trim((string) ($row['stato'] ?? ''))) === 'CHIUSO') {
                 throw new Exception('La fascia richiesta include uno slot in una giornata bloccata.');
             }
@@ -802,24 +887,19 @@ class AgendaAppointmentModel extends Model
                 throw new Exception('Uno degli slot coinvolti è in modifica da un altro operatore.');
             }
 
-            if ($slotId === $primarySlotId) {
-                $primaryCoveredSlot = $row;
-            } else {
-                $coveredSlots[] = $row;
-            }
+            $primaryCoveredSlotFound = $primaryCoveredSlotFound || $slotId === $primarySlotId;
+            $coveredSlots[] = $row;
 
             $coverageCursorTimestamp = max($coverageCursorTimestamp, $rowEndTimestamp);
         }
 
-        if ($primaryCoveredSlot === null) {
+        if (!$primaryCoveredSlotFound && !$allowAdaptedPrimaryReplacement) {
             throw new Exception('L ora personalizzata deve partire dallo slot selezionato.');
         }
 
         if ($coverageCursorTimestamp < $endTimestamp) {
             throw new Exception('Non ci sono abbastanza slot disponibili per completare l’appuntamento.');
         }
-
-        array_unshift($coveredSlots, $primaryCoveredSlot);
 
         return $coveredSlots;
     }
@@ -1162,10 +1242,12 @@ class AgendaAppointmentModel extends Model
             return [];
         }
 
-        return $this->db->table('dap11_agenda_slot')
+        $slot = $this->db->table('dap11_agenda_slot')
             ->where('id_slot', $idSlot)
             ->get()
             ->getRowArray() ?: [];
+
+        return $slot === [] ? [] : $this->slotFragments()->decorateSlot($slot);
     }
 
     private function loadAppointmentRow(int $idAppuntamento): array
@@ -1250,5 +1332,31 @@ class AgendaAppointmentModel extends Model
         $this->visitTypeSchemaService->ensureReady();
         $this->fieldExistsCache = [];
         $this->hasAppointmentSlotLinkTable = null;
+    }
+
+    /**
+     * @param array<int, int> $expectedIds
+     * @param array<int, array<string, mixed>> $freshRows
+     */
+    private function assertCoveredSlotSetUnchanged(array $expectedIds, array $freshRows): void
+    {
+        $expectedIds = array_values(array_unique(array_filter(array_map('intval', $expectedIds))));
+        $freshIds = array_values(array_unique(array_filter(array_map(
+            static fn(array $row): int => (int) ($row['id_slot'] ?? 0),
+            $freshRows
+        ))));
+        sort($expectedIds);
+        sort($freshIds);
+
+        if ($expectedIds !== $freshIds) {
+            throw new Exception('La disponibilità degli slot è cambiata. Riapri l’appuntamento e riprova.');
+        }
+    }
+
+    private function slotFragments(): AgendaSlotFragmentService
+    {
+        $this->slotFragmentService ??= new AgendaSlotFragmentService($this->db);
+
+        return $this->slotFragmentService;
     }
 }
