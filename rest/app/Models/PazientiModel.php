@@ -117,8 +117,7 @@ class PazientiModel extends Model
             }
         }
 
-        $needle = '%' . mb_strtolower($term) . '%';
-        $params = [];
+        [$patientSearchWhere, $params] = $this->buildPatientSearchWhereSql('c', $term);
         $registryVisibilityWhere = $onlyVisibleInRegistry
             ? "\n              AND " . $this->buildRegistryVisibilitySql('c')
             : '';
@@ -175,23 +174,13 @@ class PazientiModel extends Model
             WHERE 1 = 1
               {$registryVisibilityWhere}
               {$appointmentPresenceWhere}
-              AND (
-                    LOWER(COALESCE({$this->decExpr('c.cognome')}, '')) LIKE ?
-                 OR LOWER(COALESCE({$this->decExpr('c.nome')}, '')) LIKE ?
-                 OR LOWER(COALESCE({$this->decExpr('c.codice_fiscale')}, '')) LIKE ?
-                 OR LOWER(COALESCE({$this->decExpr('c.telefono')}, '')) LIKE ?
-                 OR LOWER(COALESCE({$this->decExpr('c.cellulare')}, '')) LIKE ?
-                 OR LOWER(COALESCE({$this->decExpr('c.email')}, '')) LIKE ?
-                 OR LOWER(COALESCE({$this->decExpr('c.paz_spec')}, '')) LIKE ?
-              )
+              {$patientSearchWhere}
             ORDER BY
                 CASE WHEN COALESCE(TRIM({$this->decExpr('c.paz_spec')}), '') <> '' THEN 0 ELSE 1 END,
                 {$this->decExpr('c.cognome')} ASC,
                 {$this->decExpr('c.nome')} ASC
             LIMIT 20
         ";
-
-        array_push($params, $needle, $needle, $needle, $needle, $needle, $needle, $needle);
 
         return $this->db->query($sql, $params)->getResultArray();
     }
@@ -801,19 +790,7 @@ class PazientiModel extends Model
 
         $term = trim($term);
         if ($term !== '') {
-            $needle = '%' . mb_strtolower($term) . '%';
-            $whereSearch = "
-                AND (
-                    LOWER(COALESCE({$this->decExpr('c.cognome')}, '')) LIKE ?
-                    OR LOWER(COALESCE({$this->decExpr('c.nome')}, '')) LIKE ?
-                    OR LOWER(COALESCE({$this->decExpr('c.codice_fiscale')}, '')) LIKE ?
-                    OR LOWER(COALESCE({$this->decExpr('c.telefono')}, '')) LIKE ?
-                    OR LOWER(COALESCE({$this->decExpr('c.cellulare')}, '')) LIKE ?
-                    OR LOWER(COALESCE({$this->decExpr('c.email')}, '')) LIKE ?
-                    OR LOWER(COALESCE({$this->decExpr('c.paz_spec')}, '')) LIKE ?
-                )
-            ";
-            array_push($params, $needle, $needle, $needle, $needle, $needle, $needle, $needle);
+            [$whereSearch, $params] = $this->buildPatientSearchWhereSql('c', $term);
         }
 
         $sql = "
@@ -932,19 +909,8 @@ class PazientiModel extends Model
         }
 
         if ($term !== '') {
-            $needle = '%' . mb_strtolower($term) . '%';
-            $whereSearch = "
-                AND (
-                    LOWER(COALESCE({$this->decExpr('c.cognome')}, '')) LIKE ?
-                    OR LOWER(COALESCE({$this->decExpr('c.nome')}, '')) LIKE ?
-                    OR LOWER(COALESCE({$this->decExpr('c.codice_fiscale')}, '')) LIKE ?
-                    OR LOWER(COALESCE({$this->decExpr('c.telefono')}, '')) LIKE ?
-                    OR LOWER(COALESCE({$this->decExpr('c.cellulare')}, '')) LIKE ?
-                    OR LOWER(COALESCE({$this->decExpr('c.email')}, '')) LIKE ?
-                    OR LOWER(COALESCE({$this->decExpr('c.paz_spec')}, '')) LIKE ?
-                )
-            ";
-            array_push($params, $needle, $needle, $needle, $needle, $needle, $needle, $needle);
+            [$whereSearch, $searchParams] = $this->buildPatientSearchWhereSql('c', $term);
+            array_push($params, ...$searchParams);
         }
 
         $baseFromSql = "
@@ -2980,6 +2946,74 @@ class PazientiModel extends Model
     {
         $pos = strrpos($fieldExpr, '.');
         return $pos === false ? '' : substr($fieldExpr, 0, $pos + 1);
+    }
+
+    /**
+     * Costruisce il filtro testuale usato quando l'indice pazienti non e
+     * disponibile o non e applicabile (per esempio nello storico agenda e
+     * nell'anagrafica con filtro di visibilita).
+     *
+     * Nome e cognome sono trattati come un unico insieme di token: cercando
+     * "Balsarin C" ogni token puo quindi ricadere nel campo corretto, anche
+     * se l'utente scrive prima il nome o usa soltanto un'iniziale.
+     *
+     * @return array{0:string,1:array<int,string>}
+     */
+    private function buildPatientSearchWhereSql(string $alias, string $term): array
+    {
+        $normalizedTerm = mb_strtolower(
+            trim(preg_replace('/\s+/u', ' ', $term) ?? ''),
+            'UTF-8'
+        );
+        if ($normalizedTerm === '') {
+            return ['', []];
+        }
+
+        $tokens = preg_split('/\s+/u', $normalizedTerm) ?: [];
+        $tokens = array_slice(array_values(array_filter(
+            $tokens,
+            static fn(string $token): bool => $token !== ''
+        )), 0, 8);
+
+        $cognomeExpr = "LOWER(COALESCE({$this->decExpr($alias . '.cognome')}, ''))";
+        $nomeExpr = "LOWER(COALESCE({$this->decExpr($alias . '.nome')}, ''))";
+        $identityClauses = [];
+        $params = [];
+
+        foreach ($tokens as $token) {
+            $identityClauses[] = "({$cognomeExpr} LIKE ? OR {$nomeExpr} LIKE ?)";
+            $tokenNeedle = '%' . $token . '%';
+            array_push($params, $tokenNeedle, $tokenNeedle);
+        }
+
+        $otherFields = [
+            'codice_fiscale',
+            'telefono',
+            'cellulare',
+            'email',
+            'paz_spec',
+        ];
+        $otherClauses = [];
+        $fullNeedle = '%' . $normalizedTerm . '%';
+        foreach ($otherFields as $field) {
+            $otherClauses[] = "LOWER(COALESCE({$this->decExpr($alias . '.' . $field)}, '')) LIKE ?";
+            $params[] = $fullNeedle;
+        }
+
+        $identitySql = implode("\n                    AND ", $identityClauses);
+        $otherSql = implode("\n                 OR ", $otherClauses);
+
+        return [
+            "
+              AND (
+                    (
+                        {$identitySql}
+                    )
+                 OR {$otherSql}
+              )
+            ",
+            $params,
+        ];
     }
 
     private function enc(string $value): string
