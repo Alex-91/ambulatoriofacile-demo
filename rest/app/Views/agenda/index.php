@@ -370,6 +370,19 @@
             background: linear-gradient(135deg, #f7fcff 0%, #edf7fc 100%);
         }
 
+        .appointment-date-display .input-group-addon {
+            border-color: #c9dfea;
+            background: #edf7fc;
+            color: #28739a;
+        }
+
+        .appointment-date-display .form-control {
+            border-color: #c9dfea;
+            background: #f7fcff;
+            color: #23465a;
+            font-weight: 600;
+        }
+
         .appointment-custom-time-toggle {
             display: flex;
             align-items: flex-start;
@@ -3869,6 +3882,16 @@ $renderAppointmentModalBlock = static function (string $blockKey) use (
             ?>
             <div class="appointment-modal-block" data-appointment-block-key="time">
                 <div class="row">
+                    <div class="col-md-12 form-group">
+                        <label for="app_data_appuntamento">Data appuntamento</label>
+                        <div class="input-group appointment-date-display">
+                            <span class="input-group-addon" aria-hidden="true">
+                                <i class="fa fa-calendar"></i>
+                            </span>
+                            <input type="text" id="app_data_appuntamento" class="form-control" readonly>
+                        </div>
+                    </div>
+
                     <div class="col-md-6 form-group">
                         <label for="app_ora_inizio">Ora inizio</label>
                         <input type="text" id="app_ora_inizio" class="form-control" readonly>
@@ -8115,6 +8138,7 @@ function resetAppointmentModal() {
     $('#app_origine_slot').val('');
     $('#app_paz_spec').val('');
     $('#app_special_mode').val('standard');
+    $('#app_data_appuntamento').val('');
     $('#app_ora_inizio').val('');
     $('#app_ora_fine').val('');
     setAppointmentCustomTimeState(false, '', '');
@@ -8634,6 +8658,17 @@ function setAppointmentSlotTimeSummary(slot) {
         ? coverage.endMoment
         : getAgendaSlotVisualEndMoment(slot);
 
+    var appointmentDateMoment = startMoment && startMoment.isValid()
+        ? startMoment.clone()
+        : moment(appointmentModalDate, 'YYYY-MM-DD', true);
+    var appointmentDateLabel = '';
+
+    if (appointmentDateMoment && appointmentDateMoment.isValid()) {
+        appointmentDateLabel = appointmentDateMoment.locale('it').format('dddd D MMMM YYYY');
+        appointmentDateLabel = appointmentDateLabel.charAt(0).toUpperCase() + appointmentDateLabel.slice(1);
+    }
+
+    $('#app_data_appuntamento').val(appointmentDateLabel);
     $('#app_ora_inizio').val(startMoment && startMoment.isValid() ? startMoment.format('HH:mm') : '');
     $('#app_ora_fine').val(endMoment && endMoment.isValid() ? endMoment.format('HH:mm') : '');
 }
