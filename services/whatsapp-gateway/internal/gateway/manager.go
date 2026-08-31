@@ -284,6 +284,13 @@ func (m *Manager) SendText(ctx context.Context, tenantID int64, accountID, phone
 	}, nil
 }
 
+func (m *Manager) IncomingMessages(ctx context.Context, tenantID int64, accountID string, limit int) ([]IncomingMessage, error) {
+	if _, err := m.getOrLoad(ctx, tenantID, accountID); err != nil {
+		return nil, err
+	}
+	return m.registry.ListIncoming(ctx, tenantID, accountID, limit)
+}
+
 func NormalizePhone(phone string) (string, error) {
 	phone = strings.TrimSpace(phone)
 	phone = strings.NewReplacer(" ", "", "-", "", "(", "", ")", "").Replace(phone)
@@ -397,6 +404,8 @@ func (m *Manager) getOrLoad(ctx context.Context, tenantID int64, accountID strin
 
 func (m *Manager) handleEvent(current *session, evt any) {
 	switch value := evt.(type) {
+	case *events.Message:
+		m.storeIncomingMessage(current, value)
 	case *events.PairSuccess:
 		current.setState("paired")
 		if err := m.registry.BindDevice(context.Background(), current.tenantID, current.accountID, value.ID.String()); err != nil {
@@ -414,6 +423,114 @@ func (m *Manager) handleEvent(current *session, evt any) {
 	case *events.ClientOutdated:
 		current.setError(errors.New("whatsmeow client is outdated"))
 	}
+}
+
+func (m *Manager) storeIncomingMessage(current *session, event *events.Message) {
+	message, ok := incomingMessageFromEvent(current, event)
+	if !ok {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	stored, err := m.registry.StoreIncoming(ctx, message)
+	if err != nil {
+		m.logger.Error(
+			"failed to store incoming WhatsApp message",
+			"tenant_id", message.TenantID,
+			"account_id", message.AccountID,
+			"message_id", message.MessageID,
+			"error", err,
+		)
+		return
+	}
+	if stored {
+		m.logger.Info(
+			"incoming WhatsApp message stored",
+			"tenant_id", message.TenantID,
+			"account_id", message.AccountID,
+			"message_id", message.MessageID,
+			"message_type", message.MessageType,
+		)
+	}
+}
+
+func incomingMessageFromEvent(current *session, event *events.Message) (IncomingMessage, bool) {
+	if event == nil || event.Message == nil || event.Info.IsFromMe || strings.TrimSpace(event.Info.ID) == "" {
+		return IncomingMessage{}, false
+	}
+	if event.Info.Chat.Server == types.BroadcastServer || event.Info.Chat.Server == types.NewsletterServer {
+		return IncomingMessage{}, false
+	}
+
+	receivedAt := event.Info.Timestamp.UTC()
+	if receivedAt.IsZero() {
+		receivedAt = time.Now().UTC()
+	}
+	text, messageType := incomingMessageContent(event.Message)
+	sender := event.Info.Sender.ToNonAD()
+	chat := event.Info.Chat.ToNonAD()
+	return IncomingMessage{
+		TenantID:    current.tenantID,
+		AccountID:   current.accountID,
+		MessageID:   event.Info.ID,
+		ChatJID:     chat.String(),
+		SenderJID:   sender.String(),
+		From:        incomingSenderAddress(event.Info),
+		SenderName:  strings.TrimSpace(event.Info.PushName),
+		Text:        text,
+		MessageType: messageType,
+		IsGroup:     event.Info.IsGroup,
+		ReceivedAt:  receivedAt,
+	}, true
+}
+
+func incomingSenderAddress(info types.MessageInfo) string {
+	for _, candidate := range []types.JID{info.SenderAlt, info.Sender, info.Chat} {
+		candidate = candidate.ToNonAD()
+		if candidate.Server != types.DefaultUserServer {
+			continue
+		}
+		normalized, err := NormalizePhone("+" + candidate.User)
+		if err == nil {
+			return "+" + normalized
+		}
+	}
+	sender := info.Sender.ToNonAD()
+	if !sender.IsEmpty() {
+		return sender.String()
+	}
+	return info.Chat.ToNonAD().String()
+}
+
+func incomingMessageContent(message *waE2E.Message) (string, string) {
+	if text := strings.TrimSpace(message.GetConversation()); text != "" {
+		return text, "text"
+	}
+	if extended := message.GetExtendedTextMessage(); extended != nil {
+		return strings.TrimSpace(extended.GetText()), "text"
+	}
+	if image := message.GetImageMessage(); image != nil {
+		return strings.TrimSpace(image.GetCaption()), "image"
+	}
+	if video := message.GetVideoMessage(); video != nil {
+		return strings.TrimSpace(video.GetCaption()), "video"
+	}
+	if document := message.GetDocumentMessage(); document != nil {
+		return strings.TrimSpace(document.GetCaption()), "document"
+	}
+	if message.GetAudioMessage() != nil {
+		return "", "audio"
+	}
+	if message.GetStickerMessage() != nil {
+		return "", "sticker"
+	}
+	if message.GetLocationMessage() != nil || message.GetLiveLocationMessage() != nil {
+		return "", "location"
+	}
+	if message.GetContactMessage() != nil || message.GetContactsArrayMessage() != nil {
+		return "", "contact"
+	}
+	return "", "unsupported"
 }
 
 func (m *Manager) consumeQR(current *session, channel <-chan whatsmeow.QRChannelItem) {

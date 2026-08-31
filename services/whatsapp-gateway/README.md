@@ -8,12 +8,12 @@ Il servizio fornisce:
 
 - un account WhatsApp `primary` (o altro identificativo configurato) per ciascun `id_tenant` già esistente nel catalogo AmbulatorioFacile;
 - pairing tramite QR, stato connessione, riconnessione e logout;
-- invio di messaggi testuali;
-- storage persistente delle sessioni `whatsmeow` in SQLite;
+- invio di messaggi testuali e raccolta dei messaggi in ingresso;
+- storage persistente delle sessioni `whatsmeow` e dell'inbox in SQLite;
 - autenticazione HMAC, finestra temporale e protezione anti-replay;
 - health check e readiness check per Coolify.
 
-Non contiene un secondo catalogo utenti o tenant. `tenant_id` è l'identificativo di `platform_tenants`; ruoli e autorizzazioni restano responsabilità dell'applicazione CodeIgniter. Chatbot, conversazioni, media, webhook in ingresso e pannelli UI appartengono ai milestone successivi.
+Non contiene un secondo catalogo utenti o tenant. `tenant_id` è l'identificativo di `platform_tenants`; ruoli e autorizzazioni restano responsabilità dell'applicazione CodeIgniter. Chatbot, gestione completa delle conversazioni, download dei media, webhook push e pannelli UI appartengono ai milestone successivi.
 
 UltraMsg non viene rimosso: `WHATSAPP_PROVIDER=ultramsg` resta il default del monolite. La modalità `hybrid` consente di pilotare singoli tenant elencati in `WHATSAPP_GATEWAY_TENANT_IDS`, mantenendo tutti gli altri su UltraMsg.
 
@@ -30,7 +30,10 @@ Gli endpoint di servizio sono:
 | `GET` | `/v1/accounts/{account_id}/qr` | legge il QR corrente; il codice è raw e va renderizzato dal pannello |
 | `POST` | `/v1/accounts/{account_id}/connect` | forza la riconnessione |
 | `DELETE` | `/v1/accounts/{account_id}/session` | logout e rimozione della sessione |
+| `GET` | `/v1/accounts/{account_id}/messages?limit=50` | ultimi messaggi ricevuti (massimo 100) |
 | `POST` | `/v1/accounts/{account_id}/messages/text` | invio testo |
+
+I messaggi in ingresso sono salvati con isolamento per tenant e account. La risposta espone ID WhatsApp, mittente normalizzato, nome visualizzato, testo o didascalia, tipo del contenuto e data di ricezione. La chiave composta su tenant, account, chat e ID rende idempotente la ricezione dopo una riconnessione.
 
 Le chiamate `/v1` richiedono gli header:
 

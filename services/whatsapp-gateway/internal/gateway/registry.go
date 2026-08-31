@@ -18,6 +18,21 @@ type AccountRecord struct {
 	UpdatedAt   time.Time
 }
 
+type IncomingMessage struct {
+	TenantID    int64     `json:"-"`
+	AccountID   string    `json:"-"`
+	MessageID   string    `json:"message_id"`
+	ChatJID     string    `json:"-"`
+	SenderJID   string    `json:"-"`
+	From        string    `json:"from"`
+	SenderName  string    `json:"sender_name,omitempty"`
+	Text        string    `json:"text"`
+	MessageType string    `json:"message_type"`
+	IsGroup     bool      `json:"is_group"`
+	ReceivedAt  time.Time `json:"received_at"`
+	CreatedAt   time.Time `json:"stored_at"`
+}
+
 type Registry struct {
 	db *sql.DB
 }
@@ -51,6 +66,24 @@ CREATE TABLE IF NOT EXISTS gateway_accounts (
 );
 CREATE INDEX IF NOT EXISTS idx_gateway_accounts_tenant
     ON gateway_accounts (tenant_id, account_id);
+
+CREATE TABLE IF NOT EXISTS gateway_incoming_messages (
+    tenant_id INTEGER NOT NULL CHECK (tenant_id > 0),
+    account_id TEXT NOT NULL,
+    message_id TEXT NOT NULL,
+    chat_jid TEXT NOT NULL,
+    sender_jid TEXT NOT NULL,
+    sender_address TEXT NOT NULL,
+    sender_name TEXT NOT NULL DEFAULT '',
+    text_content TEXT NOT NULL DEFAULT '',
+    message_type TEXT NOT NULL,
+    is_group INTEGER NOT NULL DEFAULT 0 CHECK (is_group IN (0, 1)),
+    received_at TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (tenant_id, account_id, chat_jid, message_id)
+);
+CREATE INDEX IF NOT EXISTS idx_gateway_incoming_messages_account_time
+    ON gateway_incoming_messages (tenant_id, account_id, received_at DESC);
 `)
 	return err
 }
@@ -127,6 +160,71 @@ func (r *Registry) Delete(ctx context.Context, tenantID int64, accountID string)
 	return err
 }
 
+func (r *Registry) StoreIncoming(ctx context.Context, message IncomingMessage) (bool, error) {
+	now := time.Now().UTC()
+	if message.ReceivedAt.IsZero() {
+		message.ReceivedAt = now
+	}
+	if message.CreatedAt.IsZero() {
+		message.CreatedAt = now
+	}
+	result, err := r.db.ExecContext(ctx, `
+INSERT INTO gateway_incoming_messages (
+    tenant_id, account_id, message_id, chat_jid, sender_jid, sender_address,
+    sender_name, text_content, message_type, is_group, received_at, created_at
+)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT (tenant_id, account_id, chat_jid, message_id) DO NOTHING`,
+		message.TenantID,
+		message.AccountID,
+		message.MessageID,
+		message.ChatJID,
+		message.SenderJID,
+		message.From,
+		message.SenderName,
+		message.Text,
+		message.MessageType,
+		message.IsGroup,
+		message.ReceivedAt.UTC().Format(time.RFC3339Nano),
+		message.CreatedAt.UTC().Format(time.RFC3339Nano),
+	)
+	if err != nil {
+		return false, err
+	}
+	affected, err := result.RowsAffected()
+	return affected > 0, err
+}
+
+func (r *Registry) ListIncoming(ctx context.Context, tenantID int64, accountID string, limit int) ([]IncomingMessage, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	rows, err := r.db.QueryContext(ctx, `
+SELECT tenant_id, account_id, message_id, chat_jid, sender_jid, sender_address,
+       sender_name, text_content, message_type, is_group, received_at, created_at
+FROM gateway_incoming_messages
+WHERE tenant_id = ? AND account_id = ?
+ORDER BY received_at DESC, created_at DESC
+LIMIT ?`, tenantID, accountID, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	messages := make([]IncomingMessage, 0)
+	for rows.Next() {
+		message, err := scanIncomingMessage(rows)
+		if err != nil {
+			return nil, err
+		}
+		messages = append(messages, message)
+	}
+	return messages, rows.Err()
+}
+
 type scanner interface {
 	Scan(dest ...any) error
 }
@@ -142,4 +240,32 @@ func scanAccount(row scanner) (AccountRecord, error) {
 	record.CreatedAt, _ = time.Parse(time.RFC3339Nano, createdAt)
 	record.UpdatedAt, _ = time.Parse(time.RFC3339Nano, updatedAt)
 	return record, nil
+}
+
+func scanIncomingMessage(row scanner) (IncomingMessage, error) {
+	var message IncomingMessage
+	var isGroup int
+	var receivedAt string
+	var createdAt string
+	err := row.Scan(
+		&message.TenantID,
+		&message.AccountID,
+		&message.MessageID,
+		&message.ChatJID,
+		&message.SenderJID,
+		&message.From,
+		&message.SenderName,
+		&message.Text,
+		&message.MessageType,
+		&isGroup,
+		&receivedAt,
+		&createdAt,
+	)
+	if err != nil {
+		return IncomingMessage{}, err
+	}
+	message.IsGroup = isGroup != 0
+	message.ReceivedAt, _ = time.Parse(time.RFC3339Nano, receivedAt)
+	message.CreatedAt, _ = time.Parse(time.RFC3339Nano, createdAt)
+	return message, nil
 }

@@ -6,6 +6,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -29,6 +30,7 @@ func New(manager *gateway.Manager, authenticator *auth.Authenticator, logger *sl
 	mux.Handle("GET /v1/accounts/{accountID}/qr", authenticator.Middleware(http.HandlerFunc(server.qrCode)))
 	mux.Handle("POST /v1/accounts/{accountID}/connect", authenticator.Middleware(http.HandlerFunc(server.connect)))
 	mux.Handle("DELETE /v1/accounts/{accountID}/session", authenticator.Middleware(http.HandlerFunc(server.logout)))
+	mux.Handle("GET /v1/accounts/{accountID}/messages", authenticator.Middleware(http.HandlerFunc(server.incomingMessages)))
 	mux.Handle("POST /v1/accounts/{accountID}/messages/text", authenticator.Middleware(http.HandlerFunc(server.sendText)))
 
 	return server.securityHeaders(server.recoverPanic(server.logRequests(mux)))
@@ -133,6 +135,33 @@ func (s *Server) sendText(w http.ResponseWriter, r *http.Request) {
 		"provider":   "ambulatoriofacile-whatsapp-gateway",
 		"request_id": auth.RequestID(r.Context()),
 		"message":    result,
+	})
+}
+
+func (s *Server) incomingMessages(w http.ResponseWriter, r *http.Request) {
+	limit := 50
+	if rawLimit := strings.TrimSpace(r.URL.Query().Get("limit")); rawLimit != "" {
+		parsedLimit, err := strconv.Atoi(rawLimit)
+		if err != nil || parsedLimit < 1 || parsedLimit > 100 {
+			writeError(w, http.StatusBadRequest, "invalid_limit", "limit deve essere compreso tra 1 e 100.")
+			return
+		}
+		limit = parsedLimit
+	}
+	messages, err := s.manager.IncomingMessages(
+		r.Context(),
+		auth.TenantID(r.Context()),
+		r.PathValue("accountID"),
+		limit,
+	)
+	if err != nil {
+		s.writeManagerError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"ok":       true,
+		"count":    len(messages),
+		"messages": messages,
 	})
 }
 

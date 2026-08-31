@@ -84,6 +84,38 @@ class WhatsAppGatewayClient
     }
 
     /**
+     * @return array{ok:bool, count:int, messages:array<int, array<string, mixed>>, error:?string}
+     */
+    public function incomingMessages(int $tenantId, int $limit = 50): array
+    {
+        $limit = max(1, min(100, $limit));
+        $requestTarget = '/v1/accounts/' . rawurlencode($this->accountId) . '/messages?limit=' . $limit;
+        $headers = $this->signer->headers('GET', $requestTarget, $tenantId, '');
+        $headers['Accept'] = 'application/json';
+
+        $response = $this->request('GET', $requestTarget, '', $headers);
+        $decoded = json_decode((string) ($response['body'] ?? ''), true);
+        $decoded = is_array($decoded) ? $decoded : [];
+        $ok = (int) ($response['status'] ?? 0) >= 200
+            && (int) ($response['status'] ?? 0) < 300
+            && !empty($decoded['ok']);
+        $messages = isset($decoded['messages']) && is_array($decoded['messages'])
+            ? array_values($decoded['messages'])
+            : [];
+        $errorMessage = $decoded['message'] ?? $decoded['error'] ?? $response['error'] ?? null;
+        if (!$ok && (!is_scalar($errorMessage) || trim((string) $errorMessage) === '')) {
+            $errorMessage = 'Lettura dei messaggi WhatsApp non riuscita.';
+        }
+
+        return [
+            'ok' => $ok,
+            'count' => count($messages),
+            'messages' => $messages,
+            'error' => $ok ? null : (string) $errorMessage,
+        ];
+    }
+
+    /**
      * @param array<string, string> $headers
      * @return array{status:int, body:string, error:?string}
      */
@@ -103,16 +135,19 @@ class WhatsAppGatewayClient
             $headerLines[] = $name . ': ' . $value;
         }
 
-        curl_setopt_array($curl, [
+        $options = [
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_CUSTOMREQUEST => strtoupper($method),
-            CURLOPT_POSTFIELDS => $body,
             CURLOPT_HTTPHEADER => $headerLines,
             CURLOPT_CONNECTTIMEOUT => 10,
             CURLOPT_TIMEOUT => $this->timeoutSeconds,
             CURLOPT_SSL_VERIFYHOST => 2,
             CURLOPT_SSL_VERIFYPEER => true,
-        ]);
+        ];
+        if ($body !== '') {
+            $options[CURLOPT_POSTFIELDS] = $body;
+        }
+        curl_setopt_array($curl, $options);
 
         $responseBody = curl_exec($curl);
         $error = curl_errno($curl) !== 0 ? curl_error($curl) : null;
