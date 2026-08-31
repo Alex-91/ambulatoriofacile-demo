@@ -187,7 +187,9 @@ func (m *Manager) StartPairing(ctx context.Context, tenantID int64, accountID, d
 	}
 	go m.consumeQR(current, qrChannel)
 
-	if err := client.ConnectContext(pairCtx); err != nil {
+	// The QR lifetime is bounded by pairCtx, but the WhatsApp connection must
+	// outlive that context after a successful pairing.
+	if err := client.Connect(); err != nil {
 		current.setError(err)
 		return current.snapshot(), err
 	}
@@ -204,7 +206,8 @@ func (m *Manager) Connect(ctx context.Context, tenantID int64, accountID string)
 	}
 	if !current.client.IsConnected() {
 		current.setState("connecting")
-		if err := current.client.ConnectContext(ctx); err != nil {
+		// Do not bind a persistent WhatsApp connection to the HTTP request.
+		if err := current.client.Connect(); err != nil {
 			current.setError(err)
 			return current.snapshot(), err
 		}
@@ -261,7 +264,8 @@ func (m *Manager) SendText(ctx context.Context, tenantID int64, accountID, phone
 		return SendResult{}, ErrNotPaired
 	}
 	if !current.client.IsConnected() {
-		if err := current.client.ConnectContext(ctx); err != nil {
+		// Keep the transport alive after the send request completes.
+		if err := current.client.Connect(); err != nil {
 			current.setError(err)
 			return SendResult{}, err
 		}
@@ -336,10 +340,10 @@ func (m *Manager) restore(ctx context.Context) error {
 		client.AddEventHandler(func(evt any) { m.handleEvent(current, evt) })
 		m.sessions[sessionKey(record.TenantID, record.AccountID)] = current
 		go func(account *session) {
-			connectCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-			defer cancel()
 			account.setState("connecting")
-			if err := account.client.ConnectContext(connectCtx); err != nil {
+			// Connect uses whatsmeow's long-lived background event context, so
+			// automatic reconnect remains active after startup completes.
+			if err := account.client.Connect(); err != nil {
 				account.setError(err)
 				m.logger.Warn("WhatsApp reconnect failed", "tenant_id", account.tenantID, "account_id", account.accountID, "error", err)
 			}
