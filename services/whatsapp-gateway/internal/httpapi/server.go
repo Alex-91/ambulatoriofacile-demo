@@ -148,12 +148,29 @@ func (s *Server) incomingMessages(w http.ResponseWriter, r *http.Request) {
 		}
 		limit = parsedLimit
 	}
-	messages, err := s.manager.IncomingMessages(
-		r.Context(),
-		auth.TenantID(r.Context()),
-		r.PathValue("accountID"),
-		limit,
-	)
+	direction := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("direction")))
+	var messages []gateway.IncomingMessage
+	var err error
+	switch direction {
+	case "", "incoming":
+		direction = "incoming"
+		messages, err = s.manager.IncomingMessages(
+			r.Context(),
+			auth.TenantID(r.Context()),
+			r.PathValue("accountID"),
+			limit,
+		)
+	case "all":
+		messages, err = s.manager.Messages(
+			r.Context(),
+			auth.TenantID(r.Context()),
+			r.PathValue("accountID"),
+			limit,
+		)
+	default:
+		writeError(w, http.StatusBadRequest, "invalid_direction", "direction deve essere incoming oppure all.")
+		return
+	}
 	if err != nil {
 		s.writeManagerError(w, err)
 		return
@@ -161,6 +178,7 @@ func (s *Server) incomingMessages(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
 		"ok":       true,
 		"count":    len(messages),
+		"direction": direction,
 		"messages": messages,
 	})
 }

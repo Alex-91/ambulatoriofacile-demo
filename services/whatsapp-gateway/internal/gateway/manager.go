@@ -277,10 +277,15 @@ func (m *Manager) SendText(ctx context.Context, tenantID int64, accountID, phone
 		current.setError(err)
 		return SendResult{}, err
 	}
+	sentAt := response.Timestamp.UTC()
+	if sentAt.IsZero() {
+		sentAt = time.Now().UTC()
+	}
+	m.storeOutgoingMessage(current, response.ID, "+"+normalizedPhone, to.String(), text, sentAt)
 	return SendResult{
 		MessageID: response.ID,
 		To:        "+" + normalizedPhone,
-		SentAt:    response.Timestamp.UTC(),
+		SentAt:    sentAt,
 	}, nil
 }
 
@@ -289,6 +294,13 @@ func (m *Manager) IncomingMessages(ctx context.Context, tenantID int64, accountI
 		return nil, err
 	}
 	return m.registry.ListIncoming(ctx, tenantID, accountID, limit)
+}
+
+func (m *Manager) Messages(ctx context.Context, tenantID int64, accountID string, limit int) ([]IncomingMessage, error) {
+	if _, err := m.getOrLoad(ctx, tenantID, accountID); err != nil {
+		return nil, err
+	}
+	return m.registry.ListMessages(ctx, tenantID, accountID, limit)
 }
 
 func NormalizePhone(phone string) (string, error) {
@@ -450,6 +462,45 @@ func (m *Manager) storeIncomingMessage(current *session, event *events.Message) 
 			"account_id", message.AccountID,
 			"message_id", message.MessageID,
 			"message_type", message.MessageType,
+		)
+	}
+}
+
+func (m *Manager) storeOutgoingMessage(current *session, messageID, recipient, chatJID, text string, sentAt time.Time) {
+	senderJID := ""
+	if current.client.Store.ID != nil {
+		senderJID = current.client.Store.ID.ToNonAD().String()
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	stored, err := m.registry.StoreOutgoing(ctx, IncomingMessage{
+		TenantID:    current.tenantID,
+		AccountID:   current.accountID,
+		MessageID:   messageID,
+		ChatJID:     chatJID,
+		SenderJID:   senderJID,
+		To:          recipient,
+		Peer:        recipient,
+		Text:        text,
+		MessageType: "text",
+		ReceivedAt:  sentAt,
+	})
+	if err != nil {
+		m.logger.Error(
+			"failed to store outgoing WhatsApp message",
+			"tenant_id", current.tenantID,
+			"account_id", current.accountID,
+			"message_id", messageID,
+			"error", err,
+		)
+		return
+	}
+	if stored {
+		m.logger.Info(
+			"outgoing WhatsApp message stored",
+			"tenant_id", current.tenantID,
+			"account_id", current.accountID,
+			"message_id", messageID,
 		)
 	}
 }

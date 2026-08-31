@@ -423,6 +423,23 @@ class MenuRegistryService
                 ],
             ],
             [
+                'key' => 'spazio/whatsapp',
+                'link' => 'spazio/whatsapp',
+                'title' => 'Conversazioni WhatsApp',
+                'icon' => 'fa-whatsapp',
+                'order' => 2190,
+                'group' => 'Console spazio',
+                'description' => 'Leggi e continua le conversazioni WhatsApp del numero collegato allo spazio.',
+                'route_prefixes' => [
+                    'spazio/whatsapp',
+                    'spazio/whatsapp/refresh',
+                    'spazio/whatsapp/send',
+                    'login/spazio/whatsapp',
+                    'login/spazio/whatsapp/refresh',
+                    'login/spazio/whatsapp/send',
+                ],
+            ],
+            [
                 'key' => 'spazio/notifiche-appuntamenti',
                 'link' => 'spazio/notifiche-appuntamenti',
                 'title' => 'Gestisci notifiche appuntamenti',

@@ -25,9 +25,12 @@ type IncomingMessage struct {
 	ChatJID     string    `json:"-"`
 	SenderJID   string    `json:"-"`
 	From        string    `json:"from"`
+	To          string    `json:"to,omitempty"`
+	Peer        string    `json:"peer"`
 	SenderName  string    `json:"sender_name,omitempty"`
 	Text        string    `json:"text"`
 	MessageType string    `json:"message_type"`
+	Direction   string    `json:"direction"`
 	IsGroup     bool      `json:"is_group"`
 	ReceivedAt  time.Time `json:"received_at"`
 	CreatedAt   time.Time `json:"stored_at"`
@@ -84,6 +87,39 @@ CREATE TABLE IF NOT EXISTS gateway_incoming_messages (
 );
 CREATE INDEX IF NOT EXISTS idx_gateway_incoming_messages_account_time
     ON gateway_incoming_messages (tenant_id, account_id, received_at DESC);
+
+CREATE TABLE IF NOT EXISTS gateway_messages (
+    tenant_id INTEGER NOT NULL CHECK (tenant_id > 0),
+    account_id TEXT NOT NULL,
+    message_id TEXT NOT NULL,
+    chat_jid TEXT NOT NULL,
+    sender_jid TEXT NOT NULL,
+    sender_address TEXT NOT NULL DEFAULT '',
+    recipient_address TEXT NOT NULL DEFAULT '',
+    peer_address TEXT NOT NULL,
+    sender_name TEXT NOT NULL DEFAULT '',
+    text_content TEXT NOT NULL DEFAULT '',
+    message_type TEXT NOT NULL,
+    direction TEXT NOT NULL CHECK (direction IN ('incoming', 'outgoing')),
+    is_group INTEGER NOT NULL DEFAULT 0 CHECK (is_group IN (0, 1)),
+    occurred_at TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (tenant_id, account_id, chat_jid, message_id)
+);
+CREATE INDEX IF NOT EXISTS idx_gateway_messages_account_time
+    ON gateway_messages (tenant_id, account_id, occurred_at DESC);
+CREATE INDEX IF NOT EXISTS idx_gateway_messages_account_peer_time
+    ON gateway_messages (tenant_id, account_id, peer_address, occurred_at DESC);
+
+INSERT OR IGNORE INTO gateway_messages (
+    tenant_id, account_id, message_id, chat_jid, sender_jid, sender_address,
+    recipient_address, peer_address, sender_name, text_content, message_type,
+    direction, is_group, occurred_at, created_at
+)
+SELECT tenant_id, account_id, message_id, chat_jid, sender_jid, sender_address,
+       '', sender_address, sender_name, text_content, message_type,
+       'incoming', is_group, received_at, created_at
+FROM gateway_incoming_messages;
 `)
 	return err
 }
@@ -162,18 +198,42 @@ func (r *Registry) Delete(ctx context.Context, tenantID int64, accountID string)
 
 func (r *Registry) StoreIncoming(ctx context.Context, message IncomingMessage) (bool, error) {
 	now := time.Now().UTC()
+	message.Direction = "incoming"
+	if message.Peer == "" {
+		message.Peer = message.From
+	}
 	if message.ReceivedAt.IsZero() {
 		message.ReceivedAt = now
 	}
 	if message.CreatedAt.IsZero() {
 		message.CreatedAt = now
 	}
+	return r.storeMessage(ctx, message)
+}
+
+func (r *Registry) StoreOutgoing(ctx context.Context, message IncomingMessage) (bool, error) {
+	now := time.Now().UTC()
+	message.Direction = "outgoing"
+	if message.Peer == "" {
+		message.Peer = message.To
+	}
+	if message.ReceivedAt.IsZero() {
+		message.ReceivedAt = now
+	}
+	if message.CreatedAt.IsZero() {
+		message.CreatedAt = now
+	}
+	return r.storeMessage(ctx, message)
+}
+
+func (r *Registry) storeMessage(ctx context.Context, message IncomingMessage) (bool, error) {
 	result, err := r.db.ExecContext(ctx, `
-INSERT INTO gateway_incoming_messages (
+INSERT INTO gateway_messages (
     tenant_id, account_id, message_id, chat_jid, sender_jid, sender_address,
-    sender_name, text_content, message_type, is_group, received_at, created_at
+    recipient_address, peer_address, sender_name, text_content, message_type,
+    direction, is_group, occurred_at, created_at
 )
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT (tenant_id, account_id, chat_jid, message_id) DO NOTHING`,
 		message.TenantID,
 		message.AccountID,
@@ -181,9 +241,12 @@ ON CONFLICT (tenant_id, account_id, chat_jid, message_id) DO NOTHING`,
 		message.ChatJID,
 		message.SenderJID,
 		message.From,
+		message.To,
+		message.Peer,
 		message.SenderName,
 		message.Text,
 		message.MessageType,
+		message.Direction,
 		message.IsGroup,
 		message.ReceivedAt.UTC().Format(time.RFC3339Nano),
 		message.CreatedAt.UTC().Format(time.RFC3339Nano),
@@ -196,6 +259,14 @@ ON CONFLICT (tenant_id, account_id, chat_jid, message_id) DO NOTHING`,
 }
 
 func (r *Registry) ListIncoming(ctx context.Context, tenantID int64, accountID string, limit int) ([]IncomingMessage, error) {
+	return r.listMessages(ctx, tenantID, accountID, limit, "incoming")
+}
+
+func (r *Registry) ListMessages(ctx context.Context, tenantID int64, accountID string, limit int) ([]IncomingMessage, error) {
+	return r.listMessages(ctx, tenantID, accountID, limit, "")
+}
+
+func (r *Registry) listMessages(ctx context.Context, tenantID int64, accountID string, limit int, direction string) ([]IncomingMessage, error) {
 	if limit <= 0 {
 		limit = 50
 	}
@@ -204,11 +275,13 @@ func (r *Registry) ListIncoming(ctx context.Context, tenantID int64, accountID s
 	}
 	rows, err := r.db.QueryContext(ctx, `
 SELECT tenant_id, account_id, message_id, chat_jid, sender_jid, sender_address,
-       sender_name, text_content, message_type, is_group, received_at, created_at
-FROM gateway_incoming_messages
+       recipient_address, peer_address, sender_name, text_content, message_type,
+       direction, is_group, occurred_at, created_at
+FROM gateway_messages
 WHERE tenant_id = ? AND account_id = ?
-ORDER BY received_at DESC, created_at DESC
-LIMIT ?`, tenantID, accountID, limit)
+  AND (? = '' OR direction = ?)
+ORDER BY occurred_at DESC, created_at DESC
+LIMIT ?`, tenantID, accountID, direction, direction, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -254,9 +327,12 @@ func scanIncomingMessage(row scanner) (IncomingMessage, error) {
 		&message.ChatJID,
 		&message.SenderJID,
 		&message.From,
+		&message.To,
+		&message.Peer,
 		&message.SenderName,
 		&message.Text,
 		&message.MessageType,
+		&message.Direction,
 		&isGroup,
 		&receivedAt,
 		&createdAt,

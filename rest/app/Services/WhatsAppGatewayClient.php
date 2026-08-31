@@ -9,6 +9,38 @@ class WhatsAppGatewayClient
     private int $timeoutSeconds;
     private WhatsAppGatewayRequestSigner $signer;
 
+    public static function isRoutedToGateway(
+        int $tenantId,
+        ?string $provider = null,
+        ?string $gatewayTenantIds = null
+    ): bool {
+        if ($tenantId <= 0) {
+            return false;
+        }
+
+        $provider = strtolower(trim((string) ($provider ?? env('WHATSAPP_PROVIDER', 'ultramsg'))));
+        if ($provider === 'gateway') {
+            return true;
+        }
+        if ($provider !== 'hybrid') {
+            return false;
+        }
+
+        $tenantIds = array_values(array_filter(array_map(
+            static fn(string $value): int => max(0, (int) trim($value)),
+            explode(',', (string) ($gatewayTenantIds ?? env('WHATSAPP_GATEWAY_TENANT_IDS', '')))
+        )));
+
+        return in_array($tenantId, $tenantIds, true);
+    }
+
+    public static function isAvailableForTenant(int $tenantId): bool
+    {
+        return self::isRoutedToGateway($tenantId)
+            && trim((string) env('WHATSAPP_GATEWAY_BASE_URL', '')) !== ''
+            && trim((string) env('WHATSAPP_GATEWAY_API_SECRET', '')) !== '';
+    }
+
     public function __construct(
         ?string $baseUrl = null,
         ?string $accountId = null,
@@ -105,6 +137,69 @@ class WhatsAppGatewayClient
         $errorMessage = $decoded['message'] ?? $decoded['error'] ?? $response['error'] ?? null;
         if (!$ok && (!is_scalar($errorMessage) || trim((string) $errorMessage) === '')) {
             $errorMessage = 'Lettura dei messaggi WhatsApp non riuscita.';
+        }
+
+        return [
+            'ok' => $ok,
+            'count' => count($messages),
+            'messages' => $messages,
+            'error' => $ok ? null : (string) $errorMessage,
+        ];
+    }
+
+    /**
+     * @return array{ok:bool, account:array<string, mixed>, error:?string}
+     */
+    public function accountStatus(int $tenantId): array
+    {
+        $requestTarget = '/v1/accounts/' . rawurlencode($this->accountId);
+        $headers = $this->signer->headers('GET', $requestTarget, $tenantId, '');
+        $headers['Accept'] = 'application/json';
+
+        $response = $this->request('GET', $requestTarget, '', $headers);
+        $decoded = json_decode((string) ($response['body'] ?? ''), true);
+        $decoded = is_array($decoded) ? $decoded : [];
+        $ok = (int) ($response['status'] ?? 0) >= 200
+            && (int) ($response['status'] ?? 0) < 300
+            && !empty($decoded['ok']);
+        $account = isset($decoded['account']) && is_array($decoded['account'])
+            ? $decoded['account']
+            : [];
+        $errorMessage = $decoded['message'] ?? $decoded['error'] ?? $response['error'] ?? null;
+        if (!$ok && (!is_scalar($errorMessage) || trim((string) $errorMessage) === '')) {
+            $errorMessage = 'Stato dell\'account WhatsApp non disponibile.';
+        }
+
+        return [
+            'ok' => $ok,
+            'account' => $account,
+            'error' => $ok ? null : (string) $errorMessage,
+        ];
+    }
+
+    /**
+     * @return array{ok:bool, count:int, messages:array<int, array<string, mixed>>, error:?string}
+     */
+    public function messages(int $tenantId, int $limit = 100): array
+    {
+        $limit = max(1, min(100, $limit));
+        $requestTarget = '/v1/accounts/' . rawurlencode($this->accountId)
+            . '/messages?limit=' . $limit . '&direction=all';
+        $headers = $this->signer->headers('GET', $requestTarget, $tenantId, '');
+        $headers['Accept'] = 'application/json';
+
+        $response = $this->request('GET', $requestTarget, '', $headers);
+        $decoded = json_decode((string) ($response['body'] ?? ''), true);
+        $decoded = is_array($decoded) ? $decoded : [];
+        $ok = (int) ($response['status'] ?? 0) >= 200
+            && (int) ($response['status'] ?? 0) < 300
+            && !empty($decoded['ok']);
+        $messages = isset($decoded['messages']) && is_array($decoded['messages'])
+            ? array_values($decoded['messages'])
+            : [];
+        $errorMessage = $decoded['message'] ?? $decoded['error'] ?? $response['error'] ?? null;
+        if (!$ok && (!is_scalar($errorMessage) || trim((string) $errorMessage) === '')) {
+            $errorMessage = 'Lettura delle conversazioni WhatsApp non riuscita.';
         }
 
         return [

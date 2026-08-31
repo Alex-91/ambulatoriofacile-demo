@@ -253,6 +253,10 @@ class MenuResolverService
                 && $tenantRole === 'tenant_master'
                 && (int) ($session->get('platform_user_id') ?? 0) > 0
                 && !empty($tenantFeatureFlags['appointment_notifications']),
+            'can_manage_whatsapp' => $tenantId > 0
+                && in_array($tenantRole, ['tenant_master', 'tenant_admin'], true)
+                && (int) ($session->get('platform_user_id') ?? 0) > 0
+                && WhatsAppGatewayClient::isAvailableForTenant($tenantId),
             'can_manage_otp_devices' => $tenantId > 0
                 && in_array($tenantRole, ['tenant_master', 'tenant_admin'], true)
                 && (int) ($session->get('platform_user_id') ?? 0) > 0,
@@ -408,6 +412,7 @@ class MenuResolverService
             'spazio/fatturazione' => !empty($context['can_manage_billing']),
             'spazio/sistema-ts' => !empty($context['can_manage_ts_billing']),
             'spazio/notifiche-appuntamenti' => !empty($context['can_manage_appointment_notifications']),
+            'spazio/whatsapp' => !empty($context['can_manage_whatsapp']),
         ];
 
         foreach ($tenantContextFlags as $key => $enabled) {
