@@ -12,6 +12,7 @@ class AgendaAppointmentNotificationService
     private TenantContextService $tenantContextService;
     private TenantCatalogService $tenantCatalogService;
     private AppointmentNotificationSettingsService $settingsService;
+    private AppointmentMessageTemplateService $messageTemplateService;
     private AppointmentNotificationChannelService $channelService;
     private AppointmentNotificationLogService $logService;
     private AgendaModel $agendaModel;
@@ -23,6 +24,7 @@ class AgendaAppointmentNotificationService
         $this->tenantContextService = new TenantContextService();
         $this->tenantCatalogService = new TenantCatalogService();
         $this->settingsService = new AppointmentNotificationSettingsService();
+        $this->messageTemplateService = new AppointmentMessageTemplateService();
         $this->channelService = new AppointmentNotificationChannelService();
         $this->logService = new AppointmentNotificationLogService();
         $this->agendaModel = new AgendaModel();
@@ -81,7 +83,19 @@ class AgendaAppointmentNotificationService
         $patientRecipient = $this->buildPatientRecipient($appointment, $patientLabel);
         $patientPlan = $this->settingsService->resolveDispatchPlan((int) ($tenant['id_tenant'] ?? 0), AppointmentNotificationSettingsService::TYPE_PATIENT_BOOKING);
         if (!empty($patientPlan['enabled']) && !empty($patientPlan['channels'])) {
-            $message = $this->buildPatientBookingMessage($patientLabel, $doctorLabel, $scheduledFor, $notes);
+            $message = $this->buildPatientBookingMessage(
+                (string) ($patientPlan['template'] ?? ''),
+                $patientLabel,
+                $doctorLabel,
+                $scheduledFor,
+                $notes,
+                (string) ($tenant['tenant_name'] ?? ''),
+                trim((string) ($appointment['ambulatorio_label'] ?? '')),
+                trim(implode(', ', array_filter([
+                    trim((string) ($appointment['indirizzo'] ?? '')),
+                    trim((string) ($appointment['citta'] ?? '')),
+                ], static fn(string $value): bool => $value !== '')))
+            );
             $result['patient_booking'] = $this->dispatchPlan(
                 $tenant,
                 (array) $patientPlan,
@@ -199,9 +213,13 @@ class AgendaAppointmentNotificationService
                 a.note,
                 a.motivo_visita,
                 s.data_slot,
+                COALESCE(amb.nome, s.ambulatorio, '') AS ambulatorio_label,
+                COALESCE(amb.indirizzo, '') AS indirizzo,
+                COALESCE(amb.citta, '') AS citta,
                 COALESCE(a.ora_inizio_appuntamento, s.ora_inizio) AS ora_inizio
             ")
             ->join('dap11_agenda_slot s', 's.id_slot = a.id_slot', 'inner')
+            ->join('dap42_ambulatori amb', 'amb.id_amb_legacy = s.id_amb_legacy', 'left')
             ->where('a.id_appuntamento', $appointmentId)
             ->where('a.stato <>', 'ANNULLATO')
             ->get()
@@ -288,21 +306,34 @@ class AgendaAppointmentNotificationService
         }
     }
 
-    private function buildPatientBookingMessage(string $patientLabel, string $doctorLabel, string $scheduledFor, string $notes): string
+    private function buildPatientBookingMessage(
+        string $template,
+        string $patientLabel,
+        string $doctorLabel,
+        string $scheduledFor,
+        string $notes,
+        string $tenantName,
+        string $place,
+        string $address
+    ): string
     {
-        $lines = [
-            'Gentile ' . $patientLabel . ',',
-            'il suo appuntamento è stato registrato con ' . $doctorLabel . '.',
-            'Data e ora: ' . $scheduledFor . '.',
-        ];
+        $scheduledParts = preg_split('/\s+/', trim($scheduledFor), 2) ?: [];
 
-        if ($notes !== '') {
-            $lines[] = 'Note appuntamento: ' . $notes;
-        }
-
-        $lines[] = 'AmbulatorioFacile';
-
-        return implode("\n", $lines);
+        return $this->messageTemplateService->render(
+            AppointmentNotificationSettingsService::TYPE_PATIENT_BOOKING,
+            $template,
+            [
+                'paziente' => $patientLabel,
+                'dottore' => $doctorLabel,
+                'data' => (string) ($scheduledParts[0] ?? ''),
+                'ora' => (string) ($scheduledParts[1] ?? ''),
+                'data_ora' => $scheduledFor,
+                'sede' => $place,
+                'indirizzo' => $address,
+                'note' => $notes,
+                'nome_spazio' => $tenantName !== '' ? $tenantName : 'AmbulatorioFacile',
+            ]
+        );
     }
 
     private function buildCrossDoctorMessage(string $actorLabel, string $patientLabel, string $scheduledFor, string $visitReason, string $notes): string

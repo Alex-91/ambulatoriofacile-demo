@@ -27,6 +27,7 @@ class AppointmentNotificationSettingsService
     private PlatformTenantFeaturePreferencesModel $preferencesModel;
     private PlatformTenantFeaturesModel $tenantFeaturesModel;
     private PlatformFeaturesModel $featuresModel;
+    private AppointmentMessageTemplateService $messageTemplateService;
 
     public function __construct()
     {
@@ -35,6 +36,7 @@ class AppointmentNotificationSettingsService
         $this->preferencesModel = new PlatformTenantFeaturePreferencesModel();
         $this->tenantFeaturesModel = new PlatformTenantFeaturesModel();
         $this->featuresModel = new PlatformFeaturesModel();
+        $this->messageTemplateService = new AppointmentMessageTemplateService();
     }
 
     /**
@@ -110,6 +112,16 @@ class AppointmentNotificationSettingsService
 
             if ($messageType === self::TYPE_REMINDER) {
                 $row['lead_days'] = max(0, min(30, (int) ($messageConfig['lead_days'] ?? 2)));
+            }
+
+            if ($this->messageTemplateService->supports($messageType)) {
+                $row['template'] = $this->messageTemplateService->normalizeTemplate(
+                    $messageType,
+                    $messageConfig['template'] ?? ''
+                );
+                $row['default_template'] = $this->messageTemplateService->defaultTemplate($messageType);
+                $row['template_tokens'] = $this->messageTemplateService->tokenDefinitions($messageType);
+                $row['template_preview_values'] = $this->messageTemplateService->previewValues($messageType);
             }
 
             $messageTypeRows[$messageType] = $row;
@@ -212,6 +224,11 @@ class AppointmentNotificationSettingsService
             static fn(bool $enabled): bool => $enabled
         ));
 
+        $this->assertTenantTemplatesValid(
+            $rawConfig,
+            (array) ($current['message_types'] ?? [])
+        );
+
         $config = $this->sanitizeConfig($rawConfig, $availableChannels);
         $config = $this->preserveLockedMessageTypePreferences(
             $config,
@@ -246,12 +263,21 @@ class AppointmentNotificationSettingsService
         $messageType = trim(strtolower($messageType));
         $row = (array) ($settings['message_types'][$messageType] ?? []);
 
-        return [
+        $plan = [
             'module_available' => (bool) ($settings['module']['available'] ?? false),
             'enabled' => (bool) ($row['enabled'] ?? false),
             'channels' => array_values((array) ($row['effective_channels'] ?? [])),
             'lead_days' => max(0, min(30, (int) ($row['lead_days'] ?? 2))),
         ];
+
+        if ($this->messageTemplateService->supports($messageType)) {
+            $plan['template'] = $this->messageTemplateService->normalizeTemplate(
+                $messageType,
+                $row['template'] ?? ''
+            );
+        }
+
+        return $plan;
     }
 
     /**
@@ -318,11 +344,12 @@ class AppointmentNotificationSettingsService
     public function defaultConfig(): array
     {
         return [
-            'version' => 1,
+            'version' => 2,
             'message_types' => [
                 self::TYPE_PATIENT_BOOKING => [
                     'enabled' => false,
                     'channels' => [],
+                    'template' => $this->messageTemplateService->defaultTemplate(self::TYPE_PATIENT_BOOKING),
                 ],
                 self::TYPE_DOCTOR_CROSS_BOOKING => [
                     // Keep the first-run default focused on the internal workflow
@@ -335,6 +362,7 @@ class AppointmentNotificationSettingsService
                     'enabled' => false,
                     'channels' => [],
                     'lead_days' => 2,
+                    'template' => $this->messageTemplateService->defaultTemplate(self::TYPE_REMINDER),
                 ],
             ],
         ];
@@ -384,9 +412,34 @@ class AppointmentNotificationSettingsService
             if ($messageType === self::TYPE_REMINDER) {
                 $sanitized['message_types'][$messageType]['lead_days'] = max(0, min(30, (int) ($source['lead_days'] ?? 2)));
             }
+
+            if ($this->messageTemplateService->supports($messageType)) {
+                $sanitized['message_types'][$messageType]['template'] = $this->messageTemplateService->normalizeTemplate(
+                    $messageType,
+                    $source['template'] ?? ''
+                );
+            }
         }
 
         return $sanitized;
+    }
+
+    /**
+     * @param array<string, mixed> $config
+     * @param array<string, array<string, mixed>> $currentMessageTypes
+     */
+    private function assertTenantTemplatesValid(array $config, array $currentMessageTypes): void
+    {
+        $messageTypes = (array) ($config['message_types'] ?? []);
+
+        foreach ([self::TYPE_PATIENT_BOOKING, self::TYPE_REMINDER] as $messageType) {
+            if ($currentMessageTypes !== [] && empty($currentMessageTypes[$messageType]['tenant_can_manage'])) {
+                continue;
+            }
+
+            $source = (array) ($messageTypes[$messageType] ?? []);
+            $this->messageTemplateService->assertValid($messageType, $source['template'] ?? '');
+        }
     }
 
     /**

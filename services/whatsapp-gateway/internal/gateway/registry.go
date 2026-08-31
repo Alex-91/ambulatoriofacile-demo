@@ -19,21 +19,24 @@ type AccountRecord struct {
 }
 
 type IncomingMessage struct {
-	TenantID    int64     `json:"-"`
-	AccountID   string    `json:"-"`
-	MessageID   string    `json:"message_id"`
-	ChatJID     string    `json:"-"`
-	SenderJID   string    `json:"-"`
-	From        string    `json:"from"`
-	To          string    `json:"to,omitempty"`
-	Peer        string    `json:"peer"`
-	SenderName  string    `json:"sender_name,omitempty"`
-	Text        string    `json:"text"`
-	MessageType string    `json:"message_type"`
-	Direction   string    `json:"direction"`
-	IsGroup     bool      `json:"is_group"`
-	ReceivedAt  time.Time `json:"received_at"`
-	CreatedAt   time.Time `json:"stored_at"`
+	TenantID       int64      `json:"-"`
+	AccountID      string     `json:"-"`
+	MessageID      string     `json:"message_id"`
+	ChatJID        string     `json:"-"`
+	SenderJID      string     `json:"-"`
+	From           string     `json:"from"`
+	To             string     `json:"to,omitempty"`
+	Peer           string     `json:"peer"`
+	SenderName     string     `json:"sender_name,omitempty"`
+	Text           string     `json:"text"`
+	MessageType    string     `json:"message_type"`
+	Direction      string     `json:"direction"`
+	DeliveryStatus string     `json:"delivery_status"`
+	IsGroup        bool       `json:"is_group"`
+	ReceivedAt     time.Time  `json:"received_at"`
+	DeliveredAt    *time.Time `json:"delivered_at,omitempty"`
+	ReadAt         *time.Time `json:"read_at,omitempty"`
+	CreatedAt      time.Time  `json:"stored_at"`
 }
 
 type Registry struct {
@@ -101,8 +104,11 @@ CREATE TABLE IF NOT EXISTS gateway_messages (
     text_content TEXT NOT NULL DEFAULT '',
     message_type TEXT NOT NULL,
     direction TEXT NOT NULL CHECK (direction IN ('incoming', 'outgoing')),
+    delivery_status TEXT NOT NULL DEFAULT '',
     is_group INTEGER NOT NULL DEFAULT 0 CHECK (is_group IN (0, 1)),
     occurred_at TEXT NOT NULL,
+    delivered_at TEXT NULL,
+    read_at TEXT NULL,
     created_at TEXT NOT NULL,
     PRIMARY KEY (tenant_id, account_id, chat_jid, message_id)
 );
@@ -121,7 +127,64 @@ SELECT tenant_id, account_id, message_id, chat_jid, sender_jid, sender_address,
        'incoming', is_group, received_at, created_at
 FROM gateway_incoming_messages;
 `)
+	if err != nil {
+		return err
+	}
+	if err := r.ensureMessageDeliveryColumns(ctx); err != nil {
+		return err
+	}
+	_, err = r.db.ExecContext(ctx, `
+UPDATE gateway_messages
+SET delivery_status = CASE direction
+    WHEN 'incoming' THEN 'received'
+    ELSE 'sent'
+END
+WHERE TRIM(COALESCE(delivery_status, '')) = ''`)
 	return err
+}
+
+func (r *Registry) ensureMessageDeliveryColumns(ctx context.Context) error {
+	rows, err := r.db.QueryContext(ctx, `PRAGMA table_info(gateway_messages)`)
+	if err != nil {
+		return err
+	}
+	columns := make(map[string]bool)
+	for rows.Next() {
+		var cid int
+		var name, columnType string
+		var notNull, primaryKey int
+		var defaultValue any
+		if err := rows.Scan(&cid, &name, &columnType, &notNull, &defaultValue, &primaryKey); err != nil {
+			_ = rows.Close()
+			return err
+		}
+		columns[name] = true
+	}
+	if err := rows.Err(); err != nil {
+		_ = rows.Close()
+		return err
+	}
+	if err := rows.Close(); err != nil {
+		return err
+	}
+
+	statements := []struct {
+		column string
+		sql    string
+	}{
+		{"delivery_status", `ALTER TABLE gateway_messages ADD COLUMN delivery_status TEXT NOT NULL DEFAULT ''`},
+		{"delivered_at", `ALTER TABLE gateway_messages ADD COLUMN delivered_at TEXT NULL`},
+		{"read_at", `ALTER TABLE gateway_messages ADD COLUMN read_at TEXT NULL`},
+	}
+	for _, statement := range statements {
+		if columns[statement.column] {
+			continue
+		}
+		if _, err := r.db.ExecContext(ctx, statement.sql); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (r *Registry) Ping(ctx context.Context) error {
@@ -199,6 +262,7 @@ func (r *Registry) Delete(ctx context.Context, tenantID int64, accountID string)
 func (r *Registry) StoreIncoming(ctx context.Context, message IncomingMessage) (bool, error) {
 	now := time.Now().UTC()
 	message.Direction = "incoming"
+	message.DeliveryStatus = "received"
 	if message.Peer == "" {
 		message.Peer = message.From
 	}
@@ -214,6 +278,9 @@ func (r *Registry) StoreIncoming(ctx context.Context, message IncomingMessage) (
 func (r *Registry) StoreOutgoing(ctx context.Context, message IncomingMessage) (bool, error) {
 	now := time.Now().UTC()
 	message.Direction = "outgoing"
+	if message.DeliveryStatus == "" {
+		message.DeliveryStatus = "sent"
+	}
 	if message.Peer == "" {
 		message.Peer = message.To
 	}
@@ -231,9 +298,9 @@ func (r *Registry) storeMessage(ctx context.Context, message IncomingMessage) (b
 INSERT INTO gateway_messages (
     tenant_id, account_id, message_id, chat_jid, sender_jid, sender_address,
     recipient_address, peer_address, sender_name, text_content, message_type,
-    direction, is_group, occurred_at, created_at
+    direction, delivery_status, is_group, occurred_at, delivered_at, read_at, created_at
 )
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT (tenant_id, account_id, chat_jid, message_id) DO NOTHING`,
 		message.TenantID,
 		message.AccountID,
@@ -247,10 +314,52 @@ ON CONFLICT (tenant_id, account_id, chat_jid, message_id) DO NOTHING`,
 		message.Text,
 		message.MessageType,
 		message.Direction,
+		message.DeliveryStatus,
 		message.IsGroup,
 		message.ReceivedAt.UTC().Format(time.RFC3339Nano),
+		timePointerString(message.DeliveredAt),
+		timePointerString(message.ReadAt),
 		message.CreatedAt.UTC().Format(time.RFC3339Nano),
 	)
+	if err != nil {
+		return false, err
+	}
+	affected, err := result.RowsAffected()
+	return affected > 0, err
+}
+
+func (r *Registry) UpdateMessageReceipt(
+	ctx context.Context,
+	tenantID int64,
+	accountID, messageID, status string,
+	when time.Time,
+) (bool, error) {
+	if when.IsZero() {
+		when = time.Now().UTC()
+	}
+	timestamp := when.UTC().Format(time.RFC3339Nano)
+
+	var result sql.Result
+	var err error
+	switch status {
+	case "read":
+		result, err = r.db.ExecContext(ctx, `
+UPDATE gateway_messages
+SET delivery_status = 'read',
+    delivered_at = COALESCE(delivered_at, ?),
+    read_at = COALESCE(read_at, ?)
+WHERE tenant_id = ? AND account_id = ? AND message_id = ? AND direction = 'outgoing'`,
+			timestamp, timestamp, tenantID, accountID, messageID)
+	case "delivered":
+		result, err = r.db.ExecContext(ctx, `
+UPDATE gateway_messages
+SET delivery_status = CASE WHEN delivery_status = 'read' THEN delivery_status ELSE 'delivered' END,
+    delivered_at = COALESCE(delivered_at, ?)
+WHERE tenant_id = ? AND account_id = ? AND message_id = ? AND direction = 'outgoing'`,
+			timestamp, tenantID, accountID, messageID)
+	default:
+		return false, nil
+	}
 	if err != nil {
 		return false, err
 	}
@@ -276,7 +385,7 @@ func (r *Registry) listMessages(ctx context.Context, tenantID int64, accountID s
 	rows, err := r.db.QueryContext(ctx, `
 SELECT tenant_id, account_id, message_id, chat_jid, sender_jid, sender_address,
        recipient_address, peer_address, sender_name, text_content, message_type,
-       direction, is_group, occurred_at, created_at
+       direction, delivery_status, is_group, occurred_at, delivered_at, read_at, created_at
 FROM gateway_messages
 WHERE tenant_id = ? AND account_id = ?
   AND (? = '' OR direction = ?)
@@ -320,6 +429,8 @@ func scanIncomingMessage(row scanner) (IncomingMessage, error) {
 	var isGroup int
 	var receivedAt string
 	var createdAt string
+	var deliveredAt sql.NullString
+	var readAt sql.NullString
 	err := row.Scan(
 		&message.TenantID,
 		&message.AccountID,
@@ -333,8 +444,11 @@ func scanIncomingMessage(row scanner) (IncomingMessage, error) {
 		&message.Text,
 		&message.MessageType,
 		&message.Direction,
+		&message.DeliveryStatus,
 		&isGroup,
 		&receivedAt,
+		&deliveredAt,
+		&readAt,
 		&createdAt,
 	)
 	if err != nil {
@@ -342,6 +456,21 @@ func scanIncomingMessage(row scanner) (IncomingMessage, error) {
 	}
 	message.IsGroup = isGroup != 0
 	message.ReceivedAt, _ = time.Parse(time.RFC3339Nano, receivedAt)
+	if deliveredAt.Valid && deliveredAt.String != "" {
+		parsed, _ := time.Parse(time.RFC3339Nano, deliveredAt.String)
+		message.DeliveredAt = &parsed
+	}
+	if readAt.Valid && readAt.String != "" {
+		parsed, _ := time.Parse(time.RFC3339Nano, readAt.String)
+		message.ReadAt = &parsed
+	}
 	message.CreatedAt, _ = time.Parse(time.RFC3339Nano, createdAt)
 	return message, nil
+}
+
+func timePointerString(value *time.Time) any {
+	if value == nil || value.IsZero() {
+		return nil
+	}
+	return value.UTC().Format(time.RFC3339Nano)
 }

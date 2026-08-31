@@ -433,8 +433,10 @@ class MenuRegistryService
                 'route_prefixes' => [
                     'spazio/notifiche-appuntamenti',
                     'spazio/notifiche-appuntamenti/save',
+                    'spazio/notifiche-appuntamenti/whatsapp',
                     'login/spazio/notifiche-appuntamenti',
                     'login/spazio/notifiche-appuntamenti/save',
+                    'login/spazio/notifiche-appuntamenti/whatsapp',
                 ],
             ],
         ];

@@ -34,7 +34,7 @@ Gli endpoint di servizio sono:
 | `GET` | `/v1/accounts/{account_id}/messages?limit=100&direction=all` | timeline ricevuti/inviati per il pannello conversazioni |
 | `POST` | `/v1/accounts/{account_id}/messages/text` | invio testo |
 
-I messaggi in ingresso e quelli inviati dal gateway sono salvati con isolamento per tenant e account. La risposta espone direzione, interlocutore normalizzato, ID WhatsApp, mittente, destinatario, nome visualizzato, testo o didascalia, tipo del contenuto e data dell'evento. La chiave composta su tenant, account, chat e ID rende idempotente la ricezione dopo una riconnessione.
+I messaggi in ingresso e quelli inviati dal gateway sono salvati con isolamento per tenant e account. La risposta espone direzione, interlocutore normalizzato, ID WhatsApp, mittente, destinatario, nome visualizzato, testo o didascalia, tipo del contenuto e data dell'evento. Per i messaggi in uscita espone inoltre `delivery_status` (`sent`, `delivered`, `read`), `delivered_at` e `read_at`, aggiornati dalle ricevute emesse da WhatsApp. La chiave composta su tenant, account, chat e ID rende idempotente la ricezione dopo una riconnessione.
 
 Le chiamate `/v1` richiedono gli header:
 

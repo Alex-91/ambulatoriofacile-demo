@@ -418,6 +418,8 @@ func (m *Manager) handleEvent(current *session, evt any) {
 	switch value := evt.(type) {
 	case *events.Message:
 		m.storeIncomingMessage(current, value)
+	case *events.Receipt:
+		m.storeMessageReceipt(current, value)
 	case *events.PairSuccess:
 		current.setState("paired")
 		if err := m.registry.BindDevice(context.Background(), current.tenantID, current.accountID, value.ID.String()); err != nil {
@@ -434,6 +436,60 @@ func (m *Manager) handleEvent(current *session, evt any) {
 		current.setError(value.Error)
 	case *events.ClientOutdated:
 		current.setError(errors.New("whatsmeow client is outdated"))
+	}
+}
+
+func (m *Manager) storeMessageReceipt(current *session, event *events.Receipt) {
+	if event == nil || len(event.MessageIDs) == 0 {
+		return
+	}
+
+	status := ""
+	switch event.Type {
+	case types.ReceiptTypeDelivered:
+		status = "delivered"
+	case types.ReceiptTypeRead, types.ReceiptTypePlayed:
+		status = "read"
+	default:
+		return
+	}
+
+	when := event.Timestamp.UTC()
+	if when.IsZero() {
+		when = time.Now().UTC()
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	for _, messageID := range event.MessageIDs {
+		updated, err := m.registry.UpdateMessageReceipt(
+			ctx,
+			current.tenantID,
+			current.accountID,
+			string(messageID),
+			status,
+			when,
+		)
+		if err != nil {
+			m.logger.Error(
+				"failed to update WhatsApp message receipt",
+				"tenant_id", current.tenantID,
+				"account_id", current.accountID,
+				"message_id", messageID,
+				"delivery_status", status,
+				"error", err,
+			)
+			continue
+		}
+		if updated {
+			m.logger.Info(
+				"WhatsApp message receipt stored",
+				"tenant_id", current.tenantID,
+				"account_id", current.accountID,
+				"message_id", messageID,
+				"delivery_status", status,
+			)
+		}
 	}
 }
 

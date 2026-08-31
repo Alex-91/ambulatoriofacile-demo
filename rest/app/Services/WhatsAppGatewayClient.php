@@ -137,6 +137,58 @@ class WhatsAppGatewayClient
     }
 
     /**
+     * Avvia una nuova associazione WhatsApp multi-device per lo spazio.
+     *
+     * @return array{ok:bool, account:array<string, mixed>, error:?string, error_code:?string, http_status:int}
+     */
+    public function startPairing(int $tenantId, string $displayName = ''): array
+    {
+        $requestTarget = '/v1/accounts/' . rawurlencode($this->accountId) . '/pair';
+        $body = json_encode([
+            'display_name' => trim($displayName),
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+
+        return $this->accountOperation('POST', $requestTarget, $tenantId, $body);
+    }
+
+    /**
+     * Legge il QR corrente durante l'associazione.
+     *
+     * @return array{ok:bool, account:array<string, mixed>, qr_pending:bool, error:?string, error_code:?string, http_status:int}
+     */
+    public function pairingQrCode(int $tenantId): array
+    {
+        $requestTarget = '/v1/accounts/' . rawurlencode($this->accountId) . '/qr';
+        $result = $this->accountOperation('GET', $requestTarget, $tenantId);
+
+        return array_merge($result, [
+            'qr_pending' => !empty($result['response']['qr_pending']),
+        ]);
+    }
+
+    /**
+     * Ricollega una sessione WhatsApp gia associata.
+     *
+     * @return array{ok:bool, account:array<string, mixed>, error:?string, error_code:?string, http_status:int}
+     */
+    public function connectAccount(int $tenantId): array
+    {
+        $requestTarget = '/v1/accounts/' . rawurlencode($this->accountId) . '/connect';
+        return $this->accountOperation('POST', $requestTarget, $tenantId);
+    }
+
+    /**
+     * Revoca la sessione WhatsApp e scollega il dispositivo corrente.
+     *
+     * @return array{ok:bool, account:array<string, mixed>, error:?string, error_code:?string, http_status:int}
+     */
+    public function logoutAccount(int $tenantId): array
+    {
+        $requestTarget = '/v1/accounts/' . rawurlencode($this->accountId) . '/session';
+        return $this->accountOperation('DELETE', $requestTarget, $tenantId);
+    }
+
+    /**
      * @return array{ok:bool, count:int, messages:array<int, array<string, mixed>>, error:?string}
      */
     public function incomingMessages(int $tenantId, int $limit = 50): array
@@ -169,7 +221,7 @@ class WhatsAppGatewayClient
     }
 
     /**
-     * @return array{ok:bool, account:array<string, mixed>, error:?string}
+     * @return array{ok:bool, account:array<string, mixed>, error:?string, error_code:?string, http_status:int}
      */
     public function accountStatus(int $tenantId): array
     {
@@ -195,6 +247,8 @@ class WhatsAppGatewayClient
             'ok' => $ok,
             'account' => $account,
             'error' => $ok ? null : (string) $errorMessage,
+            'error_code' => $ok ? null : trim((string) ($decoded['error'] ?? '')),
+            'http_status' => (int) ($response['status'] ?? 0),
         ];
     }
 
@@ -228,6 +282,44 @@ class WhatsAppGatewayClient
             'count' => count($messages),
             'messages' => $messages,
             'error' => $ok ? null : (string) $errorMessage,
+        ];
+    }
+
+    /**
+     * @return array{ok:bool, account:array<string, mixed>, response:array<string, mixed>, error:?string, error_code:?string, http_status:int}
+     */
+    private function accountOperation(
+        string $method,
+        string $requestTarget,
+        int $tenantId,
+        string $body = ''
+    ): array {
+        $headers = $this->signer->headers($method, $requestTarget, $tenantId, $body);
+        $headers['Accept'] = 'application/json';
+        if ($body !== '') {
+            $headers['Content-Type'] = 'application/json';
+        }
+
+        $response = $this->request($method, $requestTarget, $body, $headers);
+        $decoded = json_decode((string) ($response['body'] ?? ''), true);
+        $decoded = is_array($decoded) ? $decoded : [];
+        $status = (int) ($response['status'] ?? 0);
+        $ok = $status >= 200 && $status < 300 && !empty($decoded['ok']);
+        $account = isset($decoded['account']) && is_array($decoded['account'])
+            ? $decoded['account']
+            : [];
+        $errorMessage = $decoded['message'] ?? $decoded['error'] ?? $response['error'] ?? null;
+        if (!$ok && (!is_scalar($errorMessage) || trim((string) $errorMessage) === '')) {
+            $errorMessage = 'Operazione sull\'account WhatsApp non riuscita.';
+        }
+
+        return [
+            'ok' => $ok,
+            'account' => $account,
+            'response' => $decoded,
+            'error' => $ok ? null : (string) $errorMessage,
+            'error_code' => $ok ? null : trim((string) ($decoded['error'] ?? '')),
+            'http_status' => $status,
         ];
     }
 

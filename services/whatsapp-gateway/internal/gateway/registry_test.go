@@ -83,6 +83,40 @@ func TestRegistryStoresIncomingMessagesWithoutDuplicates(t *testing.T) {
 	if timeline[0].Direction != "outgoing" || timeline[0].To != "+393335374044" || timeline[0].Peer != "+393335374044" {
 		t.Fatalf("unexpected outgoing message: %+v", timeline[0])
 	}
+	if timeline[0].DeliveryStatus != "sent" || timeline[0].DeliveredAt != nil || timeline[0].ReadAt != nil {
+		t.Fatalf("unexpected initial delivery status: %+v", timeline[0])
+	}
+
+	deliveredAt := outgoing.ReceivedAt.Add(15 * time.Second)
+	updated, err := registry.UpdateMessageReceipt(ctx, 42, "primary", outgoing.MessageID, "delivered", deliveredAt)
+	if err != nil || !updated {
+		t.Fatalf("UpdateMessageReceipt delivered: updated=%v err=%v", updated, err)
+	}
+	readAt := deliveredAt.Add(30 * time.Second)
+	updated, err = registry.UpdateMessageReceipt(ctx, 42, "primary", outgoing.MessageID, "read", readAt)
+	if err != nil || !updated {
+		t.Fatalf("UpdateMessageReceipt read: updated=%v err=%v", updated, err)
+	}
+	// A late delivery receipt must never downgrade a message that is already read.
+	updated, err = registry.UpdateMessageReceipt(ctx, 42, "primary", outgoing.MessageID, "delivered", readAt.Add(time.Second))
+	if err != nil || !updated {
+		t.Fatalf("UpdateMessageReceipt late delivery: updated=%v err=%v", updated, err)
+	}
+
+	timeline, err = registry.ListMessages(ctx, 42, "primary", 10)
+	if err != nil {
+		t.Fatalf("ListMessages after receipts: %v", err)
+	}
+	if timeline[0].DeliveryStatus != "read" || timeline[0].DeliveredAt == nil || timeline[0].ReadAt == nil {
+		t.Fatalf("delivery receipt state was not persisted: %+v", timeline[0])
+	}
+	if !timeline[0].DeliveredAt.Equal(deliveredAt) || !timeline[0].ReadAt.Equal(readAt) {
+		t.Fatalf("unexpected receipt timestamps: delivered=%v read=%v", timeline[0].DeliveredAt, timeline[0].ReadAt)
+	}
+	updated, err = registry.UpdateMessageReceipt(ctx, 84, "primary", outgoing.MessageID, "read", readAt)
+	if err != nil || updated {
+		t.Fatalf("receipt tenant isolation failed: updated=%v err=%v", updated, err)
+	}
 
 	isolated, err := registry.ListIncoming(ctx, 84, "primary", 50)
 	if err != nil {
@@ -134,5 +168,8 @@ INSERT INTO gateway_incoming_messages (
 	}
 	if len(messages) != 1 || messages[0].MessageID != "legacy-001" || messages[0].Direction != "incoming" {
 		t.Fatalf("legacy message was not migrated: %+v", messages)
+	}
+	if messages[0].DeliveryStatus != "received" {
+		t.Fatalf("legacy delivery status was not normalized: %+v", messages[0])
 	}
 }

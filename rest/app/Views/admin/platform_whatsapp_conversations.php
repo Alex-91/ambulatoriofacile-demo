@@ -292,6 +292,14 @@ $jsonFlags = JSON_UNESCAPED_UNICODE
     });
   }
 
+  function outgoingStatusLabel(message) {
+    var status = String(message.delivery_status || 'sent');
+    if (status === 'read') return 'Letto';
+    if (status === 'delivered') return 'Consegnato';
+    if (status === 'failed') return 'Non inviato';
+    return 'Inviato';
+  }
+
   function renderChat() {
     elements.messages.replaceChildren();
     var conversation = selectedConversation();
@@ -307,7 +315,8 @@ $jsonFlags = JSON_UNESCAPED_UNICODE
       var row = document.createElement('div'); row.className = 'wa-message-row' + (outgoing ? ' is-outgoing' : '');
       var bubble = document.createElement('div'); bubble.className = 'wa-bubble';
       var text = document.createElement('div'); text.textContent = messageText(message);
-      var meta = document.createElement('div'); meta.className = 'wa-message-meta'; meta.textContent = (outgoing ? 'Inviato · ' : 'Ricevuto · ') + formatDate(message.received_at, false);
+      var metaTime = outgoing ? (message.read_at || message.delivered_at || message.received_at) : message.received_at;
+      var meta = document.createElement('div'); meta.className = 'wa-message-meta'; meta.textContent = (outgoing ? outgoingStatusLabel(message) + ' · ' : 'Ricevuto · ') + formatDate(metaTime, false);
       bubble.appendChild(text); bubble.appendChild(meta); row.appendChild(bubble); elements.messages.appendChild(row);
     });
     window.requestAnimationFrame(function () { elements.messages.scrollTop = elements.messages.scrollHeight; });

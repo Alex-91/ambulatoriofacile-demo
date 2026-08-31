@@ -11,6 +11,7 @@ class AppointmentReminderDispatchService
     private \CodeIgniter\Database\BaseConnection $platformDb;
     private TenantDatabaseConnector $tenantDbConnector;
     private AppointmentNotificationSettingsService $settingsService;
+    private AppointmentMessageTemplateService $messageTemplateService;
     private AppointmentNotificationChannelService $channelService;
     private AppointmentNotificationLogService $logService;
     private TenantStoragePathService $storagePaths;
@@ -20,6 +21,7 @@ class AppointmentReminderDispatchService
         $this->platformDb = Database::connect('platform');
         $this->tenantDbConnector = new TenantDatabaseConnector();
         $this->settingsService = new AppointmentNotificationSettingsService();
+        $this->messageTemplateService = new AppointmentMessageTemplateService();
         $this->channelService = new AppointmentNotificationChannelService();
         $this->logService = new AppointmentNotificationLogService();
         $this->storagePaths = new TenantStoragePathService();
@@ -126,7 +128,13 @@ class AppointmentReminderDispatchService
                         continue;
                     }
 
-                    $message = $this->buildReminderMessage($row, $targetDate);
+                    $message = $this->buildReminderMessage(
+                        $row,
+                        $targetDate,
+                        $patientLabel,
+                        (string) ($tenant['tenant_name'] ?? ''),
+                        (string) ($plan['template'] ?? '')
+                    );
                     $subject = 'Reminder appuntamento AmbulatorioFacile';
                     $otpSubject = 'Reminder appuntamento AmbulatorioFacile';
 
@@ -137,6 +145,7 @@ class AppointmentReminderDispatchService
                             'recipient' => $this->describeRecipients($recipient, $rowChannels),
                             'channels' => $rowChannels,
                             'scheduled_for' => $targetDate . ' ' . (string) ($row['ora_label'] ?? ''),
+                            'message' => $message,
                         ];
                         continue;
                     }
@@ -294,6 +303,7 @@ class AppointmentReminderDispatchService
                 a.cellulare,
                 a.telefono,
                 a.email AS appointment_email,
+                a.note AS appointment_notes,
                 a.stato,
                 s.data_slot,
                 DATE_FORMAT(COALESCE(a.ora_inizio_appuntamento, s.ora_inizio), '%H:%i') AS ora_label,
@@ -369,7 +379,13 @@ class AppointmentReminderDispatchService
     /**
      * @param array<string, mixed> $row
      */
-    private function buildReminderMessage(array $row, string $targetDate): string
+    private function buildReminderMessage(
+        array $row,
+        string $targetDate,
+        string $patientLabel,
+        string $tenantName,
+        string $template
+    ): string
     {
         $date = new \DateTimeImmutable($targetDate, new \DateTimeZone('Europe/Rome'));
         $doctorLabel = trim(implode(' ', array_filter([
@@ -378,22 +394,29 @@ class AppointmentReminderDispatchService
             trim((string) ($row['doc_nome'] ?? '')),
         ], static fn(string $value): bool => $value !== '')));
 
-        $place = trim((string) ($row['ambulatorio_label'] ?? ''));
-        $lines = [
-            'Promemoria appuntamento',
-            'Data: ' . $date->format('d/m/Y') . ' ore ' . trim((string) ($row['ora_label'] ?? '')),
-            'Dottore: ' . ($doctorLabel !== '' ? $doctorLabel : 'AmbulatorioFacile'),
-        ];
+        $address = trim(implode(', ', array_filter([
+            trim((string) ($row['indirizzo'] ?? '')),
+            trim((string) ($row['citta'] ?? '')),
+        ], static fn(string $value): bool => $value !== '')));
 
-        if ($place !== '') {
-            $lines[] = 'Sede: ' . $place;
-        }
-
-        if ((int) ($row['conferma'] ?? 0) === 1) {
-            $lines[] = 'Rispondi 1 per confermare o 2 per annullare.';
-        }
-
-        return implode("\n", $lines);
+        return $this->messageTemplateService->render(
+            AppointmentNotificationSettingsService::TYPE_REMINDER,
+            $template,
+            [
+                'paziente' => $patientLabel,
+                'dottore' => $doctorLabel !== '' ? $doctorLabel : 'AmbulatorioFacile',
+                'data' => $date->format('d/m/Y'),
+                'ora' => trim((string) ($row['ora_label'] ?? '')),
+                'data_ora' => trim($date->format('d/m/Y') . ' ' . (string) ($row['ora_label'] ?? '')),
+                'sede' => trim((string) ($row['ambulatorio_label'] ?? '')),
+                'indirizzo' => $address,
+                'note' => trim((string) ($row['appointment_notes'] ?? '')),
+                'nome_spazio' => $tenantName !== '' ? $tenantName : 'AmbulatorioFacile',
+                'istruzioni_conferma' => (int) ($row['conferma'] ?? 0) === 1
+                    ? 'Rispondi 1 per confermare o 2 per annullare.'
+                    : '',
+            ]
+        );
     }
 
     /**
