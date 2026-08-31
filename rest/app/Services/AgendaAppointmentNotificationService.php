@@ -426,7 +426,10 @@ class AgendaAppointmentNotificationService
                 continue;
             }
 
-            $sendResult = $this->channelService->send($channel, $recipient, $message, ['db' => $this->db] + $options);
+            $sendResult = $this->channelService->send($channel, $recipient, $message, [
+                'db' => $this->db,
+                'tenant_id' => (int) ($tenant['id_tenant'] ?? 0),
+            ] + $options);
             $logEntry = $baseLog;
             $logEntry['channel'] = $channel;
             $logEntry['provider'] = (string) ($sendResult['provider'] ?? $this->channelService->providerLabel($channel));

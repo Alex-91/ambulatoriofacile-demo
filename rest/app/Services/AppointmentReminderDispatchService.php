@@ -157,6 +157,7 @@ class AppointmentReminderDispatchService
 
                         $sendResult = $this->channelService->send($channel, $recipient, $message, [
                             'db' => $tenantDb,
+                            'tenant_id' => $tenantId,
                             'subject' => $subject,
                             'otp_subject' => $otpSubject,
                         ]);

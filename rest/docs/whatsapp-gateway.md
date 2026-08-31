@@ -1,0 +1,67 @@
+# Integrazione WhatsApp Gateway in AmbulatorioFacile
+
+## Decisione architetturale
+
+`whatsmeow` è una libreria Go che mantiene WebSocket e stato crittografico long-lived. Per questo il gateway vive in `services/whatsapp-gateway` come servizio dello stesso repository, invece di essere incorporato nel processo PHP/Apache.
+
+Il monolite resta il punto di autorizzazione:
+
+1. l'utente accede con il sistema esistente;
+2. `TenantContextService` risolve la membership e l'`id_tenant`;
+3. il servizio canali applicativo seleziona `ultramsg` oppure `gateway`;
+4. il client PHP firma la richiesta includendo l'`id_tenant`;
+5. il gateway usa la coppia `(tenant_id, account_id)` come chiave di isolamento della sessione WhatsApp.
+
+Non viene introdotta alcuna tabella `tenants` nel gateway. La piccola tabella locale `gateway_accounts` è soltanto un indice tecnico tra l'`id_tenant` centrale e il JID del device `whatsmeow`.
+
+## Attivazione progressiva
+
+Configurazione iniziale del monolite:
+
+```dotenv
+WHATSAPP_PROVIDER=ultramsg
+WHATSAPP_GATEWAY_TENANT_IDS=
+WHATSAPP_GATEWAY_BASE_URL=https://whatsapp-gateway.ambulatoriofacile.it
+WHATSAPP_GATEWAY_ACCOUNT_ID=primary
+WHATSAPP_GATEWAY_API_KEY_ID=ambulatoriofacile-app
+WHATSAPP_GATEWAY_API_SECRET=LO_STESSO_SEGRETO_CASUALE_CONFIGURATO_NEL_GATEWAY
+WHATSAPP_GATEWAY_TIMEOUT_SECONDS=90
+```
+
+Per un tenant pilota, usare `WHATSAPP_PROVIDER=hybrid` e inserire il suo `id_tenant` in `WHATSAPP_GATEWAY_TENANT_IDS`. Tutti gli altri tenant continueranno a usare UltraMsg. Passare a `WHATSAPP_PROVIDER=gateway` per l'intera piattaforma solo dopo aver:
+
+1. distribuito il servizio con volume persistente `/data`;
+2. verificato `/healthz` e `/readyz`;
+3. creato e associato via QR l'account `primary` per il tenant;
+4. eseguito un invio controllato;
+5. verificato log applicativi e stato sessione.
+
+Il cambio provider è reversibile impostando nuovamente `WHATSAPP_PROVIDER=ultramsg`; nessun codice o dato UltraMsg viene eliminato.
+
+## Deployment Coolify
+
+Creare una risorsa applicativa separata nello stesso progetto Coolify e nello stesso repository Git:
+
+- base directory: `/services/whatsapp-gateway`;
+- Dockerfile: `/Dockerfile`;
+- porta interna: `8080`;
+- health check: `/healthz`;
+- replica: `1`;
+- volume persistente: `/data`;
+- dominio/reverse proxy: `https://whatsapp-gateway.ambulatoriofacile.it`, oppure sola rete privata se il monolite lo raggiunge direttamente.
+
+Il segreto HMAC deve essere diverso da password DB, token UltraMsg e segreti di login. Non va salvato nel repository.
+
+## Parti volutamente non modificate
+
+- callback legacy `checkMessaggio`, `aggiornaNoteApp` e `checkAppMultiplo`;
+- `LegacyWhatsappAppointmentController` e relativo modello;
+- cron legacy e monitor UltraMsg;
+- schema del database piattaforma e dei database tenant;
+- autenticazione, ruoli, pannelli master/tenant e feature flag;
+- motore chatbot e router dei messaggi in ingresso;
+- ambiente demo congelato.
+
+## Milestone successivo consigliato
+
+Estendere i pannelli piattaforma e tenant esistenti con azioni server-side per stato/QR/logout, aggiungere webhook in ingresso firmati verso un Message Router applicativo e introdurre audit persistente nel catalogo centrale. Solo dopo i test end-to-end conviene spostare tenant pilota da UltraMsg al gateway.

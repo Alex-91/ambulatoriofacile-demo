@@ -29,7 +29,7 @@ class AppointmentNotificationChannelService
 
         return match ($channel) {
             AppointmentNotificationSettingsService::CHANNEL_SMS => $this->sendSmsChannel($recipientContext, $message),
-            AppointmentNotificationSettingsService::CHANNEL_WHATSAPP => $this->sendWhatsappChannel($recipientContext, $message),
+            AppointmentNotificationSettingsService::CHANNEL_WHATSAPP => $this->sendWhatsappChannel($recipientContext, $message, $options),
             AppointmentNotificationSettingsService::CHANNEL_EMAIL => $this->sendEmailChannel($recipientContext, $message, $options),
             AppointmentNotificationSettingsService::CHANNEL_OTP => $this->sendOtpChannel($recipientContext, $message, $options),
             default => [
@@ -46,7 +46,11 @@ class AppointmentNotificationChannelService
     {
         return match (strtolower(trim($channel))) {
             AppointmentNotificationSettingsService::CHANNEL_SMS => 'Aruba SMS',
-            AppointmentNotificationSettingsService::CHANNEL_WHATSAPP => 'UltraMsg',
+            AppointmentNotificationSettingsService::CHANNEL_WHATSAPP => match ($this->whatsappProvider()) {
+                'gateway' => 'AmbulatorioFacile WhatsApp Gateway',
+                'hybrid' => 'UltraMsg / AmbulatorioFacile WhatsApp Gateway',
+                default => 'UltraMsg',
+            },
             AppointmentNotificationSettingsService::CHANNEL_EMAIL => 'Email',
             AppointmentNotificationSettingsService::CHANNEL_OTP => 'OTP',
             default => strtoupper(trim($channel)),
@@ -170,14 +174,14 @@ class AppointmentNotificationChannelService
      * @param array<string, mixed> $recipient
      * @return array<string, mixed>
      */
-    private function sendWhatsappChannel(array $recipient, string $message): array
+    private function sendWhatsappChannel(array $recipient, string $message, array $options): array
     {
         $target = (string) (($recipient['mobile'] ?? '') ?: ($recipient['phone'] ?? ''));
         if ($target === '') {
             return $this->invalidRecipientResult(AppointmentNotificationSettingsService::CHANNEL_WHATSAPP);
         }
 
-        return $this->sendWhatsapp($target, $message);
+        return $this->sendWhatsapp($target, $message, $options);
     }
 
     /**
@@ -440,8 +444,37 @@ class AppointmentNotificationChannelService
     /**
      * @return array<string, mixed>
      */
-    private function sendWhatsapp(string $recipient, string $message): array
+    private function sendWhatsapp(string $recipient, string $message, array $options = []): array
     {
+        $tenantId = max(0, (int) ($options['tenant_id'] ?? 0));
+        if ($this->whatsappProviderForTenant($tenantId) === 'gateway') {
+            if ($tenantId <= 0) {
+                return [
+                    'ok' => false,
+                    'channel' => AppointmentNotificationSettingsService::CHANNEL_WHATSAPP,
+                    'recipient' => $recipient,
+                    'provider' => 'AmbulatorioFacile WhatsApp Gateway',
+                    'provider_id' => '',
+                    'response' => null,
+                    'error' => 'Contesto tenant non disponibile per il gateway WhatsApp.',
+                ];
+            }
+
+            try {
+                return (new WhatsAppGatewayClient())->sendText($tenantId, $recipient, $message);
+            } catch (\Throwable $e) {
+                return [
+                    'ok' => false,
+                    'channel' => AppointmentNotificationSettingsService::CHANNEL_WHATSAPP,
+                    'recipient' => $recipient,
+                    'provider' => 'AmbulatorioFacile WhatsApp Gateway',
+                    'provider_id' => '',
+                    'response' => null,
+                    'error' => $e->getMessage(),
+                ];
+            }
+        }
+
         $url = trim((string) (env('SMS_ULTRAMSG_URL') ?: self::DEFAULT_ULTRAMSG_URL));
         $token = trim((string) (env('SMS_API_TOKEN') ?: ''));
 
@@ -473,6 +506,29 @@ class AppointmentNotificationChannelService
             'response' => $decoded ?: (string) ($response['body'] ?? ''),
             'error' => $response['ok'] ? null : (string) ($response['error'] ?? 'Invio WhatsApp non riuscito.'),
         ];
+    }
+
+    private function whatsappProvider(): string
+    {
+        $provider = strtolower(trim((string) env('WHATSAPP_PROVIDER', 'ultramsg')));
+        return in_array($provider, ['gateway', 'hybrid'], true) ? $provider : 'ultramsg';
+    }
+
+    private function whatsappProviderForTenant(int $tenantId): string
+    {
+        $provider = $this->whatsappProvider();
+        if ($provider !== 'hybrid') {
+            return $provider;
+        }
+
+        $tenantIds = array_values(array_filter(array_map(
+            static fn(string $value): int => max(0, (int) trim($value)),
+            explode(',', (string) env('WHATSAPP_GATEWAY_TENANT_IDS', ''))
+        )));
+
+        return $tenantId > 0 && in_array($tenantId, $tenantIds, true)
+            ? 'gateway'
+            : 'ultramsg';
     }
 
     /**
