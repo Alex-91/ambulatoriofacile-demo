@@ -26,19 +26,40 @@ class WhatsAppGatewayClient
             return false;
         }
 
-        $tenantIds = array_values(array_filter(array_map(
-            static fn(string $value): int => max(0, (int) trim($value)),
-            explode(',', (string) ($gatewayTenantIds ?? env('WHATSAPP_GATEWAY_TENANT_IDS', '')))
-        )));
+        return in_array($tenantId, self::configuredTenantIds($gatewayTenantIds), true);
+    }
 
-        return in_array($tenantId, $tenantIds, true);
+    /**
+     * @return array<int, int>
+     */
+    public static function configuredTenantIds(?string $gatewayTenantIds = null): array
+    {
+        $values = preg_split(
+            '/[\s,;]+/',
+            trim((string) ($gatewayTenantIds ?? env('WHATSAPP_GATEWAY_TENANT_IDS', '')))
+        ) ?: [];
+        $tenantIds = [];
+
+        foreach ($values as $value) {
+            $tenantId = max(0, (int) trim((string) $value));
+            if ($tenantId > 0 && !in_array($tenantId, $tenantIds, true)) {
+                $tenantIds[] = $tenantId;
+            }
+        }
+
+        sort($tenantIds, SORT_NUMERIC);
+        return $tenantIds;
+    }
+
+    public static function isConfigured(): bool
+    {
+        return trim((string) env('WHATSAPP_GATEWAY_BASE_URL', '')) !== ''
+            && trim((string) env('WHATSAPP_GATEWAY_API_SECRET', '')) !== '';
     }
 
     public static function isAvailableForTenant(int $tenantId): bool
     {
-        return self::isRoutedToGateway($tenantId)
-            && trim((string) env('WHATSAPP_GATEWAY_BASE_URL', '')) !== ''
-            && trim((string) env('WHATSAPP_GATEWAY_API_SECRET', '')) !== '';
+        return self::isRoutedToGateway($tenantId) && self::isConfigured();
     }
 
     public function __construct(
