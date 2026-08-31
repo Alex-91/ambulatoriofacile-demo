@@ -67,6 +67,8 @@ WHATSAPP_GATEWAY_LOG_LEVEL=INFO
 
 `/data` deve essere un volume persistente e dedicato. Non condividere il file SQLite tra più repliche contemporanee: in questo milestone il gateway deve avere una sola replica, perché una sessione WhatsApp non può essere gestita in parallelo da processi indipendenti.
 
+In Coolify configurare queste variabili come **runtime only**, con l'opzione build time disabilitata. Lasciare disabilitato l'health check HTTP aggiuntivo di Coolify: l'immagine contiene già un `HEALTHCHECK` nativo che esegue il sottocomando `healthcheck`, mentre `/healthz` e `/readyz` restano disponibili per gli smoke test HTTPS dal reverse proxy.
+
 ## Build e test
 
 La dipendenza `whatsmeow` è fissata a una revisione precisa nel `go.mod`.

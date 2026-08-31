@@ -45,12 +45,13 @@ Creare una risorsa applicativa separata nello stesso progetto Coolify e nello st
 - base directory: `/services/whatsapp-gateway`;
 - Dockerfile: `/Dockerfile`;
 - porta interna: `8080`;
-- health check: `/healthz`;
+- health check applicativo Coolify: disabilitato; il Dockerfile contiene un `HEALTHCHECK` nativo che esegue il comando `healthcheck` del gateway;
+- smoke check HTTPS esterno: `/healthz` e `/readyz`;
 - replica: `1`;
 - volume persistente: `/data`;
 - dominio/reverse proxy: `https://whatsapp-gateway.ambulatoriofacile.it`, oppure sola rete privata se il monolite lo raggiunge direttamente.
 
-Il segreto HMAC deve essere diverso da password DB, token UltraMsg e segreti di login. Non va salvato nel repository.
+In Coolify tutte le variabili `WHATSAPP_GATEWAY_*` devono essere abilitate a runtime e disabilitate a build time. In particolare il segreto HMAC non deve diventare un `ARG` o `ENV` dell'immagine Docker. Il segreto deve essere diverso da password DB, token UltraMsg e segreti di login e non va salvato nel repository.
 
 ## Parti volutamente non modificate
 
