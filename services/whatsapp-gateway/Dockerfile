@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1.7
+
 FROM golang:1.27-bookworm AS build
 
 RUN apt-get update \
@@ -6,11 +8,14 @@ RUN apt-get update \
 
 WORKDIR /src
 COPY go.mod go.sum ./
-RUN go mod download
+RUN --mount=type=cache,target=/go/pkg/mod \
+    go mod download
 
 COPY . .
-RUN CGO_ENABLED=1 GOOS=linux go test ./... \
-    && CGO_ENABLED=1 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/ambulatoriofacile-whatsapp-gateway ./cmd/gateway
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=1 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/ambulatoriofacile-whatsapp-gateway ./cmd/gateway \
+    && CGO_ENABLED=1 GOOS=linux go test ./...
 
 FROM debian:bookworm-slim
 
