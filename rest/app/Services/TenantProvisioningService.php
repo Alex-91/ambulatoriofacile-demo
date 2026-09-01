@@ -486,6 +486,9 @@ class TenantProvisioningService
         $disabledFeatures = $this->normalizeFeatureKeys($payload['disabled_features'] ?? []);
         $agendaTeamDayColumnColorsEnabled = !empty($payload['agenda_team_day_column_colors_enabled']);
         $appointmentNotificationControlForm = !empty($payload['appointment_notification_control_form']);
+        $whatsappGatewayControlForm = !empty($payload['whatsapp_gateway_control_form']);
+        $whatsappGatewayEnabled = $whatsappGatewayControlForm
+            && !empty($payload['whatsapp_gateway_enabled']);
         $appointmentNotificationEnabledTypes = [];
         $appointmentNotificationEnabledChannels = [];
         $appointmentNotificationSettings = null;
@@ -509,6 +512,12 @@ class TenantProvisioningService
             $appointmentNotificationEnabledChannels = $appointmentNotificationSettings->normalizeChannels(
                 (array) ($payload['appointment_notification_enabled_channels'] ?? [])
             );
+            $whatsappGatewayEnabled = $whatsappGatewayEnabled
+                && in_array(
+                    AppointmentNotificationSettingsService::CHANNEL_WHATSAPP,
+                    $appointmentNotificationEnabledChannels,
+                    true
+                );
 
             $channelFeatureMap = [
                 AppointmentNotificationSettingsService::CHANNEL_SMS => AppointmentNotificationSettingsService::FEATURE_SMS,
@@ -571,6 +580,15 @@ class TenantProvisioningService
                     $appointmentNotificationEnabledChannels
                 );
                 $featureOverrideConfigs[AppointmentNotificationSettingsService::FEATURE_NOTIFICATIONS] = $notificationFeatureConfig;
+            }
+
+            if ($whatsappGatewayControlForm) {
+                $whatsappFeatureConfig = $featureOverrideConfigs[AppointmentNotificationSettingsService::FEATURE_WHATSAPP] ?? [];
+                $featureOverrideConfigs[AppointmentNotificationSettingsService::FEATURE_WHATSAPP] =
+                    WhatsAppGatewayTenantRoutingService::mergeIntoFeatureConfig(
+                        $whatsappFeatureConfig,
+                        $whatsappGatewayEnabled
+                    );
             }
 
             $teamDayFeatureConfig = $featureOverrideConfigs[AgendaTeamColumnColorService::FEATURE_KEY] ?? [];

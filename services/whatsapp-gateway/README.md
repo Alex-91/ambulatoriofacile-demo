@@ -15,7 +15,7 @@ Il servizio fornisce:
 
 Non contiene un secondo catalogo utenti o tenant. `tenant_id` è l'identificativo di `platform_tenants`; ruoli e autorizzazioni restano responsabilità dell'applicazione CodeIgniter. Il pannello CodeIgniter offre una timeline testuale essenziale; chatbot, download dei media, webhook push e gestione avanzata delle conversazioni appartengono ai milestone successivi.
 
-UltraMsg non viene rimosso: `WHATSAPP_PROVIDER=ultramsg` resta il default del monolite. La modalità `hybrid` consente di pilotare singoli tenant elencati in `WHATSAPP_GATEWAY_TENANT_IDS`, mantenendo tutti gli altri su UltraMsg.
+UltraMsg non viene rimosso: `WHATSAPP_PROVIDER=ultramsg` resta il default del monolite. In modalità `hybrid` il master piattaforma può instradare ogni singolo tenant dal pannello Spazi cliente, mantenendo tutti gli altri su UltraMsg. `WHATSAPP_GATEWAY_TENANT_IDS` resta disponibile come allowlist tecnica di emergenza o per rollout gestiti fuori dal pannello.
 
 ## API interna
 

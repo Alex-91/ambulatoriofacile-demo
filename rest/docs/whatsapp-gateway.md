@@ -28,7 +28,7 @@ WHATSAPP_GATEWAY_API_SECRET=LO_STESSO_SEGRETO_CASUALE_CONFIGURATO_NEL_GATEWAY
 WHATSAPP_GATEWAY_TIMEOUT_SECONDS=90
 ```
 
-Per un tenant pilota, usare `WHATSAPP_PROVIDER=hybrid` e inserire il suo `id_tenant` in `WHATSAPP_GATEWAY_TENANT_IDS`. Tutti gli altri tenant continueranno a usare UltraMsg. Passare a `WHATSAPP_PROVIDER=gateway` per l'intera piattaforma solo dopo aver:
+Per un tenant pilota, usare `WHATSAPP_PROVIDER=hybrid`, aprire **Piattaforma → Spazi cliente**, abilitare il canale WhatsApp e selezionare **Instrada al gateway AmbulatorioFacile**. Il routing viene salvato nel `config_json` dell'override tenant e diventa effettivo senza redeploy. Tutti gli altri tenant continueranno a usare UltraMsg. `WHATSAPP_GATEWAY_TENANT_IDS` rimane disponibile come allowlist tecnica di emergenza. Passare a `WHATSAPP_PROVIDER=gateway` per l'intera piattaforma solo dopo aver:
 
 1. distribuito il servizio con volume persistente `/data`;
 2. verificato `/healthz` e `/readyz`;

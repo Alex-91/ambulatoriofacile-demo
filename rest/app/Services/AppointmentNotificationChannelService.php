@@ -521,12 +521,7 @@ class AppointmentNotificationChannelService
             return $provider;
         }
 
-        $tenantIds = array_values(array_filter(array_map(
-            static fn(string $value): int => max(0, (int) trim($value)),
-            explode(',', (string) env('WHATSAPP_GATEWAY_TENANT_IDS', ''))
-        )));
-
-        return $tenantId > 0 && in_array($tenantId, $tenantIds, true)
+        return WhatsAppGatewayClient::isRoutedToGateway($tenantId, $provider)
             ? 'gateway'
             : 'ultramsg';
     }

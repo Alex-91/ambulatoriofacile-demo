@@ -259,6 +259,9 @@ class PlatformTenantSpacesController extends BaseController
         $enabledFeatures = [];
         $disabledFeatures = [];
         $appointmentNotificationControlForm = (int) ($this->request->getPost('appointment_notification_control_form') ?? 0) === 1;
+        $whatsappGatewayControlForm = (int) ($this->request->getPost('whatsapp_gateway_control_form') ?? 0) === 1;
+        $whatsappGatewayEnabled = $whatsappGatewayControlForm
+            && (int) ($this->request->getPost('whatsapp_gateway_enabled') ?? 0) === 1;
         $appointmentNotificationEnabledTypes = [];
         $appointmentNotificationEnabledChannels = [];
         $agendaTeamDayColumnColorsEnabled = (int) ($this->request->getPost('agenda_team_day_column_colors_enabled') ?? 0) === 1;
@@ -308,6 +311,8 @@ class PlatformTenantSpacesController extends BaseController
             'appointment_notification_control_form' => $appointmentNotificationControlForm ? 1 : 0,
             'appointment_notification_enabled_types' => $appointmentNotificationEnabledTypes,
             'appointment_notification_enabled_channels' => $appointmentNotificationEnabledChannels,
+            'whatsapp_gateway_control_form' => $whatsappGatewayControlForm ? 1 : 0,
+            'whatsapp_gateway_enabled' => $whatsappGatewayEnabled ? 1 : 0,
             'is_active' => $this->request->getPost('is_active') !== null
                 ? ((int) ($this->request->getPost('is_active') ?? 0) === 1 ? 1 : 0)
                 : ($isCreate ? 1 : 0),

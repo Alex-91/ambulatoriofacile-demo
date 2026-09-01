@@ -12,7 +12,8 @@ class WhatsAppGatewayClient
     public static function isRoutedToGateway(
         int $tenantId,
         ?string $provider = null,
-        ?string $gatewayTenantIds = null
+        ?string $gatewayTenantIds = null,
+        ?callable $tenantRoutingResolver = null
     ): bool {
         if ($tenantId <= 0) {
             return false;
@@ -26,7 +27,28 @@ class WhatsAppGatewayClient
             return false;
         }
 
-        return in_array($tenantId, self::configuredTenantIds($gatewayTenantIds), true);
+        if (in_array($tenantId, self::configuredTenantIds($gatewayTenantIds), true)) {
+            return true;
+        }
+
+        // An explicit list keeps this helper deterministic for callers and tests
+        // that intentionally want to evaluate only the legacy environment allowlist.
+        if ($gatewayTenantIds !== null && $tenantRoutingResolver === null) {
+            return false;
+        }
+
+        $tenantRoutingResolver = $tenantRoutingResolver
+            ?? static fn(int $resolvedTenantId): bool => (new WhatsAppGatewayTenantRoutingService())
+                ->isEnabledForTenant($resolvedTenantId);
+
+        try {
+            return (bool) $tenantRoutingResolver($tenantId);
+        } catch (\Throwable $e) {
+            log_message('error', 'WhatsApp gateway tenant routing lookup failed: ' . $e->getMessage(), [
+                'tenant_id' => $tenantId,
+            ]);
+            return false;
+        }
     }
 
     /**

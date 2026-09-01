@@ -20,6 +20,22 @@ class WhatsAppGatewayClientTest extends CIUnitTestCase
         $this->assertFalse(WhatsAppGatewayClient::isRoutedToGateway(42, 'ultramsg', '42'));
     }
 
+    public function testHybridProviderCanResolveTenantRoutingFromApplicationConfig(): void
+    {
+        $this->assertTrue(WhatsAppGatewayClient::isRoutedToGateway(
+            42,
+            'hybrid',
+            '',
+            static fn(int $tenantId): bool => $tenantId === 42
+        ));
+        $this->assertFalse(WhatsAppGatewayClient::isRoutedToGateway(
+            41,
+            'hybrid',
+            '',
+            static fn(int $tenantId): bool => $tenantId === 42
+        ));
+    }
+
     public function testConfiguredTenantIdsAreNormalizedAndDeduplicated(): void
     {
         $this->assertSame(
