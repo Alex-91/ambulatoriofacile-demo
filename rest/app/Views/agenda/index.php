@@ -89,7 +89,8 @@
             }
 
             $columnKey = strtolower(trim((string) ($layoutItem['column'] ?? 'main')));
-            if (!in_array($columnKey, ['main', 'left', 'hidden'], true)) {
+            if (!in_array($columnKey, ['main', 'left', 'calendar', 'hidden'], true)
+                || ($columnKey === 'calendar' && $blockKey !== 'day_note')) {
                 $columnKey = 'main';
             }
 
@@ -160,11 +161,16 @@
 
         $agendaHomeBlockPlacement = static function (string $blockKey) use ($agendaHomeEffectivePlacementMap): string {
             $placement = strtolower(trim((string) ($agendaHomeEffectivePlacementMap[$blockKey] ?? 'main')));
+            if ($placement === 'calendar' && $blockKey === 'day_note') {
+                return $placement;
+            }
+
             return in_array($placement, ['main', 'left', 'hidden'], true) ? $placement : 'main';
         };
         $agendaHomeBlockHiddenStyle = static function (string $blockKey) use ($agendaHomeBlockPlacement): string {
-            return $agendaHomeBlockPlacement($blockKey) === 'hidden' ? 'display:none;' : '';
+            return in_array($agendaHomeBlockPlacement($blockKey), ['calendar', 'hidden'], true) ? 'display:none;' : '';
         };
+        $agendaDayNoteInlineEnabled = $agendaHomeBlockPlacement('day_note') === 'calendar';
 
         foreach ($memoDoctorOptions as $doctorOption) {
             $doctorRow = is_object($doctorOption) ? get_object_vars($doctorOption) : (array) $doctorOption;
@@ -1815,6 +1821,102 @@
             gap: 8px;
         }
 
+        .agenda-day-note-inline-controls {
+            display: none;
+        }
+
+        .agenda-day-note-inline-host {
+            display: none;
+            align-items: stretch;
+            min-width: 280px;
+            flex: 1 1 430px;
+        }
+
+        .agenda-day-note-inline-host > .agenda-home-block {
+            width: 100%;
+            min-width: 0;
+            margin: 0 !important;
+        }
+
+        .agenda-day-note-inline-host .agenda-day-note-box {
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+            border: 1px solid #ecd28e;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #fffaf0 0%, #fff5d8 100%);
+            box-shadow: none;
+        }
+
+        .agenda-day-note-inline-host .agenda-day-note-box .box-header {
+            min-height: 0;
+            padding: 8px 42px 2px 12px;
+            border-bottom: 0;
+            background: transparent;
+        }
+
+        .agenda-day-note-inline-host .agenda-day-note-box .box-title {
+            color: #7a5410;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .agenda-day-note-inline-host .agenda-day-note-box .box-body {
+            padding: 4px 12px 8px;
+        }
+
+        .agenda-day-note-inline-host #nota_giorno_text {
+            height: 42px;
+            min-height: 42px;
+            padding: 7px 9px;
+            border-color: #ead8a9;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.82);
+            font-size: 13px;
+            line-height: 1.35;
+        }
+
+        .agenda-day-note-inline-host #nota_giorno_status {
+            min-height: 12px;
+            font-size: 11px;
+        }
+
+        .agenda-day-note-inline-host .agenda-day-note-inline-controls {
+            display: block;
+        }
+
+        .agenda-day-note-inline-hide {
+            color: #7a6943 !important;
+        }
+
+        .agenda-day-note-inline-show {
+            display: none;
+            align-items: center;
+            gap: 7px;
+            min-height: 42px;
+            padding: 9px 12px;
+            border: 1px solid #ecd28e;
+            border-radius: 10px;
+            background: #fff8e7;
+            color: #785511;
+            font-size: 12px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .agenda-day-note-inline-host.is-collapsed {
+            flex: 0 0 auto;
+            min-width: 0;
+        }
+
+        .agenda-day-note-inline-host.is-collapsed > .agenda-home-block {
+            display: none !important;
+        }
+
+        .agenda-day-note-inline-host.is-collapsed .agenda-day-note-inline-show {
+            display: inline-flex;
+        }
+
         .agenda-sidebar-stack-item > .box {
             margin-bottom: 0 !important;
         }
@@ -2200,56 +2302,71 @@
             padding-right: 16px;
         }
 
-        .agenda-compressed-layout-enabled .agenda-calendar-control-stack {
+        .agenda-compressed-layout-enabled .agenda-calendar-control-stack,
+        .agenda-day-note-inline-enabled .agenda-calendar-control-stack {
             display: flex;
             flex-direction: column;
             gap: 12px;
         }
 
-        .agenda-compressed-layout-enabled .agenda-compressed-daybar {
+        .agenda-compressed-layout-enabled .agenda-compressed-daybar,
+        .agenda-day-note-inline-enabled .agenda-compressed-daybar {
             display: flex;
             order: 1;
         }
 
-        .agenda-compressed-layout-enabled .agenda-calendar-shell-main {
+        .agenda-compressed-layout-enabled .agenda-calendar-shell-main,
+        .agenda-day-note-inline-enabled .agenda-calendar-shell-main {
             order: 2;
         }
 
-        .agenda-compressed-layout-enabled .agenda-calendar-viewbar {
+        .agenda-compressed-layout-enabled .agenda-calendar-viewbar,
+        .agenda-day-note-inline-enabled .agenda-calendar-viewbar {
             order: 3;
             margin-bottom: 0;
             padding: 12px 14px;
             justify-content: flex-start;
         }
 
-        .agenda-compressed-layout-enabled .agenda-calendar-viewbar-copy {
+        .agenda-compressed-layout-enabled .agenda-calendar-viewbar-copy,
+        .agenda-day-note-inline-enabled .agenda-calendar-viewbar-copy {
             display: none;
         }
 
-        .agenda-compressed-layout-enabled .agenda-view-switch--calendar {
+        .agenda-compressed-layout-enabled .agenda-view-switch--calendar,
+        .agenda-day-note-inline-enabled .agenda-view-switch--calendar {
             justify-content: flex-start;
             width: 100%;
         }
 
-        .agenda-compressed-layout-enabled .agenda-calendar-actions {
+        .agenda-compressed-layout-enabled .agenda-calendar-actions,
+        .agenda-day-note-inline-enabled .agenda-calendar-actions {
             order: 4;
             margin-bottom: 0;
         }
 
-        .agenda-compressed-layout-enabled .agenda-calendar-actions-buttons {
+        .agenda-compressed-layout-enabled .agenda-calendar-actions-buttons,
+        .agenda-day-note-inline-enabled .agenda-calendar-actions-buttons {
             justify-content: flex-start;
         }
 
-        .agenda-compressed-layout-enabled #agendaCalendarActionsRow #btnAddExtraSlot {
+        .agenda-compressed-layout-enabled #agendaCalendarActionsRow #btnAddExtraSlot,
+        .agenda-day-note-inline-enabled #agendaCalendarActionsRow #btnAddExtraSlot {
             display: none !important;
         }
 
-        .agenda-compressed-layout-enabled #agendaCalendarShell .fc-toolbar {
+        .agenda-compressed-layout-enabled #agendaCalendarShell .fc-toolbar,
+        .agenda-day-note-inline-enabled #agendaCalendarShell .fc-toolbar {
             display: none !important;
         }
 
-        .agenda-compressed-layout-enabled .agenda-team-day-toolbar {
+        .agenda-compressed-layout-enabled .agenda-team-day-toolbar,
+        .agenda-day-note-inline-enabled .agenda-team-day-toolbar {
             display: none;
+        }
+
+        .agenda-day-note-inline-enabled .agenda-day-note-inline-host {
+            display: flex;
         }
 
         .agenda-team-summary {
@@ -3257,12 +3374,23 @@
             .agenda-compressed-daybar-label {
                 font-size: 18px;
             }
+
+            .agenda-day-note-inline-host {
+                width: 100%;
+                min-width: 0;
+                flex-basis: 100%;
+            }
+
+            .agenda-day-note-inline-host.is-collapsed {
+                width: auto;
+                flex-basis: auto;
+            }
         }
 
     </style>
 </head>
 <body
-    class="skin-blue sidebar-mini<?= $agendaCompressedLayoutEnabled ? ' agenda-compressed-layout-enabled' : '' ?>"
+    class="skin-blue sidebar-mini<?= $agendaCompressedLayoutEnabled ? ' agenda-compressed-layout-enabled' : '' ?><?= $agendaDayNoteInlineEnabled ? ' agenda-day-note-inline-enabled' : '' ?>"
     <?= $agendaTextThemeInlineStyle !== '' ? 'style="' . esc($agendaTextThemeInlineStyle, 'attr') . '"' : '' ?>
 >
 <div class="wrapper">
@@ -3564,6 +3692,17 @@
                             <h3 class="box-title">
                                 <i class="fa fa-pencil-square-o"></i> Note del giorno
                             </h3>
+                            <div class="box-tools agenda-day-note-inline-controls">
+                                <button
+                                    type="button"
+                                    class="btn btn-box-tool agenda-day-note-inline-hide"
+                                    id="btnHideAgendaDayNoteInline"
+                                    aria-label="Nascondi note del giorno"
+                                    title="Nascondi note"
+                                >
+                                    <i class="fa fa-eye-slash" aria-hidden="true"></i>
+                                </button>
+                            </div>
                         </div>
                         <div class="box-body">
                             <div class="form-group" style="margin-bottom:0;">
@@ -3675,6 +3814,24 @@
                         title="Sono presenti note del giorno per questa data."
                     ></span>
                 </div>
+            </div>
+            <div class="agenda-day-note-inline-host" id="agendaDayNoteInlineHost">
+                <button
+                    type="button"
+                    class="agenda-day-note-inline-show"
+                    id="btnShowAgendaDayNoteInline"
+                    aria-label="Mostra note del giorno"
+                    title="Mostra note del giorno"
+                >
+                    <i class="fa fa-sticky-note-o" aria-hidden="true"></i>
+                    <span>Mostra note</span>
+                    <span
+                        class="agenda-day-note-indicator is-hidden"
+                        data-agenda-day-note-indicator
+                        aria-hidden="true"
+                        title="Sono presenti note del giorno per questa data."
+                    ></span>
+                </button>
             </div>
             <div class="agenda-compressed-daybar-actions">
                 <button type="button" class="btn btn-warning" id="btnCompressedAddExtraSlot">
@@ -4495,6 +4652,7 @@ window.AGENDA_CONFIG = {
     var meta = document.getElementById('agendaHomeBlockOrderMeta');
     var leftColumn = document.getElementById('agendaSidebarCustomBlocks');
     var mainColumn = document.getElementById('agendaHomeMainColumn');
+    var calendarDayNoteHost = document.getElementById('agendaDayNoteInlineHost');
     var emptyState = document.getElementById('agendaHomeEmptyState');
 
     if (!layout || !meta || !leftColumn || !mainColumn) {
@@ -4540,13 +4698,21 @@ window.AGENDA_CONFIG = {
         }
 
         var columnKey = String(layoutItem.column || 'main').trim().toLowerCase();
-        if (['main', 'left', 'hidden'].indexOf(columnKey) === -1) {
+        if (['main', 'left', 'calendar', 'hidden'].indexOf(columnKey) === -1
+            || (columnKey === 'calendar' && blockKey !== 'day_note')) {
             columnKey = 'main';
         }
 
         if (columnKey === 'hidden') {
             blocksByKey[blockKey].style.display = 'none';
             mainColumn.appendChild(blocksByKey[blockKey]);
+            placedBlocks[blockKey] = true;
+            return;
+        }
+
+        if (columnKey === 'calendar' && calendarDayNoteHost) {
+            blocksByKey[blockKey].style.display = '';
+            calendarDayNoteHost.appendChild(blocksByKey[blockKey]);
             placedBlocks[blockKey] = true;
             return;
         }
@@ -4575,6 +4741,63 @@ window.AGENDA_CONFIG = {
 
     if (emptyState) {
         emptyState.style.display = hasVisibleLeftBlocks || hasVisibleMainBlocks ? 'none' : '';
+    }
+
+    if (calendarDayNoteHost && calendarDayNoteHost.contains(blocksByKey.day_note)) {
+        var hideButton = document.getElementById('btnHideAgendaDayNoteInline');
+        var showButton = document.getElementById('btnShowAgendaDayNoteInline');
+        var collapseStorageKey = 'ambulatoriofacile.agenda.day-note-inline-collapsed.v1';
+
+        function setInlineDayNoteCollapsed(collapsed, persist) {
+            collapsed = !!collapsed;
+            calendarDayNoteHost.classList.toggle('is-collapsed', collapsed);
+
+            if (hideButton) {
+                hideButton.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+            }
+
+            if (showButton) {
+                showButton.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+            }
+
+            if (!persist) {
+                return;
+            }
+
+            try {
+                window.localStorage.setItem(collapseStorageKey, collapsed ? '1' : '0');
+            } catch (error) {
+                // La preferenza resta valida per la pagina corrente se lo storage non e disponibile.
+            }
+        }
+
+        var initiallyCollapsed = false;
+        try {
+            initiallyCollapsed = window.localStorage.getItem(collapseStorageKey) === '1';
+        } catch (error) {
+            initiallyCollapsed = false;
+        }
+        setInlineDayNoteCollapsed(initiallyCollapsed, false);
+
+        if (hideButton) {
+            hideButton.addEventListener('click', function() {
+                var noteField = document.getElementById('nota_giorno_text');
+                if (noteField) {
+                    noteField.blur();
+                }
+                setInlineDayNoteCollapsed(true, true);
+            });
+        }
+
+        if (showButton) {
+            showButton.addEventListener('click', function() {
+                setInlineDayNoteCollapsed(false, true);
+                var noteField = document.getElementById('nota_giorno_text');
+                if (noteField) {
+                    noteField.focus();
+                }
+            });
+        }
     }
 })();
 </script>

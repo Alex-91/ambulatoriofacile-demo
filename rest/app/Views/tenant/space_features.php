@@ -53,6 +53,7 @@ $agendaHomeBlockDefaultOrderKeys = array_values(array_filter(array_map(
 $agendaHomeBlockColumnLabels = [
     'main' => 'colonna principale',
     'left' => 'colonna sinistra con menu',
+    'calendar' => 'dentro l’agenda',
     'hidden' => 'nascosto',
 ];
 $agendaSidebarBlockOrderSettings = is_array($agendaSidebarBlockOrderSettings ?? null) ? $agendaSidebarBlockOrderSettings : [];
@@ -809,7 +810,7 @@ $canSubmitSpaceSettings = ($manageableRows !== []) || $hasSupplementalSpaceContr
                       <div>
                         <h4 style="margin:0 0 6px 0;">Ordine blocchi home agenda</h4>
                         <p style="margin:0; color:#587075;">
-                          Qui decidi in quale sequenza mostrare i blocchi principali della home agenda dello studio: scelta professionista, ricerca visite del paziente, note del giorno, agenda e memo. Per ogni blocco puoi anche scegliere se lasciarlo nella colonna principale, spostarlo nella colonna sinistra dove si trovano già menu e filtri, oppure nasconderlo del tutto.
+                          Qui decidi in quale sequenza mostrare i blocchi principali della home agenda dello studio: scelta professionista, ricerca visite del paziente, note del giorno, agenda e memo. Per ogni blocco puoi scegliere se lasciarlo nella colonna principale, spostarlo nella colonna sinistra oppure nasconderlo. Le Note del giorno possono anche essere inserite direttamente dentro l’agenda, accanto alla data selezionata.
                         </p>
                       </div>
                       <div style="display:flex; gap:8px; flex-wrap:wrap;">
@@ -834,7 +835,7 @@ $canSubmitSpaceSettings = ($manageableRows !== []) || $hasSupplementalSpaceContr
 
                     <div class="agenda-order-toolbar">
                       <div class="text-muted" style="font-size:12px;">
-                        Usa le frecce per spostare ogni blocco su e giu, poi scegli se deve stare nella colonna principale, nella colonna sinistra del menu oppure restare nascosto.
+                        Usa le frecce per spostare ogni blocco su e giu, poi scegli la sua posizione. Per “Note del giorno” trovi anche l’opzione “Dentro l’Agenda”.
                       </div>
                       <button type="button" class="btn btn-default btn-sm js-order-reset" id="agendaHomeBlockOrderReset">
                         <i class="fa fa-refresh"></i> Ripristina ordine standard
@@ -857,6 +858,7 @@ $canSubmitSpaceSettings = ($manageableRows !== []) || $hasSupplementalSpaceContr
                           $defaultColumn = trim((string) ($row['default_column'] ?? 'main'));
                           $savedColumn = trim((string) ($row['saved_column'] ?? $defaultColumn));
                           $selectedColumn = trim((string) ($oldAgendaHomeBlockOrderColumns[$blockKey] ?? $savedColumn));
+                          $allowsCalendarColumn = $blockKey === 'day_note';
                           if (!isset($agendaHomeBlockColumnLabels[$defaultColumn])) {
                               $defaultColumn = 'main';
                           }
@@ -897,6 +899,9 @@ $canSubmitSpaceSettings = ($manageableRows !== []) || $hasSupplementalSpaceContr
                               >
                                 <option value="main" <?= $selectedColumn === 'main' ? 'selected' : '' ?>>Principale</option>
                                 <option value="left" <?= $selectedColumn === 'left' ? 'selected' : '' ?>>Sinistra menu</option>
+                                <?php if ($allowsCalendarColumn): ?>
+                                  <option value="calendar" <?= $selectedColumn === 'calendar' ? 'selected' : '' ?>>Dentro l’Agenda</option>
+                                <?php endif; ?>
                                 <option value="hidden" <?= $selectedColumn === 'hidden' ? 'selected' : '' ?>>Nascosto</option>
                               </select>
                             </div>

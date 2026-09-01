@@ -11,6 +11,7 @@ class AgendaHomeBlockOrderService
     private const CONFIG_KEY = 'home_block_order';
     private const COLUMN_MAIN = 'main';
     private const COLUMN_LEFT = 'left';
+    private const COLUMN_CALENDAR = 'calendar';
     private const COLUMN_HIDDEN = 'hidden';
 
     /**
@@ -32,7 +33,7 @@ class AgendaHomeBlockOrderService
         [
             'key' => 'day_note',
             'label' => 'Note del giorno',
-            'description' => 'Area rapida per annotare note libere legate alla data selezionata in agenda.',
+            'description' => 'Area rapida per annotare note libere legate alla data selezionata, disponibile anche dentro l’agenda accanto al giorno.',
             'default_column' => self::COLUMN_MAIN,
         ],
         [
@@ -320,7 +321,7 @@ class AgendaHomeBlockOrderService
             }
 
             $defaultColumn = strtolower(trim((string) ($block['default_column'] ?? self::COLUMN_MAIN)));
-            if (!$this->isAllowedColumn($defaultColumn)) {
+            if (!$this->isAllowedColumnForBlock($blockKey, $defaultColumn)) {
                 $defaultColumn = self::COLUMN_MAIN;
             }
 
@@ -369,7 +370,7 @@ class AgendaHomeBlockOrderService
 
         foreach ($defaultBlockColumns as $blockKey => $defaultColumn) {
             $rawColumn = strtolower(trim((string) ($rawBlockColumns[$blockKey] ?? '')));
-            if ($rawColumn === '' || !$this->isAllowedColumn($rawColumn)) {
+            if ($rawColumn === '' || !$this->isAllowedColumnForBlock($blockKey, $rawColumn)) {
                 continue;
             }
 
@@ -414,7 +415,7 @@ class AgendaHomeBlockOrderService
 
         foreach ($defaultBlockColumns as $blockKey => $defaultColumn) {
             $savedColumn = strtolower(trim((string) ($savedBlockColumns[$blockKey] ?? '')));
-            $resolved[$blockKey] = $this->isAllowedColumn($savedColumn)
+            $resolved[$blockKey] = $this->isAllowedColumnForBlock($blockKey, $savedColumn)
                 ? $savedColumn
                 : $defaultColumn;
         }
@@ -465,9 +466,13 @@ class AgendaHomeBlockOrderService
         return null;
     }
 
-    private function isAllowedColumn(string $column): bool
+    private function isAllowedColumnForBlock(string $blockKey, string $column): bool
     {
-        return in_array($column, [self::COLUMN_MAIN, self::COLUMN_LEFT, self::COLUMN_HIDDEN], true);
+        if (in_array($column, [self::COLUMN_MAIN, self::COLUMN_LEFT, self::COLUMN_HIDDEN], true)) {
+            return true;
+        }
+
+        return $blockKey === 'day_note' && $column === self::COLUMN_CALENDAR;
     }
 
     /**
