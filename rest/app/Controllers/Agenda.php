@@ -5774,8 +5774,9 @@ public function eseguiRepairRecurringExtraSlots()
         $this->ensureDompdfAvailable();
 
         $showWaConfirmationColumn = $this->shouldShowWaConfirmationColumn($idDot);
+        $showVisitTypeColumn = $this->isVisitTypesFeatureEnabled();
         $slots = $this->sanitizeAppointmentCreatorRows($this->slotModel->getSlotsCalendario($idDot, $data, 'day'));
-        $rows = $this->buildSingleDayPdfRows($slots, $showWaConfirmationColumn);
+        $rows = $this->buildSingleDayPdfRows($slots, $showWaConfirmationColumn, $showVisitTypeColumn);
 
         $dot = $this->agendaModel->getAgendaProfessionalByLegacyId($idDot) ?? [];
         $doctorLabel = $this->resolveAgendaProfessionalDisplayLabel($dot, $idDot);
@@ -5794,6 +5795,7 @@ public function eseguiRepairRecurringExtraSlots()
         $html .= '<table><thead><tr>
             <th>Orario</th>
             <th>Paziente</th>
+            ' . ($showVisitTypeColumn ? '<th>Tipo visita</th>' : '') . '
             <th>Telefono</th>
             <th>Cellulare</th>
             ' . ($showWaConfirmationColumn ? '<th>CONFERMA WA</th>' : '') . '
@@ -5801,7 +5803,7 @@ public function eseguiRepairRecurringExtraSlots()
         </tr></thead><tbody>';
 
         if ($rows === []) {
-            $colspan = $showWaConfirmationColumn ? 6 : 5;
+            $colspan = 5 + ($showVisitTypeColumn ? 1 : 0) + ($showWaConfirmationColumn ? 1 : 0);
             $html .= '<tr><td colspan="' . $colspan . '">Nessuno slot disponibile per la data selezionata.</td></tr>';
         }
 
@@ -5809,6 +5811,7 @@ public function eseguiRepairRecurringExtraSlots()
             $html .= '<tr>
                 <td>' . htmlspecialchars((string)($r['time_range'] ?? '')) . '</td>
                 <td>' . htmlspecialchars((string)($r['patient_label'] ?? '')) . '</td>
+                ' . ($showVisitTypeColumn ? '<td>' . htmlspecialchars((string)($r['visit_type'] ?? '')) . '</td>' : '') . '
                 <td>' . htmlspecialchars((string)($r['telefono'] ?? '')) . '</td>
                 <td>' . htmlspecialchars((string)($r['cellulare'] ?? '')) . '</td>
                 ' . ($showWaConfirmationColumn ? '<td>' . htmlspecialchars((string)($r['wa_confirmation'] ?? '')) . '</td>' : '') . '
@@ -5826,7 +5829,11 @@ public function eseguiRepairRecurringExtraSlots()
         );
     }
 
-    private function buildSingleDayPdfRows(array $slots, bool $showWaConfirmationColumn): array
+    private function buildSingleDayPdfRows(
+        array $slots,
+        bool $showWaConfirmationColumn,
+        bool $showVisitTypeColumn
+    ): array
     {
         $rows = [];
 
@@ -5854,6 +5861,9 @@ public function eseguiRepairRecurringExtraSlots()
             $rows[] = [
                 'time_range' => $this->buildSingleDayPdfTimeRange($slot),
                 'patient_label' => $patientLabel,
+                'visit_type' => $showVisitTypeColumn && $hasAppointment
+                    ? trim((string)($slot['tipo_visita_label'] ?? ''))
+                    : '',
                 'telefono' => $hasAppointment ? trim((string)($slot['telefono'] ?? '')) : '',
                 'cellulare' => $hasAppointment ? trim((string)($slot['cellulare'] ?? '')) : '',
                 'wa_confirmation' => $showWaConfirmationColumn && $hasAppointment
