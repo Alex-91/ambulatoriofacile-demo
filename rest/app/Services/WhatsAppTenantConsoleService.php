@@ -201,13 +201,15 @@ class WhatsAppTenantConsoleService
      * @param array<string, mixed> $account
      * @return array<string, mixed>
      */
-    private function normalizeAccount(array $account): array
+    public function normalizeAccount(array $account): array
     {
         $state = strtolower(trim((string) ($account['state'] ?? 'not_configured')));
         $connected = !empty($account['connected']);
         $loggedIn = !empty($account['logged_in']);
         if ($connected && $loggedIn) {
             $state = 'connected';
+        } elseif ($state === 'connected') {
+            $state = 'connecting';
         }
 
         return [

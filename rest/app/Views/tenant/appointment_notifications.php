@@ -252,7 +252,7 @@ $formatDateTime = static function (?string $value): string {
                     <h3 id="whatsapp-device-title">Dispositivo e stato degli invii</h3>
                     <p>Collega o cambia il telefono autorizzato e verifica se i messaggi inviati dal tuo studio risultano inviati, consegnati oppure letti.</p>
                   </div>
-                  <div class="wa-live-status<?= $whatsAppConnected ? ' is-connected' : ($whatsAppPairing ? ' is-pairing' : '') ?>" id="wa-live-status">
+                  <div class="wa-live-status<?= $whatsAppConnected ? ' is-connected' : ($whatsAppPairing ? ' is-pairing' : '') ?>" id="wa-live-status" role="status" aria-live="polite">
                     <span class="wa-live-status-dot" aria-hidden="true"></span>
                     <span id="wa-live-status-label"><?= esc((string) ($whatsAppAccount['state_label'] ?? 'Non collegato')) ?></span>
                   </div>
@@ -360,7 +360,7 @@ $formatDateTime = static function (?string $value): string {
                           <p id="wa-qr-expiry">Il codice si aggiorna automaticamente.</p>
                         </div>
                         <div id="wa-qr-empty" <?= !empty($whatsAppAccount['qr_code']) ? 'hidden' : '' ?>>
-                          <i class="fa <?= $whatsAppConnected ? 'fa-check-circle' : 'fa-qrcode' ?> wa-qr-empty-icon" aria-hidden="true"></i>
+                          <i class="fa <?= $whatsAppConnected ? 'fa-check-circle' : 'fa-qrcode' ?> wa-qr-empty-icon" id="wa-qr-empty-icon" aria-hidden="true"></i>
                           <h4 id="wa-qr-empty-title"><?= $whatsAppConnected ? 'Dispositivo collegato' : 'QR non ancora generato' ?></h4>
                           <p id="wa-qr-empty-text"><?= $whatsAppConnected ? 'La connessione è pronta per gli invii dello studio.' : 'Premi “Collega WhatsApp” per iniziare.' ?></p>
                         </div>
@@ -786,6 +786,10 @@ $formatDateTime = static function (?string $value): string {
   var lastQrCode = '';
   var refreshInProgress = false;
   var reloadRequested = false;
+  var pollTimer = null;
+  var pollFailures = 0;
+  var pairingPollInterval = 2000;
+  var idlePollInterval = 12000;
   var elements = {
     status: document.getElementById('wa-live-status'),
     statusLabel: document.getElementById('wa-live-status-label'),
@@ -797,6 +801,7 @@ $formatDateTime = static function (?string $value): string {
     qrEmpty: document.getElementById('wa-qr-empty'),
     qrCode: document.getElementById('wa-qr-code'),
     qrExpiry: document.getElementById('wa-qr-expiry'),
+    qrEmptyIcon: document.getElementById('wa-qr-empty-icon'),
     qrEmptyTitle: document.getElementById('wa-qr-empty-title'),
     qrEmptyText: document.getElementById('wa-qr-empty-text'),
     rows: document.getElementById('wa-delivery-rows'),
@@ -840,21 +845,29 @@ $formatDateTime = static function (?string $value): string {
     }
 
     var qrCode = String(account.qr_code || '');
+    var connected = !!account.connected && !!account.logged_in;
+    var connecting = !connected && ['paired', 'connecting', 'connected'].indexOf(String(account.state || '')) !== -1;
     if (!qrCode) {
       elements.qrContent.hidden = true;
       elements.qrEmpty.hidden = false;
-      setText(elements.qrEmptyTitle, account.connected ? 'Dispositivo collegato' : 'QR non ancora disponibile');
-      setText(elements.qrEmptyText, account.connected
+      if (elements.qrEmptyIcon) {
+        elements.qrEmptyIcon.className = 'fa wa-qr-empty-icon '
+          + (connected ? 'fa-check-circle' : (connecting ? 'fa-circle-o-notch fa-spin' : 'fa-qrcode'));
+      }
+      setText(elements.qrEmptyTitle, connected ? 'Dispositivo collegato' : (connecting ? 'Connessione in corso' : 'QR non ancora disponibile'));
+      setText(elements.qrEmptyText, connected
         ? 'La connessione è pronta per gli invii dello studio.'
-        : (account.state === 'pairing' ? 'Attendi qualche secondo e aggiorna il codice.' : 'Avvia il collegamento per generare un QR.'));
+        : (connecting
+          ? 'Associazione completata. Attendi la conferma finale del dispositivo.'
+          : (account.state === 'pairing' ? 'Controllo automatico del collegamento in corso…' : 'Avvia il collegamento per generare un QR.')));
       return;
     }
 
     elements.qrContent.hidden = false;
     elements.qrEmpty.hidden = true;
     setText(elements.qrExpiry, account.qr_expires_at
-      ? 'Codice valido fino alle ' + formatDate(account.qr_expires_at)
-      : 'Il codice si aggiorna automaticamente.');
+      ? 'Codice valido fino alle ' + formatDate(account.qr_expires_at) + '. Controllo automatico attivo.'
+      : 'Il codice e lo stato si aggiornano automaticamente.');
 
     if (lastQrCode === qrCode) {
       return;
@@ -943,19 +956,52 @@ $formatDateTime = static function (?string $value): string {
       elements.loadError.textContent = '';
     }
 
-    if (
-      allowReload
-      && !reloadRequested
-      && (!!previousAccount.connected !== !!account.connected || !!previousAccount.logged_in !== !!account.logged_in)
-    ) {
+    var previousConnected = !!previousAccount.connected && !!previousAccount.logged_in;
+    if (allowReload && !reloadRequested && previousConnected !== connected) {
       reloadRequested = true;
-      window.location.reload();
+      if (connected) {
+        setText(elements.refreshNote, 'WhatsApp collegato');
+        window.setTimeout(function () { window.location.reload(); }, 900);
+      } else {
+        window.location.reload();
+      }
     }
+  }
+
+  function pairingInProgress() {
+    var account = consoleState && consoleState.account ? consoleState.account : {};
+    var state = String(account.state || '');
+    var connected = !!account.connected && !!account.logged_in;
+    return !connected
+      && (['pairing', 'paired', 'connecting', 'connected'].indexOf(state) !== -1 || !!account.qr_code);
+  }
+
+  function scheduleRefresh(delay) {
+    if (pollTimer) {
+      window.clearTimeout(pollTimer);
+    }
+    if (reloadRequested) {
+      return;
+    }
+
+    var baseDelay = pairingInProgress() ? pairingPollInterval : idlePollInterval;
+    var retryDelay = Math.min(idlePollInterval, baseDelay * Math.pow(2, Math.min(pollFailures, 3)));
+    pollTimer = window.setTimeout(function () {
+      if (document.hidden) {
+        scheduleRefresh(idlePollInterval);
+        return;
+      }
+      refresh(true);
+    }, typeof delay === 'number' ? delay : retryDelay);
   }
 
   function refresh(silent) {
     if (refreshInProgress || reloadRequested) {
       return;
+    }
+    if (pollTimer) {
+      window.clearTimeout(pollTimer);
+      pollTimer = null;
     }
     refreshInProgress = true;
     if (!silent) {
@@ -977,8 +1023,10 @@ $formatDateTime = static function (?string $value): string {
         if (!silent) {
           setText(elements.refreshNote, 'Aggiornamento non riuscito');
         }
+        pollFailures++;
         return;
       }
+      pollFailures = 0;
       render(response.console, true);
       if (!silent) {
         setText(elements.refreshNote, 'Aggiornato ora');
@@ -993,8 +1041,10 @@ $formatDateTime = static function (?string $value): string {
       if (!silent) {
         setText(elements.refreshNote, 'Aggiornamento non riuscito');
       }
+      pollFailures++;
     }).always(function () {
       refreshInProgress = false;
+      scheduleRefresh();
     });
   }
 
@@ -1013,11 +1063,12 @@ $formatDateTime = static function (?string $value): string {
   }
 
   render(consoleState, false);
-  window.setInterval(function () {
-    if (!document.hidden) {
+  scheduleRefresh(pairingInProgress() ? pairingPollInterval : idlePollInterval);
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden && !refreshInProgress && !reloadRequested) {
       refresh(true);
     }
-  }, 12000);
+  });
 })();
 </script>
 <?php endif; ?>

@@ -60,4 +60,25 @@ final class WhatsAppTenantConsoleServiceTest extends CIUnitTestCase
         $this->assertSame(1, $summary['failed']);
         $this->assertSame('2026-08-31T18:30:00Z', $summary['last_sent_at']);
     }
+
+    public function testAccountIsConnectedOnlyWhenTransportAndLoginAreReady(): void
+    {
+        $service = new WhatsAppTenantConsoleService();
+
+        $connecting = $service->normalizeAccount([
+            'state' => 'connected',
+            'connected' => true,
+            'logged_in' => false,
+        ]);
+        $ready = $service->normalizeAccount([
+            'state' => 'connected',
+            'connected' => true,
+            'logged_in' => true,
+        ]);
+
+        $this->assertSame('connecting', $connecting['state']);
+        $this->assertSame('Connessione in corso', $connecting['state_label']);
+        $this->assertSame('connected', $ready['state']);
+        $this->assertSame('Collegato', $ready['state_label']);
+    }
 }
