@@ -11,7 +11,9 @@ class WhatsAppGatewayWebhookController extends BaseController
     public function incoming()
     {
         $body = (string) $this->request->getBody();
-        $requestTarget = (string) ($this->request->getServer('REQUEST_URI') ?? '');
+        $requestTarget = (string) ($_SERVER['AF_ORIGINAL_REQUEST_URI']
+            ?? $this->request->getServer('REQUEST_URI')
+            ?? '');
         if ($requestTarget === '') {
             $requestTarget = '/' . ltrim($this->request->getUri()->getPath(), '/');
         }
