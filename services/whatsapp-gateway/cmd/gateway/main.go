@@ -39,6 +39,20 @@ func main() {
 		logger.Error("gateway initialization failed", "error", err)
 		os.Exit(1)
 	}
+	if cfg.WebhookURL != "" {
+		dispatcher, webhookErr := gateway.NewIncomingWebhookDispatcher(
+			cfg.WebhookURL,
+			cfg.APIKeyID,
+			cfg.APISecret,
+			cfg.WebhookTimeout,
+			logger,
+		)
+		if webhookErr != nil {
+			logger.Error("WhatsApp webhook initialization failed", "error", webhookErr)
+			os.Exit(1)
+		}
+		manager.SetIncomingWebhook(dispatcher)
+	}
 
 	handler := httpapi.New(manager, auth.New(cfg.APIKeyID, cfg.APISecret, cfg.AllowedClockSkew), logger)
 	server := &http.Server{

@@ -13,7 +13,7 @@ Il servizio fornisce:
 - autenticazione HMAC, finestra temporale e protezione anti-replay;
 - health check e readiness check per Coolify.
 
-Non contiene un secondo catalogo utenti o tenant. `tenant_id` è l'identificativo di `platform_tenants`; ruoli e autorizzazioni restano responsabilità dell'applicazione CodeIgniter. Il pannello CodeIgniter offre una timeline testuale essenziale; chatbot, download dei media, webhook push e gestione avanzata delle conversazioni appartengono ai milestone successivi.
+Non contiene un secondo catalogo utenti o tenant. `tenant_id` è l'identificativo di `platform_tenants`; ruoli e autorizzazioni restano responsabilità dell'applicazione CodeIgniter. Il gateway salva la timeline e inoltra i messaggi ricevuti al webhook firmato dell'applicazione; configurazione, autorizzazioni e azioni del chatbot restano nel tenant CodeIgniter.
 
 UltraMsg non viene rimosso: `WHATSAPP_PROVIDER=ultramsg` resta il default del monolite. In modalità `hybrid` il master piattaforma può instradare ogni singolo tenant dal pannello Spazi cliente, mantenendo tutti gli altri su UltraMsg. `WHATSAPP_GATEWAY_TENANT_IDS` resta disponibile come allowlist tecnica di emergenza o per rollout gestiti fuori dal pannello.
 
@@ -67,7 +67,11 @@ WHATSAPP_GATEWAY_API_SECRET=GENERARE_UN_SEGRETO_CASUALE_DI_ALMENO_32_CARATTERI
 WHATSAPP_GATEWAY_ALLOWED_CLOCK_SKEW_SECONDS=300
 WHATSAPP_GATEWAY_SHUTDOWN_TIMEOUT_SECONDS=20
 WHATSAPP_GATEWAY_LOG_LEVEL=INFO
+WHATSAPP_GATEWAY_WEBHOOK_URL=https://ambulatoriofacile.it/login/api/whatsapp-gateway/incoming
+WHATSAPP_GATEWAY_WEBHOOK_TIMEOUT_SECONDS=10
 ```
+
+`WHATSAPP_GATEWAY_WEBHOOK_URL` è facoltativa. Quando è valorizzata deve essere HTTPS: ogni nuovo messaggio ricevuto viene inviato con le stesse intestazioni HMAC usate dalle API del gateway. L'applicazione deduplica il `message_id`, quindi i ritentativi non ripetono le azioni in agenda.
 
 `/data` deve essere un volume persistente e dedicato. Non condividere il file SQLite tra più repliche contemporanee: in questo milestone il gateway deve avere una sola replica, perché una sessione WhatsApp non può essere gestita in parallelo da processi indipendenti.
 

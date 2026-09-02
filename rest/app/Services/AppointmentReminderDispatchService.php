@@ -14,6 +14,7 @@ class AppointmentReminderDispatchService
     private AppointmentMessageTemplateService $messageTemplateService;
     private AppointmentNotificationChannelService $channelService;
     private AppointmentNotificationLogService $logService;
+    private WhatsAppChatbotService $whatsAppChatbotService;
     private TenantStoragePathService $storagePaths;
 
     public function __construct()
@@ -24,6 +25,7 @@ class AppointmentReminderDispatchService
         $this->messageTemplateService = new AppointmentMessageTemplateService();
         $this->channelService = new AppointmentNotificationChannelService();
         $this->logService = new AppointmentNotificationLogService();
+        $this->whatsAppChatbotService = new WhatsAppChatbotService();
         $this->storagePaths = new TenantStoragePathService();
     }
 
@@ -86,6 +88,12 @@ class AppointmentReminderDispatchService
                 : (new \DateTimeImmutable('today', new \DateTimeZone('Europe/Rome')))
                     ->modify('+' . max(0, (int) ($plan['lead_days'] ?? 2)) . ' day')
                     ->format('Y-m-d');
+            $confirmationInstructions = WhatsAppGatewayClient::isRoutedToGateway($tenantId)
+                ? $this->whatsAppChatbotService->instructionsForTenant(
+                    $tenantId,
+                    AppointmentNotificationSettingsService::TYPE_REMINDER
+                )
+                : 'Rispondi 1 per confermare o 2 per annullare.';
 
             $tenantSummary = [
                 'tenant_id' => $tenantId,
@@ -133,7 +141,8 @@ class AppointmentReminderDispatchService
                         $targetDate,
                         $patientLabel,
                         (string) ($tenant['tenant_name'] ?? ''),
-                        (string) ($plan['template'] ?? '')
+                        (string) ($plan['template'] ?? ''),
+                        $confirmationInstructions
                     );
                     $subject = 'Reminder appuntamento AmbulatorioFacile';
                     $otpSubject = 'Reminder appuntamento AmbulatorioFacile';
@@ -203,6 +212,19 @@ class AppointmentReminderDispatchService
                             ];
                             $tenantSummary['sent']++;
                             $summary['sent']++;
+                            if (
+                                !$hasForcedRecipient
+                                && $channel === AppointmentNotificationSettingsService::CHANNEL_WHATSAPP
+                                && WhatsAppGatewayClient::isRoutedToGateway($tenantId)
+                            ) {
+                                $this->whatsAppChatbotService->registerAppointmentPrompt(
+                                    $tenantId,
+                                    $appointmentId,
+                                    (string) ($sendResult['recipient'] ?? $resolvedRecipient),
+                                    AppointmentNotificationSettingsService::TYPE_REMINDER,
+                                    (string) ($sendResult['provider_id'] ?? '')
+                                );
+                            }
                             $this->saveState(
                                 $stateDir . DIRECTORY_SEPARATOR . 'appointment_reminders_' . $channel . '_' . $targetDate . '.json',
                                 $states[$channel]
@@ -384,7 +406,8 @@ class AppointmentReminderDispatchService
         string $targetDate,
         string $patientLabel,
         string $tenantName,
-        string $template
+        string $template,
+        string $confirmationInstructions
     ): string
     {
         $date = new \DateTimeImmutable($targetDate, new \DateTimeZone('Europe/Rome'));
@@ -413,7 +436,7 @@ class AppointmentReminderDispatchService
                 'note' => trim((string) ($row['appointment_notes'] ?? '')),
                 'nome_spazio' => $tenantName !== '' ? $tenantName : 'AmbulatorioFacile',
                 'istruzioni_conferma' => (int) ($row['conferma'] ?? 0) === 1
-                    ? 'Rispondi 1 per confermare o 2 per annullare.'
+                    ? trim($confirmationInstructions)
                     : '',
             ]
         );

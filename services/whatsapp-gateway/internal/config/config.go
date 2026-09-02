@@ -2,6 +2,7 @@ package config
 
 import (
 	"errors"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -16,6 +17,8 @@ type Config struct {
 	AllowedClockSkew time.Duration
 	ShutdownTimeout  time.Duration
 	LogLevel         string
+	WebhookURL       string
+	WebhookTimeout   time.Duration
 }
 
 func Load() (Config, error) {
@@ -27,6 +30,8 @@ func Load() (Config, error) {
 		AllowedClockSkew: secondsEnv("WHATSAPP_GATEWAY_ALLOWED_CLOCK_SKEW_SECONDS", 300),
 		ShutdownTimeout:  secondsEnv("WHATSAPP_GATEWAY_SHUTDOWN_TIMEOUT_SECONDS", 20),
 		LogLevel:         strings.ToUpper(env("WHATSAPP_GATEWAY_LOG_LEVEL", "INFO")),
+		WebhookURL:       strings.TrimSpace(os.Getenv("WHATSAPP_GATEWAY_WEBHOOK_URL")),
+		WebhookTimeout:   secondsEnv("WHATSAPP_GATEWAY_WEBHOOK_TIMEOUT_SECONDS", 10),
 	}
 
 	if len(cfg.APISecret) < 32 {
@@ -37,6 +42,15 @@ func Load() (Config, error) {
 	}
 	if cfg.AllowedClockSkew < 30*time.Second || cfg.AllowedClockSkew > 15*time.Minute {
 		return Config{}, errors.New("WHATSAPP_GATEWAY_ALLOWED_CLOCK_SKEW_SECONDS must be between 30 and 900")
+	}
+	if cfg.WebhookTimeout < time.Second || cfg.WebhookTimeout > time.Minute {
+		return Config{}, errors.New("WHATSAPP_GATEWAY_WEBHOOK_TIMEOUT_SECONDS must be between 1 and 60")
+	}
+	if cfg.WebhookURL != "" {
+		parsed, err := url.Parse(cfg.WebhookURL)
+		if err != nil || parsed.Scheme != "https" || parsed.Host == "" || parsed.User != nil || parsed.Fragment != "" {
+			return Config{}, errors.New("WHATSAPP_GATEWAY_WEBHOOK_URL must be an absolute HTTPS URL without credentials or fragment")
+		}
 	}
 
 	return cfg, nil

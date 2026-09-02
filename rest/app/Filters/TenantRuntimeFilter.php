@@ -72,6 +72,7 @@ class TenantRuntimeFilter implements FilterInterface
             'auth',
             'demo',
             'api/doctors',
+            'api/whatsapp-gateway',
             'checkUsername',
             'checkMessaggio',
             'checkMessaggio.php',

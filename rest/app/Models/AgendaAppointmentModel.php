@@ -19,10 +19,10 @@ class AgendaAppointmentModel extends Model
     private ?AgendaVisitTypeSchemaService $visitTypeSchemaService = null;
     private ?AgendaSlotFragmentService $slotFragmentService = null;
 
-    public function __construct()
+    public function __construct(?\CodeIgniter\Database\BaseConnection $db = null)
     {
-        parent::__construct();
-        $this->db = \Config\Database::connect();
+        parent::__construct($db);
+        $this->db = $db ?? \Config\Database::connect();
     }
 
     public function saveAppointment(array $data): int

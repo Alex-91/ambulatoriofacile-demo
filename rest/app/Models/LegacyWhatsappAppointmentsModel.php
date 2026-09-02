@@ -18,10 +18,10 @@ class LegacyWhatsappAppointmentsModel extends Model
     private ?bool $hasIdClientColumn = null;
     private ?bool $hasEsitatoColumn = null;
 
-    public function __construct()
+    public function __construct(?\CodeIgniter\Database\BaseConnection $db = null)
     {
-        parent::__construct();
-        $this->db = \Config\Database::connect();
+        parent::__construct($db);
+        $this->db = $db ?? \Config\Database::connect();
     }
 
     public function findPendingAppointmentsByPhone(string $cellulare, string $startDate, string $endDate): array
@@ -62,7 +62,7 @@ class LegacyWhatsappAppointmentsModel extends Model
         return $this->db->query($sql, [$cellulare, $cellulare, $startDate, $endDate])->getResultArray();
     }
 
-    public function findPendingAppointmentById(int $idAppuntamento): ?array
+    public function findPendingAppointmentById(int $idAppuntamento, bool $requireDoctorConfirmation = true): ?array
     {
         if ($idAppuntamento <= 0) {
             return null;
@@ -79,6 +79,12 @@ class LegacyWhatsappAppointmentsModel extends Model
         $currentCellSql = $this->buildCurrentClientFieldSql('cellulare', 'a.cellulare');
         $currentPhoneSql = $this->buildCurrentClientFieldSql('telefono', 'a.telefono');
         $currentEmailSql = $this->buildCurrentClientFieldSql('email', 'a.email');
+
+        $confirmationJoin = $requireDoctorConfirmation
+            ? "INNER JOIN " . self::SMS_DOCTORS_TABLE . " sms
+                ON sms.id_dot = a.id_dot
+               AND sms.conferma = 1"
+            : '';
 
         $sql = "
             SELECT
@@ -106,9 +112,7 @@ class LegacyWhatsappAppointmentsModel extends Model
             FROM " . self::APPOINTMENTS_TABLE . " a
             INNER JOIN " . self::SLOTS_TABLE . " s
                 ON s.id_slot = a.id_slot
-            INNER JOIN " . self::SMS_DOCTORS_TABLE . " sms
-                ON sms.id_dot = a.id_dot
-               AND sms.conferma = 1
+            {$confirmationJoin}
             {$joinsSql}
             WHERE a.id_appuntamento = ?
               AND a.stato <> 'ANNULLATO'
@@ -191,6 +195,31 @@ class LegacyWhatsappAppointmentsModel extends Model
         }
 
         return (bool)$this->db->table(self::APPOINTMENTS_TABLE)
+            ->where('id_appuntamento', $idAppuntamento)
+            ->update($update);
+    }
+
+    public function appendOutcomeNote(int $idAppuntamento, string $noteAppend): bool
+    {
+        if ($idAppuntamento <= 0 || trim($noteAppend) === '') {
+            return false;
+        }
+
+        $row = $this->db->table(self::APPOINTMENTS_TABLE)
+            ->select('id_appuntamento, note')
+            ->where('id_appuntamento', $idAppuntamento)
+            ->get(1)
+            ->getRowArray();
+        if (!$row) {
+            return false;
+        }
+
+        $update = ['note' => $this->appendAppointmentNote((string) ($row['note'] ?? ''), $noteAppend)];
+        if ($this->appointmentTableHasEsitatoColumn()) {
+            $update['esitato'] = 1;
+        }
+
+        return (bool) $this->db->table(self::APPOINTMENTS_TABLE)
             ->where('id_appuntamento', $idAppuntamento)
             ->update($update);
     }

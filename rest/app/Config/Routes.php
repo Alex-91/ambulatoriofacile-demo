@@ -94,6 +94,9 @@ $routes->post('login/spazio/notifiche-appuntamenti/whatsapp/pair', 'Tenant\Appoi
 $routes->post('login/spazio/notifiche-appuntamenti/whatsapp/reconnect', 'Tenant\AppointmentNotifications::whatsappReconnect');
 $routes->post('login/spazio/notifiche-appuntamenti/whatsapp/disconnect', 'Tenant\AppointmentNotifications::whatsappDisconnect');
 $routes->post('login/spazio/notifiche-appuntamenti/whatsapp/change-device', 'Tenant\AppointmentNotifications::whatsappChangeDevice');
+$routes->get('login/spazio/chatbot-whatsapp', 'Tenant\WhatsAppChatbotController::index');
+$routes->post('login/spazio/chatbot-whatsapp/save', 'Tenant\WhatsAppChatbotController::save');
+$routes->post('login/api/whatsapp-gateway/incoming', 'Api\WhatsAppGatewayWebhookController::incoming');
 $routes->get('login/spazio/utenti', 'Tenant\SpaceUsers::index');
 $routes->post('login/spazio/utenti/save', 'Tenant\SpaceUsers::save');
 $routes->post('login/spazio/utenti/accesso', 'Tenant\SpaceUsers::sendAccess');
@@ -150,6 +153,10 @@ $routes->post('spazio/notifiche-appuntamenti/whatsapp/pair', 'Tenant\Appointment
 $routes->post('spazio/notifiche-appuntamenti/whatsapp/reconnect', 'Tenant\AppointmentNotifications::whatsappReconnect');
 $routes->post('spazio/notifiche-appuntamenti/whatsapp/disconnect', 'Tenant\AppointmentNotifications::whatsappDisconnect');
 $routes->post('spazio/notifiche-appuntamenti/whatsapp/change-device', 'Tenant\AppointmentNotifications::whatsappChangeDevice');
+$routes->get('spazio/chatbot-whatsapp', 'Tenant\WhatsAppChatbotController::index');
+$routes->post('spazio/chatbot-whatsapp/save', 'Tenant\WhatsAppChatbotController::save');
+$routes->post('api/whatsapp-gateway/incoming', 'Api\WhatsAppGatewayWebhookController::incoming');
+$routes->post('demo/api/whatsapp-gateway/incoming', 'Api\WhatsAppGatewayWebhookController::incoming');
 $routes->get('spazio/utenti', 'Tenant\SpaceUsers::index');
 $routes->post('spazio/utenti/save', 'Tenant\SpaceUsers::save');
 $routes->post('spazio/utenti/accesso', 'Tenant\SpaceUsers::sendAccess');

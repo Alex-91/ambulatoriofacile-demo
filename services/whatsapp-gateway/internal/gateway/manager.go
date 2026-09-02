@@ -70,6 +70,13 @@ type Manager struct {
 	waLogger  waLog.Logger
 	mu        sync.RWMutex
 	sessions  map[string]*session
+	webhook   *IncomingWebhookDispatcher
+}
+
+func (m *Manager) SetIncomingWebhook(dispatcher *IncomingWebhookDispatcher) {
+	m.mu.Lock()
+	m.webhook = dispatcher
+	m.mu.Unlock()
 }
 
 func NewManager(ctx context.Context, dsn, logLevel string, logger *slog.Logger) (*Manager, error) {
@@ -519,6 +526,12 @@ func (m *Manager) storeIncomingMessage(current *session, event *events.Message) 
 			"message_id", message.MessageID,
 			"message_type", message.MessageType,
 		)
+		m.mu.RLock()
+		dispatcher := m.webhook
+		m.mu.RUnlock()
+		if dispatcher != nil {
+			go dispatcher.Deliver(message)
+		}
 	}
 }
 

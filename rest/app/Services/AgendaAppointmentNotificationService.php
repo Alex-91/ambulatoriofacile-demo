@@ -15,6 +15,7 @@ class AgendaAppointmentNotificationService
     private AppointmentMessageTemplateService $messageTemplateService;
     private AppointmentNotificationChannelService $channelService;
     private AppointmentNotificationLogService $logService;
+    private WhatsAppChatbotService $whatsAppChatbotService;
     private AgendaModel $agendaModel;
     private PersonaleModel $personaleModel;
 
@@ -27,6 +28,7 @@ class AgendaAppointmentNotificationService
         $this->messageTemplateService = new AppointmentMessageTemplateService();
         $this->channelService = new AppointmentNotificationChannelService();
         $this->logService = new AppointmentNotificationLogService();
+        $this->whatsAppChatbotService = new WhatsAppChatbotService();
         $this->agendaModel = new AgendaModel();
         $this->personaleModel = new PersonaleModel();
     }
@@ -83,6 +85,13 @@ class AgendaAppointmentNotificationService
         $patientRecipient = $this->buildPatientRecipient($appointment, $patientLabel);
         $patientPlan = $this->settingsService->resolveDispatchPlan((int) ($tenant['id_tenant'] ?? 0), AppointmentNotificationSettingsService::TYPE_PATIENT_BOOKING);
         if (!empty($patientPlan['enabled']) && !empty($patientPlan['channels'])) {
+            $tenantId = (int) ($tenant['id_tenant'] ?? 0);
+            $confirmationInstructions = WhatsAppGatewayClient::isRoutedToGateway($tenantId)
+                ? $this->whatsAppChatbotService->instructionsForTenant(
+                    $tenantId,
+                    AppointmentNotificationSettingsService::TYPE_PATIENT_BOOKING
+                )
+                : '';
             $message = $this->buildPatientBookingMessage(
                 (string) ($patientPlan['template'] ?? ''),
                 $patientLabel,
@@ -94,7 +103,8 @@ class AgendaAppointmentNotificationService
                 trim(implode(', ', array_filter([
                     trim((string) ($appointment['indirizzo'] ?? '')),
                     trim((string) ($appointment['citta'] ?? '')),
-                ], static fn(string $value): bool => $value !== '')))
+                ], static fn(string $value): bool => $value !== ''))),
+                $confirmationInstructions
             );
             $result['patient_booking'] = $this->dispatchPlan(
                 $tenant,
@@ -314,12 +324,13 @@ class AgendaAppointmentNotificationService
         string $notes,
         string $tenantName,
         string $place,
-        string $address
+        string $address,
+        string $confirmationInstructions = ''
     ): string
     {
         $scheduledParts = preg_split('/\s+/', trim($scheduledFor), 2) ?: [];
 
-        return $this->messageTemplateService->render(
+        $message = $this->messageTemplateService->render(
             AppointmentNotificationSettingsService::TYPE_PATIENT_BOOKING,
             $template,
             [
@@ -334,6 +345,11 @@ class AgendaAppointmentNotificationService
                 'nome_spazio' => $tenantName !== '' ? $tenantName : 'AmbulatorioFacile',
             ]
         );
+
+        return trim(implode("\n", array_filter([
+            trim($message),
+            trim($confirmationInstructions),
+        ], static fn(string $value): bool => $value !== '')));
     }
 
     private function buildCrossDoctorMessage(string $actorLabel, string $patientLabel, string $scheduledFor, string $visitReason, string $notes): string
@@ -477,6 +493,18 @@ class AgendaAppointmentNotificationService
             // Channels are treated as an ordered fallback chain:
             // once one delivery succeeds, we stop and avoid duplicate alerts.
             if (!empty($sendResult['ok'])) {
+                if (
+                    $channel === AppointmentNotificationSettingsService::CHANNEL_WHATSAPP
+                    && WhatsAppGatewayClient::isRoutedToGateway((int) ($tenant['id_tenant'] ?? 0))
+                ) {
+                    $this->whatsAppChatbotService->registerAppointmentPrompt(
+                        (int) ($tenant['id_tenant'] ?? 0),
+                        (int) ($baseLog['appointment_id'] ?? 0),
+                        (string) ($sendResult['recipient'] ?? $recipientLabel),
+                        (string) ($baseLog['message_type'] ?? ''),
+                        (string) ($sendResult['provider_id'] ?? '')
+                    );
+                }
                 $result['delivered_channel'] = $channel;
                 break;
             }

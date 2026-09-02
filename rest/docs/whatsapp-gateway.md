@@ -28,6 +28,27 @@ WHATSAPP_GATEWAY_API_SECRET=LO_STESSO_SEGRETO_CASUALE_CONFIGURATO_NEL_GATEWAY
 WHATSAPP_GATEWAY_TIMEOUT_SECONDS=90
 ```
 
+Nel container del gateway configurare anche il callback verso l'applicazione dello stesso ambiente:
+
+```dotenv
+WHATSAPP_GATEWAY_WEBHOOK_URL=https://ambulatoriofacile.it/login/api/whatsapp-gateway/incoming
+WHATSAPP_GATEWAY_WEBHOOK_TIMEOUT_SECONDS=10
+```
+
+Per l'ambiente demo usare il percorso `/demo/api/whatsapp-gateway/incoming`. Il callback è firmato HMAC con `WHATSAPP_GATEWAY_API_KEY_ID` e `WHATSAPP_GATEWAY_API_SECRET`; non deve puntare all'altro ambiente.
+
+## Chatbot per tenant
+
+Il tenant master trova **Chatbot WhatsApp** nella console del proprio spazio. La configurazione è isolata per `id_tenant` e permette di:
+
+- attivare o sospendere il bot senza scollegare il dispositivo;
+- scegliere se aprire l'attesa sul reminder o anche sulla conferma di nuova prenotazione;
+- configurare risposte esatte, alias, ordine delle regole e messaggio di fallback;
+- associare una regola a conferma appuntamento, annullamento appuntamento o semplice risposta;
+- consultare richieste pendenti, messaggi elaborati ed errori dello spazio.
+
+Quando parte un messaggio WhatsApp configurato, l'app salva l'ID esatto dell'appuntamento e il numero normalizzato. Il webhook può agire soltanto su quel contesto ancora valido. `message_id` e stato della richiesta rendono idempotenti i ritentativi e impediscono che la stessa risposta aggiorni due volte l'agenda.
+
 Per un tenant pilota, usare `WHATSAPP_PROVIDER=hybrid`, aprire **Piattaforma → Spazi cliente**, abilitare il canale WhatsApp e selezionare **Instrada al gateway AmbulatorioFacile**. Il routing viene salvato nel `config_json` dell'override tenant e diventa effettivo senza redeploy. Tutti gli altri tenant continueranno a usare UltraMsg. `WHATSAPP_GATEWAY_TENANT_IDS` rimane disponibile come allowlist tecnica di emergenza. Passare a `WHATSAPP_PROVIDER=gateway` per l'intera piattaforma solo dopo aver:
 
 1. distribuito il servizio con volume persistente `/data`;
@@ -58,11 +79,9 @@ In Coolify tutte le variabili `WHATSAPP_GATEWAY_*` devono essere abilitate a run
 - callback legacy `checkMessaggio`, `aggiornaNoteApp` e `checkAppMultiplo`;
 - `LegacyWhatsappAppointmentController` e relativo modello;
 - cron legacy e monitor UltraMsg;
-- schema del database piattaforma e dei database tenant;
 - autenticazione, ruoli, pannelli master/tenant e feature flag;
-- motore chatbot e router dei messaggi in ingresso;
 - ambiente demo congelato.
 
 ## Milestone successivo consigliato
 
-Estendere i pannelli piattaforma e tenant esistenti con azioni server-side per stato/QR/logout, aggiungere webhook in ingresso firmati verso un Message Router applicativo e introdurre audit persistente nel catalogo centrale. Solo dopo i test end-to-end conviene spostare tenant pilota da UltraMsg al gateway.
+Estendere il builder con rami multi-step, allegati e azioni applicative aggiuntive. Se il volume dei messaggi cresce, introdurre nel gateway un outbox persistente per consegna webhook oltre ai ritentativi immediati già presenti.
