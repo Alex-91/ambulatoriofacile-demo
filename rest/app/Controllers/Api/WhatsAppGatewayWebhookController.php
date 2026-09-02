@@ -29,14 +29,25 @@ class WhatsAppGatewayWebhookController extends BaseController
             $headers[$name] = $this->request->getHeaderLine($name);
         }
 
-        try {
-            $verified = (new WhatsAppGatewayWebhookVerifier(
-                (string) env('WHATSAPP_GATEWAY_API_KEY_ID', 'ambulatoriofacile-app'),
-                (string) env('WHATSAPP_GATEWAY_API_SECRET', ''),
-                (int) env('WHATSAPP_GATEWAY_ALLOWED_CLOCK_SKEW_SECONDS', 300)
-            ))->verify('POST', $requestTarget, $body, $headers);
-        } catch (\Throwable $e) {
-            log_message('warning', 'WhatsApp gateway webhook rejected: {message}', ['message' => $e->getMessage()]);
+        $verifier = new WhatsAppGatewayWebhookVerifier(
+            (string) env('WHATSAPP_GATEWAY_API_KEY_ID', 'ambulatoriofacile-app'),
+            (string) env('WHATSAPP_GATEWAY_API_SECRET', ''),
+            (int) env('WHATSAPP_GATEWAY_ALLOWED_CLOCK_SKEW_SECONDS', 300)
+        );
+        $verified = null;
+        $verificationError = null;
+        foreach ($this->signatureRequestTargets($requestTarget) as $signatureTarget) {
+            try {
+                $verified = $verifier->verify('POST', $signatureTarget, $body, $headers);
+                break;
+            } catch (\Throwable $e) {
+                $verificationError = $e;
+            }
+        }
+        if (!is_array($verified)) {
+            log_message('warning', 'WhatsApp gateway webhook rejected: {message}', [
+                'message' => $verificationError?->getMessage() ?? 'Firma webhook non valida.',
+            ]);
             return $this->response->setStatusCode(401)->setJSON(['ok' => false, 'error' => 'invalid_signature']);
         }
 
@@ -66,5 +77,34 @@ class WhatsAppGatewayWebhookController extends BaseController
                 'error' => 'processing_failed',
             ]);
         }
+    }
+
+    /**
+     * The public proxy may remove the visible /demo or /login prefix before PHP.
+     * Accept the exact request target and the canonical public variant only.
+     *
+     * @return list<string>
+     */
+    private function signatureRequestTargets(string $requestTarget): array
+    {
+        $targets = [$requestTarget];
+        $canonicalUrl = trim((string) (env('APP_CANONICAL_URL', '') ?: env('APP_BASE_URL', '')));
+        $visiblePrefix = trim((string) parse_url($canonicalUrl, PHP_URL_PATH), '/');
+        $parts = parse_url($requestTarget);
+        if ($visiblePrefix === '' || $parts === false) {
+            return $targets;
+        }
+
+        $path = '/' . ltrim((string) ($parts['path'] ?? ''), '/');
+        $prefix = '/' . $visiblePrefix;
+        if ($path !== $prefix && !str_starts_with($path, $prefix . '/')) {
+            $publicTarget = $prefix . ($path === '/' ? '' : $path);
+            if (!empty($parts['query'])) {
+                $publicTarget .= '?' . $parts['query'];
+            }
+            $targets[] = $publicTarget;
+        }
+
+        return array_values(array_unique($targets));
     }
 }
