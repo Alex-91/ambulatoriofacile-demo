@@ -5775,8 +5775,16 @@ public function eseguiRepairRecurringExtraSlots()
 
         $showWaConfirmationColumn = $this->shouldShowWaConfirmationColumn($idDot);
         $showVisitTypeColumn = $this->isVisitTypesFeatureEnabled();
+        $visitTypeColors = $showVisitTypeColumn
+            ? $this->buildAgendaPdfVisitTypeColorMap($this->visitTypeModel->listForAgenda())
+            : [];
         $slots = $this->sanitizeAppointmentCreatorRows($this->slotModel->getSlotsCalendario($idDot, $data, 'day'));
-        $rows = $this->buildSingleDayPdfRows($slots, $showWaConfirmationColumn, $showVisitTypeColumn);
+        $rows = $this->buildSingleDayPdfRows(
+            $slots,
+            $showWaConfirmationColumn,
+            $showVisitTypeColumn,
+            $visitTypeColors
+        );
 
         $dot = $this->agendaModel->getAgendaProfessionalByLegacyId($idDot) ?? [];
         $doctorLabel = $this->resolveAgendaProfessionalDisplayLabel($dot, $idDot);
@@ -5808,14 +5816,19 @@ public function eseguiRepairRecurringExtraSlots()
         }
 
         foreach ($rows as $r) {
+            $cellStyle = trim((string)($r['cell_style'] ?? ''));
+            $cellStyleAttribute = $cellStyle !== ''
+                ? ' style="' . htmlspecialchars($cellStyle, ENT_QUOTES, 'UTF-8') . '"'
+                : '';
+
             $html .= '<tr>
-                <td>' . htmlspecialchars((string)($r['time_range'] ?? '')) . '</td>
-                <td>' . htmlspecialchars((string)($r['patient_label'] ?? '')) . '</td>
-                ' . ($showVisitTypeColumn ? '<td>' . htmlspecialchars((string)($r['visit_type'] ?? '')) . '</td>' : '') . '
-                <td>' . htmlspecialchars((string)($r['telefono'] ?? '')) . '</td>
-                <td>' . htmlspecialchars((string)($r['cellulare'] ?? '')) . '</td>
-                ' . ($showWaConfirmationColumn ? '<td>' . htmlspecialchars((string)($r['wa_confirmation'] ?? '')) . '</td>' : '') . '
-                <td>' . htmlspecialchars((string)($r['note'] ?? '')) . '</td>
+                <td' . $cellStyleAttribute . '>' . htmlspecialchars((string)($r['time_range'] ?? '')) . '</td>
+                <td' . $cellStyleAttribute . '>' . htmlspecialchars((string)($r['patient_label'] ?? '')) . '</td>
+                ' . ($showVisitTypeColumn ? '<td' . $cellStyleAttribute . '>' . htmlspecialchars((string)($r['visit_type'] ?? '')) . '</td>' : '') . '
+                <td' . $cellStyleAttribute . '>' . htmlspecialchars((string)($r['telefono'] ?? '')) . '</td>
+                <td' . $cellStyleAttribute . '>' . htmlspecialchars((string)($r['cellulare'] ?? '')) . '</td>
+                ' . ($showWaConfirmationColumn ? '<td' . $cellStyleAttribute . '>' . htmlspecialchars((string)($r['wa_confirmation'] ?? '')) . '</td>' : '') . '
+                <td' . $cellStyleAttribute . '>' . htmlspecialchars((string)($r['note'] ?? '')) . '</td>
             </tr>';
         }
 
@@ -5832,7 +5845,8 @@ public function eseguiRepairRecurringExtraSlots()
     private function buildSingleDayPdfRows(
         array $slots,
         bool $showWaConfirmationColumn,
-        bool $showVisitTypeColumn
+        bool $showVisitTypeColumn,
+        array $visitTypeColors = []
     ): array
     {
         $rows = [];
@@ -5870,10 +5884,69 @@ public function eseguiRepairRecurringExtraSlots()
                     ? (WhatsappAppointmentNote::hasWaConfirmation((string)($slot['note'] ?? '')) ? 'SI' : 'NO')
                     : '',
                 'note' => $note,
+                'cell_style' => $this->buildSingleDayPdfVisitTypeCellStyle(
+                    $slot,
+                    $showVisitTypeColumn && $hasAppointment,
+                    $visitTypeColors
+                ),
             ];
         }
 
         return $rows;
+    }
+
+    private function buildAgendaPdfVisitTypeColorMap(array $visitTypes): array
+    {
+        $colors = [];
+
+        foreach ($visitTypes as $visitType) {
+            $idTipoVisita = (int)($visitType['id_tipo_visita'] ?? 0);
+            $usesOwnColor = !array_key_exists('usa_colore_tipo_visita_slot', $visitType)
+                || (int)($visitType['usa_colore_tipo_visita_slot'] ?? 1) !== 0;
+            $color = $this->normalizeAgendaPdfHexColor((string)($visitType['colore'] ?? ''));
+
+            if ($idTipoVisita > 0 && $usesOwnColor && $color !== '') {
+                $colors[$idTipoVisita] = $color;
+            }
+        }
+
+        return $colors;
+    }
+
+    private function buildSingleDayPdfVisitTypeCellStyle(
+        array $slot,
+        bool $visitTypeColorsEnabled,
+        array $visitTypeColors
+    ): string {
+        if (!$visitTypeColorsEnabled) {
+            return '';
+        }
+
+        $idTipoVisita = (int)($slot['id_tipo_visita'] ?? 0);
+        $backgroundColor = $this->normalizeAgendaPdfHexColor((string)($visitTypeColors[$idTipoVisita] ?? ''));
+        if ($idTipoVisita <= 0 || $backgroundColor === '') {
+            return '';
+        }
+
+        return 'background-color:' . $backgroundColor
+            . ';color:' . $this->resolveAgendaPdfContrastTextColor($backgroundColor) . ';';
+    }
+
+    private function normalizeAgendaPdfHexColor(string $color): string
+    {
+        $color = strtoupper(trim($color));
+        return preg_match('/^#[0-9A-F]{6}$/', $color) === 1 ? $color : '';
+    }
+
+    private function resolveAgendaPdfContrastTextColor(string $backgroundColor): string
+    {
+        $hex = ltrim($backgroundColor, '#');
+        $red = hexdec(substr($hex, 0, 2));
+        $green = hexdec(substr($hex, 2, 2));
+        $blue = hexdec(substr($hex, 4, 2));
+        $yiq = (($red * 299) + ($green * 587) + ($blue * 114)) / 1000;
+
+        return $yiq >= 166 ? '#1F2D3D' : '#FFFFFF';
     }
 
     private function shouldSkipSingleDayPdfSecondaryAppointmentSlot(array $slot): bool
