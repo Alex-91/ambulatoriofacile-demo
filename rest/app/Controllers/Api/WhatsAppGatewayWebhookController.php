@@ -91,18 +91,31 @@ class WhatsAppGatewayWebhookController extends BaseController
         $canonicalUrl = trim((string) (env('APP_CANONICAL_URL', '') ?: env('APP_BASE_URL', '')));
         $visiblePrefix = trim((string) parse_url($canonicalUrl, PHP_URL_PATH), '/');
         $parts = parse_url($requestTarget);
-        if ($visiblePrefix === '' || $parts === false) {
+        if ($parts === false) {
             return $targets;
         }
 
         $path = '/' . ltrim((string) ($parts['path'] ?? ''), '/');
-        $prefix = '/' . $visiblePrefix;
-        if ($path !== $prefix && !str_starts_with($path, $prefix . '/')) {
-            $publicTarget = $prefix . ($path === '/' ? '' : $path);
-            if (!empty($parts['query'])) {
-                $publicTarget .= '?' . $parts['query'];
+        if ($visiblePrefix !== '') {
+            $prefix = '/' . $visiblePrefix;
+            if ($path !== $prefix && !str_starts_with($path, $prefix . '/')) {
+                $publicTarget = $prefix . ($path === '/' ? '' : $path);
+                if (!empty($parts['query'])) {
+                    $publicTarget .= '?' . $parts['query'];
+                }
+                $targets[] = $publicTarget;
             }
-            $targets[] = $publicTarget;
+        }
+
+        // Coolify can strip the external mount prefix before the request reaches
+        // PHP. These are the only public aliases explicitly registered in Routes.
+        $webhookSuffix = '/api/whatsapp-gateway/incoming';
+        $querySuffix = !empty($parts['query']) ? ('?' . $parts['query']) : '';
+        if ($path === $webhookSuffix) {
+            $targets[] = '/demo' . $webhookSuffix . $querySuffix;
+            $targets[] = '/login' . $webhookSuffix . $querySuffix;
+        } elseif (in_array($path, ['/demo' . $webhookSuffix, '/login' . $webhookSuffix], true)) {
+            $targets[] = $webhookSuffix . $querySuffix;
         }
 
         return array_values(array_unique($targets));
