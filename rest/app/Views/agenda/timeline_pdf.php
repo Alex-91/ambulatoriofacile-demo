@@ -147,30 +147,36 @@ $isTeamDay = (($pageMode ?? '') === 'team_day');
             white-space: normal;
         }
 
+        .timeline-cell.is-gap,
         .timeline-cell.is-gap .cell-inner {
             background: #f8fafc;
             color: transparent;
         }
 
+        .timeline-cell.is-free,
         .timeline-cell.is-free .cell-inner {
             background: #ffffff;
         }
 
+        .timeline-cell.is-blocked,
         .timeline-cell.is-blocked .cell-inner {
             background: #fde2e2;
             color: #991b1b;
         }
 
+        .timeline-cell.is-no-agenda,
         .timeline-cell.is-no-agenda .cell-inner {
             background: #f3f4f6;
             color: #4b5563;
         }
 
+        .timeline-cell.is-booked,
         .timeline-cell.is-booked .cell-inner {
             background: #3c8dbc;
             color: #ffffff;
         }
 
+        .timeline-cell.is-booked-locked,
         .timeline-cell.is-booked-locked .cell-inner {
             background: #d9534f;
             color: #ffffff;
