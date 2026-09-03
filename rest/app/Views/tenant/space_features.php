@@ -36,6 +36,17 @@ $agendaAppointmentBlockVisibilityLabels = [
     'visible' => 'visibile',
     'hidden' => 'nascosto',
 ];
+$agendaMemoFieldVisibilitySettings = is_array($agendaMemoFieldVisibilitySettings ?? null)
+    ? $agendaMemoFieldVisibilitySettings
+    : [];
+$agendaMemoFieldRows = is_array($agendaMemoFieldVisibilitySettings['field_rows'] ?? null)
+    ? $agendaMemoFieldVisibilitySettings['field_rows']
+    : [];
+$agendaMemoFieldVisibilityAvailable = !empty($agendaMemoFieldVisibilitySettings['visibility_management_available']);
+$oldAgendaMemoFieldVisibilityForm = old('agenda_memo_field_visibility_form');
+$oldAgendaMemoFieldVisibilityEnabled = old('agenda_memo_field_visibility_enabled');
+$oldAgendaMemoVisibleFields = old('agenda_memo_visible_fields');
+$oldAgendaMemoVisibleFields = is_array($oldAgendaMemoVisibleFields) ? array_map('strval', $oldAgendaMemoVisibleFields) : [];
 $agendaHomeBlockOrderSettings = is_array($agendaHomeBlockOrderSettings ?? null) ? $agendaHomeBlockOrderSettings : [];
 $agendaHomeBlockOrderRows = is_array($agendaHomeBlockOrderSettings['block_rows'] ?? null)
     ? $agendaHomeBlockOrderSettings['block_rows']
@@ -251,6 +262,7 @@ foreach ($featureStates as $row) {
 $hasSupplementalSpaceControls = ($agendaHomeBlockOrderAvailable && $agendaHomeBlockOrderRows !== [])
     || ($agendaSidebarBlockOrderAvailable && $agendaSidebarBlockOrderRows !== [])
     || ($agendaAppointmentBlockLayoutAvailable && $agendaAppointmentBlockRows !== [])
+    || ($agendaMemoFieldVisibilityAvailable && $agendaMemoFieldRows !== [])
     || ($agendaDefaultViewAvailable && $agendaDefaultViewRows !== [])
     || ($agendaProfessionalOrderAvailable && $agendaProfessionalOrderRows !== [])
     || ($agendaTextThemeAvailable && $agendaTextColorRows !== [])
@@ -799,6 +811,85 @@ $canSubmitSpaceSettings = ($manageableRows !== []) || $hasSupplementalSpaceContr
 
                     <div class="agenda-order-note">
                       Se lasci l’opzione spenta, il popup appuntamento continua a usare la disposizione standard. L’ordine e le visibilità che prepari qui restano comunque salvati e pronti da riattivare quando vuoi.
+                    </div>
+                  </div>
+                <?php endif; ?>
+
+                <?php if ($agendaMemoFieldVisibilityAvailable && $agendaMemoFieldRows !== []): ?>
+                  <div class="agenda-order-box">
+                    <input type="hidden" name="agenda_memo_field_visibility_form" value="1">
+                    <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+                      <div>
+                        <h4 style="margin:0 0 6px 0;">Campi popup memo</h4>
+                        <p style="margin:0; color:#587075;">
+                          Scegli quali campi facoltativi mostrare quando si inserisce o si modifica una memo. Cliente e dottore assegnato, quando previsto, restano sempre visibili perché necessari al flusso.
+                        </p>
+                      </div>
+                      <?php
+                        $agendaMemoConfigurationSelected = ((string) $oldAgendaMemoFieldVisibilityEnabled === '1')
+                            || ($oldAgendaMemoFieldVisibilityEnabled === null && !empty($agendaMemoFieldVisibilitySettings['tenant_configuration_enabled']));
+                      ?>
+                      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                        <span class="label label-<?= $agendaMemoConfigurationSelected ? 'success' : 'default' ?>">
+                          <?= $agendaMemoConfigurationSelected ? 'configurazione personalizzata attiva' : 'tutti i campi visibili' ?>
+                        </span>
+                        <span class="label label-info">concessa dalla piattaforma</span>
+                      </div>
+                    </div>
+
+                    <div class="checkbox" style="margin:14px 0;">
+                      <label>
+                        <input
+                          type="checkbox"
+                          name="agenda_memo_field_visibility_enabled"
+                          value="1"
+                          <?= $agendaMemoConfigurationSelected ? 'checked' : '' ?>
+                        >
+                        Usa questa selezione nel popup memo dello studio
+                      </label>
+                    </div>
+
+                    <div class="row">
+                      <?php foreach ($agendaMemoFieldRows as $row): ?>
+                        <?php
+                          $fieldKey = trim((string) ($row['key'] ?? ''));
+                          if ($fieldKey === '') {
+                              continue;
+                          }
+                          $runtimeAvailable = !empty($row['runtime_available']);
+                          $selectedVisible = $oldAgendaMemoFieldVisibilityForm !== null
+                              ? in_array($fieldKey, $oldAgendaMemoVisibleFields, true)
+                              : !empty($row['saved_visible']);
+                        ?>
+                        <div class="col-md-6">
+                          <div class="feature-card" style="min-height:126px;">
+                            <h4><?= esc((string) ($row['label'] ?? $fieldKey)) ?></h4>
+                            <p><?= esc((string) ($row['description'] ?? '')) ?></p>
+                            <?php if (!$runtimeAvailable && $selectedVisible): ?>
+                              <input type="hidden" name="agenda_memo_visible_fields[]" value="<?= esc($fieldKey, 'attr') ?>">
+                            <?php endif; ?>
+                            <div class="checkbox" style="margin:0;">
+                              <label>
+                                <input
+                                  type="checkbox"
+                                  name="agenda_memo_visible_fields[]"
+                                  value="<?= esc($fieldKey, 'attr') ?>"
+                                  <?= $selectedVisible ? 'checked' : '' ?>
+                                  <?= $runtimeAvailable ? '' : 'disabled' ?>
+                                >
+                                Mostra nel popup memo
+                              </label>
+                            </div>
+                            <?php if (!$runtimeAvailable): ?>
+                              <span class="label label-default">funzione collegata non attiva</span>
+                            <?php endif; ?>
+                          </div>
+                        </div>
+                      <?php endforeach; ?>
+                    </div>
+
+                    <div class="agenda-order-note">
+                      Disattivando la configurazione, il popup torna subito a mostrare tutti i campi. I valori già presenti nelle memo restano conservati anche quando un campo viene nascosto.
                     </div>
                   </div>
                 <?php endif; ?>

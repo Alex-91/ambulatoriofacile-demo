@@ -433,6 +433,16 @@ class TenantFeatureService
                 'tenant_default_enabled' => 0,
                 'sort_order' => 74,
             ],
+            AgendaMemoFieldVisibilityService::FEATURE_KEY => [
+                'feature_name' => 'Campi popup memo',
+                'feature_scope' => 'workflow',
+                'description' => 'Il master piattaforma può attivare per il singolo spazio la scelta dei campi facoltativi visibili durante l’inserimento e la modifica di una memo.',
+                'default_enabled' => 0,
+                'icon_class' => 'fa-list-alt',
+                'is_tenant_managed' => 0,
+                'tenant_default_enabled' => 0,
+                'sort_order' => 82,
+            ],
         ];
     }
 

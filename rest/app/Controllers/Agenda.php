@@ -19,6 +19,7 @@ use App\Services\AgendaAppointmentNotificationService;
 use App\Services\AgendaAppointmentBlockLayoutService;
 use App\Services\AgendaDefaultViewService;
 use App\Services\AgendaHomeBlockOrderService;
+use App\Services\AgendaMemoFieldVisibilityService;
 use App\Services\AgendaProfessionalOrderService;
 use App\Services\AgendaSidebarBlockOrderService;
 use App\Services\AgendaSlotFragmentService;
@@ -75,6 +76,7 @@ class Agenda extends BaseController
     protected NotificationService $notificationService;
     protected AgendaAppointmentBlockLayoutService $agendaAppointmentBlockLayoutService;
     protected AgendaHomeBlockOrderService $agendaHomeBlockOrderService;
+    protected AgendaMemoFieldVisibilityService $agendaMemoFieldVisibilityService;
     protected AgendaSidebarBlockOrderService $agendaSidebarBlockOrderService;
     protected AgendaDefaultViewService $agendaDefaultViewService;
     protected AgendaProfessionalOrderService $agendaProfessionalOrderService;
@@ -106,6 +108,7 @@ class Agenda extends BaseController
         $this->notificationService = new NotificationService();
         $this->agendaAppointmentBlockLayoutService = new AgendaAppointmentBlockLayoutService();
         $this->agendaHomeBlockOrderService = new AgendaHomeBlockOrderService();
+        $this->agendaMemoFieldVisibilityService = new AgendaMemoFieldVisibilityService();
         $this->agendaSidebarBlockOrderService = new AgendaSidebarBlockOrderService();
         $this->agendaDefaultViewService = new AgendaDefaultViewService();
         $this->agendaProfessionalOrderService = new AgendaProfessionalOrderService();
@@ -2003,6 +2006,7 @@ public function eseguiRepairRecurringExtraSlots()
         $domiciliariAbilitati = $this->isDomiciliareAbilitatoPerDottore($medici, $selectedDot);
         $appointmentDocumentActions = $this->resolveAppointmentDocumentActionsState();
         $agendaAppointmentBlockLayoutSettings = [];
+        $agendaMemoFieldVisibilitySettings = [];
         $agendaHomeBlockOrderSettings = [];
         $agendaSidebarBlockOrderSettings = [];
         $agendaTenantId = $this->resolveCurrentAgendaTenantId();
@@ -2014,6 +2018,16 @@ public function eseguiRepairRecurringExtraSlots()
                     ->resolveTenantSettings($agendaTenantId);
             } catch (\Throwable $e) {
                 log_message('warning', 'Agenda::index agenda appointment block layout bootstrap failed: {message}', [
+                    'message' => $e->getMessage(),
+                    'tenant_id' => $agendaTenantId,
+                ]);
+            }
+
+            try {
+                $agendaMemoFieldVisibilitySettings = $this->agendaMemoFieldVisibilityService
+                    ->resolveTenantSettings($agendaTenantId);
+            } catch (\Throwable $e) {
+                log_message('warning', 'Agenda::index memo field visibility bootstrap failed: {message}', [
                     'message' => $e->getMessage(),
                     'tenant_id' => $agendaTenantId,
                 ]);
@@ -2064,6 +2078,7 @@ public function eseguiRepairRecurringExtraSlots()
             'agendaAutoRefreshFeatureEnabled' => $agendaAutoRefreshFeatureEnabled,
             'visitTypes'           => $visitTypes,
             'agendaAppointmentBlockLayoutSettings' => $agendaAppointmentBlockLayoutSettings,
+            'agendaMemoFieldVisibilitySettings' => $agendaMemoFieldVisibilitySettings,
             'agendaHomeBlockOrderSettings' => $agendaHomeBlockOrderSettings,
             'agendaSidebarBlockOrderSettings' => $agendaSidebarBlockOrderSettings,
             'agendaTextThemeCssVars' => $this->getAgendaTextThemeCssVariables(),

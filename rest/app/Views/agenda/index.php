@@ -30,6 +30,28 @@
         $agendaAppointmentBlockLayoutSettings = is_array($agendaAppointmentBlockLayoutSettings ?? null)
             ? $agendaAppointmentBlockLayoutSettings
             : [];
+        $agendaMemoFieldVisibilitySettings = is_array($agendaMemoFieldVisibilitySettings ?? null)
+            ? $agendaMemoFieldVisibilitySettings
+            : [];
+        $agendaMemoFieldVisibility = array_fill_keys([
+            'validity_date',
+            'phone',
+            'mobile',
+            'address',
+            'city',
+            'patient_registry',
+            'notes',
+            'completed',
+        ], true);
+        foreach ((array) ($agendaMemoFieldVisibilitySettings['effective_field_visibility'] ?? []) as $fieldKey => $visible) {
+            $fieldKey = trim((string) $fieldKey);
+            if (array_key_exists($fieldKey, $agendaMemoFieldVisibility)) {
+                $agendaMemoFieldVisibility[$fieldKey] = (bool) $visible;
+            }
+        }
+        $agendaMemoFieldIsVisible = static function (string $fieldKey) use ($agendaMemoFieldVisibility): bool {
+            return (bool) ($agendaMemoFieldVisibility[$fieldKey] ?? true);
+        };
         $agendaHomeBlockOrderSettings = is_array($agendaHomeBlockOrderSettings ?? null) ? $agendaHomeBlockOrderSettings : [];
         $agendaSidebarBlockOrderSettings = is_array($agendaSidebarBlockOrderSettings ?? null) ? $agendaSidebarBlockOrderSettings : [];
         $appointmentDocumentActions = is_array($appointmentDocumentActions ?? null) ? $appointmentDocumentActions : [];
@@ -4391,7 +4413,7 @@ if ($appointmentModalRenderOrderKeys === []) {
                     </div>
                     <?php endif; ?>
 
-                    <div class="col-md-4 form-group">
+                    <div class="col-md-4 form-group"<?= $agendaMemoFieldIsVisible('validity_date') ? '' : ' hidden' ?>>
                         <label for="nota_data_inizio_validita">Data inizio validità *</label>
                         <input type="date" id="nota_data_inizio_validita" class="form-control" value="<?= esc(date('Y-m-d')) ?>">
                     </div>
@@ -4402,28 +4424,28 @@ if ($appointmentModalRenderOrderKeys === []) {
                         <div id="notePatientAutocomplete" class="agenda-autocomplete d-none"></div>
                     </div>
 
-                    <div class="col-md-6 form-group">
-                        <label for="nota_telefono">Telefono *</label>
+                    <div class="col-md-6 form-group"<?= $agendaMemoFieldIsVisible('phone') ? '' : ' hidden' ?>>
+                        <label for="nota_telefono">Telefono</label>
                         <input type="text" id="nota_telefono" class="form-control">
                     </div>
 
-                    <div class="col-md-6 form-group">
-                        <label for="nota_cellulare">Cellulare *</label>
+                    <div class="col-md-6 form-group"<?= $agendaMemoFieldIsVisible('mobile') ? '' : ' hidden' ?>>
+                        <label for="nota_cellulare">Cellulare</label>
                         <input type="text" id="nota_cellulare" class="form-control">
                     </div>
 
-                    <div class="col-md-8 form-group">
+                    <div class="col-md-8 form-group"<?= $agendaMemoFieldIsVisible('address') ? '' : ' hidden' ?>>
                         <label for="nota_indirizzo">Indirizzo</label>
                         <input type="text" id="nota_indirizzo" class="form-control">
                     </div>
 
-                    <div class="col-md-4 form-group">
+                    <div class="col-md-4 form-group"<?= $agendaMemoFieldIsVisible('city') ? '' : ' hidden' ?>>
                         <label for="nota_citta">Città</label>
                         <input type="text" id="nota_citta" class="form-control" placeholder="Cerca comune">
                     </div>
 
                     <?php if (!empty($patientRegistryVisibilityFeatureEnabled)): ?>
-                    <div class="col-md-12">
+                    <div class="col-md-12"<?= $agendaMemoFieldIsVisible('patient_registry') ? '' : ' hidden' ?>>
                         <div class="checkbox" style="margin:0 0 4px;">
                             <label>
                                 <input type="checkbox" id="nota_visibile_in_anagrafica" value="1">
@@ -4436,12 +4458,12 @@ if ($appointmentModalRenderOrderKeys === []) {
                     </div>
                     <?php endif; ?>
 
-                    <div class="col-md-12 form-group">
+                    <div class="col-md-12 form-group"<?= $agendaMemoFieldIsVisible('notes') ? '' : ' hidden' ?>>
                         <label for="nota_note">Note</label>
                         <textarea id="nota_note" rows="5" class="form-control"></textarea>
                     </div>
 
-                    <div class="col-md-12 form-group" style="margin-bottom:0;">
+                    <div class="col-md-12 form-group" style="margin-bottom:0;"<?= $agendaMemoFieldIsVisible('completed') ? '' : ' hidden' ?>>
                         <div class="checkbox" style="margin:0;">
                             <label>
                                 <input type="checkbox" id="nota_fatta" value="1"> Segna come fatta

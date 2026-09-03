@@ -6,6 +6,7 @@ use App\Controllers\BaseController;
 use App\Services\AgendaAppointmentBlockLayoutService;
 use App\Services\AgendaDefaultViewService;
 use App\Services\AgendaHomeBlockOrderService;
+use App\Services\AgendaMemoFieldVisibilityService;
 use App\Models\AgendaModel;
 use App\Services\AgendaSidebarBlockOrderService;
 use App\Services\BillingFeatureService;
@@ -43,10 +44,13 @@ class SpaceFeatures extends BaseController
 
         $agendaProfessionals = (new AgendaModel())->getAllAgendaProfessionals();
         $appointmentBlockLayoutService = new AgendaAppointmentBlockLayoutService();
+        $memoFieldVisibilityService = new AgendaMemoFieldVisibilityService();
         $homeBlockOrderService = new AgendaHomeBlockOrderService();
         $sidebarBlockOrderService = new AgendaSidebarBlockOrderService();
         $professionalOrderService = new AgendaProfessionalOrderService();
         $agendaAppointmentBlockLayoutSettings = $appointmentBlockLayoutService
+            ->resolveTenantSettings($context->tenantId);
+        $agendaMemoFieldVisibilitySettings = $memoFieldVisibilityService
             ->resolveTenantSettings($context->tenantId);
         $agendaHomeBlockOrderSettings = $homeBlockOrderService
             ->resolveTenantSettings($context->tenantId);
@@ -72,6 +76,7 @@ class SpaceFeatures extends BaseController
             'tsConfigurationAccessible' => $tsFeatureService->isEnabledForContext($context)
                 || $tsFeatureService->allowsLocalTestingBypass($context),
             'agendaAppointmentBlockLayoutSettings' => $agendaAppointmentBlockLayoutSettings,
+            'agendaMemoFieldVisibilitySettings' => $agendaMemoFieldVisibilitySettings,
             'agendaDefaultViewSettings' => $agendaDefaultViewSettings,
             'agendaHomeBlockOrderSettings' => $agendaHomeBlockOrderSettings,
             'agendaSidebarBlockOrderSettings' => $agendaSidebarBlockOrderSettings,
@@ -107,6 +112,12 @@ class SpaceFeatures extends BaseController
                 (array) $this->request->getPost('agenda_appointment_block_order_keys')
             ), static fn(string $value): bool => $value !== ''));
             $agendaAppointmentBlockVisibility = (array) $this->request->getPost('agenda_appointment_block_visibility');
+            $agendaMemoFieldVisibilityForm = (int) ($this->request->getPost('agenda_memo_field_visibility_form') ?? 0) === 1;
+            $agendaMemoFieldVisibilityEnabled = (int) ($this->request->getPost('agenda_memo_field_visibility_enabled') ?? 0) === 1;
+            $agendaMemoVisibleFieldKeys = array_values(array_filter(array_map(
+                static fn($value): string => trim(strtolower((string) $value)),
+                (array) $this->request->getPost('agenda_memo_visible_fields')
+            ), static fn(string $value): bool => $value !== ''));
             $agendaHomeBlockOrderForm = (int) ($this->request->getPost('agenda_home_block_order_form') ?? 0) === 1;
             $agendaHomeBlockOrderEnabled = (int) ($this->request->getPost('agenda_home_block_order_enabled') ?? 0) === 1;
             $agendaHomeBlockOrderKeys = array_values(array_filter(array_map(
@@ -164,6 +175,7 @@ class SpaceFeatures extends BaseController
             }
             $agendaProfessionals = (new AgendaModel())->getAllAgendaProfessionals();
             $appointmentBlockLayoutService = new AgendaAppointmentBlockLayoutService();
+            $memoFieldVisibilityService = new AgendaMemoFieldVisibilityService();
             $homeBlockOrderService = new AgendaHomeBlockOrderService();
             $sidebarBlockOrderService = new AgendaSidebarBlockOrderService();
             $professionalOrderService = new AgendaProfessionalOrderService();
@@ -174,6 +186,15 @@ class SpaceFeatures extends BaseController
                     $agendaAppointmentBlockLayoutEnabled,
                     $agendaAppointmentBlockOrderKeys,
                     $agendaAppointmentBlockVisibility,
+                    $platformUserId
+                );
+            }
+
+            if ($agendaMemoFieldVisibilityForm) {
+                $memoFieldVisibilityService->saveTenantPreferences(
+                    $context->tenantId,
+                    $agendaMemoFieldVisibilityEnabled,
+                    $agendaMemoVisibleFieldKeys,
                     $platformUserId
                 );
             }
