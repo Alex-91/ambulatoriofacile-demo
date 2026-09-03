@@ -4417,6 +4417,20 @@ if ($appointmentModalRenderOrderKeys === []) {
                         <input type="text" id="nota_citta" class="form-control" placeholder="Cerca comune">
                     </div>
 
+                    <?php if (!empty($patientRegistryVisibilityFeatureEnabled)): ?>
+                    <div class="col-md-12">
+                        <div class="checkbox" style="margin:0 0 4px;">
+                            <label>
+                                <input type="checkbox" id="nota_visibile_in_anagrafica" value="1">
+                                Salva anche nell’anagrafica pazienti
+                            </label>
+                        </div>
+                        <p class="help-block" style="margin:0 0 12px;">
+                            Se non selezionato, i dati restano nella memo ma l’anagrafica del paziente non viene creata o aggiornata.
+                        </p>
+                    </div>
+                    <?php endif; ?>
+
                     <div class="col-md-12 form-group">
                         <label for="nota_note">Note</label>
                         <textarea id="nota_note" rows="5" class="form-control"></textarea>
@@ -10543,6 +10557,14 @@ function formatDomiciliareCreatedAt(value) {
     return escapeHtml(value);
 }
 
+function setNotePatientRegistryVisibility(enabled) {
+    if (!supportsPatientRegistryVisibilityPreference()) {
+        return;
+    }
+
+    $('#nota_visibile_in_anagrafica').prop('checked', !!enabled);
+}
+
 function resetNoteModal() {
     $('#nota_id_nota').val('');
     syncNoteTargetDoctor($('#id_dot').val());
@@ -10556,6 +10578,7 @@ function resetNoteModal() {
     $('#nota_citta').val('');
     $('#nota_note').val('');
     $('#nota_fatta').prop('checked', false);
+    setNotePatientRegistryVisibility(false);
 
     $('#notePatientAutocomplete').addClass('d-none').html('');
     $('#noteModalTitle').text('Nuova nota');
@@ -11366,11 +11389,12 @@ function cercaPazientiAutocompleteNote(term) {
                 + ' data-id="' + escapeHtml(row.id_paziente || '') + '"'
                 + ' data-cliente="' + escapeHtml(nominativo) + '"'
                 + ' data-telefono="' + escapeHtml(row.telefono || '') + '"'
-                    + ' data-cellulare="' + escapeHtml(row.cellulare || '') + '"'
-                    + ' data-indirizzo="' + escapeHtml(row.indirizzo || '') + '"'
-                    + ' data-citta="' + escapeHtml(row.citta || '') + '">'
-                    + '<strong>' + escapeHtml(nominativo) + '</strong>'
-                    + '</div>';
+                + ' data-cellulare="' + escapeHtml(row.cellulare || '') + '"'
+                + ' data-indirizzo="' + escapeHtml(row.indirizzo || '') + '"'
+                + ' data-citta="' + escapeHtml(row.citta || '') + '"'
+                + ' data-visible-in-registry="' + escapeHtml(row.visibile_in_anagrafica == null ? 1 : row.visibile_in_anagrafica) + '">'
+                + '<strong>' + escapeHtml(nominativo) + '</strong>'
+                + '</div>';
             });
 
             $('#notePatientAutocomplete').removeClass('d-none').html(html);
@@ -11424,6 +11448,7 @@ function apriModificaNota(idNota) {
         $('#nota_citta').val(row.citta || '');
         $('#nota_note').val(row.note || '');
         $('#nota_fatta').prop('checked', parseInt(row.fatta || 0, 10) === 1);
+        setNotePatientRegistryVisibility(parseInt(row.visibile_in_anagrafica || 0, 10) === 1);
 
         $('#noteModalTitle').text('Modifica nota');
         $('#btnDeleteNote').show();
@@ -11455,6 +11480,7 @@ function salvaNotaCompleta() {
         cellulare: $('#nota_cellulare').val(),
         indirizzo: $('#nota_indirizzo').val(),
         citta: $('#nota_citta').val(),
+        visibile_in_anagrafica: supportsPatientRegistryVisibilityPreference() && $('#nota_visibile_in_anagrafica').is(':checked') ? 1 : 0,
         note: $('#nota_note').val(),
         fatta: $('#nota_fatta').is(':checked') ? 1 : 0
     }, function(res) {
@@ -12252,6 +12278,7 @@ $('#nota_giorno_text').on('blur', function() {
     $('#nota_doctor_select').on('change', function() {
         syncNoteTargetDoctor($(this).val());
         $('#nota_id_paziente').val('');
+        setNotePatientRegistryVisibility(false);
         $('#notePatientAutocomplete').addClass('d-none').html('');
     });
 
@@ -12269,7 +12296,11 @@ $('#nota_giorno_text').on('blur', function() {
     });
 
     $('#nota_cliente').on('keyup', function() {
+        var hadLinkedPatient = !!$('#nota_id_paziente').val();
         $('#nota_id_paziente').val('');
+        if (hadLinkedPatient) {
+            setNotePatientRegistryVisibility(false);
+        }
         cercaPazientiAutocompleteNote($(this).val());
     });
 
@@ -12286,6 +12317,7 @@ $('#nota_giorno_text').on('blur', function() {
         $('#nota_cellulare').val($(this).data('cellulare') || '');
         $('#nota_indirizzo').val($(this).data('indirizzo') || '');
         $('#nota_citta').val($(this).data('citta') || '');
+        setNotePatientRegistryVisibility(parseInt($(this).data('visibleInRegistry') || 0, 10) === 1);
 
         $('#notePatientAutocomplete').addClass('d-none').html('');
     });

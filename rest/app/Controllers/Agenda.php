@@ -1363,6 +1363,26 @@ public function eseguiRepairRecurringExtraSlots()
         return $payload;
     }
 
+    protected function buildMemoPatientRegistryPayload(array $payload, bool $featureEnabled): ?array
+    {
+        if (
+            !$featureEnabled
+            || !$this->requestBooleanFlag($payload['visibile_in_anagrafica'] ?? 0)
+        ) {
+            return null;
+        }
+
+        return [
+            'id_paziente' => (int)($payload['id_paziente'] ?? 0),
+            'denominazione' => trim((string)($payload['cliente'] ?? '')),
+            'telefono' => trim((string)($payload['telefono'] ?? '')),
+            'cellulare' => trim((string)($payload['cellulare'] ?? '')),
+            'indirizzo' => trim((string)($payload['indirizzo'] ?? '')),
+            'citta' => trim((string)($payload['citta'] ?? '')),
+            'visibile_in_anagrafica' => 1,
+        ];
+    }
+
     protected function isPersonalCommitmentPayload(array $payload): bool
     {
         return trim((string) ($payload['appointment_special_mode'] ?? '')) === 'personal_commitment';
@@ -3696,16 +3716,35 @@ public function eseguiRepairRecurringExtraSlots()
             $this->assertMemoDoctorAllowed($this->getIdDotFromNota($idNota));
 
             $row = $this->noteModel->getNota($idNota);
+            $responseRow = $this->enrichMemoRowsForResponse(
+                $row ? [$row] : [],
+                $this->resolveAgendaDateFromPayload(
+                    $this->request->getGet(),
+                    $this->getDefaultAgendaDate()
+                )
+            )[0] ?? null;
+
+            if ($this->isPatientRegistryVisibilityFeatureEnabled() && is_array($responseRow)) {
+                $responseRow['visibile_in_anagrafica'] = 0;
+                $idPaziente = (int)($responseRow['id_paziente'] ?? 0);
+                $idDot = (int)($responseRow['id_dot'] ?? 0);
+
+                if ($idPaziente > 0 && $idDot > 0) {
+                    $patient = $this->pazientiModel->getPazienteByDoctor(
+                        $idPaziente,
+                        $idDot,
+                        $this->getCurrentUserId()
+                    );
+
+                    if ($patient) {
+                        $responseRow['visibile_in_anagrafica'] = (int)($patient['visibile_in_anagrafica'] ?? 1);
+                    }
+                }
+            }
 
             return $this->respondJsonSafe([
                 'status' => true,
-                'row'    => $this->enrichMemoRowsForResponse(
-                    $row ? [$row] : [],
-                    $this->resolveAgendaDateFromPayload(
-                        $this->request->getGet(),
-                        $this->getDefaultAgendaDate()
-                    )
-                )[0] ?? null,
+                'row'    => $responseRow,
             ]);
         } catch (\Exception $e) {
             return $this->respondJsonSafe([
@@ -4990,6 +5029,19 @@ public function eseguiRepairRecurringExtraSlots()
                 $idDot,
                 $this->resolveAgendaDateFromPayload($payload, (string)($payload['data_inizio_validita'] ?? ''))
             );
+
+            $patientPayload = $this->buildMemoPatientRegistryPayload(
+                $payload,
+                $this->isPatientRegistryVisibilityFeatureEnabled()
+            );
+
+            if ($patientPayload !== null) {
+                $payload['id_paziente'] = $this->pazientiModel->savePatientAndLink(
+                    $patientPayload,
+                    $idDot,
+                    $this->getCurrentUserId()
+                );
+            }
 
             $idNota = $this->noteModel->saveNota($payload);
 
