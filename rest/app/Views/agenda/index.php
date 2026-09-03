@@ -787,6 +787,11 @@
             box-shadow: 0 6px 16px rgba(0,0,0,.12);
         }
 
+        .agenda-autocomplete.d-none,
+        .agenda-autocomplete-vd.d-none {
+            display: none !important;
+        }
+
         .agenda-autocomplete-item,
         .agenda-autocomplete-vd-item,
         .agenda-patient-search-item {

@@ -35,4 +35,11 @@ final class AgendaMemoAutocompleteViewTest extends CIUnitTestCase
             $this->source
         );
     }
+
+    public function testHiddenAutocompleteContainersCannotRenderAsEmptyLines(): void
+    {
+        self::assertStringContainsString('.agenda-autocomplete.d-none,', $this->source);
+        self::assertStringContainsString('.agenda-autocomplete-vd.d-none {', $this->source);
+        self::assertStringContainsString('display: none !important;', $this->source);
+    }
 }
