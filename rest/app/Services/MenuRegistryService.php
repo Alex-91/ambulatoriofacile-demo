@@ -439,19 +439,6 @@ class MenuRegistryService
                     'login/spazio/notifiche-appuntamenti/whatsapp',
                 ],
             ],
-            [
-                'key' => 'spazio/chatbot-whatsapp',
-                'link' => 'spazio/chatbot-whatsapp',
-                'title' => 'Chatbot WhatsApp',
-                'icon' => 'fa-sitemap',
-                'order' => 2210,
-                'group' => 'Console spazio',
-                'description' => 'Costruisci le risposte automatiche WhatsApp e collega conferme o annullamenti all’agenda.',
-                'route_prefixes' => [
-                    'spazio/chatbot-whatsapp',
-                    'login/spazio/chatbot-whatsapp',
-                ],
-            ],
         ];
     }
 
@@ -555,6 +542,21 @@ class MenuRegistryService
                     'login/piattaforma/whatsapp/refresh',
                     'piattaforma/whatsapp',
                     'piattaforma/whatsapp/refresh',
+                ],
+            ],
+            [
+                'key' => 'piattaforma/chatbot-whatsapp',
+                'link' => 'piattaforma/chatbot-whatsapp',
+                'title' => 'Chatbot WhatsApp',
+                'icon' => 'fa-sitemap',
+                'order' => 560,
+                'group' => 'Console piattaforma',
+                'description' => 'Configura i chatbot WhatsApp, separati per ogni spazio cliente.',
+                'route_prefixes' => [
+                    'login/piattaforma/chatbot-whatsapp',
+                    'login/piattaforma/chatbot-whatsapp/save',
+                    'piattaforma/chatbot-whatsapp',
+                    'piattaforma/chatbot-whatsapp/save',
                 ],
             ],
         ];
