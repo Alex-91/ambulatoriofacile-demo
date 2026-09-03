@@ -19,4 +19,13 @@ final class MenuRegistryServiceTest extends CIUnitTestCase
         $this->assertSame('Chatbot WhatsApp', $item['title'] ?? null);
         $this->assertContains('piattaforma/chatbot-whatsapp/save', $item['route_prefixes'] ?? []);
     }
+
+    public function testWhatsappCampaignsAreRegisteredInTenantConsole(): void
+    {
+        $item = (new MenuRegistryService())->findTenantContextItem('spazio/invii-whatsapp');
+
+        $this->assertIsArray($item);
+        $this->assertSame('Invii WhatsApp', $item['title'] ?? null);
+        $this->assertContains('spazio/invii-whatsapp/create', $item['route_prefixes'] ?? []);
+    }
 }
