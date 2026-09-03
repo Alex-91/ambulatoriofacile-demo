@@ -439,6 +439,21 @@ class MenuRegistryService
                     'login/spazio/notifiche-appuntamenti/whatsapp',
                 ],
             ],
+            [
+                'key' => 'spazio/invii-whatsapp',
+                'link' => 'spazio/invii-whatsapp',
+                'title' => 'Invii WhatsApp',
+                'icon' => 'fa-whatsapp',
+                'order' => 2210,
+                'group' => 'Console spazio',
+                'description' => 'Crea e monitora campagne WhatsApp a invio temporizzato.',
+                'route_prefixes' => [
+                    'spazio/invii-whatsapp',
+                    'spazio/invii-whatsapp/create',
+                    'login/spazio/invii-whatsapp',
+                    'login/spazio/invii-whatsapp/create',
+                ],
+            ],
         ];
     }
 
