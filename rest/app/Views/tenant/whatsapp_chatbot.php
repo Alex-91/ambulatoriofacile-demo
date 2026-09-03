@@ -1,10 +1,17 @@
 <?php
 helper('portal');
 
-$menuDataAdmin = session()->get('menuDataAdmin');
-$sidebarMenuItems = is_array($menuDataAdmin['result'] ?? null) ? $menuDataAdmin['result'] : [];
-if (empty($menu_items) || !is_array($menu_items)) {
-    $menu_items = $sidebarMenuItems !== [] ? $sidebarMenuItems : (session()->get('header_menu_items') ?? []);
+$platformConsole = !empty($platformConsole);
+$tenantCatalog = is_array($tenantCatalog ?? null) ? $tenantCatalog : [];
+$tenantSelectionUrl = trim((string) ($tenantSelectionUrl ?? ''));
+if (!$platformConsole) {
+    $menuDataAdmin = session()->get('menuDataAdmin');
+    $sidebarMenuItems = is_array($menuDataAdmin['result'] ?? null) ? $menuDataAdmin['result'] : [];
+    if (empty($menu_items) || !is_array($menu_items)) {
+        $menu_items = $sidebarMenuItems !== [] ? $sidebarMenuItems : (session()->get('header_menu_items') ?? []);
+    }
+} else {
+    $menu_items = [];
 }
 
 $config = is_array($config ?? null) ? $config : [];
@@ -94,18 +101,29 @@ $formatDate = static function ($value): string {
 </head>
 <body class="skin-blue sidebar-mini billing-ts-ui">
 <div class="wrapper">
-  <?= view('partials/header', ['menu_items' => $menu_items, 'portal_console_header' => false]) ?>
+  <?= view('partials/header', ['menu_items' => $menu_items, 'portal_console_header' => $platformConsole]) ?>
 
   <div class="content-wrapper">
     <section class="content-header">
       <h1>Chatbot WhatsApp <small><?= esc((string) ($tenant['tenant_name'] ?? 'Spazio cliente')) ?></small></h1>
       <ol class="breadcrumb">
-        <li><a href="<?= portal_tenant_agenda_url() ?>"><i class="fa fa-calendar"></i> Agenda</a></li>
+        <?php if ($platformConsole): ?>
+          <li><a href="<?= portal_platform_url('spazi-clienti') ?>"><i class="fa fa-sitemap"></i> Console piattaforma</a></li>
+        <?php else: ?>
+          <li><a href="<?= portal_tenant_agenda_url() ?>"><i class="fa fa-calendar"></i> Agenda</a></li>
+        <?php endif; ?>
         <li class="active">Chatbot WhatsApp</li>
       </ol>
     </section>
 
     <section class="content">
+      <?php if ($platformConsole): ?>
+      <div class="row">
+        <div class="col-md-3">
+          <?= view('partials/sidebar_platform', ['platformMasterEmails' => $platformMasterEmails ?? []]) ?>
+        </div>
+        <div class="col-md-9">
+      <?php endif; ?>
       <?php if (!empty($success)): ?><div class="alert alert-success"><?= esc((string) $success) ?></div><?php endif; ?>
       <?php foreach ($errors as $error): ?><div class="alert alert-danger"><?= esc((string) $error) ?></div><?php endforeach; ?>
       <?php if (!$gatewayAvailable): ?>
@@ -113,6 +131,26 @@ $formatDate = static function ($value): string {
       <?php endif; ?>
       <?php if (empty($dashboard['ready'])): ?>
         <div class="alert alert-warning"><i class="fa fa-database"></i> La migration del chatbot non è ancora applicata in questo ambiente. La configurazione diventerà salvabile dopo l’aggiornamento del database.</div>
+      <?php endif; ?>
+
+      <?php if ($platformConsole): ?>
+      <section class="bot-card">
+        <div class="bot-card-head"><h3>Spazio cliente</h3><p>Seleziona lo spazio da configurare. Il chatbot, le regole e i messaggi restano separati per tenant.</p></div>
+        <div class="bot-card-body">
+          <form method="get" action="<?= esc($tenantSelectionUrl) ?>" class="row">
+            <div class="col-sm-9 form-group" style="margin-bottom:0">
+              <label for="tenant-id">Spazio cliente</label>
+              <select class="form-control" id="tenant-id" name="tenant_id">
+                <?php foreach ($tenantCatalog as $catalogTenant): ?>
+                  <?php $catalogTenantId = (int) ($catalogTenant['id_tenant'] ?? 0); ?>
+                  <option value="<?= $catalogTenantId ?>"<?= $catalogTenantId === (int) ($tenant['id_tenant'] ?? 0) ? ' selected' : '' ?>><?= esc((string) ($catalogTenant['tenant_name'] ?? ('Spazio #' . $catalogTenantId))) ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+            <div class="col-sm-3" style="padding-top:25px"><button class="btn btn-primary btn-block" type="submit"><i class="fa fa-folder-open"></i> Apri spazio</button></div>
+          </form>
+        </div>
+      </section>
       <?php endif; ?>
 
       <div class="bot-hero">
@@ -128,6 +166,7 @@ $formatDate = static function ($value): string {
         <main>
           <form method="post" action="<?= esc($saveUrl) ?>" id="chatbot-form">
             <?= csrf_field() ?>
+            <?php if ($platformConsole): ?><input type="hidden" name="tenant_id" value="<?= (int) ($tenant['id_tenant'] ?? 0) ?>"><?php endif; ?>
             <section class="bot-card">
               <div class="bot-card-head"><h3>Attivazione e contesto</h3><p>Decidi quando aprire l’attesa di una risposta per un appuntamento.</p></div>
               <div class="bot-card-body">
@@ -255,6 +294,10 @@ $formatDate = static function ($value): string {
           </table>
         </div>
       </section>
+      <?php if ($platformConsole): ?>
+        </div>
+      </div>
+      <?php endif; ?>
     </section>
   </div>
 </div>

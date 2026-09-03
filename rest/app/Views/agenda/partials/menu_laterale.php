@@ -5,18 +5,9 @@ $menuTree = $menuAgenda ?? ($menu ?? []);
 $uri = service('uri');
 $currentPath = trim($uri->getPath(), '/');
 $session = session();
-$tenantContextObject = (new \App\Services\TenantContextService())->getCurrentTenant();
-$tenantContextRaw = $tenantContextObject !== null
-    ? $tenantContextObject->toArray()
-    : $session->get(\App\Services\TenantContextService::SESSION_KEY);
+$tenantContextRaw = $session->get(\App\Services\TenantContextService::SESSION_KEY);
 $tenantRole = is_array($tenantContextRaw) ? strtolower(trim((string) ($tenantContextRaw['tenant_role'] ?? ''))) : '';
 $tenantId = is_array($tenantContextRaw) ? (int) ($tenantContextRaw['tenant_id'] ?? 0) : 0;
-$tenantFeatureFlags = is_array($tenantContextRaw) ? (array) ($tenantContextRaw['feature_flags'] ?? []) : [];
-$canManageWhatsAppChatbot = $tenantId > 0
-    && $tenantRole === 'tenant_master'
-    && (int) ($session->get('platform_user_id') ?? 0) > 0
-    && !empty($tenantFeatureFlags['appointment_notifications'])
-    && !empty($tenantFeatureFlags['appointment_notifications_whatsapp']);
 $hasOperationalProfileAccess = session_has_operational_profile_access();
 $operationalProfileUrl = null;
 if ($tenantId > 0 && in_array($tenantRole, ['tenant_master', 'tenant_admin'], true) && $hasOperationalProfileAccess) {
@@ -201,17 +192,6 @@ if ($patientExcelImportFeatureEnabledResolved && !agenda_menu_has_route_shared($
     ];
 }
 
-if ($canManageWhatsAppChatbot && !agenda_menu_has_route_shared($menuTree, 'spazio/chatbot-whatsapp')) {
-    $menuTree[] = [
-        'id_menu' => 'codex_chatbot_whatsapp',
-        'id_menu_padre' => 0,
-        'tipo_voce' => 'ITEM',
-        'label_menu' => 'Chatbot WhatsApp',
-        'icona' => 'fa fa-sitemap',
-        'rotta' => 'spazio/chatbot-whatsapp',
-        'children' => [],
-    ];
-}
 ?>
 
 <?php if ($operationalProfileUrl !== null): ?>
