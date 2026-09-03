@@ -200,12 +200,16 @@ class MenuResolverService
         helper('portal');
 
         $session = session();
-        $tenantContext = $session->get('tenant_context');
+        $tenantContextObject = (new TenantContextService())->getCurrentTenant();
+        $tenantContext = $tenantContextObject !== null
+            ? $tenantContextObject->toArray()
+            : $session->get('tenant_context');
         $tenantContext = is_array($tenantContext) ? $tenantContext : [];
         $tenantFeatureFlags = (array) ($tenantContext['feature_flags'] ?? []);
         $tenantId = (int) ($tenantContext['tenant_id'] ?? 0);
         $tenantRole = trim((string) ($tenantContext['tenant_role'] ?? ''));
-        $tenantContextObject = $tenantContext !== [] ? TenantContext::fromArray($tenantContext) : null;
+        $tenantContextObject = $tenantContextObject
+            ?? ($tenantContext !== [] ? TenantContext::fromArray($tenantContext) : null);
         $billingFeatureService = new BillingFeatureService();
         $tsFeatureService = new TsFeatureService();
         $billingAccessible = !empty($tenantFeatureFlags['billing'])
