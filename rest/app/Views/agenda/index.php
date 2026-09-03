@@ -10566,6 +10566,7 @@ function setNotePatientRegistryVisibility(enabled) {
 }
 
 function resetNoteModal() {
+    notePatientAutocompleteRows = {};
     $('#nota_id_nota').val('');
     syncNoteTargetDoctor($('#id_dot').val());
     $('#nota_id_paziente').val('');
@@ -10755,6 +10756,7 @@ function renderNoteLaterali() {
 
 var notePatientAutocompleteTimer = null;
 var notePatientAutocompleteXhr = null;
+var notePatientAutocompleteRows = {};
 var patientAutocompleteTimer = null;
 var patientAutocompleteXhr = null;
 var agendaPatientSearchTimer = null;
@@ -11361,9 +11363,13 @@ function cercaPazientiAutocompleteNote(term) {
     }
 
     if (!shouldRunPatientAutocomplete(term)) {
+        notePatientAutocompleteRows = {};
         $('#notePatientAutocomplete').addClass('d-none').html('');
         return;
     }
+
+    notePatientAutocompleteRows = {};
+    $('#notePatientAutocomplete').addClass('d-none').html('');
 
     notePatientAutocompleteTimer = setTimeout(function() {
         notePatientAutocompleteXhr = $.get("<?= base_url('agenda/cerca-pazienti') ?>", {
@@ -11372,6 +11378,7 @@ function cercaPazientiAutocompleteNote(term) {
             memo_scope: isSharedMemoManagementEnabled() ? 1 : 0
         }, function(res) {
             var html = '';
+            notePatientAutocompleteRows = {};
 
             if (!res.status || !res.rows || !res.rows.length) {
                 $('#notePatientAutocomplete')
@@ -11380,21 +11387,26 @@ function cercaPazientiAutocompleteNote(term) {
                 return;
             }
 
-        $.each(res.rows, function(i, row) {
-            var isSpecialPatient = isAgendaSpecialPatient(row, row.paz_spec || '');
-            var nominativo = $.trim((row.cognome || '') + ' ' + (row.nome || ''));
+            $.each(res.rows, function(i, row) {
+                var patientId = String(row.id_paziente || '');
+                var isSpecialPatient = isAgendaSpecialPatient(row, row.paz_spec || '');
+                var nominativo = $.trim((row.cognome || '') + ' ' + (row.nome || ''));
 
-            html += ''
-                + '<div class="agenda-autocomplete-item note-patient-item' + (isSpecialPatient ? ' is-special' : '') + '"'
-                + ' data-id="' + escapeHtml(row.id_paziente || '') + '"'
-                + ' data-cliente="' + escapeHtml(nominativo) + '"'
-                + ' data-telefono="' + escapeHtml(row.telefono || '') + '"'
-                + ' data-cellulare="' + escapeHtml(row.cellulare || '') + '"'
-                + ' data-indirizzo="' + escapeHtml(row.indirizzo || '') + '"'
-                + ' data-citta="' + escapeHtml(row.citta || '') + '"'
-                + ' data-visible-in-registry="' + escapeHtml(row.visibile_in_anagrafica == null ? 1 : row.visibile_in_anagrafica) + '">'
-                + '<strong>' + escapeHtml(nominativo) + '</strong>'
-                + '</div>';
+                if (nominativo === '') {
+                    nominativo = $.trim(row.denominazione || row.label || '');
+                }
+
+                if (patientId === '') {
+                    return;
+                }
+
+                notePatientAutocompleteRows[patientId] = row;
+
+                html += ''
+                    + '<div class="agenda-autocomplete-item note-patient-item' + (isSpecialPatient ? ' is-special' : '') + '"'
+                    + ' data-id="' + escapeHtml(patientId) + '">'
+                    + '<strong>' + escapeHtml(nominativo) + '</strong>'
+                    + '</div>';
             });
 
             $('#notePatientAutocomplete').removeClass('d-none').html(html);
@@ -11402,6 +11414,8 @@ function cercaPazientiAutocompleteNote(term) {
             if (textStatus === 'abort') {
                 return;
             }
+
+            notePatientAutocompleteRows = {};
 
             var message = (xhr && xhr.responseJSON && xhr.responseJSON.message)
                 ? xhr.responseJSON.message
@@ -12278,6 +12292,7 @@ $('#nota_giorno_text').on('blur', function() {
     $('#nota_doctor_select').on('change', function() {
         syncNoteTargetDoctor($(this).val());
         $('#nota_id_paziente').val('');
+        notePatientAutocompleteRows = {};
         setNotePatientRegistryVisibility(false);
         $('#notePatientAutocomplete').addClass('d-none').html('');
     });
@@ -12304,21 +12319,33 @@ $('#nota_giorno_text').on('blur', function() {
         cercaPazientiAutocompleteNote($(this).val());
     });
 
-    $(document).on('click', '.note-patient-item', function() {
-        var idPaziente = $(this).data('id') || '';
+    $(document).on('click', '.note-patient-item', function(e) {
+        e.stopImmediatePropagation();
 
-        if (!idPaziente) {
+        var idPaziente = String($(this).attr('data-id') || '');
+        var patient = notePatientAutocompleteRows[idPaziente];
+
+        if (!idPaziente || !patient) {
             return;
         }
 
         $('#nota_id_paziente').val(idPaziente);
-        $('#nota_cliente').val($(this).data('cliente') || '');
-        $('#nota_telefono').val($(this).data('telefono') || '');
-        $('#nota_cellulare').val($(this).data('cellulare') || '');
-        $('#nota_indirizzo').val($(this).data('indirizzo') || '');
-        $('#nota_citta').val($(this).data('citta') || '');
-        setNotePatientRegistryVisibility(parseInt($(this).data('visibleInRegistry') || 0, 10) === 1);
+        var nominativo = $.trim((patient.cognome || '') + ' ' + (patient.nome || ''));
+        if (nominativo === '') {
+            nominativo = $.trim(patient.denominazione || patient.label || '');
+        }
 
+        $('#nota_cliente').val(nominativo);
+        $('#nota_telefono').val(patient.telefono || '');
+        $('#nota_cellulare').val(patient.cellulare || '');
+        $('#nota_indirizzo').val(patient.indirizzo || '');
+        $('#nota_citta').val(patient.citta || '');
+        setNotePatientRegistryVisibility(
+            patient.visibile_in_anagrafica == null
+                || parseInt(patient.visibile_in_anagrafica || 0, 10) === 1
+        );
+
+        notePatientAutocompleteRows = {};
         $('#notePatientAutocomplete').addClass('d-none').html('');
     });
 
@@ -12488,7 +12515,7 @@ $('#nota_giorno_text').on('blur', function() {
         $('#app_cognome').trigger('focus');
     });
 
-    $(document).on('click', '.agenda-autocomplete-item', function() {
+    $(document).on('click', '#patientAutocomplete .agenda-autocomplete-item', function() {
         var idPaziente = $(this).data('id') || '';
         var cognome = normalizeAppointmentPatientName($(this).data('cognome') || '');
         var nome = normalizeAppointmentPatientName($(this).data('nome') || '');
