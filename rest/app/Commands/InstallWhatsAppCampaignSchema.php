@@ -14,7 +14,7 @@ class InstallWhatsAppCampaignSchema extends BaseCommand
     public function run(array $params)
     {
         require_once APPPATH . 'Database/Migrations/2026-09-04-000001_CreateWhatsappCampaignTables.php';
-        (new CreateWhatsappCampaignTables())->up();
+        (new \App\Database\Migrations\CreateWhatsappCampaignTables())->up();
         CLI::write('Schema campagne WhatsApp disponibile.', 'green');
     }
 }
