@@ -451,28 +451,49 @@
                         <input type="text" id="residenza_provincia" class="form-control" placeholder="Sigla">
                     </div>
 
-                    <div class="col-md-12">
-                        <div class="patient-form-section-title">Domicilio</div>
+                    <div class="col-md-12 form-group">
+                        <div class="checkbox" style="margin:0;">
+                            <label>
+                                <input
+                                    type="checkbox"
+                                    id="domicilio_uguale_residenza"
+                                    value="1"
+                                    checked
+                                    aria-controls="domicilioFields"
+                                    aria-expanded="false"
+                                >
+                                Il domicilio coincide con la residenza
+                            </label>
+                        </div>
+                        <p class="help-block" style="margin:4px 0 0;">
+                            Se selezionato, il domicilio viene aggiornato automaticamente usando la residenza.
+                        </p>
                     </div>
-                    <div class="col-md-5 form-group">
-                        <label>Indirizzo</label>
-                        <input type="text" id="domicilio_indirizzo" class="form-control">
-                    </div>
-                    <div class="col-md-2 form-group">
-                        <label>Nr. civico</label>
-                        <input type="text" id="domicilio_nr_civico" class="form-control">
-                    </div>
-                    <div class="col-md-3 form-group">
-                        <label>Comune</label>
-                        <input type="text" id="domicilio_comune" class="form-control" placeholder="Cerca comune">
-                    </div>
-                    <div class="col-md-1 form-group">
-                        <label>CAP</label>
-                        <input type="text" id="domicilio_cap" class="form-control" placeholder="CAP" inputmode="numeric">
-                    </div>
-                    <div class="col-md-1 form-group">
-                        <label>Provincia</label>
-                        <input type="text" id="domicilio_provincia" class="form-control" placeholder="Sigla">
+
+                    <div id="domicilioFields" class="clearfix" style="display:none;">
+                        <div class="col-md-12">
+                            <div class="patient-form-section-title">Domicilio</div>
+                        </div>
+                        <div class="col-md-5 form-group">
+                            <label>Indirizzo</label>
+                            <input type="text" id="domicilio_indirizzo" class="form-control">
+                        </div>
+                        <div class="col-md-2 form-group">
+                            <label>Nr. civico</label>
+                            <input type="text" id="domicilio_nr_civico" class="form-control">
+                        </div>
+                        <div class="col-md-3 form-group">
+                            <label>Comune</label>
+                            <input type="text" id="domicilio_comune" class="form-control" placeholder="Cerca comune">
+                        </div>
+                        <div class="col-md-1 form-group">
+                            <label>CAP</label>
+                            <input type="text" id="domicilio_cap" class="form-control" placeholder="CAP" inputmode="numeric">
+                        </div>
+                        <div class="col-md-1 form-group">
+                            <label>Provincia</label>
+                            <input type="text" id="domicilio_provincia" class="form-control" placeholder="Sigla">
+                        </div>
                     </div>
                     <div class="col-md-3 form-group">
                         <label>Paziente speciale</label>
@@ -789,6 +810,7 @@ function resetFormPaziente() {
     $('#appointment_reminder_sms_enabled').prop('checked', false);
     $('#associate_all_doctors').prop('checked', false);
     $('#ignore_cf_validation').prop('checked', false);
+    setDomicilioUgualeResidenza(true);
     renderFiscalCodeValidation('', '');
     $('#btnEliminaPaziente').hide();
     $('#pazienteModalTitle').text('Nuovo paziente');
@@ -827,6 +849,7 @@ function fillPazienteForm(row) {
     $('#domicilio_comune').val(row.domicilio_comune || '');
     $('#domicilio_cap').val(row.domicilio_cap || '');
     $('#domicilio_provincia').val(row.domicilio_provincia || '');
+    setDomicilioUgualeResidenza(parseInt(row.domicilio_uguale_residenza || 0, 10) === 1);
     $('#telefono').val(row.telefono || '');
     $('#cellulare').val(row.cellulare || '');
     $('#email').val(row.email || '');
@@ -959,8 +982,34 @@ function salvaPaziente() {
     });
 }
 
+function copiaResidenzaNelDomicilio() {
+    $('#domicilio_indirizzo').val($('#residenza_indirizzo').val());
+    $('#domicilio_nr_civico').val($('#residenza_nr_civico').val());
+    $('#domicilio_comune').val($('#residenza_comune').val());
+    $('#domicilio_cap').val($('#residenza_cap').val());
+    $('#domicilio_provincia').val($('#residenza_provincia').val());
+}
+
+function setDomicilioUgualeResidenza(sameAddress) {
+    var isSame = !!sameAddress;
+
+    $('#domicilio_uguale_residenza')
+        .prop('checked', isSame)
+        .attr('aria-expanded', isSame ? 'false' : 'true');
+    $('#domicilioFields').toggle(!isSame);
+
+    if (isSame) {
+        copiaResidenzaNelDomicilio();
+    }
+}
+
 function inviaPaziente(confirmExistingPatientUpdate) {
     var existingPatientId = $.trim($('#id_paziente').val() || '');
+    var domicilioUgualeResidenza = $('#domicilio_uguale_residenza').is(':checked');
+
+    if (domicilioUgualeResidenza) {
+        copiaResidenzaNelDomicilio();
+    }
 
     $.post("<?= base_url('agenda/salva-paziente-gestione') ?>", {
         id_paziente: $('#id_paziente').val(),
@@ -976,6 +1025,7 @@ function inviaPaziente(confirmExistingPatientUpdate) {
         comune_nascita: $('#comune_nascita').val(),
         provincia_nascita: $('#provincia_nascita').val(),
         address_payload_complete: 1,
+        domicilio_uguale_residenza: domicilioUgualeResidenza ? 1 : 0,
         residenza_indirizzo: $('#residenza_indirizzo').val(),
         residenza_nr_civico: $('#residenza_nr_civico').val(),
         residenza_comune: $('#residenza_comune').val(),
@@ -1111,6 +1161,16 @@ $(function() {
     });
 
     $('#btnSalvaPaziente').on('click', salvaPaziente);
+
+    $('#domicilio_uguale_residenza').on('change', function() {
+        setDomicilioUgualeResidenza($(this).is(':checked'));
+    });
+
+    $('#residenza_indirizzo,#residenza_nr_civico,#residenza_comune,#residenza_cap,#residenza_provincia').on('input change', function() {
+        if ($('#domicilio_uguale_residenza').is(':checked')) {
+            copiaResidenzaNelDomicilio();
+        }
+    });
 
     $('#cod_fis,#cognome,#nome,#data_nascita,#comune_nascita,#provincia_nascita').on('input change', function() {
         if ($.trim($('#cod_fis').val() || '') !== '' && !$('#ignore_cf_validation').is(':checked')) {

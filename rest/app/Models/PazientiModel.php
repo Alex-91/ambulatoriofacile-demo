@@ -2992,10 +2992,22 @@ class PazientiModel extends Model
             }
         }
 
+        $completeAddressPayload = $this->normalizeBooleanFlag($payload['address_payload_complete'] ?? false);
+        $sameResidenceAndDomicile = array_key_exists('domicilio_uguale_residenza', $payload)
+            && $this->normalizeBooleanFlag($payload['domicilio_uguale_residenza']);
+        if ($sameResidenceAndDomicile) {
+            $residenceValues = array_values($residence);
+            foreach (array_keys($domicileMap) as $index => $target) {
+                $domicile[$target] = trim((string) ($residenceValues[$index] ?? ''));
+                // The checkbox is authoritative even when the residence is
+                // empty: stale domicile values must be cleared on update.
+                $domicileProvided[$target] = true;
+            }
+        }
+
         $effective = !$this->addressValuesAreEmpty(array_values($residence))
             ? array_values($residence)
             : (!$this->addressValuesAreEmpty(array_values($domicile)) ? array_values($domicile) : $legacyValues);
-        $completeAddressPayload = $this->normalizeBooleanFlag($payload['address_payload_complete'] ?? false);
         $residenceTargets = array_keys($residenceMap);
         foreach (array_keys($legacyMap) as $index => $target) {
             if (!$legacyProvided[$target]) {
@@ -3054,6 +3066,7 @@ class PazientiModel extends Model
         }
 
         $effective = !$this->addressValuesAreEmpty($residence) ? $residence : $domicile;
+        $row['domicilio_uguale_residenza'] = $this->addressValuesAreEquivalent($residence, $domicile) ? 1 : 0;
         [
             $row['residenza_indirizzo'],
             $row['residenza_nr_civico'],
@@ -3077,6 +3090,37 @@ class PazientiModel extends Model
         ] = $effective;
 
         return $row;
+    }
+
+    /**
+     * @param array<int, string> $left
+     * @param array<int, string> $right
+     */
+    private function addressValuesAreEquivalent(array $left, array $right): bool
+    {
+        if (count($left) !== count($right)) {
+            return false;
+        }
+
+        foreach ($left as $index => $value) {
+            $leftValue = preg_replace('/\s+/u', ' ', trim((string) $value)) ?? trim((string) $value);
+            $rightValue = preg_replace('/\s+/u', ' ', trim((string) ($right[$index] ?? '')))
+                ?? trim((string) ($right[$index] ?? ''));
+
+            if (function_exists('mb_strtolower')) {
+                $leftValue = mb_strtolower($leftValue, 'UTF-8');
+                $rightValue = mb_strtolower($rightValue, 'UTF-8');
+            } else {
+                $leftValue = strtolower($leftValue);
+                $rightValue = strtolower($rightValue);
+            }
+
+            if ($leftValue !== $rightValue) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**

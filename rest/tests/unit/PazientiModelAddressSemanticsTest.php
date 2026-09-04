@@ -79,6 +79,49 @@ final class PazientiModelAddressSemanticsTest extends CIUnitTestCase
         self::assertTrue($result['provided_fields']['indirizzo']);
     }
 
+    public function testSameAddressFlagCopiesResidenceAndOverridesSubmittedDomicile(): void
+    {
+        $result = $this->resolve([
+            'address_payload_complete' => 1,
+            'domicilio_uguale_residenza' => 1,
+            'residenza_indirizzo' => 'Via Unica',
+            'residenza_nr_civico' => '15',
+            'residenza_comune' => 'Parma',
+            'residenza_cap' => '43121',
+            'residenza_provincia' => 'PR',
+            'domicilio_indirizzo' => 'Valore non affidabile',
+            'domicilio_nr_civico' => '99',
+            'domicilio_comune' => 'Altrove',
+            'domicilio_cap' => '00000',
+            'domicilio_provincia' => 'XX',
+        ]);
+
+        self::assertSame('Via Unica', $result['indirizzo_secondario']);
+        self::assertSame('15', $result['nr_civico_secondario']);
+        self::assertSame('Parma', $result['comune_secondario']);
+        self::assertSame('43121', $result['cap_secondario']);
+        self::assertSame('PR', $result['provincia_secondaria']);
+        self::assertTrue($result['provided_fields']['indirizzo_secondario']);
+    }
+
+    public function testSameAddressFlagCanClearAStaleDomicile(): void
+    {
+        $result = $this->resolve([
+            'address_payload_complete' => 1,
+            'domicilio_uguale_residenza' => 1,
+            'residenza_indirizzo' => '',
+            'residenza_nr_civico' => '',
+            'residenza_comune' => '',
+            'residenza_cap' => '',
+            'residenza_provincia' => '',
+        ]);
+
+        self::assertSame('', $result['indirizzo_secondario']);
+        self::assertSame('', $result['comune_secondario']);
+        self::assertTrue($result['provided_fields']['indirizzo_secondario']);
+        self::assertTrue($result['provided_fields']['comune_secondario']);
+    }
+
     public function testPartialResidenceImportKeepsLegacyConsumersSynchronized(): void
     {
         $result = $this->resolve([
@@ -105,6 +148,7 @@ final class PazientiModelAddressSemanticsTest extends CIUnitTestCase
         self::assertSame('Via Residenza', $residence['indirizzo']);
         self::assertSame('Ferrara', $residence['citta']);
         self::assertSame('Via Domicilio', $residence['domicilio_indirizzo']);
+        self::assertSame(0, $residence['domicilio_uguale_residenza']);
 
         $domicile = $this->apply([
             'indirizzo' => '',
@@ -115,6 +159,24 @@ final class PazientiModelAddressSemanticsTest extends CIUnitTestCase
         ]);
         self::assertSame('Via Domicilio', $domicile['indirizzo']);
         self::assertSame('Cento', $domicile['citta']);
+    }
+
+    public function testReadAliasesDeriveSameAddressFlagWithoutDatabaseColumn(): void
+    {
+        $same = $this->apply([
+            'residenza_indirizzo' => ' Via Roma ',
+            'residenza_nr_civico' => '12',
+            'residenza_comune' => 'Bologna',
+            'residenza_cap' => '40121',
+            'residenza_provincia' => 'bo',
+            'indirizzo_secondario' => 'via roma',
+            'nr_civico_secondario' => '12',
+            'comune_secondario' => 'BOLOGNA',
+            'cap_secondario' => '40121',
+            'provincia_secondaria' => 'BO',
+        ]);
+
+        self::assertSame(1, $same['domicilio_uguale_residenza']);
     }
 
     /** @return array<string, mixed> */
