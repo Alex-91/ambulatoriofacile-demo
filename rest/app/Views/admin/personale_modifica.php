@@ -155,6 +155,19 @@ $success = $success ?? null;
                     <div class="checkbox">
                       <label><input type="checkbox" name="sostituto" id="sostituto"> Sostituto</label>
                     </div>
+                    <div id="personale_admin_wrap" data-admin-type-ids="1,3" style="display:none; margin-top:12px;">
+                      <label>Visibilità amministratore</label>
+                      <input type="hidden" name="is_personale_admin" value="0">
+                      <div class="checkbox" style="margin-top:4px;">
+                        <label>
+                          <input type="checkbox" name="is_personale_admin" id="is_personale_admin" value="1">
+                          Abilita accesso amministratore
+                        </label>
+                      </div>
+                      <p class="text-muted" style="margin:6px 0 0 0;">
+                        Disponibile per Dottore Generale e Segreteria. Se non selezionato, l'account resta normale.
+                      </p>
+                    </div>
                   </div>
                 </div>
 
@@ -317,7 +330,8 @@ $success = $success ?? null;
     $('#deleteAccountConfirmMessage').val('');
     $('#tipo').html('<option value="">Seleziona...</option>');
     $('#luoghi').html('');
-    $('#titolare,#sostituto,#show_in_agenda,#show_in_posta,#show_in_chat').prop('checked', false);
+    $('#titolare,#sostituto,#is_personale_admin,#show_in_agenda,#show_in_posta,#show_in_chat').prop('checked', false);
+    $('#personale_admin_wrap').hide();
     $('#datascadenza').val('');
     $('#btnJumpDeleteAccount').hide();
   }
@@ -382,6 +396,20 @@ function syncLuoghi(){
   primary.value = selected[0] || '';
 }
 
+function syncPersonnelAdminChoice(){
+  var wrap = document.getElementById('personale_admin_wrap');
+  var checkbox = document.getElementById('is_personale_admin');
+  if (!wrap || !checkbox) return;
+
+  var eligibleTypes = String(wrap.getAttribute('data-admin-type-ids') || '1,3').split(',');
+  var isEligible = eligibleTypes.indexOf(String($('#tipo').val() || '')) !== -1;
+  wrap.style.display = isEligible ? '' : 'none';
+
+  if (!isEligible) {
+    checkbox.checked = false;
+  }
+}
+
 
   function doSearch(){
     $.get('<?= site_url('admin/personale/search') ?>', {
@@ -433,8 +461,10 @@ function syncLuoghi(){
         $('#show_in_agenda').prop('checked', String(p.show_in_agenda) !== '0');
         $('#show_in_posta').prop('checked', String(p.show_in_posta) !== '0');
         $('#show_in_chat').prop('checked', String(p.show_in_chat) !== '0');
+        $('#is_personale_admin').prop('checked', !!u && String(u.is_personale_admin || '0') === '1');
        
         buildSelect($('#tipo'), res.tipi || [], 'id', 'label', p.tipo || '');
+        syncPersonnelAdminChoice();
         buildMultiSelect($('#luoghi'), res.gruppi || [], 'id', 'label', res.selected_luoghi || [p.luogo || '']);
         renderDeleteAccountBox(p.tipo || '');
 
@@ -469,6 +499,7 @@ function syncLuoghi(){
 
   $('#btnReset').on('click', function(){ resetEdit(); });
   $('#luoghi').on('change', syncLuoghi);
+  $('#tipo').on('change', syncPersonnelAdminChoice);
   $('#tipo').on('change', function(){ renderDeleteAccountBox($(this).val()); });
   $('#btnJumpDeleteAccount').on('click', function(){
     var $box = $('#deleteAccountBox');

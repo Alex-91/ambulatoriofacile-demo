@@ -155,7 +155,7 @@ $oldValue = static function (string $key, $fallback = '') {
                             <span class="label label-info">predefinito</span>
                           <?php endif; ?>
                           <?php if ((int)($member['is_app_admin'] ?? 0) === 1): ?>
-                            <span class="label label-primary">medico amministratore</span>
+                            <span class="label label-primary">accesso amministratore</span>
                           <?php endif; ?>
                           <span class="label label-default"><?= esc((string)($member['invitation_status'] ?? 'pending')) ?></span>
                           <span class="label label-<?= ((string)($member['platform_user_status'] ?? '') === 'active') ? 'success' : 'warning' ?>">
@@ -260,10 +260,10 @@ $oldValue = static function (string $key, $fallback = '') {
                       <?php $memberIsAppAdmin = (string)$oldValue('member_is_app_admin', '0'); ?>
                       <label>
                         <input type="checkbox" name="member_is_app_admin" id="member_is_app_admin" value="1" <?= $memberIsAppAdmin === '1' ? 'checked' : '' ?>>
-                        Medico amministratore
+                        Accesso amministratore applicativo
                       </label>
                       <p class="text-muted" style="margin:6px 0 0 24px;">
-                        Attivalo solo se l'ID utente agenda punta a un medico che deve vedere anche il menu amministrativo dell'agenda.
+                        Può essere attivato per dottori, infermieri e segreterie che devono vedere anche il menu amministrativo. Se disattivato, l'utente resta operativo normale.
                       </p>
                     </div>
                   </div>

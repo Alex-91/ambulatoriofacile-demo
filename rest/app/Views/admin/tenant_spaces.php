@@ -1230,7 +1230,7 @@ $oldValue = static function (string $key, $fallback = '') {
                                 <span class="label label-info">predefinito</span>
                               <?php endif; ?>
                               <?php if ((int)($member['is_app_admin'] ?? 0) === 1): ?>
-                                <span class="label label-primary">medico amministratore</span>
+                                <span class="label label-primary">accesso amministratore</span>
                               <?php endif; ?>
                               <span class="label label-default"><?= esc((string)($member['invitation_status'] ?? 'pending')) ?></span>
                               <span class="label label-<?= ((string)($member['platform_user_status'] ?? '') === 'active') ? 'success' : 'warning' ?>">
@@ -1329,8 +1329,11 @@ $oldValue = static function (string $key, $fallback = '') {
                         <?php $memberIsAppAdmin = (string)$oldValue('member_is_app_admin', '0'); ?>
                         <label>
                           <input type="checkbox" name="member_is_app_admin" id="member_is_app_admin" value="1" <?= $memberIsAppAdmin === '1' ? 'checked' : '' ?>>
-                          Medico amministratore
+                          Accesso amministratore applicativo
                         </label>
+                        <p class="text-muted" style="margin:6px 0 0 24px;">
+                          Valido anche per segreterie e infermieri collegati all'utente applicativo.
+                        </p>
                       </div>
                       <div class="checkbox">
                         <?php $memberIsDefault = (string)$oldValue('member_is_default', '0'); ?>

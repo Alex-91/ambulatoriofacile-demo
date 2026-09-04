@@ -6,6 +6,7 @@ use App\Controllers\BaseController;
 use App\Models\PersonaleModel;
 use App\Models\UsersModel;
 use App\Services\DoctorDeletionService;
+use App\Services\PersonnelAdminAccessService;
 use App\Services\StaffLocationCatalogService;
 use App\Services\StaffDoctorLinkService;
 
@@ -93,9 +94,27 @@ class PersonaleEdit extends BaseController
         // user credentials
         $userRow = null;
         if (!empty($p['id_user'])) {
-            $userRow = $users->select('id_user, username, password, datascadenza')
+            $userRow = $users->select('id_user, username, password, datascadenza, tipo_user')
                              ->where('id_user', (int)$p['id_user'])
                              ->first();
+        }
+
+        $isPersonnelAdmin = false;
+        if ($userRow) {
+            $isPersonnelAdmin = PersonnelAdminAccessService::isLegacyAdminProfile(
+                (int)($p['tipo'] ?? 0),
+                (int)($userRow['tipo_user'] ?? 0)
+            );
+
+            try {
+                $membershipFlag = (new PersonnelAdminAccessService())
+                    ->findCurrentTenantMembershipFlag((int)$userRow['id_user']);
+                if ($membershipFlag !== null) {
+                    $isPersonnelAdmin = $membershipFlag;
+                }
+            } catch (\Throwable $e) {
+                log_message('warning', 'Lettura flag amministratore membership fallita: ' . $e->getMessage());
+            }
         }
 
         // options TIPO (dap05)
@@ -135,6 +154,8 @@ class PersonaleEdit extends BaseController
                 'id_user' => (int)$userRow['id_user'],
                 'username'=> (string)$userRow['username'],
                 'datascadenza' => (string)($userRow['datascadenza'] ?? ''),
+                'tipo_user' => (int)($userRow['tipo_user'] ?? 0),
+                'is_personale_admin' => $isPersonnelAdmin ? 1 : 0,
             ] : null,
             'tipi'   => $tipiOut,
             'gruppi' => $gruppiOut,
@@ -183,6 +204,24 @@ if ($datascadenza !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $datascadenza))
             'show_in_posta'  => $this->request->getPost('show_in_posta') ? 1 : 0,
             'show_in_chat'   => $this->request->getPost('show_in_chat') ? 1 : 0,
         ];
+        $oldTipo = (int)($existing['tipo'] ?? 0);
+        $newTipo = (int)$data['id_tipo'];
+        $adminRequested = (int)($this->request->getPost('is_personale_admin') ?? 0) === 1;
+        $manageAdminAccess = PersonnelAdminAccessService::isEligiblePersonnelType($oldTipo)
+            || PersonnelAdminAccessService::isEligiblePersonnelType($newTipo);
+        $membershipAdminFlag = null;
+        $adminAccess = new PersonnelAdminAccessService();
+
+        if ($idUser > 0 && $manageAdminAccess) {
+            try {
+                $membershipAdminFlag = $adminAccess->findCurrentTenantMembershipFlag($idUser);
+            } catch (\Throwable $e) {
+                log_message('error', 'Lettura membership per aggiornamento accesso amministratore fallita: ' . $e->getMessage());
+                return redirect()->back()->with('errors', [
+                    'generic' => 'Impossibile verificare il flag amministratore dello spazio.',
+                ]);
+            }
+        }
         $staffLinks = new StaffDoctorLinkService($db);
         $selectedLuoghi = $staffLinks->normalizeGroupIds($this->request->getPost('luoghi'), (int)$this->request->getPost('id_gruppo'));
         if (empty($selectedLuoghi)) {
@@ -199,6 +238,14 @@ if ($datascadenza !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $datascadenza))
             $password = (string)$this->request->getPost('password');
             $set = [];
             $set[] = "username=" . $db->escape($username);
+            if ($manageAdminAccess) {
+                $effectiveAdminRequest = PersonnelAdminAccessService::isEligiblePersonnelType($newTipo)
+                    && $adminRequested;
+                $tipoUser = $membershipAdminFlag !== null
+                    ? PersonnelAdminAccessService::USER_TYPE_STAFF
+                    : PersonnelAdminAccessService::resolveLocalUserType($newTipo, $effectiveAdminRequest);
+                $set[] = 'tipo_user=' . $tipoUser;
+            }
             if ($datascadenza !== '') {
                 $set[] = "datascadenza=" . $db->escape($datascadenza . ' 00:00:00');
             } else {
@@ -223,8 +270,21 @@ if ($datascadenza !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $datascadenza))
             }
         }
 
+        $okAppAdmin = true;
+        if ($okUser && $membershipAdminFlag !== null) {
+            try {
+                $okAppAdmin = $adminAccess->updateCurrentTenantMembershipFlag(
+                    $idUser,
+                    PersonnelAdminAccessService::isEligiblePersonnelType($newTipo) && $adminRequested
+                );
+            } catch (\Throwable $e) {
+                log_message('error', 'Aggiornamento flag amministratore membership fallito: ' . $e->getMessage());
+                $okAppAdmin = false;
+            }
+        }
+
         $okLinks = true;
-        if ($okPers && $okUser) {
+        if ($okPers && $okUser && $okAppAdmin) {
             $okLinks = $staffLinks->syncForStaff(
                 $idPersonale,
                 (int)$this->request->getPost('tipo'),
@@ -232,8 +292,6 @@ if ($datascadenza !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $datascadenza))
             );
 
             if ($okLinks) {
-                $oldTipo = (int)($existing['tipo'] ?? 0);
-                $newTipo = (int)$this->request->getPost('tipo');
                 $affectedGroups = array_values(array_unique(array_filter([
                     (int)($existing['luogo'] ?? 0),
                     (int)$data['id_gruppo'],
@@ -245,13 +303,13 @@ if ($datascadenza !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $datascadenza))
             }
         }
 
-        if ($okPers && $okUser && $okLinks) {
+        if ($okPers && $okUser && $okAppAdmin && $okLinks) {
             return redirect()->to(site_url('admin/personale/modifica_personale'))
                 ->with('success', 'Personale aggiornato con successo.');
         }
 
         return redirect()->back()->with('errors', [
-            'generic' => 'Errore salvataggio: personale='.(int)$okPers.', user='.(int)$okUser.', abbinamenti='.(int)$okLinks
+            'generic' => 'Errore salvataggio: personale='.(int)$okPers.', user='.(int)$okUser.', app_admin='.(int)$okAppAdmin.', abbinamenti='.(int)$okLinks
         ]);
     }
 

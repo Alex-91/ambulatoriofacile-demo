@@ -7,6 +7,7 @@ use App\Libraries\Crypto_helper;
 use App\Libraries\DatabaseConfig;
 use App\Services\AppointmentNotificationSettingsService;
 use App\Services\DemoAccessService;
+use App\Services\PersonnelAdminAccessService;
 use App\Services\TenantCatalogService;
 use App\Services\TenantContextService;
 
@@ -164,7 +165,10 @@ private function getEffectiveAgendaRoleFromContext(array $context): int
         return self::RUOLO_ADMIN;
     }
 
-    if ((int)($context['tipo_user'] ?? 0) === 1 && (int)($context['tipo'] ?? 0) === 1) {
+    if (PersonnelAdminAccessService::isLegacyAdminProfile(
+        (int)($context['tipo'] ?? 0),
+        (int)($context['tipo_user'] ?? 0)
+    )) {
         return self::RUOLO_ADMIN;
     }
 

@@ -7,13 +7,12 @@ use App\Models\TypeDoctorsModel;
 use App\Libraries\Crypto_helper;
 use App\Libraries\DatabaseConfig;
 use App\Services\AgendaDoctorIdService;
+use App\Services\PersonnelAdminAccessService;
 use App\Services\StaffLocationCatalogService;
 use App\Services\StaffDoctorLinkService;
 
 class Personale extends BaseController
 {
-    private const GENERAL_TYPE_ID = 1;
-
       protected $db;
     protected $dbConfig;
 
@@ -151,12 +150,12 @@ class Personale extends BaseController
         $showInPosta  = !empty($post['show_in_posta']) ? 1 : 0;
         $showInChat   = !empty($post['show_in_chat']) ? 1 : 0;
 
-        $isGeneralDoctor = $tipoDoc === self::GENERAL_TYPE_ID;
-        $isGeneralAdmin = $isGeneralDoctor && (int)($post['is_general_admin'] ?? 0) === 1;
+        $adminRequested = (int)($post['is_personale_admin'] ?? ($post['is_general_admin'] ?? 0)) === 1;
 
-        // Se il medico generale viene segnato come amministratore,
-        // usa il login admin mantenendo il profilo personale come dottore.
-        $tipoUser  = $isGeneralAdmin ? 1 : 2;
+        // Per gli account locali l'accesso amministratore resta rappresentato
+        // da tipo_user=1. Il tipo professionale continua a distinguere dottore
+        // e segreteria, così agenda, posta e chat mantengono il contesto corretto.
+        $tipoUser = PersonnelAdminAccessService::resolveLocalUserType($tipoDoc, $adminRequested);
 
         // scadenza: se vuota => +1 anno
         $datascadenza = date('Y-m-d H:i:s', strtotime('+1 year'));

@@ -22,7 +22,9 @@ foreach (($tipi ?? []) as $tipoOption) {
         break;
     }
 }
-$oldIsGeneralAdmin = (int)($old['is_general_admin'] ?? 0) === 1;
+$secretaryTypeId = 3;
+$adminTypeIds = array_values(array_unique([$generalTypeId, $secretaryTypeId]));
+$oldIsPersonnelAdmin = (int)($old['is_personale_admin'] ?? ($old['is_general_admin'] ?? 0)) === 1;
 ?>
 <html>
 <head>
@@ -173,16 +175,18 @@ $oldIsGeneralAdmin = (int)($old['is_general_admin'] ?? 0) === 1;
                     </div>
                   </div>
 
-                  <div class="col-md-6" id="general_admin_wrap" data-general-type-id="<?= (int)$generalTypeId ?>" style="display:none;">
+                  <div class="col-md-6" id="personale_admin_wrap" data-admin-type-ids="<?= esc(implode(',', $adminTypeIds), 'attr') ?>" style="display:none;">
                     <div class="form-group">
-                      <label>Rendi amministratore?</label>
-                      <select class="form-control" name="is_general_admin" id="is_general_admin">
-                        <option value="0" <?= !$oldIsGeneralAdmin ? 'selected' : '' ?>>No</option>
-                        <option value="1" <?= $oldIsGeneralAdmin ? 'selected' : '' ?>>Sì</option>
-                      </select>
+                      <label>Visibilità amministratore</label>
+                      <input type="hidden" name="is_personale_admin" value="0">
+                      <div class="checkbox" style="margin-top:4px;">
+                        <label>
+                          <input type="checkbox" name="is_personale_admin" id="is_personale_admin" value="1" <?= $oldIsPersonnelAdmin ? 'checked' : '' ?>>
+                          Abilita accesso amministratore
+                        </label>
+                      </div>
                       <p class="text-muted" style="margin:6px 0 0 0;">
-                        Disponibile solo per il tipo Generale.
-                        Se scegli "Sì", questo medico potrà entrare anche nel profilo admin.
+                        Disponibile per Dottore Generale e Segreteria. Se non selezionato, l'account resta un utente operativo normale.
                       </p>
                     </div>
                   </div>
@@ -393,22 +397,22 @@ $oldIsGeneralAdmin = (int)($old['is_general_admin'] ?? 0) === 1;
 <script>
 (function(){
   var typeSelect = document.getElementById('tipo_personale');
-  var wrap = document.getElementById('general_admin_wrap');
-  var adminSelect = document.getElementById('is_general_admin');
-  if (!typeSelect || !wrap || !adminSelect) return;
+  var wrap = document.getElementById('personale_admin_wrap');
+  var adminCheckbox = document.getElementById('is_personale_admin');
+  if (!typeSelect || !wrap || !adminCheckbox) return;
 
-  var generalTypeId = String(wrap.getAttribute('data-general-type-id') || '1');
+  var adminTypeIds = String(wrap.getAttribute('data-admin-type-ids') || '1,3').split(',');
 
-  function syncGeneralAdminChoice(){
-    var isGeneral = String(typeSelect.value || '') === generalTypeId;
-    wrap.style.display = isGeneral ? '' : 'none';
+  function syncPersonnelAdminChoice(){
+    var isEligible = adminTypeIds.indexOf(String(typeSelect.value || '')) !== -1;
+    wrap.style.display = isEligible ? '' : 'none';
 
-    if (!isGeneral) {
-      adminSelect.value = '0';
+    if (!isEligible) {
+      adminCheckbox.checked = false;
     }
   }
 
-  typeSelect.addEventListener('change', syncGeneralAdminChoice);
-  syncGeneralAdminChoice();
+  typeSelect.addEventListener('change', syncPersonnelAdminChoice);
+  syncPersonnelAdminChoice();
 })();
 </script>
