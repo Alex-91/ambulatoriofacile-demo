@@ -8,13 +8,13 @@ Il monolite resta il punto di autorizzazione:
 
 1. l'utente accede con il sistema esistente;
 2. `TenantContextService` risolve la membership e l'`id_tenant`;
-3. il servizio canali applicativo seleziona `ultramsg` oppure `gateway`;
+3. per le notifiche configurate dalla piattaforma, l'attivazione del canale WhatsApp instrada automaticamente lo spazio sul gateway AmbulatorioFacile;
 4. il client PHP firma la richiesta includendo l'`id_tenant`;
 5. il gateway usa la coppia `(tenant_id, account_id)` come chiave di isolamento della sessione WhatsApp.
 
 Non viene introdotta alcuna tabella `tenants` nel gateway. La piccola tabella locale `gateway_accounts` è soltanto un indice tecnico tra l'`id_tenant` centrale e il JID del device `whatsmeow`.
 
-## Attivazione progressiva
+## Attivazione e parametri per spazio
 
 Configurazione iniziale del monolite:
 
@@ -49,7 +49,20 @@ Il tenant master trova **Chatbot WhatsApp** nella console del proprio spazio. La
 
 Quando parte un messaggio WhatsApp configurato, l'app salva l'ID esatto dell'appuntamento e il numero normalizzato. Il webhook può agire soltanto su quel contesto ancora valido. `message_id` e stato della richiesta rendono idempotenti i ritentativi e impediscono che la stessa risposta aggiorni due volte l'agenda.
 
-Per un tenant pilota, usare `WHATSAPP_PROVIDER=hybrid`, aprire **Piattaforma → Spazi cliente**, abilitare il canale WhatsApp e selezionare **Instrada al gateway AmbulatorioFacile**. Il routing viene salvato nel `config_json` dell'override tenant e diventa effettivo senza redeploy. Tutti gli altri tenant continueranno a usare UltraMsg. `WHATSAPP_GATEWAY_TENANT_IDS` rimane disponibile come allowlist tecnica di emergenza. Passare a `WHATSAPP_PROVIDER=gateway` per l'intera piattaforma solo dopo aver:
+Aprire **Piattaforma → Spazi cliente** e abilitare il canale WhatsApp per lo spazio: il routing verso il gateway AmbulatorioFacile viene salvato automaticamente nel `config_json` dell'override tenant e diventa effettivo senza redeploy. La configurazione legacy UltraMsg resta disponibile soltanto per i flussi storici non ancora migrati.
+
+L'override dello spazio ha priorità anche se il valore globale `WHATSAPP_PROVIDER` è ancora `ultramsg`; questo permette la migrazione progressiva senza lasciare al tenant attivo una strada di invio diversa dal gateway AmbulatorioFacile.
+
+In **Piattaforma → Notifiche appuntamenti → Parametri di consegna per spazio** il master piattaforma configura:
+
+- quantità e intervallo degli invii WhatsApp;
+- limite giornaliero;
+- attivazione del fallback SMS;
+- minuti di attesa prima del fallback.
+
+Il worker delle campagne e dei reminder usa gli stessi limiti centrali. Se WhatsApp viene rifiutato subito, il fallback SMS può essere eseguito immediatamente; altrimenti viene inviato solo se il messaggio non risulta `delivered` o `read` entro il termine configurato.
+
+Prima di attivare il primo spazio:
 
 1. distribuito il servizio con volume persistente `/data`;
 2. verificato `/healthz` e `/readyz`;
@@ -57,7 +70,7 @@ Per un tenant pilota, usare `WHATSAPP_PROVIDER=hybrid`, aprire **Piattaforma →
 4. eseguito un invio controllato;
 5. verificato log applicativi e stato sessione.
 
-Il cambio provider è reversibile impostando nuovamente `WHATSAPP_PROVIDER=ultramsg`; nessun codice o dato UltraMsg viene eliminato.
+Il routing del singolo spazio resta reversibile disattivando il canale WhatsApp dalla console piattaforma; nessun dato legacy UltraMsg viene eliminato.
 
 ## Deployment Coolify
 
@@ -79,7 +92,7 @@ In Coolify tutte le variabili `WHATSAPP_GATEWAY_*` devono essere abilitate a run
 - callback legacy `checkMessaggio`, `aggiornaNoteApp` e `checkAppMultiplo`;
 - `LegacyWhatsappAppointmentController` e relativo modello;
 - cron legacy e monitor UltraMsg;
-- autenticazione, ruoli, pannelli master/tenant e feature flag;
+- autenticazione, ruoli e feature flag;
 - ambiente demo congelato.
 
 ## Milestone successivo consigliato

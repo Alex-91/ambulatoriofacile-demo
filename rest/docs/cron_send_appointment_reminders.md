@@ -1,5 +1,7 @@
 # Cron promemoria appuntamenti
 
+> Nota: questo documento descrive anche il cron storico. Nel flusso multi-tenant corrente i canali e i parametri di consegna sono gestiti dal master piattaforma in **Piattaforma → Notifiche appuntamenti**. Email, WhatsApp e SMS condividono limiti per spazio; WhatsApp usa il gateway AmbulatorioFacile e, quando entrambi i canali sono selezionati, l'SMS è un fallback e non un secondo invio duplicato.
+
 Script: `C:\xampp_82\htdocs\dottorAppLTE\rest\cron_send_appointment_reminders.php`
 
 Wrapper Aruba:
@@ -13,7 +15,7 @@ Wrapper Aruba:
 - legge i dottori abilitati da `dap39_sms_dot`
 - prende gli appuntamenti di `+6 giorni` dal database `mail`
 - usa i dati nuovi di `dap11_agenda_slot`, `dap12_agenda_appuntamenti`, `dap03_personale`, `dap42_ambulatori`
-- invia il promemoria sul canale storico `wa` tramite UltraMsg
+- nel percorso storico invia il promemoria sul canale `wa` tramite UltraMsg; nel flusso multi-tenant corrente usa il gateway AmbulatorioFacile
 - se `conferma = 1`, aggiunge il testo con `1` conferma e `2` annulla
 - evita doppie esecuzioni concorrenti con un lock file
 - evita doppi invii dello stesso appuntamento nello stesso giorno con un file stato in `writable/reminder_state`
@@ -112,10 +114,9 @@ Variabili opzionali:
 
 ## Ritmo invio
 
-- il comportamento predefinito replica il batch storico: `1` messaggio ogni `15 minuti`
-- il default quindi e `SMS_BATCH_DELAY_MS=900000`
-- il cron giornaliero va lanciato una sola volta: poi lo script resta in esecuzione e scorre i messaggi con quella pausa
-- se vuoi cambiare il ritmo, puoi impostare `SMS_BATCH_DELAY_MS` nel `.env`
+- il batch storico usa `SMS_BATCH_DELAY_MS` e, se non configurato diversamente, replica `1` messaggio ogni `15 minuti`
+- il flusso multi-tenant corrente usa invece quantità, intervallo e limite giornaliero configurati per ciascuno spazio dal master piattaforma
+- il valore `delay_ms` passato manualmente dal pannello è solo un override operativo; a zero viene applicata la politica dello spazio
 
 ## Cron Aruba
 

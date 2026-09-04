@@ -36,6 +36,16 @@ class WhatsAppGatewayClientTest extends CIUnitTestCase
         ));
     }
 
+    public function testTenantRoutingOverrideCanMoveConfiguredNotificationsOffLegacyProvider(): void
+    {
+        $this->assertTrue(WhatsAppGatewayClient::isRoutedToGateway(
+            42,
+            'ultramsg',
+            null,
+            static fn(int $tenantId): bool => $tenantId === 42
+        ));
+    }
+
     public function testConfiguredTenantIdsAreNormalizedAndDeduplicated(): void
     {
         $this->assertSame(

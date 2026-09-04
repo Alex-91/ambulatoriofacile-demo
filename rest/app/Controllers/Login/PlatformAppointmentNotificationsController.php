@@ -6,6 +6,7 @@ use App\Controllers\BaseController;
 use App\Services\AppointmentNotificationDashboardService;
 use App\Services\AppointmentReminderDispatchService;
 use App\Services\PlatformAdminAccessService;
+use App\Services\TenantNotificationPolicyService;
 
 class PlatformAppointmentNotificationsController extends BaseController
 {
@@ -29,6 +30,24 @@ class PlatformAppointmentNotificationsController extends BaseController
 
         $days = max(7, min(180, (int) ($this->request->getGet('days') ?? 30)));
         $dashboard = (new AppointmentNotificationDashboardService())->buildPlatformDashboard($days, 80);
+        $policyTenantId = max(0, (int) ($this->request->getGet('tenant_id') ?? 0));
+        $policyTenant = null;
+        foreach ((array) ($dashboard['tenant_rows'] ?? []) as $tenantRow) {
+            $candidate = (array) ($tenantRow['tenant'] ?? []);
+            if ($policyTenantId <= 0 || (int) ($candidate['id_tenant'] ?? 0) === $policyTenantId) {
+                $policyTenant = $candidate;
+                $policyTenantId = (int) ($candidate['id_tenant'] ?? 0);
+                break;
+            }
+        }
+        if ($policyTenant === null && !empty($dashboard['tenant_rows'][0]['tenant'])) {
+            $policyTenant = (array) $dashboard['tenant_rows'][0]['tenant'];
+            $policyTenantId = (int) ($policyTenant['id_tenant'] ?? 0);
+        }
+        $policy = (new TenantNotificationPolicyService())->resolve(
+            $policyTenantId,
+            (string) ($policyTenant['tenant_name'] ?? '')
+        );
 
         return view('admin/platform_appointment_notifications', [
             'menu_items' => [],
@@ -40,7 +59,51 @@ class PlatformAppointmentNotificationsController extends BaseController
             'platformMasterEmails' => $this->platformAdminAccess->configuredMasterEmails(),
             'platformUser' => $this->platformAdminAccess->currentPlatformUser(),
             'cronConfigured' => trim((string) (env('CRON_ACCESS_TOKEN') ?: '')) !== '',
+            'policyTenant' => $policyTenant,
+            'policy' => $policy,
         ]);
+    }
+
+    public function savePolicy()
+    {
+        if ($guard = $this->ensurePlatformAdminPage()) {
+            return $guard;
+        }
+
+        $tenantId = max(0, (int) ($this->request->getPost('tenant_id') ?? 0));
+        try {
+            $tenant = \Config\Database::connect('platform')
+                ->table('platform_tenants')
+                ->where('id_tenant', $tenantId)
+                ->where('is_active', 1)
+                ->get(1)
+                ->getRowArray();
+            if (!$tenant) {
+                throw new \RuntimeException('Spazio cliente non trovato o non attivo.');
+            }
+
+            $raw = [
+                'email' => (array) ($this->request->getPost('email') ?? []),
+                'whatsapp' => (array) ($this->request->getPost('whatsapp') ?? []),
+                'sms' => (array) ($this->request->getPost('sms') ?? []),
+            ];
+            (new TenantNotificationPolicyService())->save(
+                $tenantId,
+                $raw,
+                (int) (session()->get('platform_user_id') ?? 0),
+                (string) ($tenant['tenant_name'] ?? '')
+            );
+
+            return redirect()
+                ->to(portal_platform_url('notifiche-appuntamenti') . '?tenant_id=' . $tenantId)
+                ->with('success', 'Parametri di consegna aggiornati per ' . (string) ($tenant['tenant_name'] ?? 'lo spazio') . '.');
+        } catch (\Throwable $e) {
+            log_message('error', 'PlatformAppointmentNotificationsController::savePolicy failed: ' . $e->getMessage());
+            return redirect()
+                ->to(portal_platform_url('notifiche-appuntamenti') . ($tenantId > 0 ? ('?tenant_id=' . $tenantId) : ''))
+                ->withInput()
+                ->with('errors', ['generic' => $e->getMessage()]);
+        }
     }
 
     public function launch()

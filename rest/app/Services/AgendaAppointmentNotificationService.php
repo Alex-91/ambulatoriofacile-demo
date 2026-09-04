@@ -16,6 +16,8 @@ class AgendaAppointmentNotificationService
     private AppointmentNotificationChannelService $channelService;
     private AppointmentNotificationLogService $logService;
     private WhatsAppChatbotService $whatsAppChatbotService;
+    private WhatsAppSmsFallbackService $whatsAppSmsFallbackService;
+    private TenantNotificationPolicyService $notificationPolicies;
     private AgendaModel $agendaModel;
     private PersonaleModel $personaleModel;
 
@@ -29,6 +31,8 @@ class AgendaAppointmentNotificationService
         $this->channelService = new AppointmentNotificationChannelService();
         $this->logService = new AppointmentNotificationLogService();
         $this->whatsAppChatbotService = new WhatsAppChatbotService();
+        $this->whatsAppSmsFallbackService = new WhatsAppSmsFallbackService();
+        $this->notificationPolicies = new TenantNotificationPolicyService();
         $this->agendaModel = new AgendaModel();
         $this->personaleModel = new PersonaleModel();
     }
@@ -448,7 +452,34 @@ class AgendaAppointmentNotificationService
             return $result;
         }
 
-        foreach ($channels as $channel) {
+        $orderedChannels = array_values(array_filter([
+            in_array(AppointmentNotificationSettingsService::CHANNEL_EMAIL, $channels, true)
+                ? AppointmentNotificationSettingsService::CHANNEL_EMAIL : null,
+            in_array(AppointmentNotificationSettingsService::CHANNEL_OTP, $channels, true)
+                ? AppointmentNotificationSettingsService::CHANNEL_OTP : null,
+            in_array(AppointmentNotificationSettingsService::CHANNEL_WHATSAPP, $channels, true)
+                ? AppointmentNotificationSettingsService::CHANNEL_WHATSAPP : null,
+            in_array(AppointmentNotificationSettingsService::CHANNEL_SMS, $channels, true)
+                ? AppointmentNotificationSettingsService::CHANNEL_SMS : null,
+        ]));
+        $hasWhatsApp = in_array(AppointmentNotificationSettingsService::CHANNEL_WHATSAPP, $channels, true);
+        $deliveryPolicy = $this->notificationPolicies->resolve(
+            (int) ($tenant['id_tenant'] ?? 0),
+            (string) ($tenant['tenant_name'] ?? '')
+        );
+        $hasSms = in_array(AppointmentNotificationSettingsService::CHANNEL_SMS, $channels, true)
+            && !empty($deliveryPolicy['whatsapp']['sms_fallback_enabled']);
+        $whatsAppSucceeded = false;
+        $result['delivered_channels'] = [];
+
+        foreach ($orderedChannels as $channel) {
+            if (
+                $channel === AppointmentNotificationSettingsService::CHANNEL_SMS
+                && $hasWhatsApp
+                && (!$hasSms || $whatsAppSucceeded)
+            ) {
+                continue;
+            }
             $recipientLabel = $this->channelService->describeRecipientForChannel($channel, $recipient);
             if ($recipientLabel === '') {
                 $sendResult = [
@@ -490,9 +521,14 @@ class AgendaAppointmentNotificationService
             $this->logService->append($tenant, $logEntry);
             $result['results'][] = $sendResult;
 
-            // Channels are treated as an ordered fallback chain:
-            // once one delivery succeeds, we stop and avoid duplicate alerts.
+            // Email and OTP are independent. WhatsApp precedes SMS so that SMS
+            // is sent only when the configured WhatsApp attempt fails.
             if (!empty($sendResult['ok'])) {
+                $result['delivered_channels'][] = $channel;
+                $result['delivered_channel'] ??= $channel;
+                if ($channel === AppointmentNotificationSettingsService::CHANNEL_WHATSAPP) {
+                    $whatsAppSucceeded = true;
+                }
                 if (
                     $channel === AppointmentNotificationSettingsService::CHANNEL_WHATSAPP
                     && WhatsAppGatewayClient::isRoutedToGateway((int) ($tenant['id_tenant'] ?? 0))
@@ -504,9 +540,24 @@ class AgendaAppointmentNotificationService
                         (string) ($baseLog['message_type'] ?? ''),
                         (string) ($sendResult['provider_id'] ?? '')
                     );
+                    try {
+                        $this->whatsAppSmsFallbackService->registerPending(
+                            (int) ($tenant['id_tenant'] ?? 0),
+                            'appointment',
+                            (int) ($baseLog['appointment_id'] ?? 0),
+                            (string) ($baseLog['message_type'] ?? 'appointment_notification'),
+                            (string) ($sendResult['recipient'] ?? $recipientLabel),
+                            $message,
+                            (string) ($sendResult['provider_id'] ?? ''),
+                            $hasSms
+                        );
+                    } catch (\Throwable $e) {
+                        log_message('warning', 'Registrazione fallback WhatsApp/SMS non riuscita: {message}', [
+                            'message' => $e->getMessage(),
+                            'tenant_id' => (int) ($tenant['id_tenant'] ?? 0),
+                        ]);
+                    }
                 }
-                $result['delivered_channel'] = $channel;
-                break;
             }
         }
 

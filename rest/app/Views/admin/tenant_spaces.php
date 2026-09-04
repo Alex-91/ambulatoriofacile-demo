@@ -24,10 +24,6 @@ $tenantData = is_array($selectedTenant['tenant'] ?? null) ? $selectedTenant['ten
 $ownerData = is_array($selectedTenant['owner'] ?? null) ? $selectedTenant['owner'] : [];
 $featureMap = is_array($selectedTenant['feature_map'] ?? null) ? $selectedTenant['feature_map'] : [];
 $featureConfigMap = is_array($selectedTenant['feature_override_config_map'] ?? null) ? $selectedTenant['feature_override_config_map'] : [];
-$whatsappFeatureConfig = is_array($featureConfigMap[\App\Services\AppointmentNotificationSettingsService::FEATURE_WHATSAPP] ?? null)
-    ? $featureConfigMap[\App\Services\AppointmentNotificationSettingsService::FEATURE_WHATSAPP]
-    : [];
-$whatsappGatewayRoutingEnabled = \App\Services\WhatsAppGatewayTenantRoutingService::isEnabledInFeatureConfig($whatsappFeatureConfig);
 $agendaTeamDayFeatureConfig = is_array($featureConfigMap[\App\Services\AgendaTeamColumnColorService::FEATURE_KEY] ?? null)
     ? $featureConfigMap[\App\Services\AgendaTeamColumnColorService::FEATURE_KEY]
     : [];
@@ -996,33 +992,25 @@ $oldValue = static function (string $key, $fallback = '') {
                             <?= $checked ? 'abilitato centralmente' : 'spento centralmente' ?>
                           </span>
                           <?php if ($channelKey === \App\Services\AppointmentNotificationSettingsService::CHANNEL_WHATSAPP): ?>
-                            <?php
-                              $gatewayChecked = $whatsappGatewayRoutingEnabled;
-                              $oldGatewayEnabled = old('whatsapp_gateway_enabled');
-                              if ($oldGatewayEnabled !== null) {
-                                  $gatewayChecked = (string) $oldGatewayEnabled === '1';
-                              }
-                            ?>
                             <hr style="margin:12px 0 8px;">
-                            <input type="hidden" name="whatsapp_gateway_enabled" value="0">
+                            <input type="hidden" id="whatsapp_gateway_enabled_value" name="whatsapp_gateway_enabled" value="<?= $checked ? '1' : '0' ?>">
                             <div class="checkbox" style="margin:0 0 8px 0;">
                               <label>
                                 <input
                                   type="checkbox"
                                   id="whatsapp_gateway_enabled"
-                                  name="whatsapp_gateway_enabled"
                                   value="1"
-                                  <?= $gatewayChecked ? 'checked' : '' ?>
-                                  <?= $checked ? '' : 'disabled' ?>
+                                  <?= $checked ? 'checked' : '' ?>
+                                  disabled
                                 >
-                                Instrada al gateway AmbulatorioFacile
+                                Instradamento obbligatorio al gateway AmbulatorioFacile
                               </label>
                             </div>
                             <p class="text-muted" style="min-height:0; margin-bottom:8px; font-size:12px;">
-                              Attivandolo, lo studio potrà collegare il proprio dispositivo dal pannello e ottenere il QR senza modifiche su Coolify.
+                              Si attiva automaticamente insieme al canale WhatsApp. Lo studio potrà collegare il dispositivo dal pannello e ottenere il QR senza modifiche su Coolify.
                             </p>
-                            <span id="whatsapp-gateway-routing-status" class="label label-<?= $gatewayChecked ? 'success' : 'default' ?>">
-                              <?= $gatewayChecked ? 'gateway attivo' : 'routing legacy / UltraMsg' ?>
+                            <span id="whatsapp-gateway-routing-status" class="label label-<?= $checked ? 'success' : 'default' ?>">
+                              <?= $checked ? 'gateway attivo' : 'gateway non attivo' ?>
                             </span>
                           <?php endif; ?>
                         </div>
@@ -1418,27 +1406,25 @@ $oldValue = static function (string $key, $fallback = '') {
 (function () {
   var whatsappChannel = document.querySelector('input[name="appointment_notification_enabled_channels[]"][data-notification-channel="wa"]');
   var gatewayInput = document.getElementById('whatsapp_gateway_enabled');
+  var gatewayValue = document.getElementById('whatsapp_gateway_enabled_value');
   var gatewayStatus = document.getElementById('whatsapp-gateway-routing-status');
-  if (!whatsappChannel || !gatewayInput) {
+  if (!whatsappChannel || !gatewayInput || !gatewayValue) {
     return;
   }
 
   function syncWhatsappGatewayRouting() {
     var channelEnabled = whatsappChannel.checked;
-    gatewayInput.disabled = !channelEnabled;
-    if (!channelEnabled) {
-      gatewayInput.checked = false;
-    }
+    gatewayInput.checked = channelEnabled;
+    gatewayInput.disabled = true;
+    gatewayValue.value = channelEnabled ? '1' : '0';
 
     if (gatewayStatus) {
-      var gatewayEnabled = channelEnabled && gatewayInput.checked;
-      gatewayStatus.className = 'label label-' + (gatewayEnabled ? 'success' : 'default');
-      gatewayStatus.textContent = gatewayEnabled ? 'gateway attivo' : 'routing legacy / UltraMsg';
+      gatewayStatus.className = 'label label-' + (channelEnabled ? 'success' : 'default');
+      gatewayStatus.textContent = channelEnabled ? 'gateway attivo' : 'gateway non attivo';
     }
   }
 
   whatsappChannel.addEventListener('change', syncWhatsappGatewayRouting);
-  gatewayInput.addEventListener('change', syncWhatsappGatewayRouting);
   syncWhatsappGatewayRouting();
 })();
 </script>

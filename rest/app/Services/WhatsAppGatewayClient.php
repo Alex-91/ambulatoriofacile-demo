@@ -19,21 +19,22 @@ class WhatsAppGatewayClient
             return false;
         }
 
+        $providerWasExplicit = $provider !== null;
         $provider = strtolower(trim((string) ($provider ?? env('WHATSAPP_PROVIDER', 'ultramsg'))));
         if ($provider === 'gateway') {
             return true;
         }
-        if ($provider !== 'hybrid') {
-            return false;
-        }
 
-        if (in_array($tenantId, self::configuredTenantIds($gatewayTenantIds), true)) {
+        if ($provider === 'hybrid' && in_array($tenantId, self::configuredTenantIds($gatewayTenantIds), true)) {
             return true;
         }
 
         // An explicit list keeps this helper deterministic for callers and tests
         // that intentionally want to evaluate only the legacy environment allowlist.
         if ($gatewayTenantIds !== null && $tenantRoutingResolver === null) {
+            return false;
+        }
+        if ($provider !== 'hybrid' && $providerWasExplicit && $tenantRoutingResolver === null) {
             return false;
         }
 
