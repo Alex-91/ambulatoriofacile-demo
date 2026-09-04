@@ -425,72 +425,54 @@
                     </div>
 
                     <div class="col-md-12">
-                        <div class="patient-form-section-title">Indirizzo Principale</div>
+                        <div class="patient-form-section-title">Residenza</div>
+                        <p class="help-block" style="margin:0 0 10px;">
+                            Questo indirizzo viene usato per la fatturazione. Se è vuoto viene usato il domicilio.
+                        </p>
                     </div>
                     <div class="col-md-5 form-group">
                         <label>Indirizzo</label>
-                        <input type="text" id="indirizzo" class="form-control">
+                        <input type="text" id="residenza_indirizzo" class="form-control">
                     </div>
                     <div class="col-md-2 form-group">
                         <label>Nr. civico</label>
-                        <input type="text" id="nr_civico" class="form-control">
+                        <input type="text" id="residenza_nr_civico" class="form-control">
                     </div>
                     <div class="col-md-3 form-group">
                         <label>Comune</label>
-                        <input type="text" id="citta" class="form-control" placeholder="Cerca comune">
-                    </div>
-                    <div class="col-md-2 form-group">
-                        <label>CAP</label>
-                        <input type="text" id="cap" class="form-control" placeholder="Cerca CAP" inputmode="numeric">
-                    </div>
-                    <div class="col-md-2 form-group">
-                        <label>Provincia</label>
-                        <input type="text" id="provincia" class="form-control" placeholder="Nome o sigla">
-                    </div>
-
-                    <div class="col-md-12">
-                        <div class="patient-form-section-title">Secondo Indirizzo (Excel)</div>
-                    </div>
-                    <div class="col-md-5 form-group">
-                        <label>2o indirizzo</label>
-                        <input type="text" id="indirizzo_secondario" class="form-control">
-                    </div>
-                    <div class="col-md-2 form-group">
-                        <label>2o nr. civico</label>
-                        <input type="text" id="nr_civico_secondario" class="form-control">
-                    </div>
-                    <div class="col-md-3 form-group">
-                        <label>2o comune</label>
-                        <input type="text" id="comune_secondario" class="form-control" placeholder="Cerca comune">
-                    </div>
-                    <div class="col-md-1 form-group">
-                        <label>2o CAP</label>
-                        <input type="text" id="cap_secondario" class="form-control" placeholder="CAP" inputmode="numeric">
-                    </div>
-                    <div class="col-md-1 form-group">
-                        <label>2a prov.</label>
-                        <input type="text" id="provincia_secondaria" class="form-control" placeholder="Sigla">
-                    </div>
-
-                    <div class="col-md-12">
-                        <div class="patient-form-section-title">Residenza</div>
-                    </div>
-                    <div class="col-md-6 form-group">
-                        <label>Residenza indirizzo</label>
-                        <input type="text" id="residenza_indirizzo" class="form-control">
-                    </div>
-                    <div class="col-md-3 form-group">
-                        <label>Residenza comune</label>
                         <input type="text" id="residenza_comune" class="form-control" placeholder="Cerca comune">
                     </div>
-                    <div class="col-md-3 form-group">
-                        <label>Residenza CAP</label>
-                        <input type="text" id="residenza_cap" class="form-control" placeholder="Cerca CAP" inputmode="numeric">
+                    <div class="col-md-1 form-group">
+                        <label>CAP</label>
+                        <input type="text" id="residenza_cap" class="form-control" placeholder="CAP" inputmode="numeric">
+                    </div>
+                    <div class="col-md-1 form-group">
+                        <label>Provincia</label>
+                        <input type="text" id="residenza_provincia" class="form-control" placeholder="Sigla">
                     </div>
 
+                    <div class="col-md-12">
+                        <div class="patient-form-section-title">Domicilio</div>
+                    </div>
+                    <div class="col-md-5 form-group">
+                        <label>Indirizzo</label>
+                        <input type="text" id="domicilio_indirizzo" class="form-control">
+                    </div>
+                    <div class="col-md-2 form-group">
+                        <label>Nr. civico</label>
+                        <input type="text" id="domicilio_nr_civico" class="form-control">
+                    </div>
                     <div class="col-md-3 form-group">
-                        <label>Residenza provincia</label>
-                        <input type="text" id="residenza_provincia" class="form-control" placeholder="Nome o sigla">
+                        <label>Comune</label>
+                        <input type="text" id="domicilio_comune" class="form-control" placeholder="Cerca comune">
+                    </div>
+                    <div class="col-md-1 form-group">
+                        <label>CAP</label>
+                        <input type="text" id="domicilio_cap" class="form-control" placeholder="CAP" inputmode="numeric">
+                    </div>
+                    <div class="col-md-1 form-group">
+                        <label>Provincia</label>
+                        <input type="text" id="domicilio_provincia" class="form-control" placeholder="Sigla">
                     </div>
                     <div class="col-md-3 form-group">
                         <label>Paziente speciale</label>
@@ -800,7 +782,7 @@ function renderPagination(page, last) {
 
 function resetFormPaziente() {
     $('#id_paziente').val('');
-    $('#denominazione,#cognome,#nome,#data_nascita,#cod_fis,#partita_iva,#comune_nascita,#provincia_nascita,#indirizzo,#nr_civico,#citta,#cap,#provincia,#indirizzo_secondario,#nr_civico_secondario,#comune_secondario,#cap_secondario,#provincia_secondaria,#residenza_indirizzo,#residenza_comune,#residenza_cap,#residenza_provincia,#telefono,#cellulare,#email,#email_pec,#banca,#condizioni_pagamento,#codice_destinatario,#note_cliente,#paz_spec').val('');
+    $('#denominazione,#cognome,#nome,#data_nascita,#cod_fis,#partita_iva,#comune_nascita,#provincia_nascita,#residenza_indirizzo,#residenza_nr_civico,#residenza_comune,#residenza_cap,#residenza_provincia,#domicilio_indirizzo,#domicilio_nr_civico,#domicilio_comune,#domicilio_cap,#domicilio_provincia,#telefono,#cellulare,#email,#email_pec,#banca,#condizioni_pagamento,#codice_destinatario,#note_cliente,#paz_spec').val('');
     $('#bloccato').val('0');
     $('#cliente_attivo').val('1');
     $('#iva_differita').val('0');
@@ -835,20 +817,16 @@ function fillPazienteForm(row) {
     $('#partita_iva').val(row.partita_iva || '');
     $('#comune_nascita').val(row.comune_nascita || '');
     $('#provincia_nascita').val(row.provincia_nascita || '');
-    $('#indirizzo').val(row.indirizzo || '');
-    $('#nr_civico').val(row.nr_civico || '');
-    $('#citta').val(row.citta || '');
-    $('#cap').val(row.cap || '');
-    $('#provincia').val(row.provincia || '');
-    $('#indirizzo_secondario').val(row.indirizzo_secondario || '');
-    $('#nr_civico_secondario').val(row.nr_civico_secondario || '');
-    $('#comune_secondario').val(row.comune_secondario || '');
-    $('#cap_secondario').val(row.cap_secondario || '');
-    $('#provincia_secondaria').val(row.provincia_secondaria || '');
     $('#residenza_indirizzo').val(row.residenza_indirizzo || '');
+    $('#residenza_nr_civico').val(row.residenza_nr_civico || '');
     $('#residenza_comune').val(row.residenza_comune || '');
     $('#residenza_cap').val(row.residenza_cap || '');
     $('#residenza_provincia').val(row.residenza_provincia || '');
+    $('#domicilio_indirizzo').val(row.domicilio_indirizzo || '');
+    $('#domicilio_nr_civico').val(row.domicilio_nr_civico || '');
+    $('#domicilio_comune').val(row.domicilio_comune || '');
+    $('#domicilio_cap').val(row.domicilio_cap || '');
+    $('#domicilio_provincia').val(row.domicilio_provincia || '');
     $('#telefono').val(row.telefono || '');
     $('#cellulare').val(row.cellulare || '');
     $('#email').val(row.email || '');
@@ -997,20 +975,17 @@ function inviaPaziente(confirmExistingPatientUpdate) {
         partita_iva: $('#partita_iva').val(),
         comune_nascita: $('#comune_nascita').val(),
         provincia_nascita: $('#provincia_nascita').val(),
-        indirizzo: $('#indirizzo').val(),
-        nr_civico: $('#nr_civico').val(),
-        citta: $('#citta').val(),
-        cap: $('#cap').val(),
-        provincia: $('#provincia').val(),
-        indirizzo_secondario: $('#indirizzo_secondario').val(),
-        nr_civico_secondario: $('#nr_civico_secondario').val(),
-        comune_secondario: $('#comune_secondario').val(),
-        cap_secondario: $('#cap_secondario').val(),
-        provincia_secondaria: $('#provincia_secondaria').val(),
+        address_payload_complete: 1,
         residenza_indirizzo: $('#residenza_indirizzo').val(),
+        residenza_nr_civico: $('#residenza_nr_civico').val(),
         residenza_comune: $('#residenza_comune').val(),
         residenza_cap: $('#residenza_cap').val(),
         residenza_provincia: $('#residenza_provincia').val(),
+        domicilio_indirizzo: $('#domicilio_indirizzo').val(),
+        domicilio_nr_civico: $('#domicilio_nr_civico').val(),
+        domicilio_comune: $('#domicilio_comune').val(),
+        domicilio_cap: $('#domicilio_cap').val(),
+        domicilio_provincia: $('#domicilio_provincia').val(),
         telefono: $('#telefono').val(),
         cellulare: $('#cellulare').val(),
         email: $('#email').val(),
@@ -1064,9 +1039,8 @@ $(function() {
             dataUrl: "<?= base_url('public/data/italian-addresses.json') . $patientAssetVersion('public/data/italian-addresses.json') ?>",
             groups: [
                 { municipality: '#comune_nascita', province: '#provincia_nascita' },
-                { municipality: '#citta', province: '#provincia', postalCode: '#cap' },
-                { municipality: '#comune_secondario', province: '#provincia_secondaria', postalCode: '#cap_secondario' },
-                { municipality: '#residenza_comune', province: '#residenza_provincia', postalCode: '#residenza_cap' }
+                { municipality: '#residenza_comune', province: '#residenza_provincia', postalCode: '#residenza_cap' },
+                { municipality: '#domicilio_comune', province: '#domicilio_provincia', postalCode: '#domicilio_cap' }
             ]
         });
     }

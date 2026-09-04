@@ -130,75 +130,55 @@ class PatientExcelImportService
                 'payload_key' => 'note_cliente',
                 'aliases' => ['note cliente', 'note', 'annotazioni cliente'],
             ],
-            'indirizzo' => [
-                'label' => 'Indirizzo',
-                'payload_key' => 'indirizzo',
-                'aliases' => ['indirizzo', 'via'],
-            ],
-            'nr_civico' => [
-                'label' => 'Nr. civico',
-                'payload_key' => 'nr_civico',
-                'aliases' => ['nr civico', 'nr. civico', 'numero civico', 'civico'],
-            ],
-            'citta' => [
-                'label' => 'Comune',
-                'payload_key' => 'citta',
-                'aliases' => ['comune', 'citta', 'citta'],
-            ],
-            'cap' => [
-                'label' => 'CAP',
-                'payload_key' => 'cap',
-                'aliases' => ['cap', 'cap principale'],
-            ],
-            'provincia' => [
-                'label' => 'Provincia',
-                'payload_key' => 'provincia',
-                'aliases' => ['provincia', 'prov'],
-            ],
-            'indirizzo_secondario' => [
-                'label' => '2o indirizzo',
-                'payload_key' => 'indirizzo_secondario',
-                'aliases' => ['2o indirizzo', '2o indirizzo ', 'secondo indirizzo', 'indirizzo secondario'],
-            ],
-            'nr_civico_secondario' => [
-                'label' => '2o nr. civico',
-                'payload_key' => 'nr_civico_secondario',
-                'aliases' => ['2o nr civico', '2o nr. civico', '2o numero civico', 'nr civico secondario'],
-            ],
-            'comune_secondario' => [
-                'label' => '2o comune',
-                'payload_key' => 'comune_secondario',
-                'aliases' => ['2o comune', 'comune secondario', '2a citta', '2o comune '],
-            ],
-            'cap_secondario' => [
-                'label' => '2o CAP',
-                'payload_key' => 'cap_secondario',
-                'aliases' => ['2o cap', 'cap secondario'],
-            ],
-            'provincia_secondaria' => [
-                'label' => '2a provincia',
-                'payload_key' => 'provincia_secondaria',
-                'aliases' => ['2a provincia', '2a prov', 'provincia secondaria'],
-            ],
             'residenza_indirizzo' => [
-                'label' => 'Residenza indirizzo',
+                'label' => 'Residenza - indirizzo',
                 'payload_key' => 'residenza_indirizzo',
-                'aliases' => ['residenza indirizzo', 'indirizzo residenza'],
+                'aliases' => ['residenza indirizzo', 'indirizzo residenza', 'indirizzo', 'via'],
+            ],
+            'residenza_nr_civico' => [
+                'label' => 'Residenza - nr. civico',
+                'payload_key' => 'residenza_nr_civico',
+                'aliases' => ['residenza nr civico', 'nr civico residenza', 'nr civico', 'nr. civico', 'numero civico', 'civico'],
             ],
             'residenza_comune' => [
-                'label' => 'Residenza comune',
+                'label' => 'Residenza - comune',
                 'payload_key' => 'residenza_comune',
-                'aliases' => ['residenza comune', 'comune residenza'],
+                'aliases' => ['residenza comune', 'comune residenza', 'comune', 'citta'],
             ],
             'residenza_cap' => [
-                'label' => 'Residenza CAP',
+                'label' => 'Residenza - CAP',
                 'payload_key' => 'residenza_cap',
-                'aliases' => ['residenza cap', 'cap residenza'],
+                'aliases' => ['residenza cap', 'cap residenza', 'cap', 'cap principale'],
             ],
             'residenza_provincia' => [
-                'label' => 'Residenza provincia',
+                'label' => 'Residenza - provincia',
                 'payload_key' => 'residenza_provincia',
-                'aliases' => ['residenza provincia', 'provincia residenza'],
+                'aliases' => ['residenza provincia', 'provincia residenza', 'provincia', 'prov'],
+            ],
+            'domicilio_indirizzo' => [
+                'label' => 'Domicilio - indirizzo',
+                'payload_key' => 'domicilio_indirizzo',
+                'aliases' => ['domicilio indirizzo', 'indirizzo domicilio', '2o indirizzo', 'secondo indirizzo', 'indirizzo secondario'],
+            ],
+            'domicilio_nr_civico' => [
+                'label' => 'Domicilio - nr. civico',
+                'payload_key' => 'domicilio_nr_civico',
+                'aliases' => ['domicilio nr civico', 'nr civico domicilio', '2o nr civico', '2o nr. civico', '2o numero civico', 'nr civico secondario'],
+            ],
+            'domicilio_comune' => [
+                'label' => 'Domicilio - comune',
+                'payload_key' => 'domicilio_comune',
+                'aliases' => ['domicilio comune', 'comune domicilio', '2o comune', 'comune secondario', '2a citta'],
+            ],
+            'domicilio_cap' => [
+                'label' => 'Domicilio - CAP',
+                'payload_key' => 'domicilio_cap',
+                'aliases' => ['domicilio cap', 'cap domicilio', '2o cap', 'cap secondario'],
+            ],
+            'domicilio_provincia' => [
+                'label' => 'Domicilio - provincia',
+                'payload_key' => 'domicilio_provincia',
+                'aliases' => ['domicilio provincia', 'provincia domicilio', '2a provincia', '2a prov', 'provincia secondaria'],
             ],
             'appointment_reminder_sms_enabled' => [
                 'label' => 'Promemoria SMS appuntamento',
@@ -1367,11 +1347,13 @@ class PatientExcelImportService
             case 'provincia_nascita':
             case 'provincia_secondaria':
             case 'residenza_provincia':
+            case 'domicilio_provincia':
                 return strtoupper($value);
 
             case 'cap':
             case 'cap_secondario':
             case 'residenza_cap':
+            case 'domicilio_cap':
                 return $this->normalizePostalCode($value);
 
             case 'data_nascita':

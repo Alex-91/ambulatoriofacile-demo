@@ -48,7 +48,7 @@ class TenantPatientLookupService
         $hasUsersTable = $db->tableExists('dap01_users');
         $limit = max(1, min(20, $limit));
         $like = '%' . mb_strtolower($term) . '%';
-        $query = $this->buildTenantPatientBaseQuery($hasUsersTable);
+        $query = $this->buildTenantPatientBaseQuery($db, $hasUsersTable);
         $sql = "
             {$query['select_sql']}
             WHERE (
@@ -107,7 +107,7 @@ class TenantPatientLookupService
             return [];
         }
 
-        $query = $this->buildTenantPatientBaseQuery($db->tableExists('dap01_users'));
+        $query = $this->buildTenantPatientBaseQuery($db, $db->tableExists('dap01_users'));
         $sql = $query['select_sql'] . '
             WHERE c.id_client = ?
             LIMIT 1
@@ -136,16 +136,34 @@ class TenantPatientLookupService
     /**
      * @return array<string, string>
      */
-    private function buildTenantPatientBaseQuery(bool $hasUsersTable): array
+    private function buildTenantPatientBaseQuery(\CodeIgniter\Database\BaseConnection $db, bool $hasUsersTable): array
     {
+        $clientColumns = array_fill_keys(array_map(
+            'strtolower',
+            $db->getFieldNames('dap02_clients')
+        ), true);
         $nameExpr = $this->decryptExpr('c.nome');
         $surnameExpr = $this->decryptExpr('c.cognome');
         $taxCodeExpr = $this->decryptExpr('c.codice_fiscale');
         $emailExpr = $this->decryptExpr('c.email');
         $mobileExpr = $this->decryptExpr('c.cellulare');
         $phoneExpr = $this->decryptExpr('c.telefono');
-        $addressExpr = $this->decryptExpr('c.indirizzo');
-        $cityExpr = $this->decryptExpr('c.citta');
+        $legacyAddressExpr = $this->decryptedColumnOrEmpty($clientColumns, 'indirizzo');
+        $legacyCivicExpr = $this->decryptedColumnOrEmpty($clientColumns, 'nr_civico');
+        $residenceAddressExpr = $this->decryptedColumnOrEmpty($clientColumns, 'residenza_indirizzo');
+        $residenceCivicExpr = $this->decryptedColumnOrEmpty($clientColumns, 'residenza_nr_civico');
+        $domicileAddressExpr = $this->decryptedColumnOrEmpty($clientColumns, 'indirizzo_secondario');
+        $domicileCivicExpr = $this->decryptedColumnOrEmpty($clientColumns, 'nr_civico_secondario');
+        $addressExpr = $this->firstNonEmptySql([
+            $this->fullAddressSql($residenceAddressExpr, $residenceCivicExpr),
+            $this->fullAddressSql($domicileAddressExpr, $domicileCivicExpr),
+            $this->fullAddressSql($legacyAddressExpr, $legacyCivicExpr),
+        ]);
+        $cityExpr = $this->firstNonEmptySql([
+            $this->decryptedColumnOrEmpty($clientColumns, 'residenza_comune'),
+            $this->decryptedColumnOrEmpty($clientColumns, 'comune_secondario'),
+            $this->decryptedColumnOrEmpty($clientColumns, 'citta'),
+        ]);
         $usernameExpr = $hasUsersTable ? "COALESCE(u.username, '')" : "''";
         $joinUsersSql = $hasUsersTable
             ? 'LEFT JOIN dap01_users u ON u.id_user = c.id_user'
@@ -175,6 +193,36 @@ class TenantPatientLookupService
                 {$joinUsersSql}
             ",
         ];
+    }
+
+    /**
+     * @param array<string, bool> $availableColumns
+     */
+    private function decryptedColumnOrEmpty(array $availableColumns, string $column): string
+    {
+        if (!isset($availableColumns[strtolower($column)])) {
+            return "''";
+        }
+
+        return $this->decryptExpr('c.' . $column);
+    }
+
+    private function fullAddressSql(string $addressExpr, string $civicExpr): string
+    {
+        return "TRIM(CONCAT_WS(' ', NULLIF(TRIM(COALESCE(CAST({$addressExpr} AS CHAR), '')), ''), NULLIF(TRIM(COALESCE(CAST({$civicExpr} AS CHAR), '')), '')))";
+    }
+
+    /**
+     * @param array<int, string> $expressions
+     */
+    private function firstNonEmptySql(array $expressions): string
+    {
+        $parts = array_map(
+            static fn(string $expression): string => "NULLIF(TRIM(COALESCE(CAST({$expression} AS CHAR), '')), '')",
+            $expressions
+        );
+
+        return 'COALESCE(' . implode(', ', $parts) . ", '')";
     }
 
     /**

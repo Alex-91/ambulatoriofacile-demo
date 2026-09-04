@@ -177,6 +177,16 @@ class ClientsModel extends Model
             }
         }
 
+        foreach ([
+            'indirizzo' => 'residenza_indirizzo',
+            'citta' => 'residenza_comune',
+            'provincia' => 'residenza_provincia',
+        ] as $legacyField => $residenceField) {
+            if (isset($patch[$legacyField]) && $db->fieldExists($residenceField, 'dap02_clients')) {
+                $patch[$residenceField] = $patch[$legacyField];
+            }
+        }
+
         $set = [];
         if ((int)($existing['id_user'] ?? 0) <= 0 && $idUser > 0) {
             $set[] = 'id_user=' . (int)$idUser;
@@ -294,6 +304,15 @@ class ClientsModel extends Model
         $set[] = "indirizzo="      . $crypto->encrypt_select_pulito($indirizzo);
         $set[] = "citta="          . $crypto->encrypt_select_pulito($citta);
         $set[] = "provincia="      . $crypto->encrypt_select_pulito($provincia);
+        if ($db->fieldExists('residenza_indirizzo', 'dap02_clients')) {
+            $set[] = "residenza_indirizzo=" . $crypto->encrypt_select_pulito($indirizzo);
+        }
+        if ($db->fieldExists('residenza_comune', 'dap02_clients')) {
+            $set[] = "residenza_comune=" . $crypto->encrypt_select_pulito($citta);
+        }
+        if ($db->fieldExists('residenza_provincia', 'dap02_clients')) {
+            $set[] = "residenza_provincia=" . $crypto->encrypt_select_pulito($provincia);
+        }
 
         // NON criptati:
         $set[] = "avviso_mail="  . $avviso;

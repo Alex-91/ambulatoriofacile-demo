@@ -473,6 +473,26 @@ class Clienti extends BaseController
                 throw new \RuntimeException('Creazione anagrafica cliente non riuscita.');
             }
 
+            $addressCopies = [];
+            foreach ([
+                'residenza_indirizzo' => 'indirizzo',
+                'residenza_comune' => 'citta',
+                'residenza_provincia' => 'provincia',
+                'indirizzo_secondario' => 'indirizzo',
+                'comune_secondario' => 'citta',
+                'provincia_secondaria' => 'provincia',
+            ] as $target => $source) {
+                if ($db->fieldExists($target, 'dap02_clients')) {
+                    $addressCopies[] = $target . '=' . $source;
+                }
+            }
+            if ($addressCopies !== []) {
+                $db->query(
+                    'UPDATE dap02_clients SET ' . implode(', ', $addressCopies)
+                    . ' WHERE id_client=' . $idClient . ' LIMIT 1'
+                );
+            }
+
             if ($idDot > 0 && !$rel->setDoctorForClient($idClient, $idDot, false)) {
                 throw new \RuntimeException('Collegamento cliente-dottore non riuscito.');
             }

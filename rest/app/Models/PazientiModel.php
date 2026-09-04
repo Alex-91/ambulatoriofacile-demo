@@ -31,6 +31,7 @@ class PazientiModel extends Model
         'iva_differita' => ['encrypted' => false, 'default' => '0'],
         'note_cliente' => ['encrypted' => true, 'default' => "''"],
         'nr_civico' => ['encrypted' => true, 'default' => "''"],
+        'residenza_nr_civico' => ['encrypted' => true, 'default' => "''"],
         'indirizzo_secondario' => ['encrypted' => true, 'default' => "''"],
         'nr_civico_secondario' => ['encrypted' => true, 'default' => "''"],
         'comune_secondario' => ['encrypted' => true, 'default' => "''"],
@@ -1139,7 +1140,7 @@ class PazientiModel extends Model
         ";
 
         $row = $this->db->query($sql, [$idPaziente])->getRowArray();
-        return $row ?: null;
+        return $this->sanitizePatientDetailRow($row ?: null);
     }
 
     public function getPazienteByDoctor(int $idPaziente, int $idDot, int $actingUserId = 0): ?array
@@ -1684,6 +1685,8 @@ class PazientiModel extends Model
         $allDoctorsAssociation = $this->resolveAllDoctorsAssociationMode($payload);
 
         $providedFields = $this->resolveProvidedPatientFields($payload);
+        $addressPayload = $this->resolvePatientAddressPayload($payload);
+        $providedFields = array_replace($providedFields, $addressPayload['provided_fields']);
 
         $data = [
             'cognome' => trim((string)($payload['cognome'] ?? '')),
@@ -1694,20 +1697,21 @@ class PazientiModel extends Model
             'partita_iva' => $this->normalizeVatNumber((string)($payload['partita_iva'] ?? '')),
             'comune_nascita' => trim((string)($payload['comune_nascita'] ?? '')),
             'provincia_nascita' => trim((string)($payload['provincia_nascita'] ?? '')),
-            'indirizzo' => trim((string)($payload['indirizzo'] ?? '')),
-            'nr_civico' => trim((string)($payload['nr_civico'] ?? '')),
-            'citta' => trim((string)($payload['citta'] ?? '')),
-            'cap' => trim((string)($payload['cap'] ?? '')),
-            'provincia' => trim((string)($payload['provincia'] ?? '')),
-            'indirizzo_secondario' => trim((string)($payload['indirizzo_secondario'] ?? '')),
-            'nr_civico_secondario' => trim((string)($payload['nr_civico_secondario'] ?? '')),
-            'comune_secondario' => trim((string)($payload['comune_secondario'] ?? '')),
-            'cap_secondario' => trim((string)($payload['cap_secondario'] ?? '')),
-            'provincia_secondaria' => trim((string)($payload['provincia_secondaria'] ?? '')),
-            'residenza_indirizzo' => trim((string)($payload['residenza_indirizzo'] ?? '')),
-            'residenza_comune' => trim((string)($payload['residenza_comune'] ?? '')),
-            'residenza_cap' => trim((string)($payload['residenza_cap'] ?? '')),
-            'residenza_provincia' => trim((string)($payload['residenza_provincia'] ?? '')),
+            'indirizzo' => $addressPayload['indirizzo'],
+            'nr_civico' => $addressPayload['nr_civico'],
+            'citta' => $addressPayload['citta'],
+            'cap' => $addressPayload['cap'],
+            'provincia' => $addressPayload['provincia'],
+            'indirizzo_secondario' => $addressPayload['indirizzo_secondario'],
+            'nr_civico_secondario' => $addressPayload['nr_civico_secondario'],
+            'comune_secondario' => $addressPayload['comune_secondario'],
+            'cap_secondario' => $addressPayload['cap_secondario'],
+            'provincia_secondaria' => $addressPayload['provincia_secondaria'],
+            'residenza_indirizzo' => $addressPayload['residenza_indirizzo'],
+            'residenza_nr_civico' => $addressPayload['residenza_nr_civico'],
+            'residenza_comune' => $addressPayload['residenza_comune'],
+            'residenza_cap' => $addressPayload['residenza_cap'],
+            'residenza_provincia' => $addressPayload['residenza_provincia'],
             'telefono' => trim((string)($payload['telefono'] ?? '')),
             'cellulare' => trim((string)($payload['cellulare'] ?? '')),
             'email' => trim((string)($payload['email'] ?? '')),
@@ -2471,6 +2475,8 @@ class PazientiModel extends Model
                 $cleanRow[$key] = $value;
             }
 
+            $cleanRow = $this->applyPatientAddressSemantics($cleanRow);
+
             if (!$this->rowHasVisiblePatientData($cleanRow)) {
                 continue;
             }
@@ -2508,7 +2514,7 @@ class PazientiModel extends Model
             $row[$key] = $this->normalizePatientString($value);
         }
 
-        return $row;
+        return $this->applyPatientAddressSemantics($row);
     }
 
     private function normalizePatientString(string $value): string
@@ -2540,12 +2546,18 @@ class PazientiModel extends Model
             'citta',
             'cap',
             'provincia',
+            'domicilio_indirizzo',
+            'domicilio_nr_civico',
+            'domicilio_comune',
+            'domicilio_cap',
+            'domicilio_provincia',
             'indirizzo_secondario',
             'nr_civico_secondario',
             'comune_secondario',
             'cap_secondario',
             'provincia_secondaria',
             'residenza_indirizzo',
+            'residenza_nr_civico',
             'residenza_comune',
             'residenza_cap',
             'residenza_provincia',
@@ -2583,12 +2595,18 @@ class PazientiModel extends Model
             'comune_nascita',
             'provincia_nascita',
             'provincia',
+            'domicilio_indirizzo',
+            'domicilio_nr_civico',
+            'domicilio_comune',
+            'domicilio_cap',
+            'domicilio_provincia',
             'indirizzo_secondario',
             'nr_civico_secondario',
             'comune_secondario',
             'cap_secondario',
             'provincia_secondaria',
             'residenza_indirizzo',
+            'residenza_nr_civico',
             'residenza_comune',
             'residenza_provincia',
             'banca',
@@ -2888,6 +2906,191 @@ class PazientiModel extends Model
 
         $this->doctorIdCache[$legacyIdDot] = (int)($row['id_personale'] ?? 0);
         return $this->doctorIdCache[$legacyIdDot];
+    }
+
+    /**
+     * Maps the public residence/domicile payload to the legacy physical
+     * columns. Generic legacy address inputs are still accepted so cached
+     * forms and old Excel mappings remain safe during rollout.
+     *
+     * @return array<string, mixed>
+     */
+    private function resolvePatientAddressPayload(array $payload): array
+    {
+        $legacyMap = [
+            'indirizzo' => 'indirizzo',
+            'nr_civico' => 'nr_civico',
+            'citta' => 'citta',
+            'cap' => 'cap',
+            'provincia' => 'provincia',
+        ];
+        $residenceMap = [
+            'residenza_indirizzo' => 'residenza_indirizzo',
+            'residenza_nr_civico' => 'residenza_nr_civico',
+            'residenza_comune' => 'residenza_comune',
+            'residenza_cap' => 'residenza_cap',
+            'residenza_provincia' => 'residenza_provincia',
+        ];
+        $domicileMap = [
+            'indirizzo_secondario' => ['domicilio_indirizzo', 'indirizzo_secondario'],
+            'nr_civico_secondario' => ['domicilio_nr_civico', 'nr_civico_secondario'],
+            'comune_secondario' => ['domicilio_comune', 'comune_secondario'],
+            'cap_secondario' => ['domicilio_cap', 'cap_secondario'],
+            'provincia_secondaria' => ['domicilio_provincia', 'provincia_secondaria'],
+        ];
+
+        $legacy = [];
+        $legacyProvided = [];
+        foreach ($legacyMap as $target => $source) {
+            $legacy[$target] = trim((string) ($payload[$source] ?? ''));
+            $legacyProvided[$target] = array_key_exists($source, $payload);
+        }
+
+        $residence = [];
+        $residenceProvided = [];
+        foreach ($residenceMap as $target => $source) {
+            $residence[$target] = trim((string) ($payload[$source] ?? ''));
+            $residenceProvided[$target] = array_key_exists($source, $payload);
+        }
+
+        $domicile = [];
+        $domicileProvided = [];
+        foreach ($domicileMap as $target => $sources) {
+            $value = '';
+            $provided = false;
+            foreach ($sources as $source) {
+                if (!array_key_exists($source, $payload)) {
+                    continue;
+                }
+                $value = trim((string) $payload[$source]);
+                $provided = true;
+                break;
+            }
+            $domicile[$target] = $value;
+            $domicileProvided[$target] = $provided;
+        }
+
+        $legacyValues = array_values($legacy);
+        if (
+            $this->addressValuesAreEmpty(array_values($residence))
+            && !$this->addressValuesAreEmpty($legacyValues)
+        ) {
+            foreach (array_keys($residenceMap) as $index => $target) {
+                $source = array_keys($legacyMap)[$index];
+                $residence[$target] = $legacy[$source];
+                $residenceProvided[$target] = $legacyProvided[$source];
+            }
+        }
+        if (
+            $this->addressValuesAreEmpty(array_values($domicile))
+            && !$this->addressValuesAreEmpty($legacyValues)
+        ) {
+            foreach (array_keys($domicileMap) as $index => $target) {
+                $source = array_keys($legacyMap)[$index];
+                $domicile[$target] = $legacy[$source];
+                $domicileProvided[$target] = $legacyProvided[$source];
+            }
+        }
+
+        $effective = !$this->addressValuesAreEmpty(array_values($residence))
+            ? array_values($residence)
+            : (!$this->addressValuesAreEmpty(array_values($domicile)) ? array_values($domicile) : $legacyValues);
+        $completeAddressPayload = $this->normalizeBooleanFlag($payload['address_payload_complete'] ?? false);
+        $residenceTargets = array_keys($residenceMap);
+        foreach (array_keys($legacyMap) as $index => $target) {
+            if (!$legacyProvided[$target]) {
+                $legacy[$target] = trim((string) ($effective[$index] ?? ''));
+            }
+            $residenceTarget = $residenceTargets[$index];
+            if ($residenceProvided[$residenceTarget]) {
+                $legacyProvided[$target] = true;
+                $legacy[$target] = trim((string) $residence[$residenceTarget]);
+            }
+            if ($completeAddressPayload) {
+                $legacyProvided[$target] = true;
+                $legacy[$target] = trim((string) ($effective[$index] ?? ''));
+            }
+        }
+
+        return array_merge($legacy, $domicile, $residence, [
+            'provided_fields' => array_merge($legacyProvided, $domicileProvided, $residenceProvided),
+        ]);
+    }
+
+    /**
+     * Adds the new semantic field names and keeps the legacy generic address
+     * aliases pointed at the billing address: residence first, domicile as
+     * fallback.
+     */
+    private function applyPatientAddressSemantics(array $row): array
+    {
+        $legacy = [
+            (string) ($row['indirizzo'] ?? ''),
+            (string) ($row['nr_civico'] ?? ''),
+            (string) ($row['citta'] ?? ''),
+            (string) ($row['cap'] ?? ''),
+            (string) ($row['provincia'] ?? ''),
+        ];
+        $residence = [
+            (string) ($row['residenza_indirizzo'] ?? ''),
+            (string) ($row['residenza_nr_civico'] ?? ''),
+            (string) ($row['residenza_comune'] ?? ''),
+            (string) ($row['residenza_cap'] ?? ''),
+            (string) ($row['residenza_provincia'] ?? ''),
+        ];
+        $domicile = [
+            (string) ($row['indirizzo_secondario'] ?? ''),
+            (string) ($row['nr_civico_secondario'] ?? ''),
+            (string) ($row['comune_secondario'] ?? ''),
+            (string) ($row['cap_secondario'] ?? ''),
+            (string) ($row['provincia_secondaria'] ?? ''),
+        ];
+
+        if ($this->addressValuesAreEmpty($residence)) {
+            $residence = $legacy;
+        }
+        if ($this->addressValuesAreEmpty($domicile)) {
+            $domicile = $legacy;
+        }
+
+        $effective = !$this->addressValuesAreEmpty($residence) ? $residence : $domicile;
+        [
+            $row['residenza_indirizzo'],
+            $row['residenza_nr_civico'],
+            $row['residenza_comune'],
+            $row['residenza_cap'],
+            $row['residenza_provincia'],
+        ] = $residence;
+        [
+            $row['domicilio_indirizzo'],
+            $row['domicilio_nr_civico'],
+            $row['domicilio_comune'],
+            $row['domicilio_cap'],
+            $row['domicilio_provincia'],
+        ] = $domicile;
+        [
+            $row['indirizzo'],
+            $row['nr_civico'],
+            $row['citta'],
+            $row['cap'],
+            $row['provincia'],
+        ] = $effective;
+
+        return $row;
+    }
+
+    /**
+     * @param array<int, string> $values
+     */
+    private function addressValuesAreEmpty(array $values): bool
+    {
+        foreach ($values as $value) {
+            if (trim((string) $value) !== '') {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private function resolveProvidedPatientFields(array $payload): array

@@ -11667,8 +11667,8 @@ function cercaPazientiAutocompleteVisite(term) {
                     'data-nome="' + escapeHtml(row.nome || '') + '" ' +
                     'data-telefono="' + escapeHtml(row.telefono || '') + '" ' +
                     'data-cellulare="' + escapeHtml(row.cellulare || '') + '" ' +
-                    'data-indirizzo="' + escapeHtml(row.indirizzo || '') + '" ' +
-                    'data-citta="' + escapeHtml(row.citta || '') + '">' +
+                    'data-indirizzo="' + escapeHtml(row.domicilio_indirizzo || row.indirizzo || '') + '" ' +
+                    'data-citta="' + escapeHtml(row.domicilio_comune || row.citta || '') + '">' +
                     '<strong>' + escapeHtml((row.cognome || '') + ' ' + (row.nome || '')) + '</strong>' +
                     '</div>';
             });

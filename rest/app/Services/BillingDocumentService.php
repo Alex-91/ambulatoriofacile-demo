@@ -1248,6 +1248,8 @@ class BillingDocumentService
         $this->databaseConfig->setEncryptionConfig($db, 'utf8mb4');
         $db->query('SET @sync_vector = RANDOM_BYTES(16)');
 
+        $patientAddress = trim((string) ($normalized['patient_address'] ?? ''));
+        $patientCity = trim((string) ($normalized['patient_city'] ?? ''));
         $fieldMap = [
             'nome' => trim((string) ($normalized['patient_first_name'] ?? '')),
             'cognome' => trim((string) ($normalized['patient_last_name'] ?? '')),
@@ -1255,9 +1257,24 @@ class BillingDocumentService
             'telefono' => trim((string) ($normalized['patient_phone'] ?? '')),
             'cellulare' => trim((string) ($normalized['patient_mobile'] ?? '')),
             'email' => trim((string) ($normalized['patient_email'] ?? '')),
-            'indirizzo' => trim((string) ($normalized['patient_address'] ?? '')),
-            'citta' => trim((string) ($normalized['patient_city'] ?? '')),
+            'indirizzo' => $patientAddress,
+            'citta' => $patientCity,
         ];
+
+        // I documenti aggiornano la residenza, che è l'indirizzo di fatturazione.
+        // Le colonne storiche restano sincronizzate durante la fase di compatibilità.
+        if ($db->fieldExists('nr_civico', 'dap02_clients')) {
+            $fieldMap['nr_civico'] = '';
+        }
+        if ($db->fieldExists('residenza_indirizzo', 'dap02_clients')) {
+            $fieldMap['residenza_indirizzo'] = $patientAddress;
+        }
+        if ($db->fieldExists('residenza_nr_civico', 'dap02_clients')) {
+            $fieldMap['residenza_nr_civico'] = '';
+        }
+        if ($db->fieldExists('residenza_comune', 'dap02_clients')) {
+            $fieldMap['residenza_comune'] = $patientCity;
+        }
 
         $set = ['vector_id = COALESCE(vector_id, @sync_vector)'];
         foreach ($fieldMap as $column => $value) {
