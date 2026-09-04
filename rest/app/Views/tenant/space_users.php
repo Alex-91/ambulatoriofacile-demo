@@ -263,7 +263,7 @@ $oldValue = static function (string $key, $fallback = '') {
                         Accesso amministratore applicativo
                       </label>
                       <p class="text-muted" style="margin:6px 0 0 24px;">
-                        Può essere attivato per dottori, infermieri e segreterie che devono vedere anche il menu amministrativo. Se disattivato, l'utente resta operativo normale.
+                        Può essere attivato per dottori, infermieri e segreterie. L'utente avrà le stesse voci e funzioni del responsabile dello studio; se disattivato resta operativo normale.
                       </p>
                     </div>
                   </div>

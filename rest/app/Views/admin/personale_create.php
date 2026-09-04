@@ -186,7 +186,7 @@ $oldIsPersonnelAdmin = (int)($old['is_personale_admin'] ?? ($old['is_general_adm
                         </label>
                       </div>
                       <p class="text-muted" style="margin:6px 0 0 0;">
-                        Disponibile per Dottore Generale e Segreteria. Se non selezionato, l'account resta un utente operativo normale.
+                        Disponibile per Dottore Generale e Segreteria. Quando l'account è collegato allo spazio, avrà le stesse voci e funzioni del responsabile; se non selezionato resta operativo normale.
                       </p>
                     </div>
                   </div>

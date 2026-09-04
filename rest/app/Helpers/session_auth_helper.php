@@ -62,6 +62,34 @@ if (!function_exists('session_current_tenant_role')) {
     }
 }
 
+if (!function_exists('session_has_tenant_app_admin_access')) {
+    function session_has_tenant_app_admin_access(): bool
+    {
+        $session = session();
+        $tenantContext = $session->get(\App\Services\TenantContextService::SESSION_KEY);
+
+        return is_array($tenantContext)
+            && (int) ($tenantContext['tenant_id'] ?? 0) > 0
+            && (bool) ($session->get('tenant_app_admin') ?? false) === true;
+    }
+}
+
+if (!function_exists('session_has_tenant_master_access')) {
+    function session_has_tenant_master_access(): bool
+    {
+        return session_current_tenant_role() === 'tenant_master'
+            || session_has_tenant_app_admin_access();
+    }
+}
+
+if (!function_exists('session_has_tenant_management_access')) {
+    function session_has_tenant_management_access(): bool
+    {
+        return in_array(session_current_tenant_role(), ['tenant_master', 'tenant_admin'], true)
+            || session_has_tenant_app_admin_access();
+    }
+}
+
 if (!function_exists('session_user_is_doctor_profile')) {
     function session_user_is_doctor_profile(): bool
     {
@@ -89,8 +117,7 @@ if (!function_exists('session_user_is_secretary_profile')) {
 if (!function_exists('session_should_open_agenda_first')) {
     function session_should_open_agenda_first(): bool
     {
-        $tenantRole = session_current_tenant_role();
-        if ($tenantRole === 'tenant_master') {
+        if (session_has_tenant_master_access()) {
             return true;
         }
 
@@ -102,7 +129,7 @@ if (!function_exists('session_has_operational_profile_access')) {
     function session_has_operational_profile_access(): bool
     {
         $tenantRole = session_current_tenant_role();
-        if (in_array($tenantRole, ['tenant_master', 'tenant_admin'], true)) {
+        if (session_has_tenant_management_access()) {
             return true;
         }
 

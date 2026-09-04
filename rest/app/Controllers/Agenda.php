@@ -783,7 +783,7 @@ public function eseguiRepairRecurringExtraSlots()
         return $this->isSharedAgendaPatientsFeatureEnabled()
             && (
                 $actorTipoPers === StaffDoctorAccessService::TIPO_DOTTORE
-                || session_current_tenant_role() === 'tenant_master'
+                || session_has_tenant_master_access()
             );
     }
 
@@ -1872,8 +1872,7 @@ public function eseguiRepairRecurringExtraSlots()
             return true;
         }
 
-        $tenantRole = session_current_tenant_role();
-        if (in_array($tenantRole, ['tenant_master', 'tenant_admin'], true)) {
+        if (session_has_tenant_management_access()) {
             return true;
         }
 
@@ -2947,7 +2946,7 @@ public function eseguiRepairRecurringExtraSlots()
             return $this->sessionExpiredRedirect();
         }
 
-        if ($context->tenantRole !== 'tenant_master' || (int)$context->platformUserId <= 0) {
+        if (!session_has_tenant_master_access() || (int)$context->platformUserId <= 0) {
             return redirect()->to(site_url('/'))->with('error', 'Solo il responsabile dello studio può scaricare il backup agenda.');
         }
 
@@ -2971,7 +2970,7 @@ public function eseguiRepairRecurringExtraSlots()
             return false;
         }
 
-        if ($context->tenantRole !== 'tenant_master' || (int)$context->platformUserId <= 0) {
+        if (!session_has_tenant_master_access() || (int)$context->platformUserId <= 0) {
             return false;
         }
 
@@ -4181,8 +4180,7 @@ public function eseguiRepairRecurringExtraSlots()
     protected function assertCanManageBulkAppointmentDeletion(): void
     {
         $userId = $this->getCurrentUserId();
-        $tenantRole = session_current_tenant_role();
-        $isTenantAdmin = in_array($tenantRole, ['tenant_master', 'tenant_admin'], true);
+        $isTenantAdmin = session_has_tenant_management_access();
 
         if (!$isTenantAdmin && !$this->agendaModel->isAdmin($userId) && !$this->isCurrentSessionPlatformAdmin()) {
             throw new \RuntimeException(

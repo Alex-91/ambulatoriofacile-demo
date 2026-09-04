@@ -33,7 +33,8 @@ abstract class BillingAdminBaseController extends BaseController
 
         $tenantScope = $this->resolveTenantScope();
         $tenantRole = strtolower(trim((string) ($tenantScope['tenant_role'] ?? '')));
-        $hasTenantOperationalAccess = in_array($tenantRole, ['tenant_master', 'tenant_admin'], true);
+        $hasTenantOperationalAccess = in_array($tenantRole, ['tenant_master', 'tenant_admin'], true)
+            || session_has_tenant_app_admin_access();
 
         if (!$isPlatformAdminSession && !$hasTenantOperationalAccess) {
             return redirect()->to(site_url('/'))

@@ -17,6 +17,10 @@ class AdminMenuAccessFilter implements FilterInterface
             return null;
         }
 
+        if (session_has_tenant_master_access()) {
+            return null;
+        }
+
         $userId = (int) (session()->get('id_user') ?? 0);
         if ($userId <= 0) {
             $sessionUser = session()->get('utente_sess');

@@ -14,7 +14,7 @@ class SpaceUsers extends BaseController
 
     public function __construct()
     {
-        helper('portal');
+        helper(['portal', 'session_auth']);
         $this->tenantContext = new TenantContextService();
     }
 
@@ -175,7 +175,7 @@ class SpaceUsers extends BaseController
             return redirect()->to(site_url('/'))->with('error', 'Gestione utenti non disponibile per questo spazio.');
         }
 
-        if (!in_array($context->tenantRole, ['tenant_master', 'tenant_admin'], true)) {
+        if (!session_has_tenant_management_access()) {
             return redirect()->to(site_url('/'))->with('error', 'Non sei autorizzato a gestire gli utenti di questo studio.');
         }
 

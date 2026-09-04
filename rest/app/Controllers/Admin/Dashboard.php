@@ -25,7 +25,7 @@ class Dashboard extends BaseController
 
     public function index()
     {
-        helper(['portal', 'admin_menu']);
+        helper(['portal', 'admin_menu', 'session_auth']);
 
         $me = session()->get('utente_sess');
         if (!$me || empty($me->id_user)) {
@@ -40,7 +40,7 @@ class Dashboard extends BaseController
         $menuItems = $menuAdmin['result'] ?? [];
 
         $tenantContext = $this->currentTenantContext();
-        if ($tenantContext !== null && in_array($tenantContext->tenantRole, ['tenant_master', 'tenant_admin'], true)) {
+        if ($tenantContext !== null && session_has_tenant_management_access()) {
             return view('admin/dashboard_tenant', $this->buildTenantDashboardData($tenantContext, $menuItems));
         }
 

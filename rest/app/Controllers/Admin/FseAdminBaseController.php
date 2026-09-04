@@ -26,7 +26,8 @@ abstract class FseAdminBaseController extends BaseController
         $me = session()->get('utente_sess');
         $isPlatformAdmin = session()->get('is_admin') === true || (bool) session()->get('platform_is_admin') || (is_object($me) && (int) ($me->tipo ?? 0) === 1);
         $scope = $this->resolveTenantScope();
-        $tenantAdmin = in_array(strtolower((string) ($scope['tenant_role'] ?? '')), ['tenant_master', 'tenant_admin'], true);
+        $tenantAdmin = in_array(strtolower((string) ($scope['tenant_role'] ?? '')), ['tenant_master', 'tenant_admin'], true)
+            || session_has_tenant_app_admin_access();
         if (!$isPlatformAdmin && !$tenantAdmin) return redirect()->to(site_url('/'))->with('error', 'La console FSE è riservata ai responsabili dello spazio.');
         if ((int) ($scope['tenant_id'] ?? 0) <= 0) return redirect()->to(site_url('admin'))->with('error', 'Spazio FSE non risolto.');
         if (empty($scope['feature_enabled'])) return redirect()->to(site_url('admin'))->with('error', 'Modulo FSE 2.0 non attivo per questo spazio.');

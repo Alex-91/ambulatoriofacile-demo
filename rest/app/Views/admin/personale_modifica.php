@@ -165,7 +165,7 @@ $success = $success ?? null;
                         </label>
                       </div>
                       <p class="text-muted" style="margin:6px 0 0 0;">
-                        Disponibile per Dottore Generale e Segreteria. Se non selezionato, l'account resta normale.
+                        Disponibile per Dottore Generale e Segreteria. Quando l'account è collegato allo spazio, avrà le stesse voci e funzioni del responsabile; se non selezionato resta normale.
                       </p>
                     </div>
                   </div>

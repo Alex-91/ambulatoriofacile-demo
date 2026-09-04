@@ -1332,7 +1332,7 @@ $oldValue = static function (string $key, $fallback = '') {
                           Accesso amministratore applicativo
                         </label>
                         <p class="text-muted" style="margin:6px 0 0 24px;">
-                          Valido anche per segreterie e infermieri collegati all'utente applicativo.
+                          Valido anche per segreterie e infermieri collegati all'utente applicativo: concede le stesse voci e funzioni del responsabile dello studio.
                         </p>
                       </div>
                       <div class="checkbox">

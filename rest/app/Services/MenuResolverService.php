@@ -23,7 +23,7 @@ class MenuResolverService
      */
     public function resolveAdminSidebar(array $menuItems = []): array
     {
-        helper(['admin_menu', 'portal']);
+        helper(['admin_menu', 'portal', 'session_auth']);
 
         $session = session();
         if ($menuItems === []) {
@@ -32,7 +32,7 @@ class MenuResolverService
         }
 
         $currentMenuUserId = $this->resolveCurrentMenuUserId();
-        if ($currentMenuUserId > 0) {
+        if ($currentMenuUserId > 0 && !session_has_tenant_master_access()) {
             $menuItems = $this->adminMenuVisibility->filterMenuRowsForUser($menuItems, $currentMenuUserId);
         }
 
@@ -100,7 +100,7 @@ class MenuResolverService
             ];
         }
 
-        if ($currentMenuUserId > 0) {
+        if ($currentMenuUserId > 0 && empty($context['is_tenant_master_operational'])) {
             $contextActions = $this->adminMenuVisibility->filterContextActionsForUser($contextActions, $currentMenuUserId);
         }
 
@@ -176,7 +176,7 @@ class MenuResolverService
         }
 
         $managedActions = $this->buildManagedTenantContextActions($context);
-        if ($currentMenuUserId > 0) {
+        if ($currentMenuUserId > 0 && empty($context['is_tenant_master_operational'])) {
             $managedActions = $this->adminMenuVisibility->filterContextActionsForUser($managedActions, $currentMenuUserId);
         }
 
@@ -197,7 +197,7 @@ class MenuResolverService
      */
     private function resolveRuntimeContext(): array
     {
-        helper('portal');
+        helper(['portal', 'session_auth']);
 
         $session = session();
         $tenantContext = $session->get('tenant_context');
@@ -205,6 +205,8 @@ class MenuResolverService
         $tenantFeatureFlags = (array) ($tenantContext['feature_flags'] ?? []);
         $tenantId = (int) ($tenantContext['tenant_id'] ?? 0);
         $tenantRole = trim((string) ($tenantContext['tenant_role'] ?? ''));
+        $hasTenantMasterAccess = $tenantId > 0 && session_has_tenant_master_access();
+        $hasTenantManagementAccess = $tenantId > 0 && session_has_tenant_management_access();
         $tenantContextObject = $tenantContext !== [] ? TenantContext::fromArray($tenantContext) : null;
         $billingFeatureService = new BillingFeatureService();
         $tsFeatureService = new TsFeatureService();
@@ -236,40 +238,40 @@ class MenuResolverService
             'tenant_id' => $tenantId,
             'tenant_role' => $tenantRole,
             'tenant_feature_flags' => $tenantFeatureFlags,
-            'is_tenant_operational_console_session' => $tenantId > 0 && in_array($tenantRole, ['tenant_master', 'tenant_admin'], true),
-            'is_tenant_master_operational' => $tenantId > 0 && $tenantRole === 'tenant_master',
+            'is_tenant_operational_console_session' => $hasTenantManagementAccess,
+            'is_tenant_master_operational' => $hasTenantMasterAccess,
             'can_access_platform_console' => $canAccessPlatformConsole,
             'is_platform_console_session' => $canAccessPlatformConsole
                 && (string) ($session->get('loginSource') ?? '') === 'platform_console',
             'can_manage_tenant_features' => $tenantId > 0
-                && $tenantRole === 'tenant_master'
+                && $hasTenantMasterAccess
                 && (int) ($session->get('platform_user_id') ?? 0) > 0,
             'can_manage_billing' => $tenantId > 0
-                && $tenantRole === 'tenant_master'
+                && $hasTenantMasterAccess
                 && (int) ($session->get('platform_user_id') ?? 0) > 0
                 && $billingAccessible,
             'can_manage_ts_billing' => $tenantId > 0
-                && $tenantRole === 'tenant_master'
+                && $hasTenantMasterAccess
                 && (int) ($session->get('platform_user_id') ?? 0) > 0
                 && $tsBillingAccessible,
             'can_manage_fse2' => $tenantId > 0
-                && $tenantRole === 'tenant_master'
+                && $hasTenantMasterAccess
                 && (int) ($session->get('platform_user_id') ?? 0) > 0
                 && $fse2Accessible,
             'can_manage_appointment_notifications' => $tenantId > 0
-                && $tenantRole === 'tenant_master'
+                && $hasTenantMasterAccess
                 && (int) ($session->get('platform_user_id') ?? 0) > 0
                 && !empty($tenantFeatureFlags['appointment_notifications']),
             'can_manage_whatsapp_campaigns' => $tenantId > 0
-                && $tenantRole === 'tenant_master'
+                && $hasTenantMasterAccess
                 && (int) ($session->get('platform_user_id') ?? 0) > 0
                 && !empty($tenantFeatureFlags['appointment_notifications'])
                 && !empty($tenantFeatureFlags['appointment_notifications_whatsapp']),
             'can_manage_otp_devices' => $tenantId > 0
-                && in_array($tenantRole, ['tenant_master', 'tenant_admin'], true)
+                && $hasTenantManagementAccess
                 && (int) ($session->get('platform_user_id') ?? 0) > 0,
             'can_manage_tenant_users' => $tenantId > 0
-                && in_array($tenantRole, ['tenant_master', 'tenant_admin'], true)
+                && $hasTenantManagementAccess
                 && !empty($tenantFeatureFlags['staff_management']),
             'can_open_agenda' => $tenantId > 0
                 || $session->get('is_admin') === true

@@ -360,6 +360,9 @@ class TenantAppSessionBootstrapService
 
         if ($userType === 1) {
             $this->hydrateAdminSession($db, $userId);
+            if ($this->membershipHasAppAdminFlag($membership)) {
+                $this->applyPersonaleAdminOverlay($db);
+            }
             return;
         }
 

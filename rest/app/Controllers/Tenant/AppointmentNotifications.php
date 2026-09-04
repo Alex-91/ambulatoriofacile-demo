@@ -17,7 +17,7 @@ class AppointmentNotifications extends BaseController
 
     public function __construct()
     {
-        helper('portal');
+        helper(['portal', 'session_auth']);
         $this->tenantContext = new TenantContextService();
         $this->tenantCatalog = new TenantCatalogService();
     }
@@ -273,7 +273,7 @@ class AppointmentNotifications extends BaseController
             return $json ? $deny(401, 'Sessione scaduta.') : $this->sessionExpiredRedirect();
         }
 
-        if ($context->tenantRole !== 'tenant_master') {
+        if (!session_has_tenant_master_access()) {
             return $deny(403, 'Solo il responsabile dello studio può gestire le notifiche appuntamenti.');
         }
 

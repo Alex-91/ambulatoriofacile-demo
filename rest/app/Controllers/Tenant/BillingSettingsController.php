@@ -19,7 +19,7 @@ class BillingSettingsController extends BaseController
 
     public function __construct()
     {
-        helper('portal');
+        helper(['portal', 'session_auth']);
         $this->tenantContext = new TenantContextService();
         $this->featureService = new BillingFeatureService();
         $this->moduleStatus = new BillingTsModuleStatusService();
@@ -231,7 +231,7 @@ class BillingSettingsController extends BaseController
             return $this->sessionExpiredRedirect();
         }
 
-        if ($context->tenantRole !== 'tenant_master') {
+        if (!session_has_tenant_master_access()) {
             return redirect()->to(site_url('/'))->with('error', 'Solo il responsabile dello studio può aprire il modulo Fatturazione.');
         }
 

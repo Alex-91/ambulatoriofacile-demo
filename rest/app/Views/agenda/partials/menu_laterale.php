@@ -6,11 +6,10 @@ $uri = service('uri');
 $currentPath = trim($uri->getPath(), '/');
 $session = session();
 $tenantContextRaw = $session->get(\App\Services\TenantContextService::SESSION_KEY);
-$tenantRole = is_array($tenantContextRaw) ? strtolower(trim((string) ($tenantContextRaw['tenant_role'] ?? ''))) : '';
 $tenantId = is_array($tenantContextRaw) ? (int) ($tenantContextRaw['tenant_id'] ?? 0) : 0;
 $hasOperationalProfileAccess = session_has_operational_profile_access();
 $operationalProfileUrl = null;
-if ($tenantId > 0 && in_array($tenantRole, ['tenant_master', 'tenant_admin'], true) && $hasOperationalProfileAccess) {
+if ($tenantId > 0 && session_has_tenant_management_access() && $hasOperationalProfileAccess) {
     $operationalProfileUrl = portal_tenant_operational_profile_url();
 } elseif ($hasOperationalProfileAccess) {
     $operationalProfileUrl = portal_operational_home_url();

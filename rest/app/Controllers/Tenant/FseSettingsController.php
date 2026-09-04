@@ -61,7 +61,7 @@ class FseSettingsController extends BaseController
         if (!session_access_is_confirmed()) return $this->redirectToLogin();
         $context = $this->contexts->getCurrentTenant();
         if ($context === null || !$context->isValid()) return redirect()->to(site_url('/'))->with('error', 'Sessione spazio non disponibile.');
-        if (!in_array(strtolower($context->tenantRole), ['tenant_master', 'tenant_admin'], true)) return redirect()->to(site_url('/'))->with('error', 'Configurazione FSE riservata ai responsabili dello spazio.');
+        if (!session_has_tenant_management_access()) return redirect()->to(site_url('/'))->with('error', 'Configurazione FSE riservata ai responsabili dello spazio.');
         if (!$this->features->isEnabledForContext($context) && !$this->features->allowsLocalTestingBypass($context)) return redirect()->to(portal_tenant_space_url('funzioni'))->with('error', 'Modulo FSE 2.0 non attivo.');
         return null;
     }

@@ -97,6 +97,62 @@ final class SessionAuthHelperTest extends CIUnitTestCase
         $this->assertFalse(session_should_open_agenda_first());
     }
 
+    public function testAppAdminFlagGrantsTenantMasterEquivalentAccess(): void
+    {
+        service('session')->set([
+            'tenant_app_admin' => true,
+            TenantContextService::SESSION_KEY => [
+                'tenant_id' => 12,
+                'tenant_role' => 'tenant_staff',
+            ],
+        ]);
+
+        $this->assertTrue(session_has_tenant_app_admin_access());
+        $this->assertTrue(session_has_tenant_master_access());
+        $this->assertTrue(session_has_tenant_management_access());
+        $this->assertTrue(session_has_operational_profile_access());
+    }
+
+    public function testTenantStaffWithoutAppAdminFlagKeepsNormalAccess(): void
+    {
+        service('session')->set(TenantContextService::SESSION_KEY, [
+            'tenant_id' => 12,
+            'tenant_role' => 'tenant_staff',
+        ]);
+
+        $this->assertFalse(session_has_tenant_app_admin_access());
+        $this->assertFalse(session_has_tenant_master_access());
+        $this->assertFalse(session_has_tenant_management_access());
+        $this->assertFalse(session_has_operational_profile_access());
+    }
+
+    public function testAppAdminFlagWithoutTenantContextDoesNotGrantTenantAccess(): void
+    {
+        service('session')->set('tenant_app_admin', true);
+
+        $this->assertFalse(session_has_tenant_app_admin_access());
+        $this->assertFalse(session_has_tenant_master_access());
+        $this->assertFalse(session_has_tenant_management_access());
+    }
+
+    public function testAppAdminNurseOpensAgendaLikeTenantMaster(): void
+    {
+        $user = new stdClass();
+        $user->id_user = 42;
+        $user->tipo_pers = 2;
+
+        service('session')->set([
+            'utente_sess' => $user,
+            'tenant_app_admin' => true,
+            TenantContextService::SESSION_KEY => [
+                'tenant_id' => 12,
+                'tenant_role' => 'tenant_staff',
+            ],
+        ]);
+
+        $this->assertTrue(session_should_open_agenda_first());
+    }
+
     private function resetSessionState(): void
     {
         service('session')->remove([
@@ -105,6 +161,10 @@ final class SessionAuthHelperTest extends CIUnitTestCase
             'utente_sess',
             'platform_user_id',
             'platform_is_admin',
+            'tenant_app_admin',
+            'is_admin',
+            'admin',
+            'tipoUser',
             TenantContextService::SESSION_KEY,
         ]);
     }

@@ -64,8 +64,9 @@ $currentPath = trim(service('uri')->getPath(), '/');
 $tenantContext = $sess->get('tenant_context');
 $tenantName = is_array($tenantContext) ? trim((string)($tenantContext['tenant_name'] ?? '')) : '';
 $tenantId = is_array($tenantContext) ? (int)($tenantContext['tenant_id'] ?? 0) : 0;
-$tenantRole = is_array($tenantContext) ? strtolower(trim((string)($tenantContext['tenant_role'] ?? ''))) : '';
-$isTenantOperationalConsoleSession = $tenantId > 0 && in_array($tenantRole, ['tenant_master', 'tenant_admin'], true);
+$hasTenantMasterAccess = $tenantId > 0 && session_has_tenant_master_access();
+$hasTenantManagementAccess = $tenantId > 0 && session_has_tenant_management_access();
+$isTenantOperationalConsoleSession = $hasTenantManagementAccess;
 $hideHeaderMenu = str_starts_with($currentPath, 'admin') || $isTenantOperationalConsoleSession;
 $tenantFeatureFlags = is_array($tenantContext) ? (array)($tenantContext['feature_flags'] ?? []) : [];
 $chatFeatureEnabled = $tenantId <= 0 || !empty($tenantFeatureFlags['chat']);
@@ -80,24 +81,24 @@ $canAccessPlatformConsole = (bool) ($sess->get('platform_is_admin') ?? false) ==
 $isPlatformConsoleSession = $canAccessPlatformConsole
     && (string) ($sess->get('loginSource') ?? '') === 'platform_console';
 $canManageTenantFeatures = $tenantId > 0
-    && $tenantRole === 'tenant_master'
+    && $hasTenantMasterAccess
     && (int) ($sess->get('platform_user_id') ?? 0) > 0;
 $canManageAppointmentNotifications = $tenantId > 0
-    && $tenantRole === 'tenant_master'
+    && $hasTenantMasterAccess
     && (int) ($sess->get('platform_user_id') ?? 0) > 0
     && !empty($tenantFeatureFlags['appointment_notifications']);
 $canManageTenantUsers = $tenantId > 0
-    && in_array($tenantRole, ['tenant_master', 'tenant_admin'], true)
+    && $hasTenantManagementAccess
     && !empty($tenantFeatureFlags['staff_management']);
 $showTenantOnboardingLink = $tenantId > 0
-    && $tenantRole === 'tenant_master'
+    && $hasTenantMasterAccess
     && in_array(strtolower(trim((string)($tenantContext['onboarding_status'] ?? 'draft'))), ['draft', 'setup'], true);
 $isTenantOnboardingRoute = in_array($currentPath, ['login/spazio/onboarding', 'spazio/onboarding'], true);
 $useMinimalTenantOnboardingHeader = $isTenantOnboardingRoute
-    && $tenantRole === 'tenant_master'
+    && $hasTenantMasterAccess
     && $showTenantOnboardingLink;
 $hideHeaderMenu = $hideHeaderMenu || $useMinimalTenantOnboardingHeader;
-$hasOperationalTenantAvatarContext = $tenantId > 0 && in_array($tenantRole, ['tenant_master', 'tenant_admin'], true);
+$hasOperationalTenantAvatarContext = $hasTenantManagementAccess;
 $showTenantHeaderSections = !$useMinimalTenantOnboardingHeader && $hasOperationalTenantAvatarContext;
 $tenantOperationalHomeUrl = $showTenantHeaderSections ? portal_operational_home_url() : null;
 $canOpenTenantOperationalProfile = $showTenantHeaderSections;
@@ -572,7 +573,7 @@ if (!$chatFeatureEnabled && !empty($navItems) && is_array($navItems)) {
     }));
 }
 
-if ($headerMenuUserId > 0) {
+if ($headerMenuUserId > 0 && !$hasTenantMasterAccess) {
     $navItems = $headerMenuVisibility->filterMenuRowsForUser($navItems, $headerMenuUserId);
 }
 ?>

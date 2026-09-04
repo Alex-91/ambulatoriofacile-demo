@@ -12,7 +12,7 @@ class OtpDevices extends BaseController
 
     public function __construct()
     {
-        helper('portal');
+        helper(['portal', 'session_auth']);
         $this->tenantContext = new TenantContextService();
     }
 
@@ -108,7 +108,7 @@ class OtpDevices extends BaseController
             return $this->sessionExpiredRedirect();
         }
 
-        if (!in_array($context->tenantRole, ['tenant_master', 'tenant_admin'], true)) {
+        if (!session_has_tenant_management_access()) {
             return redirect()->to(site_url('/'))->with('error', 'Non sei autorizzato a gestire i dispositivi OTP di questo studio.');
         }
 

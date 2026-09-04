@@ -16,7 +16,7 @@ class WhatsAppCampaigns extends BaseController
 
     public function __construct()
     {
-        helper('portal');
+        helper(['portal', 'session_auth']);
         $this->tenantContext = new TenantContextService();
         $this->tenantCatalog = new TenantCatalogService();
     }
@@ -61,7 +61,7 @@ class WhatsAppCampaigns extends BaseController
         if ((bool) (session()->get('isLoggedInConfirmed') ?? false) !== true) { return $this->redirectToLogin(); }
         $context = $this->tenantContext->getCurrentTenant();
         if ($context === null || (int) (session()->get('platform_user_id') ?? 0) <= 0) { return $this->sessionExpiredRedirect(); }
-        if ($context->tenantRole !== 'tenant_master') { return redirect()->to(site_url('/'))->with('error', 'Solo il responsabile dello studio può inviare campagne WhatsApp.'); }
+        if (!session_has_tenant_master_access()) { return redirect()->to(site_url('/'))->with('error', 'Solo il responsabile dello studio può inviare campagne WhatsApp.'); }
         $settings = (new AppointmentNotificationSettingsService())->resolveTenantSettings($context->tenantId);
         if (empty($settings['available_channels'][AppointmentNotificationSettingsService::CHANNEL_WHATSAPP])) {
             return redirect()->to(portal_tenant_space_url('notifiche-appuntamenti'))->with('error', 'WhatsApp non è attivo per questo spazio.');
