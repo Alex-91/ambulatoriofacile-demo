@@ -208,10 +208,13 @@ class MenuResolverService
         $tenantContextObject = $tenantContext !== [] ? TenantContext::fromArray($tenantContext) : null;
         $billingFeatureService = new BillingFeatureService();
         $tsFeatureService = new TsFeatureService();
+        $fseFeatureService = new FseFeatureService();
         $billingAccessible = !empty($tenantFeatureFlags['billing'])
             || $billingFeatureService->isEnabledForContext($tenantContextObject);
         $tsBillingAccessible = !empty($tenantFeatureFlags['ts_billing'])
             || $tsFeatureService->allowsLocalTestingBypass($tenantContextObject);
+        $fse2Accessible = !empty($tenantFeatureFlags['fse2'])
+            || $fseFeatureService->allowsLocalTestingBypass($tenantContextObject);
         $canAccessPlatformConsole = (bool) ($session->get('platform_is_admin') ?? false) === true;
         $currentSessionUsername = trim((string) ($session->get('username') ?? ''));
         $demoCurrentAccount = $session->get(\App\Services\DemoAccessService::SESSION_KEY_CURRENT);
@@ -249,6 +252,10 @@ class MenuResolverService
                 && $tenantRole === 'tenant_master'
                 && (int) ($session->get('platform_user_id') ?? 0) > 0
                 && $tsBillingAccessible,
+            'can_manage_fse2' => $tenantId > 0
+                && $tenantRole === 'tenant_master'
+                && (int) ($session->get('platform_user_id') ?? 0) > 0
+                && $fse2Accessible,
             'can_manage_appointment_notifications' => $tenantId > 0
                 && $tenantRole === 'tenant_master'
                 && (int) ($session->get('platform_user_id') ?? 0) > 0
@@ -412,6 +419,7 @@ class MenuResolverService
             'spazio/funzioni' => !empty($context['can_manage_tenant_features']),
             'spazio/fatturazione' => !empty($context['can_manage_billing']),
             'spazio/sistema-ts' => !empty($context['can_manage_ts_billing']),
+            'spazio/fse2' => !empty($context['can_manage_fse2']),
             'spazio/notifiche-appuntamenti' => !empty($context['can_manage_appointment_notifications']),
             'spazio/invii-whatsapp' => !empty($context['can_manage_whatsapp_campaigns']),
         ];
@@ -452,6 +460,7 @@ class MenuResolverService
         $menuItems = $this->injectBillingScheduleMenu($menuItems, $tenantId);
         $menuItems = $this->injectBillingReportsMenu($menuItems, $tenantId);
         $menuItems = $this->injectTsBillingMenu($menuItems, $tenantId);
+        $menuItems = $this->injectFse2Menu($menuItems, $tenantId);
         $menuItems = $this->injectBillingDocumentSettingsMenu($menuItems, $tenantId);
 
         return $this->reorderOperationalMenuItems($menuItems);
@@ -506,6 +515,21 @@ class MenuResolverService
             'class_icon' => 'fa-file-text-o',
         ];
 
+        return $menuItems;
+    }
+
+    /** @param list<array<string,mixed>> $menuItems @return list<array<string,mixed>> */
+    private function injectFse2Menu(array $menuItems, int $tenantId): array
+    {
+        if (!$this->isAdminFse2FeatureEnabled($tenantId)) {
+            return $menuItems;
+        }
+        foreach ($menuItems as $menuRow) {
+            if (strtolower($this->normalizePath((string) ($menuRow['link'] ?? ''))) === 'fse2') {
+                return $menuItems;
+            }
+        }
+        $menuItems[] = ['titolo_menu' => 'FSE 2.0', 'link' => 'fse2', 'class_icon' => 'fa-medkit'];
         return $menuItems;
     }
 
@@ -759,6 +783,22 @@ class MenuResolverService
         try {
             $featureMap = (new TenantCatalogService())->resolveFeatureMapForCurrentRuntimeTenant();
             return !empty($featureMap['ts_billing']);
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    private function isAdminFse2FeatureEnabled(int $tenantId): bool
+    {
+        $context = (new TenantContextService())->getCurrentTenant();
+        if ($context !== null && $context->isValid() && $context->tenantId === $tenantId) {
+            return !empty($context->featureFlags['fse2']) || (new FseFeatureService())->allowsLocalTestingBypass($context);
+        }
+        try {
+            $featureMap = $tenantId > 0
+                ? (new TenantFeatureService())->resolveEffectiveFeatureMapForTenant($tenantId)
+                : (new TenantCatalogService())->resolveFeatureMapForCurrentRuntimeTenant();
+            return !empty($featureMap['fse2']);
         } catch (\Throwable $e) {
             return false;
         }

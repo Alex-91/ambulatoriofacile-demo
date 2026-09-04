@@ -87,6 +87,9 @@ $routes->post('login/spazio/sistema-ts/healthcheck', 'Tenant\TsSettingsControlle
 $routes->post('login/spazio/fatturazione-ts/healthcheck', 'Tenant\TsSettingsController::healthcheck');
 $routes->post('login/spazio/sistema-ts/repair-schema', 'Tenant\TsSettingsController::repairSchema');
 $routes->post('login/spazio/fatturazione-ts/repair-schema', 'Tenant\TsSettingsController::repairSchema');
+$routes->get('login/spazio/fse2', 'Tenant\FseSettingsController::index');
+$routes->post('login/spazio/fse2/save', 'Tenant\FseSettingsController::save');
+$routes->post('login/spazio/fse2/healthcheck', 'Tenant\FseSettingsController::healthcheck');
 $routes->get('login/spazio/dispositivi-otp', 'Tenant\OtpDevices::index');
 $routes->post('login/spazio/dispositivi-otp/disconnect', 'Tenant\OtpDevices::disconnect');
 $routes->get('login/spazio/notifiche-appuntamenti', 'Tenant\AppointmentNotifications::index');
@@ -148,6 +151,9 @@ $routes->post('spazio/sistema-ts/healthcheck', 'Tenant\TsSettingsController::hea
 $routes->post('spazio/fatturazione-ts/healthcheck', 'Tenant\TsSettingsController::healthcheck');
 $routes->post('spazio/sistema-ts/repair-schema', 'Tenant\TsSettingsController::repairSchema');
 $routes->post('spazio/fatturazione-ts/repair-schema', 'Tenant\TsSettingsController::repairSchema');
+$routes->get('spazio/fse2', 'Tenant\FseSettingsController::index');
+$routes->post('spazio/fse2/save', 'Tenant\FseSettingsController::save');
+$routes->post('spazio/fse2/healthcheck', 'Tenant\FseSettingsController::healthcheck');
 $routes->get('spazio/dispositivi-otp', 'Tenant\OtpDevices::index');
 $routes->post('spazio/dispositivi-otp/disconnect', 'Tenant\OtpDevices::disconnect');
 $routes->get('spazio/notifiche-appuntamenti', 'Tenant\AppointmentNotifications::index');
@@ -261,6 +267,19 @@ $routes->group('admin', static function($routes){
     $routes->post('fatturazione-ts/documenti/ricevuta/fetch/(:num)', 'Admin\TsDocumentsController::fetchReceipt/$1');
     $routes->post('fatturazione-ts/documenti/ricevuta/download-latest/(:num)', 'Admin\TsDocumentsController::downloadLatestReceipt/$1');
     $routes->get('fatturazione-ts/documenti/ricevuta/download/(:num)', 'Admin\TsDocumentsController::downloadReceipt/$1');
+    $routes->get('fse2', 'Admin\FseDashboardController::index');
+    $routes->get('fse2/documenti', 'Admin\FseDocumentsController::index');
+    $routes->get('fse2/documenti/nuovo', 'Admin\FseDocumentsController::create');
+    $routes->get('fse2/documenti/modifica/(:num)', 'Admin\FseDocumentsController::edit/$1');
+    $routes->get('fse2/documenti/pazienti/search', 'Admin\FseDocumentsController::searchPatients');
+    $routes->post('fse2/documenti/save', 'Admin\FseDocumentsController::save');
+    $routes->post('fse2/documenti/prepara/(:num)', 'Admin\FseDocumentsController::prepare/$1');
+    $routes->post('fse2/documenti/firma/(:num)', 'Admin\FseDocumentsController::uploadSigned/$1');
+    $routes->post('fse2/documenti/valida/(:num)', 'Admin\FseDocumentsController::validateDocument/$1');
+    $routes->post('fse2/documenti/pubblica/(:num)', 'Admin\FseDocumentsController::publish/$1');
+    $routes->post('fse2/documenti/stato/(:num)', 'Admin\FseDocumentsController::status/$1');
+    $routes->post('fse2/documenti/elimina/(:num)', 'Admin\FseDocumentsController::deleteDocument/$1');
+    $routes->get('fse2/documenti/download/(:num)/(:segment)', 'Admin\FseDocumentsController::download/$1/$2');
 });
 
 $routes->post('auth/send-otp-wa', 'AuthMFA\AuthenticationController::sendOtpWa');

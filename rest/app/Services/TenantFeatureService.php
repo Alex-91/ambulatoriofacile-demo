@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Config\BillingModule;
+use App\Config\Fse2;
 use App\Config\TsBilling;
 use App\Models\PlatformFeaturesModel;
 use App\Models\PlatformTenantFeaturePreferencesModel;
@@ -282,6 +283,16 @@ class TenantFeatureService
                 'is_tenant_managed' => 0,
                 'tenant_default_enabled' => 0,
                 'sort_order' => 136,
+            ],
+            Fse2::FEATURE_KEY => [
+                'feature_name' => 'FSE 2.0',
+                'feature_scope' => 'clinical',
+                'description' => 'Creazione, firma, validazione e pubblicazione dei referti clinici nel Fascicolo Sanitario Elettronico 2.0.',
+                'default_enabled' => 0,
+                'icon_class' => 'fa-medkit',
+                'is_tenant_managed' => 0,
+                'tenant_default_enabled' => 0,
+                'sort_order' => 145,
             ],
             'agenda_visit_type_optional' => [
                 'feature_name' => 'Tipo visita facoltativo in appuntamento',

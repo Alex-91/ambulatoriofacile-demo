@@ -66,6 +66,11 @@ class TenantFeatureRegistry
                 ],
                 'schede_codes' => [],
             ],
+            'fse2' => [
+                'route_prefixes' => ['admin/fse2', 'spazio/fse2', 'login/spazio/fse2'],
+                'menu_prefixes' => ['fse2', 'admin/fse2', 'spazio/fse2', 'login/spazio/fse2'],
+                'schede_codes' => [],
+            ],
         ];
     }
 
