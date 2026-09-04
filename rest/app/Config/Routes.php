@@ -60,6 +60,7 @@ $routes->get('login/piattaforma/dispositivi-otp', 'Login\PlatformOtpDevicesContr
 $routes->post('login/piattaforma/dispositivi-otp/disconnect', 'Login\PlatformOtpDevicesController::disconnect');
 $routes->get('login/piattaforma/notifiche-appuntamenti', 'Login\PlatformAppointmentNotificationsController::index');
 $routes->post('login/piattaforma/notifiche-appuntamenti/launch', 'Login\PlatformAppointmentNotificationsController::launch');
+$routes->post('login/piattaforma/notifiche-appuntamenti/policy/save', 'Login\PlatformAppointmentNotificationsController::savePolicy');
 $routes->get('login/piattaforma/notifiche-appuntamenti/run', 'Login\PlatformAppointmentNotificationsController::run');
 $routes->get('login/piattaforma/whatsapp', 'Login\PlatformWhatsAppConversationsController::index');
 $routes->get('login/piattaforma/whatsapp/refresh', 'Login\PlatformWhatsAppConversationsController::refresh');
@@ -124,6 +125,7 @@ $routes->get('piattaforma/dispositivi-otp', 'Login\PlatformOtpDevicesController:
 $routes->post('piattaforma/dispositivi-otp/disconnect', 'Login\PlatformOtpDevicesController::disconnect');
 $routes->get('piattaforma/notifiche-appuntamenti', 'Login\PlatformAppointmentNotificationsController::index');
 $routes->post('piattaforma/notifiche-appuntamenti/launch', 'Login\PlatformAppointmentNotificationsController::launch');
+$routes->post('piattaforma/notifiche-appuntamenti/policy/save', 'Login\PlatformAppointmentNotificationsController::savePolicy');
 $routes->get('piattaforma/notifiche-appuntamenti/run', 'Login\PlatformAppointmentNotificationsController::run');
 $routes->get('piattaforma/whatsapp', 'Login\PlatformWhatsAppConversationsController::index');
 $routes->get('piattaforma/whatsapp/refresh', 'Login\PlatformWhatsAppConversationsController::refresh');

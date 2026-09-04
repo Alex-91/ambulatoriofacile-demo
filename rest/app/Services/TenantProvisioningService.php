@@ -512,12 +512,14 @@ class TenantProvisioningService
             $appointmentNotificationEnabledChannels = $appointmentNotificationSettings->normalizeChannels(
                 (array) ($payload['appointment_notification_enabled_channels'] ?? [])
             );
-            $whatsappGatewayEnabled = $whatsappGatewayEnabled
-                && in_array(
-                    AppointmentNotificationSettingsService::CHANNEL_WHATSAPP,
-                    $appointmentNotificationEnabledChannels,
-                    true
-                );
+            // Every newly active WhatsApp channel is routed through the
+            // AmbulatorioFacile gateway. The legacy provider is no longer a
+            // selectable delivery path from the platform console.
+            $whatsappGatewayEnabled = in_array(
+                AppointmentNotificationSettingsService::CHANNEL_WHATSAPP,
+                $appointmentNotificationEnabledChannels,
+                true
+            );
 
             $channelFeatureMap = [
                 AppointmentNotificationSettingsService::CHANNEL_SMS => AppointmentNotificationSettingsService::FEATURE_SMS,

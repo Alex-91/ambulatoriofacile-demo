@@ -62,7 +62,8 @@ class AppointmentNotificationSettingsService
                 && (bool) ($platformChannelControls[self::CHANNEL_SMS]['enabled'] ?? true),
             self::CHANNEL_WHATSAPP => $moduleAvailable
                 && (bool) ($waState['effective_enabled'] ?? false)
-                && (bool) ($platformChannelControls[self::CHANNEL_WHATSAPP]['enabled'] ?? true),
+                && (bool) ($platformChannelControls[self::CHANNEL_WHATSAPP]['enabled'] ?? true)
+                && WhatsAppGatewayClient::isAvailableForTenant($tenantId),
             self::CHANNEL_EMAIL => $moduleAvailable
                 && (bool) ($platformChannelControls[self::CHANNEL_EMAIL]['enabled'] ?? true),
             self::CHANNEL_OTP => $moduleAvailable

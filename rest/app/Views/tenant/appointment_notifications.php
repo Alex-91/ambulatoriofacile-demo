@@ -503,6 +503,7 @@ $formatDateTime = static function (?string $value): string {
                         </div>
                         <p class="text-muted" style="margin:0 0 10px 0;">
                           Se attivi questo flusso devi selezionare almeno un canale tra quelli disponibili per lo studio.
+                          L’email parte in modo indipendente; se selezioni insieme WhatsApp e SMS, il sistema prova prima WhatsApp e usa l’SMS soltanto come fallback quando la consegna WhatsApp non riesce entro il tempo stabilito dalla piattaforma.
                         </p>
 
                         <?php if ($key === \App\Services\AppointmentNotificationSettingsService::TYPE_REMINDER): ?>

@@ -11,26 +11,34 @@ class WhatsAppCampaignService
     private const CAMPAIGNS = 'platform_whatsapp_campaigns';
     private const RECIPIENTS = 'platform_whatsapp_campaign_recipients';
     private const RATE_LIMITS = 'platform_whatsapp_campaign_rate_limits';
-    private const DELAY_SECONDS = 300;
 
     private BaseConnection $platformDb;
     private TenantCatalogService $tenantCatalog;
     private TenantDatabaseConnector $tenantDbConnector;
     private DatabaseConfig $databaseConfig;
     private ?WhatsAppGatewayClient $gatewayClient;
+    private TenantNotificationPolicyService $notificationPolicies;
+    private NotificationRateLimiterService $rateLimiter;
+    private WhatsAppSmsFallbackService $smsFallbacks;
 
     public function __construct(
         ?BaseConnection $platformDb = null,
         ?TenantCatalogService $tenantCatalog = null,
         ?TenantDatabaseConnector $tenantDbConnector = null,
         ?DatabaseConfig $databaseConfig = null,
-        ?WhatsAppGatewayClient $gatewayClient = null
+        ?WhatsAppGatewayClient $gatewayClient = null,
+        ?TenantNotificationPolicyService $notificationPolicies = null,
+        ?NotificationRateLimiterService $rateLimiter = null,
+        ?WhatsAppSmsFallbackService $smsFallbacks = null
     ) {
         $this->platformDb = $platformDb ?? Database::connect('platform');
         $this->tenantCatalog = $tenantCatalog ?? new TenantCatalogService();
         $this->tenantDbConnector = $tenantDbConnector ?? new TenantDatabaseConnector();
         $this->databaseConfig = $databaseConfig ?? new DatabaseConfig();
         $this->gatewayClient = $gatewayClient;
+        $this->notificationPolicies = $notificationPolicies ?? new TenantNotificationPolicyService($this->platformDb);
+        $this->rateLimiter = $rateLimiter ?? new NotificationRateLimiterService($this->platformDb, $this->notificationPolicies);
+        $this->smsFallbacks = $smsFallbacks ?? new WhatsAppSmsFallbackService($this->platformDb, $this->notificationPolicies);
     }
 
     /** @return array<string,mixed> */
@@ -117,6 +125,15 @@ class WhatsAppCampaignService
             $recipients = $this->platformDb->table(self::RECIPIENTS)
                 ->where('id_whatsapp_campaign', (int) $selected['id_whatsapp_campaign'])
                 ->orderBy('id_whatsapp_campaign_recipient', 'DESC')->get(200)->getResultArray();
+            $fallbackRows = $this->smsFallbacks->rowsForSources(
+                $tenantId,
+                'whatsapp_campaign_recipient',
+                array_map(static fn(array $row): int => (int) ($row['id_whatsapp_campaign_recipient'] ?? 0), $recipients)
+            );
+            foreach ($recipients as &$recipient) {
+                $recipient['sms_fallback'] = $fallbackRows[(int) ($recipient['id_whatsapp_campaign_recipient'] ?? 0)] ?? null;
+            }
+            unset($recipient);
         }
         return [
             'schema_ready' => true,
@@ -137,7 +154,8 @@ class WhatsAppCampaignService
         $now = date('Y-m-d H:i:s');
         $this->platformDb->transStart();
         $candidate = $this->platformDb->query(
-            'SELECT r.*, c.message_text, c.id_tenant AS campaign_tenant_id FROM ' . self::RECIPIENTS . ' r INNER JOIN ' . self::CAMPAIGNS . " c ON c.id_whatsapp_campaign = r.id_whatsapp_campaign WHERE r.status = 'pending' AND c.status IN ('queued', 'running') ORDER BY c.id_whatsapp_campaign ASC, r.id_whatsapp_campaign_recipient ASC LIMIT 1 FOR UPDATE"
+            'SELECT r.*, c.message_text, c.id_tenant AS campaign_tenant_id FROM ' . self::RECIPIENTS . ' r INNER JOIN ' . self::CAMPAIGNS . ' c ON c.id_whatsapp_campaign = r.id_whatsapp_campaign LEFT JOIN ' . self::RATE_LIMITS . " rl ON rl.id_tenant = c.id_tenant WHERE r.status = 'pending' AND c.status IN ('queued', 'running') AND (rl.next_allowed_at IS NULL OR rl.next_allowed_at <= ?) ORDER BY c.id_whatsapp_campaign ASC, r.id_whatsapp_campaign_recipient ASC LIMIT 1 FOR UPDATE",
+            [$now]
         )->getRowArray();
         if (!$candidate) {
             $this->platformDb->transComplete();
@@ -145,9 +163,24 @@ class WhatsAppCampaignService
         }
         $tenantId = (int) $candidate['campaign_tenant_id'];
         $limit = $this->platformDb->table(self::RATE_LIMITS)->where('id_tenant', $tenantId)->get(1)->getRowArray();
-        if ($limit && trim((string) ($limit['next_allowed_at'] ?? '')) > $now) {
+        $tenant = $this->tenantCatalog->getTenantById($tenantId) ?? [];
+        $policy = $this->notificationPolicies->resolve($tenantId, (string) ($tenant['tenant_name'] ?? ''));
+        $rate = $this->rateLimiter->claim(
+            $tenantId,
+            AppointmentNotificationSettingsService::CHANNEL_WHATSAPP,
+            $policy,
+            false
+        );
+        if (empty($rate['allowed'])) {
+            $nextAt = (string) (($rate['next_allowed_at'] ?? '') ?: date('Y-m-d H:i:s', time() + 60));
+            $rateData = ['next_allowed_at' => $nextAt, 'updated_at' => $now];
+            if ($limit) {
+                $this->platformDb->table(self::RATE_LIMITS)->where('id_tenant', $tenantId)->update($rateData);
+            } else {
+                $this->platformDb->table(self::RATE_LIMITS)->insert(['id_tenant' => $tenantId] + $rateData);
+            }
             $this->platformDb->transComplete();
-            return ['ok' => true, 'status' => 'throttled', 'tenant_id' => $tenantId, 'next_allowed_at' => $limit['next_allowed_at']];
+            return ['ok' => true, 'status' => (string) ($rate['reason'] ?? 'throttled'), 'tenant_id' => $tenantId, 'next_allowed_at' => $nextAt];
         }
         $recipientId = (int) $candidate['id_whatsapp_campaign_recipient'];
         $claimed = $this->platformDb->table(self::RECIPIENTS)->where('id_whatsapp_campaign_recipient', $recipientId)->where('status', 'pending')->update([
@@ -157,7 +190,13 @@ class WhatsAppCampaignService
             $this->platformDb->transComplete();
             return ['ok' => true, 'status' => 'contended'];
         }
-        $nextAt = date('Y-m-d H:i:s', time() + self::DELAY_SECONDS);
+        $nextAt = date(
+            'Y-m-d H:i:s',
+            time() + $this->notificationPolicies->minimumSpacingSeconds(
+                $policy,
+                AppointmentNotificationSettingsService::CHANNEL_WHATSAPP
+            )
+        );
         $rateData = ['next_allowed_at' => $nextAt, 'updated_at' => $now];
         if ($limit) {
             $this->platformDb->table(self::RATE_LIMITS)->where('id_tenant', $tenantId)->update($rateData);
@@ -172,11 +211,71 @@ class WhatsAppCampaignService
         try {
             $result = $this->gateway()->sendText($tenantId, (string) $candidate['recipient_phone'], (string) $candidate['message_text']);
             $this->finishRecipient($candidate, $result);
+            $settings = (new AppointmentNotificationSettingsService())->resolveTenantSettings($tenantId);
+            try {
+                $this->smsFallbacks->registerPending(
+                    $tenantId,
+                    'whatsapp_campaign_recipient',
+                    $recipientId,
+                    'mass_campaign',
+                    (string) $candidate['recipient_phone'],
+                    (string) $candidate['message_text'],
+                    (string) ($result['provider_id'] ?? ''),
+                    !empty($settings['available_channels'][AppointmentNotificationSettingsService::CHANNEL_SMS]),
+                    empty($result['ok'])
+                );
+            } catch (\Throwable $fallbackError) {
+                log_message('warning', 'Registrazione fallback campagna WhatsApp/SMS non riuscita: {message}', [
+                    'message' => $fallbackError->getMessage(),
+                    'tenant_id' => $tenantId,
+                    'recipient_id' => $recipientId,
+                ]);
+            }
             return ['ok' => !empty($result['ok']), 'status' => !empty($result['ok']) ? 'sent' : 'failed', 'tenant_id' => $tenantId, 'recipient_id' => $recipientId];
         } catch (\Throwable $e) {
             $this->finishRecipient($candidate, ['ok' => false, 'error' => $e->getMessage()]);
+            try {
+                $settings = (new AppointmentNotificationSettingsService())->resolveTenantSettings($tenantId);
+                $this->smsFallbacks->registerPending(
+                    $tenantId,
+                    'whatsapp_campaign_recipient',
+                    $recipientId,
+                    'mass_campaign',
+                    (string) $candidate['recipient_phone'],
+                    (string) $candidate['message_text'],
+                    '',
+                    !empty($settings['available_channels'][AppointmentNotificationSettingsService::CHANNEL_SMS]),
+                    true
+                );
+            } catch (\Throwable $fallbackError) {
+                log_message('warning', 'Registrazione fallback campagna WhatsApp/SMS non riuscita dopo errore gateway: {message}', [
+                    'message' => $fallbackError->getMessage(),
+                    'tenant_id' => $tenantId,
+                    'recipient_id' => $recipientId,
+                ]);
+            }
             return ['ok' => false, 'status' => 'failed', 'tenant_id' => $tenantId, 'recipient_id' => $recipientId];
         }
+    }
+
+    public function nextPendingDueAt(): ?string
+    {
+        if (!$this->tablesReady()) {
+            return null;
+        }
+
+        $now = date('Y-m-d H:i:s');
+        $row = $this->platformDb->query(
+            'SELECT MIN(COALESCE(rl.next_allowed_at, ?)) AS next_due_at FROM '
+            . self::RECIPIENTS . ' r INNER JOIN ' . self::CAMPAIGNS
+            . ' c ON c.id_whatsapp_campaign = r.id_whatsapp_campaign LEFT JOIN '
+            . self::RATE_LIMITS
+            . " rl ON rl.id_tenant = c.id_tenant WHERE r.status = 'pending' AND c.status IN ('queued', 'running')",
+            [$now]
+        )->getRowArray();
+        $nextDueAt = trim((string) ($row['next_due_at'] ?? ''));
+
+        return $nextDueAt !== '' ? $nextDueAt : null;
     }
 
     /** @return array<int,array<string,mixed>> */

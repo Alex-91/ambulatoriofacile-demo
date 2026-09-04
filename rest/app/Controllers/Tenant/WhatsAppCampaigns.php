@@ -6,6 +6,7 @@ use App\Controllers\BaseController;
 use App\Services\AppointmentNotificationSettingsService;
 use App\Services\TenantCatalogService;
 use App\Services\TenantContextService;
+use App\Services\TenantNotificationPolicyService;
 use App\Services\WhatsAppCampaignService;
 use App\Services\WhatsAppTenantConsoleService;
 
@@ -32,6 +33,7 @@ class WhatsAppCampaigns extends BaseController
             'tenantContext' => $context,
             'tenant' => $this->tenantCatalog->getTenantById($context->tenantId),
             'dashboard' => $dashboard,
+            'deliveryPolicy' => (new TenantNotificationPolicyService())->resolve($context->tenantId, $context->tenantName),
             'success' => session()->getFlashdata('success'),
             'errors' => session()->getFlashdata('errors') ?? [],
         ]);
@@ -48,8 +50,14 @@ class WhatsAppCampaigns extends BaseController
                 'appointment_date' => (string) $this->request->getPost('appointment_date'),
                 'message_text' => (string) $this->request->getPost('message_text'),
             ], (int) (session()->get('platform_user_id') ?? 0));
+            $policy = (new TenantNotificationPolicyService())->resolve($context->tenantId, $context->tenantName);
             return redirect()->to(portal_tenant_space_url('invii-whatsapp') . '?campaign=' . (int) ($campaign['id_whatsapp_campaign'] ?? 0))
-                ->with('success', 'Campagna accodata: il backend invierà un messaggio ogni 5 minuti.');
+                ->with(
+                    'success',
+                    'Campagna accodata: il backend rispetterà il limite di '
+                    . (int) ($policy['whatsapp']['messages_per_interval'] ?? 1)
+                    . ' messaggi ogni ' . (int) ($policy['whatsapp']['interval_minutes'] ?? 5) . ' minuti.'
+                );
         } catch (\Throwable $e) {
             log_message('error', 'Tenant WhatsApp campaign create failed: ' . $e->getMessage(), ['tenant_id' => $context->tenantId]);
             return redirect()->to(portal_tenant_space_url('invii-whatsapp'))->withInput()->with('errors', ['generic' => $e->getMessage()]);

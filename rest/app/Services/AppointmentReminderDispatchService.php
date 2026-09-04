@@ -15,6 +15,9 @@ class AppointmentReminderDispatchService
     private AppointmentNotificationChannelService $channelService;
     private AppointmentNotificationLogService $logService;
     private WhatsAppChatbotService $whatsAppChatbotService;
+    private WhatsAppSmsFallbackService $whatsAppSmsFallbackService;
+    private TenantNotificationPolicyService $notificationPolicies;
+    private NotificationRateLimiterService $rateLimiter;
     private TenantStoragePathService $storagePaths;
 
     public function __construct()
@@ -26,6 +29,9 @@ class AppointmentReminderDispatchService
         $this->channelService = new AppointmentNotificationChannelService();
         $this->logService = new AppointmentNotificationLogService();
         $this->whatsAppChatbotService = new WhatsAppChatbotService();
+        $this->whatsAppSmsFallbackService = new WhatsAppSmsFallbackService();
+        $this->notificationPolicies = new TenantNotificationPolicyService($this->platformDb);
+        $this->rateLimiter = new NotificationRateLimiterService($this->platformDb, $this->notificationPolicies);
         $this->storagePaths = new TenantStoragePathService();
     }
 
@@ -61,6 +67,7 @@ class AppointmentReminderDispatchService
             'candidates' => 0,
             'sent' => 0,
             'failed' => 0,
+            'deferred' => 0,
             'already_sent' => 0,
             'invalid_recipient' => 0,
             'tenants' => [],
@@ -82,6 +89,7 @@ class AppointmentReminderDispatchService
             if ($channels === []) {
                 continue;
             }
+            $deliveryPolicy = $this->notificationPolicies->resolve($tenantId, (string) ($tenant['tenant_name'] ?? ''));
 
             $targetDate = $targetDateOverride !== ''
                 ? $targetDateOverride
@@ -103,6 +111,7 @@ class AppointmentReminderDispatchService
                 'candidates' => 0,
                 'sent' => 0,
                 'failed' => 0,
+                'deferred' => 0,
                 'already_sent' => 0,
                 'invalid_recipient' => 0,
                 'preview' => [],
@@ -159,10 +168,27 @@ class AppointmentReminderDispatchService
                         continue;
                     }
 
-                    foreach ($rowChannels as $channel) {
+                    $orderedChannels = $this->orderChannelsForDelivery($rowChannels);
+                    $hasWhatsApp = in_array(AppointmentNotificationSettingsService::CHANNEL_WHATSAPP, $rowChannels, true);
+                    $hasSms = in_array(AppointmentNotificationSettingsService::CHANNEL_SMS, $rowChannels, true)
+                        && !empty($deliveryPolicy['whatsapp']['sms_fallback_enabled']);
+                    $whatsAppSucceeded = false;
+                    $whatsAppDeferred = false;
+
+                    foreach ($orderedChannels as $channel) {
+                        if (
+                            $channel === AppointmentNotificationSettingsService::CHANNEL_SMS
+                            && $hasWhatsApp
+                            && (!$hasSms || $whatsAppSucceeded || $whatsAppDeferred)
+                        ) {
+                            continue;
+                        }
                         if (isset($states[$channel]['sent'][(string) $appointmentId])) {
                             $tenantSummary['already_sent']++;
                             $summary['already_sent']++;
+                            if ($channel === AppointmentNotificationSettingsService::CHANNEL_WHATSAPP) {
+                                $whatsAppSucceeded = true;
+                            }
                             continue;
                         }
 
@@ -170,6 +196,22 @@ class AppointmentReminderDispatchService
                         if ($resolvedRecipient === '') {
                             $tenantSummary['invalid_recipient']++;
                             $summary['invalid_recipient']++;
+                            continue;
+                        }
+
+                        $rate = in_array($channel, [
+                            AppointmentNotificationSettingsService::CHANNEL_EMAIL,
+                            AppointmentNotificationSettingsService::CHANNEL_WHATSAPP,
+                            AppointmentNotificationSettingsService::CHANNEL_SMS,
+                        ], true)
+                            ? $this->rateLimiter->claim($tenantId, $channel, $deliveryPolicy)
+                            : ['allowed' => true];
+                        if (empty($rate['allowed'])) {
+                            $tenantSummary['deferred'] = (int) ($tenantSummary['deferred'] ?? 0) + 1;
+                            $summary['deferred'] = (int) ($summary['deferred'] ?? 0) + 1;
+                            if ($channel === AppointmentNotificationSettingsService::CHANNEL_WHATSAPP) {
+                                $whatsAppDeferred = true;
+                            }
                             continue;
                         }
 
@@ -203,6 +245,9 @@ class AppointmentReminderDispatchService
                         $this->logService->append($tenant, $logEntry);
 
                         if (!empty($sendResult['ok'])) {
+                            if ($channel === AppointmentNotificationSettingsService::CHANNEL_WHATSAPP) {
+                                $whatsAppSucceeded = true;
+                            }
                             $states[$channel]['sent'][(string) $appointmentId] = [
                                 'recipient' => (string) ($sendResult['recipient'] ?? $resolvedRecipient),
                                 'sent_at' => date('c'),
@@ -224,6 +269,23 @@ class AppointmentReminderDispatchService
                                     AppointmentNotificationSettingsService::TYPE_REMINDER,
                                     (string) ($sendResult['provider_id'] ?? '')
                                 );
+                                try {
+                                    $this->whatsAppSmsFallbackService->registerPending(
+                                        $tenantId,
+                                        'appointment',
+                                        $appointmentId,
+                                        AppointmentNotificationSettingsService::TYPE_REMINDER,
+                                        (string) ($sendResult['recipient'] ?? $resolvedRecipient),
+                                        $message,
+                                        (string) ($sendResult['provider_id'] ?? ''),
+                                        $hasSms
+                                    );
+                                } catch (\Throwable $e) {
+                                    log_message('warning', 'Registrazione fallback reminder WhatsApp/SMS non riuscita: {message}', [
+                                        'message' => $e->getMessage(),
+                                        'tenant_id' => $tenantId,
+                                    ]);
+                                }
                             }
                             $this->saveState(
                                 $stateDir . DIRECTORY_SEPARATOR . 'appointment_reminders_' . $channel . '_' . $targetDate . '.json',
@@ -234,8 +296,20 @@ class AppointmentReminderDispatchService
                             $summary['failed']++;
                         }
 
-                        if ($delayMs > 0) {
-                            usleep($delayMs * 1000);
+                        $isImmediateSmsFallback = $channel === AppointmentNotificationSettingsService::CHANNEL_WHATSAPP
+                            && empty($sendResult['ok'])
+                            && $hasSms;
+                        $effectiveDelayMs = $delayMs > 0
+                            ? $delayMs
+                            : (in_array($channel, [
+                                AppointmentNotificationSettingsService::CHANNEL_EMAIL,
+                                AppointmentNotificationSettingsService::CHANNEL_WHATSAPP,
+                                AppointmentNotificationSettingsService::CHANNEL_SMS,
+                            ], true)
+                                ? ($this->notificationPolicies->minimumSpacingSeconds($deliveryPolicy, $channel) * 1000)
+                                : 0);
+                        if (!$isImmediateSmsFallback && $effectiveDelayMs > 0) {
+                            usleep($effectiveDelayMs * 1000);
                         }
                     }
                 }
@@ -267,6 +341,27 @@ class AppointmentReminderDispatchService
         }
 
         return in_array($forcedChannel, $channels, true) ? [$forcedChannel] : [];
+    }
+
+    /**
+     * Email and OTP are independent deliveries. WhatsApp is attempted before SMS,
+     * while SMS is used as the immediate fallback when WhatsApp is rejected.
+     *
+     * @param array<int, string> $channels
+     * @return array<int, string>
+     */
+    private function orderChannelsForDelivery(array $channels): array
+    {
+        return array_values(array_filter([
+            in_array(AppointmentNotificationSettingsService::CHANNEL_EMAIL, $channels, true)
+                ? AppointmentNotificationSettingsService::CHANNEL_EMAIL : null,
+            in_array(AppointmentNotificationSettingsService::CHANNEL_OTP, $channels, true)
+                ? AppointmentNotificationSettingsService::CHANNEL_OTP : null,
+            in_array(AppointmentNotificationSettingsService::CHANNEL_WHATSAPP, $channels, true)
+                ? AppointmentNotificationSettingsService::CHANNEL_WHATSAPP : null,
+            in_array(AppointmentNotificationSettingsService::CHANNEL_SMS, $channels, true)
+                ? AppointmentNotificationSettingsService::CHANNEL_SMS : null,
+        ]));
     }
 
     /**

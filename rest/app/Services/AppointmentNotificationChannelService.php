@@ -28,7 +28,7 @@ class AppointmentNotificationChannelService
         $recipientContext = $this->normalizeRecipientContext($recipient);
 
         return match ($channel) {
-            AppointmentNotificationSettingsService::CHANNEL_SMS => $this->sendSmsChannel($recipientContext, $message),
+            AppointmentNotificationSettingsService::CHANNEL_SMS => $this->sendSmsChannel($recipientContext, $message, $options),
             AppointmentNotificationSettingsService::CHANNEL_WHATSAPP => $this->sendWhatsappChannel($recipientContext, $message, $options),
             AppointmentNotificationSettingsService::CHANNEL_EMAIL => $this->sendEmailChannel($recipientContext, $message, $options),
             AppointmentNotificationSettingsService::CHANNEL_OTP => $this->sendOtpChannel($recipientContext, $message, $options),
@@ -160,14 +160,14 @@ class AppointmentNotificationChannelService
      * @param array<string, mixed> $recipient
      * @return array<string, mixed>
      */
-    private function sendSmsChannel(array $recipient, string $message): array
+    private function sendSmsChannel(array $recipient, string $message, array $options = []): array
     {
         $target = (string) (($recipient['mobile'] ?? '') ?: ($recipient['phone'] ?? ''));
         if ($target === '') {
             return $this->invalidRecipientResult(AppointmentNotificationSettingsService::CHANNEL_SMS);
         }
 
-        return $this->sendSms($target, $message);
+        return $this->sendSms($target, $message, $options);
     }
 
     /**
@@ -196,10 +196,21 @@ class AppointmentNotificationChannelService
             return $this->invalidRecipientResult(AppointmentNotificationSettingsService::CHANNEL_EMAIL);
         }
 
+        $tenantId = max(0, (int) ($options['tenant_id'] ?? 0));
+        $policy = $tenantId > 0
+            ? (new TenantNotificationPolicyService())->resolve($tenantId)
+            : (new TenantNotificationPolicyService())->defaults();
+        $emailPolicy = (array) ($policy['email'] ?? []);
         $subject = trim((string) ($options['subject'] ?? 'Notifica appuntamento AmbulatorioFacile'));
+        $subjectPrefix = trim((string) ($emailPolicy['subject_prefix'] ?? ''));
+        if ($subjectPrefix !== '' && !str_starts_with($subject, $subjectPrefix)) {
+            $subject = $subjectPrefix . ' ' . $subject;
+        }
+        $emailMessage = rtrim($message)
+            . "\n\n---\nMessaggio automatico inviato da AmbulatorioFacile: non rispondere a questa email.";
 
         try {
-            $this->sendEmail($email, $subject, $message);
+            $this->sendEmail($email, $subject, $emailMessage, $emailPolicy);
 
             return [
                 'ok' => true,
@@ -207,7 +218,11 @@ class AppointmentNotificationChannelService
                 'recipient' => $email,
                 'provider' => 'Email',
                 'provider_id' => '',
-                'response' => ['subject' => $subject],
+                'response' => [
+                    'subject' => $subject,
+                    'from' => (string) ($emailPolicy['from_address'] ?? TenantNotificationPolicyService::NO_REPLY_ADDRESS),
+                    'reply_to' => TenantNotificationPolicyService::NO_REPLY_ADDRESS,
+                ],
                 'error' => null,
             ];
         } catch (\Throwable $e) {
@@ -299,7 +314,10 @@ class AppointmentNotificationChannelService
             $sendResult = $this->sendEmailChannel(
                 ['email' => $deliveryEmail],
                 $otpMessage,
-                ['subject' => (string) ($options['otp_subject'] ?? 'Notifica appuntamento AmbulatorioFacile')]
+                [
+                    'subject' => (string) ($options['otp_subject'] ?? 'Notifica appuntamento AmbulatorioFacile'),
+                    'tenant_id' => (int) ($options['tenant_id'] ?? 0),
+                ]
             );
             $response = ['delivery_channel' => 'email'];
             if (is_array($sendResult['response'] ?? null)) {
@@ -319,7 +337,7 @@ class AppointmentNotificationChannelService
             ];
         }
 
-        $sendResult = $this->sendSms($deliveryMobile, $otpMessage);
+        $sendResult = $this->sendSms($deliveryMobile, $otpMessage, $options);
         $response = ['delivery_channel' => 'sms'];
         if (is_array($sendResult['response'] ?? null)) {
             $response += (array) $sendResult['response'];
@@ -421,10 +439,16 @@ class AppointmentNotificationChannelService
         return $db->affectedRows() > 0;
     }
 
-    private function sendEmail(string $to, string $subject, string $message): void
+    private function sendEmail(string $to, string $subject, string $message, array $policy = []): void
     {
         $email = Services::email();
         $email->clear(true);
+        $fromAddress = trim((string) ($policy['from_address'] ?? TenantNotificationPolicyService::NO_REPLY_ADDRESS));
+        $fromName = trim((string) ($policy['from_name'] ?? 'AmbulatorioFacile')) ?: 'AmbulatorioFacile';
+        $email->setFrom($fromAddress, $fromName);
+        $email->setReplyTo(TenantNotificationPolicyService::NO_REPLY_ADDRESS, 'AmbulatorioFacile - non rispondere');
+        $email->setHeader('Auto-Submitted', 'auto-generated');
+        $email->setHeader('X-Auto-Response-Suppress', 'All');
         $email->setTo($to);
         $email->setSubject($subject);
         $email->setMessage($message);
@@ -517,19 +541,17 @@ class AppointmentNotificationChannelService
     private function whatsappProviderForTenant(int $tenantId): string
     {
         $provider = $this->whatsappProvider();
-        if ($provider !== 'hybrid') {
-            return $provider;
+        if (WhatsAppGatewayClient::isRoutedToGateway($tenantId)) {
+            return 'gateway';
         }
 
-        return WhatsAppGatewayClient::isRoutedToGateway($tenantId, $provider)
-            ? 'gateway'
-            : 'ultramsg';
+        return $provider === 'gateway' ? 'gateway' : 'ultramsg';
     }
 
     /**
      * @return array<string, mixed>
      */
-    private function sendSms(string $recipient, string $message): array
+    private function sendSms(string $recipient, string $message, array $options = []): array
     {
         try {
             if ($this->arubaSession === null) {
@@ -545,7 +567,17 @@ class AppointmentNotificationChannelService
             ];
         }
 
-        $sender = trim((string) (env('SMS_SENDER') ?: self::DEFAULT_ARUBA_SENDER));
+        $sender = trim((string) ($options['sms_sender'] ?? ''));
+        if ($sender === '') {
+            $tenantId = max(0, (int) ($options['tenant_id'] ?? 0));
+            if ($tenantId > 0) {
+                $policy = (new TenantNotificationPolicyService())->resolve($tenantId);
+                $sender = trim((string) ($policy['sms']['sender'] ?? ''));
+            }
+        }
+        if ($sender === '') {
+            $sender = trim((string) (env('SMS_SENDER') ?: self::DEFAULT_ARUBA_SENDER));
+        }
         $response = $this->httpPostJson(
             rtrim(self::DEFAULT_ARUBA_BASEURL, '/') . '/sms',
             [
