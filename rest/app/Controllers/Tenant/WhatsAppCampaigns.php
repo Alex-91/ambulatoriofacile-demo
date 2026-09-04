@@ -3,12 +3,11 @@
 namespace App\Controllers\Tenant;
 
 use App\Controllers\BaseController;
-use App\Services\AppointmentNotificationSettingsService;
 use App\Services\TenantCatalogService;
 use App\Services\TenantContextService;
 use App\Services\TenantNotificationPolicyService;
+use App\Services\WhatsAppCampaignReadinessService;
 use App\Services\WhatsAppCampaignService;
-use App\Services\WhatsAppTenantConsoleService;
 
 class WhatsAppCampaigns extends BaseController
 {
@@ -24,7 +23,7 @@ class WhatsAppCampaigns extends BaseController
 
     public function index()
     {
-        if ($guard = $this->ensureAllowed()) { return $guard; }
+        if ($guard = $this->ensureTenantMasterAccess()) { return $guard; }
         if (!portal_current_path_matches('login/spazio/invii-whatsapp')) { return redirect()->to(portal_tenant_space_url('invii-whatsapp')); }
         $context = $this->tenantContext->getCurrentTenant();
         if ($context === null) { return $this->sessionExpiredRedirect(); }
@@ -34,6 +33,7 @@ class WhatsAppCampaigns extends BaseController
             'tenant' => $this->tenantCatalog->getTenantById($context->tenantId),
             'dashboard' => $dashboard,
             'deliveryPolicy' => (new TenantNotificationPolicyService())->resolve($context->tenantId, $context->tenantName),
+            'whatsAppReadiness' => (new WhatsAppCampaignReadinessService())->resolve($context->tenantId),
             'success' => session()->getFlashdata('success'),
             'errors' => session()->getFlashdata('errors') ?? [],
         ]);
@@ -41,9 +41,15 @@ class WhatsAppCampaigns extends BaseController
 
     public function create()
     {
-        if ($guard = $this->ensureAllowed()) { return $guard; }
+        if ($guard = $this->ensureTenantMasterAccess()) { return $guard; }
         $context = $this->tenantContext->getCurrentTenant();
         if ($context === null) { return $this->sessionExpiredRedirect(); }
+        $readiness = (new WhatsAppCampaignReadinessService())->resolve($context->tenantId);
+        if (empty($readiness['ready'])) {
+            return redirect()->to(portal_tenant_space_url('invii-whatsapp'))
+                ->withInput()
+                ->with('errors', ['whatsapp' => (string) ($readiness['reason'] ?? 'WhatsApp non è pronto per l’invio.')]);
+        }
         try {
             $campaign = (new WhatsAppCampaignService())->createCampaign($context->tenantId, [
                 'audience_type' => (string) $this->request->getPost('audience_type'),
@@ -64,24 +70,12 @@ class WhatsAppCampaigns extends BaseController
         }
     }
 
-    private function ensureAllowed()
+    private function ensureTenantMasterAccess()
     {
         if ((bool) (session()->get('isLoggedInConfirmed') ?? false) !== true) { return $this->redirectToLogin(); }
         $context = $this->tenantContext->getCurrentTenant();
         if ($context === null || (int) (session()->get('platform_user_id') ?? 0) <= 0) { return $this->sessionExpiredRedirect(); }
         if (!session_has_tenant_master_access()) { return redirect()->to(site_url('/'))->with('error', 'Solo il responsabile dello studio può inviare campagne WhatsApp.'); }
-        $settings = (new AppointmentNotificationSettingsService())->resolveTenantSettings($context->tenantId);
-        if (empty($settings['available_channels'][AppointmentNotificationSettingsService::CHANNEL_WHATSAPP])) {
-            return redirect()->to(portal_tenant_space_url('notifiche-appuntamenti'))->with('error', 'WhatsApp non è attivo per questo spazio.');
-        }
-        try {
-            $console = (new WhatsAppTenantConsoleService())->build($context->tenantId);
-            if (empty($console['account']['connected']) || empty($console['account']['logged_in'])) {
-                return redirect()->to(portal_tenant_space_url('notifiche-appuntamenti') . '#whatsapp-device')->with('error', 'Collega prima il dispositivo WhatsApp dello studio.');
-            }
-        } catch (\Throwable $e) {
-            return redirect()->to(portal_tenant_space_url('notifiche-appuntamenti'))->with('error', 'Non è possibile verificare lo stato di WhatsApp in questo momento.');
-        }
         return null;
     }
 }
