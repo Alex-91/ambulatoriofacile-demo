@@ -14,9 +14,10 @@ class FseDocumentService
     private FseCdaRsaBuilderService $cda;
     private FsePdfEnvelopeService $pdf;
     private FseStorageService $storage;
+    private FseTenantSchemaService $schema;
     private Fse2 $config;
 
-    public function __construct(?FseTenantDatabaseContextService $contexts = null, ?FseProfileService $profiles = null, ?FseSecretsService $secrets = null, ?FseCdaRsaBuilderService $cda = null, ?FsePdfEnvelopeService $pdf = null, ?FseStorageService $storage = null, ?Fse2 $config = null)
+    public function __construct(?FseTenantDatabaseContextService $contexts = null, ?FseProfileService $profiles = null, ?FseSecretsService $secrets = null, ?FseCdaRsaBuilderService $cda = null, ?FsePdfEnvelopeService $pdf = null, ?FseStorageService $storage = null, ?Fse2 $config = null, ?FseTenantSchemaService $schema = null)
     {
         $this->contexts = $contexts ?? new FseTenantDatabaseContextService();
         $this->profiles = $profiles ?? new FseProfileService();
@@ -25,11 +26,22 @@ class FseDocumentService
         $this->pdf = $pdf ?? new FsePdfEnvelopeService();
         $this->storage = $storage ?? new FseStorageService();
         $this->config = $config ?? config(Fse2::class);
+        $this->schema = $schema ?? new FseTenantSchemaService();
     }
 
     /** @return array<string,mixed> */
     public function buildDashboardForTenant(int $tenantId): array
     {
+        $schemaStatus = $this->schema->ensureTenantSchemaReady($tenantId, true);
+        if (!$this->schema->isReady($schemaStatus)) {
+            return [
+                'table_available' => false,
+                'total' => 0,
+                'by_state' => [],
+                'recent' => [],
+                'schema_message' => (string) ($schemaStatus['message'] ?? 'Schema FSE non disponibile.'),
+            ];
+        }
         $context = $this->contexts->resolveTenantContext($tenantId);
         /** @var BaseConnection $db */ $db = $context['db'];
         if (!$db->tableExists('fse_documents')) {
@@ -47,6 +59,15 @@ class FseDocumentService
     /** @return array<string,mixed> */
     public function listForTenant(int $tenantId, int $limit = 80): array
     {
+        $schemaStatus = $this->schema->ensureTenantSchemaReady($tenantId, true);
+        if (!$this->schema->isReady($schemaStatus)) {
+            return [
+                'table_available' => false,
+                'documents' => [],
+                'state_labels' => $this->config->stateLabels,
+                'schema_message' => (string) ($schemaStatus['message'] ?? 'Schema FSE non disponibile.'),
+            ];
+        }
         $context = $this->contexts->resolveTenantContext($tenantId);
         /** @var BaseConnection $db */ $db = $context['db'];
         return [
@@ -59,6 +80,7 @@ class FseDocumentService
     /** @return array<string,mixed> */
     public function buildFormContext(int $tenantId, int $documentId = 0): array
     {
+        $this->requireTenantSchema($tenantId);
         $context = $this->contexts->resolveTenantContext($tenantId);
         /** @var FseDocumentModel $documents */ $documents = $context['documents'];
         $document = $documentId > 0 ? $documents->find($documentId) : null;
@@ -74,13 +96,11 @@ class FseDocumentService
     /** @param array<string,mixed> $payload @return array<string,mixed> */
     public function saveDraftForTenant(int $tenantId, array $payload, int $userId = 0): array
     {
+        $this->requireTenantSchema($tenantId);
         $context = $this->contexts->resolveTenantContext($tenantId);
         /** @var BaseConnection $db */ $db = $context['db'];
         /** @var FseDocumentModel $documents */ $documents = $context['documents'];
         /** @var FseAuditService $audit */ $audit = $context['audit'];
-        if (!$db->tableExists('fse_documents')) {
-            throw new \RuntimeException('Esegui le migration FSE prima di creare referti.');
-        }
         $id = max(0, (int) ($payload['id_fse_document'] ?? 0));
         $current = $id > 0 ? $documents->find($id) : null;
         if ($id > 0 && !is_array($current)) {
@@ -137,6 +157,14 @@ class FseDocumentService
         }
         $audit->record($id, 'draft_saved', 'Bozza clinica FSE salvata.', [], $userId);
         return $this->editableDocument($documents->find($id) ?? []);
+    }
+
+    private function requireTenantSchema(int $tenantId): void
+    {
+        $status = $this->schema->ensureTenantSchemaReady($tenantId, true);
+        if (!$this->schema->isReady($status)) {
+            throw new \RuntimeException((string) ($status['message'] ?? 'Schema FSE non disponibile.'));
+        }
     }
 
     /** @return array<string,mixed> */

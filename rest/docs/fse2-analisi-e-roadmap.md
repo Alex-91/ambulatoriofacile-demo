@@ -30,6 +30,7 @@ Prima di avere questi certificati si possono collaudare localmente anagrafica, c
 | Stato asincrono | Implementato | `GET /status/{workflowInstanceId}` |
 | Cancellazione | Implementata | `DELETE /documents/{idDoc}` |
 | Audit e stati | Implementati | Eventi tecnici senza token/passphrase/dati paziente nei log |
+| Schema database tenant | Implementato | Migration filtrata e idempotente al primo accesso; comando `fse:schema-repair` per riallineamento esplicito |
 | Produzione | Protetta | Richiede esplicitamente `FSE2_ALLOW_PRODUCTION=true` |
 
 ## Flusso applicativo
