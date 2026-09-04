@@ -1,10 +1,10 @@
 <?php
 
-namespace AppCommands;
+namespace App\Commands;
 
-use AppDatabaseMigrationsCreateWhatsappCampaignTables;
-use CodeIgniterCLIBaseCommand;
-use CodeIgniterCLICLI;
+use App\Database\Migrations\CreateWhatsappCampaignTables;
+use CodeIgniter\CLI\BaseCommand;
+use CodeIgniter\CLI\CLI;
 
 class InstallWhatsAppCampaignSchema extends BaseCommand
 {
