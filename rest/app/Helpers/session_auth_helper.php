@@ -74,6 +74,18 @@ if (!function_exists('session_user_is_doctor_profile')) {
     }
 }
 
+if (!function_exists('session_user_is_secretary_profile')) {
+    function session_user_is_secretary_profile(): bool
+    {
+        $sessionUser = session()->get('utente_sess');
+        if (!is_object($sessionUser)) {
+            return false;
+        }
+
+        return (int) ($sessionUser->tipo_pers ?? 0) === 3;
+    }
+}
+
 if (!function_exists('session_should_open_agenda_first')) {
     function session_should_open_agenda_first(): bool
     {
@@ -82,7 +94,7 @@ if (!function_exists('session_should_open_agenda_first')) {
             return true;
         }
 
-        return session_user_is_doctor_profile();
+        return session_user_is_doctor_profile() || session_user_is_secretary_profile();
     }
 }
 

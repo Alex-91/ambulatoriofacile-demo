@@ -269,6 +269,8 @@ class Personale extends BaseController
                 throw new \RuntimeException('Riallineamento segreterie/infermieri per il luogo del dottore fallito');
             }
 
+            $this->assignDefaultStaffSchede($idUser);
+
             $this->db->transComplete();
 
             if ($this->db->transStatus() === false) {
@@ -305,6 +307,40 @@ class Personale extends BaseController
             return redirect()->to(site_url('admin/personale/nuovo'))
                 ->with('errors', ['generic' => $genericError])
                 ->with('old', $post);
+        }
+    }
+
+    private function assignDefaultStaffSchede(int $idUser): void
+    {
+        if (
+            $idUser <= 0
+            || !$this->db->tableExists('dap_menu_schede')
+            || !$this->db->tableExists('dap_user_schede')
+        ) {
+            return;
+        }
+
+        $codes = ['agenda', 'posta', 'chat'];
+        $placeholders = implode(',', array_fill(0, count($codes), '?'));
+        $rows = $this->db->query("
+            SELECT id_scheda
+            FROM dap_menu_schede
+            WHERE attiva = 1
+              AND codice IN ({$placeholders})
+            ORDER BY ordine ASC, id_scheda ASC
+        ", $codes)->getResultArray();
+
+        foreach ($rows as $row) {
+            $schedaId = (int) ($row['id_scheda'] ?? 0);
+            if ($schedaId <= 0) {
+                continue;
+            }
+
+            $this->db->query("
+                INSERT INTO dap_user_schede (id_user, id_scheda, can_view, can_access)
+                VALUES (?, ?, 1, 1)
+                ON DUPLICATE KEY UPDATE can_view = 1, can_access = 1
+            ", [$idUser, $schedaId]);
         }
     }
 }

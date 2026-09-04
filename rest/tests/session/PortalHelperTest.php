@@ -111,6 +111,24 @@ final class PortalHelperTest extends CIUnitTestCase
         $this->assertStringEndsWith('/admin', portal_tenant_operational_profile_url());
     }
 
+    public function testSecretaryOperationalHomeUsesAgenda(): void
+    {
+        $user = new stdClass();
+        $user->id_user = 42;
+        $user->tipo_pers = 3;
+
+        service('session')->set([
+            'utente_sess' => $user,
+            'isLoggedInConfirmed' => true,
+            TenantContextService::SESSION_KEY => [
+                'tenant_id' => 12,
+                'tenant_role' => 'tenant_staff',
+            ],
+        ]);
+
+        $this->assertStringEndsWith('/agenda', portal_operational_home_url());
+    }
+
     private function resetSessionState(): void
     {
         service('session')->remove([

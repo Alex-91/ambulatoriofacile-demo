@@ -61,6 +61,42 @@ final class SessionAuthHelperTest extends CIUnitTestCase
         $this->assertNull($session->get('isLoggedInConfirmed'));
     }
 
+    public function testSecretaryProfileOpensAgendaFirst(): void
+    {
+        $user = new stdClass();
+        $user->id_user = 42;
+        $user->tipo_pers = 3;
+
+        service('session')->set([
+            'utente_sess' => $user,
+            TenantContextService::SESSION_KEY => [
+                'tenant_id' => 12,
+                'tenant_role' => 'tenant_staff',
+            ],
+        ]);
+
+        $this->assertTrue(session_user_is_secretary_profile());
+        $this->assertTrue(session_should_open_agenda_first());
+    }
+
+    public function testNurseProfileDoesNotOpenAgendaFirst(): void
+    {
+        $user = new stdClass();
+        $user->id_user = 42;
+        $user->tipo_pers = 2;
+
+        service('session')->set([
+            'utente_sess' => $user,
+            TenantContextService::SESSION_KEY => [
+                'tenant_id' => 12,
+                'tenant_role' => 'tenant_staff',
+            ],
+        ]);
+
+        $this->assertFalse(session_user_is_secretary_profile());
+        $this->assertFalse(session_should_open_agenda_first());
+    }
+
     private function resetSessionState(): void
     {
         service('session')->remove([
