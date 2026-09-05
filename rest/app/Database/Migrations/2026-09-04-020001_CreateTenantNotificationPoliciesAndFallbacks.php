@@ -41,7 +41,7 @@ class CreateTenantNotificationPoliciesAndFallbacks extends Migration
         ]);
         $this->forge->addKey('id_notification_rate_limit', true);
         $this->forge->addUniqueKey(['id_tenant', 'channel'], 'uq_notification_rate_limit_tenant_channel');
-        $this->forge->addForeignKey('id_tenant', 'platform_tenants', 'id_tenant', 'CASCADE', 'CASCADE');
+        $this->forge->addForeignKey('id_tenant', 'platform_tenants', 'id_tenant', 'CASCADE', 'CASCADE', $this->foreignKeyName('fk_nrl_tenant'));
         $this->forge->createTable('platform_notification_rate_limits', true);
     }
 
@@ -61,8 +61,8 @@ class CreateTenantNotificationPoliciesAndFallbacks extends Migration
         ]);
         $this->forge->addKey('id_tenant_notification_policy', true);
         $this->forge->addUniqueKey('id_tenant', 'uq_tenant_notification_policy');
-        $this->forge->addForeignKey('id_tenant', 'platform_tenants', 'id_tenant', 'CASCADE', 'CASCADE');
-        $this->forge->addForeignKey('updated_by_platform_user_id', 'platform_users', 'id_platform_user', 'CASCADE', 'SET NULL');
+        $this->forge->addForeignKey('id_tenant', 'platform_tenants', 'id_tenant', 'CASCADE', 'CASCADE', $this->foreignKeyName('fk_tnp_tenant'));
+        $this->forge->addForeignKey('updated_by_platform_user_id', 'platform_users', 'id_platform_user', 'CASCADE', 'SET NULL', $this->foreignKeyName('fk_tnp_user'));
         $this->forge->createTable('platform_tenant_notification_policies', true);
     }
 
@@ -95,7 +95,12 @@ class CreateTenantNotificationPoliciesAndFallbacks extends Migration
         $this->forge->addKey('id_notification_fallback', true);
         $this->forge->addUniqueKey('fallback_key', 'uq_notification_fallback_key');
         $this->forge->addKey(['id_tenant', 'status', 'due_at'], false, false, 'idx_notification_fallback_due');
-        $this->forge->addForeignKey('id_tenant', 'platform_tenants', 'id_tenant', 'CASCADE', 'CASCADE');
+        $this->forge->addForeignKey('id_tenant', 'platform_tenants', 'id_tenant', 'CASCADE', 'CASCADE', $this->foreignKeyName('fk_nf_tenant'));
         $this->forge->createTable('platform_notification_fallbacks', true);
+    }
+
+    private function foreignKeyName(string $name): string
+    {
+        return $this->db->DBDriver === 'SQLite3' ? '' : $name;
     }
 }

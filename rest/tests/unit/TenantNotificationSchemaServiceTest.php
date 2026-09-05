@@ -8,6 +8,18 @@ use Config\Database;
 
 final class TenantNotificationSchemaServiceTest extends CIUnitTestCase
 {
+    public function testForeignKeyNamesFitMysqlIdentifierLimit(): void
+    {
+        foreach ([
+            TenantNotificationSchemaService::FK_POLICY_TENANT,
+            TenantNotificationSchemaService::FK_POLICY_USER,
+            TenantNotificationSchemaService::FK_RATE_LIMIT_TENANT,
+            TenantNotificationSchemaService::FK_FALLBACK_TENANT,
+        ] as $foreignKeyName) {
+            $this->assertLessThanOrEqual(64, strlen($foreignKeyName));
+        }
+    }
+
     public function testRepairsMissingNotificationTablesAndSmtpColumnIdempotently(): void
     {
         $db = Database::connect([

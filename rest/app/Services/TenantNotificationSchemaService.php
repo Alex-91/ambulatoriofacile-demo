@@ -10,6 +10,10 @@ final class TenantNotificationSchemaService
     public const POLICY_TABLE = 'platform_tenant_notification_policies';
     public const RATE_LIMIT_TABLE = 'platform_notification_rate_limits';
     public const FALLBACK_TABLE = 'platform_notification_fallbacks';
+    public const FK_POLICY_TENANT = 'fk_tnp_tenant';
+    public const FK_POLICY_USER = 'fk_tnp_user';
+    public const FK_RATE_LIMIT_TENANT = 'fk_nrl_tenant';
+    public const FK_FALLBACK_TENANT = 'fk_nf_tenant';
 
     private BaseConnection $db;
 
@@ -77,8 +81,22 @@ final class TenantNotificationSchemaService
         ]);
         $forge->addKey('id_tenant_notification_policy', true);
         $forge->addUniqueKey('id_tenant', 'uq_tenant_notification_policy');
-        $forge->addForeignKey('id_tenant', 'platform_tenants', 'id_tenant', 'CASCADE', 'CASCADE');
-        $forge->addForeignKey('updated_by_platform_user_id', 'platform_users', 'id_platform_user', 'CASCADE', 'SET NULL');
+        $forge->addForeignKey(
+            'id_tenant',
+            'platform_tenants',
+            'id_tenant',
+            'CASCADE',
+            'CASCADE',
+            $this->foreignKeyName(self::FK_POLICY_TENANT)
+        );
+        $forge->addForeignKey(
+            'updated_by_platform_user_id',
+            'platform_users',
+            'id_platform_user',
+            'CASCADE',
+            'SET NULL',
+            $this->foreignKeyName(self::FK_POLICY_USER)
+        );
         $forge->createTable(self::POLICY_TABLE, true);
     }
 
@@ -116,7 +134,14 @@ final class TenantNotificationSchemaService
         ]);
         $forge->addKey('id_notification_rate_limit', true);
         $forge->addUniqueKey(['id_tenant', 'channel'], 'uq_notification_rate_limit_tenant_channel');
-        $forge->addForeignKey('id_tenant', 'platform_tenants', 'id_tenant', 'CASCADE', 'CASCADE');
+        $forge->addForeignKey(
+            'id_tenant',
+            'platform_tenants',
+            'id_tenant',
+            'CASCADE',
+            'CASCADE',
+            $this->foreignKeyName(self::FK_RATE_LIMIT_TENANT)
+        );
         $forge->createTable(self::RATE_LIMIT_TABLE, true);
     }
 
@@ -150,7 +175,19 @@ final class TenantNotificationSchemaService
         $forge->addKey('id_notification_fallback', true);
         $forge->addUniqueKey('fallback_key', 'uq_notification_fallback_key');
         $forge->addKey(['id_tenant', 'status', 'due_at'], false, false, 'idx_notification_fallback_due');
-        $forge->addForeignKey('id_tenant', 'platform_tenants', 'id_tenant', 'CASCADE', 'CASCADE');
+        $forge->addForeignKey(
+            'id_tenant',
+            'platform_tenants',
+            'id_tenant',
+            'CASCADE',
+            'CASCADE',
+            $this->foreignKeyName(self::FK_FALLBACK_TENANT)
+        );
         $forge->createTable(self::FALLBACK_TABLE, true);
+    }
+
+    private function foreignKeyName(string $name): string
+    {
+        return $this->db->DBDriver === 'SQLite3' ? '' : $name;
     }
 }
