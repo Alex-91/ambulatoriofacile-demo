@@ -101,7 +101,6 @@ class PlatformAppointmentNotificationsController extends BaseController
             log_message('error', 'PlatformAppointmentNotificationsController::savePolicy failed: ' . $e->getMessage());
             return redirect()
                 ->to(portal_platform_url('notifiche-appuntamenti') . ($tenantId > 0 ? ('?tenant_id=' . $tenantId) : ''))
-                ->withInput()
                 ->with('errors', ['generic' => $e->getMessage()]);
         }
     }

@@ -12,10 +12,15 @@ class TenantNotificationPolicyService
     public const NO_REPLY_ADDRESS = 'noreply@ambulatoriofacile.it';
 
     private BaseConnection $platformDb;
+    private TenantNotificationSecretsService $secrets;
 
-    public function __construct(?BaseConnection $platformDb = null)
+    public function __construct(
+        ?BaseConnection $platformDb = null,
+        ?TenantNotificationSecretsService $secrets = null
+    )
     {
         $this->platformDb = $platformDb ?? Database::connect('platform');
+        $this->secrets = $secrets ?? new TenantNotificationSecretsService();
     }
 
     /**
@@ -32,6 +37,7 @@ class TenantNotificationPolicyService
             $tenantName = trim((string) ($tenant['tenant_name'] ?? ''));
         }
         $stored = [];
+        $row = [];
         $schemaReady = $this->platformDb->tableExists(self::TABLE);
         if ($schemaReady && $tenantId > 0) {
             $row = $this->platformDb->table(self::TABLE)
@@ -42,6 +48,7 @@ class TenantNotificationPolicyService
         }
 
         $policy = $this->sanitize($stored, $tenantName);
+        $policy['email']['smtp_password_configured'] = trim((string) ($row['smtp_password_encrypted'] ?? '')) !== '';
         $policy['tenant_id'] = $tenantId;
         $policy['schema_ready'] = $schemaReady;
         $policy['using_defaults'] = $stored === [];
@@ -61,6 +68,9 @@ class TenantNotificationPolicyService
         if (!$this->platformDb->tableExists(self::TABLE)) {
             throw new \RuntimeException('Il database non contiene ancora lo schema delle politiche di invio.');
         }
+        if (!$this->platformDb->fieldExists('smtp_password_encrypted', self::TABLE)) {
+            throw new \RuntimeException('Il database non contiene ancora lo schema delle credenziali SMTP per tenant.');
+        }
 
         $policy = $this->sanitize($raw, $tenantName, true);
         $now = date('Y-m-d H:i:s');
@@ -68,9 +78,20 @@ class TenantNotificationPolicyService
             ->where('id_tenant', $tenantId)
             ->get(1)
             ->getRowArray();
+        $submittedPassword = (string) (((array) ($raw['email'] ?? []))['smtp_password'] ?? '');
+        if (strlen($submittedPassword) > 1024) {
+            throw new \InvalidArgumentException('La password SMTP non può superare 1024 caratteri.');
+        }
+        $encryptedPassword = trim($submittedPassword) !== ''
+            ? $this->secrets->encrypt($submittedPassword)
+            : ($row['smtp_password_encrypted'] ?? null);
+        if (!empty($policy['email']['smtp_enabled']) && trim((string) $encryptedPassword) === '') {
+            throw new \InvalidArgumentException('Inserisci la password SMTP per attivare il server dedicato dello spazio.');
+        }
         $payload = [
             'id_tenant' => $tenantId,
             'config_json' => json_encode($policy, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR),
+            'smtp_password_encrypted' => $encryptedPassword,
             'updated_by_platform_user_id' => $updatedByPlatformUserId > 0 ? $updatedByPlatformUserId : null,
             'updated_at' => $now,
         ];
@@ -88,6 +109,63 @@ class TenantNotificationPolicyService
         }
 
         return $this->resolve($tenantId, $tenantName);
+    }
+
+    /**
+     * Returns a CodeIgniter email transport configuration only when the tenant
+     * explicitly enabled its dedicated SMTP server.
+     *
+     * @param array<string, mixed>|null $resolvedPolicy
+     * @return array<string, mixed>
+     */
+    public function resolveEmailTransport(int $tenantId, ?array $resolvedPolicy = null): array
+    {
+        if ($tenantId <= 0) {
+            return [];
+        }
+
+        $policy = $resolvedPolicy ?? $this->resolve($tenantId);
+        $email = (array) ($policy['email'] ?? []);
+        if (empty($email['smtp_enabled'])) {
+            return [];
+        }
+        if (!$this->platformDb->fieldExists('smtp_password_encrypted', self::TABLE)) {
+            throw new \RuntimeException('Credenziali SMTP dello spazio non ancora disponibili.');
+        }
+
+        $row = $this->platformDb->table(self::TABLE)
+            ->select('smtp_password_encrypted')
+            ->where('id_tenant', $tenantId)
+            ->get(1)
+            ->getRowArray();
+        $password = (string) ($this->secrets->decrypt((string) ($row['smtp_password_encrypted'] ?? '')) ?? '');
+        if ($password === '') {
+            throw new \RuntimeException('Password SMTP dello spazio non configurata.');
+        }
+
+        return $this->buildEmailTransportConfig($email, $password);
+    }
+
+    /**
+     * @param array<string, mixed> $emailPolicy
+     * @return array<string, mixed>
+     */
+    public function buildEmailTransportConfig(array $emailPolicy, string $password): array
+    {
+        return [
+            'protocol' => 'smtp',
+            'SMTPHost' => (string) ($emailPolicy['smtp_host'] ?? ''),
+            'SMTPUser' => (string) ($emailPolicy['smtp_username'] ?? ''),
+            'SMTPPass' => $password,
+            'SMTPPort' => (int) ($emailPolicy['smtp_port'] ?? 587),
+            'SMTPTimeout' => (int) ($emailPolicy['smtp_timeout_seconds'] ?? 10),
+            'SMTPKeepAlive' => false,
+            'SMTPCrypto' => (string) ($emailPolicy['smtp_crypto'] ?? 'tls'),
+            'mailType' => 'text',
+            'charset' => 'UTF-8',
+            'CRLF' => "\r\n",
+            'newline' => "\r\n",
+        ];
     }
 
     /**
@@ -114,6 +192,34 @@ class TenantNotificationPolicyService
             $fromName = (string) $defaults['email']['from_name'];
         }
         $subjectPrefix = $this->cleanText((string) ($email['subject_prefix'] ?? $defaults['email']['subject_prefix']), 60);
+        $smtpEnabled = array_key_exists('smtp_enabled', $email)
+            ? !empty($email['smtp_enabled'])
+            : (bool) $defaults['email']['smtp_enabled'];
+        $smtpHost = strtolower(trim((string) ($email['smtp_host'] ?? $defaults['email']['smtp_host'])));
+        $smtpUsername = $this->cleanText((string) ($email['smtp_username'] ?? $defaults['email']['smtp_username']), 190);
+        $smtpCrypto = strtolower(trim((string) ($email['smtp_crypto'] ?? $defaults['email']['smtp_crypto'])));
+        if ($smtpCrypto === 'none') {
+            $smtpCrypto = '';
+        }
+        if (!in_array($smtpCrypto, ['', 'tls', 'ssl'], true)) {
+            if ($strict) {
+                throw new \InvalidArgumentException('La sicurezza SMTP deve essere STARTTLS, SSL oppure nessuna.');
+            }
+            $smtpCrypto = (string) $defaults['email']['smtp_crypto'];
+        }
+        if ($smtpEnabled && !$this->isValidSmtpHost($smtpHost)) {
+            if ($strict) {
+                throw new \InvalidArgumentException('Inserisci un host SMTP valido per lo spazio.');
+            }
+            $smtpEnabled = false;
+            $smtpHost = '';
+        }
+        if ($smtpEnabled && $smtpUsername === '') {
+            if ($strict) {
+                throw new \InvalidArgumentException('Inserisci lo username SMTP per lo spazio.');
+            }
+            $smtpEnabled = false;
+        }
 
         $smsSender = preg_replace('/[^A-Za-z0-9]/', '', trim((string) ($sms['sender'] ?? $defaults['sms']['sender']))) ?? '';
         if ($smsSender === '' || strlen($smsSender) > 11) {
@@ -124,12 +230,31 @@ class TenantNotificationPolicyService
         }
 
         return [
-            'version' => 1,
+            'version' => 2,
             'email' => [
                 'from_address' => $fromAddress,
                 'from_name' => $fromName,
                 'reply_to' => self::NO_REPLY_ADDRESS,
                 'subject_prefix' => $subjectPrefix,
+                'smtp_enabled' => $smtpEnabled,
+                'smtp_host' => $smtpHost,
+                'smtp_port' => $this->integer(
+                    $email['smtp_port'] ?? $defaults['email']['smtp_port'],
+                    1,
+                    65535,
+                    $strict,
+                    'Porta SMTP'
+                ),
+                'smtp_crypto' => $smtpCrypto,
+                'smtp_username' => $smtpUsername,
+                'smtp_timeout_seconds' => $this->integer(
+                    $email['smtp_timeout_seconds'] ?? $defaults['email']['smtp_timeout_seconds'],
+                    1,
+                    60,
+                    $strict,
+                    'Timeout SMTP'
+                ),
+                'smtp_password_configured' => false,
                 'messages_per_interval' => $this->integer(
                     $email['messages_per_interval'] ?? $defaults['email']['messages_per_interval'],
                     1,
@@ -222,12 +347,19 @@ class TenantNotificationPolicyService
         $subjectPrefix = $tenantName !== '' ? ('[' . $tenantName . ']') : '[AmbulatorioFacile]';
 
         return [
-            'version' => 1,
+            'version' => 2,
             'email' => [
                 'from_address' => self::NO_REPLY_ADDRESS,
                 'from_name' => $fromName,
                 'reply_to' => self::NO_REPLY_ADDRESS,
                 'subject_prefix' => $this->cleanText($subjectPrefix, 60),
+                'smtp_enabled' => false,
+                'smtp_host' => '',
+                'smtp_port' => 587,
+                'smtp_crypto' => 'tls',
+                'smtp_username' => '',
+                'smtp_timeout_seconds' => 10,
+                'smtp_password_configured' => false,
                 'messages_per_interval' => 10,
                 'interval_minutes' => 5,
                 'daily_limit' => 500,
@@ -281,6 +413,13 @@ class TenantNotificationPolicyService
         }
         $domain = strtolower((string) substr(strrchr($email, '@') ?: '', 1));
         return $domain === self::FROM_DOMAIN;
+    }
+
+    private function isValidSmtpHost(string $host): bool
+    {
+        return $host !== ''
+            && strlen($host) <= 190
+            && preg_match('/^(?=.{1,190}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)*[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i', $host) === 1;
     }
 
     private function cleanText(string $value, int $maxLength): string

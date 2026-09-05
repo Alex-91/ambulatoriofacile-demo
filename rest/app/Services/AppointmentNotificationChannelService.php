@@ -197,9 +197,10 @@ class AppointmentNotificationChannelService
         }
 
         $tenantId = max(0, (int) ($options['tenant_id'] ?? 0));
+        $policyService = new TenantNotificationPolicyService();
         $policy = $tenantId > 0
-            ? (new TenantNotificationPolicyService())->resolve($tenantId)
-            : (new TenantNotificationPolicyService())->defaults();
+            ? $policyService->resolve($tenantId)
+            : $policyService->defaults();
         $emailPolicy = (array) ($policy['email'] ?? []);
         $subject = trim((string) ($options['subject'] ?? 'Notifica appuntamento AmbulatorioFacile'));
         $subjectPrefix = trim((string) ($emailPolicy['subject_prefix'] ?? ''));
@@ -210,7 +211,10 @@ class AppointmentNotificationChannelService
             . "\n\n---\nMessaggio automatico inviato da AmbulatorioFacile: non rispondere a questa email.";
 
         try {
-            $this->sendEmail($email, $subject, $emailMessage, $emailPolicy);
+            $transport = $tenantId > 0
+                ? $policyService->resolveEmailTransport($tenantId, $policy)
+                : [];
+            $this->sendEmail($email, $subject, $emailMessage, $emailPolicy, $transport);
 
             return [
                 'ok' => true,
@@ -439,9 +443,15 @@ class AppointmentNotificationChannelService
         return $db->affectedRows() > 0;
     }
 
-    private function sendEmail(string $to, string $subject, string $message, array $policy = []): void
+    private function sendEmail(
+        string $to,
+        string $subject,
+        string $message,
+        array $policy = [],
+        array $transport = []
+    ): void
     {
-        $email = Services::email();
+        $email = Services::email($transport !== [] ? $transport : null, false);
         $email->clear(true);
         $fromAddress = trim((string) ($policy['from_address'] ?? TenantNotificationPolicyService::NO_REPLY_ADDRESS));
         $fromName = trim((string) ($policy['from_name'] ?? 'AmbulatorioFacile')) ?: 'AmbulatorioFacile';

@@ -174,6 +174,32 @@ $channelMeta = [
                         <label>Prefisso oggetto</label>
                         <input class="form-control" name="email[subject_prefix]" maxlength="60" value="<?= esc((string) $policyValue('email', 'subject_prefix', $policy['email']['subject_prefix'] ?? ''), 'attr') ?>">
                       </div>
+                      <hr>
+                      <input type="hidden" name="email[smtp_enabled]" value="0">
+                      <div class="checkbox">
+                        <label><input type="checkbox" name="email[smtp_enabled]" value="1" <?= !empty($policyValue('email', 'smtp_enabled', $policy['email']['smtp_enabled'] ?? false)) ? 'checked' : '' ?>> Usa SMTP dedicato per questo spazio</label>
+                      </div>
+                      <div class="form-group">
+                        <label>Host SMTP</label>
+                        <input class="form-control" name="email[smtp_host]" maxlength="190" autocomplete="off" placeholder="smtps.aruba.it" value="<?= esc((string) $policyValue('email', 'smtp_host', $policy['email']['smtp_host'] ?? ''), 'attr') ?>">
+                      </div>
+                      <div class="delivery-policy-rate">
+                        <div class="form-group"><label>Porta SMTP</label><input class="form-control" type="number" min="1" max="65535" name="email[smtp_port]" value="<?= (int) $policyValue('email', 'smtp_port', $policy['email']['smtp_port'] ?? 587) ?>"></div>
+                        <div class="form-group"><label>Sicurezza</label><select class="form-control" name="email[smtp_crypto]"><?php $smtpCrypto = (string) $policyValue('email', 'smtp_crypto', $policy['email']['smtp_crypto'] ?? 'tls'); ?><option value="tls" <?= $smtpCrypto === 'tls' ? 'selected' : '' ?>>STARTTLS</option><option value="ssl" <?= $smtpCrypto === 'ssl' ? 'selected' : '' ?>>SSL</option><option value="none" <?= $smtpCrypto === '' || $smtpCrypto === 'none' ? 'selected' : '' ?>>Nessuna</option></select></div>
+                      </div>
+                      <div class="form-group">
+                        <label>Username SMTP</label>
+                        <input class="form-control" name="email[smtp_username]" maxlength="190" autocomplete="off" value="<?= esc((string) $policyValue('email', 'smtp_username', $policy['email']['smtp_username'] ?? ''), 'attr') ?>">
+                      </div>
+                      <div class="form-group">
+                        <label>Password SMTP</label>
+                        <input class="form-control" type="password" name="email[smtp_password]" maxlength="1024" autocomplete="new-password" placeholder="<?= !empty($policy['email']['smtp_password_configured']) ? 'Password già configurata' : 'Inserisci la password SMTP' ?>">
+                        <small class="text-muted"><?= !empty($policy['email']['smtp_password_configured']) ? 'La password è cifrata. Lascia vuoto per mantenerla invariata.' : 'La password verrà salvata cifrata e non sarà più mostrata.' ?></small>
+                      </div>
+                      <div class="form-group">
+                        <label>Timeout SMTP (secondi)</label>
+                        <input class="form-control" type="number" min="1" max="60" name="email[smtp_timeout_seconds]" value="<?= (int) $policyValue('email', 'smtp_timeout_seconds', $policy['email']['smtp_timeout_seconds'] ?? 10) ?>">
+                      </div>
                       <div class="delivery-policy-rate">
                         <div class="form-group"><label>Email</label><input class="form-control" type="number" min="1" max="100" name="email[messages_per_interval]" value="<?= (int) $policyValue('email', 'messages_per_interval', $policy['email']['messages_per_interval'] ?? 10) ?>"></div>
                         <div class="form-group"><label>Ogni minuti</label><input class="form-control" type="number" min="1" max="1440" name="email[interval_minutes]" value="<?= (int) $policyValue('email', 'interval_minutes', $policy['email']['interval_minutes'] ?? 5) ?>"></div>
