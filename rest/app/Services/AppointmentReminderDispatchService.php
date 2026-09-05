@@ -134,7 +134,11 @@ class AppointmentReminderDispatchService
                     $appointmentId = (int) ($row['id_appuntamento'] ?? 0);
                     $patientLabel = trim((string) ($row['patient_cognome'] ?? '') . ' ' . (string) ($row['patient_nome'] ?? ''));
                     $recipient = $hasForcedRecipient ? $forceRecipient : $this->buildRecipientContext($row, $patientLabel);
-                    $rowChannels = $this->filterReminderChannelsForRow($channels, $row);
+                    $rowChannels = $this->filterReminderChannelsForRow(
+                        $channels,
+                        $row,
+                        !empty($plan['patient_sms_reminder_default_enabled'])
+                    );
 
                     if ($rowChannels === []) {
                         continue;
@@ -573,9 +577,16 @@ class AppointmentReminderDispatchService
      * @param array<string, mixed> $row
      * @return array<int, string>
      */
-    private function filterReminderChannelsForRow(array $channels, array $row): array
+    private function filterReminderChannelsForRow(
+        array $channels,
+        array $row,
+        bool $patientSmsReminderDefaultEnabled = false
+    ): array
     {
-        if ((int) ($row[self::PATIENT_REMINDER_SMS_COLUMN] ?? 0) === 1) {
+        if (
+            $patientSmsReminderDefaultEnabled
+            || (int) ($row[self::PATIENT_REMINDER_SMS_COLUMN] ?? 0) === 1
+        ) {
             return $channels;
         }
 

@@ -491,6 +491,7 @@ class TenantProvisioningService
             && !empty($payload['whatsapp_gateway_enabled']);
         $appointmentNotificationEnabledTypes = [];
         $appointmentNotificationEnabledChannels = [];
+        $patientSmsReminderDefaultEnabled = !empty($payload['patient_sms_reminder_default_enabled']);
         $appointmentNotificationSettings = null;
         $agendaTeamColumnColorSettings = new AgendaTeamColumnColorService();
 
@@ -580,6 +581,10 @@ class TenantProvisioningService
                 $notificationFeatureConfig = $appointmentNotificationSettings->mergePlatformChannelControlsIntoConfig(
                     $notificationFeatureConfig,
                     $appointmentNotificationEnabledChannels
+                );
+                $notificationFeatureConfig = $appointmentNotificationSettings->mergePlatformPatientSmsReminderDefaultIntoConfig(
+                    $notificationFeatureConfig,
+                    $patientSmsReminderDefaultEnabled
                 );
                 $featureOverrideConfigs[AppointmentNotificationSettingsService::FEATURE_NOTIFICATIONS] = $notificationFeatureConfig;
             }

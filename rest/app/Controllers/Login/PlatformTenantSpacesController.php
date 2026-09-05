@@ -264,6 +264,9 @@ class PlatformTenantSpacesController extends BaseController
             && (int) ($this->request->getPost('whatsapp_gateway_enabled') ?? 0) === 1;
         $appointmentNotificationEnabledTypes = [];
         $appointmentNotificationEnabledChannels = [];
+        $patientSmsReminderDefaultEnabled = (int) (
+            $this->request->getPost('patient_sms_reminder_default_enabled') ?? 0
+        ) === 1;
         $agendaTeamDayColumnColorsEnabled = (int) ($this->request->getPost('agenda_team_day_column_colors_enabled') ?? 0) === 1;
 
         if ($hasFeatureOverrideForm) {
@@ -311,6 +314,7 @@ class PlatformTenantSpacesController extends BaseController
             'appointment_notification_control_form' => $appointmentNotificationControlForm ? 1 : 0,
             'appointment_notification_enabled_types' => $appointmentNotificationEnabledTypes,
             'appointment_notification_enabled_channels' => $appointmentNotificationEnabledChannels,
+            'patient_sms_reminder_default_enabled' => $patientSmsReminderDefaultEnabled ? 1 : 0,
             'whatsapp_gateway_control_form' => $whatsappGatewayControlForm ? 1 : 0,
             'whatsapp_gateway_enabled' => $whatsappGatewayEnabled ? 1 : 0,
             'is_active' => $this->request->getPost('is_active') !== null

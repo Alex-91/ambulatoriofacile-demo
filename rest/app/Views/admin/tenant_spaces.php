@@ -34,6 +34,11 @@ $appointmentNotificationSettings = is_array($selectedTenant['appointment_notific
 $appointmentNotificationControls = is_array($appointmentNotificationSettings['platform_message_type_controls'] ?? null) ? $appointmentNotificationSettings['platform_message_type_controls'] : [];
 $appointmentNotificationChannelControls = is_array($appointmentNotificationSettings['platform_channel_controls'] ?? null) ? $appointmentNotificationSettings['platform_channel_controls'] : [];
 $appointmentNotificationTypes = is_array($appointmentNotificationSettings['message_types'] ?? null) ? $appointmentNotificationSettings['message_types'] : [];
+$patientSmsReminderDefaultEnabled = !empty($appointmentNotificationSettings['patient_sms_reminder_default_enabled']);
+$oldPatientSmsReminderDefaultEnabled = old('patient_sms_reminder_default_enabled');
+if ($oldPatientSmsReminderDefaultEnabled !== null) {
+    $patientSmsReminderDefaultEnabled = (string) $oldPatientSmsReminderDefaultEnabled === '1';
+}
 $appointmentNotificationChannelMeta = [
     'sms' => [
         'label' => 'SMS',
@@ -991,6 +996,25 @@ $oldValue = static function (string $key, $fallback = '') {
                           <span class="label label-<?= $checked ? 'success' : 'default' ?>">
                             <?= $checked ? 'abilitato centralmente' : 'spento centralmente' ?>
                           </span>
+                          <?php if ($channelKey === \App\Services\AppointmentNotificationSettingsService::CHANNEL_SMS): ?>
+                            <div id="patient-sms-reminder-default-panel" style="<?= $checked ? '' : 'display:none;' ?>">
+                              <hr style="margin:12px 0 8px;">
+                              <div class="form-group" style="margin-bottom:8px;">
+                                <label for="patient_sms_reminder_default_enabled">Promemoria SMS per i pazienti</label>
+                                <select
+                                  class="form-control"
+                                  id="patient_sms_reminder_default_enabled"
+                                  name="patient_sms_reminder_default_enabled"
+                                >
+                                  <option value="0" <?= !$patientSmsReminderDefaultEnabled ? 'selected' : '' ?>>Disattivi di default: scelta manuale per paziente</option>
+                                  <option value="1" <?= $patientSmsReminderDefaultEnabled ? 'selected' : '' ?>>Attivi automaticamente per tutti i pazienti</option>
+                                </select>
+                              </div>
+                              <p class="text-muted" style="min-height:0; margin-bottom:0; font-size:12px;">
+                                Se scegli l’attivazione automatica, il checkbox SMS non comparirà nel popup degli appuntamenti e i reminder SMS saranno ammessi per tutti i pazienti.
+                              </p>
+                            </div>
+                          <?php endif; ?>
                           <?php if ($channelKey === \App\Services\AppointmentNotificationSettingsService::CHANNEL_WHATSAPP): ?>
                             <hr style="margin:12px 0 8px;">
                             <input type="hidden" id="whatsapp_gateway_enabled_value" name="whatsapp_gateway_enabled" value="<?= $checked ? '1' : '0' ?>">
@@ -1400,6 +1424,22 @@ $oldValue = static function (string $key, $fallback = '') {
     input.addEventListener('change', syncFeatureDependencies);
   });
   syncFeatureDependencies();
+})();
+</script>
+<script>
+(function () {
+  var smsChannel = document.querySelector('input[name="appointment_notification_enabled_channels[]"][data-notification-channel="sms"]');
+  var patientDefaultPanel = document.getElementById('patient-sms-reminder-default-panel');
+  if (!smsChannel || !patientDefaultPanel) {
+    return;
+  }
+
+  function syncPatientSmsReminderDefaultPanel() {
+    patientDefaultPanel.style.display = smsChannel.checked ? '' : 'none';
+  }
+
+  smsChannel.addEventListener('change', syncPatientSmsReminderDefaultPanel);
+  syncPatientSmsReminderDefaultPanel();
 })();
 </script>
 <script>

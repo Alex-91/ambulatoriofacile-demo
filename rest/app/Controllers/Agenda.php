@@ -824,7 +824,8 @@ public function eseguiRepairRecurringExtraSlots()
         }
 
         return !empty($plan['enabled'])
-            && in_array(AppointmentNotificationSettingsService::CHANNEL_SMS, (array) ($plan['channels'] ?? []), true);
+            && in_array(AppointmentNotificationSettingsService::CHANNEL_SMS, (array) ($plan['channels'] ?? []), true)
+            && empty($plan['patient_sms_reminder_default_enabled']);
     }
 
     protected function isPatientExcelImportEnabled(): bool

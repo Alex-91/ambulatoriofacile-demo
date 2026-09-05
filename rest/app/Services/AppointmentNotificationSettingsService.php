@@ -22,6 +22,8 @@ class AppointmentNotificationSettingsService
     public const TYPE_DOCTOR_CROSS_BOOKING = 'doctor_cross_booking';
     public const TYPE_REMINDER = 'appointment_reminder';
 
+    private const PATIENT_SMS_REMINDER_CONFIG_KEY = 'patient_sms_reminder';
+
     private \CodeIgniter\Database\BaseConnection $platformDb;
     private TenantFeatureService $tenantFeatureService;
     private PlatformTenantFeaturePreferencesModel $preferencesModel;
@@ -56,6 +58,7 @@ class AppointmentNotificationSettingsService
         $platformFeatureConfig = $this->decodeConfig(trim((string) ($moduleOverrideRow['config_json'] ?? '')));
         $platformMessageTypeControls = $this->buildPlatformMessageTypeControls($platformFeatureConfig);
         $platformChannelControls = $this->buildPlatformChannelControls($platformFeatureConfig);
+        $patientSmsReminderDefaultEnabled = $this->resolvePatientSmsReminderDefaultEnabled($platformFeatureConfig);
         $availableChannels = [
             self::CHANNEL_SMS => $moduleAvailable
                 && (bool) ($smsState['effective_enabled'] ?? false)
@@ -140,6 +143,7 @@ class AppointmentNotificationSettingsService
             'message_types' => $messageTypeRows,
             'platform_message_type_controls' => $platformMessageTypeControls,
             'platform_channel_controls' => $platformChannelControls,
+            'patient_sms_reminder_default_enabled' => $patientSmsReminderDefaultEnabled,
             'raw_config' => $config,
             'preference_row' => is_array($preferenceRow) ? $preferenceRow : null,
             'feature_override_row' => is_array($moduleOverrideRow) ? $moduleOverrideRow : null,
@@ -200,6 +204,22 @@ class AppointmentNotificationSettingsService
         }
 
         $config['channel_controls'] = $controls;
+
+        return $config;
+    }
+
+    /**
+     * @param array<string, mixed> $existingFeatureConfig
+     * @return array<string, mixed>
+     */
+    public function mergePlatformPatientSmsReminderDefaultIntoConfig(
+        array $existingFeatureConfig,
+        bool $defaultEnabled
+    ): array {
+        $config = is_array($existingFeatureConfig) ? $existingFeatureConfig : [];
+        $patientSmsReminder = (array) ($config[self::PATIENT_SMS_REMINDER_CONFIG_KEY] ?? []);
+        $patientSmsReminder['default_enabled'] = $defaultEnabled;
+        $config[self::PATIENT_SMS_REMINDER_CONFIG_KEY] = $patientSmsReminder;
 
         return $config;
     }
@@ -269,6 +289,8 @@ class AppointmentNotificationSettingsService
             'enabled' => (bool) ($row['enabled'] ?? false),
             'channels' => array_values((array) ($row['effective_channels'] ?? [])),
             'lead_days' => max(0, min(30, (int) ($row['lead_days'] ?? 2))),
+            'patient_sms_reminder_default_enabled' => $messageType === self::TYPE_REMINDER
+                && !empty($settings['patient_sms_reminder_default_enabled']),
         ];
 
         if ($this->messageTemplateService->supports($messageType)) {
@@ -526,6 +548,16 @@ class AppointmentNotificationSettingsService
         }
 
         return $rows;
+    }
+
+    /**
+     * @param array<string, mixed> $featureConfig
+     */
+    private function resolvePatientSmsReminderDefaultEnabled(array $featureConfig): bool
+    {
+        $patientSmsReminder = (array) ($featureConfig[self::PATIENT_SMS_REMINDER_CONFIG_KEY] ?? []);
+
+        return !empty($patientSmsReminder['default_enabled']);
     }
 
     /**
