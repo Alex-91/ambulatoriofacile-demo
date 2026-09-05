@@ -81,6 +81,8 @@ final class PersonnelAdminAccessServiceTest extends CIUnitTestCase
         self::assertStringContainsString('$this->applyMembershipAdministrativeAccess($tenant, $payload);', $source);
         self::assertStringContainsString("'tenant_app_admin' => true", $source);
         self::assertStringContainsString("'menuDataAdmin' => ['result' => \$menuAdmin]", $source);
+        self::assertStringContainsString("'platform_user_id' => (int) \$membershipAccess['platform_user_id']", $source);
+        self::assertStringContainsString('$this->applyLinkedPlatformIdentity((int) ($payload[\'platform_user_id\'] ?? 0));', $source);
     }
 
     public function testLegacyAppAdminOverlayAcceptsPersonnelProfilesOnly(): void

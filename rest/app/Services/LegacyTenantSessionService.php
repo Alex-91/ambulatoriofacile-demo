@@ -122,6 +122,7 @@ class LegacyTenantSessionService
             'user_type' => $userType,
             'tenant_role' => (string) $membershipAccess['tenant_role'],
             'is_app_admin' => (bool) $membershipAccess['is_app_admin'],
+            'platform_user_id' => (int) $membershipAccess['platform_user_id'],
             'login_source' => $loginSource,
         ]);
     }
@@ -170,7 +171,7 @@ class LegacyTenantSessionService
             trim((string) ($tenant['package_code'] ?? '')),
             trim((string) ($tenant['package_name'] ?? '')),
             trim((string) ($payload['tenant_role'] ?? '')) ?: $this->inferTenantRole((int) ($payload['user_type'] ?? 0)),
-            0,
+            (int) ($payload['platform_user_id'] ?? 0),
             (int) ($payload['app_user_id'] ?? 0),
             trim((string) ($tenant['storage_key'] ?? '')),
             trim((string) ($tenant['feature_profile'] ?? '')),
@@ -293,13 +294,14 @@ class LegacyTenantSessionService
     }
 
     /**
-     * @return array{tenant_role: string, is_app_admin: bool}
+     * @return array{tenant_role: string, is_app_admin: bool, platform_user_id: int}
      */
     private function resolveMembershipAccess(int $tenantId, int $appUserId, int $userType): array
     {
         $fallback = [
             'tenant_role' => $this->inferTenantRole($userType),
             'is_app_admin' => false,
+            'platform_user_id' => 0,
         ];
 
         if (
@@ -317,6 +319,9 @@ class LegacyTenantSessionService
         }
         if ($this->platformDb->fieldExists('is_app_admin', 'platform_user_tenants')) {
             $selectFields[] = 'is_app_admin';
+        }
+        if ($this->platformDb->fieldExists('id_platform_user', 'platform_user_tenants')) {
+            $selectFields[] = 'id_platform_user';
         }
 
         if ($selectFields === []) {
@@ -348,6 +353,7 @@ class LegacyTenantSessionService
         return [
             'tenant_role' => $tenantRole,
             'is_app_admin' => (int) ($membership['is_app_admin'] ?? 0) === 1,
+            'platform_user_id' => (int) ($membership['id_platform_user'] ?? 0),
         ];
     }
 
@@ -374,6 +380,8 @@ class LegacyTenantSessionService
             'menuDataAdmin' => ['result' => $menuAdmin],
             'tenant_app_admin' => true,
         ]);
+
+        $this->applyLinkedPlatformIdentity((int) ($payload['platform_user_id'] ?? 0));
     }
 
     private function canCurrentUserReceiveAppAdminAccess(): bool
@@ -384,5 +392,40 @@ class LegacyTenantSessionService
         }
 
         return in_array((int) ($currentUser->tipo_pers ?? 0), [1, 2, 3], true);
+    }
+
+    private function applyLinkedPlatformIdentity(int $platformUserId): void
+    {
+        if (
+            $platformUserId <= 0
+            || !$this->platformDb->tableExists('platform_users')
+            || !$this->platformDb->fieldExists('id_platform_user', 'platform_users')
+        ) {
+            return;
+        }
+
+        $platformUser = $this->platformDb->table('platform_users')
+            ->where('id_platform_user', $platformUserId)
+            ->get(1)
+            ->getRowArray();
+
+        if (!is_array($platformUser)) {
+            return;
+        }
+
+        $status = strtolower(trim((string) ($platformUser['status'] ?? 'active')));
+        if (in_array($status, ['suspended', 'blocked'], true)) {
+            return;
+        }
+
+        $memberships = $this->catalog->listTenantsForPlatformUser($platformUserId);
+        $selectableTenants = (new PlatformAuthService())->buildSelectableTenants($memberships);
+
+        session()->set([
+            'platform_user_id' => $platformUserId,
+            'platform_user_email' => (string) ($platformUser['email'] ?? ''),
+            'platform_is_admin' => (new PlatformAdminAccessService())->isPlatformAdmin($platformUser),
+            TenantAppSessionBootstrapService::PLATFORM_SELECTABLE_TENANTS_SESSION_KEY => $selectableTenants,
+        ]);
     }
 }
