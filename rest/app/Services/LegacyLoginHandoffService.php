@@ -205,11 +205,11 @@ class LegacyLoginHandoffService
                 ];
             }
 
-            $this->confirmBootstrappedSession($userType);
+            $confirmedRedirect = $this->confirmBootstrappedSession($userType);
 
             return [
                 'resp' => 'OK',
-                'redirectUrl' => 'admin',
+                'redirectUrl' => $this->resolveConfirmedAdminRedirect($confirmedRedirect),
                 'requiresOtp' => false,
                 'userType' => $userType,
             ];
@@ -649,6 +649,18 @@ class LegacyLoginHandoffService
         }
 
         return '';
+    }
+
+    private function resolveConfirmedAdminRedirect(string $confirmedRedirect): string
+    {
+        $confirmedRedirect = trim($confirmedRedirect);
+        if ($confirmedRedirect !== '') {
+            return $confirmedRedirect;
+        }
+
+        helper('session_auth');
+
+        return session_should_open_agenda_first() ? 'agenda' : 'admin';
     }
 
     private function resolveCellulareByUserType(int $userId, int $userType): string
