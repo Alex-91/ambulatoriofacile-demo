@@ -100,6 +100,11 @@ $channelMeta = [
               `CRON_ACCESS_TOKEN` non configurato. Il pannello funziona, ma se vuoi lanciare i reminder da URL schedulato devi impostarlo.
             </div>
           <?php endif; ?>
+          <?php if (empty($smsProviderConfigured)): ?>
+            <div class="alert alert-warning">
+              Provider SMS selezionato: <strong><?= esc((string) ($smsProviderLabel ?? 'SMS')) ?></strong>, ma le credenziali API non sono ancora configurate. Gli invii SMS resteranno bloccati con errore esplicito.
+            </div>
+          <?php endif; ?>
 
           <div class="intro-box">
             <h3 style="margin-top:0; margin-bottom:8px;">Regia unica dei canali</h3>
@@ -109,6 +114,7 @@ $channelMeta = [
             <span class="status-chip">Studi attivi: <?= (int) ($summary['tenant_count'] ?? 0) ?></span>
             <span class="status-chip">Modulo attivo: <?= (int) ($summary['module_enabled_count'] ?? 0) ?></span>
             <span class="status-chip">Canale SMS: <?= (int) ($summary['sms_enabled_count'] ?? 0) ?></span>
+            <span class="status-chip">Provider SMS: <?= esc((string) ($smsProviderLabel ?? 'SMS')) ?></span>
             <span class="status-chip">Canale WhatsApp: <?= (int) ($summary['wa_enabled_count'] ?? 0) ?></span>
             <span class="status-chip">Canale Email: <?= (int) ($summary['email_enabled_count'] ?? 0) ?></span>
             <span class="status-chip">Canale OTP: <?= (int) ($summary['otp_enabled_count'] ?? 0) ?></span>
@@ -483,8 +489,14 @@ $channelMeta = [
                         <td><?= esc((string) ($entry['recipient'] ?? '')) ?></td>
                         <td><?= esc((string) ($entry['patient_label'] ?? '')) ?></td>
                         <td>
-                          <span class="label label-<?= (($entry['status'] ?? '') === 'sent') ? 'success' : 'danger' ?>">
-                            <?= esc((string) ($entry['status'] ?? 'n/d')) ?>
+                          <?php
+                            $effectiveStatus = (string) (($entry['delivery_status'] ?? '') ?: ($entry['status'] ?? 'n/d'));
+                            $statusClass = in_array($effectiveStatus, ['sent', 'delivered'], true)
+                              ? 'success'
+                              : (in_array($effectiveStatus, ['pending', 'not_sent'], true) ? 'warning' : 'danger');
+                          ?>
+                          <span class="label label-<?= $statusClass ?>">
+                            <?= esc($effectiveStatus) ?>
                           </span>
                         </td>
                       </tr>

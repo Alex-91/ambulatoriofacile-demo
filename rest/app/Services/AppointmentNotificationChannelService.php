@@ -45,7 +45,9 @@ class AppointmentNotificationChannelService
     public function providerLabel(string $channel): string
     {
         return match (strtolower(trim($channel))) {
-            AppointmentNotificationSettingsService::CHANNEL_SMS => 'Aruba SMS',
+            AppointmentNotificationSettingsService::CHANNEL_SMS => $this->smsProvider() === 'smsfactor'
+                ? SmsFactorClient::PROVIDER_LABEL
+                : 'Aruba SMS',
             AppointmentNotificationSettingsService::CHANNEL_WHATSAPP => match ($this->whatsappProvider()) {
                 'gateway' => 'AmbulatorioFacile WhatsApp Gateway',
                 'hybrid' => 'UltraMsg / AmbulatorioFacile WhatsApp Gateway',
@@ -563,6 +565,40 @@ class AppointmentNotificationChannelService
      */
     private function sendSms(string $recipient, string $message, array $options = []): array
     {
+        $sender = trim((string) ($options['sms_sender'] ?? ''));
+        $tenantId = max(0, (int) ($options['tenant_id'] ?? 0));
+        if ($sender === '') {
+            if ($tenantId > 0) {
+                $policy = (new TenantNotificationPolicyService())->resolve($tenantId);
+                $sender = trim((string) ($policy['sms']['sender'] ?? ''));
+            }
+        }
+        $smsProvider = $this->smsProvider();
+        if ($sender === '') {
+            $defaultSender = $smsProvider === 'smsfactor' ? 'AmbFacile' : self::DEFAULT_ARUBA_SENDER;
+            $sender = trim((string) (env('SMS_SENDER') ?: $defaultSender));
+        }
+
+        if ($smsProvider === 'smsfactor') {
+            try {
+                return (new SmsFactorClient())->send($recipient, $message, $sender, [
+                    'tenant_id' => $tenantId,
+                    'client_message_id' => (string) ($options['client_message_id'] ?? ''),
+                    'push_type' => (string) ($options['sms_push_type'] ?? env('SMSFACTOR_PUSH_TYPE', 'alert')),
+                ]);
+            } catch (\Throwable $e) {
+                return [
+                    'ok' => false,
+                    'channel' => AppointmentNotificationSettingsService::CHANNEL_SMS,
+                    'recipient' => $recipient,
+                    'provider' => SmsFactorClient::PROVIDER_LABEL,
+                    'provider_id' => '',
+                    'response' => null,
+                    'error' => $e->getMessage(),
+                ];
+            }
+        }
+
         try {
             if ($this->arubaSession === null) {
                 $this->arubaSession = $this->loginAruba();
@@ -573,21 +609,12 @@ class AppointmentNotificationChannelService
                 'channel' => AppointmentNotificationSettingsService::CHANNEL_SMS,
                 'recipient' => $recipient,
                 'provider' => 'Aruba SMS',
+                'provider_id' => '',
+                'response' => null,
                 'error' => $e->getMessage(),
             ];
         }
 
-        $sender = trim((string) ($options['sms_sender'] ?? ''));
-        if ($sender === '') {
-            $tenantId = max(0, (int) ($options['tenant_id'] ?? 0));
-            if ($tenantId > 0) {
-                $policy = (new TenantNotificationPolicyService())->resolve($tenantId);
-                $sender = trim((string) ($policy['sms']['sender'] ?? ''));
-            }
-        }
-        if ($sender === '') {
-            $sender = trim((string) (env('SMS_SENDER') ?: self::DEFAULT_ARUBA_SENDER));
-        }
         $response = $this->httpPostJson(
             rtrim(self::DEFAULT_ARUBA_BASEURL, '/') . '/sms',
             [
@@ -616,6 +643,13 @@ class AppointmentNotificationChannelService
             'response' => $decoded ?: (string) ($response['body'] ?? ''),
             'error' => $response['ok'] ? null : (string) ($response['error'] ?? 'Invio SMS non riuscito.'),
         ];
+    }
+
+    private function smsProvider(): string
+    {
+        return strtolower(trim((string) env('SMS_PROVIDER', 'aruba'))) === 'smsfactor'
+            ? 'smsfactor'
+            : 'aruba';
     }
 
     /**

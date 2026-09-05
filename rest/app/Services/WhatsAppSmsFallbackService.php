@@ -329,7 +329,8 @@ class WhatsAppSmsFallbackService
                 'tenant_name' => $tenantName,
                 'message_type' => (string) ($row['message_type'] ?? 'notification'),
                 'channel' => AppointmentNotificationSettingsService::CHANNEL_SMS,
-                'provider' => (string) ($send['provider'] ?? 'Aruba SMS'),
+                'provider' => (string) ($send['provider'] ?? (new AppointmentNotificationChannelService())
+                    ->providerLabel(AppointmentNotificationSettingsService::CHANNEL_SMS)),
                 'provider_id' => (string) ($send['provider_id'] ?? ''),
                 'recipient' => (string) ($send['recipient'] ?? $row['recipient_phone'] ?? ''),
                 'recipient_role' => 'patient',

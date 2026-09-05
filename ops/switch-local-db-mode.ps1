@@ -473,6 +473,8 @@ function Build-TestModeEnvValues {
         $values['SMS_USERNAME']      = ''
         $values['SMS_PASSWORD']      = ''
         $values['SMS_ULTRAMSG_URL']  = ''
+        $values['SMSFACTOR_API_TOKEN'] = ''
+        $values['SMSFACTOR_WEBHOOK_SIGNATURE'] = ''
         $values['CRON_ACCESS_TOKEN'] = 'disabled-local-test'
     }
 

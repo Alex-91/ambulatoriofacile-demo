@@ -6,6 +6,7 @@ date_default_timezone_set('Europe/Rome');
 const DEFAULT_ULTRAMSG_URL = 'https://api.ultramsg.com/instance123914/messages/chat';
 const DEFAULT_ARUBA_BASEURL = 'https://adminsms.aruba.it/API/v1.0/REST/';
 const DEFAULT_ARUBA_SENDER = 'AmbRIMAGGIO';
+const DEFAULT_SMSFACTOR_BASEURL = 'https://api.smsfactor.com';
 
 if (PHP_SAPI !== 'cli' && !defined('REMINDER_WEB_ALLOWED')) {
     http_response_code(403);
@@ -366,11 +367,15 @@ function processTargetDateBatch(
         }
 
         if ($channel === 'sms') {
-            if ($providerSession === null) {
-                $providerSession = loginArubaSms($env);
-            }
+            if (resolveSmsProvider($env) === 'smsfactor') {
+                $result = sendSmsFactor($env, $recipient, $message);
+            } else {
+                if ($providerSession === null) {
+                    $providerSession = loginArubaSms($env);
+                }
 
-            $result = sendArubaSms($env, $providerSession, $recipient, $message);
+                $result = sendArubaSms($env, $providerSession, $recipient, $message);
+            }
         } else {
             $result = sendUltraMsg($env, $recipient, $message);
         }
@@ -858,6 +863,137 @@ function sendUltraMsg(array $env, string $recipient, string $message): array
         'response_body' => $body,
         'error' => $success ? null : ('HTTP ' . $status),
     ];
+}
+
+function resolveSmsProvider(array $env): string
+{
+    return strtolower(trim((string) ($env['SMS_PROVIDER'] ?? 'aruba'))) === 'smsfactor'
+        ? 'smsfactor'
+        : 'aruba';
+}
+
+function sendSmsFactor(array $env, string $recipient, string $message): array
+{
+    $token = trim((string) ($env['SMSFACTOR_API_TOKEN'] ?? ''));
+    if ($token === '') {
+        return [
+            'success' => false,
+            'provider_id' => null,
+            'response_body' => null,
+            'error' => 'SMSFACTOR_API_TOKEN non configurato.',
+        ];
+    }
+
+    $baseUrl = rtrim(trim((string) ($env['SMSFACTOR_BASE_URL'] ?? DEFAULT_SMSFACTOR_BASEURL)), '/');
+    if (filter_var($baseUrl, FILTER_VALIDATE_URL) === false || !str_starts_with(strtolower($baseUrl), 'https://')) {
+        return [
+            'success' => false,
+            'provider_id' => null,
+            'response_body' => null,
+            'error' => 'SMSFACTOR_BASE_URL non valido.',
+        ];
+    }
+
+    $destination = preg_replace('/\D+/', '', $recipient) ?? '';
+    if (preg_match('/^[1-9][0-9]{7,14}$/', $destination) !== 1) {
+        return [
+            'success' => false,
+            'provider_id' => null,
+            'response_body' => null,
+            'error' => 'Destinatario SMSFactor non valido.',
+        ];
+    }
+
+    $sender = trim((string) ($env['SMS_SENDER'] ?? 'AmbFacile'));
+    if ($sender !== '' && preg_match('/^[A-Za-z0-9]{1,11}$/', $sender) !== 1) {
+        return [
+            'success' => false,
+            'provider_id' => null,
+            'response_body' => null,
+            'error' => 'Il mittente SMSFactor deve contenere da 1 a 11 caratteri alfanumerici.',
+        ];
+    }
+    $pushType = strtolower(trim((string) ($env['SMSFACTOR_PUSH_TYPE'] ?? 'alert')));
+    if (!in_array($pushType, ['alert', 'marketing'], true)) {
+        $pushType = 'alert';
+    }
+    $tenantId = max(0, (int) ($env['SMSFACTOR_TENANT_ID'] ?? 0));
+    $clientMessageId = 'af-' . $tenantId . '-' . bin2hex(random_bytes(10));
+    $messagePayload = [
+        'text' => $message,
+        'pushtype' => $pushType,
+        'unicode' => smsRequiresUnicode($message) ? 1 : 0,
+    ];
+    if ($sender !== '') {
+        $messagePayload['sender'] = $sender;
+    }
+    $payload = json_encode([
+        'sms' => [
+            'message' => $messagePayload,
+            'recipients' => [
+                'gsm' => [[
+                    'gsmsmsid' => $clientMessageId,
+                    'value' => $destination,
+                ]],
+            ],
+        ],
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+    if (!is_string($payload)) {
+        return [
+            'success' => false,
+            'provider_id' => null,
+            'response_body' => null,
+            'error' => 'Impossibile serializzare il payload SMSFactor.',
+        ];
+    }
+
+    $ch = curl_init($baseUrl . '/send');
+    curl_setopt_array($ch, [
+        CURLOPT_POST => true,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_CONNECTTIMEOUT => 10,
+        CURLOPT_TIMEOUT => max(5, min(120, (int) ($env['SMSFACTOR_TIMEOUT_SECONDS'] ?? 30))),
+        CURLOPT_SSL_VERIFYHOST => 2,
+        CURLOPT_SSL_VERIFYPEER => true,
+        CURLOPT_HTTPHEADER => [
+            'Accept: application/json',
+            'Authorization: Bearer ' . $token,
+            'Content-Type: application/json',
+        ],
+        CURLOPT_POSTFIELDS => $payload,
+    ]);
+
+    $body = curl_exec($ch);
+    $curlError = curl_errno($ch) !== 0 ? curl_error($ch) : '';
+    $httpStatus = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+    curl_close($ch);
+
+    $decoded = is_string($body) ? json_decode($body, true) : null;
+    $requestStatus = is_array($decoded) && isset($decoded['status']) ? (int) $decoded['status'] : null;
+    $success = is_string($body)
+        && $httpStatus >= 200
+        && $httpStatus < 300
+        && in_array($requestStatus, [1, -8], true)
+        && ($requestStatus === -8 || !isset($decoded['sent']) || (int) $decoded['sent'] > 0);
+
+    return [
+        'success' => $success,
+        'provider_id' => is_array($decoded) && trim((string) ($decoded['ticket'] ?? '')) !== ''
+            ? (string) $decoded['ticket']
+            : $clientMessageId,
+        'response_body' => is_string($body) ? $body : null,
+        'error' => $success
+            ? null
+            : (is_array($decoded) && trim((string) ($decoded['message'] ?? '')) !== ''
+                ? (string) $decoded['message']
+                : ($curlError !== '' ? $curlError : ('HTTP ' . $httpStatus))),
+    ];
+}
+
+function smsRequiresUnicode(string $message): bool
+{
+    return preg_match('/[^\x0A\x0D\x20-\x7E£¥èéùìòÇØøÅåΔ_ΦΓΛΩΠΨΣΘΞÆæßÉÄÖÑÜ§¿¡äöñüà¤€]/u', $message) === 1;
 }
 
 function loginArubaSms(array $env): array

@@ -336,6 +336,19 @@ class AuthenticationController extends BaseController
         $sms = new SmsSender();
         $result = $sms->sendSMSIndex($cellulare, $messaggio);
 
+        if (empty($result['ok'])) {
+            $this->logOtpDelivery('sms', false, (string) ($result['error'] ?? 'sms_send_failed'));
+            return $this->response->setStatusCode(502)->setJSON([
+                'success' => false,
+                'message' => 'Invio SMS non riuscito. Riprova tra poco.',
+            ]);
+        }
+
+        $this->logOtpDelivery('sms', true, null, [
+            'provider' => (string) ($result['provider'] ?? ''),
+            'provider_id' => (string) ($result['provider_id'] ?? ''),
+        ]);
+
         return $this->response->setJSON([
             'success'  => true,
             'response' => $result,

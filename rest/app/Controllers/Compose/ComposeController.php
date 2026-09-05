@@ -212,10 +212,10 @@ class ComposeController extends BaseController
         $messaggio = "AmbulatorioFacile - Il suo codice di accesso OTP è {$otp}. Non divulgare questo codice. Il codice rimarrà attivo solamente per 2 minuti.";
         $response = $smsSender->sendSMSIndex($numero, $messaggio);
 
-        if ($response) {
+        if (!empty($response['ok'])) {
             log_message('info', "SMS inviato con successo a {$numero}");
         } else {
-            log_message('error', "Errore nell'invio dell'SMS a {$numero}");
+            log_message('error', "Errore nell'invio dell'SMS a {$numero}: " . (string) ($response['error'] ?? 'errore sconosciuto'));
         }
     }
 

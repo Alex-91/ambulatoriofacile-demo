@@ -312,7 +312,9 @@ class SmsReminderDashboardService
         return [
             'channel' => $channel !== '' ? $channel : 'wa',
             'channel_label' => $isSmsChannel ? 'SMS' : 'WhatsApp',
-            'provider_label' => $isSmsChannel ? 'Aruba SMS' : 'UltraMsg',
+            'provider_label' => $isSmsChannel
+                ? (new AppointmentNotificationChannelService())->providerLabel(AppointmentNotificationSettingsService::CHANNEL_SMS)
+                : 'UltraMsg',
             'sms_sender' => trim((string) (env('SMS_SENDER') ?: '')),
         ];
     }

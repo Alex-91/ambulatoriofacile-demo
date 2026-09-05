@@ -70,6 +70,7 @@ class AppointmentNotificationLogService
             $this->readUnifiedEntries($tenant, $days),
             $this->readLegacyReminderEntries($tenant, $days)
         );
+        $entries = $this->applySmsFactorDeliveryReceipts($tenant, $entries);
 
         $entries = $this->deduplicateEntries($entries);
 
@@ -78,6 +79,86 @@ class AppointmentNotificationLogService
         });
 
         return $limit > 0 ? array_slice($entries, 0, $limit) : $entries;
+    }
+
+    /**
+     * @param array<string, mixed> $tenant
+     * @param array<int, array<string, mixed>> $entries
+     * @return array<int, array<string, mixed>>
+     */
+    private function applySmsFactorDeliveryReceipts(array $tenant, array $entries): array
+    {
+        $tenantId = max(0, (int) ($tenant['id_tenant'] ?? 0));
+        if ($tenantId <= 0 || $entries === []) {
+            return $entries;
+        }
+
+        $providerIds = [];
+        foreach ($entries as $entry) {
+            if (
+                strtolower(trim((string) ($entry['channel'] ?? ''))) !== AppointmentNotificationSettingsService::CHANNEL_SMS
+                || strtolower(trim((string) ($entry['provider'] ?? ''))) !== 'smsfactor'
+            ) {
+                continue;
+            }
+
+            $providerId = trim((string) ($entry['provider_id'] ?? ''));
+            if ($providerId !== '') {
+                $providerIds[] = $providerId;
+            }
+        }
+        $providerIds = array_values(array_unique($providerIds));
+        if ($providerIds === []) {
+            return $entries;
+        }
+
+        try {
+            if (!$this->platformDb->tableExists('platform_sms_delivery_receipts')) {
+                return $entries;
+            }
+
+            $rows = $this->platformDb->table('platform_sms_delivery_receipts')
+                ->where('id_tenant', $tenantId)
+                ->groupStart()
+                    ->whereIn('campaign_id', $providerIds)
+                    ->orWhereIn('client_message_id', $providerIds)
+                ->groupEnd()
+                ->orderBy('updated_at', 'DESC')
+                ->get()
+                ->getResultArray();
+        } catch (\Throwable $e) {
+            log_message('warning', 'Lettura ricevute SMSFactor fallita: {message}', [
+                'message' => $e->getMessage(),
+                'tenant_id' => $tenantId,
+            ]);
+            return $entries;
+        }
+
+        $receiptByProviderId = [];
+        foreach ($rows as $row) {
+            foreach (['campaign_id', 'client_message_id'] as $field) {
+                $key = trim((string) ($row[$field] ?? ''));
+                if ($key !== '' && !isset($receiptByProviderId[$key])) {
+                    $receiptByProviderId[$key] = $row;
+                }
+            }
+        }
+
+        foreach ($entries as &$entry) {
+            $providerId = trim((string) ($entry['provider_id'] ?? ''));
+            $receipt = $providerId !== '' ? ($receiptByProviderId[$providerId] ?? null) : null;
+            if (!is_array($receipt)) {
+                continue;
+            }
+
+            $entry['delivery_status'] = (string) ($receipt['delivery_status'] ?? '');
+            $entry['delivery_status_code'] = (int) ($receipt['status_code'] ?? 0);
+            $entry['delivery_received_at'] = (string) ($receipt['updated_at'] ?? '');
+            $entry['delivered_at'] = (string) ($receipt['occurred_at'] ?? '');
+        }
+        unset($entry);
+
+        return $entries;
     }
 
     /**

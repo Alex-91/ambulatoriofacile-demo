@@ -403,7 +403,21 @@ public function sendPasswordOtp()
         }
 
         $message = "AmbulatorioFacile - Il suo codice OTP e' {$otp}. Non divulgarlo.";
-        (new SmsSender())->sendSMSIndex($cellulare, $message);
+        $send = (new SmsSender())->sendSMSIndex($cellulare, $message);
+        if (empty($send['ok'])) {
+            $error = (string) ($send['error'] ?? 'sms_send_failed');
+            $this->logPasswordOtpDelivery($userId, 'sms', false, mb_substr($error, 0, 255));
+            return $this->response->setStatusCode(502)->setJSON([
+                'ok' => false,
+                'msg' => 'Invio SMS non riuscito. Riprova tra poco.',
+            ]);
+        }
+
+        $this->logPasswordOtpDelivery($userId, 'sms', true, null, [
+            'source' => 'profilo',
+            'provider' => (string) ($send['provider'] ?? ''),
+            'provider_id' => (string) ($send['provider_id'] ?? ''),
+        ]);
 
         return $this->response->setJSON([
             'ok' => true,
@@ -717,5 +731,4 @@ public function registerDeviceHere()
 
 
 }
-
 

@@ -4,8 +4,11 @@ namespace App\Controllers\Login;
 
 use App\Controllers\BaseController;
 use App\Services\AppointmentNotificationDashboardService;
+use App\Services\AppointmentNotificationChannelService;
+use App\Services\AppointmentNotificationSettingsService;
 use App\Services\AppointmentReminderDispatchService;
 use App\Services\PlatformAdminAccessService;
+use App\Services\SmsFactorClient;
 use App\Services\TenantNotificationPolicyService;
 
 class PlatformAppointmentNotificationsController extends BaseController
@@ -48,6 +51,14 @@ class PlatformAppointmentNotificationsController extends BaseController
             $policyTenantId,
             (string) ($policyTenant['tenant_name'] ?? '')
         );
+        $channelService = new AppointmentNotificationChannelService();
+        $smsProviderLabel = $channelService->providerLabel(AppointmentNotificationSettingsService::CHANNEL_SMS);
+        $smsProviderConfigured = $smsProviderLabel === SmsFactorClient::PROVIDER_LABEL
+            ? SmsFactorClient::isConfigured()
+            : (
+                trim((string) env('SMS_USERNAME', '')) !== ''
+                && trim((string) env('SMS_PASSWORD', '')) !== ''
+            );
 
         return view('admin/platform_appointment_notifications', [
             'menu_items' => [],
@@ -61,6 +72,8 @@ class PlatformAppointmentNotificationsController extends BaseController
             'cronConfigured' => trim((string) (env('CRON_ACCESS_TOKEN') ?: '')) !== '',
             'policyTenant' => $policyTenant,
             'policy' => $policy,
+            'smsProviderLabel' => $smsProviderLabel,
+            'smsProviderConfigured' => $smsProviderConfigured,
         ]);
     }
 

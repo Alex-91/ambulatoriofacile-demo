@@ -79,7 +79,7 @@ Invio reale con redirect di test verso un numero:
 php cron_send_appointment_reminders.php --send --doctor=67 --force-recipient=3331234567
 ```
 
-Canale SMS Aruba invece di WhatsApp:
+Canale SMS (provider scelto da `SMS_PROVIDER`) invece di WhatsApp:
 
 ```bash
 php cron_send_appointment_reminders.php --send --channel=sms
@@ -96,12 +96,18 @@ php cron_send_appointment_reminders.php --send --channel=sms
 - `SMS_API_TOKEN`
 - `SMS_USERNAME`
 - `SMS_PASSWORD`
+- `SMSFACTOR_API_TOKEN` quando `SMS_PROVIDER=smsfactor`
 
 Variabili opzionali:
 
 - `REMINDER_CHANNEL=wa` oppure `sms`
 - `SMS_ULTRAMSG_URL=https://api.ultramsg.com/instance123914/messages/chat`
 - `SMS_SENDER=AmbRIMAGGIO`
+- `SMS_PROVIDER=smsfactor` (oppure `aruba` per rollback)
+- `SMSFACTOR_BASE_URL=https://api.smsfactor.com`
+- `SMSFACTOR_TIMEOUT_SECONDS=30`
+- `SMSFACTOR_PUSH_TYPE=alert`
+- `SMSFACTOR_TENANT_ID=<id>` per associare i DLR del cron legacy allo spazio
 - `SMS_BATCH_DELAY_MS=900000`
 - `SMS_FORCE_RECIPIENT=3331234567`
 - `CRON_ACCESS_TOKEN=metti-qui-un-token-lungo-casuale`
@@ -118,9 +124,9 @@ Variabili opzionali:
 - il flusso multi-tenant corrente usa invece quantità, intervallo e limite giornaliero configurati per ciascuno spazio dal master piattaforma
 - il valore `delay_ms` passato manualmente dal pannello è solo un override operativo; a zero viene applicata la politica dello spazio
 
-## Cron Aruba
+## Scheduler del provider
 
-Se Aruba ti consente un comando PHP/CLI, usa qualcosa di questo tipo:
+Per lo scheduler HTTP o PHP/CLI usa qualcosa di questo tipo:
 
 ```bash
 php /percorso/del/progetto/cron_send_appointment_reminders.php >> /percorso/del/progetto/writable/logs/cron_send_appointment_reminders.out 2>&1

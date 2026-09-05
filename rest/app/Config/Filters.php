@@ -115,6 +115,7 @@ public function __construct()
                     'register/*',
                     'api/doctors',
                     'api/whatsapp-gateway/incoming',
+                    'api/smsfactor/dlr',
                     'reset',
                     'reset/*',
                     'checkUsername',

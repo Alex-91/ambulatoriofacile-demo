@@ -1,19 +1,17 @@
 <?php
 
 namespace App\Libraries;
-define("BASEURL", "https://adminsms.aruba.it/API/v1.0/REST/");
 
-define("MESSAGE_HIGH_QUALITY", "N");
-define("MESSAGE_MEDIUM_QUALITY", "L");
-class SmsSender {
+use App\Services\AppointmentNotificationChannelService;
+use App\Services\AppointmentNotificationSettingsService;
+
+class SmsSender
+{
     private $token;
     private $apiUrl;
-private $smsUsername;
-private $smsPassword;
+
     public function __construct() {
-        $this->token = getenv('SMS_API_TOKEN');  // Prende il token dal file .env
-          $this->smsUsername = "Sms64060";
-           $this->smsPassword = getenv('SMS_PASSWORD');
+        $this->token = getenv('SMS_API_TOKEN');
         $this->apiUrl = "https://api.ultramsg.com/instance123914/messages/chat";
     }
 
@@ -85,80 +83,22 @@ private $smsPassword;
         }
     }
 
-    public function sendSMSIndex($cellulare,$testo) {
-        if (!$this->sendingEnabled()) {
-            return $this->disabledResponse('sms', $cellulare);
+    public function sendSMSIndex($cellulare, $testo): array
+    {
+        $tenantId = 0;
+        try {
+            $tenantContext = (array) (session()->get('tenant_context') ?? []);
+            $tenantId = max(0, (int) ($tenantContext['tenant_id'] ?? 0));
+        } catch (\Throwable $e) {
+            // I flussi CLI o legacy possono non avere una sessione tenant.
         }
 
-        try
-        {
-         /*   $smsUsername = getenv('SMS_USERNAME');
-            $smsPassword = getenv('SMS_PASSWORD');*/
-            
-            $auth = $this->login( $this->smsUsername,  $this->smsPassword);
-            //var_dump($auth);
-        $smsSent =  $this->sendSMS($auth, array(
-          //"message" => "AmbulatorioFacile - Il suo codice di accesso OTP è ".$random.". Non divulgare questo codice. Il codice rimarrà attivo solamente per 2 minuti.  ",
-            "message" => $testo,
-            "message_type" => MESSAGE_HIGH_QUALITY,
-            "returnCredits" => false,
-            "recipient" => ["+393335374044"], // <-- array!
-          //"recipient" => array("+39".$cellulare),
-            "sender" => "AmbRIMAGGIO", // postpone by 5 minutes
-        ));
-       
-        }
-        catch (Exception $e) {
-            echo 'Caught exception: ',  $e->getMessage(), "\n";
-        }
-    }
-    function login($username, $password) {
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, BASEURL .
-                    'login?username=' . $username .
-                    '&password=' . $password);
-    
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    
-        $response = curl_exec($ch);
-        $info = curl_getinfo($ch);
-        curl_close($ch);
-        
-        if ($info['http_code'] != 200) {
-            return null;
-        }
-   // die("RESP".$info['http_code']);
-        return explode(";", $response);
-    }
-    
-    /**
-     * Sends an SMS message
-     */
-    function sendSMS($auth, $sendSMS) {
-        if (!$this->sendingEnabled()) {
-            return $this->disabledResponse('sms', $sendSMS['recipient'] ?? null);
-        }
-
-        $ch = curl_init();
-       
-        curl_setopt($ch, CURLOPT_URL, BASEURL . 'sms');
-        curl_setopt($ch, CURLOPT_HTTPHEADER, array(
-            'Content-type: application/json',
-            'user_key: ' . $auth[0],
-            'Session_key: ' . $auth[1]
-        ));
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_POST, 1);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($sendSMS));
-        $response = curl_exec($ch);
-        $info = curl_getinfo($ch);
-        curl_close($ch);
-      //  die($response);
-        if ($info['http_code'] != 201) {
-            return null;
-        }
-    
-        return json_decode($response);
+        return (new AppointmentNotificationChannelService())->send(
+            AppointmentNotificationSettingsService::CHANNEL_SMS,
+            (string) $cellulare,
+            (string) $testo,
+            ['tenant_id' => $tenantId]
+        );
     }
 }
 ?>
