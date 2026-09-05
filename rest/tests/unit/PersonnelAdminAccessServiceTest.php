@@ -85,6 +85,23 @@ final class PersonnelAdminAccessServiceTest extends CIUnitTestCase
         self::assertStringContainsString('$this->applyLinkedPlatformIdentity((int) ($payload[\'platform_user_id\'] ?? 0));', $source);
     }
 
+    public function testLegacyLocalAdminWithoutMembershipBridgesTheTenantMasterIdentity(): void
+    {
+        $source = file_get_contents(APPPATH . 'Services/LegacyTenantSessionService.php');
+
+        self::assertIsString($source);
+        self::assertStringContainsString(
+            "'is_app_admin' => \$userType === PersonnelAdminAccessService::USER_TYPE_ADMIN",
+            $source
+        );
+        self::assertStringContainsString(
+            '? $this->resolveTenantMasterPlatformUserId($tenantId)',
+            $source
+        );
+        self::assertStringContainsString("->where('tenant_role', 'tenant_master')", $source);
+        self::assertStringContainsString("->where('is_owner', 1)", $source);
+    }
+
     public function testLegacyAppAdminOverlayAcceptsPersonnelProfilesOnly(): void
     {
         $reflection = new ReflectionClass(LegacyTenantSessionService::class);
