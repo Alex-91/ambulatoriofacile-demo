@@ -300,8 +300,10 @@ class LegacyTenantSessionService
     {
         $fallback = [
             'tenant_role' => $this->inferTenantRole($userType),
-            'is_app_admin' => false,
-            'platform_user_id' => 0,
+            'is_app_admin' => $userType === PersonnelAdminAccessService::USER_TYPE_ADMIN,
+            'platform_user_id' => $userType === PersonnelAdminAccessService::USER_TYPE_ADMIN
+                ? $this->resolveTenantMasterPlatformUserId($tenantId)
+                : 0,
         ];
 
         if (
@@ -352,9 +354,50 @@ class LegacyTenantSessionService
 
         return [
             'tenant_role' => $tenantRole,
-            'is_app_admin' => (int) ($membership['is_app_admin'] ?? 0) === 1,
+            'is_app_admin' => $userType === PersonnelAdminAccessService::USER_TYPE_ADMIN
+                || (int) ($membership['is_app_admin'] ?? 0) === 1,
             'platform_user_id' => (int) ($membership['id_platform_user'] ?? 0),
         ];
+    }
+
+    private function resolveTenantMasterPlatformUserId(int $tenantId): int
+    {
+        if (
+            $tenantId <= 0
+            || !$this->platformDb->tableExists('platform_user_tenants')
+            || !$this->platformDb->fieldExists('id_platform_user', 'platform_user_tenants')
+        ) {
+            return 0;
+        }
+
+        if ($this->platformDb->fieldExists('tenant_role', 'platform_user_tenants')) {
+            $master = $this->platformDb->table('platform_user_tenants')
+                ->select('id_platform_user')
+                ->where('id_tenant', $tenantId)
+                ->where('tenant_role', 'tenant_master')
+                ->orderBy('id_platform_user_tenant', 'ASC')
+                ->get(1)
+                ->getRowArray();
+
+            $platformUserId = (int) ($master['id_platform_user'] ?? 0);
+            if ($platformUserId > 0) {
+                return $platformUserId;
+            }
+        }
+
+        if ($this->platformDb->fieldExists('is_owner', 'platform_user_tenants')) {
+            $owner = $this->platformDb->table('platform_user_tenants')
+                ->select('id_platform_user')
+                ->where('id_tenant', $tenantId)
+                ->where('is_owner', 1)
+                ->orderBy('id_platform_user_tenant', 'ASC')
+                ->get(1)
+                ->getRowArray();
+
+            return (int) ($owner['id_platform_user'] ?? 0);
+        }
+
+        return 0;
     }
 
     /**
