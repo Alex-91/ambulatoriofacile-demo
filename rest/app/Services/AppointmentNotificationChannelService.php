@@ -13,9 +13,15 @@ class AppointmentNotificationChannelService
     private const DEFAULT_ARUBA_BASEURL = 'https://adminsms.aruba.it/API/v1.0/REST/';
     private const DEFAULT_ARUBA_SENDER = 'AmbRIMAGGIO';
 
-    /** @var array<int, string>|null */
-    private ?array $arubaSession = null;
+    /** @var array<string, array<int, string>> */
+    private array $arubaSessions = [];
     private ?NotificationService $notificationService = null;
+    private ?SmsProviderConfigurationService $smsProviderConfigurations;
+
+    public function __construct(?SmsProviderConfigurationService $smsProviderConfigurations = null)
+    {
+        $this->smsProviderConfigurations = $smsProviderConfigurations;
+    }
 
     /**
      * @param array<string, mixed>|string $recipient
@@ -42,12 +48,10 @@ class AppointmentNotificationChannelService
         };
     }
 
-    public function providerLabel(string $channel): string
+    public function providerLabel(string $channel, int $tenantId = 0): string
     {
         return match (strtolower(trim($channel))) {
-            AppointmentNotificationSettingsService::CHANNEL_SMS => $this->smsProvider() === 'smsfactor'
-                ? SmsFactorClient::PROVIDER_LABEL
-                : 'Aruba SMS',
+            AppointmentNotificationSettingsService::CHANNEL_SMS => (string) ($this->smsRuntime($tenantId)['provider_label'] ?? 'Aruba SMS'),
             AppointmentNotificationSettingsService::CHANNEL_WHATSAPP => match ($this->whatsappProvider()) {
                 'gateway' => 'AmbulatorioFacile WhatsApp Gateway',
                 'hybrid' => 'UltraMsg / AmbulatorioFacile WhatsApp Gateway',
@@ -567,24 +571,33 @@ class AppointmentNotificationChannelService
     {
         $sender = trim((string) ($options['sms_sender'] ?? ''));
         $tenantId = max(0, (int) ($options['tenant_id'] ?? 0));
+        $smsRuntime = $this->smsRuntime($tenantId);
         if ($sender === '') {
-            if ($tenantId > 0) {
+            $sender = trim((string) ($smsRuntime['tenant_sender_override'] ?? ''));
+            if ($sender === '' && $tenantId > 0) {
                 $policy = (new TenantNotificationPolicyService())->resolve($tenantId);
-                $sender = trim((string) ($policy['sms']['sender'] ?? ''));
+                if (empty($policy['using_defaults'])) {
+                    $sender = trim((string) ($policy['sms']['sender'] ?? ''));
+                }
             }
         }
-        $smsProvider = $this->smsProvider();
+        $smsProvider = (string) ($smsRuntime['provider'] ?? SmsProviderConfigurationService::PROVIDER_ARUBA);
         if ($sender === '') {
             $defaultSender = $smsProvider === 'smsfactor' ? 'AmbFacile' : self::DEFAULT_ARUBA_SENDER;
-            $sender = trim((string) (env('SMS_SENDER') ?: $defaultSender));
+            $sender = trim((string) (($smsRuntime['sender'] ?? '') ?: $defaultSender));
         }
 
         if ($smsProvider === 'smsfactor') {
             try {
-                return (new SmsFactorClient())->send($recipient, $message, $sender, [
+                $smsFactor = (array) ($smsRuntime['smsfactor'] ?? []);
+                return (new SmsFactorClient(
+                    (string) ($smsFactor['api_token'] ?? ''),
+                    (string) ($smsFactor['base_url'] ?? SmsFactorClient::DEFAULT_BASE_URL),
+                    (int) ($smsFactor['timeout_seconds'] ?? 30)
+                ))->send($recipient, $message, $sender, [
                     'tenant_id' => $tenantId,
                     'client_message_id' => (string) ($options['client_message_id'] ?? ''),
-                    'push_type' => (string) ($options['sms_push_type'] ?? env('SMSFACTOR_PUSH_TYPE', 'alert')),
+                    'push_type' => (string) ($options['sms_push_type'] ?? ($smsFactor['push_type'] ?? 'alert')),
                 ]);
             } catch (\Throwable $e) {
                 return [
@@ -599,10 +612,15 @@ class AppointmentNotificationChannelService
             }
         }
 
+        $aruba = (array) ($smsRuntime['aruba'] ?? []);
+        $arubaUsername = trim((string) ($aruba['username'] ?? ''));
+        $arubaPassword = trim((string) ($aruba['password'] ?? ''));
+        $sessionKey = hash('sha256', $arubaUsername . "\0" . $arubaPassword);
         try {
-            if ($this->arubaSession === null) {
-                $this->arubaSession = $this->loginAruba();
+            if (!isset($this->arubaSessions[$sessionKey])) {
+                $this->arubaSessions[$sessionKey] = $this->loginAruba($arubaUsername, $arubaPassword);
             }
+            $arubaSession = $this->arubaSessions[$sessionKey];
         } catch (\Throwable $e) {
             return [
                 'ok' => false,
@@ -626,8 +644,8 @@ class AppointmentNotificationChannelService
             ],
             [
                 'Content-type: application/json',
-                'user_key: ' . (string) ($this->arubaSession[0] ?? ''),
-                'Session_key: ' . (string) ($this->arubaSession[1] ?? ''),
+                'user_key: ' . (string) ($arubaSession[0] ?? ''),
+                'Session_key: ' . (string) ($arubaSession[1] ?? ''),
             ]
         );
 
@@ -645,23 +663,28 @@ class AppointmentNotificationChannelService
         ];
     }
 
-    private function smsProvider(): string
+    /** @return array<string, mixed> */
+    private function smsRuntime(int $tenantId = 0): array
     {
-        return strtolower(trim((string) env('SMS_PROVIDER', 'aruba'))) === 'smsfactor'
-            ? 'smsfactor'
-            : 'aruba';
+        try {
+            $service = $this->smsProviderConfigurations ??= new SmsProviderConfigurationService();
+            return $service->resolveRuntime($tenantId);
+        } catch (\Throwable $e) {
+            log_message('warning', 'Configurazione provider SMS da database non disponibile: {message}', [
+                'message' => $e->getMessage(),
+                'tenant_id' => $tenantId,
+            ]);
+            return SmsProviderConfigurationService::environmentRuntime();
+        }
     }
 
     /**
      * @return array<int, string>
      */
-    private function loginAruba(): array
+    private function loginAruba(string $username, string $password): array
     {
-        $username = trim((string) (env('SMS_USERNAME') ?: ''));
-        $password = trim((string) (env('SMS_PASSWORD') ?: ''));
-
         if ($username === '' || $password === '') {
-            throw new \RuntimeException('SMS_USERNAME o SMS_PASSWORD mancanti per il canale SMS.');
+            throw new \RuntimeException('Credenziali Aruba SMS mancanti nella configurazione globale o del tenant.');
         }
 
         $url = rtrim(self::DEFAULT_ARUBA_BASEURL, '/') . '/login?username=' . rawurlencode($username) . '&password=' . rawurlencode($password);

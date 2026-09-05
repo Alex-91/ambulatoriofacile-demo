@@ -308,14 +308,25 @@ class SmsReminderDashboardService
     {
         $channel = strtolower(trim((string) (env('REMINDER_CHANNEL') ?: 'wa')));
         $isSmsChannel = $channel === 'sms';
+        $smsRuntime = [];
+        if ($isSmsChannel) {
+            try {
+                $smsRuntime = (new SmsProviderConfigurationService())->resolveRuntime();
+            } catch (\Throwable $e) {
+                log_message('warning', 'Configurazione provider SMS da database non disponibile nel riepilogo: {message}', [
+                    'message' => $e->getMessage(),
+                ]);
+                $smsRuntime = SmsProviderConfigurationService::environmentRuntime();
+            }
+        }
 
         return [
             'channel' => $channel !== '' ? $channel : 'wa',
             'channel_label' => $isSmsChannel ? 'SMS' : 'WhatsApp',
             'provider_label' => $isSmsChannel
-                ? (new AppointmentNotificationChannelService())->providerLabel(AppointmentNotificationSettingsService::CHANNEL_SMS)
+                ? (string) ($smsRuntime['provider_label'] ?? 'SMS')
                 : 'UltraMsg',
-            'sms_sender' => trim((string) (env('SMS_SENDER') ?: '')),
+            'sms_sender' => $isSmsChannel ? (string) ($smsRuntime['sender'] ?? '') : '',
         ];
     }
 

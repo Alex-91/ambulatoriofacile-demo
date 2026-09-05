@@ -245,7 +245,6 @@ class WhatsAppSmsFallbackService
                         (string) ($row['message_text'] ?? ''),
                         [
                             'tenant_id' => $tenantId,
-                            'sms_sender' => (string) ($policy['sms']['sender'] ?? ''),
                         ]
                     );
                     $ok = !empty($send['ok']);
@@ -330,7 +329,7 @@ class WhatsAppSmsFallbackService
                 'message_type' => (string) ($row['message_type'] ?? 'notification'),
                 'channel' => AppointmentNotificationSettingsService::CHANNEL_SMS,
                 'provider' => (string) ($send['provider'] ?? (new AppointmentNotificationChannelService())
-                    ->providerLabel(AppointmentNotificationSettingsService::CHANNEL_SMS)),
+                    ->providerLabel(AppointmentNotificationSettingsService::CHANNEL_SMS, $tenantId)),
                 'provider_id' => (string) ($send['provider_id'] ?? ''),
                 'recipient' => (string) ($send['recipient'] ?? $row['recipient_phone'] ?? ''),
                 'recipient_role' => 'patient',

@@ -4,11 +4,9 @@ namespace App\Controllers\Login;
 
 use App\Controllers\BaseController;
 use App\Services\AppointmentNotificationDashboardService;
-use App\Services\AppointmentNotificationChannelService;
-use App\Services\AppointmentNotificationSettingsService;
 use App\Services\AppointmentReminderDispatchService;
 use App\Services\PlatformAdminAccessService;
-use App\Services\SmsFactorClient;
+use App\Services\SmsProviderConfigurationService;
 use App\Services\TenantNotificationPolicyService;
 
 class PlatformAppointmentNotificationsController extends BaseController
@@ -51,14 +49,20 @@ class PlatformAppointmentNotificationsController extends BaseController
             $policyTenantId,
             (string) ($policyTenant['tenant_name'] ?? '')
         );
-        $channelService = new AppointmentNotificationChannelService();
-        $smsProviderLabel = $channelService->providerLabel(AppointmentNotificationSettingsService::CHANNEL_SMS);
-        $smsProviderConfigured = $smsProviderLabel === SmsFactorClient::PROVIDER_LABEL
-            ? SmsFactorClient::isConfigured()
-            : (
-                trim((string) env('SMS_USERNAME', '')) !== ''
-                && trim((string) env('SMS_PASSWORD', '')) !== ''
-            );
+        $smsProviderService = new SmsProviderConfigurationService();
+        $globalSmsProvider = $smsProviderService->globalForDisplay();
+        $tenantSmsProvider = $policyTenantId > 0
+            ? $smsProviderService->tenantForDisplay($policyTenantId)
+            : [];
+        if (
+            $tenantSmsProvider !== []
+            && empty($tenantSmsProvider['has_tenant_record'])
+            && empty($policy['using_defaults'])
+        ) {
+            $tenantSmsProvider['sender'] = (string) ($policy['sms']['sender'] ?? $tenantSmsProvider['sender'] ?? 'AmbFacile');
+        }
+        $smsProviderLabel = (string) ($globalSmsProvider['provider_label'] ?? 'SMS');
+        $smsProviderConfigured = !empty($globalSmsProvider['configured']);
 
         return view('admin/platform_appointment_notifications', [
             'menu_items' => [],
@@ -74,7 +78,61 @@ class PlatformAppointmentNotificationsController extends BaseController
             'policy' => $policy,
             'smsProviderLabel' => $smsProviderLabel,
             'smsProviderConfigured' => $smsProviderConfigured,
+            'globalSmsProvider' => $globalSmsProvider,
+            'tenantSmsProvider' => $tenantSmsProvider,
         ]);
+    }
+
+    public function saveGlobalSmsProvider()
+    {
+        if ($guard = $this->ensurePlatformAdminPage()) {
+            return $guard;
+        }
+
+        $tenantId = max(0, (int) ($this->request->getPost('return_tenant_id') ?? 0));
+        try {
+            (new SmsProviderConfigurationService())->saveGlobal(
+                $this->smsProviderInput(),
+                (int) (session()->get('platform_user_id') ?? 0)
+            );
+
+            return redirect()
+                ->to($this->notificationsUrl($tenantId))
+                ->with('success', 'Configurazione globale del provider SMS aggiornata.');
+        } catch (\Throwable $e) {
+            log_message('error', 'Salvataggio provider SMS globale fallito: {message}', ['message' => $e->getMessage()]);
+            return redirect()
+                ->to($this->notificationsUrl($tenantId))
+                ->with('errors', ['generic' => $e->getMessage()]);
+        }
+    }
+
+    public function saveTenantSmsProvider()
+    {
+        if ($guard = $this->ensurePlatformAdminPage()) {
+            return $guard;
+        }
+
+        $tenantId = max(0, (int) ($this->request->getPost('tenant_id') ?? 0));
+        try {
+            (new SmsProviderConfigurationService())->saveTenant(
+                $tenantId,
+                $this->smsProviderInput(),
+                (int) (session()->get('platform_user_id') ?? 0)
+            );
+
+            return redirect()
+                ->to($this->notificationsUrl($tenantId))
+                ->with('success', 'Configurazione SMS dello spazio aggiornata.');
+        } catch (\Throwable $e) {
+            log_message('error', 'Salvataggio provider SMS tenant fallito: {message}', [
+                'message' => $e->getMessage(),
+                'tenant_id' => $tenantId,
+            ]);
+            return redirect()
+                ->to($this->notificationsUrl($tenantId))
+                ->with('errors', ['generic' => $e->getMessage()]);
+        }
     }
 
     public function savePolicy()
@@ -199,5 +257,31 @@ class PlatformAppointmentNotificationsController extends BaseController
         }
 
         return null;
+    }
+
+    /** @return array<string, mixed> */
+    private function smsProviderInput(): array
+    {
+        return [
+            'mode' => trim((string) ($this->request->getPost('mode') ?? 'inherit')),
+            'provider' => trim((string) ($this->request->getPost('provider') ?? 'smsfactor')),
+            'sender' => trim((string) ($this->request->getPost('sender') ?? 'AmbFacile')),
+            'smsfactor_base_url' => trim((string) ($this->request->getPost('smsfactor_base_url') ?? '')),
+            'smsfactor_timeout_seconds' => $this->request->getPost('smsfactor_timeout_seconds'),
+            'smsfactor_push_type' => trim((string) ($this->request->getPost('smsfactor_push_type') ?? 'alert')),
+            'smsfactor_api_token' => (string) ($this->request->getPost('smsfactor_api_token') ?? ''),
+            'smsfactor_webhook_signature' => (string) ($this->request->getPost('smsfactor_webhook_signature') ?? ''),
+            'aruba_username' => (string) ($this->request->getPost('aruba_username') ?? ''),
+            'aruba_password' => (string) ($this->request->getPost('aruba_password') ?? ''),
+            'clear_smsfactor_api_token' => (bool) $this->request->getPost('clear_smsfactor_api_token'),
+            'clear_smsfactor_webhook_signature' => (bool) $this->request->getPost('clear_smsfactor_webhook_signature'),
+            'clear_aruba_username' => (bool) $this->request->getPost('clear_aruba_username'),
+            'clear_aruba_password' => (bool) $this->request->getPost('clear_aruba_password'),
+        ];
+    }
+
+    private function notificationsUrl(int $tenantId = 0): string
+    {
+        return portal_platform_url('notifiche-appuntamenti') . ($tenantId > 0 ? ('?tenant_id=' . $tenantId) : '');
     }
 }

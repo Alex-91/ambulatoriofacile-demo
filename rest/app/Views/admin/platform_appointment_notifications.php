@@ -10,6 +10,8 @@ $launchFeedback = is_array($launchFeedback ?? null) ? $launchFeedback : null;
 $days = (int) ($days ?? 30);
 $policy = is_array($policy ?? null) ? $policy : [];
 $policyTenant = is_array($policyTenant ?? null) ? $policyTenant : null;
+$globalSmsProvider = is_array($globalSmsProvider ?? null) ? $globalSmsProvider : [];
+$tenantSmsProvider = is_array($tenantSmsProvider ?? null) ? $tenantSmsProvider : [];
 $policyValue = static function (string $group, string $key, $fallback = '') {
     $oldGroup = old($group);
     if (is_array($oldGroup) && array_key_exists($key, $oldGroup)) {
@@ -67,7 +69,10 @@ $channelMeta = [
     .delivery-policy-rate { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
     .delivery-policy-rate .daily-limit { grid-column:1 / -1; }
     .policy-fixed-value { padding:7px 10px; border:1px solid #d8e3e5; border-radius:4px; background:#eef4f5; color:#52676c; }
-    @media (max-width: 991px) { .delivery-policy-grid { grid-template-columns:1fr; } .delivery-policy-card > p { min-height:0; } }
+    .provider-grid { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:14px; margin-top:14px; }
+    .provider-secret-status { display:inline-block; margin-left:6px; font-size:11px; }
+    .provider-actions { display:flex; justify-content:flex-end; margin-top:14px; }
+    @media (max-width: 991px) { .delivery-policy-grid, .provider-grid { grid-template-columns:1fr; } .delivery-policy-card > p { min-height:0; } }
   </style>
 </head>
 <body class="platform-console-body">
@@ -120,6 +125,76 @@ $channelMeta = [
             <span class="status-chip">Canale OTP: <?= (int) ($summary['otp_enabled_count'] ?? 0) ?></span>
           </div>
 
+          <div class="box box-primary" id="sms-provider-global">
+            <div class="box-header with-border">
+              <h3 class="box-title">Provider SMS globale</h3>
+            </div>
+            <div class="box-body">
+              <p class="text-muted">Questa configurazione è il predefinito per tutti gli spazi. Le credenziali vengono cifrate e non sono mai mostrate nuovamente.</p>
+              <?php if (empty($globalSmsProvider['schema_ready'])): ?>
+                <div class="alert alert-warning">Esegui la migration delle configurazioni provider SMS prima di salvare.</div>
+              <?php endif; ?>
+              <form method="post" action="<?= portal_platform_url('notifiche-appuntamenti/sms-provider/global/save') ?>" autocomplete="off">
+                <?= csrf_field() ?>
+                <input type="hidden" name="return_tenant_id" value="<?= (int) ($policyTenant['id_tenant'] ?? 0) ?>">
+                <div class="row">
+                  <div class="col-md-6 form-group">
+                    <label>Provider predefinito</label>
+                    <select class="form-control" name="provider">
+                      <option value="smsfactor" <?= ($globalSmsProvider['provider'] ?? '') === 'smsfactor' ? 'selected' : '' ?>>SMSFactor</option>
+                      <option value="aruba" <?= ($globalSmsProvider['provider'] ?? '') === 'aruba' ? 'selected' : '' ?>>Aruba SMS</option>
+                    </select>
+                  </div>
+                  <div class="col-md-6 form-group">
+                    <label>Mittente globale</label>
+                    <input class="form-control" name="sender" maxlength="11" pattern="[A-Za-z0-9]{1,11}" required value="<?= esc((string) ($globalSmsProvider['sender'] ?? 'AmbFacile'), 'attr') ?>">
+                    <small class="text-muted">Massimo 11 caratteri alfanumerici.</small>
+                  </div>
+                </div>
+                <div class="provider-grid">
+                  <section class="delivery-policy-card">
+                    <h4><i class="fa fa-paper-plane"></i> SMSFactor</h4>
+                    <p>Token Bearer, endpoint e firma usata per autenticare le ricevute di consegna.</p>
+                    <div class="form-group">
+                      <label>Token API <span class="label label-<?= !empty($globalSmsProvider['smsfactor_api_token_configured']) ? 'success' : 'warning' ?> provider-secret-status"><?= !empty($globalSmsProvider['smsfactor_api_token_configured']) ? 'configurato' : 'mancante' ?></span></label>
+                      <input class="form-control" type="password" name="smsfactor_api_token" maxlength="4096" autocomplete="new-password" placeholder="<?= !empty($globalSmsProvider['smsfactor_api_token_configured']) ? 'Token già configurato — lascia vuoto per mantenerlo' : 'Inserisci il token API' ?>">
+                      <?php if (!empty($globalSmsProvider['smsfactor_api_token_stored'])): ?><label class="checkbox-inline"><input type="checkbox" name="clear_smsfactor_api_token" value="1"> Rimuovi token salvato</label><?php endif; ?>
+                    </div>
+                    <div class="form-group">
+                      <label>Endpoint API</label>
+                      <input class="form-control" type="url" name="smsfactor_base_url" required value="<?= esc((string) ($globalSmsProvider['smsfactor_base_url'] ?? 'https://api.smsfactor.com'), 'attr') ?>">
+                    </div>
+                    <div class="delivery-policy-rate">
+                      <div class="form-group"><label>Timeout secondi</label><input class="form-control" type="number" min="5" max="120" name="smsfactor_timeout_seconds" value="<?= (int) ($globalSmsProvider['smsfactor_timeout_seconds'] ?? 30) ?>"></div>
+                      <div class="form-group"><label>Tipo invio</label><select class="form-control" name="smsfactor_push_type"><option value="alert" <?= ($globalSmsProvider['smsfactor_push_type'] ?? '') === 'alert' ? 'selected' : '' ?>>Alert</option><option value="marketing" <?= ($globalSmsProvider['smsfactor_push_type'] ?? '') === 'marketing' ? 'selected' : '' ?>>Marketing</option></select></div>
+                    </div>
+                    <div class="form-group">
+                      <label>Firma webhook DLR <span class="label label-<?= !empty($globalSmsProvider['smsfactor_webhook_signature_configured']) ? 'success' : 'warning' ?> provider-secret-status"><?= !empty($globalSmsProvider['smsfactor_webhook_signature_configured']) ? 'configurata' : 'mancante' ?></span></label>
+                      <input class="form-control" type="password" name="smsfactor_webhook_signature" maxlength="4096" autocomplete="new-password" placeholder="<?= !empty($globalSmsProvider['smsfactor_webhook_signature_configured']) ? 'Firma già configurata — lascia vuoto per mantenerla' : 'Inserisci il segreto del webhook' ?>">
+                      <?php if (!empty($globalSmsProvider['smsfactor_webhook_signature_stored'])): ?><label class="checkbox-inline"><input type="checkbox" name="clear_smsfactor_webhook_signature" value="1"> Rimuovi firma salvata</label><?php endif; ?>
+                    </div>
+                  </section>
+                  <section class="delivery-policy-card">
+                    <h4><i class="fa fa-undo"></i> Aruba SMS</h4>
+                    <p>Credenziali disponibili come provider alternativo o rollback.</p>
+                    <div class="form-group">
+                      <label>Username <span class="label label-<?= !empty($globalSmsProvider['aruba_username_configured']) ? 'success' : 'warning' ?> provider-secret-status"><?= !empty($globalSmsProvider['aruba_username_configured']) ? 'configurato' : 'mancante' ?></span></label>
+                      <input class="form-control" type="password" name="aruba_username" maxlength="4096" autocomplete="new-password" placeholder="<?= !empty($globalSmsProvider['aruba_username_configured']) ? 'Username già configurato — lascia vuoto per mantenerlo' : 'Inserisci username Aruba' ?>">
+                      <?php if (!empty($globalSmsProvider['aruba_username_stored'])): ?><label class="checkbox-inline"><input type="checkbox" name="clear_aruba_username" value="1"> Rimuovi username salvato</label><?php endif; ?>
+                    </div>
+                    <div class="form-group">
+                      <label>Password <span class="label label-<?= !empty($globalSmsProvider['aruba_password_configured']) ? 'success' : 'warning' ?> provider-secret-status"><?= !empty($globalSmsProvider['aruba_password_configured']) ? 'configurata' : 'mancante' ?></span></label>
+                      <input class="form-control" type="password" name="aruba_password" maxlength="4096" autocomplete="new-password" placeholder="<?= !empty($globalSmsProvider['aruba_password_configured']) ? 'Password già configurata — lascia vuoto per mantenerla' : 'Inserisci password Aruba' ?>">
+                      <?php if (!empty($globalSmsProvider['aruba_password_stored'])): ?><label class="checkbox-inline"><input type="checkbox" name="clear_aruba_password" value="1"> Rimuovi password salvata</label><?php endif; ?>
+                    </div>
+                    <div class="alert alert-info" style="margin-bottom:0;">Origine attuale: <?= esc((string) ($globalSmsProvider['source'] ?? 'environment')) ?>. Le variabili ambiente restano disponibili come fallback.</div>
+                  </section>
+                </div>
+                <div class="provider-actions"><button class="btn btn-primary" type="submit" <?= empty($globalSmsProvider['schema_ready']) ? 'disabled' : '' ?>><i class="fa fa-lock"></i> Salva provider globale</button></div>
+              </form>
+            </div>
+          </div>
+
           <div class="box box-success" id="delivery-policy">
             <div class="box-header with-border">
               <h3 class="box-title">Parametri di consegna per spazio</h3>
@@ -150,6 +225,53 @@ $channelMeta = [
                 <div class="alert alert-warning">
                   Esegui la migration delle politiche di notifica prima di salvare. I valori mostrati sono i default sicuri e non sono ancora persistiti.
                 </div>
+              <?php endif; ?>
+              <?php if ($policyTenant): ?>
+                <form method="post" action="<?= portal_platform_url('notifiche-appuntamenti/sms-provider/tenant/save') ?>" autocomplete="off" style="margin-bottom:18px;">
+                  <?= csrf_field() ?>
+                  <input type="hidden" name="tenant_id" value="<?= (int) ($policyTenant['id_tenant'] ?? 0) ?>">
+                  <section class="delivery-policy-card">
+                    <h4><i class="fa fa-building"></i> Account SMS dello spazio: <?= esc((string) ($policyTenant['tenant_name'] ?? '')) ?></h4>
+                    <p>Scegli se usare le credenziali globali oppure un account provider dedicato. Anche in modalità ereditata puoi assegnare un mittente diverso allo spazio.</p>
+                    <?php if (empty($tenantSmsProvider['schema_ready'])): ?><div class="alert alert-warning">Schema configurazioni SMS non ancora disponibile.</div><?php endif; ?>
+                    <div class="row">
+                      <div class="col-md-4 form-group">
+                        <label>Modalità account</label>
+                        <select class="form-control" name="mode">
+                          <option value="inherit" <?= ($tenantSmsProvider['mode'] ?? 'inherit') === 'inherit' ? 'selected' : '' ?>>Eredita credenziali globali</option>
+                          <option value="custom" <?= ($tenantSmsProvider['mode'] ?? '') === 'custom' ? 'selected' : '' ?>>Account dedicato</option>
+                        </select>
+                      </div>
+                      <div class="col-md-4 form-group">
+                        <label>Provider se dedicato</label>
+                        <select class="form-control" name="provider">
+                          <option value="smsfactor" <?= ($tenantSmsProvider['provider'] ?? '') === 'smsfactor' ? 'selected' : '' ?>>SMSFactor</option>
+                          <option value="aruba" <?= ($tenantSmsProvider['provider'] ?? '') === 'aruba' ? 'selected' : '' ?>>Aruba SMS</option>
+                        </select>
+                      </div>
+                      <div class="col-md-4 form-group">
+                        <label>Mittente dello spazio</label>
+                        <input class="form-control" name="sender" maxlength="11" pattern="[A-Za-z0-9]{1,11}" required value="<?= esc((string) ($tenantSmsProvider['sender'] ?? $policy['sms']['sender'] ?? 'AmbFacile'), 'attr') ?>">
+                      </div>
+                    </div>
+                    <div class="provider-grid">
+                      <div>
+                        <h5><strong>Credenziali SMSFactor dedicate</strong></h5>
+                        <div class="form-group"><label>Token API <?= !empty($tenantSmsProvider['smsfactor_api_token_stored']) ? '<span class="label label-success">salvato per lo spazio</span>' : '<span class="label label-default">non salvato</span>' ?></label><input class="form-control" type="password" name="smsfactor_api_token" maxlength="4096" autocomplete="new-password" placeholder="Lascia vuoto per mantenere il valore"><?php if (!empty($tenantSmsProvider['smsfactor_api_token_stored'])): ?><label class="checkbox-inline"><input type="checkbox" name="clear_smsfactor_api_token" value="1"> Rimuovi token dedicato</label><?php endif; ?></div>
+                        <div class="form-group"><label>Endpoint API</label><input class="form-control" type="url" name="smsfactor_base_url" value="<?= esc((string) ($tenantSmsProvider['smsfactor_base_url'] ?? 'https://api.smsfactor.com'), 'attr') ?>"></div>
+                        <div class="delivery-policy-rate"><div class="form-group"><label>Timeout</label><input class="form-control" type="number" min="5" max="120" name="smsfactor_timeout_seconds" value="<?= (int) ($tenantSmsProvider['smsfactor_timeout_seconds'] ?? 30) ?>"></div><div class="form-group"><label>Tipo</label><select class="form-control" name="smsfactor_push_type"><option value="alert" <?= ($tenantSmsProvider['smsfactor_push_type'] ?? '') === 'alert' ? 'selected' : '' ?>>Alert</option><option value="marketing" <?= ($tenantSmsProvider['smsfactor_push_type'] ?? '') === 'marketing' ? 'selected' : '' ?>>Marketing</option></select></div></div>
+                        <div class="form-group"><label>Firma webhook <?= !empty($tenantSmsProvider['smsfactor_webhook_signature_stored']) ? '<span class="label label-success">salvata per lo spazio</span>' : '<span class="label label-default">non salvata</span>' ?></label><input class="form-control" type="password" name="smsfactor_webhook_signature" maxlength="4096" autocomplete="new-password" placeholder="Lascia vuoto per mantenere il valore"><?php if (!empty($tenantSmsProvider['smsfactor_webhook_signature_stored'])): ?><label class="checkbox-inline"><input type="checkbox" name="clear_smsfactor_webhook_signature" value="1"> Rimuovi firma dedicata</label><?php endif; ?></div>
+                      </div>
+                      <div>
+                        <h5><strong>Credenziali Aruba dedicate</strong></h5>
+                        <div class="form-group"><label>Username <?= !empty($tenantSmsProvider['aruba_username_stored']) ? '<span class="label label-success">salvato per lo spazio</span>' : '<span class="label label-default">non salvato</span>' ?></label><input class="form-control" type="password" name="aruba_username" maxlength="4096" autocomplete="new-password" placeholder="Lascia vuoto per mantenere il valore"><?php if (!empty($tenantSmsProvider['aruba_username_stored'])): ?><label class="checkbox-inline"><input type="checkbox" name="clear_aruba_username" value="1"> Rimuovi username dedicato</label><?php endif; ?></div>
+                        <div class="form-group"><label>Password <?= !empty($tenantSmsProvider['aruba_password_stored']) ? '<span class="label label-success">salvata per lo spazio</span>' : '<span class="label label-default">non salvata</span>' ?></label><input class="form-control" type="password" name="aruba_password" maxlength="4096" autocomplete="new-password" placeholder="Lascia vuoto per mantenere il valore"><?php if (!empty($tenantSmsProvider['aruba_password_stored'])): ?><label class="checkbox-inline"><input type="checkbox" name="clear_aruba_password" value="1"> Rimuovi password dedicata</label><?php endif; ?></div>
+                        <div class="alert alert-info">In modalità “Eredita” queste credenziali non vengono usate. Per più spazi sullo stesso account è sufficiente cambiare il mittente.</div>
+                      </div>
+                    </div>
+                    <div class="provider-actions"><button class="btn btn-primary" type="submit" <?= empty($tenantSmsProvider['schema_ready']) ? 'disabled' : '' ?>><i class="fa fa-save"></i> Salva account SMS spazio</button></div>
+                  </section>
+                </form>
               <?php endif; ?>
               <div class="alert alert-info">
                 I limiti sono per spazio, ma la reputazione email appartiene al dominio condiviso ambulatoriofacile.it: controlla anche il volume complessivo di tutti gli spazi e aumenta gradualmente i tetti.
@@ -237,8 +359,9 @@ $channelMeta = [
                       <p>Mittente, capacità e tetto di sicurezza applicati ai fallback e alle future campagne massive.</p>
                       <div class="form-group">
                         <label>Mittente SMS</label>
-                        <input class="form-control" name="sms[sender]" maxlength="11" pattern="[A-Za-z0-9]{1,11}" required value="<?= esc((string) $policyValue('sms', 'sender', $policy['sms']['sender'] ?? 'AmbFacile'), 'attr') ?>">
-                        <small class="text-muted">Massimo 11 caratteri alfanumerici.</small>
+                        <input type="hidden" name="sms[sender]" value="<?= esc((string) ($tenantSmsProvider['sender'] ?? $policy['sms']['sender'] ?? 'AmbFacile'), 'attr') ?>">
+                        <div class="policy-fixed-value"><?= esc((string) ($tenantSmsProvider['sender'] ?? $policy['sms']['sender'] ?? 'AmbFacile')) ?></div>
+                        <small class="text-muted">Gestito nel riquadro “Account SMS dello spazio”.</small>
                       </div>
                       <div class="delivery-policy-rate">
                         <div class="form-group"><label>SMS</label><input class="form-control" type="number" min="1" max="100" name="sms[messages_per_interval]" value="<?= (int) $policyValue('sms', 'messages_per_interval', $policy['sms']['messages_per_interval'] ?? 10) ?>"></div>

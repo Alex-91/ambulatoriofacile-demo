@@ -61,6 +61,8 @@ $routes->post('login/piattaforma/dispositivi-otp/disconnect', 'Login\PlatformOtp
 $routes->get('login/piattaforma/notifiche-appuntamenti', 'Login\PlatformAppointmentNotificationsController::index');
 $routes->post('login/piattaforma/notifiche-appuntamenti/launch', 'Login\PlatformAppointmentNotificationsController::launch');
 $routes->post('login/piattaforma/notifiche-appuntamenti/policy/save', 'Login\PlatformAppointmentNotificationsController::savePolicy');
+$routes->post('login/piattaforma/notifiche-appuntamenti/sms-provider/global/save', 'Login\PlatformAppointmentNotificationsController::saveGlobalSmsProvider');
+$routes->post('login/piattaforma/notifiche-appuntamenti/sms-provider/tenant/save', 'Login\PlatformAppointmentNotificationsController::saveTenantSmsProvider');
 $routes->get('login/piattaforma/notifiche-appuntamenti/run', 'Login\PlatformAppointmentNotificationsController::run');
 $routes->get('login/piattaforma/whatsapp', 'Login\PlatformWhatsAppConversationsController::index');
 $routes->get('login/piattaforma/whatsapp/refresh', 'Login\PlatformWhatsAppConversationsController::refresh');
@@ -126,6 +128,8 @@ $routes->post('piattaforma/dispositivi-otp/disconnect', 'Login\PlatformOtpDevice
 $routes->get('piattaforma/notifiche-appuntamenti', 'Login\PlatformAppointmentNotificationsController::index');
 $routes->post('piattaforma/notifiche-appuntamenti/launch', 'Login\PlatformAppointmentNotificationsController::launch');
 $routes->post('piattaforma/notifiche-appuntamenti/policy/save', 'Login\PlatformAppointmentNotificationsController::savePolicy');
+$routes->post('piattaforma/notifiche-appuntamenti/sms-provider/global/save', 'Login\PlatformAppointmentNotificationsController::saveGlobalSmsProvider');
+$routes->post('piattaforma/notifiche-appuntamenti/sms-provider/tenant/save', 'Login\PlatformAppointmentNotificationsController::saveTenantSmsProvider');
 $routes->get('piattaforma/notifiche-appuntamenti/run', 'Login\PlatformAppointmentNotificationsController::run');
 $routes->get('piattaforma/whatsapp', 'Login\PlatformWhatsAppConversationsController::index');
 $routes->get('piattaforma/whatsapp/refresh', 'Login\PlatformWhatsAppConversationsController::refresh');
