@@ -38,7 +38,8 @@ class TenantNotificationPolicyService
         }
         $stored = [];
         $row = [];
-        $schemaReady = $this->platformDb->tableExists(self::TABLE);
+        $schemaReady = $this->platformDb->tableExists(self::TABLE)
+            && $this->platformDb->fieldExists('smtp_password_encrypted', self::TABLE);
         if ($schemaReady && $tenantId > 0) {
             $row = $this->platformDb->table(self::TABLE)
                 ->where('id_tenant', $tenantId)
