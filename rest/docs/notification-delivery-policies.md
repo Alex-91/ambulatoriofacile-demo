@@ -42,7 +42,7 @@ Il comando automatico dei reminder è:
 php spark appointment-reminders:run
 ```
 
-Una volta installato in Coolify viene richiamato ogni 5 minuti, ma il comando usa sempre il fuso `Europe/Rome` e apre il batch del giorno soltanto dalle **08:00**. Un lock impedisce esecuzioni concorrenti e uno stato giornaliero impedisce di ripetere un batch già concluso. Se un'esecuzione viene interrotta o resta incompleta, il giro successivo riprende la data di riferimento più vecchia non conclusa; gli appuntamenti già inviati restano esclusi grazie allo stato per appuntamento, data e canale.
+Una volta installato in Coolify viene richiamato ogni 5 minuti, ma il comando usa sempre il fuso `Europe/Rome` e apre un nuovo batch giornaliero soltanto nella finestra **08:00-08:59**. Un lock impedisce esecuzioni concorrenti e uno stato giornaliero impedisce di ripetere un batch già concluso. Se un'esecuzione viene interrotta o resta incompleta, il giro successivo riprende la data di riferimento più vecchia non conclusa anche fuori da quella finestra; gli appuntamenti già inviati restano esclusi grazie allo stato per appuntamento, data e canale.
 
 Per ogni spazio il dispatcher:
 

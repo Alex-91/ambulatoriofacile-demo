@@ -69,4 +69,4 @@ Dopo il primo rilascio del comando `appointment-reminders:run` su `login`, insta
 powershell -ExecutionPolicy Bypass -File .\ops\setup-appointment-reminder-dispatch.ps1
 ```
 
-Il task viene creato soltanto sull'applicazione centrale `login`. È richiamato ogni 5 minuti per poter riprendere automaticamente un'esecuzione interrotta, ma il comando apre il nuovo batch giornaliero una sola volta e non prima delle 08:00 `Europe/Rome`.
+Il task viene creato soltanto sull'applicazione centrale `login`. È richiamato ogni 5 minuti per poter riprendere automaticamente un'esecuzione interrotta, ma il comando apre il nuovo batch giornaliero una sola volta nella finestra 08:00-08:59 `Europe/Rome`.

@@ -60,6 +60,24 @@ final class AppointmentReminderScheduledRunServiceTest extends CIUnitTestCase
         $this->assertSame('2026-09-05', $received['reference_date']);
     }
 
+    public function testDoesNotOpenANewDailyBatchLaterInTheDay(): void
+    {
+        $calls = 0;
+        $service = $this->service(static function () use (&$calls): array {
+            $calls++;
+
+            return [];
+        });
+
+        $result = $service->run([
+            'now' => new \DateTimeImmutable('2026-09-05 20:30:00', new \DateTimeZone('Europe/Rome')),
+        ]);
+
+        $this->assertSame('not_due', $result['status']);
+        $this->assertSame('2026-09-06 08:00:00', $result['next_run_at']);
+        $this->assertSame(0, $calls);
+    }
+
     public function testCompletedDayIsNotRunTwice(): void
     {
         $calls = 0;

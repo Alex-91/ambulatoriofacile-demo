@@ -6,6 +6,7 @@ final class AppointmentReminderScheduledRunService
 {
     public const TIMEZONE = 'Europe/Rome';
     public const START_HOUR = 8;
+    public const START_WINDOW_MINUTES = 60;
 
     private \Closure $dispatcher;
     private string $stateDir;
@@ -80,13 +81,13 @@ final class AppointmentReminderScheduledRunService
 
             $referenceDate = $requestedReferenceDate ?: $this->oldestIncompleteReferenceDate($today);
             if ($referenceDate === null) {
-                if (!$force && (int) $now->format('G') < self::START_HOUR) {
+                if (!$force && !$this->isInsideStartWindow($now)) {
                     return [
                         'ok' => true,
                         'status' => 'not_due',
                         'reference_date' => $today,
                         'timezone' => self::TIMEZONE,
-                        'next_run_at' => $today . ' 08:00:00',
+                        'next_run_at' => $this->nextStartAt($now)->format('Y-m-d H:i:s'),
                     ];
                 }
                 $referenceDate = $today;
@@ -175,6 +176,21 @@ final class AppointmentReminderScheduledRunService
         }
 
         return new \DateTimeImmutable('now', $timezone);
+    }
+
+    private function isInsideStartWindow(\DateTimeImmutable $now): bool
+    {
+        $start = $now->setTime(self::START_HOUR, 0);
+        $end = $start->modify('+' . self::START_WINDOW_MINUTES . ' minutes');
+
+        return $now >= $start && $now < $end;
+    }
+
+    private function nextStartAt(\DateTimeImmutable $now): \DateTimeImmutable
+    {
+        $start = $now->setTime(self::START_HOUR, 0);
+
+        return $now < $start ? $start : $start->modify('+1 day');
     }
 
     private function normalizeDate(string $value): ?string
