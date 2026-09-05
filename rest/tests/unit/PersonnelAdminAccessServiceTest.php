@@ -1,6 +1,7 @@
 <?php
 
 use App\Services\PersonnelAdminAccessService;
+use App\Services\LegacyTenantSessionService;
 use CodeIgniter\Test\CIUnitTestCase;
 
 final class PersonnelAdminAccessServiceTest extends CIUnitTestCase
@@ -56,5 +57,51 @@ final class PersonnelAdminAccessServiceTest extends CIUnitTestCase
         self::assertStringContainsString('Accesso amministratore applicativo', $platformSource);
         self::assertStringNotContainsString('Medico amministratore', $tenantSource);
         self::assertStringNotContainsString('Medico amministratore', $platformSource);
+    }
+
+    public function testLegacyUsernameLoginQueuesTenantAccessBeforeSessionBootstrap(): void
+    {
+        $source = file_get_contents(APPPATH . 'Services/LegacyTenantLoginService.php');
+
+        self::assertIsString($source);
+        $queuePosition = strpos($source, '$this->tenantSession->queuePendingRuntime($tenant, $appUserId, $userType);');
+        $bootstrapPosition = strpos($source, '$handoff->bootstrapUserById($appUserId, $expectedUsername);');
+
+        self::assertNotFalse($queuePosition);
+        self::assertNotFalse($bootstrapPosition);
+        self::assertLessThan($bootstrapPosition, $queuePosition);
+    }
+
+    public function testLegacyTenantRuntimePropagatesMembershipAdminAccessToSession(): void
+    {
+        $source = file_get_contents(APPPATH . 'Services/LegacyTenantSessionService.php');
+
+        self::assertIsString($source);
+        self::assertStringContainsString("'is_app_admin' => (bool) \$membershipAccess['is_app_admin']", $source);
+        self::assertStringContainsString('$this->applyMembershipAdministrativeAccess($tenant, $payload);', $source);
+        self::assertStringContainsString("'tenant_app_admin' => true", $source);
+        self::assertStringContainsString("'menuDataAdmin' => ['result' => \$menuAdmin]", $source);
+    }
+
+    public function testLegacyAppAdminOverlayAcceptsPersonnelProfilesOnly(): void
+    {
+        $reflection = new ReflectionClass(LegacyTenantSessionService::class);
+        $service = $reflection->newInstanceWithoutConstructor();
+        $method = $reflection->getMethod('canCurrentUserReceiveAppAdminAccess');
+
+        foreach ([1, 2, 3] as $personnelType) {
+            service('session')->set('utente_sess', (object) [
+                'id_personale' => 42,
+                'tipo_pers' => $personnelType,
+            ]);
+            self::assertTrue($method->invoke($service));
+        }
+
+        service('session')->set('utente_sess', (object) [
+            'id_client' => 42,
+            'tipo_pers' => 0,
+        ]);
+        self::assertFalse($method->invoke($service));
+        service('session')->remove('utente_sess');
     }
 }

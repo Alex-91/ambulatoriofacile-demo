@@ -106,6 +106,8 @@ class LegacyTenantSessionService
             return;
         }
 
+        $membershipAccess = $this->resolveMembershipAccess($tenantId, $appUserId, $userType);
+
         session()->set(self::SESSION_KEY_PENDING_RUNTIME, [
             'tenant_id' => $tenantId,
             'tenant_key' => (string) ($tenant['tenant_key'] ?? ''),
@@ -118,7 +120,8 @@ class LegacyTenantSessionService
             'package_name' => (string) ($tenant['package_name'] ?? ''),
             'app_user_id' => $appUserId,
             'user_type' => $userType,
-            'tenant_role' => $this->inferTenantRole($userType),
+            'tenant_role' => (string) $membershipAccess['tenant_role'],
+            'is_app_admin' => (bool) $membershipAccess['is_app_admin'],
             'login_source' => $loginSource,
         ]);
     }
@@ -180,6 +183,7 @@ class LegacyTenantSessionService
         }
 
         $this->tenantContext->setCurrentTenant($context);
+        $this->applyMembershipAdministrativeAccess($tenant, $payload);
         session()->set('loginSource', (string) ($payload['login_source'] ?? 'legacy_tenant'));
         $this->clearPendingRuntime();
 
@@ -286,5 +290,99 @@ class LegacyTenantSessionService
         }
 
         return 'tenant_staff';
+    }
+
+    /**
+     * @return array{tenant_role: string, is_app_admin: bool}
+     */
+    private function resolveMembershipAccess(int $tenantId, int $appUserId, int $userType): array
+    {
+        $fallback = [
+            'tenant_role' => $this->inferTenantRole($userType),
+            'is_app_admin' => false,
+        ];
+
+        if (
+            $tenantId <= 0
+            || $appUserId <= 0
+            || !$this->platformDb->tableExists('platform_user_tenants')
+            || !$this->platformDb->fieldExists('app_user_id', 'platform_user_tenants')
+        ) {
+            return $fallback;
+        }
+
+        $selectFields = [];
+        if ($this->platformDb->fieldExists('tenant_role', 'platform_user_tenants')) {
+            $selectFields[] = 'tenant_role';
+        }
+        if ($this->platformDb->fieldExists('is_app_admin', 'platform_user_tenants')) {
+            $selectFields[] = 'is_app_admin';
+        }
+
+        if ($selectFields === []) {
+            return $fallback;
+        }
+
+        $builder = $this->platformDb->table('platform_user_tenants')
+            ->select(implode(', ', $selectFields))
+            ->where('id_tenant', $tenantId)
+            ->where('app_user_id', $appUserId);
+
+        if ($this->platformDb->fieldExists('is_owner', 'platform_user_tenants')) {
+            $builder->orderBy('is_owner', 'DESC');
+        }
+        if ($this->platformDb->fieldExists('id_platform_user_tenant', 'platform_user_tenants')) {
+            $builder->orderBy('id_platform_user_tenant', 'ASC');
+        }
+
+        $membership = $builder->get(1)->getRowArray();
+        if (!is_array($membership)) {
+            return $fallback;
+        }
+
+        $tenantRole = strtolower(trim((string) ($membership['tenant_role'] ?? '')));
+        if ($tenantRole === '') {
+            $tenantRole = $fallback['tenant_role'];
+        }
+
+        return [
+            'tenant_role' => $tenantRole,
+            'is_app_admin' => (int) ($membership['is_app_admin'] ?? 0) === 1,
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $tenant
+     * @param array<string, mixed> $payload
+     */
+    private function applyMembershipAdministrativeAccess(array $tenant, array $payload): void
+    {
+        $tenantRole = strtolower(trim((string) ($payload['tenant_role'] ?? '')));
+        $isTenantMaster = $tenantRole === 'tenant_master';
+        $isAppAdmin = (bool) ($payload['is_app_admin'] ?? false);
+
+        if (!$isTenantMaster && (!$isAppAdmin || !$this->canCurrentUserReceiveAppAdminAccess())) {
+            return;
+        }
+
+        $tenantDb = $this->tenantDbConnector->connect($tenant);
+        $menuAdmin = (new TenantAdminMenuService())->ensureDefaultMenuIfEmpty($tenantDb);
+
+        session()->set([
+            'admin' => 1,
+            'is_admin' => true,
+            'menuDataAdmin' => ['result' => $menuAdmin],
+            'tenant_app_admin' => true,
+        ]);
+    }
+
+    private function canCurrentUserReceiveAppAdminAccess(): bool
+    {
+        $currentUser = session()->get('utente_sess');
+        if (!is_object($currentUser) || (int) ($currentUser->id_personale ?? 0) <= 0) {
+            return false;
+        }
+
+        return in_array((int) ($currentUser->tipo_pers ?? 0), [1, 2, 3], true);
     }
 }

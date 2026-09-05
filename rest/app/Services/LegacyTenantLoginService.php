@@ -306,11 +306,12 @@ class LegacyTenantLoginService
             $tenantDb = $this->tenantDbConnector->connect($tenant);
             $this->databaseConfig->setEncryptionConfig($tenantDb);
 
-            $handoff = new LegacyLoginHandoffService($tenantDb);
-            $result = $handoff->bootstrapUserById((int) ($match['app_user_id'] ?? 0), $expectedUsername);
+            $appUserId = (int) ($match['app_user_id'] ?? 0);
+            $userType = (int) ($match['user_type'] ?? 0);
+            $this->tenantSession->queuePendingRuntime($tenant, $appUserId, $userType);
 
-            $userType = (int) ($result['userType'] ?? $match['user_type'] ?? 0);
-            $this->tenantSession->queuePendingRuntime($tenant, (int) ($match['app_user_id'] ?? 0), $userType);
+            $handoff = new LegacyLoginHandoffService($tenantDb);
+            $result = $handoff->bootstrapUserById($appUserId, $expectedUsername);
 
             if (($result['resp'] ?? 'KO') === 'OK' && !(bool) ($result['requiresOtp'] ?? false)) {
                 $this->tenantSession->activatePendingRuntime();
