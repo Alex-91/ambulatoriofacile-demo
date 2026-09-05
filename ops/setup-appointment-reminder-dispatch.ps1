@@ -14,10 +14,6 @@ function Resolve-ConfigPath([string]$Path) {
 function To-Array($Value) {
     $items = @()
     if ($null -eq $Value) { return $items }
-    if ($null -ne $Value.data) {
-        foreach ($item in $Value.data) { $items += $item }
-        return $items
-    }
     foreach ($item in $Value) { $items += $item }
     return $items
 }
