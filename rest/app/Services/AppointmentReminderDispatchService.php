@@ -50,6 +50,7 @@ class AppointmentReminderDispatchService
         $limit = max(0, (int) ($options['limit'] ?? 0));
         $doctorFilter = $this->normalizeDoctorFilter((string) ($options['doctor'] ?? ''));
         $targetDateOverride = trim((string) ($options['target_date'] ?? ''));
+        $referenceDate = $this->resolveReferenceDate((string) ($options['reference_date'] ?? ''));
 
         $tenants = $this->platformDb->table('platform_tenants')
             ->select('id_tenant, tenant_key, tenant_name, storage_key, db_host, db_port, db_name, db_username, db_password_ref, db_driver, db_prefix')
@@ -93,7 +94,7 @@ class AppointmentReminderDispatchService
 
             $targetDate = $targetDateOverride !== ''
                 ? $targetDateOverride
-                : (new \DateTimeImmutable('today', new \DateTimeZone('Europe/Rome')))
+                : $referenceDate
                     ->modify('+' . max(0, (int) ($plan['lead_days'] ?? 2)) . ' day')
                     ->format('Y-m-d');
             $confirmationInstructions = WhatsAppGatewayClient::isRoutedToGateway($tenantId)
@@ -357,6 +358,22 @@ class AppointmentReminderDispatchService
         }
 
         return $summary;
+    }
+
+    private function resolveReferenceDate(string $rawDate): \DateTimeImmutable
+    {
+        $timezone = new \DateTimeZone('Europe/Rome');
+        $rawDate = trim($rawDate);
+        if ($rawDate === '') {
+            return new \DateTimeImmutable('today', $timezone);
+        }
+
+        $date = \DateTimeImmutable::createFromFormat('!Y-m-d', $rawDate, $timezone);
+        if (!$date || $date->format('Y-m-d') !== $rawDate) {
+            throw new \InvalidArgumentException('La data di riferimento dei reminder deve essere nel formato YYYY-MM-DD.');
+        }
+
+        return $date;
     }
 
     /**

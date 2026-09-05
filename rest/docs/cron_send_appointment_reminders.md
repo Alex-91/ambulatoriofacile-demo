@@ -2,6 +2,27 @@
 
 > Nota: questo documento descrive anche il cron storico. Nel flusso multi-tenant corrente i canali e i parametri di consegna sono gestiti dal master piattaforma in **Piattaforma → Notifiche appuntamenti**. Email, WhatsApp e SMS condividono limiti per spazio; WhatsApp usa il gateway AmbulatorioFacile e, quando entrambi i canali sono selezionati, l'SMS è un fallback e non un secondo invio duplicato.
 
+## Automazione multi-tenant corrente
+
+Il comando corrente è `php spark appointment-reminders:run`. Una volta installato, il task Coolify lo richiama ogni 5 minuti sulla sola applicazione centrale `login`, mentre il comando decide internamente l'orario usando `Europe/Rome`:
+
+- prima delle 08:00 non apre il batch del giorno;
+- dalle 08:00 individua tutti gli spazi con reminder attivo;
+- per ogni spazio calcola la data target usando i giorni di anticipo configurati;
+- invia gli appuntamenti non annullati usando soltanto i canali autorizzati;
+- rispetta ritmo, limite giornaliero e fallback definiti per lo spazio;
+- un lock impedisce batch concorrenti;
+- uno stato giornaliero impedisce di ripetere un batch concluso;
+- un batch incompleto viene ripreso mantenendo la sua data di riferimento originale.
+
+Installazione o riallineamento del task Coolify, dopo che il codice è stato pubblicato su `main` e rilasciato su `login`:
+
+```powershell
+.\ops\setup-appointment-reminder-dispatch.ps1
+```
+
+Il resto del documento descrive lo script storico standalone.
+
 Script: `C:\xampp_82\htdocs\dottorAppLTE\rest\cron_send_appointment_reminders.php`
 
 Wrapper Aruba:

@@ -34,6 +34,38 @@ Lo stesso meccanismo governa i reminder automatici e le campagne WhatsApp massiv
 
 ## Worker
 
+### Reminder appuntamenti
+
+Il comando automatico dei reminder è:
+
+```bash
+php spark appointment-reminders:run
+```
+
+Una volta installato in Coolify viene richiamato ogni 5 minuti, ma il comando usa sempre il fuso `Europe/Rome` e apre il batch del giorno soltanto dalle **08:00**. Un lock impedisce esecuzioni concorrenti e uno stato giornaliero impedisce di ripetere un batch già concluso. Se un'esecuzione viene interrotta o resta incompleta, il giro successivo riprende la data di riferimento più vecchia non conclusa; gli appuntamenti già inviati restano esclusi grazie allo stato per appuntamento, data e canale.
+
+Per ogni spazio il dispatcher:
+
+1. verifica che modulo e reminder siano attivi;
+2. legge i giorni di anticipo scelti dallo spazio;
+3. seleziona gli appuntamenti non annullati della data risultante;
+4. usa soltanto i canali autorizzati e configurati;
+5. applica ritmo, limite giornaliero e fallback dello spazio.
+
+Il task va installato soltanto sull'applicazione centrale `login`, per evitare che due applicazioni elaborino gli stessi spazi:
+
+```powershell
+.\ops\setup-appointment-reminder-dispatch.ps1
+```
+
+Per controllare subito il piano senza inviare:
+
+```bash
+php spark appointment-reminders:run --dry-run
+```
+
+### Campagne WhatsApp e fallback
+
 Il comando seguente processa una voce della coda WhatsApp e riconcilia i fallback SMS scaduti:
 
 ```bash
