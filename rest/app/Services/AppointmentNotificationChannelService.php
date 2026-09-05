@@ -216,10 +216,19 @@ class AppointmentNotificationChannelService
         $emailMessage = rtrim($message)
             . "\n\n---\nMessaggio automatico inviato da AmbulatorioFacile: non rispondere a questa email.";
 
+        $transportSummary = [];
         try {
             $transport = $tenantId > 0
                 ? $policyService->resolveEmailTransport($tenantId, $policy)
                 : [];
+            $defaultEmailConfig = config(\Config\Email::class);
+            $transportSummary = [
+                'transport_mode' => $transport !== [] ? 'tenant_smtp' : 'application_default',
+                'protocol' => (string) ($transport['protocol'] ?? ($defaultEmailConfig->protocol ?? 'mail')),
+                'smtp_host' => (string) ($transport['SMTPHost'] ?? ($defaultEmailConfig->SMTPHost ?? '')),
+                'smtp_port' => (int) ($transport['SMTPPort'] ?? ($defaultEmailConfig->SMTPPort ?? 0)),
+                'smtp_crypto' => (string) ($transport['SMTPCrypto'] ?? ($defaultEmailConfig->SMTPCrypto ?? '')),
+            ];
             $this->sendEmail($email, $subject, $emailMessage, $emailPolicy, $transport);
 
             return [
@@ -232,7 +241,7 @@ class AppointmentNotificationChannelService
                     'subject' => $subject,
                     'from' => (string) ($emailPolicy['from_address'] ?? TenantNotificationPolicyService::NO_REPLY_ADDRESS),
                     'reply_to' => TenantNotificationPolicyService::NO_REPLY_ADDRESS,
-                ],
+                ] + $transportSummary,
                 'error' => null,
             ];
         } catch (\Throwable $e) {
@@ -628,7 +637,7 @@ class AppointmentNotificationChannelService
                 'recipient' => $recipient,
                 'provider' => 'Aruba SMS',
                 'provider_id' => '',
-                'response' => null,
+                'response' => $transportSummary !== [] ? $transportSummary : null,
                 'error' => $e->getMessage(),
             ];
         }

@@ -9,12 +9,14 @@ class AppointmentNotificationDashboardService
     private \CodeIgniter\Database\BaseConnection $platformDb;
     private AppointmentNotificationSettingsService $settingsService;
     private AppointmentNotificationLogService $logService;
+    private AppointmentNotificationLogExplorerService $logExplorer;
 
     public function __construct()
     {
         $this->platformDb = Database::connect('platform');
         $this->settingsService = new AppointmentNotificationSettingsService();
         $this->logService = new AppointmentNotificationLogService();
+        $this->logExplorer = new AppointmentNotificationLogExplorerService();
     }
 
     /**
@@ -49,7 +51,7 @@ class AppointmentNotificationDashboardService
     /**
      * @return array<string, mixed>
      */
-    public function buildPlatformDashboard(int $days = 30, int $recentLimit = 80): array
+    public function buildPlatformDashboard(int $days = 30, int $recentLimit = 80, array $logFilters = []): array
     {
         $tenantRows = $this->platformDb->table('platform_tenants t')
             ->select('t.id_tenant, t.tenant_key, t.tenant_name, t.storage_key, t.status, t.onboarding_status, t.is_active, p.package_code, p.package_name')
@@ -83,7 +85,7 @@ class AppointmentNotificationDashboardService
             }
 
             $settings = $this->settingsService->resolveTenantSettings($tenantId);
-            $dashboard = $this->buildTenantDashboard($tenant, $settings, $days, 12);
+            $dashboard = $this->buildTenantDashboard($tenant, $settings, $days, max(500, $recentLimit));
 
             $moduleEnabled = (bool) ($settings['module']['available'] ?? false);
             $smsEnabled = (bool) (($settings['available_channels']['sms'] ?? false) === true);
@@ -130,11 +132,17 @@ class AppointmentNotificationDashboardService
         usort($recentRows, static function (array $left, array $right): int {
             return strcmp((string) ($right['created_at'] ?? ''), (string) ($left['created_at'] ?? ''));
         });
+        $logExplorer = $this->logExplorer->build($recentRows, $logFilters, $recentLimit);
 
         return [
             'summary' => $summary,
             'tenant_rows' => $rows,
-            'recent_rows' => array_slice($recentRows, 0, max(1, $recentLimit)),
+            'recent_rows' => (array) ($logExplorer['rows'] ?? []),
+            'log_summary' => (array) ($logExplorer['summary'] ?? []),
+            'log_filters' => (array) ($logExplorer['filters'] ?? []),
+            'log_total_matching' => (int) ($logExplorer['total_matching'] ?? 0),
+            'log_truncated' => !empty($logExplorer['truncated']),
+            'log_storage_ready' => $this->logService->centralStorageReady(),
             'days' => $days,
         ];
     }

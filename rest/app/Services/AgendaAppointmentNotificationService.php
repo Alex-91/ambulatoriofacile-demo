@@ -133,6 +133,31 @@ class AgendaAppointmentNotificationService
                     'source' => 'appointment_booking',
                 ]
             );
+        } else {
+            $result['patient_booking'] = [
+                'enabled' => false,
+                'channels' => (array) ($patientPlan['channels'] ?? []),
+                'reason' => 'no_active_channels',
+            ];
+            $this->logService->append($tenant, [
+                'message_type' => AppointmentNotificationSettingsService::TYPE_PATIENT_BOOKING,
+                'status' => 'skipped',
+                'channel' => '',
+                'provider' => '',
+                'recipient' => trim((string) (($patientRecipient['email'] ?? '') ?: ($patientRecipient['mobile'] ?? '') ?: ($patientRecipient['phone'] ?? ''))),
+                'recipient_role' => 'patient',
+                'appointment_id' => $appointmentId,
+                'doctor_id' => $targetLegacyIdDot,
+                'doctor_label' => $doctorLabel,
+                'actor_user_id' => $actorUserId,
+                'patient_label' => $patientLabel,
+                'scheduled_for' => $scheduledFor,
+                'notes' => $notes,
+                'source' => 'appointment_booking',
+                'error' => 'Conferma appuntamento disattivata o senza canali selezionati.',
+                'response' => ['reason' => 'no_active_channels'],
+                'created_at' => date('c'),
+            ]);
         }
 
         if ($actorIsDoctor && $actorUserId > 0 && $actorLegacyIdDot > 0 && $actorLegacyIdDot !== $targetLegacyIdDot) {
@@ -449,6 +474,16 @@ class AgendaAppointmentNotificationService
 
         if (empty($plan['enabled']) || $channels === []) {
             $result['reason'] = 'no_active_channels';
+            $logEntry = $baseLog;
+            $logEntry['channel'] = '';
+            $logEntry['provider'] = '';
+            $logEntry['provider_id'] = '';
+            $logEntry['recipient'] = trim((string) (($recipient['email'] ?? '') ?: ($recipient['mobile'] ?? '') ?: ($recipient['phone'] ?? '')));
+            $logEntry['status'] = 'skipped';
+            $logEntry['error'] = 'Flusso disattivato o nessun canale selezionato per questa notifica.';
+            $logEntry['response'] = ['reason' => 'no_active_channels'];
+            $logEntry['created_at'] = date('c');
+            $this->logService->append($tenant, $logEntry);
             return $result;
         }
 

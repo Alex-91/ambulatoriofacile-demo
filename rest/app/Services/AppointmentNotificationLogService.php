@@ -6,13 +6,32 @@ use Config\Database;
 
 class AppointmentNotificationLogService
 {
+    public const PLATFORM_TABLE = 'platform_appointment_notification_logs';
+
     private TenantStoragePathService $paths;
     private \CodeIgniter\Database\BaseConnection $platformDb;
+    private ?bool $platformTableReady = null;
 
-    public function __construct()
+    public function __construct(
+        ?TenantStoragePathService $paths = null,
+        ?\CodeIgniter\Database\BaseConnection $platformDb = null
+    )
     {
-        $this->paths = new TenantStoragePathService();
-        $this->platformDb = Database::connect('platform');
+        $this->paths = $paths ?? new TenantStoragePathService();
+        $this->platformDb = $platformDb ?? Database::connect('platform');
+    }
+
+    public function centralStorageReady(): bool
+    {
+        if ($this->platformTableReady !== null) {
+            return $this->platformTableReady;
+        }
+
+        try {
+            return $this->platformTableReady = $this->platformDb->tableExists(self::PLATFORM_TABLE);
+        } catch (\Throwable $e) {
+            return $this->platformTableReady = false;
+        }
     }
 
     /**
@@ -49,9 +68,11 @@ class AppointmentNotificationLogService
             'notes' => (string) ($entry['notes'] ?? ''),
             'source' => (string) ($entry['source'] ?? 'runtime'),
             'error' => (string) ($entry['error'] ?? ''),
-            'response' => $entry['response'] ?? null,
+            'response' => $this->redactSensitiveData($entry['response'] ?? null),
             'created_at' => $createdAt,
         ];
+
+        $this->appendToPlatformDatabase($payload);
 
         file_put_contents(
             $file,
@@ -67,6 +88,7 @@ class AppointmentNotificationLogService
     public function listEntriesForTenant(array $tenant, int $days = 30, int $limit = 200): array
     {
         $entries = array_merge(
+            $this->readPlatformEntries($tenant, $days),
             $this->readUnifiedEntries($tenant, $days),
             $this->readLegacyReminderEntries($tenant, $days)
         );
@@ -79,6 +101,121 @@ class AppointmentNotificationLogService
         });
 
         return $limit > 0 ? array_slice($entries, 0, $limit) : $entries;
+    }
+
+    /** @param array<string, mixed> $payload */
+    private function appendToPlatformDatabase(array $payload): void
+    {
+        try {
+            if (!$this->centralStorageReady()) {
+                return;
+            }
+
+            $responseJson = null;
+            if (($payload['response'] ?? null) !== null) {
+                $encoded = json_encode($payload['response'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+                $responseJson = is_string($encoded) ? $encoded : null;
+            }
+
+            $this->platformDb->table(self::PLATFORM_TABLE)->insert([
+                'event_id' => mb_substr((string) ($payload['event_id'] ?? ''), 0, 64),
+                'id_tenant' => (int) ($payload['tenant_id'] ?? 0) > 0 ? (int) $payload['tenant_id'] : null,
+                'tenant_key' => $this->nullableString($payload['tenant_key'] ?? '', 100),
+                'tenant_name' => $this->nullableString($payload['tenant_name'] ?? '', 190),
+                'message_type' => mb_substr((string) ($payload['message_type'] ?? 'notification'), 0, 64),
+                'status' => mb_substr((string) ($payload['status'] ?? 'sent'), 0, 32),
+                'channel' => mb_substr((string) ($payload['channel'] ?? ''), 0, 24),
+                'provider' => $this->nullableString($payload['provider'] ?? '', 120),
+                'provider_id' => $this->nullableString($payload['provider_id'] ?? '', 191),
+                'recipient' => $this->nullableString($payload['recipient'] ?? '', 255),
+                'recipient_role' => $this->nullableString($payload['recipient_role'] ?? '', 32),
+                'appointment_id' => (int) ($payload['appointment_id'] ?? 0) > 0 ? (int) $payload['appointment_id'] : null,
+                'doctor_id' => (int) ($payload['doctor_id'] ?? 0) > 0 ? (int) $payload['doctor_id'] : null,
+                'doctor_label' => $this->nullableString($payload['doctor_label'] ?? '', 190),
+                'actor_user_id' => (int) ($payload['actor_user_id'] ?? 0) > 0 ? (int) $payload['actor_user_id'] : null,
+                'actor_label' => $this->nullableString($payload['actor_label'] ?? '', 190),
+                'patient_label' => $this->nullableString($payload['patient_label'] ?? '', 190),
+                'scheduled_for' => $this->nullableString($payload['scheduled_for'] ?? '', 64),
+                'notes' => $this->nullableString($payload['notes'] ?? '', 65535),
+                'source' => mb_substr((string) ($payload['source'] ?? 'runtime'), 0, 80),
+                'error_message' => $this->nullableString($payload['error'] ?? '', 20000),
+                'response_json' => $responseJson,
+                'created_at' => date('Y-m-d H:i:s', strtotime((string) ($payload['created_at'] ?? 'now')) ?: time()),
+            ]);
+        } catch (\Throwable $e) {
+            log_message('warning', 'Scrittura log notifiche nel database piattaforma fallita: {message}', [
+                'message' => $e->getMessage(),
+                'tenant_id' => (int) ($payload['tenant_id'] ?? 0),
+                'event_id' => (string) ($payload['event_id'] ?? ''),
+            ]);
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $tenant
+     * @return array<int, array<string, mixed>>
+     */
+    private function readPlatformEntries(array $tenant, int $days): array
+    {
+        $tenantId = max(0, (int) ($tenant['id_tenant'] ?? 0));
+        if ($tenantId <= 0) {
+            return [];
+        }
+
+        try {
+            if (!$this->centralStorageReady()) {
+                return [];
+            }
+
+            $rows = $this->platformDb->table(self::PLATFORM_TABLE)
+                ->where('id_tenant', $tenantId)
+                ->where('created_at >=', date('Y-m-d H:i:s', strtotime('-' . max(1, $days) . ' day')))
+                ->orderBy('created_at', 'DESC')
+                ->limit(5000)
+                ->get()
+                ->getResultArray();
+        } catch (\Throwable $e) {
+            log_message('warning', 'Lettura log notifiche dal database piattaforma fallita: {message}', [
+                'message' => $e->getMessage(),
+                'tenant_id' => $tenantId,
+            ]);
+            return [];
+        }
+
+        return array_map(static function (array $row): array {
+            $response = null;
+            $responseJson = trim((string) ($row['response_json'] ?? ''));
+            if ($responseJson !== '') {
+                $decoded = json_decode($responseJson, true);
+                $response = json_last_error() === JSON_ERROR_NONE ? $decoded : $responseJson;
+            }
+
+            return [
+                'event_id' => (string) ($row['event_id'] ?? ''),
+                'tenant_id' => (int) ($row['id_tenant'] ?? 0),
+                'tenant_key' => (string) ($row['tenant_key'] ?? ''),
+                'tenant_name' => (string) ($row['tenant_name'] ?? ''),
+                'message_type' => (string) ($row['message_type'] ?? ''),
+                'status' => (string) ($row['status'] ?? ''),
+                'channel' => (string) ($row['channel'] ?? ''),
+                'provider' => (string) ($row['provider'] ?? ''),
+                'provider_id' => (string) ($row['provider_id'] ?? ''),
+                'recipient' => (string) ($row['recipient'] ?? ''),
+                'recipient_role' => (string) ($row['recipient_role'] ?? ''),
+                'appointment_id' => (int) ($row['appointment_id'] ?? 0),
+                'doctor_id' => (int) ($row['doctor_id'] ?? 0),
+                'doctor_label' => (string) ($row['doctor_label'] ?? ''),
+                'actor_user_id' => (int) ($row['actor_user_id'] ?? 0),
+                'actor_label' => (string) ($row['actor_label'] ?? ''),
+                'patient_label' => (string) ($row['patient_label'] ?? ''),
+                'scheduled_for' => (string) ($row['scheduled_for'] ?? ''),
+                'notes' => (string) ($row['notes'] ?? ''),
+                'source' => (string) ($row['source'] ?? 'platform_database'),
+                'error' => (string) ($row['error_message'] ?? ''),
+                'response' => $response,
+                'created_at' => (string) ($row['created_at'] ?? ''),
+            ];
+        }, $rows);
     }
 
     /**
@@ -311,13 +448,16 @@ class AppointmentNotificationLogService
         $keys = [];
 
         foreach ($entries as $entry) {
-            $key = implode('|', [
-                (string) ($entry['message_type'] ?? ''),
-                (string) ($entry['channel'] ?? ''),
-                (string) ($entry['appointment_id'] ?? ''),
-                (string) ($entry['recipient'] ?? ''),
-                substr((string) ($entry['created_at'] ?? ''), 0, 16),
-            ]);
+            $eventId = trim((string) ($entry['event_id'] ?? ''));
+            $key = $eventId !== ''
+                ? ('event:' . $eventId)
+                : implode('|', [
+                    (string) ($entry['message_type'] ?? ''),
+                    (string) ($entry['channel'] ?? ''),
+                    (string) ($entry['appointment_id'] ?? ''),
+                    (string) ($entry['recipient'] ?? ''),
+                    substr((string) ($entry['created_at'] ?? ''), 0, 16),
+                ]);
 
             if (isset($keys[$key])) {
                 continue;
@@ -328,5 +468,30 @@ class AppointmentNotificationLogService
         }
 
         return $unique;
+    }
+
+    private function nullableString($value, int $maxLength): ?string
+    {
+        $value = trim((string) $value);
+        return $value !== '' ? mb_substr($value, 0, $maxLength) : null;
+    }
+
+    private function redactSensitiveData($value)
+    {
+        if (!is_array($value)) {
+            return $value;
+        }
+
+        $redacted = [];
+        foreach ($value as $key => $item) {
+            $keyText = strtolower((string) $key);
+            if (preg_match('/token|password|secret|authorization|api[_-]?key|session[_-]?key|user[_-]?key/', $keyText) === 1) {
+                $redacted[$key] = '[redacted]';
+                continue;
+            }
+            $redacted[$key] = $this->redactSensitiveData($item);
+        }
+
+        return $redacted;
     }
 }

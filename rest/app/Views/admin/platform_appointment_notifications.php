@@ -5,6 +5,11 @@ $dashboard = is_array($dashboard ?? null) ? $dashboard : [];
 $summary = is_array($dashboard['summary'] ?? null) ? $dashboard['summary'] : [];
 $tenantRows = is_array($dashboard['tenant_rows'] ?? null) ? $dashboard['tenant_rows'] : [];
 $recentRows = is_array($dashboard['recent_rows'] ?? null) ? $dashboard['recent_rows'] : [];
+$logSummary = is_array($dashboard['log_summary'] ?? null) ? $dashboard['log_summary'] : [];
+$logFilters = is_array($dashboard['log_filters'] ?? null) ? $dashboard['log_filters'] : [];
+$logTotalMatching = (int) ($dashboard['log_total_matching'] ?? count($recentRows));
+$logTruncated = !empty($dashboard['log_truncated']);
+$logStorageReady = !empty($dashboard['log_storage_ready']);
 $errors = is_array($errors ?? null) ? $errors : [];
 $launchFeedback = is_array($launchFeedback ?? null) ? $launchFeedback : null;
 $days = (int) ($days ?? 30);
@@ -44,6 +49,24 @@ $channelMeta = [
     'email' => ['label' => 'Email'],
     'otp' => ['label' => 'OTP'],
 ];
+$logStatusLabels = [
+    'sent' => 'Accettato',
+    'accepted' => 'Accettato',
+    'success' => 'Accettato',
+    'delivered' => 'Consegnato',
+    'read' => 'Letto',
+    'pending' => 'In attesa',
+    'queued' => 'In coda',
+    'deferred' => 'Rinviato',
+    'not_sent' => 'Non inviato',
+    'skipped' => 'Saltato',
+    'failed' => 'Fallito',
+    'error' => 'Errore',
+    'rejected' => 'Rifiutato',
+    'undelivered' => 'Non consegnato',
+    'bounced' => 'Respinto',
+    'expired' => 'Scaduto',
+];
 ?>
 <!DOCTYPE html>
 <html>
@@ -72,7 +95,16 @@ $channelMeta = [
     .provider-grid { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:14px; margin-top:14px; }
     .provider-secret-status { display:inline-block; margin-left:6px; font-size:11px; }
     .provider-actions { display:flex; justify-content:flex-end; margin-top:14px; }
+    .notification-log-summary { display:grid; grid-template-columns:repeat(5, minmax(0, 1fr)); gap:10px; margin:14px 0; }
+    .notification-log-summary > div { border:1px solid #e2eaec; border-radius:8px; padding:10px 12px; background:#f9fcfc; }
+    .notification-log-summary strong { display:block; font-size:22px; color:#245c64; }
+    .notification-log-filters { border:1px solid #dce7e9; border-radius:10px; background:#f8fbfb; padding:14px; margin-bottom:14px; }
+    .notification-log-diagnostic { min-width:260px; max-width:420px; white-space:normal; }
+    .notification-log-technical { margin-top:7px; }
+    .notification-log-technical summary { cursor:pointer; color:#337ab7; }
+    .notification-log-technical pre { max-height:240px; overflow:auto; margin-top:7px; white-space:pre-wrap; word-break:break-word; font-size:11px; }
     @media (max-width: 991px) { .delivery-policy-grid, .provider-grid { grid-template-columns:1fr; } .delivery-policy-card > p { min-height:0; } }
+    @media (max-width: 767px) { .notification-log-summary { grid-template-columns:repeat(2, minmax(0, 1fr)); } }
   </style>
 </head>
 <body class="platform-console-body">
@@ -123,6 +155,7 @@ $channelMeta = [
             <span class="status-chip">Canale WhatsApp: <?= (int) ($summary['wa_enabled_count'] ?? 0) ?></span>
             <span class="status-chip">Canale Email: <?= (int) ($summary['email_enabled_count'] ?? 0) ?></span>
             <span class="status-chip">Canale OTP: <?= (int) ($summary['otp_enabled_count'] ?? 0) ?></span>
+            <div style="margin-top:6px;"><a class="btn btn-danger btn-sm" href="#notification-logs"><i class="fa fa-search"></i> Apri log diagnostica invii</a></div>
           </div>
 
           <div class="box box-primary" id="sms-provider-global">
@@ -582,51 +615,157 @@ $channelMeta = [
             </div>
           </div>
 
-          <div class="box box-default">
+          <div class="box box-default" id="notification-logs">
             <div class="box-header with-border">
-              <h3 class="box-title">Cronologia invii recente</h3>
+              <h3 class="box-title"><i class="fa fa-search"></i> Log diagnostica invii</h3>
             </div>
-            <div class="box-body table-responsive">
-              <table class="table table-bordered table-striped">
-                <thead>
-                  <tr>
-                    <th>Quando</th>
-                    <th>Studio</th>
-                    <th>Flusso</th>
-                    <th>Canale</th>
-                    <th>Destinatario</th>
-                    <th>Paziente</th>
-                    <th>Esito</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <?php if ($recentRows === []): ?>
-                    <tr><td colspan="7" class="text-muted">Nessuno storico disponibile.</td></tr>
-                  <?php else: ?>
-                    <?php foreach ($recentRows as $entry): ?>
+            <div class="box-body">
+              <p class="text-muted">Qui trovi ogni tentativo effettuato da Email, WhatsApp, SMS e OTP. “Accettato” significa che il provider ha preso in carico il messaggio; “Consegnato” richiede invece una ricevuta finale.</p>
+              <?php if (!$logStorageReady): ?><div class="alert alert-warning">Archivio centrale non ancora disponibile: applica la migration. Nel frattempo sono mostrati soltanto i log locali accessibili da questo ambiente.</div><?php endif; ?>
+
+              <form class="notification-log-filters" method="get" action="<?= portal_platform_url('notifiche-appuntamenti') ?>">
+                <input type="hidden" name="tenant_id" value="<?= (int) ($policyTenant['id_tenant'] ?? 0) ?>">
+                <div class="row">
+                  <div class="col-md-2 form-group">
+                    <label>Periodo</label>
+                    <select class="form-control" name="days">
+                      <?php foreach ([1 => 'Oggi', 7 => '7 giorni', 30 => '30 giorni', 60 => '60 giorni', 90 => '90 giorni', 180 => '180 giorni', 365 => '1 anno'] as $dayValue => $dayLabel): ?>
+                        <option value="<?= $dayValue ?>" <?= $days === $dayValue ? 'selected' : '' ?>><?= esc($dayLabel) ?></option>
+                      <?php endforeach; ?>
+                    </select>
+                  </div>
+                  <div class="col-md-3 form-group">
+                    <label>Spazio</label>
+                    <select class="form-control" name="log_tenant_id">
+                      <option value="0">Tutti gli spazi</option>
+                      <?php foreach ($tenantRows as $tenantRow): ?>
+                        <?php $logTenant = (array) ($tenantRow['tenant'] ?? []); ?>
+                        <option value="<?= (int) ($logTenant['id_tenant'] ?? 0) ?>" <?= (int) ($logFilters['tenant_id'] ?? 0) === (int) ($logTenant['id_tenant'] ?? 0) ? 'selected' : '' ?>><?= esc((string) ($logTenant['tenant_name'] ?? '')) ?></option>
+                      <?php endforeach; ?>
+                    </select>
+                  </div>
+                  <div class="col-md-2 form-group">
+                    <label>Canale</label>
+                    <select class="form-control" name="log_channel">
+                      <option value="">Tutti</option>
+                      <?php foreach ($channelMeta as $channelKey => $channelRow): ?>
+                        <option value="<?= esc($channelKey, 'attr') ?>" <?= ($logFilters['channel'] ?? '') === $channelKey ? 'selected' : '' ?>><?= esc((string) ($channelRow['label'] ?? strtoupper($channelKey))) ?></option>
+                      <?php endforeach; ?>
+                    </select>
+                  </div>
+                  <div class="col-md-2 form-group">
+                    <label>Esito</label>
+                    <select class="form-control" name="log_status">
+                      <option value="">Tutti</option>
+                      <option value="problem" <?= ($logFilters['status'] ?? '') === 'problem' ? 'selected' : '' ?>>Solo problemi</option>
+                      <option value="accepted" <?= ($logFilters['status'] ?? '') === 'accepted' ? 'selected' : '' ?>>Accettati</option>
+                      <option value="delivered" <?= ($logFilters['status'] ?? '') === 'delivered' ? 'selected' : '' ?>>Consegnati/letti</option>
+                      <option value="pending" <?= ($logFilters['status'] ?? '') === 'pending' ? 'selected' : '' ?>>In attesa/rinviati</option>
+                      <option value="skipped" <?= ($logFilters['status'] ?? '') === 'skipped' ? 'selected' : '' ?>>Saltati</option>
+                    </select>
+                  </div>
+                  <div class="col-md-3 form-group">
+                    <label>Flusso</label>
+                    <select class="form-control" name="log_message_type">
+                      <option value="">Tutti i flussi</option>
+                      <?php foreach ($typeLabels as $typeKey => $typeLabel): ?>
+                        <option value="<?= esc($typeKey, 'attr') ?>" <?= ($logFilters['message_type'] ?? '') === $typeKey ? 'selected' : '' ?>><?= esc($typeLabel) ?></option>
+                      <?php endforeach; ?>
+                    </select>
+                  </div>
+                </div>
+                <div class="row">
+                  <div class="col-md-8 form-group" style="margin-bottom:0;">
+                    <label>Cerca</label>
+                    <input class="form-control" name="log_query" maxlength="120" value="<?= esc((string) ($logFilters['query'] ?? ''), 'attr') ?>" placeholder="Destinatario, paziente, provider, errore o ID">
+                  </div>
+                  <div class="col-md-2 form-group" style="margin-bottom:0;">
+                    <label>Righe</label>
+                    <select class="form-control" name="log_limit">
+                      <?php foreach ([50, 100, 250, 500] as $limitValue): ?><option value="<?= $limitValue ?>" <?= (int) ($logFilters['limit'] ?? 100) === $limitValue ? 'selected' : '' ?>><?= $limitValue ?></option><?php endforeach; ?>
+                    </select>
+                  </div>
+                  <div class="col-md-2" style="padding-top:25px; display:flex; gap:6px;">
+                    <button class="btn btn-primary" type="submit"><i class="fa fa-filter"></i> Filtra</button>
+                    <a class="btn btn-default" href="<?= portal_platform_url('notifiche-appuntamenti') ?>?tenant_id=<?= (int) ($policyTenant['id_tenant'] ?? 0) ?>#notification-logs" title="Azzera filtri"><i class="fa fa-undo"></i></a>
+                  </div>
+                </div>
+              </form>
+
+              <div class="notification-log-summary">
+                <div><span class="text-muted">Risultati</span><strong><?= (int) ($logSummary['total'] ?? 0) ?></strong></div>
+                <div><span class="text-muted">Accettati</span><strong><?= (int) ($logSummary['accepted'] ?? 0) ?></strong></div>
+                <div><span class="text-muted">Consegnati</span><strong><?= (int) ($logSummary['delivered'] ?? 0) ?></strong></div>
+                <div><span class="text-muted">Problemi</span><strong class="text-danger"><?= (int) ($logSummary['problems'] ?? 0) ?></strong></div>
+                <div><span class="text-muted">In attesa/saltati</span><strong><?= (int) ($logSummary['pending'] ?? 0) + (int) ($logSummary['skipped'] ?? 0) ?></strong></div>
+              </div>
+
+              <?php if ($recentRows === []): ?>
+                <div class="alert alert-warning" style="margin-bottom:0;">
+                  Nessun tentativo corrisponde ai filtri. Se hai appena attivato Email ma non compare alcuna riga, verifica che il flusso specifico sia abilitato e che l’evento (creazione o reminder) sia stato realmente eseguito.
+                </div>
+              <?php else: ?>
+                <div class="table-responsive">
+                  <table class="table table-bordered table-hover">
+                    <thead>
                       <tr>
-                        <td><?= esc($formatDateTime((string) ($entry['created_at'] ?? ''))) ?></td>
-                        <td><?= esc((string) ($entry['tenant_name'] ?? '')) ?></td>
-                        <td><?= esc((string) ($typeLabels[$entry['message_type'] ?? ''] ?? ($entry['message_type'] ?? ''))) ?></td>
-                        <td><?= esc((string) ($channelMeta[$entry['channel'] ?? '']['label'] ?? strtoupper((string) ($entry['channel'] ?? '')))) ?></td>
-                        <td><?= esc((string) ($entry['recipient'] ?? '')) ?></td>
-                        <td><?= esc((string) ($entry['patient_label'] ?? '')) ?></td>
-                        <td>
-                          <?php
-                            $effectiveStatus = (string) (($entry['delivery_status'] ?? '') ?: ($entry['status'] ?? 'n/d'));
-                            $statusClass = in_array($effectiveStatus, ['sent', 'delivered'], true)
-                              ? 'success'
-                              : (in_array($effectiveStatus, ['pending', 'not_sent'], true) ? 'warning' : 'danger');
-                          ?>
-                          <span class="label label-<?= $statusClass ?>">
-                            <?= esc($effectiveStatus) ?>
-                          </span>
-                        </td>
+                        <th>Quando</th>
+                        <th>Spazio / flusso</th>
+                        <th>Canale / destinatario</th>
+                        <th>Provider</th>
+                        <th>Esito</th>
+                        <th>Diagnostica</th>
                       </tr>
-                    <?php endforeach; ?>
-                  <?php endif; ?>
-                </tbody>
-              </table>
+                    </thead>
+                    <tbody>
+                      <?php foreach ($recentRows as $entry): ?>
+                        <?php
+                          $effectiveStatus = (string) ($entry['effective_status'] ?? $entry['status'] ?? 'pending');
+                          $statusGroup = (string) ($entry['status_group'] ?? 'pending');
+                          $statusClass = in_array($statusGroup, ['accepted', 'delivered'], true)
+                            ? 'success'
+                            : ($statusGroup === 'problem' ? 'danger' : ($statusGroup === 'skipped' ? 'default' : 'warning'));
+                          $channel = (string) ($entry['channel'] ?? '');
+                        ?>
+                        <tr class="<?= $statusGroup === 'problem' ? 'danger' : '' ?>">
+                          <td style="white-space:nowrap;">
+                            <?= esc($formatDateTime((string) ($entry['created_at'] ?? ''))) ?><br>
+                            <small class="text-muted"><?= esc((string) ($entry['source'] ?? 'runtime')) ?></small>
+                          </td>
+                          <td>
+                            <strong><?= esc((string) ($entry['tenant_name'] ?? '')) ?></strong><br>
+                            <?= esc((string) ($typeLabels[$entry['message_type'] ?? ''] ?? ($entry['message_type'] ?? 'Notifica'))) ?>
+                            <?php if (!empty($entry['appointment_id'])): ?><br><small class="text-muted">Appuntamento #<?= (int) $entry['appointment_id'] ?></small><?php endif; ?>
+                          </td>
+                          <td>
+                            <span class="label label-info"><?= esc((string) ($channelMeta[$channel]['label'] ?? ($channel !== '' ? strtoupper($channel) : 'Sistema'))) ?></span><br>
+                            <?= esc((string) ($entry['recipient'] ?? '')) ?>
+                            <?php if (!empty($entry['patient_label'])): ?><br><small class="text-muted"><?= esc((string) $entry['patient_label']) ?></small><?php endif; ?>
+                          </td>
+                          <td>
+                            <?= esc((string) ($entry['provider'] ?? '-')) ?>
+                            <?php if (!empty($entry['provider_id'])): ?><br><small class="text-muted" style="word-break:break-all;">ID: <?= esc((string) $entry['provider_id']) ?></small><?php endif; ?>
+                          </td>
+                          <td><span class="label label-<?= $statusClass ?>"><?= esc((string) ($logStatusLabels[$effectiveStatus] ?? $effectiveStatus)) ?></span></td>
+                          <td class="notification-log-diagnostic">
+                            <?= esc((string) ($entry['diagnostic_message'] ?? '')) ?>
+                            <?php if (!empty($entry['scheduled_for'])): ?><br><small class="text-muted">Previsto: <?= esc((string) $entry['scheduled_for']) ?></small><?php endif; ?>
+                            <?php if (!empty($entry['response_preview'])): ?>
+                              <details class="notification-log-technical">
+                                <summary>Risposta tecnica del provider</summary>
+                                <pre><?= esc((string) $entry['response_preview']) ?></pre>
+                              </details>
+                            <?php endif; ?>
+                          </td>
+                        </tr>
+                      <?php endforeach; ?>
+                    </tbody>
+                  </table>
+                </div>
+                <?php if ($logTruncated): ?>
+                  <div class="alert alert-info" style="margin-bottom:0;">Mostrate le prime <?= (int) ($logFilters['limit'] ?? count($recentRows)) ?> righe su <?= $logTotalMatching ?> risultati. Aumenta “Righe” o restringi i filtri.</div>
+                <?php endif; ?>
+              <?php endif; ?>
             </div>
           </div>
         </div>

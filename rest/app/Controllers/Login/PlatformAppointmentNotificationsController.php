@@ -29,8 +29,20 @@ class PlatformAppointmentNotificationsController extends BaseController
             return redirect()->to(portal_platform_url('notifiche-appuntamenti'));
         }
 
-        $days = max(7, min(180, (int) ($this->request->getGet('days') ?? 30)));
-        $dashboard = (new AppointmentNotificationDashboardService())->buildPlatformDashboard($days, 80);
+        $days = max(1, min(365, (int) ($this->request->getGet('days') ?? 30)));
+        $logLimit = (int) ($this->request->getGet('log_limit') ?? 100);
+        if (!in_array($logLimit, [50, 100, 250, 500], true)) {
+            $logLimit = 100;
+        }
+        $logFilters = [
+            'tenant_id' => max(0, (int) ($this->request->getGet('log_tenant_id') ?? 0)),
+            'channel' => trim((string) ($this->request->getGet('log_channel') ?? '')),
+            'status' => trim((string) ($this->request->getGet('log_status') ?? '')),
+            'message_type' => trim((string) ($this->request->getGet('log_message_type') ?? '')),
+            'query' => trim((string) ($this->request->getGet('log_query') ?? '')),
+            'limit' => $logLimit,
+        ];
+        $dashboard = (new AppointmentNotificationDashboardService())->buildPlatformDashboard($days, $logLimit, $logFilters);
         $policyTenantId = max(0, (int) ($this->request->getGet('tenant_id') ?? 0));
         $policyTenant = null;
         foreach ((array) ($dashboard['tenant_rows'] ?? []) as $tenantRow) {

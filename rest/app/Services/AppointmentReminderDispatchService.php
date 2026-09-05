@@ -142,6 +142,20 @@ class AppointmentReminderDispatchService
                     if (!$this->hasAnyRecipientTarget($recipient)) {
                         $tenantSummary['invalid_recipient']++;
                         $summary['invalid_recipient']++;
+                        if ($sendMode) {
+                            foreach ($rowChannels as $channel) {
+                                $this->appendDecisionLog(
+                                    $tenant,
+                                    $row,
+                                    $channel,
+                                    'failed',
+                                    'Destinatario non disponibile o non valido per il canale selezionato.',
+                                    $targetDate,
+                                    $patientLabel,
+                                    ''
+                                );
+                            }
+                        }
                         continue;
                     }
 
@@ -196,6 +210,16 @@ class AppointmentReminderDispatchService
                         if ($resolvedRecipient === '') {
                             $tenantSummary['invalid_recipient']++;
                             $summary['invalid_recipient']++;
+                            $this->appendDecisionLog(
+                                $tenant,
+                                $row,
+                                $channel,
+                                'failed',
+                                'Destinatario non valido per questo canale.',
+                                $targetDate,
+                                $patientLabel,
+                                ''
+                            );
                             continue;
                         }
 
@@ -212,6 +236,17 @@ class AppointmentReminderDispatchService
                             if ($channel === AppointmentNotificationSettingsService::CHANNEL_WHATSAPP) {
                                 $whatsAppDeferred = true;
                             }
+                            $this->appendDecisionLog(
+                                $tenant,
+                                $row,
+                                $channel,
+                                'deferred',
+                                'Invio rinviato per rispettare i limiti di frequenza configurati per lo spazio.',
+                                $targetDate,
+                                $patientLabel,
+                                $resolvedRecipient,
+                                ['rate_limit' => $rate]
+                            );
                             continue;
                         }
 
@@ -474,6 +509,46 @@ class AppointmentReminderDispatchService
             'email' => (string) (($row['patient_email'] ?? '') ?: ($row['appointment_email'] ?? '')),
             'label' => $patientLabel,
         ];
+    }
+
+    /**
+     * @param array<string, mixed> $tenant
+     * @param array<string, mixed> $row
+     * @param array<string, mixed>|null $response
+     */
+    private function appendDecisionLog(
+        array $tenant,
+        array $row,
+        string $channel,
+        string $status,
+        string $error,
+        string $targetDate,
+        string $patientLabel,
+        string $recipient,
+        ?array $response = null
+    ): void {
+        $tenantId = max(0, (int) ($tenant['id_tenant'] ?? 0));
+        $this->logService->append($tenant, [
+            'tenant_id' => $tenantId,
+            'tenant_key' => (string) ($tenant['tenant_key'] ?? ''),
+            'tenant_name' => (string) ($tenant['tenant_name'] ?? ''),
+            'message_type' => AppointmentNotificationSettingsService::TYPE_REMINDER,
+            'channel' => $channel,
+            'provider' => $this->channelService->providerLabel($channel, $tenantId),
+            'provider_id' => '',
+            'recipient' => $recipient,
+            'recipient_role' => 'patient',
+            'appointment_id' => (int) ($row['id_appuntamento'] ?? 0),
+            'patient_label' => $patientLabel,
+            'doctor_id' => (int) ($row['id_dot'] ?? 0),
+            'doctor_label' => trim((string) ($row['doc_qualifica'] ?? '') . ' ' . (string) ($row['doc_cognome'] ?? '') . ' ' . (string) ($row['doc_nome'] ?? '')),
+            'scheduled_for' => $targetDate . ' ' . (string) ($row['ora_label'] ?? ''),
+            'status' => $status,
+            'source' => 'appointment_reminder_runner',
+            'error' => $error,
+            'response' => $response,
+            'created_at' => date('c'),
+        ]);
     }
 
     /**
