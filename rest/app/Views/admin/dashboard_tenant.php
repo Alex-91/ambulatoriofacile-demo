@@ -8,6 +8,7 @@
 /** @var array $dashboardStats */
 /** @var array $completion */
 /** @var bool $requiresLocationSetup */
+/** @var array $agendaFontSettings */
 
 $result = session()->get('menuDataAdmin');
 $menu_items = $menu_items ?? ($result['result'] ?? []);
@@ -17,6 +18,7 @@ $shortcutActions = is_array($shortcutActions ?? null) ? $shortcutActions : [];
 $checklist = is_array($checklist ?? null) ? $checklist : [];
 $dashboardStats = is_array($dashboardStats ?? null) ? $dashboardStats : [];
 $completion = is_array($completion ?? null) ? $completion : ['completed' => 0, 'total' => 0, 'percent' => 0];
+$agendaFontSettings = is_array($agendaFontSettings ?? null) ? $agendaFontSettings : [];
 ?>
 <!DOCTYPE html>
 <html>
@@ -29,6 +31,7 @@ $completion = is_array($completion ?? null) ? $completion : ['completed' => 0, '
   <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css" rel="stylesheet" />
   <link href="<?= base_url('public/dist/css/AdminLTE.css') ?>" rel="stylesheet" />
   <link href="<?= base_url('public/dist/css/skins/_all-skins.min.css') ?>" rel="stylesheet" />
+  <link href="<?= base_url('public/css/agenda-font-preferences.css') ?>" rel="stylesheet" />
   <style>
     .nav-pills.nav-stacked > li.active > a {
       background-color: #2c8895;
@@ -206,6 +209,14 @@ $completion = is_array($completion ?? null) ? $completion : ['completed' => 0, '
     </section>
 
     <section class="content">
+      <?php if (session()->getFlashdata('success')): ?>
+        <div class="alert alert-success"><?= esc(session()->getFlashdata('success')) ?></div>
+      <?php endif; ?>
+
+      <?php if (session()->getFlashdata('error')): ?>
+        <div class="alert alert-danger"><?= esc(session()->getFlashdata('error')) ?></div>
+      <?php endif; ?>
+
       <div class="row">
         <div class="col-md-3">
           <?= view('partials/sidebar_admin', ['menu_items' => $menu_items ?? []]) ?>
@@ -249,6 +260,11 @@ $completion = is_array($completion ?? null) ? $completion : ['completed' => 0, '
               </div>
             <?php endif; ?>
           </div>
+
+          <?= view('profilo/_agenda_font_preferences', [
+              'agendaFontSettings' => $agendaFontSettings,
+              'agendaFontFormAction' => site_url('admin/preferenze-agenda'),
+          ]) ?>
 
           <div class="row">
             <div class="col-sm-6 col-lg-3">
@@ -337,5 +353,6 @@ $completion = is_array($completion ?? null) ? $completion : ['completed' => 0, '
 <script src="<?= base_url('public/plugins/slimScroll/jquery.slimscroll.min.js') ?>"></script>
 <script src="<?= base_url('public/plugins/fastclick/fastclick.min.js') ?>"></script>
 <script src="<?= base_url('public/dist/js/app.min.js') ?>"></script>
+<script src="<?= base_url('public/js/agenda-font-preferences.js') ?>"></script>
 </body>
 </html>

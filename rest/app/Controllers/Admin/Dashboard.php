@@ -4,6 +4,7 @@ namespace App\Controllers\Admin;
 
 use App\Controllers\BaseController;
 use App\Libraries\TenantContext;
+use App\Services\AgendaFontSizeService;
 use App\Services\StaffLocationCatalogService;
 use App\Services\TenantAdminMenuService;
 use App\Services\TenantCatalogService;
@@ -59,6 +60,49 @@ class Dashboard extends BaseController
         ]);
     }
 
+    public function salvaPreferenzeAgenda()
+    {
+        helper(['portal', 'session_auth']);
+
+        $me = session()->get('utente_sess');
+        if (!$me || empty($me->id_user)) {
+            return redirect()->to('/login');
+        }
+
+        if (session()->get('is_admin') !== true && (int) ($me->tipo ?? 0) !== 1) {
+            return redirect()->to('/');
+        }
+
+        $tenantContext = $this->currentTenantContext();
+        if ($tenantContext === null || !session_has_tenant_management_access()) {
+            return redirect()->to(site_url('admin'))
+                ->with('error', 'Non hai i permessi per modificare le impostazioni dello spazio.');
+        }
+
+        try {
+            $sizes = $this->request->getPost('agenda_font_sizes');
+            $sizes = is_array($sizes) ? $sizes : [];
+            $platformUserId = (int) (session()->get('platform_user_id') ?? 0);
+
+            (new AgendaFontSizeService())->saveForTenant(
+                $tenantContext->tenantId,
+                $sizes,
+                $platformUserId
+            );
+
+            return redirect()->to(site_url('admin') . '#agenda-font-preferences')
+                ->with('success', 'Dimensioni dei testi aggiornate per tutte le agende dello spazio.');
+        } catch (\Throwable $e) {
+            log_message('error', 'Admin Dashboard agenda font preferences save failed: {message}', [
+                'message' => $e->getMessage(),
+                'tenant_id' => $tenantContext->tenantId,
+            ]);
+
+            return redirect()->to(site_url('admin') . '#agenda-font-preferences')
+                ->with('error', 'Non è stato possibile salvare le dimensioni dell’agenda.');
+        }
+    }
+
     private function currentTenantContext(): ?TenantContext
     {
         $raw = session()->get(TenantContextService::SESSION_KEY);
@@ -83,6 +127,7 @@ class Dashboard extends BaseController
         $clientCount = $this->countTableRows('dap02_clients');
         $teamCount = count($this->tenantProvisioning->listTenantMembers($tenantContext->tenantId));
         $shortcutActions = $this->buildTenantShortcutActions($menuItems);
+        $agendaFontSettings = (new AgendaFontSizeService())->resolveForTenant($tenantContext->tenantId);
 
         $checklist = [
             [
@@ -137,6 +182,7 @@ class Dashboard extends BaseController
             'capacity' => $capacity,
             'shortcutActions' => $shortcutActions,
             'checklist' => $checklist,
+            'agendaFontSettings' => $agendaFontSettings,
             'dashboardStats' => [
                 'location_count' => $locationCount,
                 'personnel_count' => $personnelCount,

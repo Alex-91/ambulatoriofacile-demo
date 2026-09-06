@@ -2,13 +2,14 @@
 $fontSettings = is_array($agendaFontSettings ?? null) ? $agendaFontSettings : [];
 $fontRows = is_array($fontSettings['rows'] ?? null) ? $fontSettings['rows'] : [];
 $fontDefaults = is_array($fontSettings['defaults'] ?? null) ? $fontSettings['defaults'] : [];
+$fontFormAction = trim((string) ($agendaFontFormAction ?? site_url('admin/preferenze-agenda')));
 $fontDefaultsJson = json_encode($fontDefaults, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 if (!is_string($fontDefaultsJson) || $fontDefaultsJson === '') {
     $fontDefaultsJson = '{}';
 }
 ?>
 
-<form method="post" action="<?= base_url('profilo/preferenze-agenda') ?>" id="agenda-font-preferences">
+<form method="post" action="<?= esc($fontFormAction, 'attr') ?>" id="agenda-font-preferences">
   <?= csrf_field() ?>
 
   <div
@@ -21,12 +22,12 @@ if (!is_string($fontDefaultsJson) || $fontDefaultsJson === '') {
         <i class="fa fa-font" aria-hidden="true"></i>
         Dimensioni testi agenda
       </h3>
-      <span class="agenda-font-panel-badge">Impostazione personale</span>
+      <span class="agenda-font-panel-badge">Impostazione dello spazio</span>
     </div>
 
     <div class="box-body">
       <p class="agenda-font-panel-intro">
-        Scegli quanto devono essere grandi i diversi testi della tua agenda. La configurazione vale solo per il tuo profilo;
+        Scegli quanto devono essere grandi i diversi testi dell’agenda. La configurazione vale per tutti gli utenti di questo spazio;
         lasciando <strong>Attuale</strong> l’agenda rimane identica a oggi. Non serve digitare alcun valore.
       </p>
 
@@ -110,7 +111,7 @@ if (!is_string($fontDefaultsJson) || $fontDefaultsJson === '') {
 
     <div class="box-footer">
       <span class="agenda-font-save-note">
-        Le preferenze ti seguiranno in tutti gli accessi al tuo spazio.
+        Le dimensioni salvate saranno applicate a tutte le agende dello spazio.
       </span>
       <div>
         <button type="button" class="btn btn-default" data-agenda-font-reset>

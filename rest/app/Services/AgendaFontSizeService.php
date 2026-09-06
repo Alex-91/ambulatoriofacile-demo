@@ -6,10 +6,10 @@ use CodeIgniter\Database\BaseConnection;
 
 class AgendaFontSizeService
 {
-    public const TABLE = 'dap_user_agenda_font_preferences';
+    public const TABLE = 'platform_tenant_agenda_font_preferences';
 
     /**
-     * The defaults mirror the sizes currently used by the agenda. Users without
+     * The defaults mirror the sizes currently used by the agenda. Spaces without
      * a saved row therefore keep the existing rendering unchanged.
      *
      * @var array<string, array<string, mixed>>
@@ -102,20 +102,20 @@ class AgendaFontSizeService
 
     public function __construct(?BaseConnection $db = null)
     {
-        $this->db = $db ?? \Config\Database::connect();
+        $this->db = $db ?? \Config\Database::connect('platform');
     }
 
     /**
      * @return array<string, mixed>
      */
-    public function resolveForUser(int $userId): array
+    public function resolveForTenant(int $tenantId): array
     {
         $savedSizes = [];
         $hasSavedPreferences = false;
 
-        if ($userId > 0 && $this->db->tableExists(self::TABLE)) {
+        if ($tenantId > 0 && $this->db->tableExists(self::TABLE)) {
             $row = $this->db->table(self::TABLE)
-                ->where('id_user', $userId)
+                ->where('id_tenant', $tenantId)
                 ->get(1)
                 ->getRowArray();
 
@@ -147,10 +147,10 @@ class AgendaFontSizeService
     /**
      * @param array<int|string, mixed> $rawSizes
      */
-    public function saveForUser(int $userId, array $rawSizes): bool
+    public function saveForTenant(int $tenantId, array $rawSizes, int $updatedByPlatformUserId = 0): bool
     {
-        if ($userId <= 0) {
-            throw new \InvalidArgumentException('Utente non valido.');
+        if ($tenantId <= 0) {
+            throw new \InvalidArgumentException('Spazio non valido.');
         }
 
         if (!$this->db->tableExists(self::TABLE)) {
@@ -166,20 +166,24 @@ class AgendaFontSizeService
             'updated_at' => date('Y-m-d H:i:s'),
         ];
 
+        if ($updatedByPlatformUserId > 0) {
+            $payload['updated_by_platform_user'] = $updatedByPlatformUserId;
+        }
+
         $builder = $this->db->table(self::TABLE);
         $existing = $builder
-            ->select('id_user')
-            ->where('id_user', $userId)
+            ->select('id_tenant')
+            ->where('id_tenant', $tenantId)
             ->get(1)
             ->getRowArray();
 
         if ($existing) {
             return (bool) $this->db->table(self::TABLE)
-                ->where('id_user', $userId)
+                ->where('id_tenant', $tenantId)
                 ->update($payload);
         }
 
-        $payload['id_user'] = $userId;
+        $payload['id_tenant'] = $tenantId;
         $payload['created_at'] = $payload['updated_at'];
 
         return (bool) $this->db->table(self::TABLE)->insert($payload);
@@ -188,9 +192,9 @@ class AgendaFontSizeService
     /**
      * @return array<string, string>
      */
-    public function resolveCssVariables(int $userId): array
+    public function resolveCssVariables(int $tenantId): array
     {
-        $settings = $this->resolveForUser($userId);
+        $settings = $this->resolveForTenant($tenantId);
         $sizes = (array) ($settings['sizes'] ?? []);
         $variables = [];
 

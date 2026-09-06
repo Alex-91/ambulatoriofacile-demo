@@ -12,7 +12,6 @@ use App\Libraries\SmsSender;
 use App\Services\LoginEmailService;
 use App\Services\NotificationService;
 use App\Services\OtpDeliveryLogService;
-use App\Services\AgendaFontSizeService;
 use App\Services\StaffLocationCatalogService;
 
 class Profilo extends BaseController
@@ -80,8 +79,6 @@ class Profilo extends BaseController
     }
     session()->set('userId', (int)$me->id_user);
 
-        $agendaFontSettings = (new AgendaFontSizeService())->resolveForUser((int) $me->id_user);
-
         $agendaReturnUrl = session_should_open_agenda_first() ? site_url('agenda') : null;
 
         return view('profilo/index', [
@@ -103,7 +100,6 @@ class Profilo extends BaseController
 
         'vapidPublicKey'   => push_vapid_public_key(),
         'agendaReturnUrl'  => $agendaReturnUrl,
-        'agendaFontSettings' => $agendaFontSettings,
         ]);
     }
 
@@ -147,33 +143,6 @@ private function buildHeaderMenuItemsForCurrentUser(): array
 
     return $items;
 }
-
-public function salvaPreferenzeAgenda()
-{
-    $me = session()->get('utente_sess');
-    if (!$me || empty($me->id_user)) {
-        return $this->response->setStatusCode(401)->setBody('Unauthorized');
-    }
-
-    try {
-        $sizes = $this->request->getPost('agenda_font_sizes');
-        $sizes = is_array($sizes) ? $sizes : [];
-
-        (new AgendaFontSizeService())->saveForUser((int) $me->id_user, $sizes);
-
-        return redirect()->to(base_url('profilo') . '#agenda-font-preferences')
-            ->with('success', 'Dimensioni dei testi dell’agenda aggiornate.');
-    } catch (\Throwable $e) {
-        log_message('error', 'Profilo::salvaPreferenzeAgenda failed: {message}', [
-            'message' => $e->getMessage(),
-        ]);
-
-        return redirect()->to(base_url('profilo') . '#agenda-font-preferences')
-            ->with('error', 'Non è stato possibile salvare le dimensioni dell’agenda.');
-    }
-}
-
-
 
  public function salva()
 {

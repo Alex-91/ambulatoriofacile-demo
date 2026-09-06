@@ -40,16 +40,35 @@ final class AgendaFontSizePreferencesTest extends CIUnitTestCase
         self::assertSame(14, $sizes['time_labels']);
     }
 
-    public function testProfilePanelAndAgendaExposeEveryTypographyFamily(): void
+    public function testPreferencesAreStoredPerTenantInThePlatformDatabase(): void
+    {
+        self::assertSame('platform_tenant_agenda_font_preferences', AgendaFontSizeService::TABLE);
+
+        $serviceSource = file_get_contents(APPPATH . 'Services/AgendaFontSizeService.php');
+        self::assertIsString($serviceSource);
+        self::assertStringContainsString("connect('platform')", $serviceSource);
+        self::assertStringContainsString("where('id_tenant', \$tenantId)", $serviceSource);
+        self::assertStringNotContainsString("where('id_user'", $serviceSource);
+    }
+
+    public function testOperationalSpaceProfileAndAgendaExposeEveryTypographyFamily(): void
     {
         $profileSource = file_get_contents(APPPATH . 'Views/profilo/_agenda_font_preferences.php');
+        $tenantDashboardSource = file_get_contents(APPPATH . 'Views/admin/dashboard_tenant.php');
+        $personalProfileSource = file_get_contents(APPPATH . 'Views/profilo/index.php');
         $agendaSource = file_get_contents(APPPATH . 'Views/agenda/index.php');
 
         self::assertIsString($profileSource);
+        self::assertIsString($tenantDashboardSource);
+        self::assertIsString($personalProfileSource);
         self::assertIsString($agendaSource);
         self::assertStringContainsString('data-agenda-font-setting', $profileSource);
         self::assertStringContainsString('data-agenda-font-preset="comfortable"', $profileSource);
         self::assertStringContainsString('data-agenda-font-preset="large"', $profileSource);
+        self::assertStringContainsString('Impostazione dello spazio', $profileSource);
+        self::assertStringContainsString("view('profilo/_agenda_font_preferences'", $tenantDashboardSource);
+        self::assertStringContainsString("site_url('admin/preferenze-agenda')", $tenantDashboardSource);
+        self::assertStringNotContainsString("view('profilo/_agenda_font_preferences'", $personalProfileSource);
 
         foreach ([
             '--agenda-font-day-heading',

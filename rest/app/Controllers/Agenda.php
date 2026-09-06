@@ -2016,7 +2016,7 @@ public function eseguiRepairRecurringExtraSlots()
 
         try {
             $agendaFontSizeCssVariables = (new AgendaFontSizeService())
-                ->resolveCssVariables($this->getCurrentUserId());
+                ->resolveCssVariables($agendaTenantId);
         } catch (\Throwable $e) {
             log_message('warning', 'Agenda::index font preferences bootstrap failed: {message}', [
                 'message' => $e->getMessage(),
