@@ -90,7 +90,7 @@ class Dashboard extends BaseController
                 $platformUserId
             );
 
-            return redirect()->to(site_url('admin') . '#agenda-font-preferences')
+            return redirect()->to(site_url('admin/preferenze-agenda'))
                 ->with('success', 'Dimensioni dei testi aggiornate per tutte le agende dello spazio.');
         } catch (\Throwable $e) {
             log_message('error', 'Admin Dashboard agenda font preferences save failed: {message}', [
@@ -98,9 +98,37 @@ class Dashboard extends BaseController
                 'tenant_id' => $tenantContext->tenantId,
             ]);
 
-            return redirect()->to(site_url('admin') . '#agenda-font-preferences')
+            return redirect()->to(site_url('admin/preferenze-agenda'))
                 ->with('error', 'Non è stato possibile salvare le dimensioni dell’agenda.');
         }
+    }
+
+    public function preferenzeAgenda()
+    {
+        helper(['portal', 'admin_menu', 'session_auth']);
+
+        $me = session()->get('utente_sess');
+        if (!$me || empty($me->id_user)) {
+            return redirect()->to('/login');
+        }
+
+        if (session()->get('is_admin') !== true && (int) ($me->tipo ?? 0) !== 1) {
+            return redirect()->to('/');
+        }
+
+        $tenantContext = $this->currentTenantContext();
+        if ($tenantContext === null || !session_has_tenant_management_access()) {
+            return redirect()->to(site_url('admin'))
+                ->with('error', 'Profilo operativo non disponibile per questo account.');
+        }
+
+        $menuAdmin = session()->get('menuDataAdmin');
+
+        return view('admin/agenda_font_preferences', [
+            'menu_items' => is_array($menuAdmin['result'] ?? null) ? $menuAdmin['result'] : [],
+            'tenantContext' => $tenantContext,
+            'agendaFontSettings' => (new AgendaFontSizeService())->resolveForTenant($tenantContext->tenantId),
+        ]);
     }
 
     private function currentTenantContext(): ?TenantContext
@@ -127,7 +155,6 @@ class Dashboard extends BaseController
         $clientCount = $this->countTableRows('dap02_clients');
         $teamCount = count($this->tenantProvisioning->listTenantMembers($tenantContext->tenantId));
         $shortcutActions = $this->buildTenantShortcutActions($menuItems);
-        $agendaFontSettings = (new AgendaFontSizeService())->resolveForTenant($tenantContext->tenantId);
 
         $checklist = [
             [
@@ -182,7 +209,6 @@ class Dashboard extends BaseController
             'capacity' => $capacity,
             'shortcutActions' => $shortcutActions,
             'checklist' => $checklist,
-            'agendaFontSettings' => $agendaFontSettings,
             'dashboardStats' => [
                 'location_count' => $locationCount,
                 'personnel_count' => $personnelCount,

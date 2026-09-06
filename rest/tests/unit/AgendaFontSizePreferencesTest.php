@@ -54,20 +54,24 @@ final class AgendaFontSizePreferencesTest extends CIUnitTestCase
     public function testOperationalSpaceProfileAndAgendaExposeEveryTypographyFamily(): void
     {
         $profileSource = file_get_contents(APPPATH . 'Views/profilo/_agenda_font_preferences.php');
-        $tenantDashboardSource = file_get_contents(APPPATH . 'Views/admin/dashboard_tenant.php');
+        $preferencesPageSource = file_get_contents(APPPATH . 'Views/admin/agenda_font_preferences.php');
+        $adminSidebarSource = file_get_contents(APPPATH . 'Views/partials/sidebar_admin.php');
         $personalProfileSource = file_get_contents(APPPATH . 'Views/profilo/index.php');
         $agendaSource = file_get_contents(APPPATH . 'Views/agenda/index.php');
 
         self::assertIsString($profileSource);
-        self::assertIsString($tenantDashboardSource);
+        self::assertIsString($preferencesPageSource);
+        self::assertIsString($adminSidebarSource);
         self::assertIsString($personalProfileSource);
         self::assertIsString($agendaSource);
         self::assertStringContainsString('data-agenda-font-setting', $profileSource);
         self::assertStringContainsString('data-agenda-font-preset="comfortable"', $profileSource);
         self::assertStringContainsString('data-agenda-font-preset="large"', $profileSource);
         self::assertStringContainsString('Impostazione dello spazio', $profileSource);
-        self::assertStringContainsString("view('profilo/_agenda_font_preferences'", $tenantDashboardSource);
-        self::assertStringContainsString("site_url('admin/preferenze-agenda')", $tenantDashboardSource);
+        self::assertStringContainsString("view('profilo/_agenda_font_preferences'", $preferencesPageSource);
+        self::assertStringContainsString("site_url('admin/preferenze-agenda')", $preferencesPageSource);
+        self::assertStringContainsString('Dimensioni testi agenda', $adminSidebarSource);
+        self::assertStringContainsString("site_url('admin/preferenze-agenda')", $adminSidebarSource);
         self::assertStringNotContainsString("view('profilo/_agenda_font_preferences'", $personalProfileSource);
 
         foreach ([

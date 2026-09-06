@@ -8,7 +8,6 @@
 /** @var array $dashboardStats */
 /** @var array $completion */
 /** @var bool $requiresLocationSetup */
-/** @var array $agendaFontSettings */
 
 $result = session()->get('menuDataAdmin');
 $menu_items = $menu_items ?? ($result['result'] ?? []);
@@ -18,7 +17,6 @@ $shortcutActions = is_array($shortcutActions ?? null) ? $shortcutActions : [];
 $checklist = is_array($checklist ?? null) ? $checklist : [];
 $dashboardStats = is_array($dashboardStats ?? null) ? $dashboardStats : [];
 $completion = is_array($completion ?? null) ? $completion : ['completed' => 0, 'total' => 0, 'percent' => 0];
-$agendaFontSettings = is_array($agendaFontSettings ?? null) ? $agendaFontSettings : [];
 ?>
 <!DOCTYPE html>
 <html>
@@ -31,7 +29,6 @@ $agendaFontSettings = is_array($agendaFontSettings ?? null) ? $agendaFontSetting
   <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css" rel="stylesheet" />
   <link href="<?= base_url('public/dist/css/AdminLTE.css') ?>" rel="stylesheet" />
   <link href="<?= base_url('public/dist/css/skins/_all-skins.min.css') ?>" rel="stylesheet" />
-  <link href="<?= base_url('public/css/agenda-font-preferences.css') ?>" rel="stylesheet" />
   <style>
     .nav-pills.nav-stacked > li.active > a {
       background-color: #2c8895;
@@ -261,11 +258,6 @@ $agendaFontSettings = is_array($agendaFontSettings ?? null) ? $agendaFontSetting
             <?php endif; ?>
           </div>
 
-          <?= view('profilo/_agenda_font_preferences', [
-              'agendaFontSettings' => $agendaFontSettings,
-              'agendaFontFormAction' => site_url('admin/preferenze-agenda'),
-          ]) ?>
-
           <div class="row">
             <div class="col-sm-6 col-lg-3">
               <div class="summary-card">
@@ -353,6 +345,5 @@ $agendaFontSettings = is_array($agendaFontSettings ?? null) ? $agendaFontSetting
 <script src="<?= base_url('public/plugins/slimScroll/jquery.slimscroll.min.js') ?>"></script>
 <script src="<?= base_url('public/plugins/fastclick/fastclick.min.js') ?>"></script>
 <script src="<?= base_url('public/dist/js/app.min.js') ?>"></script>
-<script src="<?= base_url('public/js/agenda-font-preferences.js') ?>"></script>
 </body>
 </html>

@@ -365,6 +365,7 @@ $routes->post('profilo/device/register-here', 'Profilo::registerDeviceHere'); //
 
 $routes->group('admin', ['namespace' => 'App\Controllers\Admin'], function($routes) {
     $routes->get('/', 'Dashboard::index');
+    $routes->get('preferenze-agenda', 'Dashboard::preferenzeAgenda');
     $routes->post('preferenze-agenda', 'Dashboard::salvaPreferenzeAgenda');
     $routes->get('whatsapp-reminders', 'WhatsappReminders::index');
     $routes->post('whatsapp-reminders/launch', 'WhatsappReminders::launch');

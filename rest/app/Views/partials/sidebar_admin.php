@@ -27,6 +27,8 @@ $normalizePath = static function (?string $path): string {
 };
 
 $currentPath = strtolower($normalizePath(service('uri')->getPath()));
+$agendaFontPreferencesHref = site_url('admin/preferenze-agenda');
+$agendaFontPreferencesPath = strtolower($normalizePath($agendaFontPreferencesHref));
 $isLinkActive = static function (string $href) use ($normalizePath, $currentPath): bool {
     $itemPath = strtolower($normalizePath($href));
     if ($itemPath === '') {
@@ -108,6 +110,15 @@ $isLinkActive = static function (string $href) use ($normalizePath, $currentPath
           </a>
         </li>
       <?php endforeach; ?>
+
+      <?php if ($tenantName !== ''): ?>
+        <li class="<?= $currentPath === $agendaFontPreferencesPath ? 'active' : '' ?>">
+          <a href="<?= esc($agendaFontPreferencesHref) ?>">
+            <i class="fa fa-font"></i>
+            Dimensioni testi agenda
+          </a>
+        </li>
+      <?php endif; ?>
     </ul>
 
     <?php if ($contextActions !== []): ?>
