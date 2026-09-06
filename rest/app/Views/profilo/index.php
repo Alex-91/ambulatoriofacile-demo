@@ -24,6 +24,7 @@
     <link href="<?= base_url('public/dist/css/skins/_all-skins.min.css') ?>" rel="stylesheet" type="text/css" />
     <!-- iCheck -->
     <link href="<?= base_url('public/plugins/iCheck/flat/blue.css') ?>" rel="stylesheet" type="text/css" />
+    <link href="<?= base_url('public/css/agenda-font-preferences.css') ?>" rel="stylesheet" type="text/css" />
     <?= view('partials/italian_address_autocomplete_style') ?>
 </head>
 
@@ -72,6 +73,11 @@
           </ul>
         </div>
       <?php endif; ?>
+
+<?= view('profilo/_agenda_font_preferences', [
+  'agendaFontSettings' => $agendaFontSettings ?? [],
+]) ?>
+
 <div class="box box-warning">
   <div class="box-header with-border">
     <h3 class="box-title">Cambio Password</h3>
@@ -624,6 +630,7 @@
         'province' => 'input[name="provincia"]',
     ]],
 ]) ?>
+<script src="<?= base_url('public/js/agenda-font-preferences.js') ?>"></script>
 </body>
 </html>
 <script>

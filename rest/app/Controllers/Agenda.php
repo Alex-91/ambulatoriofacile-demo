@@ -19,6 +19,7 @@ use App\Services\AgendaAppointmentNotificationService;
 use App\Services\AgendaAppointmentBlockLayoutService;
 use App\Services\AgendaDefaultViewService;
 use App\Services\AgendaHomeBlockOrderService;
+use App\Services\AgendaFontSizeService;
 use App\Services\AgendaMemoFieldVisibilityService;
 use App\Services\AgendaProfessionalOrderService;
 use App\Services\AgendaSidebarBlockOrderService;
@@ -2011,6 +2012,16 @@ public function eseguiRepairRecurringExtraSlots()
         $agendaSidebarBlockOrderSettings = [];
         $agendaTenantId = $this->resolveCurrentAgendaTenantId();
         $patientSmsReminderPreferenceAvailable = $this->isPatientSmsReminderPreferenceAvailable();
+        $agendaFontSizeCssVariables = [];
+
+        try {
+            $agendaFontSizeCssVariables = (new AgendaFontSizeService())
+                ->resolveCssVariables($this->getCurrentUserId());
+        } catch (\Throwable $e) {
+            log_message('warning', 'Agenda::index font preferences bootstrap failed: {message}', [
+                'message' => $e->getMessage(),
+            ]);
+        }
 
         if ($agendaTenantId > 0) {
             try {
@@ -2082,6 +2093,7 @@ public function eseguiRepairRecurringExtraSlots()
             'agendaHomeBlockOrderSettings' => $agendaHomeBlockOrderSettings,
             'agendaSidebarBlockOrderSettings' => $agendaSidebarBlockOrderSettings,
             'agendaTextThemeCssVars' => $this->getAgendaTextThemeCssVariables(),
+            'agendaFontSizeCssVars' => $agendaFontSizeCssVariables,
             'domiciliariAbilitati' => $domiciliariAbilitati,
             'appointmentDocumentActions' => $appointmentDocumentActions,
             'patientSmsReminderPreferenceAvailable' => $patientSmsReminderPreferenceAvailable,

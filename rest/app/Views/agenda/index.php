@@ -212,8 +212,10 @@
             ];
         }
         $agendaTextThemeCssVars = is_array($agendaTextThemeCssVars ?? null) ? $agendaTextThemeCssVars : [];
+        $agendaFontSizeCssVars = is_array($agendaFontSizeCssVars ?? null) ? $agendaFontSizeCssVars : [];
+        $agendaAppearanceCssVars = array_merge($agendaTextThemeCssVars, $agendaFontSizeCssVars);
         $agendaTextThemeInlineStyle = '';
-        foreach ($agendaTextThemeCssVars as $cssVarName => $cssVarValue) {
+        foreach ($agendaAppearanceCssVars as $cssVarName => $cssVarValue) {
             $cssVarName = trim((string) $cssVarName);
             $cssVarValue = trim((string) $cssVarValue);
             if ($cssVarName === '' || $cssVarValue === '') {
@@ -3411,6 +3413,195 @@
             .agenda-day-note-inline-host.is-collapsed {
                 width: auto;
                 flex-basis: auto;
+            }
+        }
+
+        /* Dimensioni personali: i fallback coincidono con i valori storici. */
+        #calendar .fc-day-header {
+            font-size: var(--agenda-font-day-heading, 14px) !important;
+        }
+
+        .agenda-compressed-daybar-label {
+            font-size: calc(var(--agenda-font-day-heading, 14px) + 6px) !important;
+        }
+
+        .agenda-team-day-toolbar-piece {
+            font-size: calc(var(--agenda-font-day-heading, 14px) + 14px) !important;
+        }
+
+        .agenda-team-day-toolbar-year,
+        .agenda-team-day-toolbar-kicker {
+            font-size: max(11px, calc(var(--agenda-font-day-heading, 14px) - 2px)) !important;
+        }
+
+        #calendar .agenda-grid-axis-label {
+            font-size: var(--agenda-font-time-label, 14px) !important;
+        }
+
+        .agenda-team-time-marker {
+            font-size: max(11px, calc(var(--agenda-font-time-label, 14px) - 2px)) !important;
+        }
+
+        .agenda-team-mobile-section-label {
+            font-size: max(10px, calc(var(--agenda-font-time-label, 14px) - 2px)) !important;
+        }
+
+        .agenda-custom-slot-title {
+            font-size: var(--agenda-font-appointment-title, 12px) !important;
+        }
+
+        .agenda-team-entry-title {
+            font-size: calc(var(--agenda-font-appointment-title, 12px) + 1px) !important;
+        }
+
+        .agenda-custom-slot-time {
+            font-size: var(--agenda-font-appointment-time, 11px) !important;
+        }
+
+        .agenda-team-entry-time {
+            font-size: calc(var(--agenda-font-appointment-time, 11px) + 2px) !important;
+        }
+
+        .agenda-slot-location-amb,
+        .agenda-slot-location-room {
+            font-size: var(--agenda-font-appointment-details, 10px) !important;
+        }
+
+        .agenda-team-entry-contact,
+        .agenda-team-entry-note {
+            font-size: calc(var(--agenda-font-appointment-details, 10px) + 2px) !important;
+        }
+
+        .agenda-team-chip,
+        .agenda-team-slot-guide-time {
+            font-size: calc(var(--agenda-font-appointment-details, 10px) + 1px) !important;
+        }
+
+        .agenda-team-header-name,
+        .agenda-team-mobile-entry-doctor {
+            font-size: var(--agenda-font-team-professional, 14px) !important;
+        }
+
+        .agenda-doctor-label {
+            font-size: calc(var(--agenda-font-team-professional, 14px) + 12px) !important;
+        }
+
+        .agenda-toolbar label,
+        .agenda-toolbar .form-control,
+        .agenda-sidebar-toggle,
+        .agenda-view-switch .btn,
+        .agenda-view-help {
+            font-size: var(--agenda-font-controls, 12px) !important;
+        }
+
+        .agenda-sidebar-panels .nav a,
+        .agenda-calendar-actions .btn {
+            font-size: calc(var(--agenda-font-controls, 12px) + 2px) !important;
+        }
+
+        .agenda-sidebar-panels .box-title {
+            font-size: calc(var(--agenda-font-controls, 12px) + 6px) !important;
+        }
+
+        .agenda-calendar-viewbar-kicker {
+            font-size: max(10px, calc(var(--agenda-font-controls, 12px) - 1px)) !important;
+        }
+
+        .agenda-doctor-select {
+            font-size: calc(var(--agenda-font-controls, 12px) + 6px) !important;
+        }
+
+        .agenda-doctor-help,
+        .agenda-doctor-current {
+            font-size: calc(var(--agenda-font-controls, 12px) + 2px) !important;
+        }
+
+        .agenda-view-switch--calendar .btn {
+            font-size: calc(var(--agenda-font-controls, 12px) + 1px) !important;
+        }
+
+        .agenda-mini-calendar-title,
+        .agenda-mini-calendar-day-number {
+            font-size: var(--agenda-font-mini-calendar, 13px) !important;
+        }
+
+        .agenda-mini-calendar-weekday {
+            font-size: max(10px, calc(var(--agenda-font-mini-calendar, 13px) - 3px)) !important;
+        }
+
+        .agenda-mini-calendar-legend,
+        .agenda-mini-calendar-status {
+            font-size: max(10px, calc(var(--agenda-font-mini-calendar, 13px) - 2px)) !important;
+        }
+
+        .agenda-note-meta,
+        .agenda-note-done-label,
+        .vd-note-preview {
+            font-size: var(--agenda-font-notes, 12px) !important;
+        }
+
+        .agenda-note-text,
+        .agenda-note-grid {
+            font-size: calc(var(--agenda-font-notes, 12px) + 2px) !important;
+        }
+
+        .agenda-note-title {
+            font-size: calc(var(--agenda-font-notes, 12px) + 3px) !important;
+        }
+
+        #nota_giorno_text {
+            font-size: calc(var(--agenda-font-notes, 12px) + 6px) !important;
+        }
+
+        @media (max-width: 767px) {
+            .agenda-compressed-daybar-label {
+                font-size: calc(var(--agenda-font-day-heading, 14px) + 4px) !important;
+            }
+
+            .agenda-team-day-toolbar-piece {
+                font-size: calc(var(--agenda-font-day-heading, 14px) + 10px) !important;
+            }
+
+            .agenda-team-day-toolbar-year {
+                font-size: max(11px, calc(var(--agenda-font-day-heading, 14px) - 3px)) !important;
+            }
+
+            .agenda-doctor-label {
+                font-size: calc(var(--agenda-font-team-professional, 14px) + 8px) !important;
+            }
+
+            .agenda-doctor-select {
+                font-size: calc(var(--agenda-font-controls, 12px) + 4px) !important;
+            }
+
+            .agenda-team-entry-title {
+                font-size: var(--agenda-font-appointment-title, 12px) !important;
+            }
+
+            .agenda-team-entry-contact,
+            .agenda-team-entry-note {
+                font-size: calc(var(--agenda-font-appointment-details, 10px) + 1px) !important;
+            }
+
+            .agenda-team-mobile-entry-title {
+                font-size: max(9px, calc(var(--agenda-font-appointment-title, 12px) - 2px)) !important;
+            }
+
+            .agenda-team-mobile-entry-time {
+                font-size: max(8px, calc(var(--agenda-font-appointment-time, 11px) - 3px)) !important;
+            }
+
+            .agenda-team-mobile-entry-contact,
+            .agenda-team-mobile-entry-note {
+                font-size: calc(var(--agenda-font-appointment-details, 10px) + 1px) !important;
+            }
+
+            .agenda-team-mobile-summary-name {
+                font-size: max(9px, calc(var(--agenda-font-team-professional, 14px) - 4px)) !important;
+            }
+
+            .agenda-team-mobile-empty-card-name {
+                font-size: max(11px, calc(var(--agenda-font-team-professional, 14px) - 1px)) !important;
             }
         }
 

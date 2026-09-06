@@ -355,6 +355,7 @@ $routes->post('chat/clearAll', 'Chat::clearAll'); // svuota tutte
 $routes->group('', ['filter' => 'auth'], function($routes) {
     $routes->get('profilo', 'Profilo::index');
     $routes->post('profilo/salva', 'Profilo::salva');
+    $routes->post('profilo/preferenze-agenda', 'Profilo::salvaPreferenzeAgenda');
         $routes->post('profilo/password/otp', 'Profilo::sendPasswordOtp');
         $routes->post('profilo/password', 'Profilo::salvaPassword');
 $routes->post('profilo/device/disconnect', 'Profilo::disconnectDevice');
