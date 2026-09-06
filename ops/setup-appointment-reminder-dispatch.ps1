@@ -42,7 +42,7 @@ $payload = @{
 $existing = $tasks | Where-Object { $_.name -eq $payload.name } | Select-Object -First 1
 
 if ($DryRun) {
-    Write-Host "[login] dry-run: task $($payload.name) ogni 5 minuti; il comando si attiva dalle 08:00 Europe/Rome e una sola volta al giorno"
+    Write-Host "[login] dry-run: task $($payload.name) ogni 5 minuti; il comando ricontrolla gli appuntamenti dalle 08:00 alle 08:59 Europe/Rome"
 } elseif ($existing) {
     Invoke-RestMethod -Method Patch -Uri "$tasksUri/$($existing.uuid)" -Headers $headers -ContentType "application/json" -Body ($payload | ConvertTo-Json -Compress) | Out-Null
     Write-Host "[login] task reminder aggiornata"

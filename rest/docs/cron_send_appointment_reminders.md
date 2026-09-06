@@ -7,12 +7,12 @@
 Il comando corrente è `php spark appointment-reminders:run`. Una volta installato, il task Coolify lo richiama ogni 5 minuti sulla sola applicazione centrale `login`, mentre il comando decide internamente l'orario usando `Europe/Rome`:
 
 - fuori dalla finestra 08:00-08:59 non apre un nuovo batch del giorno;
-- dalle 08:00 individua tutti gli spazi con reminder attivo;
+- dalle 08:00 alle 08:59 ricontrolla ogni 5 minuti gli spazi con reminder attivo, così recupera appuntamenti diventati disponibili dopo il primo passaggio;
 - per ogni spazio calcola la data target usando i giorni di anticipo configurati;
 - invia gli appuntamenti non annullati usando soltanto i canali autorizzati;
 - rispetta ritmo, limite giornaliero e fallback definiti per lo spazio;
 - un lock impedisce batch concorrenti;
-- uno stato giornaliero impedisce di ripetere un batch concluso;
+- lo stato per appuntamento e canale impedisce di ripetere gli invii già riusciti durante i ricontrolli;
 - un batch incompleto viene ripreso mantenendo la sua data di riferimento originale.
 
 Installazione o riallineamento del task Coolify, dopo che il codice è stato pubblicato su `main` e rilasciato su `login`:

@@ -78,7 +78,7 @@ final class AppointmentReminderScheduledRunServiceTest extends CIUnitTestCase
         $this->assertSame(0, $calls);
     }
 
-    public function testCompletedDayIsNotRunTwice(): void
+    public function testCompletedDayIsRecheckedDuringTheStartWindow(): void
     {
         $calls = 0;
         $service = $this->service(static function () use (&$calls): array {
@@ -91,7 +91,25 @@ final class AppointmentReminderScheduledRunServiceTest extends CIUnitTestCase
         $second = $service->run(['now' => $now->modify('+5 minutes')]);
 
         $this->assertSame('completed', $first['status']);
-        $this->assertSame('already_completed', $second['status']);
+        $this->assertSame('completed', $second['status']);
+        $this->assertSame(2, $calls);
+    }
+
+    public function testCompletedDayIsNotRecheckedAfterTheStartWindow(): void
+    {
+        $calls = 0;
+        $service = $this->service(static function () use (&$calls): array {
+            $calls++;
+            return ['failed' => 0, 'deferred' => 0, 'tenants' => []];
+        });
+        $now = new \DateTimeImmutable('2026-09-05 08:00:00', new \DateTimeZone('Europe/Rome'));
+
+        $first = $service->run(['now' => $now]);
+        $second = $service->run(['now' => $now->modify('+1 hour')]);
+
+        $this->assertSame('completed', $first['status']);
+        $this->assertSame('not_due', $second['status']);
+        $this->assertSame('2026-09-06 08:00:00', $second['next_run_at']);
         $this->assertSame(1, $calls);
     }
 

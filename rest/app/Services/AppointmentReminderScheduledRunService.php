@@ -95,7 +95,10 @@ final class AppointmentReminderScheduledRunService
 
             $statePath = $this->statePath($referenceDate);
             $state = $this->loadState($statePath);
-            if (($state['status'] ?? '') === 'completed' && !$force) {
+            $canRecheckCompletedToday = $requestedReferenceDate === null
+                && $referenceDate === $today
+                && $this->isInsideStartWindow($now);
+            if (($state['status'] ?? '') === 'completed' && !$force && !$canRecheckCompletedToday) {
                 return [
                     'ok' => true,
                     'status' => 'already_completed',
