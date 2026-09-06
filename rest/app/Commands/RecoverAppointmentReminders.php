@@ -11,13 +11,14 @@ final class RecoverAppointmentReminders extends BaseCommand
     protected $group = 'Notifications';
     protected $name = 'appointment-reminders:recover';
     protected $description = 'Recupera reminder per un tenant e una data con filtri espliciti e output senza dati paziente.';
-    protected $usage = 'appointment-reminders:recover --tenant-id=N --target-date=YYYY-MM-DD [--created-date=YYYY-MM-DD] [--slot-origin=EXTRA] [--channel=sms|email|wa|otp] [--send]';
+    protected $usage = 'appointment-reminders:recover --tenant-id=N --target-date=YYYY-MM-DD [--created-date=YYYY-MM-DD] [--slot-origin=EXTRA] [--channel=sms|email|wa|otp] [--dry-run|--send]';
     protected $options = [
         '--tenant-id=' => 'Tenant da elaborare (obbligatorio).',
         '--target-date=' => 'Data degli appuntamenti da elaborare (obbligatoria).',
         '--created-date=' => 'Limita agli appuntamenti creati nella data indicata.',
         '--slot-origin=' => 'Limita all’origine slot indicata, per esempio EXTRA.',
         '--channel=' => 'Limita l’elaborazione a un singolo canale.',
+        '--dry-run' => 'Verifica esplicitamente senza inviare.',
         '--send' => 'Invia realmente; senza questa opzione esegue solo la verifica.',
     ];
 
@@ -46,18 +47,32 @@ final class RecoverAppointmentReminders extends BaseCommand
                 throw new \InvalidArgumentException('Canale non valido.');
             }
 
+            $send = $this->hasFlag($params, 'send');
+            if ($send && $this->hasFlag($params, 'dry-run')) {
+                throw new \InvalidArgumentException('Usa --send oppure --dry-run, non entrambi.');
+            }
+
             $result = (new AppointmentReminderDispatchService())->run([
-                'send' => $this->hasFlag($params, 'send'),
+                'send' => $send,
                 'tenant_id' => $tenantId,
                 'target_date' => $targetDate,
                 'created_date' => $createdDate,
                 'slot_origin' => $slotOrigin,
                 'channel' => $channel,
             ]);
+            $eligibleRecipients = 0;
             foreach ($result['tenants'] as &$tenant) {
+                foreach ((array) ($tenant['preview'] ?? []) as $preview) {
+                    if (trim((string) ($preview['recipient'] ?? '')) !== '') {
+                        $eligibleRecipients++;
+                    }
+                }
                 unset($tenant['preview']);
             }
             unset($tenant);
+            if (!$send) {
+                $result['eligible_recipients'] = $eligibleRecipients;
+            }
 
             $json = json_encode($result, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
             CLI::write(is_string($json) ? $json : '{"mode":"error","failed":1}', (int) ($result['failed'] ?? 0) === 0 ? 'green' : 'yellow');

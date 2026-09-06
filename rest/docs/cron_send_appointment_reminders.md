@@ -180,4 +180,4 @@ Se Aruba esegue lo script come una richiesta web e ricevi `403`, usa il tipo `HT
 - il batch storico usava davvero `UltraMsg` per WhatsApp, non l'API SMS Aruba, anche se nel progetto erano presenti entrambe le strade
 - la conversione nuova non tocca `farmacia`: lavora sul database `mail`
 - se rilanci il cron lo stesso giorno, gli appuntamenti già marcati nel file stato non vengono reinviati
-- per recuperi operativi circoscritti è disponibile `appointment-reminders:recover`: richiede tenant e data appuntamento, può limitare per data di creazione e origine slot e resta in sola verifica finché non viene passato `--send`; l'output contiene soltanto contatori, senza nominativi o recapiti
+- per recuperi operativi circoscritti è disponibile `appointment-reminders:recover`: richiede tenant e data appuntamento, può limitare per data di creazione e origine slot, accetta `--dry-run` per una verifica esplicita e invia soltanto con `--send`; l'output contiene soltanto contatori, incluso quello dei destinatari validi, senza nominativi o recapiti
