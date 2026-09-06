@@ -50,6 +50,8 @@ class AppointmentReminderDispatchService
         $limit = max(0, (int) ($options['limit'] ?? 0));
         $doctorFilter = $this->normalizeDoctorFilter((string) ($options['doctor'] ?? ''));
         $targetDateOverride = trim((string) ($options['target_date'] ?? ''));
+        $createdDateFilter = $this->normalizeOptionalDate((string) ($options['created_date'] ?? ''), 'creazione');
+        $slotOriginFilter = strtoupper(trim((string) ($options['slot_origin'] ?? '')));
         $referenceDate = $this->resolveReferenceDate((string) ($options['reference_date'] ?? ''));
 
         $tenants = $this->platformDb->table('platform_tenants')
@@ -120,7 +122,14 @@ class AppointmentReminderDispatchService
 
             try {
                 $tenantDb = $this->tenantDbConnector->connect($tenant);
-                $rows = $this->fetchReminderCandidates($tenantDb, $targetDate, $doctorFilter, $limit);
+                $rows = $this->fetchReminderCandidates(
+                    $tenantDb,
+                    $targetDate,
+                    $doctorFilter,
+                    $limit,
+                    $createdDateFilter,
+                    $slotOriginFilter
+                );
                 $tenantSummary['candidates'] = count($rows);
                 $summary['processed_tenants']++;
 
@@ -380,6 +389,21 @@ class AppointmentReminderDispatchService
         return $date;
     }
 
+    private function normalizeOptionalDate(string $rawDate, string $label): string
+    {
+        $rawDate = trim($rawDate);
+        if ($rawDate === '') {
+            return '';
+        }
+
+        $date = \DateTimeImmutable::createFromFormat('!Y-m-d', $rawDate, new \DateTimeZone('Europe/Rome'));
+        if (!$date || $date->format('Y-m-d') !== $rawDate) {
+            throw new \InvalidArgumentException('La data di ' . $label . ' deve essere nel formato YYYY-MM-DD.');
+        }
+
+        return $rawDate;
+    }
+
     /**
      * @param array<int, string> $channels
      * @return array<int, string>
@@ -442,7 +466,14 @@ class AppointmentReminderDispatchService
      * @param array<int, int> $doctorFilter
      * @return array<int, array<string, mixed>>
      */
-    private function fetchReminderCandidates(\CodeIgniter\Database\BaseConnection $db, string $targetDate, array $doctorFilter, int $limit): array
+    private function fetchReminderCandidates(
+        \CodeIgniter\Database\BaseConnection $db,
+        string $targetDate,
+        array $doctorFilter,
+        int $limit,
+        string $createdDateFilter = '',
+        string $slotOriginFilter = ''
+    ): array
     {
         $doctorSql = '';
         if ($doctorFilter !== []) {
@@ -450,6 +481,8 @@ class AppointmentReminderDispatchService
         }
 
         $limitSql = $limit > 0 ? (' LIMIT ' . $limit) : '';
+        $createdDateSql = $createdDateFilter !== '' ? ' AND DATE(a.created_at) = ?' : '';
+        $slotOriginSql = $slotOriginFilter !== '' ? " AND UPPER(COALESCE(s.origine_slot, '')) = ?" : '';
         $hasConfirmTable = $db->tableExists('dap39_sms_dot');
         $joinConfirm = $hasConfirmTable
             ? "LEFT JOIN dap39_sms_dot conf ON conf.id_dot = s.id_dot"
@@ -507,11 +540,21 @@ class AppointmentReminderDispatchService
             WHERE s.data_slot = ?
               AND a.stato <> 'ANNULLATO'
               {$doctorSql}
+              {$createdDateSql}
+              {$slotOriginSql}
             ORDER BY s.id_dot ASC, COALESCE(a.ora_inizio_appuntamento, s.ora_inizio) ASC, a.id_appuntamento ASC
             {$limitSql}
         ";
 
-        return $db->query($sql, [$targetDate])->getResultArray();
+        $queryParams = [$targetDate];
+        if ($createdDateFilter !== '') {
+            $queryParams[] = $createdDateFilter;
+        }
+        if ($slotOriginFilter !== '') {
+            $queryParams[] = $slotOriginFilter;
+        }
+
+        return $db->query($sql, $queryParams)->getResultArray();
     }
 
     private function decryptExpr(string $fieldExpr, string $vectorExpr): string
