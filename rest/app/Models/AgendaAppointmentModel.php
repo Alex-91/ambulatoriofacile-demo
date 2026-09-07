@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Services\AgendaSlotFragmentService;
+use App\Services\AgendaExtraSlotCoverageService;
 use App\Services\AgendaVisitTypeSchemaService;
 use CodeIgniter\Model;
 use Exception;
@@ -18,6 +19,7 @@ class AgendaAppointmentModel extends Model
     private ?bool $hasAppointmentSlotLinkTable = null;
     private ?AgendaVisitTypeSchemaService $visitTypeSchemaService = null;
     private ?AgendaSlotFragmentService $slotFragmentService = null;
+    private ?AgendaExtraSlotCoverageService $extraSlotCoverageService = null;
 
     public function __construct(?\CodeIgniter\Database\BaseConnection $db = null)
     {
@@ -115,7 +117,10 @@ class AgendaAppointmentModel extends Model
 
             if (
                 !empty($window['custom_start'])
-                && AgendaSlotFragmentService::shouldManageCustomWindow($residualSlotsFeatureEnabled)
+                && AgendaSlotFragmentService::shouldManageCustomWindow(
+                    $residualSlotsFeatureEnabled,
+                    $this->slotFragments()->hasFragmentsForSlots($initialCoveredSlotIds)
+                )
             ) {
                 $freshPrimarySlot = $this->loadSlotRow($idSlot);
                 $freshCoveredSlots = $this->resolveCoveredSlotsForWindow(
@@ -136,6 +141,7 @@ class AgendaAppointmentModel extends Model
                 $window['covered_slots'] = $coveredSlots;
             }
 
+            $coveredSlots = $this->splitAdditionalExtraResiduals($coveredSlots, $window, $now);
             $coveredSlotIds = array_map(
                 static fn(array $row): int => (int) ($row['id_slot'] ?? 0),
                 $coveredSlots
@@ -216,7 +222,7 @@ class AgendaAppointmentModel extends Model
             $coveredSlots
         );
         $previousSlotIds = $this->getAppointmentCoveredSlotIds($idAppuntamento);
-        $manageExistingFragments = $this->slotFragments()->hasFragmentsForSlots($previousSlotIds);
+        $manageExistingFragments = $this->slotFragments()->hasFragmentsForSlots(array_merge($previousSlotIds, $initialCoveredSlotIds));
 
         $timestamp = date('Y-m-d H:i:s');
         $this->db->transBegin();
@@ -249,6 +255,7 @@ class AgendaAppointmentModel extends Model
                 $window['covered_slots'] = $coveredSlots;
             }
 
+            $coveredSlots = $this->splitAdditionalExtraResiduals($coveredSlots, $window, $timestamp);
             $coveredSlotIds = array_map(
                 static fn(array $row): int => (int) ($row['id_slot'] ?? 0),
                 $coveredSlots
@@ -631,15 +638,49 @@ class AgendaAppointmentModel extends Model
             $checkActiveLocks
         );
         $lastCoveredSlot = end($coveredSlots);
+        // Keep the appointment's actual end, even when shorter overlapping
+        // fragments are appended as secondary coverage below.
+        $end = (string) ($lastCoveredSlot['ora_fine'] ?? '');
+        $start = (string) ($coveredSlots[0]['ora_inizio'] ?? '');
+        $extraResiduals = $this->extraSlotCoverage()->findAdditionalResiduals($coveredSlots, $start, $end);
 
         return [
-            'covered_slots' => $coveredSlots,
+            'covered_slots' => array_merge($coveredSlots, $extraResiduals),
             'custom_start' => null,
-            'end' => !empty($lastCoveredSlot['ora_fine'])
-                ? (string) $lastCoveredSlot['ora_fine']
-                : null,
+            'end' => $end,
             'duration_minutes' => $durationMinutes,
+            'extra_residual_slot_ids' => array_map(static fn(array $row): int => (int) $row['id_slot'], $extraResiduals),
         ];
+    }
+
+    private function splitAdditionalExtraResiduals(array $coveredSlots, array $window, string $timestamp): array
+    {
+        $residualIds = $window['extra_residual_slot_ids'] ?? [];
+        if ($residualIds === []) {
+            return $coveredSlots;
+        }
+
+        $baseSlots = [];
+        foreach ($coveredSlots as $slot) {
+            if (in_array((int) $slot['id_slot'], $residualIds, true)) {
+                continue;
+            }
+            $fresh = $this->loadSlotRow((int) $slot['id_slot']);
+            if (($fresh['ora_inizio'] ?? '') !== $slot['ora_inizio'] || ($fresh['ora_fine'] ?? '') !== $slot['ora_fine']) {
+                throw new Exception('La disponibilità degli slot è cambiata. Riapri l’appuntamento e riprova.');
+            }
+            $baseSlots[] = $fresh;
+        }
+
+        $start = (string) $baseSlots[0]['ora_inizio'];
+        $end = (string) $window['end'];
+        $freshResiduals = $this->extraSlotCoverage()->findAdditionalResiduals($baseSlots, $start, $end);
+        $this->assertCoveredSlotSetUnchanged($residualIds, $freshResiduals);
+
+        // These are already adapted slots: keep any portion outside the extra
+        // appointment available, and link only the portion actually occupied.
+        $residuals = $this->slotFragments()->splitForWindow($freshResiduals, $start, $end, $timestamp);
+        return array_merge($baseSlots, $residuals);
     }
 
     private function resolveVisitPlan(
@@ -872,7 +913,18 @@ class AgendaAppointmentModel extends Model
             }
 
             if ($coveredSlots !== [] && $rowStartTimestamp < $coverageCursorTimestamp) {
-                throw new Exception('La fascia selezionata contiene slot sovrapposti e non può essere adattata in sicurezza.');
+                foreach ($coveredSlots as $previous) {
+                    if ((string) $previous['ora_fine'] <= (string) $row['ora_inizio']) {
+                        continue;
+                    }
+                    $rowIsExtra = strtoupper((string) ($row['origine_slot'] ?? '')) === 'EXTRA';
+                    $previousIsExtra = strtoupper((string) ($previous['origine_slot'] ?? '')) === 'EXTRA';
+                    $overlapsResidual = ($rowIsExtra && $this->slotFragments()->hasFragmentsForSlots([(int) $previous['id_slot']]))
+                        || ($previousIsExtra && $this->slotFragments()->hasFragmentsForSlots([$slotId]));
+                    if (!$overlapsResidual) {
+                        throw new Exception('La fascia selezionata contiene slot sovrapposti e non può essere adattata in sicurezza.');
+                    }
+                }
             }
 
             if (strtoupper(trim((string) ($row['stato'] ?? ''))) === 'CHIUSO') {
@@ -921,7 +973,7 @@ class AgendaAppointmentModel extends Model
         $primaryStart = (string) ($primarySlot['ora_inizio'] ?? '');
 
         $rows = $this->db->table('dap11_agenda_slot')
-            ->select('id_slot, id_dot, data_slot, ora_inizio, ora_fine, stato')
+            ->select('*')
             ->where('id_dot', $idDot)
             ->where('data_slot', $dataSlot)
             ->where('ora_inizio >=', $primaryStart)
@@ -1151,6 +1203,10 @@ class AgendaAppointmentModel extends Model
                 throw new Exception('Uno degli slot coinvolti e già occupato da un altro appuntamento.');
             }
 
+            if (!empty($slot['is_slot_adattato']) && $this->extraSlotCoverage()->hasOverlappingExtraAppointment($slotId, $ignoreAppointmentId)) {
+                throw new Exception('Lo slot adattato è già coperto da un appuntamento su slot extra.');
+            }
+
             if ($checkActiveLocks && $this->slotHasActiveLock($slotId, $allowedLockToken)) {
                 throw new Exception('Uno degli slot coinvolti è in modifica da un altro operatore.');
             }
@@ -1358,5 +1414,10 @@ class AgendaAppointmentModel extends Model
         $this->slotFragmentService ??= new AgendaSlotFragmentService($this->db);
 
         return $this->slotFragmentService;
+    }
+
+    private function extraSlotCoverage(): AgendaExtraSlotCoverageService
+    {
+        return $this->extraSlotCoverageService ??= new AgendaExtraSlotCoverageService($this->db);
     }
 }

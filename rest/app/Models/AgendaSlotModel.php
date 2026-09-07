@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Libraries\DatabaseConfig;
+use App\Services\AgendaExtraSlotCoverageService;
 use CodeIgniter\Model;
 use DateInterval;
 use DatePeriod;
@@ -41,6 +42,7 @@ class AgendaSlotModel extends Model
     private ?bool $hasFasceTable = null;
     private ?bool $hasAmbulatoriTable = null;
     private ?bool $hasSlotFragmentTable = null;
+    private ?AgendaExtraSlotCoverageService $extraSlotCoverageService = null;
     private ?bool $hasPatientReminderSmsColumn = null;
     private ?bool $hasPatientRegistryVisibilityColumn = null;
     private ?bool $hasSlotRoomColumn = null;
@@ -199,6 +201,10 @@ public function getSlotsCalendario(int $idDot, string $date, string $view = 'day
 
     $builder->where('s.id_dot', $idDot);
     $builder->where($this->buildConfiguredOrBookedSlotSql('s'), null, false);
+    // Older extra appointments may not have links to the residuals they fully
+    // occupy. Do not offer those fragments as a second booking in any view.
+    $coveredResidualSql = $this->extraSlotCoverage()->coveredResidualExistsSql('s');
+    $builder->where('(a.id_appuntamento IS NOT NULL OR NOT (' . $coveredResidualSql . '))', null, false);
 
     if ($view === 'week') {
         $start = new \DateTime($date);
@@ -320,6 +326,7 @@ private function buildAvailabilityBaseQuery(array $doctorIds)
     $this->applyAvailabilityDoctorFilter($builder, $doctorIds);
     $builder->where('s.stato', 'LIBERO');
     $builder->where('a.id_appuntamento IS NULL', null, false);
+    $builder->where('NOT (' . $this->extraSlotCoverage()->coveredResidualExistsSql('s') . ')', null, false);
     $builder->where('gb.id_dot IS NULL', null, false);
     $builder->where($this->buildConfiguredOrBookedSlotSql('s'), null, false);
 
@@ -435,6 +442,11 @@ private function mapAvailabilityDays(array $rows): array
         }
 
         return $this->hasSlotFragmentTable;
+    }
+
+    private function extraSlotCoverage(): AgendaExtraSlotCoverageService
+    {
+        return $this->extraSlotCoverageService ??= new AgendaExtraSlotCoverageService($this->db);
     }
 
     private function appointmentTableHasField(string $field): bool
