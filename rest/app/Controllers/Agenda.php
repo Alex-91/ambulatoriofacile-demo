@@ -5962,7 +5962,7 @@ public function eseguiRepairRecurringExtraSlots()
                     ? (WhatsappAppointmentNote::hasWaConfirmation((string)($slot['note'] ?? '')) ? 'SI' : 'NO')
                     : '',
                 'note' => $note,
-                'cell_style' => $this->buildSingleDayPdfVisitTypeCellStyle(
+                'cell_style' => $this->buildAgendaPdfVisitTypeCellStyle(
                     $slot,
                     $showVisitTypeColumn && $hasAppointment,
                     $visitTypeColors
@@ -5991,7 +5991,7 @@ public function eseguiRepairRecurringExtraSlots()
         return $colors;
     }
 
-    private function buildSingleDayPdfVisitTypeCellStyle(
+    private function buildAgendaPdfVisitTypeCellStyle(
         array $slot,
         bool $visitTypeColorsEnabled,
         array $visitTypeColors
@@ -6141,6 +6141,9 @@ public function eseguiRepairRecurringExtraSlots()
         $allSlots = [];
         $selectedDoctorLabel = '';
         $columnThemes = $this->getAgendaTeamColumnThemes($medici);
+        $visitTypeColors = $this->isVisitTypesFeatureEnabled()
+            ? $this->buildAgendaPdfVisitTypeColorMap($this->visitTypeModel->listForAgenda())
+            : [];
 
         foreach ($medici as $medico) {
             $doctor = $this->normalizeAgendaProfessionalRow($medico);
@@ -6184,7 +6187,7 @@ public function eseguiRepairRecurringExtraSlots()
 
         $gridDuration = !empty($allSlots) ? $this->calcolaStepCalendario($allSlots) : 15;
         [$minTime, $maxTime] = $this->resolveTimelinePdfBounds($allSlots, $gridDuration);
-        $timeline = $this->buildTimelinePdfTable($columns, $gridDuration, $minTime, $maxTime);
+        $timeline = $this->buildTimelinePdfTable($columns, $gridDuration, $minTime, $maxTime, $visitTypeColors);
         $timeline['row_height_px'] = $this->resolveTimelinePdfRowHeight(count($timeline['rows'] ?? []), 'team_day');
 
         $html = view('agenda/timeline_pdf', [
@@ -6206,7 +6209,7 @@ public function eseguiRepairRecurringExtraSlots()
         );
     }
 
-    private function buildTimelinePdfTable(array $columns, int $stepMinutes, string $minTime, string $maxTime): array
+    private function buildTimelinePdfTable(array $columns, int $stepMinutes, string $minTime, string $maxTime, array $visitTypeColors = []): array
     {
         $stepMinutes = max(5, $stepMinutes);
         $startMinutes = $this->agendaPdfTimeToMinutes($minTime) ?? 480;
@@ -6278,7 +6281,8 @@ public function eseguiRepairRecurringExtraSlots()
                         $slotMap[$minute],
                         !empty($column['giorno_bloccato']),
                         $stepMinutes,
-                        $totalRows - $rowIndex
+                        $totalRows - $rowIndex,
+                        $visitTypeColors
                     );
                     $columnState[$index]['rowspan_skip'] = max(0, ($cell['rowspan'] ?? 1) - 1);
                     $row['cells'][] = $cell;
@@ -6303,7 +6307,7 @@ public function eseguiRepairRecurringExtraSlots()
         ];
     }
 
-    private function buildTimelinePdfSlotCell(array $slot, bool $giornoBloccato, int $stepMinutes, int $remainingRows): array
+    private function buildTimelinePdfSlotCell(array $slot, bool $giornoBloccato, int $stepMinutes, int $remainingRows, array $visitTypeColors = []): array
     {
         $startMinutes = $this->agendaPdfSlotStartMinutes($slot);
         $endMinutes = $this->agendaPdfSlotVisualEndMinutes($slot);
@@ -6365,6 +6369,7 @@ public function eseguiRepairRecurringExtraSlots()
             'time_range' => $this->formatAgendaPdfTimeFromMinutes($startMinutes) . ' - ' . $this->formatAgendaPdfTimeFromMinutes($endMinutes),
             'primary_label' => $patientLabel,
             'secondary_label' => $this->buildAgendaPdfAppointmentNote($slot),
+            'cell_style' => $this->buildAgendaPdfVisitTypeCellStyle($slot, true, $visitTypeColors),
         ];
     }
 
