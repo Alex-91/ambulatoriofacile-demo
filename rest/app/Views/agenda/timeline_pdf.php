@@ -395,13 +395,17 @@ $isTeamDay = (($pageMode ?? '') === 'team_day');
                 <tr style="height:<?= (int)($rowHeightPx ?? 14) ?>px;">
                     <?php if ($isTeamDay): ?>
                         <?php foreach (($columns ?? []) as $columnIndex => $column): ?>
-                            <?php $cell = $row['cells'][$columnIndex] ?? null; ?>
+                            <?php
+                            $cell = $row['cells'][$columnIndex] ?? null;
+                            $cellStyle = timeline_pdf_text($cell['cell_style'] ?? '');
+                            $cellStyleAttr = $cellStyle !== '' ? ' style="' . esc($cellStyle) . '"' : '';
+                            ?>
                             <td class="time-col"><?= esc(timeline_pdf_text($row['time_label'] ?? '')) ?></td>
                             <?php if ($cell === null): ?>
                                 <?php continue; ?>
                             <?php endif; ?>
-                            <td rowspan="<?= max(1, (int)($cell['rowspan'] ?? 1)) ?>" class="timeline-cell <?= esc(timeline_pdf_text($cell['class'] ?? '')) ?>">
-                                <div class="cell-inner">
+                            <td rowspan="<?= max(1, (int)($cell['rowspan'] ?? 1)) ?>" class="timeline-cell <?= esc(timeline_pdf_text($cell['class'] ?? '')) ?>"<?= $cellStyleAttr ?>>
+                                <div class="cell-inner"<?= $cellStyleAttr ?>>
                                     <?php if (timeline_pdf_text($cell['time_range'] ?? '') !== ''): ?>
                                         <div class="entry-time"><?= esc(timeline_pdf_text($cell['time_range'] ?? '')) ?></div>
                                     <?php endif; ?>
