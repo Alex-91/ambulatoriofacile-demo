@@ -6,6 +6,29 @@ if (!function_exists('memo_pdf_value')) {
         return $value !== '' ? esc($value) : $fallback;
     }
 }
+
+$agendaMemoFieldVisibilitySettings = is_array($agendaMemoFieldVisibilitySettings ?? null)
+    ? $agendaMemoFieldVisibilitySettings
+    : [];
+$agendaMemoFieldVisibility = array_fill_keys([
+    'validity_date',
+    'phone',
+    'mobile',
+    'address',
+    'city',
+    'patient_registry',
+    'notes',
+    'completed',
+], true);
+foreach ((array) ($agendaMemoFieldVisibilitySettings['effective_field_visibility'] ?? []) as $fieldKey => $visible) {
+    $fieldKey = trim((string) $fieldKey);
+    if (array_key_exists($fieldKey, $agendaMemoFieldVisibility)) {
+        $agendaMemoFieldVisibility[$fieldKey] = (bool) $visible;
+    }
+}
+$agendaMemoFieldIsVisible = static function (string $fieldKey) use ($agendaMemoFieldVisibility): bool {
+    return (bool) ($agendaMemoFieldVisibility[$fieldKey] ?? true);
+};
 ?>
 <!DOCTYPE html>
 <html lang="it">
@@ -168,58 +191,93 @@ if (!function_exists('memo_pdf_value')) {
             <?php if (!empty($generatedAt)): ?>
                 | <strong>Generato il:</strong> <?= esc($generatedAt) ?>
             <?php endif; ?>
-            <?php if (!empty($todayLabel)): ?>
+            <?php if ($agendaMemoFieldIsVisible('validity_date') && !empty($todayLabel)): ?>
                 | <strong>Riferimento stato:</strong> <?= esc($todayLabel) ?>
             <?php endif; ?>
         </p>
 
+        <?php if ($agendaMemoFieldIsVisible('validity_date')): ?>
         <div class="legend">
             <span class="legend-item"><span class="legend-dot scaduta"></span>Scaduta</span>
             <span class="legend-item"><span class="legend-dot oggi"></span>Valida oggi</span>
             <span class="legend-item"><span class="legend-dot futura"></span>Futura</span>
         </div>
+        <?php endif; ?>
     </div>
 
     <?php if (empty($notes)): ?>
         <div class="empty">Nessuna memo attiva presente per il dottore selezionato.</div>
     <?php else: ?>
         <?php foreach ($notes as $note): ?>
-            <div class="memo-card <?= esc($note['status_class'] ?? 'status-oggi') ?>">
+            <?php
+                $memoMetaParts = [];
+                if ($agendaMemoFieldIsVisible('validity_date')) {
+                    $memoMetaParts[] = '<strong>Valida dal:</strong> '
+                        . memo_pdf_value($note['data_validita_label'] ?? '');
+                }
+                if (!empty($note['created_at_label'])) {
+                    $memoMetaParts[] = '<strong>Inserita il:</strong> ' . esc($note['created_at_label']);
+                }
+                if (!empty($note['created_by_username'])) {
+                    $memoMetaParts[] = '<strong>Utente:</strong> ' . esc($note['created_by_username']);
+                }
+                $phoneVisible = $agendaMemoFieldIsVisible('phone');
+                $mobileVisible = $agendaMemoFieldIsVisible('mobile');
+                $addressVisible = $agendaMemoFieldIsVisible('address');
+                $cityVisible = $agendaMemoFieldIsVisible('city');
+                $notesVisible = $agendaMemoFieldIsVisible('notes');
+                $hasMemoDetails = $phoneVisible || $mobileVisible || $addressVisible || $cityVisible || $notesVisible;
+            ?>
+            <div class="memo-card <?= $agendaMemoFieldIsVisible('validity_date') ? esc($note['status_class'] ?? 'status-oggi') : 'status-oggi' ?>">
                 <div class="memo-head">
                     <div class="memo-title"><?= memo_pdf_value($note['cliente_label'] ?? '', 'Senza cliente') ?></div>
+                    <?php if ($agendaMemoFieldIsVisible('validity_date')): ?>
                     <span class="badge <?= esc($note['status_badge_class'] ?? 'badge-oggi') ?>">
                         <?= esc($note['status_label'] ?? 'Oggi') ?>
                     </span>
+                    <?php endif; ?>
                 </div>
 
+                <?php if ($memoMetaParts !== []): ?>
                 <div class="memo-meta">
-                    <strong>Valida dal:</strong> <?= memo_pdf_value($note['data_validita_label'] ?? '') ?>
-                    <?php if (!empty($note['created_at_label'])): ?>
-                        | <strong>Inserita il:</strong> <?= esc($note['created_at_label']) ?>
-                    <?php endif; ?>
-                    <?php if (!empty($note['created_by_username'])): ?>
-                        | <strong>Utente:</strong> <?= esc($note['created_by_username']) ?>
-                    <?php endif; ?>
+                    <?= implode(' | ', $memoMetaParts) ?>
                 </div>
+                <?php endif; ?>
 
+                <?php if ($hasMemoDetails): ?>
                 <table class="memo-grid">
+                    <?php if ($phoneVisible || $mobileVisible): ?>
                     <tr>
+                        <?php if ($phoneVisible): ?>
                         <th>Telefono</th>
-                        <td><?= memo_pdf_value($note['telefono'] ?? '') ?></td>
+                        <td<?= $mobileVisible ? '' : ' colspan="3"' ?>><?= memo_pdf_value($note['telefono'] ?? '') ?></td>
+                        <?php endif; ?>
+                        <?php if ($mobileVisible): ?>
                         <th>Cellulare</th>
-                        <td><?= memo_pdf_value($note['cellulare'] ?? '') ?></td>
+                        <td<?= $phoneVisible ? '' : ' colspan="3"' ?>><?= memo_pdf_value($note['cellulare'] ?? '') ?></td>
+                        <?php endif; ?>
                     </tr>
+                    <?php endif; ?>
+                    <?php if ($addressVisible || $cityVisible): ?>
                     <tr>
+                        <?php if ($addressVisible): ?>
                         <th>Indirizzo</th>
-                        <td><?= memo_pdf_value($note['indirizzo'] ?? '') ?></td>
+                        <td<?= $cityVisible ? '' : ' colspan="3"' ?>><?= memo_pdf_value($note['indirizzo'] ?? '') ?></td>
+                        <?php endif; ?>
+                        <?php if ($cityVisible): ?>
                         <th>Città</th>
-                        <td><?= memo_pdf_value($note['citta'] ?? '') ?></td>
+                        <td<?= $addressVisible ? '' : ' colspan="3"' ?>><?= memo_pdf_value($note['citta'] ?? '') ?></td>
+                        <?php endif; ?>
                     </tr>
+                    <?php endif; ?>
+                    <?php if ($notesVisible): ?>
                     <tr>
                         <th>Note</th>
                         <td colspan="3" class="notes-cell"><?= nl2br(esc((string)($note['note'] ?? ''))) ?></td>
                     </tr>
+                    <?php endif; ?>
                 </table>
+                <?php endif; ?>
             </div>
         <?php endforeach; ?>
     <?php endif; ?>
