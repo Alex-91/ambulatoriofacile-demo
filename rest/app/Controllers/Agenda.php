@@ -377,6 +377,7 @@ public function storicoMemo()
             'total'       => $total,
             'lastPage'    => $lastPage,
             'sharedMemoManagementEnabled' => $sharedMemoManagementEnabled,
+            'agendaMemoFieldVisibilitySettings' => $this->getCurrentAgendaMemoFieldVisibilitySettings(),
             'menuAgenda'  => method_exists($this->agendaModel, 'getMenuVisibleByUser')
                 ? $this->agendaModel->getMenuVisibleByUser($currentUserId)
                 : $this->agendaModel->getMenuVisible(),
@@ -1040,6 +1041,28 @@ public function eseguiRepairRecurringExtraSlots()
 
         $runtimeTenant = (new TenantCatalogService())->resolveCurrentRuntimeTenant();
         return (int) ($runtimeTenant['id_tenant'] ?? 0);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function getCurrentAgendaMemoFieldVisibilitySettings(): array
+    {
+        $tenantId = $this->resolveCurrentAgendaTenantId();
+        if ($tenantId <= 0) {
+            return [];
+        }
+
+        try {
+            return $this->agendaMemoFieldVisibilityService->resolveTenantSettings($tenantId);
+        } catch (\Throwable $e) {
+            log_message('warning', 'Agenda memo field visibility resolution failed: {message}', [
+                'message' => $e->getMessage(),
+                'tenant_id' => $tenantId,
+            ]);
+        }
+
+        return [];
     }
 
     /**
@@ -6676,6 +6699,7 @@ public function eseguiRepairRecurringExtraSlots()
             'generatedAt' => date('d/m/Y H:i'),
             'todayLabel'  => $this->formatMemoPdfDate($today),
             'totalNotes'  => count($notes),
+            'agendaMemoFieldVisibilitySettings' => $this->getCurrentAgendaMemoFieldVisibilitySettings(),
         ]);
 
         $dompdf = new \Dompdf\Dompdf();

@@ -32,6 +32,10 @@
             margin-bottom: 10px;
         }
 
+        .memo-card .meta .memo-meta-item + .memo-meta-item::before {
+            content: " | ";
+        }
+
         .memo-card .riga {
             margin-bottom: 6px;
         }
@@ -77,6 +81,28 @@
     $lockToCurrentDoctor = !empty($lockToCurrentDoctor);
     $searchTerm = trim((string)($searchTerm ?? ''));
     $sharedMemoManagementEnabled = !empty($sharedMemoManagementEnabled);
+    $agendaMemoFieldVisibilitySettings = is_array($agendaMemoFieldVisibilitySettings ?? null)
+        ? $agendaMemoFieldVisibilitySettings
+        : [];
+    $agendaMemoFieldVisibility = array_fill_keys([
+        'validity_date',
+        'phone',
+        'mobile',
+        'address',
+        'city',
+        'patient_registry',
+        'notes',
+        'completed',
+    ], true);
+    foreach ((array) ($agendaMemoFieldVisibilitySettings['effective_field_visibility'] ?? []) as $fieldKey => $visible) {
+        $fieldKey = trim((string) $fieldKey);
+        if (array_key_exists($fieldKey, $agendaMemoFieldVisibility)) {
+            $agendaMemoFieldVisibility[$fieldKey] = (bool) $visible;
+        }
+    }
+    $agendaMemoFieldIsVisible = static function (string $fieldKey) use ($agendaMemoFieldVisibility): bool {
+        return (bool) ($agendaMemoFieldVisibility[$fieldKey] ?? true);
+    };
 
     $from = $total > 0 ? (($page - 1) * $perPage) + 1 : 0;
     $to   = $total > 0 ? min($page * $perPage, $total) : 0;
@@ -254,60 +280,94 @@
                                     <div class="memo-card">
                                         <div class="titolo">
                                             <?= esc($row['cliente'] ?: 'Senza cliente') ?>
+                                            <?php if ($agendaMemoFieldIsVisible('completed')): ?>
                                             <span class="label label-success">FATTA</span>
+                                            <?php endif; ?>
                                         </div>
 
                                         <div class="meta">
-                                            Valida dal:
-                                            <strong><?= esc($formatMemoDate($row['data_inizio_validita'] ?? '')) ?></strong>
+                                            <?php if ($agendaMemoFieldIsVisible('validity_date')): ?>
+                                                <span class="memo-meta-item">
+                                                    Valida dal:
+                                                    <strong><?= esc($formatMemoDate($row['data_inizio_validita'] ?? '')) ?></strong>
+                                                </span>
+                                            <?php endif; ?>
 
                                             <?php if (!empty($row['doctor_label'])): ?>
-                                                | Dottore:
-                                                <strong><?= esc($row['doctor_label']) ?></strong>
+                                                <span class="memo-meta-item">
+                                                    Dottore:
+                                                    <strong><?= esc($row['doctor_label']) ?></strong>
+                                                </span>
                                             <?php endif; ?>
 
                                             <?php if (!empty($row['created_at'])): ?>
-                                                | Inserita il:
-                                                <strong><?= esc($formatMemoDate($row['created_at'], true)) ?></strong>
+                                                <span class="memo-meta-item">
+                                                    Inserita il:
+                                                    <strong><?= esc($formatMemoDate($row['created_at'], true)) ?></strong>
+                                                </span>
                                             <?php endif; ?>
 
                                             <?php if (!empty($row['created_by_username'])): ?>
-                                                | Utente:
-                                                <strong><?= esc($row['created_by_username']) ?></strong>
+                                                <span class="memo-meta-item">
+                                                    Utente:
+                                                    <strong><?= esc($row['created_by_username']) ?></strong>
+                                                </span>
                                             <?php endif; ?>
 
-                                            <?php if (!empty($row['data_fatta'])): ?>
-                                                | Segnata fatta il:
-                                                <strong><?= esc($formatMemoDate($row['data_fatta'], true)) ?></strong>
+                                            <?php if ($agendaMemoFieldIsVisible('completed') && !empty($row['data_fatta'])): ?>
+                                                <span class="memo-meta-item">
+                                                    Segnata fatta il:
+                                                    <strong><?= esc($formatMemoDate($row['data_fatta'], true)) ?></strong>
+                                                </span>
                                             <?php endif; ?>
                                         </div>
 
+                                        <?php
+                                            $phoneVisible = $agendaMemoFieldIsVisible('phone');
+                                            $mobileVisible = $agendaMemoFieldIsVisible('mobile');
+                                            $addressVisible = $agendaMemoFieldIsVisible('address');
+                                            $cityVisible = $agendaMemoFieldIsVisible('city');
+                                        ?>
+                                        <?php if ($phoneVisible || $mobileVisible): ?>
                                         <div class="row">
-                                            <div class="col-sm-6 riga">
+                                            <?php if ($phoneVisible): ?>
+                                            <div class="<?= $mobileVisible ? 'col-sm-6' : 'col-sm-12' ?> riga">
                                                 <span class="memo-label">Telefono:</span>
                                                 <?= esc($row['telefono'] ?? '') ?>
                                             </div>
-                                            <div class="col-sm-6 riga">
+                                            <?php endif; ?>
+                                            <?php if ($mobileVisible): ?>
+                                            <div class="<?= $phoneVisible ? 'col-sm-6' : 'col-sm-12' ?> riga">
                                                 <span class="memo-label">Cellulare:</span>
                                                 <?= esc($row['cellulare'] ?? '') ?>
                                             </div>
+                                            <?php endif; ?>
                                         </div>
+                                        <?php endif; ?>
 
+                                        <?php if ($addressVisible || $cityVisible): ?>
                                         <div class="row">
-                                            <div class="col-sm-8 riga">
+                                            <?php if ($addressVisible): ?>
+                                            <div class="<?= $cityVisible ? 'col-sm-8' : 'col-sm-12' ?> riga">
                                                 <span class="memo-label">Indirizzo:</span>
                                                 <?= esc($row['indirizzo'] ?? '') ?>
                                             </div>
-                                            <div class="col-sm-4 riga">
+                                            <?php endif; ?>
+                                            <?php if ($cityVisible): ?>
+                                            <div class="<?= $addressVisible ? 'col-sm-4' : 'col-sm-12' ?> riga">
                                                 <span class="memo-label">Città:</span>
                                                 <?= esc($row['citta'] ?? '') ?>
                                             </div>
+                                            <?php endif; ?>
                                         </div>
+                                        <?php endif; ?>
 
+                                        <?php if ($agendaMemoFieldIsVisible('notes')): ?>
                                         <div class="riga memo-note">
                                             <span class="memo-label">Note:</span><br>
                                             <?= nl2br(esc($row['note'] ?? '')) ?>
                                         </div>
+                                        <?php endif; ?>
                                     </div>
                                 <?php endforeach; ?>
 

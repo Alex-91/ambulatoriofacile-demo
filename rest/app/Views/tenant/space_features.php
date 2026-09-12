@@ -820,9 +820,9 @@ $canSubmitSpaceSettings = ($manageableRows !== []) || $hasSupplementalSpaceContr
                     <input type="hidden" name="agenda_memo_field_visibility_form" value="1">
                     <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap;">
                       <div>
-                        <h4 style="margin:0 0 6px 0;">Campi popup memo</h4>
+                        <h4 style="margin:0 0 6px 0;">Campi memo</h4>
                         <p style="margin:0; color:#587075;">
-                          Scegli quali campi facoltativi mostrare quando si inserisce o si modifica una memo. Cliente e dottore assegnato, quando previsto, restano sempre visibili perché necessari al flusso.
+                          Scegli quali campi facoltativi mostrare quando si inserisce, modifica o visualizza una memo. Cliente e dottore assegnato, quando previsto, restano sempre visibili perché necessari al flusso.
                         </p>
                       </div>
                       <?php
@@ -845,7 +845,7 @@ $canSubmitSpaceSettings = ($manageableRows !== []) || $hasSupplementalSpaceContr
                           value="1"
                           <?= $agendaMemoConfigurationSelected ? 'checked' : '' ?>
                         >
-                        Usa questa selezione nel popup memo dello studio
+                        Usa questa selezione nelle memo dello studio
                       </label>
                     </div>
 
@@ -877,7 +877,7 @@ $canSubmitSpaceSettings = ($manageableRows !== []) || $hasSupplementalSpaceContr
                                   <?= $selectedVisible ? 'checked' : '' ?>
                                   <?= $runtimeAvailable ? '' : 'disabled' ?>
                                 >
-                                Mostra nel popup memo
+                                Mostra nelle memo
                               </label>
                             </div>
                             <?php if (!$runtimeAvailable): ?>
@@ -889,7 +889,7 @@ $canSubmitSpaceSettings = ($manageableRows !== []) || $hasSupplementalSpaceContr
                     </div>
 
                     <div class="agenda-order-note">
-                      Disattivando la configurazione, il popup torna subito a mostrare tutti i campi. I valori già presenti nelle memo restano conservati anche quando un campo viene nascosto.
+                      Disattivando la configurazione, inserimento, modifica e visualizzazione tornano subito a mostrare tutti i campi. I valori già presenti nelle memo restano conservati anche quando un campo viene nascosto.
                     </div>
                   </div>
                 <?php endif; ?>

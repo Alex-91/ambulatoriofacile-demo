@@ -4849,6 +4849,7 @@ window.AGENDA_CONFIG = {
     skipEmptyAgendaDaysEnabled: <?= !empty($skipEmptyAgendaDaysEnabled) ? 'true' : 'false' ?>,
     compressedLayoutEnabled: <?= $agendaCompressedLayoutEnabled ? 'true' : 'false' ?>,
     sharedMemoManagementEnabled: <?= $sharedMemoManagementEnabled ? 'true' : 'false' ?>,
+    memoFieldVisibility: <?= json_encode($agendaMemoFieldVisibility, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?>,
     sharedAgendaPatientsEnabled: <?= !empty($sharedAgendaPatientsEnabled) ? 'true' : 'false' ?>,
     visitTypesFeatureEnabled: <?= !empty($visitTypesFeatureEnabled) ? 'true' : 'false' ?>,
     visitTypeSelectionOptionalEnabled: <?= !empty($visitTypeSelectionOptionalEnabled) ? 'true' : 'false' ?>,
@@ -10882,6 +10883,16 @@ function isMemoActionBlockedForNoteRow(row) {
     return !!(row && row.memo_action_blocked);
 }
 
+function isAgendaMemoFieldVisible(fieldKey) {
+    var visibility = window.AGENDA_CONFIG.memoFieldVisibility || {};
+
+    if (!Object.prototype.hasOwnProperty.call(visibility, fieldKey)) {
+        return true;
+    }
+
+    return visibility[fieldKey] !== false;
+}
+
 function renderNoteLaterali() {
     var idDot = $('#id_dot').val();
     var loadingHtml = '<div class="text-center text-muted" style="padding:20px;">Caricamento...</div>';
@@ -10903,10 +10914,14 @@ function renderNoteLaterali() {
         }
 
         $.each(res.rows, function(i, row) {
-            var colorClass = getClasseColoreNota(row.data_inizio_validita || '');
+            var validityDateVisible = isAgendaMemoFieldVisible('validity_date');
+            var colorClass = validityDateVisible
+                ? getClasseColoreNota(row.data_inizio_validita || '')
+                : 'note-oggi';
             var fatta = parseInt(row.fatta || 0, 10) === 1;
+            var completedVisible = isAgendaMemoFieldVisible('completed');
             var fattaChecked = fatta ? 'checked' : '';
-            var fattaClass = fatta ? ' note-fatta' : '';
+            var fattaClass = fatta && completedVisible ? ' note-fatta' : '';
 
             var nominativo = $.trim(row.cliente || '');
             var telefono = row.telefono || '';
@@ -10924,6 +10939,51 @@ function renderNoteLaterali() {
             var blockedTitleAttr = noteBlocked
                 ? ' title="' + escapeHtml('Giorno bloccato per le memo del dottore assegnato') + '"'
                 : '';
+            var metaParts = [];
+            var detailsHtml = '';
+            var contactHtml = '';
+            var addressHtml = '';
+            var phoneVisible = isAgendaMemoFieldVisible('phone');
+            var mobileVisible = isAgendaMemoFieldVisible('mobile');
+            var addressVisible = isAgendaMemoFieldVisible('address');
+            var cityVisible = isAgendaMemoFieldVisible('city');
+
+            if (validityDateVisible) {
+                metaParts.push('Valida dal: <strong>' + escapeHtml(dataValidita) + '</strong>');
+            }
+            if (doctorLabel !== '') {
+                metaParts.push('Dottore: <strong>' + escapeHtml(doctorLabel) + '</strong>');
+            }
+            if (dataInserimento !== '') {
+                metaParts.push('Inserita il: <strong>' + escapeHtml(dataInserimento) + '</strong>');
+            }
+            if (createdByUsername !== '') {
+                metaParts.push('Utente: <strong>' + escapeHtml(createdByUsername) + '</strong>');
+            }
+
+            if (phoneVisible) {
+                contactHtml += '<div class="' + (mobileVisible ? 'col-sm-6' : 'col-sm-12') + '"><span class="agenda-note-label">Telefono:</span> ' + escapeHtml(telefono) + '</div>';
+            }
+            if (mobileVisible) {
+                contactHtml += '<div class="' + (phoneVisible ? 'col-sm-6' : 'col-sm-12') + '"><span class="agenda-note-label">Cellulare:</span> ' + escapeHtml(cellulare) + '</div>';
+            }
+            if (contactHtml !== '') {
+                detailsHtml += '<div class="row">' + contactHtml + '</div>';
+            }
+
+            if (addressVisible) {
+                addressHtml += '<div class="' + (cityVisible ? 'col-sm-8' : 'col-sm-12') + '"><span class="agenda-note-label">Indirizzo:</span> ' + escapeHtml(indirizzo) + '</div>';
+            }
+            if (cityVisible) {
+                addressHtml += '<div class="' + (addressVisible ? 'col-sm-4' : 'col-sm-12') + '"><span class="agenda-note-label">Città:</span> ' + escapeHtml(citta) + '</div>';
+            }
+            if (addressHtml !== '') {
+                detailsHtml += '<div class="row">' + addressHtml + '</div>';
+            }
+
+            if (isAgendaMemoFieldVisible('notes')) {
+                detailsHtml += '<div class="row"><div class="col-sm-12"><span class="agenda-note-label">Note:</span> ' + nl2br(escapeHtml(note)) + '</div></div>';
+            }
 
             html += ''
                 + '<div class="agenda-note-card ' + colorClass + fattaClass + '" data-id="' + escapeHtml(row.id_nota || '') + '"' + noteBlockedAttr + '>'
@@ -10931,36 +10991,20 @@ function renderNoteLaterali() {
                 + '       <div>'
                 + '           <div class="agenda-note-title">'
                 +               escapeHtml(nominativo !== '' ? nominativo : 'Senza cliente')
-                +               (fatta ? ' <span class="label label-success">FATTA</span>' : '')
+                +               (fatta && completedVisible ? ' <span class="label label-success">FATTA</span>' : '')
                 +               (noteBlocked ? ' <span class="label label-danger">GIORNO BLOCCATO</span>' : '')
                 + '           </div>'
-                + '           <div class="agenda-note-meta">Valida dal: <strong>' + dataValidita + '</strong>'
-                +               (doctorLabel !== '' ? ' | Dottore: <strong>' + escapeHtml(doctorLabel) + '</strong>' : '')
-                +               (dataInserimento !== '' ? ' | Inserita il: <strong>' + dataInserimento + '</strong>' : '')
-                +               (createdByUsername !== '' ? ' | Utente: <strong>' + escapeHtml(createdByUsername) + '</strong>' : '')
-                + '           </div>'
+                +               (metaParts.length ? '<div class="agenda-note-meta">' + metaParts.join(' | ') + '</div>' : '')
                 + '       </div>'
                 + '       <div class="agenda-note-actions text-right">'
-                + '           <label class="agenda-note-done-label" style="margin-right:8px;">'
-                + '               <input type="checkbox" class="chkNotaFatta" data-id="' + escapeHtml(row.id_nota || '') + '" ' + fattaChecked + blockedDisabledAttr + blockedTitleAttr + '> Fatta'
-                + '           </label>'
+                +               (completedVisible
+                    ? '<label class="agenda-note-done-label" style="margin-right:8px;"><input type="checkbox" class="chkNotaFatta" data-id="' + escapeHtml(row.id_nota || '') + '" ' + fattaChecked + blockedDisabledAttr + blockedTitleAttr + '> Fatta</label>'
+                    : '')
                 + '           <button type="button" class="btn btn-xs btn-primary btnEditNote" data-id="' + escapeHtml(row.id_nota || '') + '"' + blockedDisabledAttr + blockedTitleAttr + '><i class="fa fa-pencil"></i></button>'
                 + '           <button type="button" class="btn btn-xs btn-danger btnDeleteNoteRow" data-id="' + escapeHtml(row.id_nota || '') + '"' + blockedDisabledAttr + blockedTitleAttr + '><i class="fa fa-trash"></i></button>'
                 + '       </div>'
                 + '   </div>'
-                + '   <div class="agenda-note-grid">'
-                + '       <div class="row">'
-                + '           <div class="col-sm-6"><span class="agenda-note-label">Telefono:</span> ' + escapeHtml(telefono) + '</div>'
-                + '           <div class="col-sm-6"><span class="agenda-note-label">Cellulare:</span> ' + escapeHtml(cellulare) + '</div>'
-                + '       </div>'
-                + '       <div class="row">'
-                + '           <div class="col-sm-8"><span class="agenda-note-label">Indirizzo:</span> ' + escapeHtml(indirizzo) + '</div>'
-                + '           <div class="col-sm-4"><span class="agenda-note-label">Città:</span> ' + escapeHtml(citta) + '</div>'
-                + '       </div>'
-                + '       <div class="row">'
-                + '           <div class="col-sm-12"><span class="agenda-note-label">Note:</span> ' + nl2br(escapeHtml(note)) + '</div>'
-                + '       </div>'
-                + '   </div>'
+                +               (detailsHtml !== '' ? '<div class="agenda-note-grid">' + detailsHtml + '</div>' : '')
                 + '</div>';
         });
 

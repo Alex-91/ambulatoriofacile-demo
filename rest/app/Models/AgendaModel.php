@@ -640,6 +640,7 @@ public function getSlotExtraByDoctorPaginate(
     $perPage = max(1, $perPage);
     $offset = ($page - 1) * $perPage;
 
+    $appointmentCondition = $this->buildExtraSlotAppointmentCondition('s.id_slot');
     $builder = $this->db->table('dap11_agenda_slot s')
         ->select("
             s.id_slot,
@@ -658,7 +659,7 @@ public function getSlotExtraByDoctorPaginate(
             (
                 SELECT COUNT(*)
                 FROM dap12_agenda_appuntamenti a
-                WHERE a.id_slot = s.id_slot
+                WHERE {$appointmentCondition}
                   AND a.stato <> 'ANNULLATO'
             ) AS appuntamenti_attivi
         ")
@@ -770,13 +771,26 @@ public function getActiveAppointmentsBySlotIds(array $slotIds): array
             COALESCE(a.ora_fine_appuntamento, s.ora_fine) AS ora_fine
         ")
         ->join('dap11_agenda_slot s', 's.id_slot = a.id_slot', 'inner')
-        ->whereIn('a.id_slot', $slotIds)
+        ->where($this->buildExtraSlotAppointmentCondition(implode(',', $slotIds)), null, false)
         ->where('a.stato <>', 'ANNULLATO')
         ->orderBy('s.data_slot', 'ASC')
         ->orderBy('COALESCE(a.ora_inizio_appuntamento, s.ora_inizio)', 'ASC', false)
         ->get()
         ->getResultArray();
 }
+
+/** $slotIdsSql is a trusted column expression or a list of normalized integers. */
+private function buildExtraSlotAppointmentCondition(string $slotIdsSql): string
+{
+    $condition = 'a.id_slot IN (' . $slotIdsSql . ')';
+    if ($this->db->tableExists('dap45_agenda_appuntamenti_slot')) {
+        $condition .= ' OR EXISTS (SELECT 1 FROM dap45_agenda_appuntamenti_slot extra_rel
+            WHERE extra_rel.id_appuntamento = a.id_appuntamento
+              AND extra_rel.id_slot IN (' . $slotIdsSql . '))';
+    }
+    return '(' . $condition . ')';
+}
+
 public function deleteExtraSlotsByIds(array $slotIds, int $idDot, bool $forceDelete = false): array
 {
     $slotIds = array_values(array_filter(array_map('intval', $slotIds)));
@@ -805,23 +819,34 @@ public function deleteExtraSlotsByIds(array $slotIds, int $idDot, bool $forceDel
 
     $this->db->transStart();
 
-    if (!empty($appointments)) {
-        $this->db->table('dap12_agenda_appuntamenti')
+    try {
+        if (!empty($appointments)) {
+            // Release every covered fragment before removing the extra and its
+            // appointments, including when the extra was a secondary slot.
+            $appointmentModel = new AgendaAppointmentModel($this->db);
+            $appointmentIds = array_map(static fn(array $row): int => (int) $row['id_appuntamento'], $appointments);
+            foreach ($appointmentIds as $appointmentId) {
+                $appointmentModel->deleteAppointment($appointmentId, 0);
+            }
+            $this->db->table('dap12_agenda_appuntamenti')
+                ->whereIn('id_appuntamento', $appointmentIds)
+                ->delete();
+        }
+
+        $this->db->table('dap11_agenda_slot')
+            ->where('id_dot', $idDot)
+            ->where('origine_slot', 'EXTRA')
             ->whereIn('id_slot', $validIds)
-            ->where('stato <>', 'ANNULLATO')
             ->delete();
-    }
 
-    $this->db->table('dap11_agenda_slot')
-        ->where('id_dot', $idDot)
-        ->where('origine_slot', 'EXTRA')
-        ->whereIn('id_slot', $validIds)
-        ->delete();
+        $this->db->transComplete();
 
-    $this->db->transComplete();
-
-    if (!$this->db->transStatus()) {
-        throw new \Exception('Errore durante l\'eliminazione degli slot extra.');
+        if (!$this->db->transStatus()) {
+            throw new \Exception('Errore durante l\'eliminazione degli slot extra.');
+        }
+    } catch (\Throwable $e) {
+        $this->db->transRollback();
+        throw $e;
     }
 
     return [
