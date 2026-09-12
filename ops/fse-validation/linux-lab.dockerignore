@@ -1,0 +1,6 @@
+*
+!Dockerfile
+!app/
+!app/**
+!runtime/
+!runtime/**

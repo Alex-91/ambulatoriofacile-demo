@@ -18,7 +18,7 @@ class FseProfileService
         $this->profiles = $profiles ?? new PlatformTenantFseProfilesModel();
         $this->secrets = $secrets ?? new FseSecretsService();
         $this->config = $config ?? config(Fse2::class);
-        $this->db = Database::connect('platform');
+        $this->db = $this->profiles->db;
     }
 
     public function getDefaultProfileForTenant(int $tenantId): ?array
@@ -27,10 +27,26 @@ class FseProfileService
     }
 
     /** @return array<string,mixed> */
-    public function resolveTenantSettings(int $tenantId): array
+    public function getProfileForTenant(int $tenantId, int $profileId): ?array
     {
+        return $this->profiles->where('id_tenant', $tenantId)->where('id_fse_profile', $profileId)->first();
+    }
+
+    public function listForTenant(int $tenantId): array
+    {
+        return array_map(fn($row) => $this->viewProfile($row), $this->profiles->where('id_tenant', $tenantId)
+            ->orderBy('is_default', 'DESC')->orderBy('profile_name', 'ASC')->findAll());
+    }
+
+    public function resolveTenantSettings(int $tenantId, int $profileId = 0, bool $create = false): array
+    {
+        $profile = $create ? null : ($profileId > 0 ? $this->getProfileForTenant($tenantId, $profileId) : $this->getDefaultProfileForTenant($tenantId));
+        if ($profileId > 0 && !$profile) throw new \RuntimeException('Profilo FSE non disponibile per questo spazio.');
+        $view = $this->viewProfile($profile);
         return [
-            'profile' => $this->viewProfile($this->getDefaultProfileForTenant($tenantId)),
+            'profile' => $view,
+            'profiles' => $this->listForTenant($tenantId),
+            'onboarding' => (new FseOnboardingService())->check($view),
             'environments' => array_keys($this->config->environments),
             'facility_types' => $this->config->facilityTypes,
             'document_types' => $this->config->documentTypes,
@@ -40,10 +56,22 @@ class FseProfileService
     /** @param array<string,mixed> $payload @return array<string,mixed> */
     public function saveDefaultProfile(int $tenantId, array $payload, int $platformUserId = 0): array
     {
+        $current = $this->getDefaultProfileForTenant($tenantId);
+        return $this->saveProfile($tenantId, $payload, (int) ($current['id_fse_profile'] ?? 0), $platformUserId, true);
+    }
+
+    /** Edits are tenant-scoped and optimistic; a profile does not grant an accreditation. */
+    public function saveProfile(int $tenantId, array $payload, int $profileId = 0, int $platformUserId = 0, bool $makeDefault = false): array
+    {
         if ($tenantId <= 0) {
             throw new \InvalidArgumentException('Spazio FSE non valido.');
         }
-        $current = $this->getDefaultProfileForTenant($tenantId);
+        $current = $profileId > 0 ? $this->getProfileForTenant($tenantId, $profileId) : null;
+        if ($profileId > 0 && !$current) throw new \RuntimeException('Profilo FSE non disponibile per questo spazio.');
+        $metadata = json_decode((string) ($current['metadata_json'] ?? ''), true) ?: [];
+        if ($current && !hash_equals((string) ($metadata['edit_token'] ?? ''), (string) ($payload['profile_edit_token'] ?? ''))) {
+            throw new \RuntimeException('Profilo modificato da un’altra richiesta: ricaricare la pagina.');
+        }
         $read = static fn(string $key, int $max = 255): string => substr(trim((string) ($payload[$key] ?? '')), 0, $max);
         $environment = strtolower($read('environment', 16));
         if (!isset($this->config->environments[$environment])) {
@@ -84,21 +112,25 @@ class FseProfileService
             'signature_certificate_path' => $read('signature_certificate_path'),
             'signature_private_key_path' => $read('signature_private_key_path'),
             'is_enabled' => $enabled,
+            'jwt_audience' => $read('jwt_audience', 500),
         ];
+        $regime = $read('care_regime', 12);
+        if ($regime !== '' && !array_key_exists($regime, $this->config->administrativeRequests)) throw new \RuntimeException('Regime FSE non riconosciuto.');
         $errors = $this->validate($state, $enabled === 1);
         if ($errors !== []) {
             throw new \RuntimeException(implode(' ', $errors));
         }
 
         $record = $state;
-        unset($record['author_cf']);
+        unset($record['author_cf'], $record['jwt_audience']);
         $record['id_tenant'] = $tenantId;
         $record['author_cf_enc'] = $authorCf !== '' ? $this->secrets->encrypt($authorCf) : null;
         $record['author_cf_hash'] = $authorCf !== '' ? hash('sha256', $authorCf) : null;
         $record['auth_private_key_passphrase_enc'] = $this->secretValue($payload, 'auth_private_key_passphrase', $current, 'auth_private_key_passphrase_enc');
         $record['signature_private_key_passphrase_enc'] = $this->secretValue($payload, 'signature_private_key_passphrase', $current, 'signature_private_key_passphrase_enc');
-        $record['is_default'] = 1;
-        $record['metadata_json'] = json_encode(['document_type' => 'RSA'], JSON_UNESCAPED_SLASHES);
+        $record['is_default'] = $makeDefault || !empty($current['is_default']) || !$this->getDefaultProfileForTenant($tenantId) ? 1 : 0;
+        $record['metadata_json'] = json_encode(['document_type' => 'RSA', 'site_code' => $read('site_code', 80),
+            'care_regime' => $regime, 'jwt_audience' => $state['jwt_audience'], 'edit_token' => bin2hex(random_bytes(16))], JSON_UNESCAPED_SLASHES);
         $record['updated_by_platform_user'] = $platformUserId > 0 ? $platformUserId : null;
         if (!$current) {
             $record['created_by_platform_user'] = $platformUserId > 0 ? $platformUserId : null;
@@ -106,17 +138,36 @@ class FseProfileService
 
         $this->db->transBegin();
         try {
+            // Serialize default changes per tenant on MySQL, including concurrent new profiles.
+            if ($this->db->DBDriver === 'MySQLi') {
+                $this->db->query('SELECT id_tenant FROM platform_tenants WHERE id_tenant = ? FOR UPDATE', [$tenantId]);
+                if (!$current && !$makeDefault) $record['is_default'] = $this->getDefaultProfileForTenant($tenantId) ? 0 : 1;
+            }
             if ($current) {
                 $profileId = (int) $current['id_fse_profile'];
-                $this->profiles->update($profileId, $record);
+                $record['updated_at'] = date('Y-m-d H:i:s');
+                $this->db->table('platform_tenant_fse_profiles')->where('id_tenant', $tenantId)->where('id_fse_profile', $profileId)
+                    ->where('metadata_json', $current['metadata_json'])->update($record);
+                if ($this->db->affectedRows() !== 1) throw new \RuntimeException('Profilo modificato: ricaricare la pagina.');
             } else {
                 $profileId = (int) $this->profiles->insert($record);
             }
             if ($profileId <= 0) {
                 throw new \RuntimeException('Salvataggio profilo FSE non riuscito.');
             }
-            $this->db->table('platform_tenant_fse_profiles')->where('id_tenant', $tenantId)
-                ->where('id_fse_profile <>', $profileId)->update(['is_default' => 0, 'updated_at' => date('Y-m-d H:i:s')]);
+            if ($record['is_default']) {
+                $previousDefaults = $this->db->table('platform_tenant_fse_profiles')->where('id_tenant', $tenantId)
+                    ->where('id_fse_profile <>', $profileId)->where('is_default', 1)->get()->getResultArray();
+                foreach ($previousDefaults as $previousDefault) {
+                    // Demoting a profile also invalidates forms opened before the
+                    // default change, so an old checked checkbox cannot undo it.
+                    $previousMetadata = json_decode((string) ($previousDefault['metadata_json'] ?? ''), true) ?: [];
+                    $previousMetadata['edit_token'] = bin2hex(random_bytes(16));
+                    $this->db->table('platform_tenant_fse_profiles')->where('id_tenant', $tenantId)
+                        ->where('id_fse_profile', $previousDefault['id_fse_profile'])->update(['is_default' => 0,
+                            'metadata_json' => json_encode($previousMetadata, JSON_UNESCAPED_SLASHES), 'updated_at' => date('Y-m-d H:i:s')]);
+                }
+            }
             if (!$this->db->transStatus()) {
                 throw new \RuntimeException('Transazione profilo FSE non riuscita.');
             }
@@ -125,27 +176,61 @@ class FseProfileService
             $this->db->transRollback();
             throw $e;
         }
-        return $this->getDefaultProfileForTenant($tenantId) ?? throw new \RuntimeException('Profilo FSE non reperibile.');
+        return $this->getProfileForTenant($tenantId, $profileId) ?? throw new \RuntimeException('Profilo FSE non reperibile.');
     }
 
     /** @return array<string,mixed> */
-    public function runtimeProfileForTenant(int $tenantId): array
+    public function runtimeProfileForTenant(int $tenantId, int $profileId = 0): array
     {
-        $profile = $this->getDefaultProfileForTenant($tenantId);
+        $profile = $profileId > 0 ? $this->getProfileForTenant($tenantId, $profileId) : $this->getDefaultProfileForTenant($tenantId);
         if (!is_array($profile)) {
             throw new \RuntimeException('Configura prima il profilo FSE 2.0 dello spazio.');
         }
         $profile['author_cf'] = $this->safeDecrypt((string) ($profile['author_cf_enc'] ?? ''));
         $profile['auth_private_key_passphrase'] = $this->safeDecrypt((string) ($profile['auth_private_key_passphrase_enc'] ?? ''));
         $profile['signature_private_key_passphrase'] = $this->safeDecrypt((string) ($profile['signature_private_key_passphrase_enc'] ?? ''));
-        $profile['gateway_base_url'] = $this->config->gatewayUrl((string) $profile['environment'], (string) ($profile['gateway_base_url'] ?? ''));
+        $metadata = json_decode((string) ($profile['metadata_json'] ?? ''), true) ?: [];
+        foreach (['site_code', 'care_regime', 'jwt_audience'] as $key) $profile[$key] = (string) ($metadata[$key] ?? '');
+        $profile['gateway_base_url'] = $this->config->gatewayUrlForProfile($profile);
         return $profile;
+    }
+
+    public function runtimeProfileForDocument(int $tenantId, array $document): array
+    {
+        $id = (int) ($document['id_fse_profile'] ?? 0);
+        if ($id <= 0) throw new \RuntimeException('Referto senza profilo associato: nessun profilo predefinito applicato automaticamente.');
+        $profile = $this->runtimeProfileForTenant($tenantId, $id);
+        $snapshot = json_decode((string) ($document['profile_snapshot_json'] ?? ''), true);
+        if (!empty($document['profile_snapshot_json']) && !is_array($snapshot)) throw new \RuntimeException('Configurazione storica del referto non leggibile.');
+        if (is_array($snapshot)) {
+            if ((int) ($snapshot['id_fse_profile'] ?? 0) !== $id) throw new \RuntimeException('Associazione profilo del referto incoerente.');
+            // Routing and organisation frozen at draft creation; credentials/disable flag remain current.
+            $profile = array_replace($profile, array_intersect_key($snapshot, self::snapshot($profile)));
+        }
+        return $profile;
+    }
+
+    public static function snapshot(array $profile): array
+    {
+        return array_intersect_key($profile, array_flip(['id_fse_profile', 'profile_name', 'access_mode', 'environment',
+            'gateway_base_url', 'region_code', 'organization_id', 'organization_name', 'facility_name', 'facility_code',
+            'facility_oid', 'locality', 'facility_type', 'organizational_setting', 'clinical_activity', 'repository_id',
+            'document_oid_root', 'submission_oid_root', 'subject_role', 'app_vendor', 'app_id', 'app_version',
+            'site_code', 'care_regime', 'jwt_audience']));
     }
 
     /** @param array<string,mixed> $state @return list<string> */
     public function validate(array $state, bool $gatewayReady): array
     {
         $errors = [];
+        try {
+            $this->config->gatewayUrlForProfile($state);
+        } catch (\RuntimeException $e) {
+            $errors[] = $e->getMessage();
+        }
+        if ($gatewayReady && ($state['access_mode'] ?? '') === 'toscana_privati') {
+            $errors[] = 'Toscana Privati: disponibile solo il trasporto di collaudo; workflow operatore e abilitazione reale non ancora disponibili.';
+        }
         if (($state['environment'] ?? '') === 'production' && !$this->config->allowProduction) {
             $errors[] = 'La produzione richiede FSE2_ALLOW_PRODUCTION=true.';
         }
@@ -166,6 +251,9 @@ class FseProfileService
     private function viewProfile(?array $profile): array
     {
         $profile = $profile ?? [];
+        $metadata = json_decode((string) ($profile['metadata_json'] ?? ''), true) ?: [];
+        foreach (['site_code', 'care_regime', 'jwt_audience'] as $key) $profile[$key] = (string) ($metadata[$key] ?? '');
+        $profile['profile_edit_token'] = (string) ($metadata['edit_token'] ?? '');
         $profile['author_cf'] = $this->safeDecrypt((string) ($profile['author_cf_enc'] ?? ''));
         $profile['has_auth_passphrase'] = trim((string) ($profile['auth_private_key_passphrase_enc'] ?? '')) !== '';
         $profile['has_signature_passphrase'] = trim((string) ($profile['signature_private_key_passphrase_enc'] ?? '')) !== '';

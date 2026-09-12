@@ -496,7 +496,7 @@ class BillingDocumentService
      * @param array<string, mixed> $payload
      * @return array<string, mixed>
      */
-    public function saveDraftForTenant(int $tenantId, array $payload, int $userId = 0, string $saveMode = 'draft'): array
+    public function saveDraftForTenant(int $tenantId, array $payload, int $userId = 0, string $saveMode = 'draft', int $platformUserId = 0): array
     {
         $this->assertDocumentsSchemaReady($tenantId);
         $context = $this->resolveTenantDocumentContext($tenantId);
@@ -603,7 +603,8 @@ class BillingDocumentService
             $db->transCommit();
 
             try {
-                $this->settings->rememberServiceCatalogItems($tenantId, $normalized['line_items'], $userId);
+                // Document audit uses the tenant user; shared preferences reference platform_users.
+                $this->settings->rememberServiceCatalogItems($tenantId, $normalized['line_items'], $platformUserId);
             } catch (\Throwable $catalogError) {
                 // Il documento e già stato salvato: il catalogo non deve bloccare la fatturazione.
                 log_message('warning', 'BillingDocumentService::saveDraftForTenant service catalog update failed: ' . $catalogError->getMessage());

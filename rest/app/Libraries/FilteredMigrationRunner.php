@@ -9,7 +9,14 @@ class FilteredMigrationRunner extends MigrationRunner
 {
     public function setCustomPath(string $path): self
     {
-        $this->path = rtrim($path, '\\/') . DIRECTORY_SEPARATOR;
+        // get_filenames() canonicalizes its input. Use the same path here,
+        // otherwise the framework prefixes an absolute path a second time
+        // (notably with mixed separators on Windows, or a ../ segment).
+        $resolved = realpath($path);
+        if ($resolved === false || !is_dir($resolved)) {
+            throw new \InvalidArgumentException('La cartella delle migration non esiste.');
+        }
+        $this->path = rtrim($resolved, '\\/') . DIRECTORY_SEPARATOR;
         return $this;
     }
 

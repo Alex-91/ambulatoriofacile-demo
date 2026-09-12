@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit bootstrap="php-bootstrap.php" colors="true" failOnRisky="true" failOnWarning="true" beStrictAboutOutputDuringTests="true">
+    <testsuites><testsuite name="FSE isolated synthetic">
+        <directory>../../rest/tests/unit</directory>
+    </testsuite></testsuites>
+</phpunit>

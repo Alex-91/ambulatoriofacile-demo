@@ -1,6 +1,18 @@
 # FSE 2.0 — analisi, implementazione e percorso di attivazione
 
-Aggiornamento: 4 settembre 2026.
+Aggiornamento: 9 settembre 2026.
+
+Certificati Sogei di test ricevuti e verificati; superate le prime tre prove
+nazionali VERIFICA/HTTP 200. Nessuna pubblicazione, attivazione Toscana o
+convalida formale: [esiti, correzioni e attività aperte](fse2-certificati-e-primi-test.md).
+
+**Aggiornamento documentale serale:** generazione e invii ora richiedono il runtime
+locale XSD/Schematron, veraPDF e pyHanko. I controlli basati solo sui marcatori di
+firma sono stati sostituiti. Le descrizioni storiche sotto vanno lette con questo
+aggiornamento e con i limiti del [runtime documentale](../../ops/fse-validation/README.md).
+Nessun deploy o accreditamento è stato eseguito con questo incremento.
+
+Preparazione regionale e limiti aggiornati: [Toscana Privati — stato tecnico e piano di collaudo](fse2-toscana-preparazione.md). Le primitive di trasporto regionali sono predisposte ma il workflow operatore regionale e gli accreditamenti restano da completare. Gli esiti incerti non autorizzano un nuovo invio automatico.
 
 ## Risposta operativa
 
@@ -11,7 +23,7 @@ Non esiste un account pubblico generico con username/password per provare il Gat
 1. certificato di autenticazione per il canale HTTPS/mTLS;
 2. certificato di firma usato per firmare entrambi i JWT (`Authorization` e `FSE-JWT-Signature`).
 
-Prima di avere questi certificati si possono collaudare localmente anagrafica, cifratura, CDA, PDF con allegato `cda.xml`, ciclo di firma, hash, JWT con certificati locali e audit. Le chiamate reali al Gateway restano intenzionalmente bloccate.
+Prima di avere questi certificati si possono collaudare localmente anagrafica, cifratura, CDA, PDF con allegato `cda.xml`, ciclo di firma, hash, JWT con certificati locali e audit. Dal 9 settembre un runner CLI isolato consente anche VERIFICA sul solo Gateway nazionale di test, con documenti sintetici/ufficiali. Gli invii operativi dell'applicazione e la produzione non sono stati abilitati.
 
 ## Perimetro implementato
 
@@ -21,8 +33,8 @@ Prima di avere questi certificati si possono collaudare localmente anagrafica, c
 | Profilo ente/struttura | Implementato | Regione, organizzazione, struttura, locality, repository e OID |
 | Segreti | Implementato | AES-256-GCM; passphrase non mostrate e chiavi fuori da Git |
 | Referto RSA | Implementato | Header CDA2 e sezioni cliniche strutturate |
-| PDF con CDA allegato | Implementato | `cda.xml` inserito come EmbeddedFile |
-| Firma PAdES | Workflow implementato | Download del PDF, firma tramite strumento qualificato, upload e controllo presenza firma |
+| PDF/A-3b con CDA allegato | Verificato localmente | Generazione e validazione veraPDF obbligatoria; dipende dal runtime separato |
+| Firma PAdES | Verifica locale implementata | Integrità, CF, fiducia esplicita, revoca, identità CDA e confronto con l'originale; qualifica eIDAS ancora da accertare |
 | JWT RS256 | Implementato | `x5c`, claim applicativi, soggetto/autore/paziente e hash allegato |
 | mTLS | Implementato | Certificato e chiave distinti configurabili per tenant |
 | Validazione Gateway | Implementata | `POST /documents/validation` |
@@ -41,7 +53,7 @@ Prima di avere questi certificati si possono collaudare localmente anagrafica, c
 4. Il sistema genera CDA XML e PDF con `cda.xml` allegato.
 5. Il Gateway valida in modo sincrono il PDF/CDA non ancora firmato.
 6. Il medico firma lo stesso PDF in PAdES con un dispositivo/servizio di firma qualificato.
-7. Il PDF firmato viene acquisito e pubblicato; un PDF senza marcatori di firma o senza CDA viene respinto.
+7. Il PDF firmato viene acquisito soltanto dopo le verifiche locali documentali e crittografiche; marcatori di firma o stato `signed` preesistente non bastano. La pubblicazione ripete i controlli.
 8. Il `workflowInstanceId` di pubblicazione viene conservato e interrogato fino all'esito finale.
 9. È disponibile la cancellazione del documento pubblicato; sostituzione/versioning e oscuramento avanzato sono estensioni successive.
 
@@ -59,7 +71,7 @@ Prima di avere questi certificati si possono collaudare localmente anagrafica, c
 
 ### 1. Accreditamento fornitore
 
-Occorre avviare il percorso con Sogei/Ministero, ottenere i certificati di pre-produzione, usare i dataset ufficiali e produrre report/checklist con `traceID` e `workflowInstanceID`.
+Certificati di test ricevuti il 9 settembre e utilizzati con successo. Restano la riapertura del processo formale Sogei/Ministero, la conferma del piano di test, la sessione applicabile e la presentazione dei risultati/checklist con `traceID` e `workflowInstanceID`. Le prove VERIFICA non sostituiscono i test ufficiali VALIDATION.
 
 ### 2. Regione o Provincia autonoma
 
@@ -72,7 +84,7 @@ Il Gateway nazionale non elimina il raccordo regionale. Devono essere concordati
 - eventuale middleware regionale al posto dell'accesso diretto al Gateway;
 - regole di conservazione a norma e responsabilità del titolare.
 
-Il campo URL Gateway permette un endpoint regionale compatibile senza cambiare il dominio clinico.
+Un URL regionale da solo non rende compatibile il workflow: ogni integrazione richiede metodi, esiti, certificati e collaudo propri. Per Toscana Privati è predisposto un trasporto separato, ancora disabilitato per gli invii operativi.
 
 ### 3. Firma digitale
 
@@ -81,7 +93,7 @@ La firma PAdES non viene simulata dal gestionale. Per l'esercizio serve sceglier
 - firma locale con smart card/token e caricamento del PDF; oppure
 - firma remota via API, con contratto, autenticazione forte e consenso del firmatario.
 
-La prima modalità è già supportata. Il controllo in upload verifica la presenza strutturale della firma e dell'allegato CDA, non sostituisce la verifica crittografica della catena di fiducia né la qualificazione PAdES. Queste garanzie devono provenire dal dispositivo/provider di firma ed essere provate nel collaudo ufficiale. Un provider di firma remota potrà essere aggiunto dietro un'interfaccia dedicata.
+La prima modalità è supportata con policy conservativa: una firma incrementale sull'originale generato, senza riscrittura del PDF. L'upload verifica crittografia, fiducia esplicita, evidenze di revoca offline e CF del firmatario, oltre al CDA e al PDF/A. Non attesta qualifica eIDAS/QSCD né sostituisce le Trusted List UE o il collaudo del dispositivo/provider reale. Un provider di firma remota potrà essere aggiunto dietro un'interfaccia dedicata.
 
 ### 4. Conformità CDA
 

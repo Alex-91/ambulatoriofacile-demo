@@ -16,8 +16,9 @@ class FseDocumentService
     private FseStorageService $storage;
     private FseTenantSchemaService $schema;
     private Fse2 $config;
+    private FseArtifactValidationService $validation;
 
-    public function __construct(?FseTenantDatabaseContextService $contexts = null, ?FseProfileService $profiles = null, ?FseSecretsService $secrets = null, ?FseCdaRsaBuilderService $cda = null, ?FsePdfEnvelopeService $pdf = null, ?FseStorageService $storage = null, ?Fse2 $config = null, ?FseTenantSchemaService $schema = null)
+    public function __construct(?FseTenantDatabaseContextService $contexts = null, ?FseProfileService $profiles = null, ?FseSecretsService $secrets = null, ?FseCdaRsaBuilderService $cda = null, ?FsePdfEnvelopeService $pdf = null, ?FseStorageService $storage = null, ?Fse2 $config = null, ?FseTenantSchemaService $schema = null, ?FseArtifactValidationService $validation = null)
     {
         $this->contexts = $contexts ?? new FseTenantDatabaseContextService();
         $this->profiles = $profiles ?? new FseProfileService();
@@ -27,6 +28,7 @@ class FseDocumentService
         $this->storage = $storage ?? new FseStorageService();
         $this->config = $config ?? config(Fse2::class);
         $this->schema = $schema ?? new FseTenantSchemaService();
+        $this->validation = $validation ?? new FseArtifactValidationService($this->config);
     }
 
     /** @return array<string,mixed> */
@@ -87,9 +89,13 @@ class FseDocumentService
         return [
             'document' => $this->editableDocument(is_array($document) ? $document : []),
             'events' => $documentId > 0 ? $context['events']->listForDocument($documentId) : [],
-            'profile' => $this->profiles->getDefaultProfileForTenant($tenantId),
+            'profile' => is_array($document) ? FseProfileService::snapshot($this->profiles->runtimeProfileForDocument($tenantId, $document)) : $this->profiles->getDefaultProfileForTenant($tenantId),
+            'profiles' => $documentId <= 0 ? $this->profiles->listForTenant($tenantId) : [],
             'state_labels' => $this->config->stateLabels,
             'administrative_requests' => $this->config->administrativeRequests,
+            'history' => is_array($document) ? (new FseRevisionService($this->contexts))->history($tenantId, $document) : [],
+            'can_revise' => is_array($document) && FseDocumentLifecycle::canRevise($document),
+            'diagnosis' => is_array($document) ? (new FseReconciliationService())->inspect($document) : null,
         ];
     }
 
@@ -106,14 +112,25 @@ class FseDocumentService
         if ($id > 0 && !is_array($current)) {
             throw new \RuntimeException('Referto FSE non trovato.');
         }
-        if (in_array((string) ($current['local_state'] ?? ''), ['validating', 'publishing', 'deleting', 'published', 'deleted'], true)) {
+        if ($current && !FseDocumentLifecycle::isEditable($current)) {
             throw new \RuntimeException('Un referto in elaborazione, pubblicato o eliminato non può essere sovrascritto.');
         }
-        $profile = $this->profiles->runtimeProfileForTenant($tenantId);
+        if ($current && !hash_equals((string) ($current['edit_token'] ?? ''), (string) ($payload['edit_token'] ?? ''))) {
+            throw new \RuntimeException('La bozza è stata modificata: ricaricare la pagina prima di salvare.');
+        }
+        if ($current && isset($payload['id_fse_profile']) && (int) $payload['id_fse_profile'] !== (int) $current['id_fse_profile']) {
+            throw new \RuntimeException('Il profilo del referto è già associato: creare una nuova bozza per un’altra sede.');
+        }
+        $profile = $current ? $this->profiles->runtimeProfileForDocument($tenantId, $current)
+            : $this->profiles->runtimeProfileForTenant($tenantId, max(0, (int) ($payload['id_fse_profile'] ?? 0)));
         $plain = $this->normalizeClinicalPayload($payload, $profile);
+        if (!empty($profile['care_regime']) && $plain['administrative_request'] !== $profile['care_regime']) throw new \RuntimeException('Regime del referto diverso dal profilo selezionato.');
         $errors = $this->validateClinicalPayload($plain);
         if ($errors !== []) {
             throw new \RuntimeException(implode(' ', $errors));
+        }
+        if (!empty($current['previous_document_id']) && !hash_equals((string) $current['patient_cf_hash'], hash('sha256', $plain['patient_cf']))) {
+            throw new \RuntimeException('Una correzione non può cambiare il paziente dell’originale.');
         }
 
         $unique = (string) ($current['document_unique_id'] ?? '');
@@ -122,13 +139,15 @@ class FseDocumentService
         }
         $record = [
             'id_fse_profile' => (int) ($profile['id_fse_profile'] ?? 0),
-            'id_client' => (int) ($payload['id_client'] ?? 0) ?: null,
+            'profile_snapshot_json' => $current['profile_snapshot_json'] ?? json_encode(FseProfileService::snapshot($profile), JSON_THROW_ON_ERROR),
+            'id_client' => !empty($current['previous_document_id']) ? ($current['id_client'] ?? null) : ((int) ($payload['id_client'] ?? 0) ?: null),
             'source_type' => 'manual', 'local_state' => 'draft', 'document_type' => 'RSA',
             'document_title' => $plain['document_title'], 'loinc_code' => $plain['loinc_code'],
             'loinc_display_name' => $plain['loinc_display_name'], 'document_unique_id' => $unique,
             'set_id' => (string) ($current['set_id'] ?? $unique),
             'submission_id' => 'SUB.' . $tenantId . '.' . gmdate('YmdHis') . '.' . strtoupper(bin2hex(random_bytes(3))),
             'version_number' => max(1, (int) ($current['version_number'] ?? 1)),
+            'edit_token' => bin2hex(random_bytes(16)),
             'patient_cf_enc' => $this->enc($plain['patient_cf']), 'patient_cf_hash' => hash('sha256', $plain['patient_cf']),
             'patient_first_name_enc' => $this->enc($plain['patient_first_name']), 'patient_last_name_enc' => $this->enc($plain['patient_last_name']),
             'patient_birth_date_enc' => $this->enc($plain['patient_birth_date']), 'patient_gender' => $plain['patient_gender'],
@@ -137,6 +156,7 @@ class FseDocumentService
             'author_cf_hash' => hash('sha256', $plain['author_cf']), 'author_first_name_enc' => $this->enc($plain['author_first_name']),
             'author_last_name_enc' => $this->enc($plain['author_last_name']), 'service_start' => $plain['service_start'],
             'service_end' => $plain['service_end'] ?: null, 'reason_text_enc' => $this->enc($plain['reason_text']),
+            'service_description_enc' => $this->enc($plain['service_description']),
             'history_text_enc' => $this->enc($plain['history_text']), 'findings_text_enc' => $this->enc($plain['findings_text']),
             'report_text_enc' => $this->enc($plain['report_text']), 'diagnosis_text_enc' => $this->enc($plain['diagnosis_text']),
             'conclusions_text_enc' => $this->enc($plain['conclusions_text']), 'patient_consent' => $plain['patient_consent'] ? 1 : 0,
@@ -150,7 +170,11 @@ class FseDocumentService
             $record['created_by'] = $userId > 0 ? $userId : null;
             $id = (int) $documents->insert($record);
         } else {
-            $documents->update($id, $record);
+            // A concurrent validator must not be overwritten by a save started on an old page.
+            $record['updated_at'] = date('Y-m-d H:i:s');
+            $db->table('fse_documents')->where('id_fse_document', $id)->where('local_state', $current['local_state'])
+                ->where('edit_token', $current['edit_token'] ?? null)->update($record);
+            if ($db->affectedRows() !== 1) throw new \RuntimeException('Referto modificato o già in elaborazione: ricaricare la pagina.');
         }
         if ($id <= 0) {
             throw new \RuntimeException('Salvataggio referto FSE non riuscito.');
@@ -177,11 +201,19 @@ class FseDocumentService
         if (!is_array($stored) || (string) ($stored['local_state'] ?? '') === 'deleted') {
             throw new \RuntimeException('Referto FSE non disponibile.');
         }
-        $profile = $this->profiles->runtimeProfileForTenant($tenantId);
+        if (!FseDocumentLifecycle::isEditable($stored)) {
+            throw new \RuntimeException('Non è possibile rigenerare un referto validato, firmato, in elaborazione o pubblicato.');
+        }
+        $previousState = (string) $stored['local_state'];
+        $this->lockArtifactState($context['db'], $documentId, $previousState, 'preparing', $stored);
+        try {
+        $profile = $this->profiles->runtimeProfileForDocument($tenantId, $stored);
         $data = $this->editableDocument($stored) + [
             'document_oid_root' => $profile['document_oid_root'] ?? '', 'facility_name' => $profile['facility_name'] ?? '',
             'facility_code' => $profile['facility_code'] ?? '', 'facility_oid' => $profile['facility_oid'] ?? '',
         ];
+        $data['document_oid_root'] = trim((string) ($stored['document_oid_root'] ?? '')) ?: (string) ($profile['document_oid_root'] ?? '');
+        $data['previous_document'] = (new FseRevisionService($this->contexts, $this->schema, $this->secrets, $this->validation))->parentForCda($tenantId, $stored);
         $cda = $this->cda->build($data);
         $xml = new \DOMDocument();
         if (!$xml->loadXML($cda, LIBXML_NONET)) {
@@ -192,10 +224,18 @@ class FseDocumentService
         $pdfPath = $this->storage->store($tenantId, $documentId, 'referto-da-firmare.pdf', $pdf);
         $documents->update($documentId, [
             'local_state' => 'ready_to_validate', 'cda_path' => $cdaPath, 'cda_sha256' => hash('sha256', $cda),
+            'document_oid_root' => $data['document_oid_root'], 'edit_token' => bin2hex(random_bytes(16)),
             'unsigned_pdf_path' => $pdfPath, 'unsigned_pdf_sha256' => hash('sha256', $pdf), 'updated_by' => $userId ?: null,
             'validated_at' => null,
+            'signed_pdf_path' => null, 'signed_pdf_sha256' => null,
+            'workflow_instance_id' => null, 'trace_id' => null, 'span_id' => null,
+            'gateway_state' => null, 'gateway_http_status' => null, 'last_gateway_message' => null, 'last_response_json' => null,
         ]);
         $audit->record($documentId, 'artifacts_prepared', 'CDA RSA e PDF con CDA allegato generati; firma PAdES richiesta.', ['cda_sha256' => hash('sha256', $cda), 'pdf_sha256' => hash('sha256', $pdf)], $userId);
+        } catch (\Throwable $e) {
+            $context['db']->table('fse_documents')->where('id_fse_document', $documentId)->where('local_state', 'preparing')->update(['local_state' => $previousState]);
+            throw $e;
+        }
         return $this->editableDocument($documents->find($documentId) ?? []);
     }
 
@@ -205,12 +245,6 @@ class FseDocumentService
         if (strlen($contents) < 100 || strlen($contents) > $this->config->maxPdfBytes || !str_starts_with($contents, '%PDF-')) {
             throw new \RuntimeException('Il file caricato non è un PDF valido o supera il limite configurato.');
         }
-        if (strpos($contents, '/ByteRange') === false || strpos($contents, '/Contents') === false) {
-            throw new \RuntimeException('Firma digitale non rilevata: carica il PDF firmato PAdES.');
-        }
-        if (strpos($contents, 'cda.xml') === false && strpos($contents, '/EmbeddedFiles') === false) {
-            throw new \RuntimeException('Il PDF firmato non contiene il CDA cda.xml allegato.');
-        }
         $context = $this->contexts->resolveTenantContext($tenantId);
         /** @var FseDocumentModel $documents */ $documents = $context['documents'];
         /** @var FseAuditService $audit */ $audit = $context['audit'];
@@ -218,12 +252,24 @@ class FseDocumentService
         if (!is_array($document)) {
             throw new \RuntimeException('Referto FSE non trovato.');
         }
-        if (empty($document['validated_at']) || (string) ($document['local_state'] ?? '') !== 'validated') {
+        $profile = $this->profiles->runtimeProfileForDocument($tenantId, $document);
+        $localSigning = ($profile['access_mode'] ?? '') === 'toscana_privati' || !empty($document['previous_document_id']);
+        $signingState = $localSigning ? 'ready_to_validate' : 'validated';
+        if ((string) ($document['local_state'] ?? '') !== $signingState || (!$localSigning && empty($document['validated_at']))) {
             throw new \RuntimeException('Valida prima il PDF/CDA sul Gateway, poi applica la firma PAdES.');
         }
+        $this->lockArtifactState($context['db'], $documentId, $signingState, 'checking_signature', $document);
+        try {
+        $cda = $this->validation->storedArtifact($tenantId, $documentId, $document, 'cda');
+        $unsigned = $this->validation->storedArtifact($tenantId, $documentId, $document, 'unsigned_pdf');
+        $evidence = $this->validation->check($cda, $contents, $unsigned, $this->dec((string) ($document['author_cf_enc'] ?? '')));
         $path = $this->storage->store($tenantId, $documentId, 'referto-firmato.pdf', $contents);
         $documents->update($documentId, ['local_state' => 'signed', 'signed_pdf_path' => $path, 'signed_pdf_sha256' => hash('sha256', $contents), 'updated_by' => $userId ?: null]);
-        $audit->record($documentId, 'signed_pdf_uploaded', 'PDF firmato PAdES acquisito.', ['sha256' => hash('sha256', $contents)], $userId);
+        $audit->record($documentId, 'signed_pdf_uploaded', 'PDF acquisito dopo controlli CDA, PDF/A, firma e identità del firmatario.', $evidence, $userId);
+        } catch (\Throwable $e) {
+            $context['db']->table('fse_documents')->where('id_fse_document', $documentId)->where('local_state', 'checking_signature')->update(['local_state' => $signingState]);
+            throw $e;
+        }
         return $this->editableDocument($documents->find($documentId) ?? []);
     }
 
@@ -277,6 +323,7 @@ class FseDocumentService
             'author_cf' => (string) ($profile['author_cf'] ?? ''), 'author_first_name' => (string) ($profile['author_first_name'] ?? ''),
             'author_last_name' => (string) ($profile['author_last_name'] ?? ''), 'service_start' => $s('service_start', 30),
             'service_end' => $s('service_end', 30), 'reason_text' => $s('reason_text'), 'history_text' => $s('history_text'),
+            'service_description' => $s('service_description'),
             'findings_text' => $s('findings_text'), 'report_text' => $s('report_text'), 'diagnosis_text' => $s('diagnosis_text'),
             'conclusions_text' => $s('conclusions_text'), 'patient_consent' => !empty($payload['patient_consent']),
             'administrative_request' => strtoupper($s('administrative_request', 20)) ?: 'NOSSN',
@@ -287,7 +334,7 @@ class FseDocumentService
     private function validateClinicalPayload(array $data): array
     {
         $errors = [];
-        foreach (['patient_cf', 'patient_first_name', 'patient_last_name', 'patient_birth_date', 'patient_gender', 'author_cf', 'author_first_name', 'author_last_name', 'service_start', 'report_text'] as $field) {
+        foreach (['patient_cf', 'patient_first_name', 'patient_last_name', 'patient_birth_date', 'patient_gender', 'author_cf', 'author_first_name', 'author_last_name', 'service_start', 'service_description', 'report_text'] as $field) {
             if (trim((string) ($data[$field] ?? '')) === '') $errors[] = 'Campo clinico obbligatorio mancante: ' . $field . '.';
         }
         if (!preg_match('/^[A-Z0-9]{11,16}$/', (string) $data['patient_cf'])) $errors[] = 'Codice fiscale paziente non valido.';
@@ -299,11 +346,21 @@ class FseDocumentService
     /** @param array<string,mixed> $row @return array<string,mixed> */
     private function editableDocument(array $row): array
     {
-        foreach (['patient_cf', 'patient_first_name', 'patient_last_name', 'patient_birth_date', 'patient_email', 'patient_address', 'patient_city', 'author_cf', 'author_first_name', 'author_last_name', 'reason_text', 'history_text', 'findings_text', 'report_text', 'diagnosis_text', 'conclusions_text'] as $field) {
+        $row['revision_reason'] = $this->dec((string) ($row['revision_reason_enc'] ?? ''));
+        unset($row['revision_reason_enc']);
+        foreach (['patient_cf', 'patient_first_name', 'patient_last_name', 'patient_birth_date', 'patient_email', 'patient_address', 'patient_city', 'author_cf', 'author_first_name', 'author_last_name', 'service_description', 'reason_text', 'history_text', 'findings_text', 'report_text', 'diagnosis_text', 'conclusions_text'] as $field) {
             $row[$field] = $this->dec((string) ($row[$field . '_enc'] ?? ''));
             unset($row[$field . '_enc']);
         }
         return $row;
+    }
+
+    private function lockArtifactState(BaseConnection $db, int $id, string $previous, string $next, array $snapshot): void
+    {
+        $query = $db->table('fse_documents')->where('id_fse_document', $id)->where('local_state', $previous);
+        if (array_key_exists('edit_token', $snapshot)) $query->where('edit_token', $snapshot['edit_token']);
+        $query->update(['local_state' => $next, 'updated_at' => date('Y-m-d H:i:s')]);
+        if ($db->affectedRows() !== 1) throw new \RuntimeException('Referto modificato o già in elaborazione: ricaricare la pagina.');
     }
 
     private function enc(string $value): ?string { return $this->secrets->encrypt($value); }

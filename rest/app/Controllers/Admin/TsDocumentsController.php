@@ -543,6 +543,40 @@ class TsDocumentsController extends TsAdminBaseController
             : $fallback;
     }
 
+    public function abandon(int $documentId)
+    {
+        if ($guard=$this->ensureAccess()) return $guard;
+        $scope=$this->resolveTenantScope();
+        $url=site_url('admin/sistema-ts/documenti/modifica/'.$documentId);
+        try {
+            $this->documents->abandonOperation((int)$scope['tenant_id'],$documentId,$this->currentAdminUserId());
+            return redirect()->to($url)->with('success','Operazione locale abbandonata. Il documento sul Sistema TS resta invariato.');
+        } catch (\RuntimeException $e) { return redirect()->to($url)->with('errors',['generic'=>$e->getMessage()]); }
+    }
+
+    public function reconcile(int $documentId)
+    {
+        if($guard=$this->ensureAccess()) return $guard;
+        try {
+            $file=$this->request->getFile('proof');
+            if(!$file || !$file->isValid() || $file->hasMoved() || $file->getSize()>\App\Services\ClinicalVault::MAX_BYTES) throw new \InvalidArgumentException('Allegare un riscontro PDF fino a 15 MB.');
+            $proof=file_get_contents($file->getTempName(),false,null,0,\App\Services\ClinicalVault::MAX_BYTES+1);
+            (new \App\Services\TsReconciliationService())->reconcile((int)$this->resolveTenantScope()['tenant_id'],$documentId,$this->currentAdminUserId(),(array)$this->request->getPost(),(string)$proof);
+            return redirect()->to(site_url('admin/sistema-ts/documenti/modifica/'.$documentId))->with('success','Esito riconciliato. La verifica manuale e il riscontro sono conservati nello storico.');
+        }catch(\Throwable $e){
+            $message=$e instanceof \InvalidArgumentException || get_class($e)===\RuntimeException::class ? $e->getMessage() : 'Riconciliazione non completata.';
+            return redirect()->to(site_url('admin/sistema-ts/documenti/modifica/'.$documentId))->with('errors',['generic'=>$message]);
+        }
+    }
+    public function reconciliationProof(int $documentId)
+    {
+        if($guard=$this->ensureAccess()) return $guard;
+        try {
+            $bytes=(new \App\Services\TsReconciliationService())->proof((int)$this->resolveTenantScope()['tenant_id'],$documentId);
+            return $this->response->setHeader('Content-Type','application/pdf')->setHeader('Content-Disposition','attachment; filename="riscontro-ts.pdf"')->setHeader('Cache-Control','no-store')->setHeader('X-Content-Type-Options','nosniff')->setBody($bytes);
+        }catch(\Throwable $e){return $this->response->setStatusCode(404)->setBody('Riscontro non disponibile.');}
+    }
+
     /**
      * @return array<string, mixed>
      */

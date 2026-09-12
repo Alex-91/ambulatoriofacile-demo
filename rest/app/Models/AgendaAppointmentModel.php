@@ -110,6 +110,7 @@ class AgendaAppointmentModel extends Model
         $this->db->transBegin();
 
         try {
+            (new \App\Services\AgendaResourceGuard($this->db))->assertAvailable($slot,$window,$idDot);
             $this->lockSlotRowsForUpdate($initialCoveredSlotIds);
             $this->assertCoveredSlotsAvailable($initialCoveredSlotIds, 0, $tokenLock, $slotLockRequired);
 
@@ -222,7 +223,10 @@ class AgendaAppointmentModel extends Model
         $this->db->transBegin();
 
         try {
+            (new \App\Services\AgendaResourceGuard($this->db))->assertAvailable($slot,$window,(int)$appointment['id_dot'],$idAppuntamento);
             $this->lockSlotRowsForUpdate(array_values(array_unique(array_merge($previousSlotIds, $initialCoveredSlotIds))));
+            $fresh=$this->db->query('SELECT stato FROM dap12_agenda_appuntamenti WHERE id_appuntamento = ? FOR UPDATE',[$idAppuntamento])->getRowArray();
+            if (!$fresh || $fresh['stato']==='ANNULLATO') throw new Exception('L’appuntamento è stato annullato nel frattempo.');
             $this->assertCoveredSlotsAvailable($initialCoveredSlotIds, $idAppuntamento);
 
             if (
@@ -290,58 +294,7 @@ class AgendaAppointmentModel extends Model
 
     public function deleteAppointment(int $idAppuntamento, int $userId): bool
     {
-        $row = $this->loadAppointmentRow($idAppuntamento);
-        if (!$row) {
-            throw new Exception('Appuntamento non trovato.');
-        }
-
-        $timestamp = date('Y-m-d H:i:s');
-        $coveredSlotIds = $this->getAppointmentCoveredSlotIds($idAppuntamento);
-
-        $this->db->transStart();
-
-        $updatePayload = [
-            'stato' => 'ANNULLATO',
-        ];
-
-        if ($this->appointmentTableHasField('updated_at')) {
-            $updatePayload['updated_at'] = $timestamp;
-        }
-
-        if ($this->appointmentTableHasField('updated_by')) {
-            $updatePayload['updated_by'] = $userId > 0 ? $userId : null;
-        }
-
-        $this->db->table($this->table)
-            ->where('id_appuntamento', $idAppuntamento)
-            ->update($updatePayload);
-
-        if ($this->appointmentSlotLinkTableExists()) {
-            $this->db->table('dap45_agenda_appuntamenti_slot')
-                ->where('id_appuntamento', $idAppuntamento)
-                ->delete();
-        }
-
-        foreach ($coveredSlotIds as $slotId) {
-            $this->restoreSlotState($slotId, $timestamp);
-        }
-        $this->slotFragments()->compactGroupsForSlots($coveredSlotIds, $timestamp);
-
-        $this->db->transComplete();
-
-        if (!$this->db->transStatus()) {
-            $dbError = $this->db->error();
-            log_message('error', 'AgendaAppointmentModel::deleteAppointment failed for id_appuntamento={id} user_id={user} code={code} message={message}', [
-                'id' => $idAppuntamento,
-                'user' => $userId,
-                'code' => (string) ($dbError['code'] ?? ''),
-                'message' => (string) ($dbError['message'] ?? ''),
-            ]);
-
-            throw new Exception('Errore durante l\'annullamento della prenotazione.');
-        }
-
-        return true;
+        return $this->deleteAppointments([$idAppuntamento], $userId) === 1;
     }
 
     /**

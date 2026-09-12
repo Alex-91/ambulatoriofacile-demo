@@ -147,7 +147,7 @@ class BillingReportService
                 continue;
             }
 
-            fputcsv($handle, [
+            fputcsv($handle, array_map([$this, 'safeCsvCell'], [
                 (string) ($row['document_number'] ?? ''),
                 (string) ($row['document_type_label'] ?? ''),
                 $this->formatDateForExport((string) ($row['issue_date'] ?? '')),
@@ -163,7 +163,7 @@ class BillingReportService
                 $this->formatMoneyForExport($row['amount_total'] ?? 0),
                 (string) ($row['ts_expense_type_code'] ?? ''),
                 preg_replace('/\s+/', ' ', trim((string) ($row['notes'] ?? ''))) ?? '',
-            ], ';');
+            ]), ';');
         }
 
         rewind($handle);
@@ -171,6 +171,12 @@ class BillingReportService
         fclose($handle);
 
         return $csv !== false ? $csv : '';
+    }
+
+    /** Quoting CSV fields does not prevent spreadsheet formula execution. */
+    private function safeCsvCell(string $value): string
+    {
+        return preg_match('/^[\s\x00-\x1f]*[=+@-]/u', $value) === 1 ? "'" . $value : $value;
     }
 
     /**

@@ -11,6 +11,9 @@ class FseTenantSchemaService
 {
     private const TENANT_MIGRATION_FILES = [
         '2026-09-04-010003_CreateFseDocumentsTables.php',
+        '2026-09-07-220001_AddFseServiceDescription.php',
+        '2026-09-07-230001_AddFseDocumentRevisions.php',
+        '2026-09-08-100001_AddFseProfileSnapshot.php',
     ];
 
     private TenantCatalogService $tenantCatalog;
@@ -72,6 +75,9 @@ class FseTenantSchemaService
 
             $runResult = $this->runFilteredMigrations($tenant);
             $verificationDb = $this->tenantDbConnector->connect($tenant);
+            // Migrations may use a separate connection; discard pre-migration metadata.
+            unset($verificationDb->dataCache['field_names'][$verificationDb->DBPrefix . 'fse_documents']);
+            unset($verificationDb->dataCache['table_names']);
             if ($this->hasRequiredSchema($verificationDb)) {
                 return $this->statusCache[$cacheKey] = $this->result(
                     true,
@@ -124,6 +130,12 @@ class FseTenantSchemaService
             'patient_cf_enc',
             'patient_birth_date_enc',
             'report_text_enc',
+            'service_description_enc',
+            'previous_document_id',
+            'document_oid_root',
+            'revision_reason_enc',
+            'edit_token',
+            'profile_snapshot_json',
             'workflow_instance_id',
             'validated_at',
             'published_at',
@@ -178,7 +190,10 @@ class FseTenantSchemaService
             if (!is_file($sourcePath)) {
                 throw new \RuntimeException('Migration FSE non trovata localmente: ' . $file);
             }
-            if (!copy($sourcePath, $targetPath)) {
+            // Each tenant gets a temporary migration list, but PHP classes must be
+            // loaded once from a stable path across tenants in the same process.
+            $loader = '<?php require_once ' . var_export($sourcePath, true) . ';' . PHP_EOL;
+            if (file_put_contents($targetPath, $loader) === false) {
                 throw new \RuntimeException('Impossibile preparare la migration FSE: ' . $file);
             }
         }

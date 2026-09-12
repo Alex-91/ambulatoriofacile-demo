@@ -218,8 +218,8 @@ class TsDocumentService
             throw new \RuntimeException('Configura prima un profilo TS attivo per lo spazio.');
         }
 
-        if (trim((string) ($current['local_state'] ?? '')) === 'sent') {
-            throw new \RuntimeException('Il documento risulta già inviato e non può essere modificato da questa schermata.');
+        if ($current && !in_array(trim((string) ($current['local_state'] ?? '')), ['draft', 'to_validate', 'ready', 'rejected'], true)) {
+            throw new \RuntimeException('Il documento è inviato, in elaborazione o in attesa di verifica e non può essere modificato.');
         }
 
         $sourceType = trim((string) ($current['source_type'] ?? 'manual'));
@@ -299,7 +299,9 @@ class TsDocumentService
         try {
             if ($current) {
                 $documentId = $currentId;
-                $documents->update($documentId, $record);
+                if (!$documents->updateEditableSnapshot($documentId, $current, $record)) {
+                    throw new \RuntimeException('Il documento TS è cambiato durante il salvataggio. Riaprilo prima di procedere.');
+                }
             } else {
                 $documentId = (int) $documents->insert($record);
             }
@@ -373,15 +375,21 @@ class TsDocumentService
             throw new \RuntimeException('La tabella ts_documents non è disponibile nel database corrente.');
         }
 
-        $source = $documents->find($documentId);
-        $this->assertSourceDocumentEligibleForOperation($source, 'ts_variation');
-
-        $record = $this->buildOperationRecordFromSource($source, 'ts_variation', $userId);
-        $record['local_state'] = 'draft';
-
         $db->transBegin();
-
         try {
+            $lock = $db->DBDriver === 'MySQLi' ? ' FOR UPDATE' : '';
+            $source = $db->query('SELECT * FROM ts_documents WHERE id_ts_document=?'.$lock, [$documentId])->getRowArray();
+            $this->assertSourceDocumentEligibleForOperation($source, 'ts_variation');
+            $pending = $db->query("SELECT * FROM ts_documents WHERE source_ref_id=? AND source_type IN ('ts_variation','ts_cancellation') AND local_state NOT IN ('sent','cancelled') ORDER BY id_ts_document".$lock, [$documentId])->getResultArray();
+            if ($pending) {
+                if (count($pending) === 1 && $pending[0]['source_type'] === 'ts_variation') {
+                    if (!$db->transCommit()) throw new \RuntimeException('Operazione TS non disponibile.');
+                    return ['document'=>$pending[0], 'source_document'=>$source, 'reused'=>true];
+                }
+                throw new \RuntimeException('Completare o abbandonare l’operazione TS già aperta sul documento prima di crearne un’altra.');
+            }
+            $record = $this->buildOperationRecordFromSource($source, 'ts_variation', $userId);
+            $record['local_state'] = 'draft';
             $operationId = (int) $documents->insert($record);
             if ($operationId <= 0) {
                 throw new \RuntimeException('Creazione variazione TS non riuscita.');
@@ -446,31 +454,22 @@ class TsDocumentService
             throw new \RuntimeException('La tabella ts_documents non è disponibile nel database corrente.');
         }
 
-        $source = $documents->find($documentId);
-        $this->assertSourceDocumentEligibleForOperation($source, 'ts_cancellation');
-
-        $existing = $this->findReusableCancellationOperation($documents, $documentId);
-        if (is_array($existing)) {
-            return [
-                'document' => $existing,
-                'source_document' => $source,
-                'reused' => true,
-            ];
-        }
-
-        $record = $this->buildOperationRecordFromSource($source, 'ts_cancellation', $userId);
-        $record['local_state'] = 'ready';
-        $record['validation_json'] = json_encode([
-            'valid' => true,
-            'errors' => [],
-            'warnings' => [],
-            'validated_at' => date('Y-m-d H:i:s'),
-            'requested_mode' => 'cancellation_prepare',
-        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-
         $db->transBegin();
-
         try {
+            $lock = $db->DBDriver === 'MySQLi' ? ' FOR UPDATE' : '';
+            $source = $db->query('SELECT * FROM ts_documents WHERE id_ts_document=?'.$lock, [$documentId])->getRowArray();
+            $this->assertSourceDocumentEligibleForOperation($source, 'ts_cancellation');
+            $pending = $db->query("SELECT * FROM ts_documents WHERE source_ref_id=? AND source_type IN ('ts_variation','ts_cancellation') AND local_state NOT IN ('sent','cancelled') ORDER BY id_ts_document".$lock, [$documentId])->getResultArray();
+            if ($pending) {
+                if (count($pending) === 1 && $pending[0]['source_type'] === 'ts_cancellation') {
+                    if (!$db->transCommit()) throw new \RuntimeException('Operazione TS non disponibile.');
+                    return ['document'=>$pending[0], 'source_document'=>$source, 'reused'=>true];
+                }
+                throw new \RuntimeException('Completare o abbandonare l’operazione TS già aperta sul documento prima di crearne un’altra.');
+            }
+            $record = $this->buildOperationRecordFromSource($source, 'ts_cancellation', $userId);
+            $record['local_state'] = 'ready';
+            $record['validation_json'] = json_encode(['valid'=>true,'errors'=>[],'warnings'=>[],'validated_at'=>date('Y-m-d H:i:s'),'requested_mode'=>'cancellation_prepare']);
             $operationId = (int) $documents->insert($record);
             if ($operationId <= 0) {
                 throw new \RuntimeException('Creazione cancellazione TS non riuscita.');
@@ -709,27 +708,17 @@ class TsDocumentService
         ];
     }
 
-    private function findReusableCancellationOperation(TsDocumentModel $documents, int $documentId): ?array
+    public function abandonOperation(int $tenantId, int $documentId, int $userId): void
     {
-        $existing = $documents->where('source_type', 'ts_cancellation')
-            ->where('source_ref_id', $documentId)
-            ->orderBy('id_ts_document', 'DESC')
-            ->first();
-
-        if (!is_array($existing)) {
-            return null;
-        }
-
-        $localState = trim((string) ($existing['local_state'] ?? 'draft'));
-        if ($localState === 'sending') {
-            throw new \RuntimeException('Esiste già una cancellazione TS in corso per questo documento.');
-        }
-
-        if ($localState === 'sent') {
-            throw new \RuntimeException('Esiste già una cancellazione TS inviata per questo documento.');
-        }
-
-        return $existing;
+        $context=$this->resolveTenantDocumentContext($tenantId);$db=$context['db'];$documents=$context['documents'];
+        $record=$documents->find($documentId);
+        if (!$record || !in_array($record['source_type'],['ts_variation','ts_cancellation'],true)) throw new \RuntimeException('Selezionare una variazione o cancellazione locale.');
+        $db->transBegin();
+        try {
+            if (!$documents->updateEditableSnapshot($documentId,$record,['local_state'=>'cancelled','updated_by'=>$userId])) throw new \RuntimeException('L’operazione è già inviata, in corso o modificata. Riaprire il documento.');
+            if (!$context['audit']->record($documentId,'operation_abandoned','Operazione locale abbandonata; nessuna richiesta di annullo trasmessa al Sistema TS.','info',[],$userId)) throw new \RuntimeException('Audit non disponibile.');
+            if (!$db->transStatus() || !$db->transCommit()) throw new \RuntimeException('Abbandono operazione non salvato.');
+        } catch (\Throwable $e) { $db->transRollback(); throw $e; }
     }
 
     private function generateOperationIdentifierHash(string $operationType, int $sourceDocumentId, string $identifierSeed): string

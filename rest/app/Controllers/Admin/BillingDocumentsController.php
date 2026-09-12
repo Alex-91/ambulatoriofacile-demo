@@ -8,7 +8,7 @@ use App\Services\BillingTsBridgeService;
 use App\Services\BillingTsModuleStatusService;
 use App\Services\TenantPatientLookupService;
 use Dompdf\Dompdf;
-use Dompdf\Options;
+use App\Services\BillingPdfOptionsFactory;
 
 class BillingDocumentsController extends BillingAdminBaseController
 {
@@ -201,7 +201,8 @@ class BillingDocumentsController extends BillingAdminBaseController
                     'ts_opposition_flag' => $this->request->getPost('ts_opposition_flag'),
                 ],
                 $this->currentAdminUserId(),
-                $normalizedSaveMode
+                $normalizedSaveMode,
+                (int) (session()->get('platform_user_id') ?? 0)
             );
 
             $savedId = (int) ($result['document']['id_billing_document'] ?? 0);
@@ -378,6 +379,9 @@ class BillingDocumentsController extends BillingAdminBaseController
                 ? 'Sollecito inviato correttamente a ' . (string) ($result['recipient'] ?? '') . '.'
                 : 'Fattura inviata correttamente a ' . (string) ($result['recipient'] ?? '') . '.';
 
+            if (!empty($result['warning'])) {
+                $message .= ' ' . (string) $result['warning'];
+            }
             return redirect()->to(site_url('admin/fatturazione-documenti'))->with('success', $message);
         } catch (\Throwable $e) {
             return redirect()->to($composerUrl)->withInput()->with('errors', [
@@ -734,8 +738,7 @@ class BillingDocumentsController extends BillingAdminBaseController
                 'preview' => $preview,
             ]);
 
-            $options = new Options();
-            $options->set('isRemoteEnabled', true);
+            $options = (new BillingPdfOptionsFactory())->create($tenantId);
 
             $dompdf = new Dompdf($options);
             $dompdf->loadHtml($html, 'UTF-8');

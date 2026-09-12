@@ -2,6 +2,7 @@
 
 use App\Services\PendingNotificationNavigationService;
 use CodeIgniter\HTTP\RequestInterface;
+use CodeIgniter\HTTP\IncomingRequest;
 use CodeIgniter\HTTP\URI;
 use CodeIgniter\Test\CIUnitTestCase;
 
@@ -139,7 +140,8 @@ final class PendingNotificationNavigationServiceTest extends CIUnitTestCase
         $uri = new URI($url);
         parse_str((string) $uri->getQuery(), $query);
 
-        $request = $this->createMock(RequestInterface::class);
+        // isAJAX/getGet belong to IncomingRequest, not the generic interface.
+        $request = $this->createMock(IncomingRequest::class);
         $request->method('getMethod')->willReturn('get');
         $request->method('isAJAX')->willReturn(false);
         $request->method('getUri')->willReturn($uri);

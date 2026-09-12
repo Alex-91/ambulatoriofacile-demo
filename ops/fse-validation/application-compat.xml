@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit bootstrap="application-compat-bootstrap.php" colors="false" cacheResult="false"
+         failOnWarning="true" failOnRisky="true">
+  <!-- Explicit allowlist: mocks/in-memory SQLite only; no discovery of unrelated suites. -->
+  <testsuites>
+    <testsuite name="Synthetic joint application compatibility">
+      <file>../../rest/tests/unit/AgendaSingleDayPdfColorTest.php</file>
+      <file>../../rest/tests/unit/AgendaTeamDayPdfColorTest.php</file>
+      <file>../../rest/tests/unit/AgendaTimelinePdfViewTest.php</file>
+      <file>../../rest/tests/unit/AppointmentMessageTemplateServiceTest.php</file>
+      <file>../../rest/tests/unit/TenantNotificationPolicyServiceTest.php</file>
+      <file>../../rest/tests/unit/PlatformAuthServiceTest.php</file>
+      <file>../../rest/tests/session/BillingDocumentServiceTest.php</file>
+      <file>../../rest/tests/unit/BillingHttpPreparationTest.php</file>
+      <file>../../rest/tests/unit/AppForwardedHeadersTest.php</file>
+      <file>../../rest/tests/unit/AgendaSlotFragmentServiceTest.php</file>
+      <file>../../rest/tests/unit/AgendaFontSizePreferencesTest.php</file>
+      <file>../../rest/tests/session/SessionAuthHelperTest.php</file>
+      <file>../../rest/tests/session/PendingNotificationNavigationServiceTest.php</file>
+      <file>../../rest/tests/session/LegacyLoginHandoffServiceTest.php</file>
+      <file>../../rest/tests/unit/FseFrameworkCompatibilityTest.php</file>
+    </testsuite>
+  </testsuites>
+</phpunit>

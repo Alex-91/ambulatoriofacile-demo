@@ -6,7 +6,8 @@ use App\Services\BillingDocumentSettingsService;
 use App\Services\BillingTenantDatabaseContextService;
 use App\Services\BillingTenantSchemaService;
 use App\Services\TsFeatureService;
-use CodeIgniter\Database\BaseConnection;
+use App\Services\TsProfileService;
+use CodeIgniter\Database\SQLite3\Connection;
 use CodeIgniter\Test\CIUnitTestCase;
 use Config\Database;
 
@@ -123,12 +124,22 @@ final class BillingDocumentServiceTest extends CIUnitTestCase
                 'message' => 'La tabella billing_documents non è ancora disponibile nel database di questo spazio.',
             ]);
 
+        $tsProfiles = $this->getMockBuilder(TsProfileService::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['resolveServiceExpenseTypeMapForTenant'])
+            ->getMock();
+        $tsProfiles->expects($this->once())
+            ->method('resolveServiceExpenseTypeMapForTenant')
+            ->with(12)
+            ->willReturn([]);
+
         $service = new BillingDocumentService(
             $settings,
             $tenantDbContext,
             $tsFeatures,
             config(TsBilling::class),
-            $schema
+            $schema,
+            tsProfiles: $tsProfiles
         );
 
         $formContext = $service->buildFormContext(12);
@@ -147,8 +158,13 @@ final class BillingDocumentServiceTest extends CIUnitTestCase
     {
         $settings = $this->getMockBuilder(BillingDocumentSettingsService::class)
             ->disableOriginalConstructor()
-            ->onlyMethods(['resolveTenantSettings'])
+            ->onlyMethods(['resolveTenantSettings', 'rememberServiceCatalogItems'])
             ->getMock();
+
+        $settings->expects($this->once())
+            ->method('rememberServiceCatalogItems')
+            ->with(9, $this->callback(static fn (array $items): bool => count($items) === 1
+                && $items[0]['description'] === 'Seduta fisioterapica'), 42);
 
         $settings->expects($this->once())
             ->method('resolveTenantSettings')
@@ -186,10 +202,10 @@ final class BillingDocumentServiceTest extends CIUnitTestCase
                 'message' => '',
             ]);
 
-        $db = $this->getMockBuilder(BaseConnection::class)
+        $db = $this->getMockBuilder(Connection::class)
             ->disableOriginalConstructor()
             ->onlyMethods(['tableExists', 'transBegin', 'transStatus', 'transCommit', 'transRollback'])
-            ->getMockForAbstractClass();
+            ->getMock();
 
         $db->expects($this->once())
             ->method('tableExists')
@@ -220,6 +236,7 @@ final class BillingDocumentServiceTest extends CIUnitTestCase
             ->with($this->callback(static function (array $record): bool {
                 return ($record['document_number'] ?? '') === 'FT-20260706-01'
                     && ($record['local_state'] ?? '') === 'issued'
+                    && (int) ($record['created_by'] ?? 0) === 17
                     && (int) ($record['ts_sync_enabled'] ?? 0) === 1
                     && ($record['ts_sync_state'] ?? '') === 'ready'
                     && abs((float) ($record['subtotal_amount'] ?? 0) - 100.0) < 0.001
@@ -252,12 +269,23 @@ final class BillingDocumentServiceTest extends CIUnitTestCase
                 'documents' => $documents,
             ]);
 
+        $tsProfiles = $this->getMockBuilder(TsProfileService::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['resolveExpenseTypeForLineItems'])
+            ->getMock();
+        $tsProfiles->expects($this->once())
+            ->method('resolveExpenseTypeForLineItems')
+            ->with(9, $this->callback(static fn (array $items): bool => count($items) === 1
+                && $items[0]['description'] === 'Seduta fisioterapica'))
+            ->willReturn(null);
+
         $service = new BillingDocumentService(
             $settings,
             $tenantDbContext,
             $tsFeatures,
             config(TsBilling::class),
-            $schema
+            $schema,
+            tsProfiles: $tsProfiles
         );
 
         $result = $service->saveDraftForTenant(9, [
@@ -278,7 +306,7 @@ final class BillingDocumentServiceTest extends CIUnitTestCase
             'ts_sync_enabled' => '1',
             'ts_expense_type_code' => 'SP',
             'ts_opposition_flag' => '0',
-        ], 17, 'final_send_ts');
+        ], 17, 'final_send_ts', 42);
 
         $this->assertSame('issued', (string) ($result['local_state'] ?? ''));
         $this->assertSame(55, (int) (($result['document']['id_billing_document'] ?? 0)));

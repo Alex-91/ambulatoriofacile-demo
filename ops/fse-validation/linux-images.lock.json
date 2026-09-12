@@ -1,0 +1,12 @@
+{
+  "mode": "PUBLIC_IMAGE_MANIFEST_RESOLUTION_ONLY",
+  "resolved_at": "2026-09-12T12:03:40Z",
+  "platform": "linux/amd64",
+  "images_pulled_or_executed": false,
+  "publisher_signature_verified": false,
+  "images": {
+    "php": "library/php@sha256:7438f520602081aacfd093ae408b2e31f8646fc6a11ae431947175b818291cf7",
+    "composer": "library/composer@sha256:0baf37e7f495f1c42cee6bdd9cf3e00e9435f193b512529e7c484d66c623773f",
+    "mysql": "library/mysql@sha256:8c19b656bb381f163750b238852bd377ba5764e1ec30cdd3f02e55cf8e2f89b7"
+  }
+}

@@ -29,12 +29,10 @@ class FseJwtService
         $certificatePem = $this->readFile($certificatePath, 'certificato signature');
         $privateKeyPem = $this->readFile($privateKeyPath, 'chiave privata signature');
         $privateKeyPassphrase = (string) ($profile['signature_private_key_passphrase'] ?? '');
+        FseCertificateInspector::inspect($certificatePem, $privateKeyPem, $privateKeyPassphrase);
         $commonName = $this->certificateCommonName($certificatePem);
         $x5c = $this->certificateDerBase64($certificatePem);
-        $baseUrl = $this->config->gatewayUrl(
-            (string) ($profile['environment'] ?? 'test'),
-            (string) ($profile['gateway_base_url'] ?? '')
-        );
+        $baseUrl = $this->config->jwtAudienceForProfile($profile);
         $now = time();
         $authorSubject = $this->iheSubject((string) ($document['author_cf'] ?? $profile['author_cf'] ?? ''));
         $patientSubject = $this->iheSubject((string) ($document['patient_cf'] ?? ''));
@@ -89,10 +87,11 @@ class FseJwtService
         $privateKeyPath = $this->config->resolveCertificatePath((string) ($profile['signature_private_key_path'] ?? ''));
         $certificatePem = $this->readFile($certificatePath, 'certificato signature');
         $privateKeyPem = $this->readFile($privateKeyPath, 'chiave privata signature');
+        FseCertificateInspector::inspect($certificatePem, $privateKeyPem, (string) ($profile['signature_private_key_passphrase'] ?? ''));
         $now = time();
         $claims = [
             'iss' => 'auth:' . $this->certificateCommonName($certificatePem),
-            'aud' => $this->config->gatewayUrl((string) ($profile['environment'] ?? 'test'), (string) ($profile['gateway_base_url'] ?? '')),
+            'aud' => $this->config->jwtAudienceForProfile($profile),
             'sub' => $this->iheSubject((string) ($document['author_cf'] ?? $profile['author_cf'] ?? '')),
             'iat' => $now, 'exp' => $now + $this->config->jwtTtlSeconds, 'jti' => bin2hex(random_bytes(16)),
         ];

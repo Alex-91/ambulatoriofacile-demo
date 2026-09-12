@@ -5,7 +5,6 @@ namespace App\Services;
 use Config\Email as EmailConfig;
 use Config\Services;
 use Dompdf\Dompdf;
-use Dompdf\Options;
 
 class BillingDocumentEmailService
 {
@@ -16,7 +15,8 @@ class BillingDocumentEmailService
     public function __construct(
         ?BillingDocumentService $documents = null,
         ?BillingDocumentSettingsService $settings = null,
-        ?TenantPatientLookupService $patientLookup = null
+        ?TenantPatientLookupService $patientLookup = null,
+        private ?\Closure $mailerFactory = null
     ) {
         $this->documents = $documents ?? new BillingDocumentService();
         $this->settings = $settings ?? new BillingDocumentSettingsService();
@@ -107,11 +107,12 @@ class BillingDocumentEmailService
         $settings = $this->settings->resolveTenantSettings($tenantId);
         $config = is_array($settings['config'] ?? null) ? $settings['config'] : [];
         $replacements = $this->templateReplacements($preview, $config);
-        $subject = substr($this->replacePlaceholders($subject, $replacements), 0, 255);
+        $subject = substr(trim(preg_replace('/[\r\n]+/', ' ', $this->replacePlaceholders($subject, $replacements))), 0, 255);
         $messageBody = substr($this->replacePlaceholders($messageBody, $replacements), 0, 5000);
 
+        $smtpAccepted = false;
         try {
-            $mailer = Services::email(null, false);
+            $mailer = $this->mailerFactory ? ($this->mailerFactory)() : Services::email(null, false);
             $mailer->clear(true);
             $emailConfig = config(EmailConfig::class);
             $fromEmail = trim((string) ($emailConfig->fromEmail ?? '')) ?: 'noreply@ambulatoriofacile.it';
@@ -124,7 +125,7 @@ class BillingDocumentEmailService
             $mailer->setAltMessage($messageBody);
 
             if (!empty($context['attach_pdf'])) {
-                $pdf = $this->renderPdf($preview);
+                $pdf = $this->renderPdf($preview, $tenantId);
                 $documentNumber = preg_replace('/[^A-Za-z0-9_-]+/', '_', (string) ($preview['document']['document_number'] ?? 'fattura'));
                 $mailer->attach($pdf, 'attachment', 'fattura_' . trim((string) $documentNumber, '_') . '.pdf', 'application/pdf');
             }
@@ -133,6 +134,7 @@ class BillingDocumentEmailService
                 $debug = trim(strip_tags((string) $mailer->printDebugger(['headers', 'subject'])));
                 throw new \RuntimeException($debug !== '' ? $debug : 'Invio SMTP non riuscito.');
             }
+            $smtpAccepted = true;
 
             $this->documents->recordEmailDeliveryForTenant(
                 $tenantId,
@@ -152,6 +154,11 @@ class BillingDocumentEmailService
                 'delivery_type' => $deliveryType,
             ];
         } catch (\Throwable $e) {
+            if ($smtpAccepted) {
+                log_message('error','Billing email accepted by SMTP; local delivery log requires reconciliation. Tenant {tenant}, document {document}.',['tenant'=>$tenantId,'document'=>$documentId]);
+                return ['sent'=>true,'recipient'=>$recipient,'delivery_type'=>$deliveryType,
+                    'warning'=>'Messaggio accettato dal server email; registrazione dello storico non riuscita. Verificare lo storico prima di ripetere l’invio.'];
+            }
             try {
                 $this->documents->recordEmailDeliveryForTenant(
                     $tenantId,
@@ -243,14 +250,13 @@ class BillingDocumentEmailService
     /**
      * @param array<string, mixed> $preview
      */
-    private function renderPdf(array $preview): string
+    private function renderPdf(array $preview, int $tenantId): string
     {
         if (!class_exists(Dompdf::class)) {
             throw new \RuntimeException('Generatore PDF non disponibile.');
         }
 
-        $options = new Options();
-        $options->set('isRemoteEnabled', true);
+        $options = (new BillingPdfOptionsFactory())->create($tenantId);
         $dompdf = new Dompdf($options);
         $dompdf->loadHtml(view('admin/billing/document_pdf', ['preview' => $preview]), 'UTF-8');
         $dompdf->setPaper('A4', 'portrait');

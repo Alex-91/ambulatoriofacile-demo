@@ -264,6 +264,16 @@ class TenantFeatureService
     private function platformCoreFeatureDefinitions(): array
     {
         return [
+            ClinicalFeatureService::FEATURE_KEY => [
+                'feature_name' => 'Cartella clinica e consensi',
+                'feature_scope' => 'clinical',
+                'description' => 'Il super amministratore abilita cartella paziente, consensi, storico, referti e firma esterna per lo spazio. Restano applicati i permessi clinici del personale.',
+                'default_enabled' => 0,
+                'icon_class' => 'fa-folder-open',
+                'is_tenant_managed' => 0,
+                'tenant_default_enabled' => 0,
+                'sort_order' => 144,
+            ],
             BillingModule::FEATURE_KEY => [
                 'feature_name' => 'Fatturazione',
                 'feature_scope' => 'billing',

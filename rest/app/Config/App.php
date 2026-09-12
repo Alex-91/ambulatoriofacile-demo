@@ -87,22 +87,35 @@ class App extends BaseConfig
 
     private function detectRequestScheme(): string
     {
-        $forwardedProto = $this->firstForwardedValue((string) ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? ''));
-        if ($forwardedProto !== '') {
-            return strtolower($forwardedProto);
+        if ($this->isTrustedRequestProxy()) {
+            $forwardedProto = strtolower($this->firstForwardedValue((string) ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')));
+            if (in_array($forwardedProto, ['http', 'https'], true)) return $forwardedProto;
         }
-
-        return strtolower((string) ($_SERVER['REQUEST_SCHEME'] ?? 'http'));
+        if (!empty($_SERVER['HTTPS']) && strtolower((string) $_SERVER['HTTPS']) !== 'off') return 'https';
+        return strtolower((string) ($_SERVER['REQUEST_SCHEME'] ?? 'http')) === 'https' ? 'https' : 'http';
     }
 
     private function resolveRequestHost(string $fallbackHost = ''): string
     {
-        $forwardedHost = $this->firstForwardedValue((string) ($_SERVER['HTTP_X_FORWARDED_HOST'] ?? ''));
-        if ($forwardedHost !== '') {
-            return $forwardedHost;
+        if ($this->isTrustedRequestProxy()) {
+            $forwardedHost = $this->firstForwardedValue((string) ($_SERVER['HTTP_X_FORWARDED_HOST'] ?? ''));
+            // Forwarded authority only, not credentials, a URL, a path or control characters.
+            if ($forwardedHost !== '' && !preg_match('/[\s\x00-\x1f\x7f@\/\\\\?#]/', $forwardedHost)) {
+                $parsed = parse_url('http://' . $forwardedHost);
+                if (is_array($parsed) && isset($parsed['host']) && !isset($parsed['user']) && !isset($parsed['path'])
+                    && (filter_var(trim($parsed['host'], '[]'), FILTER_VALIDATE_IP)
+                        || preg_match('/^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)*[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/iD', $parsed['host']))) {
+                    return $forwardedHost;
+                }
+            }
         }
 
         return trim($fallbackHost);
+    }
+
+    private function isTrustedRequestProxy(): bool
+    {
+        return \App\Libraries\TrustedProxyPolicy::matches((string) ($_SERVER['REMOTE_ADDR'] ?? ''), $this->proxyIPs);
     }
 
     private function firstForwardedValue(string $value): string

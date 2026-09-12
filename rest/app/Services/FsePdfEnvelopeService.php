@@ -7,6 +7,12 @@ class FsePdfEnvelopeService
     /** @param array<string, mixed> $data */
     public function build(string $cdaXml, array $data): string
     {
+        return (new FseArtifactValidationService())->buildPdf($cdaXml);
+    }
+
+    /** Unvalidated preview for regression tests only. NEVER use for signing or dispatch. */
+    public function buildUnvalidatedPreview(string $cdaXml, array $data): string
+    {
         if ($cdaXml === '') {
             throw new \InvalidArgumentException('CDA vuoto: impossibile generare il PDF FSE.');
         }

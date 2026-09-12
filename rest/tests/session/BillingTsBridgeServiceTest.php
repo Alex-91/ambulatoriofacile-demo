@@ -10,12 +10,46 @@ use CodeIgniter\Test\CIUnitTestCase;
  */
 final class BillingTsBridgeServiceTest extends CIUnitTestCase
 {
+    public function testPreparationNormalizesExemptionButRejectsPositiveRateWithNature(): void
+    {
+        $previousKey=getenv('TS_BILLING_SECRET_KEY');putenv('TS_BILLING_SECRET_KEY=synthetic-unit-test-only');
+        $db = \Config\Database::connect(['DBDriver'=>'SQLite3','database'=>':memory:','DBPrefix'=>'','DBDebug'=>true], false);
+        try {
+            foreach ([\App\Models\BillingDocumentModel::class=>['billing_documents','id_billing_document'], \App\Models\TsDocumentModel::class=>['ts_documents','id_ts_document']] as $class=>[$table,$key]) {
+                $fields=(new \ReflectionClass($class))->getDefaultProperties()['allowedFields'];
+                $fields=array_diff(array_unique(array_merge($fields,['created_at','updated_at'])),[$key]);
+                $db->query("CREATE TABLE $table ($key INTEGER PRIMARY KEY AUTOINCREMENT,".implode(',',array_map(static fn($f)=>$f.' TEXT',$fields)).')');
+            }
+            $billing=new \App\Models\BillingDocumentModel($db);$ts=new \App\Models\TsDocumentModel($db);
+            $billingContext=$this->getMockBuilder(BillingTenantDatabaseContextService::class)->disableOriginalConstructor()->onlyMethods(['resolveTenantContext'])->getMock();
+            $billingContext->method('resolveTenantContext')->willReturn(['db'=>$db,'documents'=>$billing]);
+            $tsContext=$this->getMockBuilder(\App\Services\TsTenantDatabaseContextService::class)->disableOriginalConstructor()->onlyMethods(['resolveTenantContext'])->getMock();
+            $tsContext->method('resolveTenantContext')->willReturn(['db'=>$db,'documents'=>$ts]);
+            $profiles=$this->getMockBuilder(\App\Services\TsProfileService::class)->disableOriginalConstructor()->onlyMethods(['getDefaultProfileForTenant'])->getMock();
+            $profiles->method('getDefaultProfileForTenant')->willReturn(['id_ts_profile'=>1,'is_enabled'=>1,'owner_piva'=>'12345678903']);
+            $settings=$this->getMockBuilder(\App\Services\BillingDocumentSettingsService::class)->disableOriginalConstructor()->onlyMethods(['resolveTenantSettings'])->getMock();
+            $settings->method('resolveTenantSettings')->willReturn(['config'=>[]]);
+            $dispatch=$this->getMockBuilder(\App\Services\TsDispatchService::class)->disableOriginalConstructor()->onlyMethods(['dispatchDocument'])->getMock();
+            $dispatch->expects($this->never())->method('dispatchDocument');
+            $service=new BillingTsBridgeService(billingContext:$billingContext,tsContext:$tsContext,billingSettings:$settings,tsProfiles:$profiles,dispatch:$dispatch);
+            foreach ([['0.00','N4','ready',null],['22.00','','ready',22.0],['22.00','N4','blocked',22.0]] as $i=>[$rate,$nature,$state,$expectedRate]) {
+                $id=(int)$billing->insert(['id_client'=>101,'document_number'=>'SYNTHETIC-'.$i,'document_type'=>'invoice','issue_date'=>'2026-09-12','payment_date'=>'2026-09-12','payment_status'=>'paid','patient_name'=>'SYNTHETIC','patient_tax_code'=>'VRDLGU70A01H501O','local_state'=>'issued','ts_sync_enabled'=>1,'ts_expense_type_code'=>'SP','payment_method'=>'bank_transfer','amount_total'=>100,'vat_rate'=>$rate,'vat_nature'=>$nature]);
+                $result=$service->prepareBillingDocumentForTs(42,$id,1);
+                $this->assertSame($state,$result['status'],json_encode($result['validation']));
+                $saved=$result['ts_document'];
+                $this->assertSame($expectedRate,$saved['vat_rate']===null ? null : (float)$saved['vat_rate']);
+                $this->assertSame($id,(int)$saved['source_ref_id']);
+                $this->assertNull($saved['ts_protocol']);
+            }
+        } finally { $db->close();putenv($previousKey===false ? 'TS_BILLING_SECRET_KEY' : 'TS_BILLING_SECRET_KEY='.$previousKey); }
+    }
+
     public function testBuildQueueForTenantReturnsEmptyListsWhenBillingTableIsMissing(): void
     {
-        $db = $this->getMockBuilder(BaseConnection::class)
+        $db = $this->getMockBuilder(\CodeIgniter\Database\SQLite3\Connection::class)
             ->disableOriginalConstructor()
             ->onlyMethods(['tableExists'])
-            ->getMockForAbstractClass();
+            ->getMock();
 
         $db->expects($this->once())
             ->method('tableExists')

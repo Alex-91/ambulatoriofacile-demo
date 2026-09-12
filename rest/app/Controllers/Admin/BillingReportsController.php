@@ -98,7 +98,7 @@ class BillingReportsController extends BillingAdminBaseController
                 'generatedAt' => date('d/m/Y H:i'),
             ]);
 
-            $options = new Options();
+            $options = (new \App\Services\BillingPdfOptionsFactory())->create($tenantId);
             $options->set('isRemoteEnabled', false);
             $dompdf = new Dompdf($options);
             $dompdf->loadHtml($html, 'UTF-8');

@@ -1,0 +1,9 @@
+# Dedicated initial WSL setup for FSE tests; do not overwrite an existing user configuration.
+[wsl2]
+memory=3GB
+processors=2
+swap=1GB
+defaultVhdSize=40GB
+localhostForwarding=false
+firewall=true
+autoProxy=false

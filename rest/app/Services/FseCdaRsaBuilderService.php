@@ -12,7 +12,7 @@ class FseCdaRsaBuilderService
         $required = [
             'document_unique_id', 'document_oid_root', 'set_id', 'patient_cf', 'patient_first_name',
             'patient_last_name', 'patient_birth_date', 'patient_gender', 'author_cf', 'author_first_name',
-            'author_last_name', 'facility_name', 'facility_code', 'facility_oid', 'service_start', 'report_text',
+            'author_last_name', 'facility_name', 'facility_code', 'facility_oid', 'service_start', 'service_description', 'report_text',
         ];
         foreach ($required as $field) {
             if (trim((string) ($data[$field] ?? '')) === '') {
@@ -21,11 +21,20 @@ class FseCdaRsaBuilderService
         }
 
         $effectiveTime = $this->hl7Time((string) $data['service_start']);
-        $serviceEnd = $this->hl7Time((string) ($data['service_end'] ?? $data['service_start']));
+        $serviceEnd = $this->hl7Time(trim((string) ($data['service_end'] ?? '')) ?: (string) $data['service_start']);
         $birthDate = preg_replace('/\D+/', '', (string) $data['patient_birth_date']) ?? '';
-        $gender = strtoupper(substr(trim((string) $data['patient_gender']), 0, 1));
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/D', (string) $data['patient_birth_date'])
+            || !checkdate((int) substr($birthDate, 4, 2), (int) substr($birthDate, 6, 2), (int) substr($birthDate, 0, 4))) {
+            throw new \InvalidArgumentException('Data di nascita non valida per CDA RSA.');
+        }
+        $zone = new \DateTimeZone('Europe/Rome');
+        if (new \DateTimeImmutable(trim((string) ($data['service_end'] ?? '')) ?: (string) $data['service_start'], $zone)
+            < new \DateTimeImmutable((string) $data['service_start'], $zone)) {
+            throw new \InvalidArgumentException('La fine prestazione precede l’inizio.');
+        }
+        $gender = strtoupper(trim((string) $data['patient_gender']));
         if (!in_array($gender, ['M', 'F', 'UN'], true)) {
-            $gender = 'UN';
+            throw new \InvalidArgumentException('Sesso amministrativo non valido per CDA RSA.');
         }
 
         $loincCode = trim((string) ($data['loinc_code'] ?? '11488-4'));
@@ -41,6 +50,21 @@ class FseCdaRsaBuilderService
         $documentExtension = trim((string) $data['document_unique_id']);
         $setId = trim((string) $data['set_id']);
         $version = max(1, (int) ($data['version_number'] ?? 1));
+        $related = '';
+        if ($version > 1) {
+            $parent = $data['previous_document'] ?? null;
+            if (!is_array($parent) || empty($parent['document_unique_id']) || empty($parent['document_oid_root'])
+                || $parent['document_unique_id'] === $documentExtension || ($parent['set_id'] ?? '') !== $setId
+                || ($parent['document_oid_root'] ?? '') !== $documentRoot
+                || (int) ($parent['version_number'] ?? 0) !== $version - 1) {
+                throw new \InvalidArgumentException('La revisione richiede il riferimento coerente alla versione precedente.');
+            }
+            $related = '<relatedDocument typeCode="RPLC"><parentDocument><id root="' . $this->e($parent['document_oid_root'])
+                . '" extension="' . $this->e($parent['document_unique_id']) . '"/><setId root="' . $this->e($documentRoot)
+                . '" extension="' . $this->e($setId) . '"/><versionNumber value="' . ($version - 1) . '"/></parentDocument></relatedDocument>';
+        } elseif (!empty($data['previous_document'])) {
+            throw new \InvalidArgumentException('La prima versione non può sostituire un documento.');
+        }
         $patientAddress = trim((string) ($data['patient_address'] ?? ''));
         $patientCity = trim((string) ($data['patient_city'] ?? ''));
         $patientEmail = trim((string) ($data['patient_email'] ?? ''));
@@ -50,13 +74,16 @@ class FseCdaRsaBuilderService
 
         $sections = [
             ['29299-5', 'Motivo della visita', $reason],
-            ['11348-0', 'Anamnesi', $history],
-            ['18782-3', 'Reperti', $findings],
+            ['11329-0', 'Anamnesi', $history],
+            ['29545-1', 'Reperti', $findings],
             ['47045-0', 'Referto', $reportText],
             ['29548-5', 'Diagnosi', $diagnosis],
             ['55110-1', 'Conclusioni', $conclusions],
         ];
-        $sectionXml = '';
+        $sectionXml = '<component><section><code code="62387-6" codeSystem="' . Fse2::LOINC_OID . '"/>'
+            . '<title>Prestazioni</title><text><paragraph ID="prestazione">' . $this->e((string) $data['service_description']) . '</paragraph></text>'
+            . '<entry><act classCode="ACT" moodCode="EVN"><code nullFlavor="OTH"><originalText><reference value="#prestazione"/></originalText></code>'
+            . '<effectiveTime value="' . $effectiveTime . '"/></act></entry></section></component>';
         foreach ($sections as [$code, $title, $text]) {
             if ($text === '' && $title !== 'Referto') {
                 continue;
@@ -79,27 +106,37 @@ class FseCdaRsaBuilderService
             . '<versionNumber value="' . $version . '"/>'
             . '<recordTarget><patientRole><id extension="' . $this->e(strtoupper((string) $data['patient_cf'])) . '" root="' . Fse2::CF_OID . '"/>'
             . '<addr use="HP"><streetAddressLine>' . $this->e($patientAddress ?: 'NON DISPONIBILE') . '</streetAddressLine><city>' . $this->e($patientCity ?: 'NON DISPONIBILE') . '</city><country>IT</country></addr>'
-            . ($patientEmail !== '' ? '<telecom use="HP" value="mailto:' . $this->e($patientEmail) . '"/>' : '<telecom nullFlavor="UNK"/>')
+            . ($patientEmail !== '' ? '<telecom use="HP" value="mailto:' . $this->e($patientEmail) . '"/>' : '<telecom use="HP" nullFlavor="UNK"/>')
             . '<patient><name><family>' . $this->e((string) $data['patient_last_name']) . '</family><given>' . $this->e((string) $data['patient_first_name']) . '</given></name>'
             . '<administrativeGenderCode code="' . $gender . '" codeSystem="2.16.840.1.113883.5.1"/><birthTime value="' . $birthDate . '"/>'
             . '</patient></patientRole></recordTarget>'
             . '<author><time value="' . $effectiveTime . '"/><assignedAuthor><id extension="' . $this->e(strtoupper((string) $data['author_cf'])) . '" root="' . Fse2::CF_OID . '"/>'
-            . '<code code="DRS" codeSystem="2.16.840.1.113883.2.9.6.2.7" displayName="Medico specialista"/>'
+            // assignedAuthor/code is optional (official RSA case 24 omits it).
+            // DRS is a JWT role, not an ISCO-08 profession: never invent a qualification.
+            . '<telecom use="WP" nullFlavor="UNK"/>'
             . '<assignedPerson><name><family>' . $this->e((string) $data['author_last_name']) . '</family><given>' . $this->e((string) $data['author_first_name']) . '</given></name></assignedPerson>'
             . '<representedOrganization><id root="' . $this->e($facilityOid) . '" extension="' . $this->e($facilityCode) . '"/><name>' . $this->e($facilityName) . '</name></representedOrganization>'
             . '</assignedAuthor></author>'
             . '<custodian><assignedCustodian><representedCustodianOrganization><id root="' . $this->e($facilityOid) . '" extension="' . $this->e($facilityCode) . '"/><name>' . $this->e($facilityName) . '</name></representedCustodianOrganization></assignedCustodian></custodian>'
             . '<legalAuthenticator><time value="' . $effectiveTime . '"/><signatureCode code="S"/><assignedEntity><id extension="' . $this->e(strtoupper((string) $data['author_cf'])) . '" root="' . Fse2::CF_OID . '"/><assignedPerson><name><family>' . $this->e((string) $data['author_last_name']) . '</family><given>' . $this->e((string) $data['author_first_name']) . '</given></name></assignedPerson></assignedEntity></legalAuthenticator>'
-            . '<documentationOf><serviceEvent classCode="ACT"><code code="AMB" displayName="Prestazione ambulatoriale"/><effectiveTime><low value="' . $effectiveTime . '"/><high value="' . $serviceEnd . '"/></effectiveTime>'
-            . '<performer typeCode="PRF"><assignedEntity><id extension="' . $this->e(strtoupper((string) $data['author_cf'])) . '" root="' . Fse2::CF_OID . '"/></assignedEntity></performer>'
-            . '</serviceEvent></documentationOf>'
+            // documentationOf is optional. Do not invent PROG/DIR when the access mode is unknown.
+            . $related
+            . '<componentOf><encompassingEncounter><effectiveTime><low value="' . $effectiveTime . '"/><high value="' . $serviceEnd . '"/></effectiveTime>'
+            . '<location><healthCareFacility><id root="' . $this->e($facilityOid) . '" extension="' . $this->e($facilityCode) . '"/>'
+            . '<serviceProviderOrganization><id root="' . $this->e($facilityOid) . '" extension="' . $this->e($facilityCode) . '"/><name>' . $this->e($facilityName) . '</name></serviceProviderOrganization>'
+            . '</healthCareFacility></location></encompassingEncounter></componentOf>'
             . '<component><structuredBody>' . $sectionXml . '</structuredBody></component></ClinicalDocument>';
     }
 
     private function hl7Time(string $value): string
     {
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(?::\d{2})?(?:Z|[+-]\d{2}:\d{2})?$/D', $value)) {
+            throw new \InvalidArgumentException('Data clinica non valida per CDA RSA.');
+        }
         try {
-            $date = new \DateTimeImmutable($value);
+            $date = new \DateTimeImmutable($value, new \DateTimeZone('Europe/Rome'));
+            $errors = \DateTimeImmutable::getLastErrors();
+            if (is_array($errors) && ($errors['warning_count'] || $errors['error_count'])) throw new \InvalidArgumentException('Data inesistente.');
         } catch (\Throwable $e) {
             throw new \InvalidArgumentException('Data clinica non valida per CDA RSA.');
         }

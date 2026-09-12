@@ -132,6 +132,7 @@ class DoctorModel extends Model
     // Metodo per eliminare un cliente
     public function deleteClient($id)
     {
+        if ($this->db->tableExists('clinical_patient_state') && $this->db->table('clinical_patient_state')->where('id_client',(int)$id)->countAllResults()) throw new \RuntimeException('Paziente con cartella clinica o consensi: eliminazione non consentita.');
         log_message('info', 'Eliminazione cliente con ID: ' . $id);
         $result = $this->delete($id);
 

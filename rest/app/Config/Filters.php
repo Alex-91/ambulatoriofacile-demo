@@ -40,6 +40,9 @@ public function __construct()
      */
     public array $aliases = [
         'csrf'          => CSRF::class,
+        'fsecsrf'       => \App\Filters\FseCsrfFilter::class,
+        'billingcsrf'   => \App\Filters\BillingCsrfFilter::class,
+        'clinicalcsrf'  => \App\Filters\BillingCsrfFilter::class,
         'toolbar'       => DebugToolbar::class,
         'honeypot'      => Honeypot::class,
         'invalidchars'  => InvalidChars::class,
@@ -175,7 +178,17 @@ public function __construct()
      *
      * @var array<string, array<string, list<string>>>
      */
-    public array $filters = [];
+    // Scoped to FSE, billing and TS forms; GET also issues the CSRF cookie.
+    // Include GET so cookie-based CSRF protection also issues the initial cookie.
+    public array $filters = [
+        'clinicalcsrf' => ['before'=>['cartella-clinica/*'], 'after'=>['cartella-clinica/*']],
+        'fsecsrf' => ['before' => ['admin/fse2', 'admin/fse2/*', 'spazio/fse2', 'spazio/fse2/*', 'login/spazio/fse2', 'login/spazio/fse2/*'],
+                   'after' => ['admin/fse2', 'admin/fse2/*', 'spazio/fse2', 'spazio/fse2/*', 'login/spazio/fse2', 'login/spazio/fse2/*']],
+        'billingcsrf' => [
+            'before' => ['admin/fatturazione-documenti', 'admin/fatturazione-documenti/*', 'admin/fatturazione-scadenzario', 'admin/fatturazione-documento', 'admin/fatturazione-documento/*', 'spazio/fatturazione', 'spazio/fatturazione/*', 'login/spazio/fatturazione', 'login/spazio/fatturazione/*', 'admin/sistema-ts', 'admin/sistema-ts/*', 'admin/fatturazione-ts', 'admin/fatturazione-ts/*', 'spazio/sistema-ts', 'spazio/sistema-ts/*', 'spazio/fatturazione-ts', 'spazio/fatturazione-ts/*', 'login/spazio/sistema-ts', 'login/spazio/sistema-ts/*', 'login/spazio/fatturazione-ts', 'login/spazio/fatturazione-ts/*'],
+            'after' => ['admin/fatturazione-documenti', 'admin/fatturazione-documenti/*', 'admin/fatturazione-scadenzario', 'admin/fatturazione-documento', 'admin/fatturazione-documento/*', 'spazio/fatturazione', 'spazio/fatturazione/*', 'login/spazio/fatturazione', 'login/spazio/fatturazione/*', 'admin/sistema-ts', 'admin/sistema-ts/*', 'admin/fatturazione-ts', 'admin/fatturazione-ts/*', 'spazio/sistema-ts', 'spazio/sistema-ts/*', 'spazio/fatturazione-ts', 'spazio/fatturazione-ts/*', 'login/spazio/sistema-ts', 'login/spazio/sistema-ts/*', 'login/spazio/fatturazione-ts', 'login/spazio/fatturazione-ts/*'],
+        ],
+    ];
 
     private function isMaintenanceEnabled(): bool
     {

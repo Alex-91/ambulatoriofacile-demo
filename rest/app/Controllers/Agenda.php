@@ -5322,6 +5322,7 @@ public function eseguiRepairRecurringExtraSlots()
             'selectedDot' => $selectedDot,
             'patientSmsReminderPreferenceAvailable' => $this->isPatientSmsReminderPreferenceAvailable(),
             'patientExcelImportEnabled' => $this->isPatientExcelImportEnabled(),
+            'clinicalRecordsEnabled' => (new \App\Services\ClinicalFeatureService())->isEnabledForCurrentTenant(),
             'menuAgenda'  => method_exists($this->agendaModel, 'getMenuVisibleByUser')
                 ? $this->agendaModel->getMenuVisibleByUser($this->getCurrentUserId())
                 : $this->agendaModel->getMenuVisible(),

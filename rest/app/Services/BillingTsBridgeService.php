@@ -356,7 +356,9 @@ class BillingTsBridgeService
 
         try {
             if ($currentTsId > 0) {
-                $tsDocuments->update($currentTsId, $record);
+                if (!$tsDocuments->updateEditableSnapshot($currentTsId, $existingTsDocument, $record)) {
+                    throw new \RuntimeException('Il documento TS è cambiato o è già in invio. Riaprire la fattura.');
+                }
                 $tsDocumentId = $currentTsId;
             } else {
                 $tsDocumentId = (int) $tsDocuments->insert($record);
@@ -854,7 +856,7 @@ class BillingTsBridgeService
             'expense_type_code' => $this->resolveExpenseTypeCode($billingDocument, $profile),
             'payment_mode' => $this->mapPaymentMethodToTs((string) ($billingDocument['payment_method'] ?? '')),
             'amount_total' => round((float) ($billingDocument['amount_total'] ?? 0), 2),
-            'vat_rate' => $this->normalizeNullableDecimal($billingDocument['vat_rate'] ?? null),
+            'vat_rate' => $this->billingVatRateForTs($billingDocument),
             'vat_nature' => strtoupper(trim((string) ($billingDocument['vat_nature'] ?? ''))),
         ];
     }
@@ -908,7 +910,7 @@ class BillingTsBridgeService
             'expense_type_code' => $this->resolveExpenseTypeCode($billingDocument, $profile),
             'payment_mode' => $this->mapPaymentMethodToTs((string) ($billingDocument['payment_method'] ?? '')),
             'amount_total' => round((float) ($billingDocument['amount_total'] ?? 0), 2),
-            'vat_rate' => $this->normalizeNullableDecimal($billingDocument['vat_rate'] ?? null),
+            'vat_rate' => $this->billingVatRateForTs($billingDocument),
             'vat_nature' => trim((string) ($billingDocument['vat_nature'] ?? '')) !== ''
                 ? strtoupper(trim((string) ($billingDocument['vat_nature'] ?? '')))
                 : null,
@@ -939,6 +941,14 @@ class BillingTsBridgeService
      * @param array<string, mixed> $billingDocument
      * @return array<string, mixed>|null
      */
+    private function billingVatRateForTs(array $billingDocument): ?float
+    {
+        $rate = $this->normalizeNullableDecimal($billingDocument['vat_rate'] ?? null);
+        // Billing stores zero for exempt invoices; TS represents them by nature alone.
+        // Preserve a positive rate so validation still rejects contradictory fiscal data.
+        return $rate === 0.0 && trim((string) ($billingDocument['vat_nature'] ?? '')) !== '' ? null : $rate;
+    }
+
     private function findLinkedTsDocument(array $billingDocument, TsDocumentModel $tsDocuments): ?array
     {
         $linkedId = (int) ($billingDocument['linked_ts_document_id'] ?? 0);

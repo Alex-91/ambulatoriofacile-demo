@@ -35,7 +35,7 @@ $isCancellationDocument = $sourceType === 'ts_cancellation';
 $documentState = trim((string) ($document['local_state'] ?? 'draft'));
 $documentTsState = trim((string) ($document['ts_state'] ?? ''));
 $documentSent = $documentId > 0 && ($documentState === 'sent' || in_array($documentTsState, ['accepted', 'varied', 'cancelled'], true));
-$documentLocked = $documentState === 'sent' || $isCancellationDocument;
+$documentLocked = in_array($documentState, ['sent', 'sending', 'cancelled'], true) || $isCancellationDocument;
 $identityLocked = $documentLocked || $isVariationDocument || $isBillingSourceDocument;
 $allFieldsLocked = $documentLocked || $isCancellationDocument || $isBillingSourceDocument;
 $canCreateVariation = $documentId > 0 && $isPrimaryDocument && $documentSent && $documentTsState !== 'cancelled';
@@ -156,6 +156,26 @@ if (!is_string($supportedExpenseDetailsJson) || $supportedExpenseDetailsJson ===
     </section>
 
     <section class="content">
+      <?php if (($isVariationDocument || $isCancellationDocument) && in_array($documentState,['draft','to_validate','ready','rejected'],true)): ?>
+      <form method="post" action="<?= site_url('admin/sistema-ts/documenti/abbandona/'.$documentId) ?>" style="margin-bottom:15px" onsubmit="return confirm('Abbandonare questa operazione locale? Nessun annullamento verrà inviato al Sistema TS.');">
+        <?= csrf_field() ?><button class="btn btn-default">Abbandona operazione locale</button>
+      </form>
+      <?php endif ?>
+      <?php if ($documentState === 'sending' && ($document['last_error_code'] ?? '') === 'TS_OUTCOME_UNKNOWN'): ?>
+      <div class="box box-warning"><div class="box-header"><h3 class="box-title">Verifica dell’esito incerto</h3></div><div class="box-body">
+        <p>Controllare l’operazione nell’area riservata del Sistema TS, confrontando soggetto, documento, data e importo. Il reinvio resta bloccato finché la verifica non è conclusa. Questa registrazione è una verifica dell’operatore e non una risposta automatica del servizio TS.</p>
+        <form method="post" enctype="multipart/form-data" action="<?= site_url('admin/sistema-ts/documenti/riconcilia/'.$documentId) ?>"><?= csrf_field() ?>
+          <input type="hidden" name="fingerprint" value="<?= esc(\App\Services\TsReconciliationService::fingerprint($document),'attr') ?>">
+          <div class="form-group"><label>Risultato della verifica<select class="form-control" name="decision" required><option value="">Seleziona</option><option value="accepted">Acquisizione confermata da TS</option><option value="not_acquired">Mancata acquisizione confermata da TS</option></select></label></div>
+          <div class="form-group"><label>Protocollo (solo se acquisito)<input class="form-control" name="protocol" maxlength="100"></label></div>
+          <div class="form-group"><label>Verifica eseguita e riferimento del riscontro<textarea class="form-control" name="note" minlength="10" maxlength="2000" required></textarea></label></div>
+          <div class="form-group"><label>Riscontro PDF (massimo 15 MB)<input type="file" name="proof" accept=".pdf" required></label></div>
+          <label><input type="checkbox" name="verified" value="1" required> Ho verificato l’esito e la corrispondenza con questo documento sul Sistema TS.</label><br><button class="btn btn-warning">Registra verifica</button>
+        </form></div></div>
+      <?php endif ?>
+      <?php if (array_filter($events,static fn($event)=>($event['event_type'] ?? '')==='outcome_reconciled')): ?>
+        <p><a href="<?= site_url('admin/sistema-ts/documenti/riscontro/'.$documentId) ?>">Scarica l’ultimo riscontro della verifica manuale TS</a></p>
+      <?php endif ?>
       <div class="row">
         <div class="col-md-3">
           <?= view('partials/sidebar_admin', ['menu_items' => $menu_items]) ?>

@@ -8,6 +8,9 @@ use CodeIgniter\Format\XMLFormatter;
 
 class Format extends BaseConfig
 {
+    /** CodeIgniter 4.7 JSON limit; matches the previous json_encode default. */
+    public int $jsonEncodeDepth = 512;
+
     /**
      * --------------------------------------------------------------------------
      * Available Response Formats

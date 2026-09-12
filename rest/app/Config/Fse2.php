@@ -33,6 +33,8 @@ class Fse2 extends BaseConfig
     /** @var array<string, string> */
     public array $stateLabels = [
         'draft' => 'Bozza',
+        'preparing' => 'Controllo CDA e PDF/A',
+        'checking_signature' => 'Verifica firma',
         'ready_to_validate' => 'Da validare',
         'signed' => 'Firmato',
         'validating' => 'In validazione',
@@ -51,11 +53,18 @@ class Fse2 extends BaseConfig
     public string $tenantStorageSegment = 'fse2';
     public string $secretsRoot;
     public bool $allowProduction = false;
+    public bool $allowToscanaStage = false;
     public bool $allowAbsoluteCertificatePaths = false;
     public int $connectTimeout = 20;
     public int $requestTimeout = 90;
     public int $jwtTtlSeconds = 300;
+    /** Optional server TLS CA bundle, distinct from mTLS/JWT and clinical signature certificates. */
+    public string $gatewayCaBundle = '';
     public int $maxPdfBytes = 15728640;
+    public string $validatorPython;
+    public string $validatorSettings;
+    public int $validatorTimeout = 55;
+    public int $validatorMaxConcurrent = 2;
 
     public function __construct()
     {
@@ -65,11 +74,17 @@ class Fse2 extends BaseConfig
             rtrim(WRITEPATH, '\\/') . DIRECTORY_SEPARATOR . 'fse2' . DIRECTORY_SEPARATOR . 'secrets'
         );
         $this->allowProduction = $this->toBoolean(env('FSE2_ALLOW_PRODUCTION', false));
+        $this->allowToscanaStage = $this->toBoolean(env('FSE2_ALLOW_TOSCANA_STAGE', false));
         $this->allowAbsoluteCertificatePaths = $this->toBoolean(env('FSE2_ALLOW_ABSOLUTE_CERT_PATHS', false));
         $this->connectTimeout = max(1, (int) env('FSE2_CONNECT_TIMEOUT', 20));
         $this->requestTimeout = max(5, (int) env('FSE2_REQUEST_TIMEOUT', 90));
         $this->jwtTtlSeconds = max(60, min(600, (int) env('FSE2_JWT_TTL_SECONDS', 300)));
+        $this->gatewayCaBundle = trim((string) env('FSE2_GATEWAY_CA_BUNDLE', ''));
         $this->maxPdfBytes = max(1048576, (int) env('FSE2_MAX_PDF_BYTES', 15728640));
+        $this->validatorPython = trim((string) env('FSE2_VALIDATOR_PYTHON', ''));
+        $this->validatorSettings = trim((string) env('FSE2_VALIDATOR_SETTINGS', ''));
+        $this->validatorTimeout = max(5, min(60, (int) env('FSE2_VALIDATOR_TIMEOUT', 55)));
+        $this->validatorMaxConcurrent = max(1, min(8, (int) env('FSE2_VALIDATOR_MAX_CONCURRENT', 2)));
 
         $this->environments = [
             'test' => [
@@ -98,6 +113,48 @@ class Fse2 extends BaseConfig
 
         return (string) ($this->environments[$environment]['gateway_base_url']
             ?? $this->environments['test']['gateway_base_url']);
+    }
+
+    /** Resolve transport independently of JWT audience; no implicit national fallback for Tuscany. */
+    public function gatewayUrlForProfile(array $profile): string
+    {
+        $environment = (string) ($profile['environment'] ?? 'test');
+        if (!in_array($environment, ['test', 'production'], true)) throw new \RuntimeException('Ambiente FSE non riconosciuto.');
+        $mode = (string) ($profile['access_mode'] ?? 'gateway');
+        if (!in_array($mode, ['gateway', 'regional', 'toscana_privati'], true)) throw new \RuntimeException('Modalità FSE non riconosciuta.');
+        $override = trim((string) ($profile['gateway_base_url'] ?? ''));
+        if ($mode === 'toscana_privati') {
+            $expected = $environment === 'production'
+                ? 'https://fse20gw.regione.toscana.it/gateway/v2'
+                : 'https://fse20gwstage.regione.toscana.it/gateway/v2';
+            if ($override !== '' && rtrim($override, '/') !== $expected) throw new \RuntimeException('URL non coerente con ambiente Toscana Privati v2.');
+            return $expected;
+        }
+        if ($mode === 'regional' && $override === '') throw new \RuntimeException('Il middleware regionale richiede un URL esplicito.');
+        $url = $this->gatewayUrl($environment, $override);
+        $parts = parse_url($url);
+        if (!is_array($parts) || strtolower($parts['scheme'] ?? '') !== 'https' || empty($parts['host'])
+            || isset($parts['user']) || isset($parts['pass']) || isset($parts['query']) || isset($parts['fragment'])) {
+            throw new \RuntimeException('URL Gateway FSE HTTPS non valido.');
+        }
+        if (in_array(strtolower($parts['host']), ['fse20gw.regione.toscana.it', 'fse20gwstage.regione.toscana.it'], true)) {
+            throw new \RuntimeException('Per questo endpoint selezionare Toscana Privati v2.');
+        }
+        if ($environment === 'test' && strtolower($parts['host']) === 'modipa.fse.salute.gov.it') {
+            throw new \RuntimeException('Un profilo di test non può usare il Gateway nazionale di produzione.');
+        }
+        return $url;
+    }
+
+    public function jwtAudienceForProfile(array $profile): string
+    {
+        $metadata = json_decode((string) ($profile['metadata_json'] ?? ''), true);
+        $audience = trim((string) ($profile['jwt_audience'] ?? $metadata['jwt_audience'] ?? ''));
+        if ($audience !== '') return $audience;
+        if (($profile['access_mode'] ?? '') === 'toscana_privati') {
+            throw new \RuntimeException('Audience JWT Toscana da confermare con CART e configurare esplicitamente.');
+        }
+        return $this->gatewayUrlForProfile($profile);
     }
 
     public function resolveCertificatePath(string $path): string

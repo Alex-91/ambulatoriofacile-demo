@@ -997,6 +997,9 @@ class PazientiModel extends Model
 
     public function deletePatientByDoctor(int $idPaziente, int $idDot, int $actingUserId = 0): bool
     {
+        if ($this->db->tableExists('clinical_patient_state') && $this->db->table('clinical_patient_state')->where('id_client',$idPaziente)->countAllResults()) {
+            throw new Exception('Il paziente ha una cartella clinica o consensi archiviati e non può essere eliminato. Puoi disattivarlo in anagrafica.');
+        }
         $scope = $this->resolveDoctorPatientScope($idDot, $actingUserId);
         $idPersonale = (int) ($scope['selected_personale_id'] ?? 0);
         if ($idPersonale <= 0) {

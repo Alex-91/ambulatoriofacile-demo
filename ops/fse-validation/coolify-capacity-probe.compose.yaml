@@ -1,0 +1,17 @@
+services:
+  capacity:
+    image: busybox:1.37.0
+    user: '65534:65534'
+    network_mode: none
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
+    mem_limit: 64m
+    memswap_limit: 64m
+    cpus: 0.10
+    pids_limit: 16
+    restart: 'no'
+    command:
+      - sh
+      - -c
+      - 'date -u; uname -m; cat /proc/meminfo; cat /proc/loadavg; df -Pk /; cat /sys/fs/cgroup/memory.max /sys/fs/cgroup/cpu.max /sys/fs/cgroup/pids.max; sleep 300'

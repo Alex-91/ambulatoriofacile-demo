@@ -163,7 +163,7 @@ class TsDispatchService
             ]);
             $message = implode(' ', (array) ($validation['errors'] ?? []));
 
-            $documents->update($documentId, [
+            $validationSaved = $documents->updateEditableSnapshot($documentId, $document, [
                 'local_state' => 'to_validate',
                 'validation_json' => $validationJson,
                 'request_payload_json' => $this->encodeJson($storedSnapshot),
@@ -171,6 +171,7 @@ class TsDispatchService
                 'last_error_message' => $message !== '' ? $message : 'Validazione locale TS non superata.',
                 'updated_by' => $userId > 0 ? $userId : null,
             ]);
+            if (!$validationSaved) throw new \RuntimeException('Documento TS modificato o già in invio durante la validazione.');
 
             $audit->record(
                 $documentId,
@@ -204,7 +205,7 @@ class TsDispatchService
             'warnings' => array_values((array) ($validation['warnings'] ?? [])),
         ]);
 
-        $documents->update($documentId, [
+        $claimed = $documents->updateEditableSnapshot($documentId, $document, [
             'local_state' => 'sending',
             'validation_json' => $this->encodeJson([
                 'valid' => true,
@@ -218,24 +219,21 @@ class TsDispatchService
             'last_error_message' => null,
             'updated_by' => $userId > 0 ? $userId : null,
         ]);
-
-        $audit->record(
-            $documentId,
-            'dispatch_started',
-            (string) ($operation['started_message'] ?? 'Tentativo invio TS avviato.'),
-            'info',
-            [
-                'trace_id' => $supportLog->getTraceId(),
-                'environment' => (string) ($profile['environment'] ?? 'test'),
-                'operation' => $operation['soap_operation'] ?? '',
-            ],
-            $userId
-        );
+        if (!$claimed) {
+            throw new \RuntimeException('Il documento TS è cambiato o un altro operatore ha già avviato l’invio. Riapri il documento.');
+        }
 
         $transport = [];
         $client = null;
+        $remoteStarted = false;
+        $definitiveRejection = false;
+        $acceptedSaved = false;
+        $protocol = null;
 
         try {
+            if (!$audit->record($documentId,'dispatch_started',(string)($operation['started_message'] ?? 'Tentativo invio TS avviato.'),'info',[
+                'trace_id'=>$supportLog->getTraceId(),'environment'=>(string)($profile['environment'] ?? 'test'),'operation'=>$operation['soap_operation'] ?? '',
+            ],$userId)) throw new \RuntimeException('Audit TS non disponibile: invio non avviato.');
             $transport = $this->soapFactory->describeDocumentContract($profile);
             $transport['probed_at'] = date('Y-m-d H:i:s');
             $supportLog->step('contract_described', 'Contratto documento TS risolto.', [
@@ -270,6 +268,8 @@ class TsDispatchService
                 (string) ($operation['request_root'] ?? ''),
                 (string) ($operation['source_type'] ?? 'manual')
             );
+            // Once control enters SOAP, even a timeout can follow remote acceptance.
+            $remoteStarted = true;
             $soapResponse = $client->__soapCall((string) ($operation['soap_operation'] ?? ''), [$soapRequest]);
             $normalizedResponse = $this->normalizeSoapValue($soapResponse);
             $responseNode = $this->resolveDocumentResponseNode($normalizedResponse);
@@ -278,6 +278,9 @@ class TsDispatchService
             $protocol = $this->extractResponseProtocol($responseNode);
             $soapAccepted = $this->evaluateSoapSuccess($responseNode);
             $outcome = $this->extractOutcome($responseNode);
+            $definitiveRejection = !$soapAccepted && $outcome !== null && $protocol === null
+                && ($this->containsBlockingMessages($responseMessages)
+                    || in_array(strtolower($outcome), ['ko', 'error', 'errore', 'false', 'no'], true));
             $soapDebug = $this->extractSoapDebug($client);
             $supportLog->step('soap_response_received', 'Risposta SOAP TS ricevuta e normalizzata.', [
                 'outcome' => $outcome,
@@ -325,7 +328,7 @@ class TsDispatchService
             ]);
             $responsePayload['support_log'] = $supportReference;
 
-            $documents->update($documentId, [
+            if (!$documents->persistAccepted($documentId, [
                 'local_state' => 'sent',
                 'ts_state' => 'accepted',
                 'response_payload_json' => $this->encodeJson($responsePayload),
@@ -334,7 +337,8 @@ class TsDispatchService
                 'last_error_code' => null,
                 'last_error_message' => null,
                 'updated_by' => $userId > 0 ? $userId : null,
-            ]);
+            ], $document, $userId)) throw new \RuntimeException('Esito positivo TS ricevuto ma non salvato. Verificare il protocollo prima di qualsiasi reinvio.');
+            $acceptedSaved = true;
 
             $this->syncParentDocumentAfterSuccessfulDispatch($documents, $audit, $document, $operation, $protocol, $userId);
 
@@ -360,10 +364,21 @@ class TsDispatchService
                 'support_log' => $supportReference,
             ];
         } catch (\Throwable $e) {
+            if ($acceptedSaved) {
+                // Audit or parent reconciliation errors must not erase a persisted acceptance.
+                return ['status' => 'ok', 'message' => 'Invio TS acquisito. Verificare l’aggiornamento dello storico collegato.',
+                    'document' => $documents->find($documentId), 'validation' => $validation,
+                    'transport' => $transport, 'warning' => 'TS_POST_SEND_RECONCILIATION'];
+            }
+            $uncertain = $remoteStarted && !$definitiveRejection;
+            $failureMessage = $uncertain
+                ? 'Esito TS da verificare: la richiesta potrebbe essere stata acquisita. Modifica e reinvio sono bloccati; verificare l’esito sul Sistema TS.'
+                : $e->getMessage();
             $soapDebug = $this->extractSoapDebug($client);
             $responsePayload = [
                 'status' => 'error',
-                'message' => $e->getMessage(),
+                'message' => $failureMessage,
+                'protocollo' => $protocol,
                 'transport' => $transport,
                 'failed_at' => date('Y-m-d H:i:s'),
             ];
@@ -394,10 +409,11 @@ class TsDispatchService
             $responsePayload['support_log'] = $supportReference;
 
             $documents->update($documentId, [
-                'local_state' => 'ready',
+                'local_state' => $uncertain ? 'sending' : 'ready',
+                'ts_protocol' => $protocol ?: ($document['ts_protocol'] ?? null),
                 'response_payload_json' => $this->encodeJson($responsePayload),
-                'last_error_code' => 'TS_SEND_FAILED',
-                'last_error_message' => $e->getMessage(),
+                'last_error_code' => $uncertain ? 'TS_OUTCOME_UNKNOWN' : 'TS_SEND_FAILED',
+                'last_error_message' => $failureMessage,
                 'updated_by' => $userId > 0 ? $userId : null,
             ]);
 
@@ -416,7 +432,7 @@ class TsDispatchService
 
             return [
                 'status' => 'error',
-                'message' => $e->getMessage(),
+                'message' => $failureMessage,
                 'document' => $documents->find($documentId),
                 'validation' => $validation,
                 'transport' => $transport,
@@ -489,10 +505,6 @@ class TsDispatchService
         }
 
         if ($sourceType === 'ts_variation') {
-            $documents->update($parentId, [
-                'ts_state' => 'varied',
-                'updated_by' => $userId > 0 ? $userId : null,
-            ]);
             $audit->record(
                 $parentId,
                 'variation_applied',
@@ -509,10 +521,6 @@ class TsDispatchService
         }
 
         if ($sourceType === 'ts_cancellation') {
-            $documents->update($parentId, [
-                'ts_state' => 'cancelled',
-                'updated_by' => $userId > 0 ? $userId : null,
-            ]);
             $audit->record(
                 $parentId,
                 'cancellation_applied',
@@ -589,15 +597,8 @@ class TsDispatchService
      */
     private function evaluateSoapSuccess($response): bool
     {
-        if ($this->config->assumeSuccessOnSoapReturn) {
-            return true;
-        }
-
         $outcome = $this->extractOutcome($response);
         $normalizedOutcome = strtolower(trim((string) $outcome));
-        if ($normalizedOutcome !== '' && in_array($normalizedOutcome, $this->config->documentResponseOkValues, true)) {
-            return true;
-        }
 
         if ($normalizedOutcome !== '' && in_array($normalizedOutcome, ['ko', 'error', 'errore', 'false', 'no'], true)) {
             return false;
@@ -608,7 +609,9 @@ class TsDispatchService
             return false;
         }
 
-        return !$this->containsBlockingMessages($this->extractResponseMessages($response));
+        return !$this->containsBlockingMessages($this->extractResponseMessages($response))
+            && ($this->config->documentResponseOkValues === []
+                || in_array($normalizedOutcome, $this->config->documentResponseOkValues, true));
     }
 
     /**

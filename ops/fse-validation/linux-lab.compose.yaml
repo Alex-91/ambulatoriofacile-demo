@@ -1,0 +1,87 @@
+# No external network, public domain, host bind, Docker socket or production volume.
+# Images must be built/pulled and recorded by immutable SHA-256 before use.
+name: af-fse-lab-__LAB_ID__
+services:
+  init:
+    image: ${FSE_APP_IMAGE:?Set the verified test image SHA-256}
+    user: '0:0'
+    entrypoint: ['php', '/var/www/html/ops/fse-validation/linux-lab-init.php']
+    environment:
+      FSE_LINUX_LAB_ID: __LAB_ID__
+    volumes:
+      - lab-state:/var/www/html/rest/writable
+    network_mode: none
+    read_only: true
+    cap_drop: [ALL]
+    cap_add: [CHOWN, FOWNER]
+    security_opt: ['no-new-privileges:true']
+    mem_limit: 128m
+    memswap_limit: 128m
+    cpus: 0.25
+    pids_limit: 32
+    restart: 'no'
+  mysql:
+    image: ${FSE_MYSQL_IMAGE:?Set the reviewed mysql 8.4 image digest}
+    command: ['--port=33079', '--datadir=/var/www/html/rest/writable/fse-app-labs/__LAB_ID__/mysql', '--socket=/tmp/fse-mysql.sock', '--pid-file=/tmp/fse-mysql.pid', '--mysqlx=0', '--innodb-buffer-pool-size=128M', '--max-connections=20', '--performance-schema=OFF']
+    environment:
+      MYSQL_ROOT_PASSWORD_FILE: /var/www/html/rest/writable/fse-app-labs/__LAB_ID__/mysql-password
+    depends_on:
+      init:
+        condition: service_completed_successfully
+    volumes:
+      - lab-state:/var/www/html/rest/writable:ro
+      - lab-mysql:/var/www/html/rest/writable/fse-app-labs/__LAB_ID__/mysql
+    tmpfs: ['/tmp:rw,nosuid,nodev,size=64m,mode=1777']
+    networks: [isolated]
+    cap_drop: [ALL]
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETGID, SETUID]
+    security_opt: ['no-new-privileges:true']
+    mem_limit: 512m
+    memswap_limit: 512m
+    cpus: 0.5
+    pids_limit: 128
+    restart: 'no'
+    healthcheck:
+      test: ['CMD-SHELL', 'MYSQL_PWD=$$(cat "$$MYSQL_ROOT_PASSWORD_FILE") mysql --protocol=socket --socket=/tmp/fse-mysql.sock -uroot --batch --skip-column-names -e "SELECT 1" >/dev/null']
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 90s
+  app:
+    image: ${FSE_APP_IMAGE:?Set the verified test image SHA-256}
+    user: '33:33'
+    environment:
+      FSE_LAB_ROOT: /var/www/html/rest/writable/fse-app-labs/__LAB_ID__
+      FSE2_ALLOW_PRODUCTION: 'false'
+      FSE2_ALLOW_TOSCANA_STAGE: 'false'
+    depends_on:
+      mysql:
+        condition: service_healthy
+    network_mode: service:mysql
+    volumes:
+      - lab-state:/var/www/html/rest/writable
+      - lab-mysql:/var/www/html/rest/writable/fse-app-labs/__LAB_ID__/mysql:ro
+    tmpfs: ['/tmp:rw,nosuid,nodev,size=256m,mode=1777']
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
+    mem_limit: 1g
+    memswap_limit: 1g
+    cpus: 1.0
+    pids_limit: 192
+    restart: 'no'
+    healthcheck:
+      test: ['CMD', 'php', '-r', '$$s=@fsockopen("127.0.0.1",8088);exit($$s?0:1);']
+      interval: 15s
+      timeout: 5s
+      retries: 3
+networks:
+  isolated:
+    internal: true
+volumes:
+  lab-state:
+    labels:
+      af.purpose: fse-synthetic-only
+  lab-mysql:
+    labels:
+      af.purpose: fse-synthetic-only

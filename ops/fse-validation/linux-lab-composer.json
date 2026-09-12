@@ -1,0 +1,14 @@
+{
+  "name": "ambulatoriofacile/fse-linux-lab-dependencies",
+  "description": "Test-only CodeIgniter dependencies; separate from production dependency installation",
+  "require": {
+    "php": "^8.2",
+    "ext-intl": "*",
+    "ext-mbstring": "*",
+    "laminas/laminas-escaper": "2.18.0",
+    "psr/log": "3.0.2"
+  },
+  "require-dev": {"phpunit/phpunit": "11.5.56"},
+  "autoload": {"psr-4": {"CodeIgniter\\": "system/"}},
+  "config": {"optimize-autoloader": true, "allow-plugins": false, "platform": {"php": "8.2.30"}}
+}

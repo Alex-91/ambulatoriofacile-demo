@@ -258,6 +258,9 @@ $routes->group('admin', static function($routes){
     $routes->post('sistema-ts/documenti/variazione/(:num)', 'Admin\TsDocumentsController::createVariation/$1');
     $routes->post('sistema-ts/documenti/cancellazione/(:num)', 'Admin\TsDocumentsController::createCancellation/$1');
     $routes->post('sistema-ts/documenti/ricevuta/fetch/(:num)', 'Admin\TsDocumentsController::fetchReceipt/$1');
+    $routes->post('sistema-ts/documenti/riconcilia/(:num)', 'Admin\TsDocumentsController::reconcile/$1');
+    $routes->post('sistema-ts/documenti/abbandona/(:num)', 'Admin\TsDocumentsController::abandon/$1');
+    $routes->get('sistema-ts/documenti/riscontro/(:num)', 'Admin\TsDocumentsController::reconciliationProof/$1');
     $routes->get('sistema-ts/documenti/ricevuta/download-latest/(:num)', 'Admin\TsDocumentsController::downloadLatestReceipt/$1');
     $routes->post('sistema-ts/documenti/ricevuta/download-latest/(:num)', 'Admin\TsDocumentsController::downloadLatestReceipt/$1');
     $routes->get('sistema-ts/documenti/ricevuta/download/(:num)', 'Admin\TsDocumentsController::downloadReceipt/$1');
@@ -277,11 +280,18 @@ $routes->group('admin', static function($routes){
     $routes->post('fatturazione-ts/documenti/ricevuta/download-latest/(:num)', 'Admin\TsDocumentsController::downloadLatestReceipt/$1');
     $routes->get('fatturazione-ts/documenti/ricevuta/download/(:num)', 'Admin\TsDocumentsController::downloadReceipt/$1');
     $routes->get('fse2', 'Admin\FseDashboardController::index');
+    $routes->post('fse2/healthcheck', 'Admin\FseDashboardController::healthcheck');
+    $routes->get('fse2/collaudo-offline', 'Admin\FseDashboardController::offline');
+    $routes->get('fse2/collaudo-offline/report', 'Admin\FseDashboardController::offlineReport');
+    $routes->get('fse2/laboratorio-toscana', 'Admin\FseToscanaLabController::index');
+    $routes->post('fse2/laboratorio-toscana/azione', 'Admin\FseToscanaLabController::command');
+    $routes->get('fse2/laboratorio-toscana/report', 'Admin\FseToscanaLabController::report');
     $routes->get('fse2/documenti', 'Admin\FseDocumentsController::index');
     $routes->get('fse2/documenti/nuovo', 'Admin\FseDocumentsController::create');
     $routes->get('fse2/documenti/modifica/(:num)', 'Admin\FseDocumentsController::edit/$1');
     $routes->get('fse2/documenti/pazienti/search', 'Admin\FseDocumentsController::searchPatients');
     $routes->post('fse2/documenti/save', 'Admin\FseDocumentsController::save');
+    $routes->post('fse2/documenti/correggi/(:num)', 'Admin\FseDocumentsController::revise/$1');
     $routes->post('fse2/documenti/prepara/(:num)', 'Admin\FseDocumentsController::prepare/$1');
     $routes->post('fse2/documenti/firma/(:num)', 'Admin\FseDocumentsController::uploadSigned/$1');
     $routes->post('fse2/documenti/valida/(:num)', 'Admin\FseDocumentsController::validateDocument/$1');
@@ -289,6 +299,8 @@ $routes->group('admin', static function($routes){
     $routes->post('fse2/documenti/stato/(:num)', 'Admin\FseDocumentsController::status/$1');
     $routes->post('fse2/documenti/elimina/(:num)', 'Admin\FseDocumentsController::deleteDocument/$1');
     $routes->get('fse2/documenti/download/(:num)/(:segment)', 'Admin\FseDocumentsController::download/$1/$2');
+    $routes->get('fse2/documenti/assistenza/(:num)', 'Admin\FseDocumentsController::supportBundle/$1');
+    $routes->post('fse2/documenti/laboratorio-toscana/(:num)', 'Admin\FseDocumentsController::importToscanaLab/$1');
 });
 
 $routes->post('auth/send-otp-wa', 'AuthMFA\AuthenticationController::sendOtpWa');
@@ -566,6 +578,15 @@ $routes->post('agenda/sblocca-domiciliari-giorno', 'Agenda::sbloccaDomiciliariGi
 $routes->get('agenda/get-nota-giorno', 'Agenda::getNotaGiorno');
 $routes->post('agenda/salva-nota-giorno', 'Agenda::salvaNotaGiorno');
 $routes->get('agenda/gestione-pazienti', 'Agenda::gestionePazienti');
+$routes->get('cartella-clinica/pazienti/(:num)', 'ClinicalRecords::patient/$1');
+$routes->post('cartella-clinica/pazienti/(:num)/salva', 'ClinicalRecords::save/$1');
+$routes->post('cartella-clinica/pazienti/(:num)/documenti/(:num)/finalizza', 'ClinicalRecords::finalize/$1/$2');
+$routes->post('cartella-clinica/pazienti/(:num)/documenti/(:num)/firma', 'ClinicalRecords::sign/$1/$2');
+$routes->post('cartella-clinica/pazienti/(:num)/allegati', 'ClinicalRecords::attach/$1');
+$routes->get('cartella-clinica/pazienti/(:num)/allegati/(:segment)', 'ClinicalRecords::download/$1/$2');
+$routes->get('cartella-clinica/pazienti/(:num)/referti-fse/(:num)', 'ClinicalRecords::fseReport/$1/$2');
+$routes->post('cartella-clinica/pazienti/(:num)/consensi', 'ClinicalRecords::consent/$1');
+$routes->post('cartella-clinica/pazienti/(:num)/modelli', 'ClinicalRecords::template/$1');
 $routes->get('agenda/importa-pazienti-excel', 'Agenda::importaPazientiExcel');
 $routes->post('agenda/importa-pazienti-excel/preview', 'Agenda::importaPazientiExcelPreview');
 $routes->post('agenda/importa-pazienti-excel/conferma', 'Agenda::importaPazientiExcelConferma');

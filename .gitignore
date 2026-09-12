@@ -45,6 +45,7 @@ tmp_ts_sync.pdf
 AGENTS.md
 CODEX_TASK_TEMPLATE.md
 ops/*.local.json
+ops/fse-validation/__pycache__/
 
 # Generated patient duplicate audits (may contain personal data)
 ops/patient-duplicate-audit-report-*.md

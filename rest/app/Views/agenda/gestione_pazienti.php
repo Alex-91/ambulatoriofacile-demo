@@ -923,6 +923,9 @@ function caricaPazienti(page) {
             html += '<td>' + escapeHtml(row.cod_fis || '') + '</td>';
             html += '<td>';
             html += '<button type="button" class="btn btn-xs btn-primary btnModificaPaziente" data-id="' + row.id_paziente + '"><i class="fa fa-pencil"></i></button> ';
+            <?php if (!empty($clinicalRecordsEnabled)): ?>
+            html += '<a class="btn btn-xs btn-default" href="<?= site_url('cartella-clinica/pazienti') ?>/' + encodeURIComponent(row.id_paziente) + '">Cartella e consensi</a> ';
+            <?php endif ?>
             html += '<button type="button" class="btn btn-xs btn-danger btnEliminaPazienteRiga" data-id="' + row.id_paziente + '"><i class="fa fa-trash"></i></button>';
             html += '</td>';
             html += '</tr>';
@@ -975,6 +978,11 @@ function caricaDettaglioPaziente(idPaziente) {
 }
 
 function salvaPaziente() {
+    // A delayed input check must not abort the validation that owns this save.
+    if (fiscalCodeValidationTimer) {
+        clearTimeout(fiscalCodeValidationTimer);
+        fiscalCodeValidationTimer = null;
+    }
     requestFiscalCodeValidation(true).done(function(valid) {
         if (valid) {
             inviaPaziente();

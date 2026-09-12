@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit bootstrap="linux-clinical-bootstrap.php" colors="false" cacheResult="false" failOnWarning="true" failOnRisky="true">
+  <testsuites><testsuite name="Linux synthetic clinical closure">
+    <file>../../rest/tests/unit/BillingHttpPreparationTest.php</file>
+    <file>../../rest/tests/unit/AdministrativeClosureTest.php</file>
+    <file>../../rest/tests/unit/ClinicalRecordTest.php</file>
+    <file>../../rest/tests/unit/ClinicalFeatureTest.php</file>
+    <file>../../rest/tests/unit/TsReconciliationTest.php</file>
+    <file>../../rest/tests/unit/BillingEmailClosureTest.php</file>
+    <file>../../rest/tests/unit/TsOperationClosureTest.php</file>
+    <file>../../rest/tests/session/BillingDocumentServiceTest.php</file>
+    <file>../../rest/tests/session/BillingTsBridgeServiceTest.php</file>
+  </testsuite></testsuites>
+</phpunit>

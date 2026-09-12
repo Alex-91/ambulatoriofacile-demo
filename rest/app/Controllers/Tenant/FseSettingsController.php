@@ -26,7 +26,9 @@ class FseSettingsController extends BaseController
     {
         if ($guard = $this->ensureAllowed()) return $guard;
         $context = $this->contexts->getCurrentTenant();
-        return view('tenant/fse_settings', ['tenantContext' => $context, 'settings' => $this->profiles->resolveTenantSettings($context->tenantId),
+        try { $settings = $this->profiles->resolveTenantSettings($context->tenantId, max(0, (int) $this->request->getGet('profile')), $this->request->getGet('new') === '1'); }
+        catch (\RuntimeException $e) { return $this->response->setStatusCode(404)->setBody('Profilo FSE non disponibile.'); }
+        return view('tenant/fse_settings', ['tenantContext' => $context, 'settings' => $settings,
             'success' => session()->getFlashdata('success'), 'errors' => session()->getFlashdata('errors') ?? [],
             'healthcheckResult' => session()->getFlashdata('healthcheck_result')]);
     }
@@ -36,10 +38,16 @@ class FseSettingsController extends BaseController
         if ($guard = $this->ensureAllowed()) return $guard;
         $context = $this->contexts->getCurrentTenant();
         try {
-            $this->profiles->saveDefaultProfile($context->tenantId, $this->request->getPost(), (int) (session()->get('platform_user_id') ?? 0));
-            return redirect()->to(portal_tenant_space_url('fse2'))->with('success', 'Profilo FSE 2.0 salvato.');
+            $payload = $this->request->getPost();
+            $payload['is_enabled'] = 0; // Preparation wizard cannot activate outbound traffic.
+            $profile = $this->profiles->saveProfile($context->tenantId, $payload, max(0, (int) ($payload['id_fse_profile'] ?? 0)),
+                (int) (session()->get('platform_user_id') ?? 0), !empty($payload['make_default']));
+            return redirect()->to(portal_tenant_space_url('fse2').'?profile='.$profile['id_fse_profile'])->with('success', 'Configurazione salvata. Invii disattivati; nessuna abilitazione ufficiale attribuita.');
         } catch (\Throwable $e) {
-            return redirect()->to(portal_tenant_space_url('fse2'))->withInput()->with('errors', ['generic' => $e->getMessage()]);
+            $safeInput = $this->request->getPost();
+            unset($safeInput['auth_private_key_passphrase'], $safeInput['signature_private_key_passphrase']);
+            return redirect()->to(portal_tenant_space_url('fse2').((int) $this->request->getPost('id_fse_profile') > 0 ? '?profile='.(int) $this->request->getPost('id_fse_profile') : '?new=1'))
+                ->with('_ci_old_input', ['get'=>[], 'post'=>$safeInput])->with('errors', ['generic' => $e->getMessage()]);
         }
     }
 
@@ -48,8 +56,10 @@ class FseSettingsController extends BaseController
         if ($guard = $this->ensureAllowed()) return $guard;
         $context = $this->contexts->getCurrentTenant();
         try {
-            $result = (new FseHealthcheckService())->runForTenant($context->tenantId);
-            return redirect()->to(portal_tenant_space_url('fse2'))->with('healthcheck_result', $result)
+            $profileId = max(0, (int) $this->request->getPost('id_fse_profile'));
+            if ($profileId <= 0 || !$this->profiles->getProfileForTenant($context->tenantId, $profileId)) throw new \RuntimeException('Salvare prima un profilo valido di questo spazio.');
+            $result = (new FseHealthcheckService())->runForTenant($context->tenantId, true, true, $profileId);
+            return redirect()->to(portal_tenant_space_url('fse2').'?profile='.$profileId)->with('healthcheck_result', $result)
                 ->with($result['status'] === 'error' ? 'errors' : 'success', $result['status'] === 'error' ? ['generic' => $result['message']] : $result['message']);
         } catch (\Throwable $e) {
             return redirect()->to(portal_tenant_space_url('fse2'))->with('errors', ['generic' => $e->getMessage()]);
