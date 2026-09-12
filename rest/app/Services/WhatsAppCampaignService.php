@@ -20,6 +20,7 @@ class WhatsAppCampaignService
     private TenantNotificationPolicyService $notificationPolicies;
     private NotificationRateLimiterService $rateLimiter;
     private WhatsAppSmsFallbackService $smsFallbacks;
+    private WhatsAppCampaignPlan $planner;
 
     public function __construct(
         ?BaseConnection $platformDb = null,
@@ -29,7 +30,8 @@ class WhatsAppCampaignService
         ?WhatsAppGatewayClient $gatewayClient = null,
         ?TenantNotificationPolicyService $notificationPolicies = null,
         ?NotificationRateLimiterService $rateLimiter = null,
-        ?WhatsAppSmsFallbackService $smsFallbacks = null
+        ?WhatsAppSmsFallbackService $smsFallbacks = null,
+        ?WhatsAppCampaignPlan $planner = null
     ) {
         $this->platformDb = $platformDb ?? Database::connect('platform');
         $this->tenantCatalog = $tenantCatalog ?? new TenantCatalogService();
@@ -39,6 +41,7 @@ class WhatsAppCampaignService
         $this->notificationPolicies = $notificationPolicies ?? new TenantNotificationPolicyService($this->platformDb);
         $this->rateLimiter = $rateLimiter ?? new NotificationRateLimiterService($this->platformDb, $this->notificationPolicies);
         $this->smsFallbacks = $smsFallbacks ?? new WhatsAppSmsFallbackService($this->platformDb, $this->notificationPolicies);
+        $this->planner = $planner ?? new WhatsAppCampaignPlan();
     }
 
     /** @return array<string,mixed> */
@@ -70,7 +73,11 @@ class WhatsAppCampaignService
             throw new \RuntimeException('Il messaggio deve contenere da 1 a 2000 caratteri.');
         }
 
-        $recipients = $this->loadRecipients($tenant, $audience, $appointmentDate);
+        if (!WhatsAppCampaignPrioritySchema::ready($this->platformDb)) {
+            throw new \RuntimeException('Aggiornamento della priorità campagne in corso. Riprova tra poco.');
+        }
+        $recipientPlan = $this->loadRecipientPlan($tenant, $audience, $appointmentDate);
+        $recipients = $recipientPlan['recipients'];
         if ($recipients === []) {
             throw new \RuntimeException('Non ci sono pazienti con un numero mobile WhatsApp valido per i destinatari selezionati.');
         }
@@ -87,6 +94,7 @@ class WhatsAppCampaignService
             'pending_recipients' => count($recipients),
             'sent_recipients' => 0,
             'failed_recipients' => 0,
+            'priority_plan_json' => $recipientPlan['summary'] === null ? null : json_encode($recipientPlan['summary'], JSON_THROW_ON_ERROR),
             'created_by_platform_user_id' => $platformUserId > 0 ? $platformUserId : null,
             'created_at' => $now,
             'updated_at' => $now,
@@ -101,6 +109,7 @@ class WhatsAppCampaignService
                 'patient_name' => (string) ($recipient['patient_name'] ?? ''),
                 'recipient_phone' => (string) $recipient['phone'],
                 'status' => 'pending',
+                'send_order' => (int) ($recipient['send_order'] ?? 0),
                 'created_at' => $now,
                 'updated_at' => $now,
             ]);
@@ -122,9 +131,14 @@ class WhatsAppCampaignService
         $selected = $campaignId > 0 ? $this->campaignById($tenantId, $campaignId) : ($campaigns[0] ?? null);
         $recipients = [];
         if (is_array($selected)) {
-            $recipients = $this->platformDb->table(self::RECIPIENTS)
-                ->where('id_whatsapp_campaign', (int) $selected['id_whatsapp_campaign'])
-                ->orderBy('id_whatsapp_campaign_recipient', 'DESC')->get(200)->getResultArray();
+            $selected['priority_plan'] = json_decode((string) ($selected['priority_plan_json'] ?? ''), true) ?: null;
+            $recipientQuery = $this->platformDb->table(self::RECIPIENTS)
+                ->where('id_whatsapp_campaign', (int) $selected['id_whatsapp_campaign']);
+            $hasPriority = $selected['priority_plan'] !== null && WhatsAppCampaignPrioritySchema::ready($this->platformDb);
+            if ($hasPriority) {
+                $recipientQuery->orderBy("CASE WHEN status = 'pending' THEN 0 ELSE 1 END", 'ASC', false)->orderBy('send_order', 'ASC');
+            }
+            $recipients = $recipientQuery->orderBy('id_whatsapp_campaign_recipient', $hasPriority ? 'ASC' : 'DESC')->get(200)->getResultArray();
             $fallbackRows = $this->smsFallbacks->rowsForSources(
                 $tenantId,
                 'whatsapp_campaign_recipient',
@@ -150,11 +164,16 @@ class WhatsAppCampaignService
         if (!$this->tablesReady()) {
             return ['ok' => false, 'status' => 'schema_missing'];
         }
+        $schedule = $this->planner;
+        if (!$schedule->isOpen($schedule->now())) {
+            return ['ok' => true, 'status' => 'outside_window'];
+        }
         $this->releaseStaleClaims();
         $now = date('Y-m-d H:i:s');
         $this->platformDb->transStart();
+        $recipientOrder = WhatsAppCampaignPrioritySchema::ready($this->platformDb) ? 'r.send_order ASC, ' : '';
         $candidate = $this->platformDb->query(
-            'SELECT r.*, c.message_text, c.id_tenant AS campaign_tenant_id FROM ' . self::RECIPIENTS . ' r INNER JOIN ' . self::CAMPAIGNS . ' c ON c.id_whatsapp_campaign = r.id_whatsapp_campaign LEFT JOIN ' . self::RATE_LIMITS . " rl ON rl.id_tenant = c.id_tenant WHERE r.status = 'pending' AND c.status IN ('queued', 'running') AND (rl.next_allowed_at IS NULL OR rl.next_allowed_at <= ?) ORDER BY c.id_whatsapp_campaign ASC, r.id_whatsapp_campaign_recipient ASC LIMIT 1 FOR UPDATE",
+            'SELECT r.*, c.message_text, c.id_tenant AS campaign_tenant_id FROM ' . self::RECIPIENTS . ' r INNER JOIN ' . self::CAMPAIGNS . ' c ON c.id_whatsapp_campaign = r.id_whatsapp_campaign LEFT JOIN ' . self::RATE_LIMITS . " rl ON rl.id_tenant = c.id_tenant WHERE r.status = 'pending' AND c.status IN ('queued', 'running') AND (rl.next_allowed_at IS NULL OR rl.next_allowed_at <= ?) ORDER BY c.id_whatsapp_campaign ASC, " . $recipientOrder . 'r.id_whatsapp_campaign_recipient ASC LIMIT 1 FOR UPDATE',
             [$now]
         )->getRowArray();
         if (!$candidate) {
@@ -190,6 +209,9 @@ class WhatsAppCampaignService
             $this->platformDb->transComplete();
             return ['ok' => true, 'status' => 'contended'];
         }
+        // The dispatcher runs every ten minutes. Keep the tenant's existing
+        // rate limit here: a second 600-second timer can skip a cron tick when
+        // consecutive processes start a few seconds apart from their minute.
         $nextAt = date(
             'Y-m-d H:i:s',
             time() + $this->notificationPolicies->minimumSpacingSeconds(
@@ -209,6 +231,13 @@ class WhatsAppCampaignService
             return ['ok' => false, 'status' => 'claim_failed'];
         }
         try {
+            // Recheck after waiting for DB locks: a claim made just before the
+            // closing time must not cause a new gateway request after 22:30.
+            if (!$schedule->isOpen($schedule->now())) {
+                $this->platformDb->table(self::RECIPIENTS)->where('id_whatsapp_campaign_recipient', $recipientId)
+                    ->where('status', 'processing')->update(['status' => 'pending', 'attempt_count' => (int) $candidate['attempt_count'], 'updated_at' => date('Y-m-d H:i:s')]);
+                return ['ok' => true, 'status' => 'outside_window'];
+            }
             $result = $this->gateway()->sendText($tenantId, (string) $candidate['recipient_phone'], (string) $candidate['message_text']);
             $this->finishRecipient($candidate, $result);
             $settings = (new AppointmentNotificationSettingsService())->resolveTenantSettings($tenantId);
@@ -278,40 +307,155 @@ class WhatsAppCampaignService
         return $nextDueAt !== '' ? $nextDueAt : null;
     }
 
-    /** @return array<int,array<string,mixed>> */
-    private function loadRecipients(array $tenant, string $audience, string $appointmentDate): array
+    private function loadRecipientPlan(array $tenant, string $audience, string $appointmentDate): array
     {
+        $now = $this->planner->now();
         $db = $this->tenantDbConnector->connect($tenant);
         $this->databaseConfig->setEncryptionConfig($db);
         if ($audience === 'appointments_on_date') {
             $rows = $this->appointmentRecipients($db, $appointmentDate);
         } else {
-            $rows = $this->allPatientRecipients($db);
+            $rows = $this->allPatientRecipients($db, $now);
         }
         $channel = new AppointmentNotificationChannelService();
-        $unique = [];
+        $normalized = [];
         foreach ($rows as $row) {
             $phone = $channel->normalizeRecipient((string) (($row['cellulare'] ?? '') ?: ($row['telefono'] ?? '')));
-            if ($phone === null || isset($unique[$phone])) {
+            if ($phone === null) {
                 continue;
             }
-            $unique[$phone] = [
+            $normalized[] = [
                 'phone' => $phone,
                 'id_client' => (int) ($row['id_client'] ?? 0),
                 'id_appointment' => (int) ($row['id_appointment'] ?? 0),
                 'patient_name' => trim((string) ($row['patient_name'] ?? '')),
+                'sort_surname' => (string) ($row['sort_surname'] ?? ''),
+                'sort_name' => (string) ($row['sort_name'] ?? ''),
+                'next_appointment_at' => $row['next_appointment_at'] ?? null,
             ];
         }
-        return array_values($unique);
+        if ($audience === 'all_patients') {
+            return $this->buildPlan($tenant, $normalized, $now);
+        }
+        $unique = [];
+        foreach ($normalized as $row) { $unique[$row['phone']] ??= $row; }
+        return ['recipients' => array_values($unique), 'summary' => null];
     }
 
     /** @return array<int,array<string,mixed>> */
-    private function allPatientRecipients(BaseConnection $db): array
+    protected function allPatientRecipients(BaseConnection $db, \DateTimeImmutable $now): array
     {
         if (!$db->tableExists('dap02_clients')) { return []; }
         $name = $this->decryptExpr('c.nome'); $surname = $this->decryptExpr('c.cognome');
         $mobile = $this->decryptExpr('c.cellulare'); $phone = $this->decryptExpr('c.telefono');
-        return $db->query("SELECT c.id_client, {$mobile} AS cellulare, {$phone} AS telefono, TRIM(CONCAT_WS(' ', {$name}, {$surname})) AS patient_name FROM dap02_clients c ORDER BY c.id_client ASC")->getResultArray();
+        $appointmentSelect = 'NULL';
+        $appointmentJoin = '';
+        $params = [];
+        if ($db->tableExists('dap12_agenda_appuntamenti') && $db->tableExists('dap11_agenda_slot')) {
+            $clientRef = $db->fieldExists('id_client', 'dap12_agenda_appuntamenti')
+                ? 'COALESCE(NULLIF(a.id_client, 0), NULLIF(a.id_paziente, 0))' : 'NULLIF(a.id_paziente, 0)';
+            $start = $db->fieldExists('ora_inizio_appuntamento', 'dap12_agenda_appuntamenti')
+                ? 'COALESCE(a.ora_inizio_appuntamento, s.ora_inizio)' : 's.ora_inizio';
+            $appointmentSelect = 'upcoming.next_appointment_at';
+            $appointmentJoin = " LEFT JOIN (SELECT {$clientRef} AS client_id, MIN(TIMESTAMP(s.data_slot, {$start})) AS next_appointment_at FROM dap12_agenda_appuntamenti a INNER JOIN dap11_agenda_slot s ON s.id_slot = a.id_slot WHERE a.stato <> 'ANNULLATO' AND s.data_slot >= ? AND TIMESTAMP(s.data_slot, {$start}) >= ? GROUP BY {$clientRef}) upcoming ON upcoming.client_id = c.id_client";
+            $params = [$now->format('Y-m-d'), $now->format('Y-m-d H:i:s')];
+        }
+        return $db->query("SELECT c.id_client, {$mobile} AS cellulare, {$phone} AS telefono, {$surname} AS sort_surname, {$name} AS sort_name, TRIM(CONCAT_WS(' ', {$name}, {$surname})) AS patient_name, {$appointmentSelect} AS next_appointment_at FROM dap02_clients c {$appointmentJoin} ORDER BY c.id_client ASC", $params)->getResultArray();
+    }
+
+    private function buildPlan(array $tenant, array $rows, \DateTimeImmutable $now, int $campaignId = 0): array
+    {
+        $tenantId = (int) $tenant['id_tenant'];
+        $policy = $this->notificationPolicies->resolve($tenantId, (string) ($tenant['tenant_name'] ?? ''));
+        $spacing = $this->notificationPolicies->minimumSpacingSeconds($policy, AppointmentNotificationSettingsService::CHANNEL_WHATSAPP);
+        $dailyLimit = $this->notificationPolicies->dailyLimit($policy, AppointmentNotificationSettingsService::CHANNEL_WHATSAPP);
+        $rate = $this->platformDb->table(NotificationRateLimiterService::TABLE)->where('id_tenant', $tenantId)->where('channel', 'wa')->get(1)->getRowArray() ?: [];
+        $campaignRate = $this->platformDb->table(self::RATE_LIMITS)->where('id_tenant', $tenantId)->get(1)->getRowArray() ?: [];
+        $earliest = $now;
+        foreach ([$rate, $campaignRate] as $limit) {
+            if (!empty($limit['next_allowed_at'])) {
+                $due = new \DateTimeImmutable($limit['next_allowed_at'], new \DateTimeZone(date_default_timezone_get()));
+                if ($due > $earliest) { $earliest = $due; }
+            }
+        }
+        $query = $this->platformDb->table(self::CAMPAIGNS)->selectSum('pending_recipients', 'ahead')->where('id_tenant', $tenantId)->whereIn('status', ['queued', 'running']);
+        if ($campaignId > 0) { $query->where('id_whatsapp_campaign <', $campaignId); }
+        $ahead = (int) ($query->get()->getRowArray()['ahead'] ?? 0);
+        $usedToday = ($rate['counter_date'] ?? '') === date('Y-m-d') ? (int) ($rate['sent_today'] ?? 0) : 0;
+        return $this->planner->build($rows, $now, $earliest, $spacing, $dailyLimit, $usedToday, $ahead);
+    }
+
+    /** Preview or atomically reorder only pending recipients. Existing sends,
+     * addresses, identities, texts, outcomes and provider IDs are never rewritten.
+     * Applying twice returns the original fixed plan instead of moving its cutoff.
+     */
+    public function prioritizePending(int $tenantId, int $campaignId, bool $apply = false): array
+    {
+        $planner = $this->planner;
+        $now = $planner->now();
+        if ($apply && $planner->isOpen($now)) {
+            throw new \RuntimeException('Il riordino si applica soltanto nella pausa 22:30-07:30 Europe/Rome.');
+        }
+        if ($apply && !WhatsAppCampaignPrioritySchema::ready($this->platformDb)) {
+            throw new \RuntimeException('Installare prima la migration della priorità campagne.');
+        }
+        if ($apply && !$this->platformDb->transBegin()) { throw new \RuntimeException('Impossibile aprire la transazione di riordino.'); }
+        try {
+            $campaign = $this->platformDb->query('SELECT * FROM ' . self::CAMPAIGNS . ' WHERE id_tenant = ? AND id_whatsapp_campaign = ?' . ($apply ? ' FOR UPDATE' : ''), [$tenantId, $campaignId])->getRowArray();
+            if (!$campaign || $campaign['audience_type'] !== 'all_patients') { throw new \RuntimeException('Campagna tutti i pazienti non trovata nello spazio richiesto.'); }
+            if (!empty($campaign['priority_plan_json'])) {
+                if ($apply) { $this->platformDb->transCommit(); }
+                return ['status' => 'already_planned', 'campaign_id' => $campaignId, 'plan' => json_decode($campaign['priority_plan_json'], true)];
+            }
+            if (!in_array($campaign['status'], ['queued', 'running'], true)) { throw new \RuntimeException('La campagna non è attiva.'); }
+            $pending = $this->platformDb->query('SELECT * FROM ' . self::RECIPIENTS . " WHERE id_tenant = ? AND id_whatsapp_campaign = ? AND status IN ('pending', 'processing') ORDER BY id_whatsapp_campaign_recipient" . ($apply ? ' FOR UPDATE' : ''), [$tenantId, $campaignId])->getResultArray();
+            foreach ($pending as $recipient) {
+                if ($recipient['status'] === 'processing') { throw new \RuntimeException('Un invio è ancora in corso: attendere il completamento prima del riordino.'); }
+            }
+            if ($pending === []) { throw new \RuntimeException('Nessun destinatario in attesa.'); }
+            $tenant = $this->tenantCatalog->getTenantById($tenantId);
+            if (!$tenant) { throw new \RuntimeException('Spazio non trovato.'); }
+            $db = $this->tenantDbConnector->connect($tenant);
+            $this->databaseConfig->setEncryptionConfig($db);
+            $hints = $this->allPatientRecipients($db, $now);
+            $channel = new AppointmentNotificationChannelService();
+            $byClient = []; $byPhone = [];
+            foreach ($hints as $hint) {
+                $byClient[(int) $hint['id_client']] = $hint;
+                $phone = $channel->normalizeRecipient((string) (($hint['cellulare'] ?? '') ?: ($hint['telefono'] ?? '')));
+                if ($phone !== null && (!isset($byPhone[$phone]) || (!empty($hint['next_appointment_at']) && (empty($byPhone[$phone]['next_appointment_at']) || $hint['next_appointment_at'] < $byPhone[$phone]['next_appointment_at'])))) {
+                    $byPhone[$phone] = $hint;
+                }
+            }
+            foreach ($pending as &$recipient) {
+                $recipient['phone'] = $recipient['recipient_phone'];
+                $hint = $byClient[(int) ($recipient['id_client'] ?? 0)] ?? $byPhone[$recipient['phone']] ?? [];
+                $recipient['sort_surname'] = $hint['sort_surname'] ?? $recipient['patient_name'];
+                $recipient['sort_name'] = $hint['sort_name'] ?? '';
+                $dates = array_filter([$hint['next_appointment_at'] ?? null, $byPhone[$recipient['phone']]['next_appointment_at'] ?? null]);
+                $recipient['next_appointment_at'] = $dates === [] ? null : min($dates);
+            }
+            unset($recipient);
+            $plan = $this->buildPlan($tenant, $pending, $now, $campaignId);
+            if (count($plan['recipients']) !== count($pending)) { throw new \RuntimeException('Il riordino cambierebbe il numero dei destinatari.'); }
+            if ($apply) {
+                if ($planner->isOpen($planner->now())) { throw new \RuntimeException('La finestra notturna è terminata: riordino annullato.'); }
+                foreach (array_chunk($plan['recipients'], 100) as $chunk) {
+                    $updates = array_map(static fn(array $r): array => ['id_whatsapp_campaign_recipient' => $r['id_whatsapp_campaign_recipient'], 'send_order' => $r['send_order']], $chunk);
+                    $ok = $this->platformDb->table(self::RECIPIENTS)->where('id_tenant', $tenantId)->where('id_whatsapp_campaign', $campaignId)->where('status', 'pending')
+                        ->updateBatch($updates, 'id_whatsapp_campaign_recipient');
+                    if ($ok === false) { throw new \RuntimeException('Riordino destinatari non riuscito.'); }
+                }
+                $this->platformDb->table(self::CAMPAIGNS)->where('id_tenant', $tenantId)->where('id_whatsapp_campaign', $campaignId)
+                    ->update(['priority_plan_json' => json_encode($plan['summary'], JSON_THROW_ON_ERROR)]);
+                if (!$this->platformDb->transStatus()) { throw new \RuntimeException('Riordino non riuscito.'); }
+                $this->platformDb->transCommit();
+            }
+            return ['status' => $apply ? 'applied' : 'preview', 'tenant_id' => $tenantId, 'campaign_id' => $campaignId, 'plan' => $plan['summary']];
+        } catch (\Throwable $e) {
+            if ($apply) { $this->platformDb->transRollback(); }
+            throw $e;
+        }
     }
 
     /** @return array<int,array<string,mixed>> */

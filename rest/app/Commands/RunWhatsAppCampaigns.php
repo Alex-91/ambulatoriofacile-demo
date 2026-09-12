@@ -48,7 +48,7 @@ class RunWhatsAppCampaigns extends BaseCommand
             } elseif ($status === 'failed') {
                 $failed++;
             }
-            if (in_array($status, ['schema_missing', 'claim_failed'], true)) {
+            if (in_array($status, ['schema_missing', 'claim_failed', 'outside_window'], true)) {
                 break;
             }
 
@@ -71,7 +71,7 @@ class RunWhatsAppCampaigns extends BaseCommand
             usleep($waitSeconds * 1000000);
         }
 
-        $fallbacks = (new WhatsAppSmsFallbackService())->reconcile(20);
+        $fallbacks = ($result['status'] ?? '') === 'outside_window' ? ['status' => 'outside_window'] : (new WhatsAppSmsFallbackService())->reconcile(20);
         $result['window'] = [
             'attempts' => count($items),
             'sent' => $sent,
