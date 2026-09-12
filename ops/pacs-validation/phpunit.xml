@@ -1,0 +1,2 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit bootstrap="bootstrap.php" failOnRisky="true" failOnWarning="true" beStrictAboutOutputDuringTests="true"><testsuites><testsuite name="PACS isolated"><directory>../../rest/tests/pacs</directory></testsuite></testsuites></phpunit>

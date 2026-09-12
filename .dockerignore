@@ -23,6 +23,7 @@ ops/.local
 repo_friend_main
 artifacts
 rest/tests
+ops/pacs-validation
 rest/build
 ops/fse-validation/**
 !ops/fse-validation/validator.py

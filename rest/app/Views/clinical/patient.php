@@ -15,7 +15,7 @@ $download=static fn($id)=>$base.'/allegati/'.rawurlencode($id);
 </style></head><body>
 <header><a href="<?= site_url('agenda/gestione-pazienti') ?>">← Pazienti</a><div class="muted"><?= esc($tenant['tenant_name'] ?? 'AmbulatorioFacile') ?></div>
 <h1><?= esc($patient['patient_name'] ?? 'Cartella del paziente') ?></h1><div><?= esc($patient['patient_tax_code'] ?? '') ?> · Paziente #<?= (int)$patientId ?></div>
-<nav aria-label="Sezioni della cartella"><?php if($chart['clinical']): ?><a href="#documenti">Documenti clinici</a><a href="#nuovo">Nuovo episodio</a><a href="#prestazioni">Prestazioni e referti</a><?php endif ?><a href="#allegati">Allegati</a><a href="#consensi">Consensi</a></nav></header>
+<nav aria-label="Sezioni della cartella"><?php if($chart['clinical']): ?><a href="#documenti">Documenti clinici</a><a href="#nuovo">Nuovo episodio</a><a href="#prestazioni">Prestazioni e referti</a><?php if(!empty($pacsEnabled)): ?><a href="<?= $base.'/pacs' ?>">Esami e immagini</a><?php endif ?><?php endif ?><a href="#allegati">Allegati</a><a href="#consensi">Consensi</a></nav></header>
 <main>
 <?php if(session()->getFlashdata('success')): ?><div class="notice" role="status"><?= esc(session()->getFlashdata('success')) ?></div><?php endif ?>
 <?php if($chart['clinical']): ?>

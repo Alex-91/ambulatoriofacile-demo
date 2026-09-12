@@ -264,6 +264,16 @@ class TenantFeatureService
     private function platformCoreFeatureDefinitions(): array
     {
         return [
+            \App\Services\Pacs\PacsFeatureService::FEATURE_KEY => [
+                'feature_name' => 'PACS / DICOM',
+                'feature_scope' => 'clinical',
+                'description' => 'Consultazione PACS dalla cartella clinica. Richiede Cartella clinica e consensi e un collegamento configurato per lo spazio.',
+                'default_enabled' => 0,
+                'icon_class' => 'fa-image',
+                'is_tenant_managed' => 0,
+                'tenant_default_enabled' => 0,
+                'sort_order' => 145,
+            ],
             ClinicalFeatureService::FEATURE_KEY => [
                 'feature_name' => 'Cartella clinica e consensi',
                 'feature_scope' => 'clinical',

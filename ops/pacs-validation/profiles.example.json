@@ -1,0 +1,17 @@
+{
+  "tenants": {
+    "42": [
+      {
+        "id": "cloud",
+        "label": "PACS della struttura",
+        "enabled": false,
+        "qido_url": "https://pacs.example.invalid/dicom-web",
+        "wado_url": "https://pacs.example.invalid/dicom-web",
+        "auth": "bearer",
+        "token_env": "PACS_TENANT42_CLOUD_TOKEN",
+        "viewer_url": "https://viewer.example.invalid/view?study={study}",
+        "download_enabled": false
+      }
+    ]
+  }
+}

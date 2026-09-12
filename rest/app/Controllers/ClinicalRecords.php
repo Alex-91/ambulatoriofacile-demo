@@ -28,12 +28,13 @@ class ClinicalRecords extends BaseController
         try {
             [$service,$tenant] = $this->context();
             $fseEnabled = (new \App\Services\FseFeatureService())->isEnabledForTenant((int)$tenant['id_tenant']);
+            $pacsEnabled = (new \App\Services\Pacs\PacsFeatureService())->isEnabledForTenant((int)$tenant['id_tenant']);
             $chart = $service->patient($patientId,max(1,(int)$this->request->getGet('page')), $fseEnabled);
             $patient = (new TenantPatientLookupService())->getPatientByIdForTenant((int)$tenant['id_tenant'],$patientId);
             $editing = null; $revisionOf = null;
             if ((int)$this->request->getGet('edit') > 0) $editing = $service->entry($patientId,(int)$this->request->getGet('edit'));
             if ((int)$this->request->getGet('revise') > 0) $revisionOf = $service->entry($patientId,(int)$this->request->getGet('revise'));
-            return $this->privateResponse()->setBody(view('clinical/patient',compact('chart','patient','patientId','tenant','editing','revisionOf')));
+            return $this->privateResponse()->setBody(view('clinical/patient',compact('chart','patient','patientId','tenant','editing','revisionOf','pacsEnabled')));
         } catch (\Throwable $e) { return $this->failure($e); }
     }
     public function save(int $patientId)
