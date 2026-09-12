@@ -146,6 +146,7 @@ class TenantPatientLookupService
         $surnameExpr = $this->decryptExpr('c.cognome');
         $taxCodeExpr = $this->decryptExpr('c.codice_fiscale');
         $emailExpr = $this->decryptExpr('c.email');
+        $birthDateExpr = $this->decryptedColumnOrEmpty($clientColumns, 'data_nascita');
         $mobileExpr = $this->decryptExpr('c.cellulare');
         $phoneExpr = $this->decryptExpr('c.telefono');
         $legacyAddressExpr = $this->decryptedColumnOrEmpty($clientColumns, 'indirizzo');
@@ -185,6 +186,7 @@ class TenantPatientLookupService
                     {$surnameExpr} AS cognome,
                     COALESCE(NULLIF({$taxCodeExpr}, ''), NULLIF({$usernameExpr}, '')) AS codice_fiscale,
                     {$emailExpr} AS email,
+                    {$birthDateExpr} AS data_nascita,
                     {$mobileExpr} AS cellulare,
                     {$phoneExpr} AS telefono,
                     {$addressExpr} AS indirizzo,
@@ -270,6 +272,7 @@ class TenantPatientLookupService
                 'id_user' => (int) ($row['id_user'] ?? 0),
                 'patient_name' => $patientName,
                 'patient_first_name' => $firstName,
+                'patient_birth_date' => trim((string) ($row['data_nascita'] ?? '')),
                 'patient_last_name' => $lastName,
                 'patient_tax_code' => $taxCode,
                 'patient_phone' => $phone,

@@ -12,6 +12,7 @@ $localTime=static fn(string $v): string => (new \DateTimeImmutable($v,new \DateT
 </style></head><body>
 <header><a href="<?= site_url('cartella-clinica/pazienti/'.$patientId) ?>">← Cartella del paziente</a><h1>Esami e immagini</h1><p><?= esc($patient['patient_name'] ?? 'Paziente #'.$patientId) ?> · <?= esc($tenant['tenant_name'] ?? '') ?></p></header>
 <main>
+<p><a class="button" href="<?= $base ?>/richieste">Richieste diagnostiche</a></p>
 <?php if(session()->getFlashdata('success')): ?><div class="notice" role="status"><?= esc(session()->getFlashdata('success')) ?></div><?php endif ?>
 <?php if(!$overview['profiles']): ?>
 <section class="card"><h2>Collegamento da configurare</h2><p>Il modulo è attivo. Il responsabile della piattaforma deve completare il collegamento con il PACS della struttura.</p></section>

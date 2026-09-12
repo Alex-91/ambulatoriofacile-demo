@@ -5,6 +5,7 @@ use App\Services\Pacs\{CurlPacsTransport,DicomWebClient,PacsException};
 use CodeIgniter\Test\CIUnitTestCase;
 
 /** Real Orthanc TLS test. The only loopback resolver override lives in excluded test code. */
+#[\PHPUnit\Framework\Attributes\Group('pacs_lab')]
 final class OrthancInteropTest extends CIUnitTestCase
 {
     private function lab(): array

@@ -19,6 +19,15 @@ class PacsService
         $this->profiles ??=new PacsProfiles();
         $this->features ??=new PacsFeatureService();
     }
+    public function orders(): PacsOrderService
+    { return new PacsOrderService($this->db,$this->tenantId,$this->userId,$this,$this->features); }
+    public function orderContext(int $patientId,string $bindingId): array
+    {
+        $this->guard($patientId);
+        $binding=$this->binding($patientId,$bindingId);
+        $this->client($binding);
+        return ['binding'=>$binding,'identity'=>$this->identity($binding)];
+    }
     private function guard(int $patientId,bool $doctor=false): void
     {
         $this->features->assertEnabled($this->tenantId);

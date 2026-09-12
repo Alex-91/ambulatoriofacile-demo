@@ -27,11 +27,21 @@ config={"Name":"AF PACS SYNTHETIC ONLY","AuthenticationEnabled":True,"Registered
         "RemoteAccessAllowed":True,"DicomServerEnabled":False,"SslEnabled":True,"SslCertificate":"/lab/server.pem",
         "DicomWeb":{"Enable":True,"Root":"/dicom-web/","StudiesMetadata":"Full","SeriesMetadata":"Full"},
         "StoneWebViewer":{}}
+config.update({"DicomServerEnabled":True,"DicomAet":"AF_MWL_LAB","DicomCheckCalledAet":True,
+    "DicomAlwaysAllowFind":False,"DicomAlwaysAllowStore":False,
+    "DicomModalities":{"findscu":["FINDSCU","127.0.0.1",1234],"other":["OTHERAE","127.0.0.1",1235]},
+    "Worklists":{"Enable":True,"Directory":"/worklists","SaveInOrthancDatabase":False,
+        "FilterIssuerAet":True,"DeleteWorklistsOnStableStudy":False,"DeleteWorklistsDelay":0}})
+(run/"worklists").mkdir()
 (run/"orthanc.json").write_text(json.dumps(config),encoding="utf-8")
 compose={"services":{"orthanc":{"image":"orthancteam/orthanc@sha256:99082b87c96d56e57472d703ad799b779da7aa35aedac830d58cce646a43643f",
     "ports":["127.0.0.1:18443:8042"],"volumes":["./orthanc.json:/etc/orthanc/orthanc.json:ro","./server.pem:/lab/server.pem:ro"],
     "tmpfs":["/var/lib/orthanc/db:size=128m"],"mem_limit":"512m","cpus":1,
     "labels":{"af.lab":"pacs-synthetic","af.run":run.name},"environment":{"DICOM_WEB_PLUGIN_ENABLED":"true","STONE_WEB_VIEWER_PLUGIN_ENABLED":"true"}}}}
+(run/"compose.json").write_text(json.dumps(compose),encoding="utf-8")
+compose["services"]["orthanc"]["environment"]["WORKLISTS_PLUGIN_ENABLED"]="true"
+compose["services"]["orthanc"]["volumes"].append("./worklists:/worklists:ro")
+# DIMSE is deliberately not published: test tools share only this container's network namespace.
 (run/"compose.json").write_text(json.dumps(compose),encoding="utf-8")
 def element(group, tag, vr, value):
     if isinstance(value,str):

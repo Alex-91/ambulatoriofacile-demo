@@ -5,6 +5,8 @@
 Il modulo integra archivi PACS attraverso DICOMweb, con più collegamenti per tenant.
 Lo stesso codice gestisce ricerca studi (QIDO-RS), serie, istanze, metadati e recupero
 di un singolo oggetto (WADO-RS), e apertura del visualizzatore esterno configurato.
+Comprende inoltre richieste diagnostiche locali, conferma del medico ed esportazione
+di una Modality Worklist in DICOM JSON o file `.wl`.
 
 Il prodotto conserva abbinamenti e metadati cifrati; le immagini rimangono nel PACS.
 Non sostituisce l'archivio, il suo backup, la conservazione o il visualizzatore diagnostico.
@@ -110,8 +112,9 @@ sono controllati studio/serie/istanza e il contenitore MIME, e restituito un sol
 - Compatibilità effettiva: DICOM Conformance Statement, autenticazione e licenze API.
 - Autorizzazione di rete e collaudo con il PACS reale.
 - SSO o URL firmati specifici del visualizzatore del fornitore.
-- Ordini, annullamenti, notifiche di esecuzione e worklist delle apparecchiature:
-  sono un flusso RIS/HL7/DICOM MWL distinto dalla consultazione immagini.
+- Consegna automatica degli ordini e degli annullamenti al RIS/PACS, ricezione degli
+  esiti e notifiche di esecuzione: richiedono un connettore verso l'interfaccia reale.
+  Creazione, conferma, annullamento locale ed esportazione MWL sono già implementati.
 - Un archivio PACS gestito da noi, migrazione dello storico, accesso pazienti o un
   visualizzatore diagnostico integrato richiedono ambito e requisiti dedicati.
 - Nessun invio clinico STOW né modifica/cancellazione remota è esposto dal prodotto.
@@ -127,6 +130,8 @@ mentre servizi attivi, formati e limiti sono verificati per ciascun fornitore.
 - [DICOM JSON](https://dicom.nema.org/medical/dicom/current/output/chtml/part18/chapter_F.html)
 - [Orthanc DICOMweb](https://orthanc.uclouvain.be/book/plugins/dicomweb.html)
 - [IHE Scheduled Workflow](https://wiki.ihe.net/index.php/Scheduled_Workflow)
+- [DICOM PS3.4 Modality Worklist](https://dicom.nema.org/medical/dicom/current/output/chtml/part04/sect_K.6.html)
+- [Orthanc Worklists](https://orthanc.uclouvain.be/book/plugins/worklists-plugin-new.html)
 
 
 ## Esito del collaudo del 12 settembre 2026

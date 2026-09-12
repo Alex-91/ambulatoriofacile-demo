@@ -96,14 +96,14 @@ class PacsController extends BaseController
                 ->setHeader('Cache-Control','no-store, private')->setHeader('Referrer-Policy','no-referrer');
         } catch (\Throwable $e) { return $this->failure($e); }
     }
-    private function postOnly(): void
+    protected function postOnly(): void
     { if (strtoupper($this->request->getMethod())!=='POST') throw new PacsException('Metodo non consentito.'); }
-    private function privateResponse()
+    protected function privateResponse()
     {
         return $this->response->setHeader('Cache-Control','no-store, private')->setHeader('Pragma','no-cache')
             ->setHeader('Referrer-Policy','no-referrer')->setHeader('X-Content-Type-Options','nosniff')->setHeader('X-Frame-Options','DENY');
     }
-    private function failure(\Throwable $e)
+    protected function failure(\Throwable $e)
     {
         $message=$e instanceof PacsException ? $e->getMessage() : 'Operazione PACS non disponibile. Verificare i permessi o contattare il responsabile.';
         return $this->privateResponse()->setStatusCode(400)->setBody(view('clinical/error',['message'=>$message]));

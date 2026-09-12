@@ -1,0 +1,4 @@
+FROM orthancteam/orthanc@sha256:99082b87c96d56e57472d703ad799b779da7aa35aedac830d58cce646a43643f
+USER root
+RUN apt-get update && apt-get install -y --no-install-recommends dcmtk && rm -rf /var/lib/apt/lists/*
+ENTRYPOINT ["findscu"]

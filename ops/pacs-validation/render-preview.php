@@ -16,3 +16,15 @@ $selectedSeries='1.2.3';
 $search=null;
 file_put_contents($root.'/study.html',view('clinical/pacs',compact('patientId','patient','tenant','overview','details','selectedSeries','search')));
 echo "Three synthetic page previews rendered.\n";
+$listing=['rows'=>[],'page'=>1,'more'=>false,'doctor'=>true,'user_id'=>1];
+file_put_contents($root.'/orders.html',view('clinical/pacs_orders',compact('patientId','patient','tenant','overview','listing'),['saveData'=>false]));
+$payload=\App\Services\Pacs\ModalityWorklist::payload(
+    ['description'=>'TC addome di prova','procedure_code'=>'LAB-CT','coding_scheme'=>'99AFLAB','modality'=>'CT','station_ae'=>'FINDSCU','scheduled_at'=>'2026-09-20T10:30','reason'=>'Richiesta sintetica per verifica interfaccia'],
+    ['patient_last_name'=>'Sintetico','patient_first_name'=>'Paziente','patient_birth_date'=>'1980-01-01']
+)+['pacs_patient_id'=>'P-100','pacs_issuer'=>'TEST-HOSPITAL'];
+$order=['id'=>str_repeat('c',32),'payload'=>$payload,'owner_user_id'=>1,'accession'=>'AF0123456789ABCD','study_uid'=>'2.25.267115564795301338902383769944783562680','state'=>'draft','revision'=>1,'last_exported_at'=>null];
+foreach (['draft','ready','cancelled'] as $state) {
+    $order['state']=$state;
+    file_put_contents($root.'/order-'.$state.'.html',view('clinical/pacs_orders',compact('patientId','patient','tenant','listing','order'),['saveData'=>false]));
+}
+echo "Four synthetic request page previews rendered.\n";

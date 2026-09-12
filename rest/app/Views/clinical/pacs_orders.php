@@ -1,0 +1,41 @@
+<?php
+$base=site_url('cartella-clinica/pazienti/'.$patientId.'/pacs/richieste');
+$order=$order ?? null;
+$states=['draft'=>'Bozza','ready'=>'Confermata','cancelled'=>'Annullata'];
+$time=static fn(string $v): string => (new \DateTimeImmutable($v,new \DateTimeZone('Europe/Rome')))->format('d/m/Y H:i');
+$owner=$order && $listing['doctor'] && (int)$order['owner_user_id']===$listing['user_id'];
+?>
+<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><title>Richieste diagnostiche | AmbulatorioFacile</title>
+<style>
+:root{color-scheme:light;--ink:#193345;--brand:#086f75;--line:#dce5e9}*{box-sizing:border-box}body{margin:0;background:#f3f6f8;color:var(--ink);font:15px/1.55 system-ui,sans-serif}header,main{max-width:1080px;margin:auto;padding:24px}header{padding-bottom:0}h1{margin:12px 0}h2{font-size:22px}a{color:var(--brand)}.card{background:white;border:1px solid var(--line);border-radius:12px;padding:24px;margin-bottom:20px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.full{grid-column:1/-1}label{display:block;font-weight:600}input,select,textarea{width:100%;padding:10px;margin:6px 0 8px;border:1px solid #afc2ca;border-radius:6px;font:inherit}input[type=checkbox]{width:auto}small,.muted{color:#576c78;font-weight:400}button,.button{display:inline-block;padding:10px 16px;background:var(--brand);color:white;border:0;border-radius:6px;font:600 14px system-ui;text-decoration:none;cursor:pointer}.secondary{background:#e8f2f3;color:#145b61}.actions{display:flex;gap:12px;align-items:center;flex-wrap:wrap}.notice{padding:16px;background:#e5f4ef;border-left:4px solid var(--brand);margin-bottom:20px}.row{padding:16px 0;border-top:1px solid var(--line);overflow-wrap:anywhere}.uid{overflow-wrap:anywhere;font-size:13px}.badge{background:#e8f2f3;padding:4px 10px;border-radius:20px;font-size:13px}summary{cursor:pointer;font-weight:600}dt{font-weight:600}dd{margin:0 0 12px}a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible{outline:3px solid #e69f35;outline-offset:3px}@media(max-width:650px){.grid{grid-template-columns:1fr}header,main{padding:16px}.card{padding:18px}}
+</style></head><body>
+<header><a href="<?= site_url('cartella-clinica/pazienti/'.$patientId.'/pacs') ?>">← Esami e immagini</a><h1>Richieste diagnostiche</h1><p><?= esc($patient['patient_name'] ?? 'Paziente #'.$patientId) ?> · <?= esc($tenant['tenant_name'] ?? '') ?></p></header>
+<main>
+<?php if(session()->getFlashdata('success')): ?><div class="notice" role="status"><?= esc(session()->getFlashdata('success')) ?></div><?php endif ?>
+<?php if($order): $v=$order['payload']; ?>
+<section class="card"><a href="<?= $base ?>">← Tutte le richieste</a><h2><?= esc($v['description']) ?> <span class="badge"><?= esc($states[$order['state']]) ?></span></h2>
+<dl class="grid"><div><dt>Paziente nella richiesta</dt><dd><?= esc(str_replace('^',' ',$v['patient_name'])) ?></dd></div><div><dt>Data e ora previste</dt><dd><?= esc($time($v['scheduled_at'])) ?> · Italia</dd></div><div><dt>Prestazione</dt><dd><?= esc($v['procedure_code'].' · '.$v['coding_scheme'].' · '.$v['modality']) ?></dd></div><div><dt>Destinazione</dt><dd><?= esc($v['station_ae']) ?></dd></div><div><dt>Numero richiesta</dt><dd><?= esc($order['accession']) ?></dd></div><div><dt>Identificativo studio</dt><dd class="uid"><?= esc($order['study_uid']) ?></dd></div></dl>
+<?php if($v['reason']): ?><p>Note interne: <?= esc($v['reason']) ?></p><?php endif ?>
+<p>Nascita: <?= $v['birth_date'] ? esc(substr($v['birth_date'],6,2).'/'.substr($v['birth_date'],4,2).'/'.substr($v['birth_date'],0,4)) : 'Non indicata in anagrafica' ?><br>Identità PACS: <?= esc(($v['pacs_patient_id'] ?? '').' · '.($v['pacs_issuer'] ?? '')) ?></p>
+<?php if($order['last_exported_at']): ?><p class="notice">È stata esportata una copia di questa richiesta. L’esportazione non conferma la ricezione o l’esecuzione dell’esame.</p><?php endif ?>
+<?php if($owner && $order['state']==='draft'): ?>
+<form method="post" action="<?= $base.'/'.$order['id'].'/conferma' ?>"><?= csrf_field() ?><input type="hidden" name="revision" value="<?= (int)$order['revision'] ?>"><label><input type="checkbox" name="confirmed" value="1" required> Ho verificato paziente, prestazione, destinazione e data.</label><button>Conferma richiesta</button></form>
+<details class="row"><summary>Modifica bozza</summary><form method="post" action="<?= $base.'/'.$order['id'].'/modifica' ?>"><?= csrf_field() ?><input type="hidden" name="revision" value="<?= (int)$order['revision'] ?>"><?= view('clinical/pacs_order_fields',['v'=>$v],['saveData'=>false]) ?><button>Salva modifiche</button></form></details>
+<?php elseif($owner && $order['state']==='ready'): ?>
+<p>La richiesta è pronta per il servizio diagnostico. Scegli il formato previsto dal collegamento della struttura.</p>
+<form method="post" action="<?= $base.'/'.$order['id'].'/esporta' ?>"><?= csrf_field() ?><input type="hidden" name="revision" value="<?= (int)$order['revision'] ?>"><label>Formato<select name="format"><option value="dicom">Worklist DICOM (.wl)</option><option value="json">DICOM JSON (.json)</option></select></label><button>Esporta richiesta</button></form><p class="muted">Dopo il download, <a href="<?= $base.'/'.$order['id'] ?>">aggiorna questa pagina</a> prima di altre operazioni.</p>
+<?php endif ?>
+<?php if($owner && $order['state']!=='cancelled'): ?><details class="row"><summary>Annulla richiesta</summary><p>Le copie già consegnate devono essere ritirate anche dal servizio diagnostico. L’annullamento qui blocca le nuove esportazioni.</p><form method="post" action="<?= $base.'/'.$order['id'].'/annulla' ?>"><?= csrf_field() ?><input type="hidden" name="revision" value="<?= (int)$order['revision'] ?>"><button class="secondary">Conferma annullamento</button></form></details><?php endif ?>
+</section>
+<?php else: ?>
+<section class="card"><h2>Richieste del paziente</h2>
+<?php if(!$listing['rows']): ?><p>Nessuna richiesta visibile per il tuo profilo.</p><?php endif ?>
+<?php foreach($listing['rows'] as $item): ?><article class="row"><span class="badge"><?= esc($states[$item['state']]) ?></span><h3><a href="<?= $base.'/'.$item['id'] ?>"><?= esc($item['payload']['description']) ?></a></h3><p><?= esc($time($item['payload']['scheduled_at']).' · '.$item['accession']) ?></p></article><?php endforeach ?>
+<div class="actions"><?php if($listing['page']>1): ?><a href="<?= $base.'?page='.($listing['page']-1) ?>">Precedenti</a><?php endif ?><?php if($listing['more']): ?><a href="<?= $base.'?page='.($listing['page']+1) ?>">Successive</a><?php endif ?></div></section>
+<?php $bindings=array_filter($overview['bindings'],static fn($b)=>(bool)$b['active']); if($listing['doctor'] && $bindings): ?>
+<section class="card"><h2>Nuova richiesta</h2><p>I dati anagrafici vengono ripresi dalla cartella del paziente. La bozza deve essere verificata e confermata dal medico.</p>
+<form method="post" action="<?= $base ?>"><?= csrf_field() ?><input type="hidden" name="request_key" value="<?= bin2hex(random_bytes(16)) ?>"><label>Collegamento PACS<select name="binding_id"><?php foreach($bindings as $binding): ?><option value="<?= esc($binding['id'],'attr') ?>"><?= esc(($overview['profiles'][$binding['profile_id']]['label'] ?? $binding['profile_id']).' · '.$binding['identity']['patient_id'].' · '.$binding['identity']['issuer']) ?></option><?php endforeach ?></select></label>
+<?= view('clinical/pacs_order_fields',['v'=>[]],['saveData'=>false]) ?><button>Salva bozza</button></form></section>
+<?php elseif($listing['doctor']): ?><section class="card"><h2>Prima richiesta</h2><p>Registra e verifica l’identità del paziente in <a href="<?= site_url('cartella-clinica/pazienti/'.$patientId.'/pacs') ?>">Esami e immagini</a> per creare una richiesta.</p></section><?php endif ?>
+<?php endif ?>
+</main></body></html>
