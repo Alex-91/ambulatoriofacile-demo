@@ -116,8 +116,7 @@ final class AgendaExtraResidualCoverageTest extends CIUnitTestCase
     public function testStaleBrowserCannotBookResidualCoveredByLegacyExtra(): void
     {
         $this->legacyBriefing();
-        $this->expectExceptionMessage('già coperto');
-        $this->appointments->saveAppointment($this->booking(['id_slot' => 2]));
+        $this->assertOverlapRejectedWithoutChanges($this->booking(['id_slot' => 2]));
     }
 
     public function testPartialCoveragePreservesTheFreePartBeforeExtra(): void
@@ -201,8 +200,34 @@ final class AgendaExtraResidualCoverageTest extends CIUnitTestCase
     public function testOccupiedResidualPreventsExtraBooking(): void
     {
         $this->appointments->saveAppointment($this->booking(['id_slot' => 2]));
-        $this->expectExceptionMessage('già occupato');
-        $this->appointments->saveAppointment($this->booking());
+        $this->assertOverlapRejectedWithoutChanges($this->booking());
+    }
+
+    private function assertOverlapRejectedWithoutChanges(array $booking): void
+    {
+        $snapshot = function (): array {
+            $rows = [];
+            foreach ([
+                'dap11_agenda_slot' => 'id_slot',
+                'dap12_agenda_appuntamenti' => 'id_appuntamento',
+                'dap45_agenda_appuntamenti_slot' => 'id_appuntamento_slot',
+                'dap46_agenda_slot_frammenti' => 'id_frammento',
+            ] as $table => $key) {
+                $rows[$table] = $this->agendaDb->table($table)->orderBy($key)->get()->getResultArray();
+            }
+            return $rows;
+        };
+        $before = $snapshot();
+        $failure = null;
+        try {
+            $this->appointments->saveAppointment($booking);
+        } catch (\RuntimeException $exception) {
+            $failure = $exception;
+        }
+        self::assertInstanceOf(\RuntimeException::class, $failure);
+        // The resource guard runs before the narrower residual-slot guard.
+        self::assertSame('Medico o stanza già occupati nell’orario richiesto.', $failure->getMessage());
+        self::assertSame($before, $snapshot(), 'Rejected overlapping bookings must leave all reservations and fragments unchanged.');
     }
 
     public function testFailedBookingRollsBackResidualSplitting(): void
