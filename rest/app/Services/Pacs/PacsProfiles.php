@@ -11,13 +11,17 @@ class PacsProfiles
         $config = $this->configuration;
         if ($config === null) {
             $path = getenv('PACS_CONFIG_FILE');
-            if (!$path) return [];
-            $real = realpath($path);
-            $publicRoot = realpath(ROOTPATH . '..');
-            if (!$real || !is_file($real) || is_link($path) || ($publicRoot && str_starts_with(str_replace('\\','/', $real).'/', rtrim(str_replace('\\','/', $publicRoot),'/').'/'))) {
-                throw new PacsException('Configurazione PACS privata non disponibile.');
+            if (!$path) {
+                $json = getenv('PACS_PROFILES_JSON');
+                if ($json === false || $json === '') return [];
+            } else {
+                $real = realpath($path);
+                $publicRoot = realpath(ROOTPATH . '..');
+                if (!$real || !is_file($real) || is_link($path) || ($publicRoot && str_starts_with(str_replace('\\','/', $real).'/', rtrim(str_replace('\\','/', $publicRoot),'/').'/'))) {
+                    throw new PacsException('Configurazione PACS privata non disponibile.');
+                }
+                $json = file_get_contents($real, false, null, 0, 262145);
             }
-            $json = file_get_contents($real, false, null, 0, 262145);
             if (!is_string($json) || strlen($json) > 262144) throw new PacsException('Configurazione PACS non valida.');
             try { $config = json_decode($json, true, 32, JSON_THROW_ON_ERROR); }
             catch (\Throwable) { throw new PacsException('Configurazione PACS non valida.'); }

@@ -34,6 +34,11 @@ L'immagine Orthanc presente nel laboratorio non viene distribuita al cliente.
    esclusivamente le tabelle PACS del tenant scelto.
 4. Predisporre un JSON privato fuori dalla directory pubblicata dell'applicazione
    (esempio: `/run/secrets/pacs-profiles.json`). Impostare `PACS_CONFIG_FILE`.
+   In un runtime cloud è possibile impostare in alternativa `PACS_PROFILES_JSON`
+   con lo stesso oggetto JSON (massimo 256 KiB). Le credenziali rimangono riferimenti
+   a variabili `PACS_*` separate. Il file, se configurato, ha sempre precedenza:
+   un file mancante o non valido blocca l'accesso senza usare il JSON alternativo.
+   L'assenza di entrambe le variabili lascia tutti i collegamenti disabilitati.
    Il file di esempio è in `ops/pacs-validation/profiles.example.json`.
 5. Configurare i riferimenti alle credenziali e verificare
    `php rest/spark pacs:check <tenant-id>`. Il comando non contatta il PACS.

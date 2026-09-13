@@ -102,3 +102,26 @@ successiva richiesta HTTP. Il comando termina con errore se non raggiunge il
 risultato esplicito `passed`, anche quando CodeIgniter intercetta un'eccezione.
 Le nuove preview sono `order-performed.html`, `queue-reception.html` e
 `queue-doctor.html`. Regole e limiti: `rest/docs/percorso-diagnostico.md`.
+
+## Laboratorio cloud sintetico
+
+`coolify-synthetic-lab.ps1 -ConfigPath <config privata> -Action Prepare` crea
+un servizio Orthanc separato nell'ambiente `pacs-precollaudo` dell'istanza configurata.
+Eseguire poi `ConfigureHttps`, `Start` e verificare HTTPS e autenticazione.
+`Read` legge lo stato; `Stop` arresta solo il servizio identificato nello stato locale.
+Il servizio usa UID 999, nessuna capability, 512 MiB di RAM e un archivio tmpfs:
+gli oggetti sono temporanei e vanno ricaricati dopo una ricreazione del container.
+Non monta database o storage dell'app; la porta DICOM non è pubblicata.
+
+`python ops/pacs-validation/seed-cloud-lab.py` carica due immagini sintetiche via STOW.
+`php ops/pacs-validation/cloud-interop.php` verifica il client reale QIDO/WADO,
+identità, serie, istanze, identità errata, credenziali errate e hash del download.
+Entrambi accettano esclusivamente il laboratorio marcato nello stato privato sotto
+`rest/writable/pacs-cloud-lab`; stato, credenziali e risultati non vanno committati.
+PHP deve disporre delle CA pubbliche aggiornate (`curl.cainfo` se richiesto sul computer
+locale); non disabilitare la verifica TLS. Il test non accede al database dell'app.
+
+Un eventuale collegamento dell'app va configurato separatamente, soltanto per il
+tenant di prova, tramite `PACS_CONFIG_FILE` o `PACS_PROFILES_JSON`. Le credenziali
+rimangono variabili runtime private. Queste prove non certificano la compatibilità
+con PACS del cliente, dispositivi DIMSE o servizi di firma qualificata.
