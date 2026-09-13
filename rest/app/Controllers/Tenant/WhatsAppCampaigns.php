@@ -8,6 +8,7 @@ use App\Services\TenantContextService;
 use App\Services\TenantNotificationPolicyService;
 use App\Services\WhatsAppCampaignReadinessService;
 use App\Services\WhatsAppCampaignService;
+use App\Services\WhatsAppCampaignPlan;
 
 class WhatsAppCampaigns extends BaseController
 {
@@ -60,9 +61,9 @@ class WhatsAppCampaigns extends BaseController
             return redirect()->to(portal_tenant_space_url('invii-whatsapp') . '?campaign=' . (int) ($campaign['id_whatsapp_campaign'] ?? 0))
                 ->with(
                     'success',
-                    'Campagna accodata: il backend rispetterà il limite di '
-                    . (int) ($policy['whatsapp']['messages_per_interval'] ?? 1)
-                    . ' messaggi ogni ' . (int) ($policy['whatsapp']['interval_minutes'] ?? 5) . ' minuti.'
+                    'Campagna accodata: gli invii avvengono dalle 07:30 alle 22:30, con almeno '
+                    . (int) ceil(max(WhatsAppCampaignPlan::INTERVAL_SECONDS, (new TenantNotificationPolicyService())->minimumSpacingSeconds($policy, 'wa')) / 60)
+                    . ' minuti tra un messaggio e il successivo.'
                 );
         } catch (\Throwable $e) {
             log_message('error', 'Tenant WhatsApp campaign create failed: ' . $e->getMessage(), ['tenant_id' => $context->tenantId]);

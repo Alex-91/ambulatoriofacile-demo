@@ -36,14 +36,17 @@ foreach ($targetName in $targetNames) {
     $tasks = if ($DryRun) { @() } else { To-Array (Invoke-RestMethod -Method Get -Uri $tasksUri -Headers $headers) }
     $payload = @{
         name = 'whatsapp-campaign-dispatch'
-        command = 'php /var/www/html/rest/spark whatsapp-campaigns:run --no-header'
-        frequency = '* * * * *'
+        # Use the Italian civil time independently of the scheduler/server timezone.
+        # Every ten minutes means the last daytime start is 22:20; timeout keeps
+        # that invocation within the window. Keep command below Coolify's 255 chars.
+        command = 'php -r ''date_default_timezone_set("Europe/Rome");$t=date("Hi");if($t<"0730"||$t>="2230"){echo "Night pause\n";exit;}passthru("timeout 85s php /var/www/html/rest/spark whatsapp-campaigns:run --no-header",$s);exit($s);'''
+        frequency = '*/10 * * * *'
         timeout = 90
         enabled = $true
     }
     $existing = $tasks | Where-Object { $_.name -eq $payload.name } | Select-Object -First 1
     if ($DryRun) {
-        Write-Host "[$targetName] dry-run: task $($payload.name) ogni minuto"
+        Write-Host "[$targetName] dry-run: task $($payload.name) ogni 10 minuti, 07:30-22:30 Europe/Rome"
     } elseif ($existing) {
         Invoke-RestMethod -Method Patch -Uri "$tasksUri/$($existing.uuid)" -Headers $headers -ContentType 'application/json' -Body ($payload | ConvertTo-Json -Compress) | Out-Null
         Write-Host "[$targetName] task aggiornata"
