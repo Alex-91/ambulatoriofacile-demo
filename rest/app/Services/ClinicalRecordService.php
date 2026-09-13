@@ -87,6 +87,7 @@ class ClinicalRecordService
             }
             $appointment = (int) ($input['appointment_id'] ?? 0);
             if ($appointment > 0) $this->assertAppointment($patientId, $appointment);
+            $this->assertDiagnosticEntry($patientId,$current ? (int)$current['id'] : $previous,$kind,$appointment);
             $now = date('Y-m-d H:i:s');
             $record = ['id_client'=>$patientId,'author_user_id'=>$this->userId,'kind'=>$kind,'occurred_at'=>$occurred,
                 'payload_enc'=>$this->vault->seal('entry:'.$patientId, json_encode($payload, JSON_THROW_ON_ERROR)),
@@ -285,6 +286,25 @@ class ClinicalRecordService
         $bytes=(new FseArtifactValidationService())->storedArtifact($this->tenantId,$documentId,$record,$kind);
         $this->audit($patientId,'fse_report_downloaded',(string)$documentId);
         return ['mime'=>'application/pdf','name'=>'referto-fse-'.$documentId.($kind==='signed_pdf' ? '-firmato' : '-non-firmato').'.pdf','bytes'=>$bytes];
+    }
+    private function assertDiagnosticEntry(int $patientId,int $entryId,string $kind,int $appointment): void
+    {
+        if (!$entryId || !$this->db->tableExists('pacs_orders') || !$this->db->fieldExists('report_entry_id','pacs_orders')) return;
+        $seen=[];
+        while ($entryId>0) {
+            if (isset($seen[$entryId]) || count($seen)>=100) throw new \RuntimeException('Catena delle revisioni non valida.');
+            $seen[$entryId]=true;
+            $order=$this->db->table('pacs_orders')->where('tenant_id',$this->tenantId)->where('report_entry_id',$entryId)->get()->getRowArray();
+            if ($order) {
+                if ((int)$order['patient_id']!==$patientId || (int)$order['owner_user_id']!==$this->userId
+                    || $kind!=='report' || (int)$order['appointment_id']!==$appointment) {
+                    throw new \RuntimeException('Il referto diagnostico deve mantenere paziente, tipo e appuntamento della richiesta.');
+                }
+                return;
+            }
+            $entry=$this->db->table('clinical_entries')->select('previous_entry_id')->where('id',$entryId)->where('id_client',$patientId)->get()->getRowArray();
+            $entryId=(int)($entry['previous_entry_id'] ?? 0);
+        }
     }
     private function assertAppointment(int $patientId, int $appointment): void
     {

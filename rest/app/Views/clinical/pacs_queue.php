@@ -1,0 +1,22 @@
+<?php
+$stages=\App\Services\Pacs\PacsOrderService::STAGES;
+$url=site_url('cartella-clinica/diagnostica');
+$pageUrl=static fn($page)=>$url.'?'.http_build_query(['date'=>$queue['date'],'completed'=>$queue['completed'] ? '1' : '0','page'=>$page]);
+?>
+<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><title>Lista diagnostica | AmbulatorioFacile</title>
+<style>*{box-sizing:border-box}body{margin:0;background:#f3f6f8;color:#193345;font:15px/1.55 system-ui,sans-serif}header,main{max-width:1080px;margin:auto;padding:24px}header{padding-bottom:0}h1{margin:12px 0}h2{font-size:20px;margin:8px 0}a{color:#086f75}.card{background:#fff;border:1px solid #dce5e9;border-radius:12px;padding:22px;margin-bottom:16px;overflow-wrap:anywhere}.actions{display:flex;align-items:end;gap:16px;flex-wrap:wrap}label{display:block;font-weight:600}input{font:inherit;padding:10px;border:1px solid #afc2ca;border-radius:6px}input[type=date]{display:block}button,.button{display:inline-block;background:#086f75;color:white;border:0;border-radius:6px;padding:11px 16px;font:600 14px system-ui;text-decoration:none;cursor:pointer}.badge{background:#e8f2f3;padding:4px 10px;border-radius:20px;font-size:13px}small{color:#576c78}.notice{background:#e5f4ef;border-left:4px solid #086f75;padding:16px;margin-bottom:20px}.problem{background:#fff5df;padding:12px;border-left:4px solid #ad7519}a:focus-visible,button:focus-visible,input:focus-visible{outline:3px solid #e69f35;outline-offset:3px}@media(max-width:650px){header,main{padding:16px}.card{padding:18px}}</style></head><body>
+<header><a href="<?= site_url('agenda/gestione-pazienti') ?>">← Pazienti</a><h1>Lista diagnostica</h1><p><?= esc($tenant['tenant_name'] ?? '') ?> · Accettazione e avanzamento degli esami</p></header><main>
+<?php if(session()->getFlashdata('success')): ?><div class="notice" role="status"><?= esc(session()->getFlashdata('success')) ?></div><?php endif ?>
+<form class="card actions" method="get" action="<?= $url ?>"><label>Giorno<input type="date" name="date" value="<?= esc($queue['date'],'attr') ?>" required></label><label><input type="checkbox" name="completed" value="1" <?= $queue['completed'] ? 'checked' : '' ?>> Includi eseguiti</label><button>Mostra esami</button></form>
+<p><small>L’avanzamento registra le operazioni della struttura. Lo stato del referto si consulta nella richiesta.</small></p>
+<?php if(!$queue['rows']): ?><section class="card"><h2>Nessun esame in questa vista</h2><p>La lista mostra le richieste confermate dei medici a cui sei assegnato.</p></section><?php endif ?>
+<?php foreach($queue['rows'] as $item): $base=site_url('cartella-clinica/pazienti/'.$item['patient_id'].'/pacs/richieste/'.$item['id']); ?>
+<article class="card"><span class="badge"><?= esc($stages[$item['stage']]) ?></span><h2><?= esc($item['patient_name']) ?></h2><p><?= esc($item['description']) ?><br><?= esc((new \DateTimeImmutable($item['scheduled_at']))->format('d/m/Y H:i')) ?> · <?= esc($item['accession']) ?><?php if($item['appointment_id']): ?> · Appuntamento #<?= (int)$item['appointment_id'] ?><?php endif ?></p>
+<?php if($item['problem']): ?><p class="problem"><?= esc($item['problem']) ?></p><?php endif ?>
+<div class="actions">
+<?php if(!$item['problem'] && $item['stage']!=='performed' && ($queue['role']!==3 || $item['stage']==='awaiting')): $next=['awaiting'=>'accepted','accepted'=>'in_progress','in_progress'=>'performed'][$item['stage']]; ?>
+<form method="post" action="<?= $base.'/avanzamento' ?>"><?= csrf_field() ?><input type="hidden" name="revision" value="<?= (int)$item['revision'] ?>"><input type="hidden" name="stage" value="<?= $next ?>"><input type="hidden" name="queue_date" value="<?= esc($queue['date'],'attr') ?>"><button><?= esc(['accepted'=>'Registra accettazione','in_progress'=>'Avvia esame','performed'=>'Registra esame eseguito'][$next]) ?></button></form>
+<?php endif ?><?php if($item['clinical_owner']): ?><a href="<?= $base ?>">Immagini e referto</a><?php endif ?></div></article>
+<?php endforeach ?>
+<nav class="actions" aria-label="Pagine della lista"><?php if($queue['page']>1): ?><a href="<?= esc($pageUrl($queue['page']-1),'attr') ?>">Precedenti</a><?php endif ?><?php if($queue['more']): ?><a href="<?= esc($pageUrl($queue['page']+1),'attr') ?>">Successive</a><?php endif ?></nav>
+</main></body></html>

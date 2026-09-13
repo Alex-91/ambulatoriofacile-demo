@@ -106,7 +106,7 @@ class PacsService
         $this->currentBinding($patientId,$b);
         return $result+['binding'=>$b];
     }
-    public function link(int $patientId,string $bindingId,string $uid,int $revision,int $entryId=0): string
+    public function link(int $patientId,string $bindingId,string $uid,int $revision,int $entryId=0,?string $expectedAccession=null,?callable $onLinked=null): string
     {
         $this->guard($patientId,true);
         $b=$this->binding($patientId,$bindingId);
@@ -115,19 +115,21 @@ class PacsService
         $identity=$this->identity($b);
         $this->audit($patientId,'pacs_link_requested',$bindingId);
         $study=$this->client($b)->verifiedStudy($uid,$identity['patient_id'],$identity['issuer']);
+        if ($expectedAccession!==null && !hash_equals($expectedAccession,(string)$study['accession'])) throw new PacsException('Numero richiesta dello studio non corrispondente. Nessun collegamento eseguito.');
         $existing=$this->db->table('pacs_study_links')->where('tenant_id',$this->tenantId)->where('binding_id',$bindingId)
             ->where('binding_revision',$revision)->where('study_uid',$uid)->where('owner_user_id',$this->userId)->get()->getRowArray();
         if ($existing) {
             if ((int)$existing['entry_id']!==$entryId) throw new PacsException('Studio già associato a un documento diverso. Rimuovere il collegamento e creare una nuova verifica dell’identità per modificarne l’associazione.');
-            $this->transaction(function () use ($existing,$b,$patientId) {
+            $this->transaction(function () use ($existing,$b,$patientId,$onLinked) {
                 $this->currentBinding($patientId,$b,true);
                 $this->db->table('pacs_study_links')->where('id',$existing['id'])->where('tenant_id',$this->tenantId)->update(['active'=>1]);
                 $this->audit($patientId,'pacs_study_reconfirmed',$existing['id']);
+                if ($onLinked) $onLinked($existing['id']);
             });
             return $existing['id'];
         }
         $id=bin2hex(random_bytes(16));
-        $this->transaction(function () use ($b,$patientId,$uid,$study,$id,$entryId) {
+        $this->transaction(function () use ($b,$patientId,$uid,$study,$id,$entryId,$onLinked) {
             $this->currentBinding($patientId,$b,true);
             $this->db->table('pacs_study_links')->insert([
                 'id'=>$id,'tenant_id'=>$this->tenantId,'patient_id'=>$patientId,'binding_id'=>$b['id'],'binding_revision'=>$b['revision'],
@@ -135,6 +137,7 @@ class PacsService
                 'entry_id'=>$entryId>0 ? $entryId : null,'owner_user_id'=>$this->userId,'active'=>1,'created_at'=>gmdate('Y-m-d H:i:s'),
             ]);
             $this->audit($patientId,'pacs_study_linked',$id);
+            if ($onLinked) $onLinked($id);
         });
         return $id;
     }
@@ -191,6 +194,13 @@ class PacsService
         $client=$this->client($b); $identity=$this->identity($b);
         $this->audit($patientId,$event,$id);
         $study=$client->verifiedStudy($link['study_uid'],$identity['patient_id'],$identity['issuer']);
+        if ($this->db->tableExists('pacs_orders') && $this->db->fieldExists('study_link_id','pacs_orders')) {
+            $orders=$this->db->table('pacs_orders')->select('accession')->where('tenant_id',$this->tenantId)->where('patient_id',$patientId)
+                ->where('study_link_id',$id)->get()->getResultArray();
+            foreach ($orders as $order) {
+                if (!hash_equals($order['accession'],(string)$study['accession'])) throw new PacsException('Numero richiesta dello studio modificato sul PACS. Verificare il collegamento.');
+            }
+        }
         $this->currentBinding($patientId,$b);
         return [$link,$b,$client,$study];
     }
@@ -242,11 +252,10 @@ class PacsService
     }
     private function transaction(callable $action): void
     {
-        $this->db->transBegin();
+        if (!$this->db->transBegin()) throw new PacsException('Operazione PACS non avviata.');
         try {
             $action();
-            if (!$this->db->transStatus()) throw new PacsException('Operazione PACS non completata.');
-            $this->db->transCommit();
+            if (!$this->db->transStatus() || !$this->db->transCommit()) throw new PacsException('Operazione PACS non completata.');
         } catch (\Throwable $e) {
             $this->db->transRollback();
             if ($e instanceof PacsException) throw $e;

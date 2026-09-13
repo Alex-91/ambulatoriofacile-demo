@@ -86,7 +86,19 @@ container creato al termine; conservare stdout come evidenza dell'esito.
 
 ## Preview delle viste
 
-`php ops/pacs-validation/render-preview.php` genera sette pagine HTML sintetiche in
+`php ops/pacs-validation/render-preview.php` genera dieci pagine HTML sintetiche in
 `rest/writable/pacs-preview`. Servire solo quella directory su loopback, ad esempio
 porta 18486, e chiudere il server al termine. Non servire la root del laboratorio:
 contiene credenziali temporanee. I form della preview non eseguono azioni applicative.
+
+## Percorso diagnostico
+
+La suite PACS include prenotazioni sintetiche, accettazione per ruolo, data agenda,
+referti nella cartella e collegamenti immagini con quattro identificativi verificati.
+Il collaudo MySQL esegue anche gare a quattro processi per accettazione e creazione
+referto e verifica rollback annidato cartella/richiesta su errore audit. Le prove
+negative azzerano lo stato della connessione dopo il rollback per simulare la
+successiva richiesta HTTP. Il comando termina con errore se non raggiunge il
+risultato esplicito `passed`, anche quando CodeIgniter intercetta un'eccezione.
+Le nuove preview sono `order-performed.html`, `queue-reception.html` e
+`queue-doctor.html`. Regole e limiti: `rest/docs/percorso-diagnostico.md`.

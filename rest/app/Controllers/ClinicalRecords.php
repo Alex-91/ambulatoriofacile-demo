@@ -26,15 +26,26 @@ class ClinicalRecords extends BaseController
     public function patient(int $patientId)
     {
         try {
-            [$service,$tenant] = $this->context();
+            [$service,$tenant,$db,$userId] = $this->context();
             $fseEnabled = (new \App\Services\FseFeatureService())->isEnabledForTenant((int)$tenant['id_tenant']);
             $pacsEnabled = (new \App\Services\Pacs\PacsFeatureService())->isEnabledForTenant((int)$tenant['id_tenant']);
             $chart = $service->patient($patientId,max(1,(int)$this->request->getGet('page')), $fseEnabled);
+            $focusedDocument=(int)$this->request->getGet('document')>0;
+            if ($focusedDocument) {
+                $chart['entries']=[$service->entry($patientId,(int)$this->request->getGet('document'))];
+                $chart['total']=1; $chart['page']=1;
+            }
+            $pacsRequests=[]; $pacsRequestsUnavailable=false; $pacsAppointmentDoctorIds=[];
+            if ($pacsEnabled && $chart['actor']['role']===1) $pacsAppointmentDoctorIds=(new ClinicalAccessPolicy($db,$userId))->agendaDoctorIds([$chart['actor']['staff_id']]);
+            if ($pacsEnabled && $chart['clinical']) {
+                try { $pacsRequests=(new \App\Services\Pacs\PacsService($db,(int)$tenant['id_tenant'],$userId))->orders()->listing($patientId)['rows']; }
+                catch (\RuntimeException) { $pacsRequestsUnavailable=true; }
+            }
             $patient = (new TenantPatientLookupService())->getPatientByIdForTenant((int)$tenant['id_tenant'],$patientId);
             $editing = null; $revisionOf = null;
             if ((int)$this->request->getGet('edit') > 0) $editing = $service->entry($patientId,(int)$this->request->getGet('edit'));
             if ((int)$this->request->getGet('revise') > 0) $revisionOf = $service->entry($patientId,(int)$this->request->getGet('revise'));
-            return $this->privateResponse()->setBody(view('clinical/patient',compact('chart','patient','patientId','tenant','editing','revisionOf','pacsEnabled')));
+            return $this->privateResponse()->setBody(view('clinical/patient',compact('chart','patient','patientId','tenant','editing','revisionOf','pacsEnabled','pacsRequests','pacsRequestsUnavailable','pacsAppointmentDoctorIds','focusedDocument')));
         } catch (\Throwable $e) { return $this->failure($e); }
     }
     public function save(int $patientId)

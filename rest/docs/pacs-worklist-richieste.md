@@ -1,5 +1,9 @@
 # Richieste diagnostiche e worklist
 
+Il percorso successivo di agenda, accettazione, immagini e referto è descritto in
+[Percorso diagnostico](percorso-diagnostico.md). Le verifiche in fondo a questo
+documento si riferiscono alla versione precedente del solo modulo worklist.
+
 ## Stato del modulo
 
 Il modulo aggiunge alla cartella il percorso **Esami e immagini → Richieste diagnostiche**.
@@ -41,7 +45,7 @@ dal vincolo univoco: non genera una seconda richiesta.
 - L'esportazione ricontrolla identità PACS attiva, revisione e impronta del profilo.
   Un archivio o collegamento cambiato blocca le richieste precedenti.
 - Il medico autore modifica, conferma, annulla ed esporta. Gli altri clinici leggono
-  solo con relazione di cura e consenso dossier corrente. La segreteria è esclusa.
+  solo con relazione di cura e consenso dossier corrente. La segreteria è esclusa dai contenuti clinici; dispone della lista operativa descritta nel percorso diagnostico.
 - L'annullamento locale resta possibile all'autore quando il collegamento PACS
   è revocato o cambiato, purché il modulo e i permessi clinici restino attivi.
 - Le revisioni sono incrementate anche all'esportazione. Esportazione e annullamento
@@ -81,12 +85,13 @@ La nuova migration è `2026-09-13-110001_CreatePacsOrders.php`.
 Crea `pacs_orders`, non modifica né cancella richieste esistenti; ripetibile.
 Il rollback distruttivo è deliberatamente assente. Ogni riga include tenant_id.
 
-`php rest/spark pacs:install <tenant-id> --apply` applica ora entrambe le migration
-PACS e richieste, esclusivamente sul tenant indicato; senza `--apply` controlla
-le quattro tabelle. Il comando non abilita il modulo.
+`php rest/spark pacs:install <tenant-id> --apply` applica le tre migration
+PACS, richieste e percorso diagnostico, esclusivamente sul tenant indicato; senza `--apply` controlla
+le quattro tabelle e i campi del percorso diagnostico. Il comando non abilita il modulo.
 
-Questo lavoro è nel branch `codex/pacs-dicom`, in copia isolata. Nessun database
-live modificato e nessun rilascio effettuato.
+Il modulo worklist è stato rilasciato su demo e login con `40dda46f`.
+L’estensione del percorso diagnostico è sviluppata separatamente, come indicato
+nel documento collegato sopra.
 
 ## Verifiche del 13 settembre 2026
 

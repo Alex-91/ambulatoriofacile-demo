@@ -1,12 +1,14 @@
 <?php
 namespace Tests\Pacs;
 require_once __DIR__.'/PacsTestSupport.php';
+require_once __DIR__.'/PacsWorkflowCases.php';
 use App\Services\Pacs\{PacsService,PacsProfiles,PacsOrderService,PacsException,ModalityWorklist};
 use App\Services\TenantPatientLookupService;
 use CodeIgniter\Test\CIUnitTestCase;
 
 final class PacsOrdersTest extends CIUnitTestCase
 {
+    use PacsWorkflowCases;
     protected $db;
     private string $key;
     private MutablePacsGate $gate;
@@ -39,8 +41,10 @@ final class PacsOrdersTest extends CIUnitTestCase
         $this->db->table('dap15_inf_dot')->insert(['id_inf'=>40,'id_dot'=>10]);
         require_once APPPATH.'Database/Migrations/2026-09-13-100001_CreatePacsIntegration.php';
         require_once APPPATH.'Database/Migrations/2026-09-13-110001_CreatePacsOrders.php';
+        require_once APPPATH.'Database/Migrations/2026-09-13-120001_AddPacsOrderWorkflow.php';
         (new \App\Database\Migrations\CreatePacsIntegration(\Config\Database::forge($this->db)))->up();
         (new \App\Database\Migrations\CreatePacsOrders(\Config\Database::forge($this->db)))->up();
+        (new \App\Database\Migrations\AddPacsOrderWorkflow(\Config\Database::forge($this->db)))->up();
         $this->gate=new MutablePacsGate(); $this->transport=new MemoryPacsTransport();
     }
     protected function tearDown(): void
@@ -191,6 +195,7 @@ final class PacsOrdersTest extends CIUnitTestCase
     {
         [$id,$binding]=$this->create(); $s=$this->service();
         (new \App\Database\Migrations\CreatePacsOrders(\Config\Database::forge($this->db)))->up();
+        (new \App\Database\Migrations\AddPacsOrderWorkflow(\Config\Database::forge($this->db)))->up();
         for ($i=0;$i<26;$i++) $s->create(100,$binding,$this->input(),bin2hex(random_bytes(16)));
         $a=$s->listing(100); $b=$s->listing(100,2);
         $this->assertCount(25,$a['rows']); $this->assertTrue($a['more']);

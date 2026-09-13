@@ -22,9 +22,12 @@ class PacsInstall extends BaseCommand
             require_once APPPATH.'Database/Migrations/2026-09-13-100001_CreatePacsIntegration.php';
             (new \App\Database\Migrations\CreatePacsIntegration(\Config\Database::forge($db)))->up();
             require_once APPPATH.'Database/Migrations/2026-09-13-110001_CreatePacsOrders.php';
+            require_once APPPATH.'Database/Migrations/2026-09-13-120001_AddPacsOrderWorkflow.php';
             (new \App\Database\Migrations\CreatePacsOrders(\Config\Database::forge($db)))->up();
+            (new \App\Database\Migrations\AddPacsOrderWorkflow(\Config\Database::forge($db)))->up();
         }
         $missing=array_filter(['pacs_patient_bindings','pacs_study_links','pacs_audit','pacs_orders'],fn($t)=>!$db->tableExists($t));
+        if (!$missing && !\App\Services\Pacs\PacsOrderService::schemaReady($db)) $missing[]='percorso diagnostico';
         CLI::write($missing ? 'Schema PACS da inizializzare: '.implode(', ',$missing) : 'Schema PACS presente per tenant '.$id.'.');
         return $missing ? EXIT_ERROR : EXIT_SUCCESS;
     }

@@ -28,3 +28,15 @@ foreach (['draft','ready','cancelled'] as $state) {
     file_put_contents($root.'/order-'.$state.'.html',view('clinical/pacs_orders',compact('patientId','patient','tenant','listing','order'),['saveData'=>false]));
 }
 echo "Four synthetic request page previews rendered.\n";
+
+$order['state']='ready'; $order['workflow_stage']='performed'; $order['appointment_id']=10;
+$order['study_link_id']=str_repeat('b',32); $order['report_entry_id']=1;
+$report=['id'=>1,'state'=>'draft','revision'=>1,'occurred_at'=>'2026-09-20 11:30:00','content'=>['title'=>'Referto sintetico','body'=>'Documento dimostrativo, privo di dati clinici reali.']];
+$history=['rows'=>[['event'=>'pacs_stage_performed','actor_user_id'=>1,'recorded_at'=>'2026-09-20 09:00:00'],['event'=>'pacs_stage_accepted','actor_user_id'=>3,'recorded_at'=>'2026-09-20 08:25:00']],'page'=>1,'more'=>false];
+file_put_contents($root.'/order-performed.html',view('clinical/pacs_orders',compact('patientId','patient','tenant','listing','order','history','report'),['saveData'=>false]));
+$queue=['date'=>'2026-09-20','page'=>1,'more'=>false,'completed'=>true,'role'=>3,'rows'=>[]];
+foreach (['awaiting','accepted','in_progress','performed'] as $stage) $queue['rows'][]=['id'=>str_repeat('c',32),'patient_id'=>100,'patient_name'=>'Paziente sintetico','description'=>'Ecografia di prova','scheduled_at'=>'2026-09-20T10:30','accession'=>'AF0123456789ABCD','stage'=>$stage,'revision'=>2,'appointment_id'=>10,'clinical_owner'=>false,'problem'=>''];
+file_put_contents($root.'/queue-reception.html',view('clinical/pacs_queue',compact('queue','tenant'),['saveData'=>false]));
+$queue['role']=1; foreach ($queue['rows'] as &$item) $item['clinical_owner']=true; unset($item);
+file_put_contents($root.'/queue-doctor.html',view('clinical/pacs_queue',compact('queue','tenant'),['saveData'=>false]));
+echo "Three workflow previews rendered.\n";

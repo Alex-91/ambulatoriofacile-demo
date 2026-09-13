@@ -579,6 +579,7 @@ $routes->get('agenda/get-nota-giorno', 'Agenda::getNotaGiorno');
 $routes->post('agenda/salva-nota-giorno', 'Agenda::salvaNotaGiorno');
 $routes->get('agenda/gestione-pazienti', 'Agenda::gestionePazienti');
 $routes->get('cartella-clinica/pazienti/(:num)', 'ClinicalRecords::patient/$1');
+$routes->get('cartella-clinica/diagnostica', 'PacsOrdersController::queue');
 $routes->get('cartella-clinica/pazienti/(:num)/pacs', 'PacsController::patient/$1');
 $routes->get('cartella-clinica/pazienti/(:num)/pacs/richieste', 'PacsOrdersController::index/$1');
 $routes->post('cartella-clinica/pazienti/(:num)/pacs/richieste', 'PacsOrdersController::create/$1');
@@ -587,6 +588,9 @@ $routes->post('cartella-clinica/pazienti/(:num)/pacs/richieste/(:segment)/modifi
 $routes->post('cartella-clinica/pazienti/(:num)/pacs/richieste/(:segment)/conferma', 'PacsOrdersController::approve/$1/$2');
 $routes->post('cartella-clinica/pazienti/(:num)/pacs/richieste/(:segment)/annulla', 'PacsOrdersController::cancel/$1/$2');
 $routes->post('cartella-clinica/pazienti/(:num)/pacs/richieste/(:segment)/esporta', 'PacsOrdersController::export/$1/$2');
+$routes->post('cartella-clinica/pazienti/(:num)/pacs/richieste/(:segment)/avanzamento', 'PacsOrdersController::advance/$1/$2');
+$routes->post('cartella-clinica/pazienti/(:num)/pacs/richieste/(:segment)/immagini', 'PacsOrdersController::images/$1/$2');
+$routes->post('cartella-clinica/pazienti/(:num)/pacs/richieste/(:segment)/referto', 'PacsOrdersController::report/$1/$2');
 $routes->post('cartella-clinica/pazienti/(:num)/pacs/cerca', 'PacsController::search/$1');
 $routes->post('cartella-clinica/pazienti/(:num)/pacs/identita', 'PacsController::bind/$1');
 $routes->post('cartella-clinica/pazienti/(:num)/pacs/disabilita', 'PacsController::unbind/$1');

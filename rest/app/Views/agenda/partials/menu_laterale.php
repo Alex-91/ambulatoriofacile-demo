@@ -167,6 +167,33 @@ if (!function_exists('agenda_menu_norm_icon_shared')) {
     }
 }
 
+$diagnosticQueueEnabled=false;
+try {
+    $diagnosticTenantId=$tenantId;
+    if ($diagnosticTenantId<=0) $diagnosticTenantId=(int)((new \App\Services\TenantCatalogService())->resolveCurrentRuntimeTenant()['id_tenant'] ?? 0);
+    $diagnosticQueueEnabled=(new \App\Services\Pacs\PacsFeatureService())->isEnabledForTenant($diagnosticTenantId);
+} catch (\Throwable) { $diagnosticQueueEnabled=false; }
+if (!$diagnosticQueueEnabled) {
+    $hideDiagnosticQueue=static function(array $nodes) use (&$hideDiagnosticQueue): array {
+        $filtered=[];
+        foreach ($nodes as $node) {
+            if (trim((string)agenda_menu_get_value_shared($node,'rotta',''),'/')==='cartella-clinica/diagnostica') continue;
+            $children=agenda_menu_children_from_node_shared($node);
+            if ($children) {
+                if (is_object($node)) { $node=clone $node; $node->children=$hideDiagnosticQueue($children); }
+                else $node['children']=$hideDiagnosticQueue($children);
+            }
+            $filtered[]=$node;
+        }
+        return $filtered;
+    };
+    $menuTree=$hideDiagnosticQueue($menuTree);
+}
+if ($diagnosticQueueEnabled && !agenda_menu_has_route_shared($menuTree,'cartella-clinica/diagnostica')) {
+    $menuTree[]=['id_menu'=>'codex_diagnostica','id_menu_padre'=>0,'tipo_voce'=>'ITEM',
+        'label_menu'=>'Lista diagnostica','icona'=>'fa fa-list-alt','rotta'=>'cartella-clinica/diagnostica','children'=>[]];
+}
+
 if ($visitTypesFeatureEnabledResolved && !agenda_menu_has_route_shared($menuTree, 'agenda/gestione-tipi-visita')) {
     $menuTree[] = [
         'id_menu' => 'codex_tipi_visita',

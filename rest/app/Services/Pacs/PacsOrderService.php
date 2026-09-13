@@ -7,6 +7,8 @@ use CodeIgniter\Database\BaseConnection;
 /** Local requests and deliberate exports. An export is never a delivery/execution acknowledgment. */
 class PacsOrderService
 {
+    use PacsOrderWorkflow;
+
     private ClinicalAccessPolicy $access;
     private ClinicalVault $vault;
     public function __construct(
@@ -24,7 +26,15 @@ class PacsOrderService
     {
         $this->features->assertEnabled($this->tenantId);
         $doctor ? $this->access->assertDoctor($patientId) : $this->access->assertPatient($patientId,true);
-        if (!$this->db->tableExists('pacs_orders') || !$this->db->tableExists('pacs_audit')) throw new PacsException('Richieste diagnostiche da inizializzare per questo spazio.');
+        if (!self::schemaReady($this->db)) throw new PacsException('Richieste diagnostiche da inizializzare per questo spazio.');
+    }
+    public static function schemaReady(BaseConnection $db): bool
+    {
+        if (!$db->tableExists('pacs_orders') || !$db->tableExists('pacs_audit')) return false;
+        foreach (['appointment_id','appointment_hash','scheduled_date','workflow_stage','report_entry_id','study_link_id'] as $field) {
+            if (!$db->fieldExists($field,'pacs_orders')) return false;
+        }
+        return $db->fieldExists('order_revision','pacs_audit');
     }
     private function readable(array $row): bool
     {
@@ -82,11 +92,15 @@ class PacsOrderService
     {
         $this->guard($patientId,true);
         if (!preg_match('/^[a-f0-9]{32}$/D',$requestKey)) throw new PacsException('Riaprire il modulo di richiesta.');
+        $appointment=(int)($input['appointment_id'] ?? 0)>0 ? $this->appointmentDraft($patientId,(int)$input['appointment_id']) : [];
+        $input=array_replace($input,$appointment);
         $context=$this->pacs->orderContext($patientId,$bindingId);
         $payload=$this->payload($patientId,$input)+['pacs_patient_id'=>$context['identity']['patient_id'],'pacs_issuer'=>$context['identity']['issuer']];
         $key=(string)config(\App\Config\Crypto::class)->keyHex;
         if (!preg_match('/^[a-f0-9]{64}$/iD',$key)) throw new PacsException('Cifratura richieste non disponibile.');
-        $hash=hash_hmac('sha256',json_encode([$patientId,$bindingId,$context['binding']['revision'],$payload],JSON_THROW_ON_ERROR),hex2bin($key));
+        $hashParts=[$patientId,$bindingId,$context['binding']['revision'],$payload];
+        if ($appointment) $hashParts[]=$appointment;
+        $hash=hash_hmac('sha256',json_encode($hashParts,JSON_THROW_ON_ERROR),hex2bin($key));
         $existing=$this->db->table('pacs_orders')->where('tenant_id',$this->tenantId)->where('owner_user_id',$this->userId)->where('request_key',$requestKey)->get()->getRowArray();
         if ($existing) {
             if (!hash_equals($existing['request_hash'],$hash)) throw new PacsException('Questo modulo è già stato utilizzato con dati differenti. Aprire una nuova richiesta.');
@@ -96,6 +110,8 @@ class PacsOrderService
         $id=bin2hex($bytes);
         $row=['id'=>$id,'tenant_id'=>$this->tenantId,'patient_id'=>$patientId,'owner_user_id'=>$this->userId,
             'binding_id'=>$bindingId,'binding_revision'=>(int)$context['binding']['revision'],
+            'appointment_id'=>$appointment['appointment_id'] ?? null,'appointment_hash'=>$appointment['appointment_hash'] ?? null,
+            'scheduled_date'=>substr($payload['scheduled_at'],0,10),'workflow_stage'=>'awaiting',
             'request_key'=>$requestKey,'request_hash'=>$hash,'accession'=>'AF'.strtoupper(bin2hex(random_bytes(7))),
             'study_uid'=>ModalityWorklist::uid($id),'state'=>'draft','revision'=>1,
             'payload_enc'=>$this->vault->seal('pacs-order:'.$id,json_encode($payload,JSON_THROW_ON_ERROR)),
@@ -103,7 +119,7 @@ class PacsOrderService
         $this->transaction(function () use ($row,$patientId,$id,$payload) {
             $this->lockContext($row,$payload);
             if (!$this->db->table('pacs_orders')->insert($row)) throw new PacsException('Richiesta non salvata.');
-            $this->audit($patientId,'pacs_order_created',$id);
+            $this->audit($patientId,'pacs_order_created',$id,1);
         });
         return $id;
     }
@@ -111,11 +127,13 @@ class PacsOrderService
     {
         $row=$this->row($patientId,$id,true);
         if ($row['state']!=='draft') throw new PacsException('Solo le bozze possono essere modificate.');
+        $appointment=!empty($row['appointment_id']) ? $this->appointmentDraft($patientId,(int)$row['appointment_id']) : [];
+        $input=array_replace($input,$appointment);
         $saved=$this->open($row)['payload'];
         $payload=$this->payload($patientId,$input)+['pacs_patient_id'=>$saved['pacs_patient_id'],'pacs_issuer'=>$saved['pacs_issuer']];
-        $this->transaction(function () use ($row,$payload,$revision) {
-            $this->lockContext($row,$payload);
-            $this->change($row,$revision,['payload_enc'=>$this->vault->seal('pacs-order:'.$row['id'],json_encode($payload,JSON_THROW_ON_ERROR))],'pacs_order_updated');
+        $this->transaction(function () use ($row,$payload,$revision,$appointment) {
+            $this->lockContext(array_replace($row,$appointment),$payload);
+            $this->change($row,$revision,['appointment_hash'=>$appointment['appointment_hash'] ?? null,'scheduled_date'=>substr($payload['scheduled_at'],0,10),'payload_enc'=>$this->vault->seal('pacs-order:'.$row['id'],json_encode($payload,JSON_THROW_ON_ERROR))],'pacs_order_updated');
         });
     }
     public function approve(int $patientId,string $id,int $revision,bool $confirmed): void
@@ -139,10 +157,11 @@ class PacsOrderService
     public function export(int $patientId,string $id,int $revision,string $format): array
     {
         $row=$this->row($patientId,$id,true);
-        if ($row['state']!=='ready' || (int)$row['revision']!==$revision) throw new PacsException('Esportazione riservata a richieste confermate e aggiornate.');
+        if ($row['state']!=='ready' || !in_array($row['workflow_stage'],['awaiting','accepted'],true) || (int)$row['revision']!==$revision) throw new PacsException('Esportazione riservata a richieste confermate e aggiornate.');
         if (!in_array($format,['dicom','json'],true)) throw new PacsException('Formato non valido.');
         $payload=$this->open($row)['payload'];
         if (!$this->canonicalMatches($patientId,$payload)) throw new PacsException('Anagrafica modificata dopo la conferma: annullare la richiesta e ricrearla con i dati corretti.');
+        $this->checkAppointment($row);
         $context=$this->context($row);
         $dataset=ModalityWorklist::dataset($row,$payload,$context['identity']);
         $bytes=$format==='dicom' ? ModalityWorklist::file($dataset,$row['study_uid']) : json_encode($dataset,JSON_UNESCAPED_UNICODE|JSON_PRETTY_PRINT|JSON_THROW_ON_ERROR);
@@ -162,6 +181,7 @@ class PacsOrderService
     private function lockContext(array $row,array $payload): void
     {
         $this->context($row,true);
+        $this->checkAppointment($row,true);
         if ($this->db->DBDriver==='MySQLi') $this->db->query('SELECT id_client FROM dap02_clients WHERE id_client = ? FOR UPDATE',[$row['patient_id']]);
         if (!$this->canonicalMatches((int)$row['patient_id'],$payload)) throw new PacsException('Anagrafica modificata durante l’operazione. Aggiornare la richiesta.');
     }
@@ -171,12 +191,12 @@ class PacsOrderService
         $this->db->table('pacs_orders')->where('tenant_id',$this->tenantId)->where('id',$row['id'])->where('owner_user_id',$this->userId)
             ->where('revision',$revision)->where('state',$row['state'])->update($data+['revision'=>$revision+1,'updated_at'=>gmdate('Y-m-d H:i:s')]);
         if ($this->db->affectedRows()!==1) throw new PacsException('Richiesta aggiornata da un’altra sessione. Riaprire la pagina.');
-        $this->audit((int)$row['patient_id'],$event,$row['id']);
+        $this->audit((int)$row['patient_id'],$event,$row['id'],$revision+1);
     }
-    private function audit(int $patientId,string $event,string $id): void
+    private function audit(int $patientId,string $event,string $id,?int $revision=null): void
     {
         if (!$this->db->table('pacs_audit')->insert(['id'=>bin2hex(random_bytes(16)),'tenant_id'=>$this->tenantId,'patient_id'=>$patientId,
-            'actor_user_id'=>$this->userId,'event'=>$event,'entity_id'=>$id,'recorded_at'=>gmdate('Y-m-d H:i:s')])) throw new PacsException('Registro richieste non disponibile.');
+            'actor_user_id'=>$this->userId,'event'=>$event,'entity_id'=>$id,'order_revision'=>$revision,'recorded_at'=>gmdate('Y-m-d H:i:s')])) throw new PacsException('Registro richieste non disponibile.');
     }
     private function transaction(callable $action): void
     {
