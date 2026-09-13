@@ -11,6 +11,7 @@ import yaml
 from check_linux_recipe import check_recipe_files, check_source_freshness, image_digest
 from test_dependency_audit import DependencyAuditTests
 from test_linux_images import ImageManifestTests
+from test_local_atomic_lab import AtomicLabGuards
 
 HERE = Path(__file__).resolve().parent
 SPEC = importlib.util.spec_from_file_location('fse_bundle_verifier', HERE / 'verify-linux-bundle.py')

@@ -1,6 +1,6 @@
 # FSE 2.0 — dossier di preparazione e collaudo offline
 
-Stato software aggiornato al 12 settembre 2026: sviluppo FSE avviato sul branch
+Stato software aggiornato al 13 settembre 2026: sviluppo FSE avviato sul branch
 `codex/fse-certificati-test`; alla ripresa dopo il riavvio il checkout condiviso
 è sul branch `codex/completamento-gestionale-clinico`. Nessun rilascio da questa ripresa.
 Questo dossier offline non è una dichiarazione di accreditamento né prova di pubblicazione nel FSE.
@@ -16,7 +16,46 @@ senza errori o test saltati. Report finale privato:
 `rest/writable/fse-validation-reports/20260909-195016-a5d25846/summary.json`;
 sorgenti censiti immutati durante l'esecuzione. Nessun rilascio in produzione.
 
-## Ultimo incremento: prime prove Linux completate
+## Ultimo incremento: scritture locali e audit atomici
+
+Corrette e collaudate le scritture locali di bozze, preparazioni, acquisizione
+firma e revisioni: dati e audit obbligatorio nella stessa transazione, rollback
+verificato anche con transazioni annidate. I tentativi falliti non sovrascrivono
+i PDF/CDA dell'ultima preparazione riuscita. Nessuna transazione avvolge invii remoti.
+
+Regressioni Windows completate su framework 4.6.0 e candidato 4.7.4. Raccolta
+finale candidata: **342 esecuzioni** (274 PHP / 1.318 asserzioni, 24 documentali
+Python, 44 packaging/harness), zero errori o skip, sorgenti censiti invariati.
+Sul derivato Linux circoscritto ai sei file FSE elencati nel manifest:
+**273 test / 1.315 asserzioni e otto scenari MySQL** superati, incluse interruzioni
+dentro la vera transazione del servizio, prima dell'audit, senza transazioni
+esterne introdotte dal test. Originali conservati, nessuna revisione duplicata;
+la preparazione interrotta resta bloccata per verifica, senza retry automatici.
+
+Laboratorio arrestato, evidenze e volumi conservati. Nessun deploy o nuovo invio
+Gateway, nessuna attestazione di accreditamento. Ambito dell'immagine, rapporti,
+tentativi incompleti e limiti nel
+[verbale dei salvataggi atomici del 13 settembre](fse2-salvataggi-atomici-20260913.md).
+
+## Incremento precedente: browser Linux e resilienza concorrente
+
+Completati i due punti preparatori richiesti: percorso nell'interfaccia con
+JavaScript reale contro runtime Linux (firma sintetica, revisioni, PDF errati e
+isolamento fra studi), 15 controlli di stato, quattro sessioni/40 letture HTTP,
+sei scenari concorrenti e di interruzione controllata. Verificati conflitti senza
+duplicazioni, 40 nuove bozze separate per studio, conservazione degli originali,
+blocco della bozza interrotta e rollback di una transazione sintetica non confermata.
+
+Individuati e gestiti due limiti del laboratorio: riavvio coordinato app/MySQL
+necessario per la rete condivisa e tetto di 20 connessioni insufficiente per la
+barriera concorrente (ripetizione completa a 64, RAM/CPU invariate). Nessun
+risultato incompleto è contato come superato. Nessun deploy o invio reale.
+
+Le prove attestano l'immagine candidata immutabile `10c1973e…`, non le modifiche
+successive nel checkout condiviso. Dettagli, evidenze, incidenti e limiti nel
+[verbale browser Linux e concorrenza del 12 settembre](fse2-browser-linux-concorrenza-20260912.md).
+
+## Incremento precedente: prime prove Linux completate
 
 Il riavvio è completato e il laboratorio Debian/Docker è stato eseguito con
 due tenant interamente sintetici dalla task **Analizza requisiti cliente**.
