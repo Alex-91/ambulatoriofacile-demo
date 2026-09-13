@@ -71,8 +71,6 @@ registrata nel risultato.
    stop globali di WSL o Docker. I file sintetici e i rapporti possono restare nella
    directory ignorata per revisione.
 
-## Preview delle viste
-
 ## Preflight MySQL sintetico
 
 `prepare-mysql-lab.py` genera un MySQL dedicato con credenziali casuali, server_id
