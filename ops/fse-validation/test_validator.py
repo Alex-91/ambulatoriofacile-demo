@@ -18,7 +18,7 @@ SETTINGS = Path(os.environ.get('FSE2_VALIDATOR_SETTINGS', ROOT / "rest/writable/
 
 
 def synthetic_cda(with_reason=False):
-    code = "require 'rest/vendor/autoload.php'; require 'rest/app/Config/Fse2.php'; require 'rest/app/Services/FseCdaRsaBuilderService.php'; $d=require 'rest/tests/_support/fse_synthetic.php';"
+    code = "require 'rest/system/Config/BaseConfig.php'; require 'rest/app/Config/Fse2.php'; require 'rest/app/Services/FseCdaRsaBuilderService.php'; $d=require 'rest/tests/_support/fse_synthetic.php';"
     if with_reason:
         code += "$d['reason_text']='Quesito sintetico di test';"
     code += "echo (new App\\Services\\FseCdaRsaBuilderService())->build($d);"
@@ -26,7 +26,7 @@ def synthetic_cda(with_reason=False):
 
 
 def synthetic_revision():
-    code = "require 'rest/vendor/autoload.php'; require 'rest/app/Config/Fse2.php'; require 'rest/app/Services/FseCdaRsaBuilderService.php'; $d = require 'rest/tests/_support/fse_synthetic.php'; $d['previous_document'] = $d + ['version_number'=>1]; $d['version_number']=2; $d['document_unique_id']='AF.TEST.2'; echo (new App\\Services\\FseCdaRsaBuilderService())->build($d);"
+    code = "require 'rest/system/Config/BaseConfig.php'; require 'rest/app/Config/Fse2.php'; require 'rest/app/Services/FseCdaRsaBuilderService.php'; $d = require 'rest/tests/_support/fse_synthetic.php'; $d['previous_document'] = $d + ['version_number'=>1]; $d['version_number']=2; $d['document_unique_id']='AF.TEST.2'; echo (new App\\Services\\FseCdaRsaBuilderService())->build($d);"
     return subprocess.check_output(["php", "-r", code], cwd=ROOT)
 
 

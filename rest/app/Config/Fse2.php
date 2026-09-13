@@ -65,6 +65,7 @@ class Fse2 extends BaseConfig
     public string $validatorSettings;
     public int $validatorTimeout = 55;
     public int $validatorMaxConcurrent = 2;
+    public int $validatorMinAvailableMiB = 0;
 
     public function __construct()
     {
@@ -85,6 +86,7 @@ class Fse2 extends BaseConfig
         $this->validatorSettings = trim((string) env('FSE2_VALIDATOR_SETTINGS', ''));
         $this->validatorTimeout = max(5, min(60, (int) env('FSE2_VALIDATOR_TIMEOUT', 55)));
         $this->validatorMaxConcurrent = max(1, min(8, (int) env('FSE2_VALIDATOR_MAX_CONCURRENT', 2)));
+        $this->validatorMinAvailableMiB = max(0, min(8192, (int) env('FSE2_VALIDATOR_MIN_AVAILABLE_MIB', 0)));
 
         $this->environments = [
             'test' => [
