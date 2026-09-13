@@ -100,7 +100,7 @@ class ClinicalRecords extends BaseController
             if (strtoupper($this->request->getMethod()) !== 'POST') throw new \RuntimeException('Metodo non consentito.');
             $context=$this->context();
             // Also restrict template actions to an accessible patient context.
-            (new ClinicalAccessPolicy($context[2],$context[3]))->assertPatient($patientId,false);
+            (new ClinicalAccessPolicy($context[2],$context[3],(int)$context[1]['id_tenant']))->assertPatient($patientId,false);
             $action(...$context);
             return redirect()->to(site_url('cartella-clinica/pazienti/'.$patientId))->with('success',$message);
         } catch (\Throwable $e) {

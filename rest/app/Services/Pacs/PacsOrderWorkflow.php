@@ -57,7 +57,9 @@ trait PacsOrderWorkflow
         if (!self::schemaReady($this->db)) throw new PacsException('Percorso diagnostico da inizializzare.');
         $actor=$this->access->actor();
         $doctors=[$actor['staff_id']];
-        if ($actor['role']!==1) {
+        if ($actor['role']===4) {
+            $doctors=array_column($this->db->table('dap03_personale')->select('id_personale')->where('tipo',1)->get()->getResultArray(),'id_personale');
+        } elseif ($actor['role']!==1) {
             $table=$actor['role']===3 ? 'dap14_seg_dot' : 'dap15_inf_dot';
             $field=$actor['role']===3 ? 'id_seg' : 'id_inf';
             $doctors=$this->db->tableExists($table) ? array_column($this->db->table($table)->where($field,$actor['staff_id'])->get()->getResultArray(),'id_dot') : [];
@@ -111,7 +113,7 @@ trait PacsOrderWorkflow
         $row=$this->operationalRow($patientId,$id);
         $actor=$this->access->actor();
         $expected=['accepted'=>'awaiting','in_progress'=>'accepted','performed'=>'in_progress'];
-        if (!isset($expected[$next]) || $row['workflow_stage']!==$expected[$next] || ($actor['role']===3 && $next!=='accepted')) {
+        if (!isset($expected[$next]) || $row['workflow_stage']!==$expected[$next] || (!in_array($actor['role'],[1,2],true) && $next!=='accepted')) {
             throw new PacsException('Passaggio non consentito per lo stato o il profilo corrente.');
         }
         $this->transaction(function () use ($row,$revision,$next) {

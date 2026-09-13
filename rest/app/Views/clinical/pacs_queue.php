@@ -9,12 +9,13 @@ $pageUrl=static fn($page)=>$url.'?'.http_build_query(['date'=>$queue['date'],'co
 <?php if(session()->getFlashdata('success')): ?><div class="notice" role="status"><?= esc(session()->getFlashdata('success')) ?></div><?php endif ?>
 <form class="card actions" method="get" action="<?= $url ?>"><label>Giorno<input type="date" name="date" value="<?= esc($queue['date'],'attr') ?>" required></label><label><input type="checkbox" name="completed" value="1" <?= $queue['completed'] ? 'checked' : '' ?>> Includi eseguiti</label><button>Mostra esami</button></form>
 <p><small>L’avanzamento registra le operazioni della struttura. Lo stato del referto si consulta nella richiesta.</small></p>
-<?php if(!$queue['rows']): ?><section class="card"><h2>Nessun esame in questa vista</h2><p>La lista mostra le richieste confermate dei medici a cui sei assegnato.</p></section><?php endif ?>
+<?php if($queue['role']===4): ?><p class="notice">Puoi consultare le richieste dello spazio e registrare l’accettazione. Esecuzione dell’esame e refertazione restano ai professionisti abilitati.</p><?php endif ?>
+<?php if(!$queue['rows']): ?><section class="card"><h2>Nessun esame in questa vista</h2><p><?= $queue['role']===4 ? 'La lista mostra le richieste confermate dei medici dello spazio.' : 'La lista mostra le richieste confermate dei medici a cui sei assegnato.' ?></p></section><?php endif ?>
 <?php foreach($queue['rows'] as $item): $base=site_url('cartella-clinica/pazienti/'.$item['patient_id'].'/pacs/richieste/'.$item['id']); ?>
 <article class="card"><span class="badge"><?= esc($stages[$item['stage']]) ?></span><h2><?= esc($item['patient_name']) ?></h2><p><?= esc($item['description']) ?><br><?= esc((new \DateTimeImmutable($item['scheduled_at']))->format('d/m/Y H:i')) ?> · <?= esc($item['accession']) ?><?php if($item['appointment_id']): ?> · Appuntamento #<?= (int)$item['appointment_id'] ?><?php endif ?></p>
 <?php if($item['problem']): ?><p class="problem"><?= esc($item['problem']) ?></p><?php endif ?>
 <div class="actions">
-<?php if(!$item['problem'] && $item['stage']!=='performed' && ($queue['role']!==3 || $item['stage']==='awaiting')): $next=['awaiting'=>'accepted','accepted'=>'in_progress','in_progress'=>'performed'][$item['stage']]; ?>
+<?php if(!$item['problem'] && $item['stage']!=='performed' && (in_array($queue['role'],[1,2],true) || $item['stage']==='awaiting')): $next=['awaiting'=>'accepted','accepted'=>'in_progress','in_progress'=>'performed'][$item['stage']]; ?>
 <form method="post" action="<?= $base.'/avanzamento' ?>"><?= csrf_field() ?><input type="hidden" name="revision" value="<?= (int)$item['revision'] ?>"><input type="hidden" name="stage" value="<?= $next ?>"><input type="hidden" name="queue_date" value="<?= esc($queue['date'],'attr') ?>"><button><?= esc(['accepted'=>'Registra accettazione','in_progress'=>'Avvia esame','performed'=>'Registra esame eseguito'][$next]) ?></button></form>
 <?php endif ?><?php if($item['clinical_owner']): ?><a href="<?= $base ?>">Immagini e referto</a><?php endif ?></div></article>
 <?php endforeach ?>

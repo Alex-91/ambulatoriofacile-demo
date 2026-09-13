@@ -16,7 +16,7 @@ class PacsOrderService
         private ?PacsService $pacs=null,private ?PacsFeatureService $features=null,
         private ?TenantPatientLookupService $patients=null
     ) {
-        $this->access=new ClinicalAccessPolicy($db,$userId);
+        $this->access=new ClinicalAccessPolicy($db,$userId,$tenantId);
         $this->vault=new ClinicalVault($tenantId);
         $this->features ??=new PacsFeatureService();
         $this->pacs ??=new PacsService($db,$tenantId,$userId);

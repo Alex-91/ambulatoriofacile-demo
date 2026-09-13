@@ -7,6 +7,35 @@ use App\Services\Pacs\PacsOrderService;
 /** Synthetic fixtures reuse the order suite's isolated database and canonical patient lookup. */
 trait PacsWorkflowCases
 {
+    public function testTenantMasterCanAcceptAcrossDoctorsButCannotExecuteOrRefert(): void
+    {
+        require_once __DIR__.'/../_support/ClinicalMasterPlatformFixture.php';
+        $platform=new \Tests\Support\ClinicalMasterPlatformFixture();
+        try {
+            $this->db->table('dap01_users')->insert(['id_user'=>6,'is_active'=>1]);
+            $this->db->table('dap03_personale')->insert(['id_personale'=>60,'id_user'=>6,'tipo'=>4,'is_active'=>1]);
+            [$id]=$this->appointmentOrder(); $doctor=$this->service(); $doctor->approve(100,$id,1,true);
+            $master=$this->service(6); $queue=$master->queue('2026-09-20');
+            $this->assertSame(4,$queue['role']); $this->assertCount(1,$queue['rows']);
+            $this->assertFalse($queue['rows'][0]['clinical_owner']);
+            foreach (['payload','reason','report_entry_id','study_uid','patient_birth_date'] as $key) $this->assertArrayNotHasKey($key,$queue['rows'][0]);
+            $master->advance(100,$id,2,'accepted');
+            $this->assertSame('accepted',$doctor->read(100,$id)['workflow_stage']);
+            $this->denied(fn()=>$master->advance(100,$id,3,'in_progress'));
+            $this->denied(fn()=>$master->read(100,$id));
+            $this->denied(fn()=>$master->saveReport(100,$id,3,['title'=>'x','body'=>'x']));
+            $this->denied(fn()=>$master->export(100,$id,3,'dicom'));
+            $this->denied(fn()=>$master->cancel(100,$id,3));
+            $this->denied(fn()=>$this->pacs(6)->overview(100));
+            $this->denied(fn()=>$this->service(6,43)->queue('2026-09-20'));
+            $this->assertSame(6,(int)$this->db->table('pacs_audit')->where('event','pacs_stage_accepted')->get()->getRowArray()['actor_user_id']);
+            $platform->db->table('platform_user_tenants')->update(['tenant_role'=>'tenant_staff']);
+            $this->denied(fn()=>$master->queue('2026-09-20'));
+            $platform->db->table('platform_user_tenants')->update(['tenant_role'=>'tenant_master']);
+            $this->gate->enabled=false;
+            $this->denied(fn()=>$master->queue('2026-09-20'));
+        } finally {$platform->close();}
+    }
     private function workflowFixtures(): void
     {
         $this->db->query('CREATE TABLE dap11_agenda_slot (id_slot INTEGER PRIMARY KEY,data_slot TEXT,ora_inizio TEXT)');

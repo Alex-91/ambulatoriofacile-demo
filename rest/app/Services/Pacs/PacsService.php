@@ -14,7 +14,7 @@ class PacsService
         private ?PacsProfiles $profiles=null, private ?PacsFeatureService $features=null,
         private ?PacsTransport $transport=null
     ) {
-        $this->access=new ClinicalAccessPolicy($db,$userId);
+        $this->access=new ClinicalAccessPolicy($db,$userId,$tenantId);
         $this->vault=new ClinicalVault($tenantId);
         $this->profiles ??=new PacsProfiles();
         $this->features ??=new PacsFeatureService();

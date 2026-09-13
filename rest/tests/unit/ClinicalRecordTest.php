@@ -5,6 +5,44 @@ use CodeIgniter\Test\CIUnitTestCase;
 
 final class ClinicalRecordTest extends CIUnitTestCase
 {
+    public function testTenantMasterManagesConsentsWithoutClinicalAccessAndRevocationIsImmediate(): void
+    {
+        require_once __DIR__.'/../_support/ClinicalMasterPlatformFixture.php';
+        $platform=new \Tests\Support\ClinicalMasterPlatformFixture();
+        try {
+            $this->db->table('dap01_users')->insert(['id_user'=>6,'username'=>'MASTER_TEST','is_active'=>1]);
+            $this->db->table('dap03_personale')->insert(['id_personale'=>60,'id_user'=>6,'tipo'=>4,'is_active'=>1]);
+            $doctor=$this->service(); $entry=$doctor->saveEntry(100,$this->entry());
+            $clinicalFile=$doctor->attach(100,"%PDF-1.4\n clinical synthetic",'clinical.pdf','clinical');
+            $master=$this->service(6,42,true);
+            $chart=$master->patient(100);
+            $this->assertFalse($chart['clinical']); $this->assertSame([],$chart['entries']);
+            $this->assertSame([],$chart['objects']); $this->assertSame([],$chart['fse_reports']);
+            $this->assertSame([],$chart['appointments']); $this->assertSame(4,$chart['actor']['role']);
+            $this->assertFalse($master->patient(200)['clinical']);
+            $template=$master->createTemplate(['kind'=>'treatment','version'=>'test','title'=>'Solo prova','content'=>'Modello sintetico']);
+            $proof=$master->attach(100,"%PDF-1.4\n synthetic consent",'consenso.pdf','consent');
+            $consent=$master->recordConsent(100,['template_id'=>$template,'decision'=>'granted','signer_name'=>'Persona sintetica','signer_capacity'=>'Paziente','evidence_object_id'=>$proof]);
+            $this->assertGreaterThan(0,$consent);
+            $this->assertSame(6,(int)$master->patient(100)['consents'][0]['recorded_by']);
+            $this->assertStringStartsWith('%PDF-',$master->download(100,$proof)['bytes']);
+            foreach ([fn()=>$master->entry(100,$entry),fn()=>$master->saveEntry(100,$this->entry()),
+                fn()=>$master->finalize(100,$entry,1,[]),fn()=>$master->acceptSignature(100,$entry,'fake','pades','fake'),
+                fn()=>$master->download(100,$clinicalFile),fn()=>$master->attach(100,'%PDF-1.4','x.pdf','clinical'),
+                fn()=>$this->service(6,43,true)->patient(100),fn()=>$master->patient(999)] as $action) {
+                try {$action();$this->fail('Master acquired clinical or cross-tenant access');} catch (\RuntimeException $e) {$this->assertNotEmpty($e->getMessage());}
+            }
+            foreach ([['platform_user_tenants','tenant_role','tenant_admin','tenant_master'],
+                ['platform_user_tenants','invitation_status','pending','accepted'],['platform_users','status','blocked','active'],
+                ['platform_tenants','is_active',0,1]] as [$table,$column,$denied,$allowed]) {
+                $platform->db->table($table)->update([$column=>$denied]);
+                try {$master->patient(100);$this->fail('Revoked master retained access');} catch (\RuntimeException $e) {$this->assertNotEmpty($e->getMessage());}
+                $platform->db->table($table)->update([$column=>$allowed]);
+            }
+            $this->db->table('dap01_users')->where('id_user',6)->update(['is_active'=>0]);
+            $this->expectException(\RuntimeException::class); $master->patient(100);
+        } finally {$platform->close();}
+    }
     protected $db;
     private string $root;
     private string $oldKey;

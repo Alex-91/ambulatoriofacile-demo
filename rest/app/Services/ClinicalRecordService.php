@@ -16,7 +16,7 @@ class ClinicalRecordService
     {
         if ($tenantId <= 0 || $userId <= 0) throw new \InvalidArgumentException('Contesto clinico non valido.');
         $this->vault ??= new ClinicalVault($tenantId);
-        $this->access = new ClinicalAccessPolicy($db, $userId);
+        $this->access = new ClinicalAccessPolicy($db, $userId, $tenantId);
     }
     public function ready(): bool
     {
@@ -30,7 +30,7 @@ class ClinicalRecordService
     {
         $this->assertReady();
         $actor = $this->access->assertPatient($patientId, false);
-        $clinical = $actor['role'] !== 3;
+        $clinical = in_array($actor['role'],[1,2],true);
         $shared = $this->shared($patientId);
         $this->audit($patientId, $clinical ? 'chart_viewed' : 'consents_viewed', (string) $patientId);
         $page = max(1, $page);

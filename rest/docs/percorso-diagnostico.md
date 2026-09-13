@@ -1,7 +1,6 @@
 # Percorso diagnostico: agenda, accettazione, immagini e referto
 
-Implementazione sul branch `codex/percorso-diagnostico`, a partire dal rilascio
-`40dda46f`. Questa estensione non è ancora pubblicata in produzione.
+Percorso diagnostico pubblicato su demo e login con il rilascio `2bc54ea0`.
 
 ## Utilizzo
 
@@ -51,6 +50,21 @@ e il paziente è ricontrollata nelle azioni. Utenti inattivi sono respinti.
 L'abilitazione resta `pacs_dicom` insieme a `clinical_records`, gestita dal
 super amministratore: niente nuova attivazione implicita. Menu e API rispettano
 l'abilitazione; nessun ruolo amministrativo scavalca i permessi clinici.
+
+### Master dello spazio: gestione operativa
+
+Il master con profilo amministrativo può aprire la gestione dei consensi di tutti
+i pazienti del proprio spazio, pubblicare i modelli, archiviare le prove dei
+consensi e consultarne lo storico. Non riceve documenti, allegati clinici o referti
+FSE. Compilazione, finalizzazione e firma restano riservate ai professionisti.
+
+La lista diagnostica del master comprende le richieste confermate dei medici
+attivi dello spazio. Il master registra l'accettazione; avvio ed esecuzione
+restano a medici e infermieri, immagini e referti ai profili clinici autorizzati.
+Le operazioni sono attribuite all'account master nell'audit, senza impersonare
+un medico. Il ruolo è verificato a ogni operazione tramite l'associazione attiva
+e accettata tra account e tenant; i flag amministratore di sessione non bastano.
+La modifica non abilita moduli e non cambia account o ruoli professionali.
 
 ## Integrità e concorrenza
 
