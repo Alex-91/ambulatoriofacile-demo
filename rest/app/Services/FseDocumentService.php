@@ -166,6 +166,7 @@ class FseDocumentService
             'gateway_state' => null, 'gateway_http_status' => null, 'last_gateway_message' => null,
             'last_response_json' => null, 'validated_at' => null, 'updated_by' => $userId > 0 ? $userId : null,
         ];
+        $id = FseLocalPersistenceService::write($db, function () use ($current, $record, $userId, $documents, $db, $id, $audit): int {
         if (!$current) {
             $record['created_by'] = $userId > 0 ? $userId : null;
             $id = (int) $documents->insert($record);
@@ -179,7 +180,9 @@ class FseDocumentService
         if ($id <= 0) {
             throw new \RuntimeException('Salvataggio referto FSE non riuscito.');
         }
-        $audit->record($id, 'draft_saved', 'Bozza clinica FSE salvata.', [], $userId);
+        $audit->record($id, 'draft_saved', 'Bozza clinica FSE salvata.', [], $userId, required: true);
+        return $id;
+        });
         return $this->editableDocument($documents->find($id) ?? []);
     }
 
@@ -220,9 +223,13 @@ class FseDocumentService
             throw new \RuntimeException('Il CDA generato non è XML valido.');
         }
         $pdf = $this->pdf->build($cda, $data);
-        $cdaPath = $this->storage->store($tenantId, $documentId, 'cda.xml', $cda);
-        $pdfPath = $this->storage->store($tenantId, $documentId, 'referto-da-firmare.pdf', $pdf);
-        $documents->update($documentId, [
+        // A failed DB commit must not overwrite the bytes referenced by an
+        // earlier successful preparation. Unreferenced attempts remain private.
+        $attempt = bin2hex(random_bytes(16));
+        $cdaPath = $this->storage->store($tenantId, $documentId, 'cda-' . $attempt . '.xml', $cda);
+        $pdfPath = $this->storage->store($tenantId, $documentId, 'referto-da-firmare-' . $attempt . '.pdf', $pdf);
+        FseLocalPersistenceService::write($context['db'], function () use ($documents, $documentId, $cdaPath, $cda, $data, $pdfPath, $pdf, $userId, $audit): void {
+        if (!$documents->update($documentId, [
             'local_state' => 'ready_to_validate', 'cda_path' => $cdaPath, 'cda_sha256' => hash('sha256', $cda),
             'document_oid_root' => $data['document_oid_root'], 'edit_token' => bin2hex(random_bytes(16)),
             'unsigned_pdf_path' => $pdfPath, 'unsigned_pdf_sha256' => hash('sha256', $pdf), 'updated_by' => $userId ?: null,
@@ -230,8 +237,9 @@ class FseDocumentService
             'signed_pdf_path' => null, 'signed_pdf_sha256' => null,
             'workflow_instance_id' => null, 'trace_id' => null, 'span_id' => null,
             'gateway_state' => null, 'gateway_http_status' => null, 'last_gateway_message' => null, 'last_response_json' => null,
-        ]);
-        $audit->record($documentId, 'artifacts_prepared', 'CDA RSA e PDF con CDA allegato generati; firma PAdES richiesta.', ['cda_sha256' => hash('sha256', $cda), 'pdf_sha256' => hash('sha256', $pdf)], $userId);
+        ])) throw new \RuntimeException('Aggiornamento degli artefatti FSE non riuscito.');
+        $audit->record($documentId, 'artifacts_prepared', 'CDA RSA e PDF con CDA allegato generati; firma PAdES richiesta.', ['cda_sha256' => hash('sha256', $cda), 'pdf_sha256' => hash('sha256', $pdf)], $userId, required: true);
+        });
         } catch (\Throwable $e) {
             $context['db']->table('fse_documents')->where('id_fse_document', $documentId)->where('local_state', 'preparing')->update(['local_state' => $previousState]);
             throw $e;
@@ -263,9 +271,13 @@ class FseDocumentService
         $cda = $this->validation->storedArtifact($tenantId, $documentId, $document, 'cda');
         $unsigned = $this->validation->storedArtifact($tenantId, $documentId, $document, 'unsigned_pdf');
         $evidence = $this->validation->check($cda, $contents, $unsigned, $this->dec((string) ($document['author_cf_enc'] ?? '')));
-        $path = $this->storage->store($tenantId, $documentId, 'referto-firmato.pdf', $contents);
-        $documents->update($documentId, ['local_state' => 'signed', 'signed_pdf_path' => $path, 'signed_pdf_sha256' => hash('sha256', $contents), 'updated_by' => $userId ?: null]);
-        $audit->record($documentId, 'signed_pdf_uploaded', 'PDF acquisito dopo controlli CDA, PDF/A, firma e identità del firmatario.', $evidence, $userId);
+        $path = $this->storage->store($tenantId, $documentId, 'referto-firmato-' . bin2hex(random_bytes(16)) . '.pdf', $contents);
+        FseLocalPersistenceService::write($context['db'], function () use ($documents, $documentId, $path, $contents, $userId, $audit, $evidence): void {
+        if (!$documents->update($documentId, ['local_state' => 'signed', 'signed_pdf_path' => $path, 'signed_pdf_sha256' => hash('sha256', $contents), 'updated_by' => $userId ?: null])) {
+            throw new \RuntimeException('Aggiornamento della firma FSE non riuscito.');
+        }
+        $audit->record($documentId, 'signed_pdf_uploaded', 'PDF acquisito dopo controlli CDA, PDF/A, firma e identità del firmatario.', $evidence, $userId, required: true);
+        });
         } catch (\Throwable $e) {
             $context['db']->table('fse_documents')->where('id_fse_document', $documentId)->where('local_state', 'checking_signature')->update(['local_state' => $signingState]);
             throw $e;

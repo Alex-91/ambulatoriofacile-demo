@@ -47,17 +47,15 @@ class FseRevisionService
         $row['revision_reason_enc'] = $this->secrets->encrypt($reason);
         $row['edit_token'] = bin2hex(random_bytes(16));
         $row['created_by'] = $row['updated_by'] = $userId ?: null;
-        $db->transBegin();
         try {
+            return FseLocalPersistenceService::write($db, function () use ($context, $row, $sourceId, $userId): int {
             $id = (int) $context['documents']->insert($row);
             if ($id <= 0) throw new \RuntimeException('Creazione revisione non riuscita.');
             $context['audit']->record($id, 'revision_created', 'Creata correzione locale: originale conservato, nessuna sostituzione sul FSE.',
-                ['previous_document_id' => $sourceId, 'version_number' => $row['version_number']], $userId);
-            if (!$db->transStatus()) throw new \RuntimeException('Creazione revisione non riuscita.');
-            $db->transCommit();
+                ['previous_document_id' => $sourceId, 'version_number' => $row['version_number']], $userId, required: true);
             return $id;
+            });
         } catch (\Throwable $e) {
-            $db->transRollback();
             // A concurrent request may have won the unique predecessor constraint.
             $existing = $db->table('fse_documents')->select('id_fse_document')->where('previous_document_id', $sourceId)->get()->getRowArray();
             if ($existing) return (int) $existing['id_fse_document'];

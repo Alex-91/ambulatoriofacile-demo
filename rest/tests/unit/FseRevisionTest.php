@@ -189,4 +189,21 @@ final class FseRevisionTest extends CIUnitTestCase
         $this->assertSame($original, $this->contextsByTenant[42]['documents']->find($original['id_fse_document']));
         $this->assertArrayHasKey('uq_fse_previous_document', $this->contextsByTenant[42]['db']->getIndexData('fse_documents'));
     }
+
+    public function testMissingRevisionAuditRollsBackChildWithoutChangingOriginal(): void
+    {
+        $original=$this->original();
+        $db=$this->contextsByTenant[42]['db'];
+        $events=$this->getMockBuilder(FseDocumentEventModel::class)->setConstructorArgs([$db])->onlyMethods(['insert'])->getMock();
+        $events->method('insert')->willReturn(false);
+        $this->contextsByTenant[42]['audit']=new FseAuditService($events);
+        try {
+            $this->revisions()->create(42,(int)$original['id_fse_document'],'Synthetic correction',1);
+            $this->fail('Revision without audit accepted');
+        } catch (\RuntimeException $e) {
+            $this->assertStringContainsString('nessun originale',$e->getMessage());
+        }
+        $this->assertSame(1,$this->contextsByTenant[42]['documents']->countAllResults());
+        $this->assertSame($original,$this->contextsByTenant[42]['documents']->find($original['id_fse_document']));
+    }
 }
