@@ -73,6 +73,21 @@ registrata nel risultato.
 
 ## Preview delle viste
 
+## Preflight MySQL sintetico
+
+`prepare-mysql-lab.py` genera un MySQL dedicato con credenziali casuali, server_id
+univoco, database `af_pacs_synthetic`, tmpfs e `network_mode: none`.
+Avviare solo il compose generato, con il nome progetto restituito. In un runtime PHP
+Linux temporaneo con mysqli, montare il repository in sola lettura e usare
+`--network container:NOME_MYSQL_APPENA_CREATO`.
+Impostare `PACS_MYSQL_LAB=/workspace/rest/writable/pacs-mysql-labs/RUN_ID` ed eseguire
+`php ops/pacs-validation/mysql-smoke.php`. Il test controlla server_id e database,
+richiede lo schema vuoto, usa le migration reali e quattro processi concorrenti.
+Non legge .env e non permette host o nomi database arbitrari. Fermare il solo
+container creato al termine; conservare stdout come evidenza dell'esito.
+
+## Preview delle viste
+
 `php ops/pacs-validation/render-preview.php` genera sette pagine HTML sintetiche in
 `rest/writable/pacs-preview`. Servire solo quella directory su loopback, ad esempio
 porta 18486, e chiudere il server al termine. Non servire la root del laboratorio:

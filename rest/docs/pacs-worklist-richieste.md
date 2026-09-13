@@ -97,9 +97,13 @@ live modificato e nessun rilascio effettuato.
   dell'anagrafica nella transazione e visualizzazione dell'identità nella richiesta,
   riverificati nella suite finale, compreso un cambio anagrafico durante l'export.
 - Regressione clinica/agenda: **49 test / 222 asserzioni**, nessun errore.
-- I test applicativi usano SQLite sintetico. Il locking MySQL e il comando di
-  migrazione vanno collaudati anche nell'ambiente test dedicato prima del rilascio;
-  non è stata eseguita una prova su database live.
+- I test unitari usano SQLite sintetico. Il successivo preflight MySQL 8.4.11
+  del 13 settembre ha verificato le due migration ripetute, anagrafica cifrata,
+  creazione/conferma/export/annullamento, rollback su errore audit, revoca modulo
+  e isolamento tenant. Quattro processi PHP separati, due export e due annullamenti
+  sulla stessa revisione, hanno prodotto un solo esito accettato e un solo incremento.
+  Laboratorio `af-pacs-mysql-ddd16a0066b9`, senza rete esterna né porte pubblicate,
+  arrestato al termine. Nessun database live usato per le prove.
 - DCMTK indipendente: parsing del file, nome UTF-8, PatientID/Issuer, accession,
   StudyInstanceUID, codifica e orari. C-FIND reale con risultato corretto; filtri
   per modalità, data e stazione; rifiuto di AE sconosciuta e AE destinataria errata.
