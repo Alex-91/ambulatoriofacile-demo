@@ -100,7 +100,10 @@ class FseArtifactValidationService
         $job['settings'] = $this->config->validatorSettings;
         $jobs = new FseValidationJobs();
         $slot = $jobs->acquire($this->config->validatorMaxConcurrent);
-        try { $active = $jobs->create(); }
+        try {
+            FseValidationJobs::assertAvailableMemory($this->config->validatorMinAvailableMiB);
+            $active = $jobs->create();
+        }
         catch (\Throwable $e) { FseValidationJobs::release($slot); throw $e; }
         $directory = $active['directory'];
         $paths = [$directory . '/input.json', $directory . '/output.json', $directory . '/stderr.txt'];

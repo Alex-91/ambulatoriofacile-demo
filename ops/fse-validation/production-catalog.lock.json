@@ -1,0 +1,20 @@
+{
+  "repository": "ministero-salute/it-fse-catalogs",
+  "revision": "687cf371e1d0caf4f5f9f7bcc80eab3a97f09885",
+  "xsd": "schema/POCD_MT000040UV02/CDA.xsd",
+  "schematron": "schematron/schematron_RSA_v8.3.sch",
+  "files": {
+    "schema/POCD_MT000040UV02/CDA.xsd": "096473d85ac35d710e1eb4e7635d6d0eb5b59e597a77fb0ce0300a57c2638143",
+    "schema/POCD_MT000040UV02/NarrativeBlock.xsd": "4505247c907dc7907bfad2f31b7ec33232dd4fe3aa05bd6448e6452d027c2809",
+    "schema/POCD_MT000040UV02/POCD_MT000040UV02.xsd": "692b40a4ae7b73b9b95f65836e139872885d04abab8a0caa1637f0a538591f9a",
+    "schema/POCD_MT000040UV02/datatypes-base.xsd": "d27310c006014d303e1f5e1f94aac0060368a8f87710b81b9f5095a9f6c17d01",
+    "schema/POCD_MT000040UV02/datatypes-rX-cs.xsd": "116a525eb4893f1bfc16287b5575c9522e270da908a936d9285aed8266097b60",
+    "schema/POCD_MT000040UV02/datatypes.xsd": "00f0257241787cd1ecedac8993501d99c2c01023bfb35b1d9b1b7418b3aa172b",
+    "schema/POCD_MT000040UV02/infrastructureRoot.xsd": "0a648e01c7b29a367403a0c4d61afe001cf18afb00cac0c49ada754d93c66eb6",
+    "schema/POCD_MT000040UV02/labExtension_1.2_gen.xsd": "c612e50211d0c201964e85784ddaab1b402b705f7a0d6a63b3699fec6bc20b6b",
+    "schema/POCD_MT000040UV02/pharmExtension.xsd": "c3cb9c7d82fcab54218111dc82b9e8a9d559028dcf8207c09d81933af470188f",
+    "schema/POCD_MT000040UV02/sdtcExtension.xsd": "1ed50342e8f7fc0f32bea0410c6ae751b49f846a804bb0a99f1e55c27197a073",
+    "schema/POCD_MT000040UV02/voc.xsd": "6f4cd8a02b89f4dcd2e8b451e7bb74cab4c09d205e05a2252385f1d00e05985a",
+    "schematron/schematron_RSA_v8.3.sch": "5365afe57b8fc241ce27c53f89b876ffb804e7fa790a39b40c53e4a87592569e"
+  }
+}

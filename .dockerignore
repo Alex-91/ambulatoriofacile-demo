@@ -28,6 +28,12 @@ rest/build
 ops/fse-validation/**
 !ops/fse-validation/validator.py
 !ops/fse-validation/requirements.lock.txt
+!ops/fse-validation/install-runtime.py
+!ops/fse-validation/production-catalog.lock.json
+!ops/fse-validation/verapdf-install.xml
+!ops/fse-validation/settings.example.json
+!ops/fse-validation/requirements-linux.lock.txt
+!ops/fse-validation/runtime-self-test.php
 ops/*.local.json
 ops/*.local.*
 **/*-private.key

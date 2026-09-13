@@ -7,6 +7,32 @@ final class FseValidationJobs
 {
     private string $root;
 
+    /** Admission guard, not a reservation or an OS memory limit. No payload exists yet. */
+    public static function assertAvailableMemory(int $minimumMiB): void
+    {
+        if ($minimumMiB <= 0) return; // Legacy/Windows development; enabled in the Linux image.
+        $meminfo = @file_get_contents('/proc/meminfo');
+        $limit = @file_get_contents('/sys/fs/cgroup/memory.max');
+        $usage = @file_get_contents('/sys/fs/cgroup/memory.current');
+        $available = self::availableMemoryMiB($meminfo, $limit, $usage);
+        if ($available === null || $available < $minimumMiB) {
+            throw new \RuntimeException('Risorse temporaneamente insufficienti per il controllo FSE: riprovare più tardi. Nessun invio eseguito.');
+        }
+    }
+
+    /** cgroup v2 plus host headroom; missing/invalid measurements fail closed. */
+    public static function availableMemoryMiB($meminfo, $limit, $usage): ?float
+    {
+        if (!is_string($meminfo) || !preg_match('/^MemAvailable:\s+([0-9]+) kB\s*$/m', $meminfo, $match)
+            || !is_string($limit) || !is_string($usage)
+            || !preg_match('/^[0-9]{1,20}$/D', trim($usage))) return null;
+        $available = (float) $match[1] / 1024;
+        $limit = trim($limit);
+        if ($limit === 'max') return $available;
+        if (!preg_match('/^[0-9]{1,20}$/D', $limit)) return null;
+        return max(0.0, min($available, ((float) $limit - (float) trim($usage)) / 1048576));
+    }
+
     public function __construct(?string $root = null)
     {
         $base = realpath(WRITEPATH);

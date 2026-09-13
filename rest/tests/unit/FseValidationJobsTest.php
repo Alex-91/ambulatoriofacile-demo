@@ -8,6 +8,17 @@ final class FseValidationJobsTest extends CIUnitTestCase
 {
     private string $root;
     private FseValidationJobs $jobs;
+    public function testMemoryAdmissionUsesBothHostAndContainerHeadroom(): void
+    {
+        $this->assertSame(1024.0, FseValidationJobs::availableMemoryMiB("MemAvailable: 1048576 kB\n", 'max', '100'));
+        $this->assertSame(512.0, FseValidationJobs::availableMemoryMiB("MemAvailable: 1048576 kB\n", '1073741824', '536870912'));
+        $this->assertSame(0.0, FseValidationJobs::availableMemoryMiB("MemAvailable: 1048576 kB\n", '10', '20'));
+        $this->assertNull(FseValidationJobs::availableMemoryMiB(false, 'max', '0'));
+        $this->assertNull(FseValidationJobs::availableMemoryMiB("MemAvailable: 1 kB\n", false, '0'));
+        $this->assertNull(FseValidationJobs::availableMemoryMiB("MemAvailable: 1 kB\n", 'max', 'unknown'));
+        $this->assertNull(FseValidationJobs::availableMemoryMiB("MemAvailable: 1 kB\n", 'unknown', '0'));
+        $this->assertNull(FseValidationJobs::availableMemoryMiB("MemAvailable: -1 kB\n", 'max', '0'));
+    }
     protected function setUp(): void
     {
         parent::setUp();
