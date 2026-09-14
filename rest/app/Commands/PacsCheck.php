@@ -18,10 +18,7 @@ class PacsCheck extends BaseCommand
             if (!$rows) { CLI::write('Nessun collegamento configurato.'); return EXIT_ERROR; }
             $ok=true;
             foreach ($rows as $p) {
-                $ready=true;
-                foreach ($p['auth']==='basic' ? ['username_env','password_env'] : ($p['auth']==='bearer' ? ['token_env'] : []) as $k) {
-                    if (!getenv($p[$k])) $ready=false;
-                }
+                $ready=PacsProfiles::credentialsReady($p);
                 $ok=$ok && $ready;
                 CLI::write($p['id'].': '.($p['enabled'] ? 'attivo' : 'disattivo').' · credenziali '.($ready ? 'presenti/non richieste' : 'da configurare'));
             }

@@ -1,11 +1,27 @@
 <?php
 namespace App\Services\Pacs;
 
-/** Operator-provisioned private configuration. Credentials are environment references, never browser input. */
+/** Server profiles coexist with tenant-scoped encrypted profiles managed by the master. */
 class PacsProfiles
 {
-    public function __construct(private ?array $configuration = null) {}
+    public function __construct(private ?array $configuration = null,private ?\CodeIgniter\Database\BaseConnection $db=null) {}
     public function forTenant(int $tenantId): array
+    {
+        $profiles=$this->serverForTenant($tenantId);
+        if ($this->configuration!==null) return $profiles;
+        $db=$this->db;
+        if (!$db) {
+            $tenant=(new \App\Services\TenantCatalogService())->getTenantById($tenantId);
+            if (!$tenant || empty($tenant['is_active'])) throw new PacsException('Spazio PACS non disponibile.');
+            $db=(new \App\Services\TenantDatabaseConnector())->connect($tenant);
+        }
+        foreach ((new PacsManagedProfiles($db,$tenantId))->all() as $id=>$p) {
+            if (isset($profiles[$id])) throw new PacsException('Identificativo PACS duplicato tra server e spazio. Contattare l’assistenza.');
+            $profiles[$id]=$p;
+        }
+        return $profiles;
+    }
+    public function serverForTenant(int $tenantId): array
     {
         if ($tenantId <= 0) throw new PacsException('Spazio PACS non valido.');
         $config = $this->configuration;
@@ -59,6 +75,19 @@ class PacsProfiles
             $profiles[$id] = $row;
         }
         return $profiles;
+    }
+    public static function credential(array $profile,string $key): string
+    {
+        $value=isset($profile['credentials']) ? ($profile['credentials'][$key] ?? '') : getenv($profile[$key.'_env'] ?? '');
+        if (!is_string($value) || $value==='' || preg_match('/[\r\n\x00]/',$value)) throw new PacsException('Credenziali PACS non configurate.');
+        return $value;
+    }
+    public static function credentialsReady(array $profile): bool
+    {
+        try {
+            foreach ($profile['auth']==='basic' ? ['username','password'] : ($profile['auth']==='bearer' ? ['token'] : []) as $key) self::credential($profile,$key);
+            return true;
+        } catch (\Throwable) { return false; }
     }
     public function get(int $tenantId, string $id): array
     {

@@ -73,6 +73,7 @@ class SpaceFeatures extends BaseController
             'tenantContext' => $context,
             'featureStates' => (new TenantFeatureService())->listFeatureStatesForTenant($context->tenantId),
             'billingWorkspaceAccessible' => $billingFeatureService->isEnabledForContext($context),
+            'clinicalSetupAccessible' => (new \App\Services\ClinicalFeatureService())->isEnabledForTenant($context->tenantId),
             'tsConfigurationAccessible' => $tsFeatureService->isEnabledForContext($context)
                 || $tsFeatureService->allowsLocalTestingBypass($context),
             'agendaAppointmentBlockLayoutSettings' => $agendaAppointmentBlockLayoutSettings,

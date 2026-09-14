@@ -18,11 +18,7 @@ final class PacsDiagnostics
         } catch (\Throwable) { $encryption=false; }
         $rows=[];
         foreach ($this->profiles->forTenant($tenantId) as $p) {
-            $credentials=true;
-            foreach ($p['auth']==='basic' ? ['username_env','password_env'] : ($p['auth']==='bearer' ? ['token_env'] : []) as $key) {
-                $value=getenv($p[$key]);
-                if (!is_string($value) || $value==='' || preg_match('/[\r\n\x00]/',$value)) $credentials=false;
-            }
+            $credentials=PacsProfiles::credentialsReady($p);
             $rows[]=['id'=>$p['id'],'label'=>$p['label'],'enabled'=>$p['enabled'],'credentials'=>$credentials,
                 'download'=>$p['download_enabled'],'viewer'=>$p['viewer_url']!==''];
         }

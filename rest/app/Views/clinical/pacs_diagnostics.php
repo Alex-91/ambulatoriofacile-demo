@@ -2,6 +2,7 @@
 <style>body{margin:0;background:#f3f6f8;color:#193345;font:16px/1.6 system-ui}main{max-width:920px;margin:auto;padding:24px}section{background:white;border:1px solid #dce5e9;border-radius:12px;padding:24px;margin:20px 0}h1{line-height:1.2}h2{font-size:21px}a{color:#086f75}button{background:#086f75;color:white;border:0;border-radius:6px;padding:12px 18px;font:inherit;cursor:pointer}button:disabled{opacity:.5;cursor:default}.ok{color:#136344}.problem{color:#953f0b}dt{font-weight:600}dd{margin:0 0 12px}button:focus-visible,a:focus-visible{outline:3px solid #e69f35;outline-offset:3px}</style></head><body><main>
 <a href="<?= site_url('cartella-clinica/diagnostica') ?>">← Lista diagnostica</a><h1>Verifica collegamenti PACS</h1><p><?= esc($tenant['tenant_name']) ?></p>
 <p>Controlla la preparazione dello spazio e prova la connessione al PACS configurato. La prova usa un identificativo tecnico casuale e non cerca pazienti reali.</p>
+<p><a href="<?= site_url('cartella-clinica/configurazione') ?>">Prepara lo spazio e configura i collegamenti</a></p>
 <section><h2>1. Preparazione dello spazio</h2><dl>
 <dt>Archivio richieste e immagini</dt><dd class="<?= $status['schema'] ? 'ok':'problem' ?>"><?= $status['schema'] ? 'Pronto':'Da inizializzare: contattare l’assistenza.' ?></dd>
 <dt>Cifratura dei collegamenti</dt><dd class="<?= $status['encryption'] ? 'ok':'problem' ?>"><?= $status['encryption'] ? 'Verificata':'Non disponibile: contattare l’assistenza.' ?></dd></dl></section>

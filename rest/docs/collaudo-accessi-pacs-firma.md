@@ -23,7 +23,7 @@ Il master apre **Lista diagnostica → Verifica collegamenti PACS**. Sono richie
 
 Il pulsante invia una richiesta QIDO al solo profilo configurato per lo spazio. Usa un identificativo tecnico casuale, limite 1 e risposta limitata a 8 KiB. Accetta solamente una risposta vuota compatibile; risposte contenenti dati non sono esposte né memorizzate. Mantiene i controlli HTTPS, DNS pubblico, timeout e divieto di redirect del trasporto ordinario. I controlli GET non generano traffico verso il PACS.
 
-La verifica QIDO non dichiara riusciti WADO, visualizzatore, MWL o MPPS. Questi passaggi richiedono un esame sintetico concordato col fornitore. La pagina propone il percorso da seguire; non consente inserimento libero di host o credenziali.
+La verifica QIDO non dichiara riusciti WADO, visualizzatore, MWL o MPPS. Questi passaggi richiedono un esame sintetico concordato col fornitore. Dalla pagina il master può aprire la [preparazione guidata](preparazione-moduli-clinici.md), che consente di inizializzare lo spazio e salvare profili DICOMweb cifrati. Le prove utilizzano soltanto profili già configurati.
 
 ## Prove ripetibili senza cliente
 
