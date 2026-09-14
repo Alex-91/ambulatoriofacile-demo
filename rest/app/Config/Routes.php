@@ -410,6 +410,7 @@ $routes->get('personale/modifica_personale', 'PersonaleEdit::index');
 $routes->get('personale/search', 'PersonaleEdit::search');      // AJAX
 $routes->get('personale/get/(:num)', 'PersonaleEdit::get/$1');  // AJAX
 $routes->post('personale/update', 'PersonaleEdit::update');     // POST
+$routes->post('personale/disattiva', 'PersonaleEdit::disableAccess');
 $routes->post('personale/elimina-account', 'PersonaleEdit::deletePersonnel');
 $routes->post('personale/elimina-dottore', 'PersonaleEdit::deleteDoctor');
 $routes->get('personale/logs', 'Logs::index');
@@ -594,6 +595,8 @@ $routes->post('cartella-clinica/pazienti/(:num)/pacs/richieste/(:segment)/refert
 $routes->post('cartella-clinica/pazienti/(:num)/pacs/cerca', 'PacsController::search/$1');
 $routes->post('cartella-clinica/pazienti/(:num)/pacs/identita', 'PacsController::bind/$1');
 $routes->post('cartella-clinica/pazienti/(:num)/pacs/disabilita', 'PacsController::unbind/$1');
+$routes->get('cartella-clinica/diagnostica/collegamenti', 'PacsDiagnosticsController::index');
+$routes->post('cartella-clinica/diagnostica/collegamenti', 'PacsDiagnosticsController::index');
 $routes->post('cartella-clinica/pazienti/(:num)/pacs/collega', 'PacsController::link/$1');
 $routes->post('cartella-clinica/pazienti/(:num)/pacs/scollega', 'PacsController::unlink/$1');
 $routes->get('cartella-clinica/pazienti/(:num)/pacs/studi/(:segment)', 'PacsController::study/$1/$2');

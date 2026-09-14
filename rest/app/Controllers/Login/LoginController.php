@@ -678,6 +678,8 @@ session()->remove(\App\Services\PlatformAccessService::SESSION_KEY_PENDING_PASSW
         // Verifica se l'utente è stato trovato
 
         if ($user) {
+            try { \App\Services\PersonnelAccessService::assertLoginAllowed($db,(int)$user['id_user']); }
+            catch (\RuntimeException) { return $this->response->setJSON(['resp'=>'KO','success'=>false,'message'=>'Account non disponibile.']); }
            
             session()->set('userId', $user['id_user']);
             session()->set('username', $user['username']);
@@ -701,6 +703,8 @@ session()->remove(\App\Services\PlatformAccessService::SESSION_KEY_PENDING_PASSW
                     
                     if($user_host)
                     {
+                        try { \App\Services\PersonnelAccessService::assertLoginAllowed($db,(int)$user_host['id_user']); }
+                        catch (\RuntimeException) { session()->destroy(); return $this->response->setJSON(['resp'=>'KO','success'=>false,'message'=>'Account non disponibile.']); }
                         session()->set('isLoggedIn', true);
                         session()->set('userId', $user_host['id_user']);
                         session()->set('username', $user_host['username']);

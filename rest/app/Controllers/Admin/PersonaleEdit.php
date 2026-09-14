@@ -28,6 +28,7 @@ class PersonaleEdit extends BaseController
 
     public function index()
     {
+        helper('form');
         if ($redirect = $this->guardAdmin()) {
             return $redirect;
         }
@@ -149,6 +150,7 @@ class PersonaleEdit extends BaseController
 
         $payload = [
             'ok' => true,
+            'access' => $this->accessStatus((int)($p['id_user'] ?? 0)),
             'personale' => $p,
             'user' => $userRow ? [
                 'id_user' => (int)$userRow['id_user'],
@@ -311,6 +313,40 @@ if ($datascadenza !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $datascadenza))
         return redirect()->back()->with('errors', [
             'generic' => 'Errore salvataggio: personale='.(int)$okPers.', user='.(int)$okUser.', app_admin='.(int)$okAppAdmin.', abbinamenti='.(int)$okLinks
         ]);
+    }
+
+    private function accessContext(): array
+    {
+        $catalog=new \App\Services\TenantCatalogService();
+        $context=(new \App\Services\TenantContextService($catalog))->getCurrentTenant();
+        if (!$context || $context->tenantId<=0) throw new \RuntimeException('Selezionare lo spazio.');
+        $tenant=$catalog->getTenantById($context->tenantId);
+        if (!$tenant || empty($tenant['is_active'])) throw new \RuntimeException('Spazio non disponibile.');
+        $db=(new \App\Services\TenantDatabaseConnector())->connect($tenant);
+        return [$db,$context->tenantId];
+    }
+    private function accessStatus(int $userId): array
+    {
+        try {
+            [$db,$tenantId]=$this->accessContext();
+            $actor=(int)(session()->get('utente_sess')->id_user ?? 0);
+            $master=(new \App\Services\ClinicalAccessPolicy($db,$actor,$tenantId))->actor()['role']===4;
+            return ['available'=>$master && $db->tableExists('personnel_access_blocks'),
+                'blocked'=>(new \App\Services\PersonnelAccessService($db,$tenantId))->blocked($userId)];
+        } catch (\Throwable) { return ['available'=>false,'blocked'=>false]; }
+    }
+    public function disableAccess()
+    {
+        if ($redirect=$this->guardAdmin()) return $redirect;
+        try {
+            if (strtoupper($this->request->getMethod())!=='POST') throw new \RuntimeException('Metodo non consentito.');
+            [$db,$tenantId]=$this->accessContext();
+            (new \App\Services\PersonnelAccessService($db,$tenantId))->disable(
+                (int)(session()->get('utente_sess')->id_user ?? 0),(int)$this->request->getPost('id_personale'));
+            return redirect()->to(site_url('admin/personale/modifica_personale'))->with('success','Account disattivato. Nuovi accessi bloccati; le sessioni aperte vengono interrotte alla richiesta successiva. Documenti e pazienti sono conservati.');
+        } catch (\Throwable $e) {
+            return redirect()->to(site_url('admin/personale/modifica_personale'))->with('errors',['generic'=>$e instanceof \RuntimeException ? $e->getMessage() : 'Disattivazione non completata.']);
+        }
     }
 
     public function deleteDoctor()

@@ -8,6 +8,7 @@ $pageUrl=static fn($page)=>$url.'?'.http_build_query(['date'=>$queue['date'],'co
 <header><a href="<?= site_url('agenda/gestione-pazienti') ?>">← Pazienti</a><h1>Lista diagnostica</h1><p><?= esc($tenant['tenant_name'] ?? '') ?> · Accettazione e avanzamento degli esami</p></header><main>
 <?php if(session()->getFlashdata('success')): ?><div class="notice" role="status"><?= esc(session()->getFlashdata('success')) ?></div><?php endif ?>
 <form class="card actions" method="get" action="<?= $url ?>"><label>Giorno<input type="date" name="date" value="<?= esc($queue['date'],'attr') ?>" required></label><label><input type="checkbox" name="completed" value="1" <?= $queue['completed'] ? 'checked' : '' ?>> Includi eseguiti</label><button>Mostra esami</button></form>
+<?php if($queue['role']===4): ?><p><a href="<?= site_url('cartella-clinica/diagnostica/collegamenti') ?>">Verifica collegamenti PACS</a></p><?php endif ?>
 <p><small>L’avanzamento registra le operazioni della struttura. Lo stato del referto si consulta nella richiesta.</small></p>
 <?php if($queue['role']===4): ?><p class="notice">Puoi consultare le richieste dello spazio e registrare l’accettazione. Esecuzione dell’esame e refertazione restano ai professionisti abilitati.</p><?php endif ?>
 <?php if(!$queue['rows']): ?><section class="card"><h2>Nessun esame in questa vista</h2><p><?= $queue['role']===4 ? 'La lista mostra le richieste confermate dei medici dello spazio.' : 'La lista mostra le richieste confermate dei medici a cui sei assegnato.' ?></p></section><?php endif ?>
