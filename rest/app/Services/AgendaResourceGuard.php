@@ -13,10 +13,10 @@ final class AgendaResourceGuard
         $day=(string)$slot['data_slot'];
         if ($start >= $end) throw new \RuntimeException('Intervallo appuntamento non valido.');
         $room=$this->db->fieldExists('id_stanza','dap11_agenda_slot') ? (int)($slot['id_stanza'] ?? 0) : 0;
-        // All overlapping resource slots are locked in the same order. Two doctors
-        // booking one room therefore contend for the same rows, not only their own slot.
+        // Room assignments are legacy agenda labels, not exclusive resources.
+        // Different professionals may intentionally share the same room label.
+        // Serialize overlapping bookings for the selected doctor only.
         $resource='id_dot = ?';$resourceParams=[$doctorId];
-        if ($room>0) { $resource.=' OR id_stanza = ?';$resourceParams[]=$room; }
         $locking=$this->db->DBDriver==='MySQLi' ? ' FOR UPDATE' : '';
         $this->db->query('SELECT id_slot FROM dap11_agenda_slot WHERE data_slot = ? AND ora_inizio < ? AND ora_fine > ? AND ('.$resource.') ORDER BY id_slot'.$locking,
             array_merge([$day,$end,$start],$resourceParams))->getResultArray();
@@ -30,7 +30,6 @@ final class AgendaResourceGuard
         $aStart=$this->db->fieldExists('ora_inizio_appuntamento','dap12_agenda_appuntamenti') ? 'COALESCE(a.ora_inizio_appuntamento,s.ora_inizio)' : 's.ora_inizio';
         $aEnd=$this->db->fieldExists('ora_fine_appuntamento','dap12_agenda_appuntamenti') ? 'COALESCE(a.ora_fine_appuntamento,s.ora_fine)' : 's.ora_fine';
         $scope='a.id_dot = ?';$params=[$day,$end,$start,$doctorId];
-        if ($room>0) { $scope.=' OR s.id_stanza = ?';$params[]=$room; }
         $params[]=$ignoreAppointment;
         // A locking read sees the transaction that just released the resource lock,
         // even on MySQL REPEATABLE READ after earlier planning reads.
