@@ -264,6 +264,10 @@ class TenantFeatureService
     private function platformCoreFeatureDefinitions(): array
     {
         return [
+            'admin_quotes' => ['feature_name'=>'Preventivi e listini','feature_scope'=>'billing','description'=>'Listini e preventivi con prezzi storicizzati. Richiede Fatturazione.','default_enabled'=>0,'icon_class'=>'fa-calculator','is_tenant_managed'=>0,'tenant_default_enabled'=>0,'sort_order'=>150],
+            'admin_payers' => ['feature_name'=>'Convenzioni, assicurazioni e fondi','feature_scope'=>'billing','description'=>'Pratiche e registro incassi. Richiede Fatturazione e Preventivi. Invii esterni esclusi.','default_enabled'=>0,'icon_class'=>'fa-calculator','is_tenant_managed'=>0,'tenant_default_enabled'=>0,'sort_order'=>151],
+            'admin_compensation' => ['feature_name'=>'Spettanze professionisti','feature_scope'=>'billing','description'=>'Calcolo e registro dei compensi sulle fatture. Richiede Fatturazione.','default_enabled'=>0,'icon_class'=>'fa-calculator','is_tenant_managed'=>0,'tenant_default_enabled'=>0,'sort_order'=>152],
+            'admin_ssn' => ['feature_name'=>'Registro amministrativo SSN','feature_scope'=>'billing','description'=>'Registro interno prescrizioni, ticket e quote ente. Richiede Fatturazione e Preventivi. Collegamento SSN escluso.','default_enabled'=>0,'icon_class'=>'fa-calculator','is_tenant_managed'=>0,'tenant_default_enabled'=>0,'sort_order'=>153],
             \App\Services\Pacs\PacsFeatureService::FEATURE_KEY => [
                 'feature_name' => 'PACS / DICOM',
                 'feature_scope' => 'clinical',

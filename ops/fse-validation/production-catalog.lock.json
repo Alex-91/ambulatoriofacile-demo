@@ -15,6 +15,11 @@
     "schema/POCD_MT000040UV02/pharmExtension.xsd": "c3cb9c7d82fcab54218111dc82b9e8a9d559028dcf8207c09d81933af470188f",
     "schema/POCD_MT000040UV02/sdtcExtension.xsd": "1ed50342e8f7fc0f32bea0410c6ae751b49f846a804bb0a99f1e55c27197a073",
     "schema/POCD_MT000040UV02/voc.xsd": "6f4cd8a02b89f4dcd2e8b451e7bb74cab4c09d205e05a2252385f1d00e05985a",
-    "schematron/schematron_RSA_v8.3.sch": "5365afe57b8fc241ce27c53f89b876ffb804e7fa790a39b40c53e4a87592569e"
+    "schematron/schematron_RSA_v8.3.sch": "5365afe57b8fc241ce27c53f89b876ffb804e7fa790a39b40c53e4a87592569e",
+    "schematron/schematronFSE_RAD_v4.1.sch": "85dfaf2f2356957ace2f571da31b275b1b4898ea8cfee41f2511b7ec48c6c922"
+  },
+  "document_schematrons": {
+    "RSA": "schematron/schematron_RSA_v8.3.sch",
+    "RAD": "schematron/schematronFSE_RAD_v4.1.sch"
   }
 }

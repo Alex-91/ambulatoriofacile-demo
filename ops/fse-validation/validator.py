@@ -59,7 +59,7 @@ def validate_cda(data, settings):
     root = xml_document(data)
     directory = Path(settings["catalog"]).resolve(strict=True)
     manifest = json.loads((directory / "manifest.json").read_text(encoding="utf-8"))
-    require(manifest["revision"] == REVISION and len(manifest["files"]) == 12, "CATALOG_VERSION")
+    require(manifest["revision"] == REVISION and len(manifest["files"]) in (12, 13), "CATALOG_VERSION")
     for relative, expected in manifest["files"].items():
         item = (directory / relative).resolve(strict=True)
         require(item.is_relative_to(directory) and sha(item.read_bytes()) == expected, "CATALOG_HASH")
@@ -82,8 +82,14 @@ def validate_cda(data, settings):
         return {"ok": False, "code": "CDA_XSD", "issues": [
             {"rule": e.type_name, "line": e.line} for e in list(schema.error_log)[:30]]}
 
-    sch = directory / "schematron/schematron_RSA_v8.3.sch"
-    require(sha(sch.read_bytes()) == SCH_HASH, "SCHEMATRON_HASH")
+    template = root.xpath("h:templateId/@root", namespaces=NS)
+    is_rad = "2.16.840.1.113883.2.9.10.1.7.1" in template
+    require(not (is_rad and "2.16.840.1.113883.2.9.10.1.9.1" in template), "CDA_AMBIGUOUS_TEMPLATE")
+    relative = "schematron/schematronFSE_RAD_v4.1.sch" if is_rad else "schematron/schematron_RSA_v8.3.sch"
+    expected = "85dfaf2f2356957ace2f571da31b275b1b4898ea8cfee41f2511b7ec48c6c922" if is_rad else SCH_HASH
+    require(relative in manifest["files"], "CDA_RAD_CATALOG_REQUIRED")
+    sch = directory / relative
+    require(sha(sch.read_bytes()) == expected, "SCHEMATRON_HASH")
     from saxonche import PySaxonProcessor
     with PySaxonProcessor(license=False) as proc:
         proc.set_configuration_property("http://saxon.sf.net/feature/allow-external-functions", "false")

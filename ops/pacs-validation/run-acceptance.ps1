@@ -8,6 +8,7 @@ Push-Location $acceptanceRepo
 try {
     $acceptanceSuites = @(
         @{ name='pacs-access-setup'; args=@('--exclude-group','pacs_lab','--fail-on-skipped') },
+        @{ name='administration'; args=@('rest/tests/administration') },
         @{ name='clinical-record'; args=@('rest/tests/unit/ClinicalRecordTest.php') },
         @{ name='session-access'; args=@('rest/tests/session/SessionAuthHelperTest.php','rest/tests/session/LegacyLoginHandoffServiceTest.php') }
     )
@@ -27,7 +28,7 @@ try {
         if ($acceptanceExit -ne 0) { throw 'Verifica firme sintetiche fallita.' }
     } finally { Pop-Location }
 } finally {
-    $acceptanceReport = @{checked_at=(Get-Date).ToUniversalTime().ToString('o');scope='Suite isolata con SQLite, storage temporaneo e firme sintetiche. Nessun database cliente.';external_validation='not_assessed';results=$acceptanceResults;complete=($acceptanceResults.Count -eq 4 -and @($acceptanceResults | Where-Object { !$_.passed }).Count -eq 0)}
+    $acceptanceReport = @{checked_at=(Get-Date).ToUniversalTime().ToString('o');scope='Suite isolata con SQLite, storage temporaneo e firme sintetiche. Nessun database cliente.';external_validation='not_assessed';results=$acceptanceResults;complete=($acceptanceResults.Count -eq 5 -and @($acceptanceResults | Where-Object { !$_.passed }).Count -eq 0)}
     $acceptanceReport | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $acceptanceDir 'result.json') -Encoding UTF8
     Write-Output ('Esiti: ' + $acceptanceDir)
     Pop-Location
