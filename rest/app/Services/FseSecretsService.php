@@ -80,6 +80,11 @@ class FseSecretsService
         return hash('sha256', $uppercase ? strtoupper($value) : $value);
     }
 
+    public function keyedHash(string $scope, string $value): string
+    {
+        return hash_hmac('sha256', $scope . "\0" . $value, $this->resolveBinaryKey());
+    }
+
     private function resolveBinaryKey(): string
     {
         if ($this->binaryKey !== null) {

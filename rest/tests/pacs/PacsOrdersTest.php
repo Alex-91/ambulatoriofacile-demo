@@ -93,6 +93,18 @@ final class PacsOrdersTest extends CIUnitTestCase
         $this->assertSame($raw['accession'],$row['accession']); $this->assertSame($raw['study_uid'],$row['study_uid']);
         $this->assertCount(0,$this->transport->calls);
     }
+    public function testCloudKeySupportsEncryptedBindingsAndIdempotentOrders(): void
+    {
+        config(\App\Config\Crypto::class)->keyHex='';
+        $previous=getenv('FSE2_SECRET_KEY');
+        putenv('FSE2_SECRET_KEY='.bin2hex(random_bytes(32)));
+        try {
+            $this->testIdempotencyEncryptionStableIdentifiersAndApproval();
+            $this->assertSame('P-100',$this->pacs()->overview(100)['bindings'][0]['identity']['patient_id']);
+        } finally {
+            $previous===false ? putenv('FSE2_SECRET_KEY') : putenv('FSE2_SECRET_KEY='.$previous);
+        }
+    }
     public function testExportStandardDatasetAndCancelStaleForms(): void
     {
         [$id]=$this->create(); $s=$this->service(); $s->approve(100,$id,1,true);

@@ -40,7 +40,7 @@ trait PacsOrderWorkflow
     {
         $snapshot=[];
         foreach (['id_appuntamento','id_client','id_dot','id_slot','id_tipo_visita','tipo_visita_label','data_slot','ora_inizio'] as $key) $snapshot[$key]=(string)($a[$key] ?? '');
-        return hash_hmac('sha256',json_encode($snapshot,JSON_THROW_ON_ERROR),hex2bin((string)config(\App\Config\Crypto::class)->keyHex));
+        return PacsIntegrity::hash(json_encode($snapshot,JSON_THROW_ON_ERROR));
     }
     private function checkAppointment(array $row,bool $lock=false): void
     {

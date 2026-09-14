@@ -96,11 +96,9 @@ class PacsOrderService
         $input=array_replace($input,$appointment);
         $context=$this->pacs->orderContext($patientId,$bindingId);
         $payload=$this->payload($patientId,$input)+['pacs_patient_id'=>$context['identity']['patient_id'],'pacs_issuer'=>$context['identity']['issuer']];
-        $key=(string)config(\App\Config\Crypto::class)->keyHex;
-        if (!preg_match('/^[a-f0-9]{64}$/iD',$key)) throw new PacsException('Cifratura richieste non disponibile.');
         $hashParts=[$patientId,$bindingId,$context['binding']['revision'],$payload];
         if ($appointment) $hashParts[]=$appointment;
-        $hash=hash_hmac('sha256',json_encode($hashParts,JSON_THROW_ON_ERROR),hex2bin($key));
+        $hash=PacsIntegrity::hash(json_encode($hashParts,JSON_THROW_ON_ERROR));
         $existing=$this->db->table('pacs_orders')->where('tenant_id',$this->tenantId)->where('owner_user_id',$this->userId)->where('request_key',$requestKey)->get()->getRowArray();
         if ($existing) {
             if (!hash_equals($existing['request_hash'],$hash)) throw new PacsException('Questo modulo è già stato utilizzato con dati differenti. Aprire una nuova richiesta.');

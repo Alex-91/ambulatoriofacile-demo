@@ -65,9 +65,7 @@ class PacsService
         $profile=$this->profiles->get($this->tenantId,$profileId);
         if (!$confirmed) throw new PacsException('Confermare la verifica dell’identità del paziente sul PACS.');
         $identity=['patient_id'=>DicomWebClient::identifier($externalId),'issuer'=>DicomWebClient::identifier($issuer)];
-        $key=(string)config(\App\Config\Crypto::class)->keyHex;
-        if (!preg_match('/^[a-f0-9]{64}$/iD',$key)) throw new PacsException('Cifratura PACS non disponibile.');
-        $hash=hash_hmac('sha256',json_encode([$this->tenantId,$profileId,$identity],JSON_THROW_ON_ERROR),hex2bin($key));
+        $hash=PacsIntegrity::hash(json_encode([$this->tenantId,$profileId,$identity],JSON_THROW_ON_ERROR));
         $existing=$this->db->table('pacs_patient_bindings')->where('tenant_id',$this->tenantId)->where('patient_id',$patientId)->where('profile_id',$profileId)->get()->getRowArray();
         if ($existing && ((int)$existing['owner_user_id']!==$this->userId || (int)$existing['revision']!==$revision)) throw new PacsException('Collegamento modificato o gestito da un altro medico. Riaprire la pagina.');
         if (!$existing && $revision!==0) throw new PacsException('Collegamento non più disponibile.');
