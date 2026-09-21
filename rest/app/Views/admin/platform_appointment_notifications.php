@@ -376,6 +376,7 @@ $logStatusLabels = [
                         <div class="form-group"><label>Ogni minuti</label><input class="form-control" type="number" min="1" max="1440" name="whatsapp[interval_minutes]" value="<?= (int) $policyValue('whatsapp', 'interval_minutes', $policy['whatsapp']['interval_minutes'] ?? 5) ?>"></div>
                         <div class="form-group daily-limit"><label>Massimo al giorno</label><input class="form-control" type="number" min="1" max="2000" name="whatsapp[daily_limit]" value="<?= (int) $policyValue('whatsapp', 'daily_limit', $policy['whatsapp']['daily_limit'] ?? 250) ?>"></div>
                       </div>
+                      <p class="text-muted">Il ritmo e il limite giornaliero valgono anche per le campagne massive e sono condivisi con i promemoria. Le campagne inviano dalle 07:30 alle 22:30, distribuendo i messaggi uniformemente. Esempio: 1 messaggio ogni 5 minuti.</p>
                       <input type="hidden" name="whatsapp[sms_fallback_enabled]" value="0">
                       <div class="checkbox">
                         <label><input type="checkbox" name="whatsapp[sms_fallback_enabled]" value="1" <?= !empty($policyValue('whatsapp', 'sms_fallback_enabled', $policy['whatsapp']['sms_fallback_enabled'] ?? true)) ? 'checked' : '' ?>> Se non risulta consegnato, usa SMS</label>

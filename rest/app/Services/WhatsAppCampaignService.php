@@ -209,16 +209,15 @@ class WhatsAppCampaignService
             $this->platformDb->transComplete();
             return ['ok' => true, 'status' => 'contended'];
         }
-        // The dispatcher runs every ten minutes. Keep the tenant's existing
-        // rate limit here: a second 600-second timer can skip a cron tick when
-        // consecutive processes start a few seconds apart from their minute.
-        $nextAt = date(
+        // Reuse the shared reservation so campaign and reminder queues follow
+        // the same tenant policy without introducing another spacing timer.
+        $nextAt = (string) ($rate['next_allowed_at'] ?? date(
             'Y-m-d H:i:s',
             time() + $this->notificationPolicies->minimumSpacingSeconds(
                 $policy,
                 AppointmentNotificationSettingsService::CHANNEL_WHATSAPP
             )
-        );
+        ));
         $rateData = ['next_allowed_at' => $nextAt, 'updated_at' => $now];
         if ($limit) {
             $this->platformDb->table(self::RATE_LIMITS)->where('id_tenant', $tenantId)->update($rateData);

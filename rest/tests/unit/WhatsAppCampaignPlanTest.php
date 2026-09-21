@@ -16,7 +16,20 @@ final class WhatsAppCampaignPlanTest extends TestCase
         $plan = new WhatsAppCampaignPlan();
         $start = $this->at('2026-09-12 07:30:00');
         $this->assertSame('2026-09-26 14:00', $plan->estimateCompletion(1300, $start, 600, 250, 0, $start)->format('Y-m-d H:i'));
-        $this->assertSame('2026-09-13 07:30', $plan->estimateCompletion(91, $start, 300, 250, 0, $start)->format('Y-m-d H:i'));
+        $this->assertSame('2026-09-12 15:00', $plan->estimateCompletion(91, $start, 300, 250, 0, $start)->format('Y-m-d H:i'));
+        $this->assertSame('2026-09-13 07:30', $plan->estimateCompletion(181, $start, 300, 250, 0, $start)->format('Y-m-d H:i'));
+    }
+
+    public function testTenantSpacingSupportsSubMinuteAndNonRoundIntervals(): void
+    {
+        $plan = new WhatsAppCampaignPlan();
+        $start = $this->at('2026-09-12 07:33:17');
+        foreach ([30, 90, 300, 900] as $spacing) {
+            $result = $plan->build([$this->row(1, 'Alfa'), $this->row(2, 'Beta')], $start, $start, $spacing, 250);
+            $this->assertSame($spacing, $result['summary']['spacing_seconds']);
+            $this->assertSame($start->modify('+' . $spacing . ' seconds')->format(DATE_ATOM), $result['summary']['estimated_completion_at']);
+        }
+        $this->assertSame('2026-09-13 07:30:00', $plan->estimateCompletion(2, $this->at('2026-09-12 22:29:40'), 30, 250)->format('Y-m-d H:i:s'));
     }
 
     public function testPartialDayRateLimitAndPreviouslyQueuedRecipientsAffectCutoff(): void

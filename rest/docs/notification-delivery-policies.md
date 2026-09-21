@@ -72,7 +72,9 @@ Il comando seguente processa una voce della coda WhatsApp e riconcilia i fallbac
 php spark whatsapp-campaigns:run
 ```
 
-Va eseguito con la schedulazione già prevista, tipicamente ogni minuto. La migration `2026-09-04-020001_CreateTenantNotificationPoliciesAndFallbacks.php` crea schema, contatori e coda fallback.
+Va eseguito ogni minuto: la schedulazione controlla la coda, mentre il ritmo effettivo dipende esclusivamente da **Massimo messaggi**, **Ogni minuti** e **Massimo al giorno** nei parametri WhatsApp dello spazio. Non esiste un minimo fisso di 10 minuti. La migration `2026-09-04-020001_CreateTenantNotificationPoliciesAndFallbacks.php` crea schema, contatori e coda fallback.
+
+Per riallineare la schedulazione esistente usare `ops/setup-whatsapp-campaign-dispatch.ps1 -Target login`. Le campagne restano nella finestra 07:30–22:30 Europe/Rome. Le modifiche ai parametri vengono lette durante l'elaborazione anche per le campagne già accodate; una prenotazione di invio già registrata conserva la sua scadenza. Le stime di priorità salvate all'accodamento restano riferite ai parametri di quel momento, senza riordinare automaticamente i destinatari.
 
 Ogni esecuzione mantiene aperta una finestra breve per processare più destinatari quando la politica consente più di un messaggio al minuto. I valori configurati sono tetti massimi: il worker distribuisce gli invii uniformemente nell'intervallo e può inviare meno messaggi quando il provider è lento o non disponibile.
 

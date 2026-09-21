@@ -8,7 +8,6 @@ use DateTimeZone;
 /** Deterministic planning: no database writes and no gateway calls. */
 final class WhatsAppCampaignPlan
 {
-    public const INTERVAL_SECONDS = 600;
     public const TIMEZONE = 'Europe/Rome';
 
     public function __construct(private ?DateTimeImmutable $clock = null) {}
@@ -31,9 +30,7 @@ final class WhatsAppCampaignPlan
         if ($at <= $open) {
             return $open;
         }
-        $steps = (int) ceil(($at->getTimestamp() - $open->getTimestamp()) / self::INTERVAL_SECONDS);
-        $slot = $open->modify('+' . ($steps * self::INTERVAL_SECONDS) . ' seconds');
-        return $slot < $at->setTime(22, 30) ? $slot : $open->modify('+1 day');
+        return $at < $at->setTime(22, 30) ? $at : $open->modify('+1 day');
     }
 
     public function estimateCompletion(int $count, DateTimeImmutable $earliest, int $spacing, int $dailyLimit, int $usedToday = 0, ?DateTimeImmutable $now = null): DateTimeImmutable
@@ -42,7 +39,7 @@ final class WhatsAppCampaignPlan
         $slot = $this->nextSlot($earliest);
         $day = $now->format('Y-m-d');
         $used = max(0, $usedToday);
-        $spacing = max(self::INTERVAL_SECONDS, $spacing);
+        $spacing = max(1, $spacing);
         $dailyLimit = max(1, $dailyLimit);
         for ($i = 0; $i < max(1, $count); $i++) {
             if ($slot->format('Y-m-d') !== $day) {
@@ -108,7 +105,7 @@ final class WhatsAppCampaignPlan
             'cutoff_date' => $cutoff,
             'estimated_completion_at' => $end->format(DATE_ATOM),
             'timezone' => self::TIMEZONE,
-            'spacing_seconds' => max(self::INTERVAL_SECONDS, $spacing),
+            'spacing_seconds' => max(1, $spacing),
             'daily_limit' => $dailyLimit,
             'recipients_ahead' => $ahead,
             'planned_recipients' => count($unique),
