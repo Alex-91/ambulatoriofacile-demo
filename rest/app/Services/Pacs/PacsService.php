@@ -16,7 +16,7 @@ class PacsService
     ) {
         $this->access=new ClinicalAccessPolicy($db,$userId,$tenantId);
         $this->vault=new ClinicalVault($tenantId);
-        $this->profiles ??=new PacsProfiles();
+        $this->profiles ??=new PacsProfiles(null,$db);
         $this->features ??=new PacsFeatureService();
     }
     public function orders(): PacsOrderService

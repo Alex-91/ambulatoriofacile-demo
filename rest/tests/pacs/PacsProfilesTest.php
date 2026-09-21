@@ -7,9 +7,11 @@ use CodeIgniter\Test\CIUnitTestCase;
 final class PacsProfilesTest extends CIUnitTestCase
 {
     private array $original = [];
+    protected $db;
     protected function setUp(): void
     {
         parent::setUp();
+        $this->db=\Config\Database::connect(['DBDriver'=>'SQLite3','database'=>':memory:','DBPrefix'=>'','DBDebug'=>true],false);
         foreach (['PACS_CONFIG_FILE','PACS_PROFILES_JSON'] as $key) {
             $this->original[$key] = getenv($key);
             putenv($key);
@@ -18,13 +20,14 @@ final class PacsProfilesTest extends CIUnitTestCase
     protected function tearDown(): void
     {
         foreach ($this->original as $key=>$value) putenv($value === false ? $key : "$key=$value");
+        $this->db->close();
         parent::tearDown();
     }
     public function testRuntimeConfigurationIsTenantScopedAndRequiresExplicitEnablement(): void
     {
         $p = MemoryPacsTransport::profile();
         putenv('PACS_PROFILES_JSON='.json_encode(['tenants'=>['4'=>[$p],'5'=>[array_replace($p,['enabled'=>'true'])]]]));
-        $profiles = new PacsProfiles();
+        $profiles = new PacsProfiles(null,$this->db);
         $this->assertSame('cloud',$profiles->get(4,'cloud')['id']);
         $this->assertSame([],$profiles->forTenant(6));
         $this->expectException(PacsException::class);
@@ -47,7 +50,7 @@ final class PacsProfilesTest extends CIUnitTestCase
     }
     public function testInjectedConfigurationHasPrecedenceAndEmptyEnvironmentDefaultsOff(): void
     {
-        $this->assertSame([],(new PacsProfiles())->forTenant(4));
+        $this->assertSame([],(new PacsProfiles(null,$this->db))->forTenant(4));
         putenv('PACS_PROFILES_JSON=invalid');
         $this->assertSame([],(new PacsProfiles(['tenants'=>[]]))->forTenant(4));
     }

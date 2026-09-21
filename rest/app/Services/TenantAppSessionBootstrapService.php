@@ -87,6 +87,7 @@ class TenantAppSessionBootstrapService
             throw new \RuntimeException('Utente applicativo del tenant non trovato.');
         }
 
+        PersonnelAccessService::assertLoginAllowed($tenantDb,$appUserId,$tenantId);
         $this->platformUsersModel->update($platformUserId, [
             'last_login_at' => date('Y-m-d H:i:s'),
         ]);

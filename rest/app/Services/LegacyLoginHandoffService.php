@@ -151,6 +151,7 @@ class LegacyLoginHandoffService
 
     private function bootstrapSessionForUser(array $claims): array
     {
+        PersonnelAccessService::assertLoginAllowed($this->db,(int)$claims['userId']);
         $user = $this->findUserById((int) $claims['userId']);
         if ($user === null) {
             throw new \RuntimeException('Utente handoff non trovato.');

@@ -42,7 +42,9 @@ public function __construct()
         'csrf'          => CSRF::class,
         'fsecsrf'       => \App\Filters\FseCsrfFilter::class,
         'billingcsrf'   => \App\Filters\BillingCsrfFilter::class,
+        'administrationcsrf' => \App\Filters\BillingCsrfFilter::class,
         'clinicalcsrf'  => \App\Filters\BillingCsrfFilter::class,
+        'personnelcsrf' => \App\Filters\BillingCsrfFilter::class,
         'toolbar'       => DebugToolbar::class,
         'honeypot'      => Honeypot::class,
         'invalidchars'  => InvalidChars::class,
@@ -52,6 +54,7 @@ public function __construct()
         'pagecache'     => PageCache::class,
         'performance'   => PerformanceMetrics::class,
         'auth'          => \App\Filters\AuthFilter::class,
+        'personnelaccess' => \App\Filters\PersonnelAccessFilter::class,
         'platformimpersonation' => \App\Filters\PlatformImpersonationFilter::class,
         'tenantruntime' => \App\Filters\TenantRuntimeFilter::class,
         'tenantfeatures' => \App\Filters\TenantFeatureAccessFilter::class,
@@ -96,6 +99,7 @@ public function __construct()
             'cors',
             'platformimpersonation',
             'tenantruntime',
+            'personnelaccess',
             'cryptodb',
             'auth' => [
                 'except' => [
@@ -181,7 +185,9 @@ public function __construct()
     // Scoped to FSE, billing and TS forms; GET also issues the CSRF cookie.
     // Include GET so cookie-based CSRF protection also issues the initial cookie.
     public array $filters = [
+        'administrationcsrf' => ['before'=>['admin/amministrazione','admin/amministrazione/*'], 'after'=>['admin/amministrazione','admin/amministrazione/*']],
         'clinicalcsrf' => ['before'=>['cartella-clinica/*'], 'after'=>['cartella-clinica/*']],
+        'personnelcsrf' => ['before'=>['admin/personale/modifica_personale','admin/personale/disattiva'], 'after'=>['admin/personale/modifica_personale','admin/personale/disattiva']],
         'fsecsrf' => ['before' => ['admin/fse2', 'admin/fse2/*', 'spazio/fse2', 'spazio/fse2/*', 'login/spazio/fse2', 'login/spazio/fse2/*'],
                    'after' => ['admin/fse2', 'admin/fse2/*', 'spazio/fse2', 'spazio/fse2/*', 'login/spazio/fse2', 'login/spazio/fse2/*']],
         'billingcsrf' => [

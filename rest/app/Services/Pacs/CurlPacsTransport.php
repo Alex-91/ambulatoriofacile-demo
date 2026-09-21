@@ -23,13 +23,8 @@ class CurlPacsTransport implements PacsTransport
         $addresses = $this->resolve($host);
         $headers = ['Accept: '.$accept, 'Cache-Control: no-store'];
         $auth = $profile['auth'] ?? 'none';
-        $secret = static function (string $key) use ($profile): string {
-            $value = getenv($profile[$key] ?? '');
-            if (!is_string($value) || $value === '' || preg_match('/[\r\n\x00]/', $value)) throw new PacsException('Credenziali PACS non configurate.');
-            return $value;
-        };
-        if ($auth === 'bearer') $headers[] = 'Authorization: Bearer '.$secret('token_env');
-        if ($auth === 'basic') $headers[] = 'Authorization: Basic '.base64_encode($secret('username_env').':'.$secret('password_env'));
+        if ($auth === 'bearer') $headers[] = 'Authorization: Bearer '.PacsProfiles::credential($profile,'token');
+        if ($auth === 'basic') $headers[] = 'Authorization: Basic '.base64_encode(PacsProfiles::credential($profile,'username').':'.PacsProfiles::credential($profile,'password'));
         $body = ''; $type = ''; $warning = false;
         $curl = curl_init($url);
         curl_setopt_array($curl, [

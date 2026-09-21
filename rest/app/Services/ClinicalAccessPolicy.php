@@ -9,6 +9,7 @@ final class ClinicalAccessPolicy
     public function __construct(private BaseConnection $db, private int $userId, private int $tenantId = 0) {}
     public function actor(): array
     {
+        (new PersonnelAccessService($this->db,$this->tenantId))->assertActive($this->userId);
         if ($this->userId <= 0 || !$this->db->tableExists('dap03_personale')) throw new \RuntimeException('Accesso riservato al personale della struttura.');
         $user = $this->db->table('dap01_users')->where('id_user', $this->userId)->get()->getRowArray();
         if (!$user || (array_key_exists('is_active', $user) && !(int) $user['is_active'])) throw new \RuntimeException('Utente non attivo.');

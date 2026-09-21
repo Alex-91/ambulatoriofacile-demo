@@ -44,6 +44,16 @@ $success = $success ?? null;
             <div class="alert alert-danger"><?= esc($errors['generic']) ?></div>
           <?php endif; ?>
 
+          <section class="box box-warning" id="accessBox" style="display:none">
+            <div class="box-header"><h3 class="box-title">Accesso allo spazio</h3></div>
+            <div class="box-body"><p id="accessStatus"></p>
+              <form id="disableAccessForm" method="post" action="<?= site_url('admin/personale/disattiva') ?>">
+                <?= csrf_field() ?><input type="hidden" name="id_personale" id="disable_staff_id">
+                <p>Blocca nuovi accessi e interrompe le sessioni aperte alla richiesta successiva. Pazienti, referti e storico rimangono conservati.</p>
+                <button class="btn btn-warning" type="submit">Disattiva accesso</button>
+              </form>
+            </div>
+          </section>
           <!-- RICERCA -->
           <div class="box box-primary">
             <div class="box-header with-border"><h3 class="box-title">Cerca Personale</h3></div>
@@ -324,6 +334,7 @@ $success = $success ?? null;
   function escHtml(s){ return String(s||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m])); }
 
   function resetEdit(){
+    $('#accessBox').hide();
     $('#editBox').hide();
     $('#deleteAccountBox').hide();
     $('#id_personale_h,#id_personale_delete,#id_user,#nome,#cognome,#qualifica,#email,#cellulare,#username,#password,#id_gruppo').val('');
@@ -445,6 +456,11 @@ function syncPersonnelAdminChoice(){
 
         var p = res.personale || {};
         var u = res.user || null;
+        var access = res.access || {};
+        $('#accessBox').toggle(!!access.available);
+        $('#accessStatus').text(access.blocked ? 'Account disattivato.' : 'Account non bloccato.');
+        $('#disable_staff_id').val(p.id_personale || '');
+        $('#disableAccessForm').toggle(!!access.available && !access.blocked && !!u && String(u.tipo_user) !== '1' && String(p.tipo) !== '4');
 
         $('#id_personale_h').val(p.id_personale || '');
         $('#id_personale_delete').val(p.id_personale || '');

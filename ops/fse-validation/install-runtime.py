@@ -75,7 +75,7 @@ def main():
         raise ValueError('FRESH_LINUX_BUILD_ONLY')
     DEST.mkdir(mode=0o755)
     manifest = json.loads((HERE / 'production-catalog.lock.json').read_text())
-    if manifest['repository'] != 'ministero-salute/it-fse-catalogs' or manifest['revision'] != '687cf371e1d0caf4f5f9f7bcc80eab3a97f09885' or len(manifest['files']) != 12:
+    if manifest['repository'] != 'ministero-salute/it-fse-catalogs' or manifest['revision'] != '687cf371e1d0caf4f5f9f7bcc80eab3a97f09885' or len(manifest['files']) != 13:
         raise ValueError('CATALOG_LOCK')
     for name, digest in manifest['files'].items():
         if not re.fullmatch(r'(schema|schematron)/[A-Za-z0-9_./-]+', name) or '..' in name:

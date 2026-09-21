@@ -410,6 +410,7 @@ $routes->get('personale/modifica_personale', 'PersonaleEdit::index');
 $routes->get('personale/search', 'PersonaleEdit::search');      // AJAX
 $routes->get('personale/get/(:num)', 'PersonaleEdit::get/$1');  // AJAX
 $routes->post('personale/update', 'PersonaleEdit::update');     // POST
+$routes->post('personale/disattiva', 'PersonaleEdit::disableAccess');
 $routes->post('personale/elimina-account', 'PersonaleEdit::deletePersonnel');
 $routes->post('personale/elimina-dottore', 'PersonaleEdit::deleteDoctor');
 $routes->get('personale/logs', 'Logs::index');
@@ -581,6 +582,16 @@ $routes->get('agenda/gestione-pazienti', 'Agenda::gestionePazienti');
 $routes->get('cartella-clinica/pazienti/(:num)', 'ClinicalRecords::patient/$1');
 $routes->get('cartella-clinica/diagnostica', 'PacsOrdersController::queue');
 $routes->get('cartella-clinica/pazienti/(:num)/pacs', 'PacsController::patient/$1');
+$routes->get('admin/amministrazione', 'AdministrationController::index');
+$routes->post('admin/amministrazione/operazione', 'AdministrationController::change');
+$routes->get('admin/amministrazione/dettaglio/(:segment)/(:segment)', 'AdministrationController::detail/$1/$2');
+$routes->get('admin/amministrazione/preventivo/(:segment)/pdf', 'AdministrationController::pdf/$1');
+$routes->post('admin/amministrazione/preventivo/(:segment)/fattura', 'AdministrationController::invoice/$1');
+$routes->get('admin/amministrazione/export/(:segment)', 'AdministrationController::export/$1');
+$routes->get('cartella-clinica/configurazione', 'ClinicalSetupController::index');
+$routes->post('cartella-clinica/configurazione/prepara', 'ClinicalSetupController::prepare');
+$routes->post('cartella-clinica/configurazione/pacs', 'ClinicalSetupController::saveProfile');
+$routes->post('cartella-clinica/configurazione/collaudo', 'ClinicalSetupController::check');
 $routes->get('cartella-clinica/pazienti/(:num)/pacs/richieste', 'PacsOrdersController::index/$1');
 $routes->post('cartella-clinica/pazienti/(:num)/pacs/richieste', 'PacsOrdersController::create/$1');
 $routes->get('cartella-clinica/pazienti/(:num)/pacs/richieste/(:segment)', 'PacsOrdersController::detail/$1/$2');
@@ -594,6 +605,8 @@ $routes->post('cartella-clinica/pazienti/(:num)/pacs/richieste/(:segment)/refert
 $routes->post('cartella-clinica/pazienti/(:num)/pacs/cerca', 'PacsController::search/$1');
 $routes->post('cartella-clinica/pazienti/(:num)/pacs/identita', 'PacsController::bind/$1');
 $routes->post('cartella-clinica/pazienti/(:num)/pacs/disabilita', 'PacsController::unbind/$1');
+$routes->get('cartella-clinica/diagnostica/collegamenti', 'PacsDiagnosticsController::index');
+$routes->post('cartella-clinica/diagnostica/collegamenti', 'PacsDiagnosticsController::index');
 $routes->post('cartella-clinica/pazienti/(:num)/pacs/collega', 'PacsController::link/$1');
 $routes->post('cartella-clinica/pazienti/(:num)/pacs/scollega', 'PacsController::unlink/$1');
 $routes->get('cartella-clinica/pazienti/(:num)/pacs/studi/(:segment)', 'PacsController::study/$1/$2');

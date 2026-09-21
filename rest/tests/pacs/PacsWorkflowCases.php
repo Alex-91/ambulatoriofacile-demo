@@ -7,6 +7,46 @@ use App\Services\Pacs\PacsOrderService;
 /** Synthetic fixtures reuse the order suite's isolated database and canonical patient lookup. */
 trait PacsWorkflowCases
 {
+    public function testCloudAppointmentThroughMasterReceptionImagesAndFinalPdf(): void
+    {
+        require_once __DIR__.'/../_support/ClinicalMasterPlatformFixture.php';
+        $platform=new \Tests\Support\ClinicalMasterPlatformFixture();
+        $saved=getenv('FSE2_SECRET_KEY');
+        config(\App\Config\Crypto::class)->keyHex='';
+        putenv('FSE2_SECRET_KEY='.bin2hex(random_bytes(32)));
+        try {
+            $this->db->table('dap01_users')->insert(['id_user'=>6,'is_active'=>1]);
+            $this->db->table('dap03_personale')->insert(['id_personale'=>60,'id_user'=>6,'tipo'=>4,'is_active'=>1]);
+            [$id]=$this->appointmentOrder(); $doctor=$this->service();
+            $row=$doctor->read(100,$id);
+            $this->assertSame('Ecografia da agenda',$row['payload']['description']);
+            $this->assertSame('2026-09-20T10:30',$row['payload']['scheduled_at']);
+            $doctor->approve(100,$id,1,true);
+            $this->service(6)->advance(100,$id,2,'accepted');
+            $this->denied(fn()=>$this->service(6)->advance(100,$id,3,'in_progress'));
+            $doctor->advance(100,$id,3,'in_progress');
+            $doctor->advance(100,$id,4,'performed');
+            $study=MemoryPacsTransport::study('P-100','TEST-HOSPITAL',$row['study_uid']);
+            $study['00080050']['Value'][0]=$row['accession'];
+            $this->transport->replies=[MemoryPacsTransport::json([$study])];
+            $doctor->linkImages(100,$id,5);
+            $entry=$doctor->saveReport(100,$id,6,['body'=>'COLLAUDO SINTETICO DA AGENDA','occurred_at'=>'2026-09-20T11:30']);
+            $this->db->query("ALTER TABLE dap01_users ADD COLUMN username TEXT DEFAULT 'SYNTHETIC_DOCTOR'");
+            $clinical=new ClinicalRecordService($this->db,42,1);
+            $clinical->finalize(100,$entry,1,['patient_name'=>'PAZIENTE SINTETICO']);
+            $report=$doctor->report(100,$id);
+            $this->assertSame('final',$report['state']);
+            $this->assertSame(10,(int)$report['appointment_id']);
+            $this->assertStringStartsWith('%PDF-',$clinical->download(100,$report['pdf_object_id'])['bytes']);
+            $this->denied(fn()=>$doctor->saveReport(100,$id,7,['entry_revision'=>2,'body'=>'overwrite','occurred_at'=>'2026-09-20T11:30']));
+            $this->assertSame(1,$this->db->table('clinical_entries')->countAllResults());
+            $this->assertSame('performed',$doctor->read(100,$id)['workflow_stage']);
+            $this->assertSame(6,(int)$this->db->table('pacs_audit')->where('event','pacs_stage_accepted')->get()->getRowArray()['actor_user_id']);
+        } finally {
+            $platform->close();
+            $saved===false ? putenv('FSE2_SECRET_KEY') : putenv('FSE2_SECRET_KEY='.$saved);
+        }
+    }
     public function testTenantMasterCanAcceptAcrossDoctorsButCannotExecuteOrRefert(): void
     {
         require_once __DIR__.'/../_support/ClinicalMasterPlatformFixture.php';

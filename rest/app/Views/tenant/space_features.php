@@ -629,6 +629,10 @@ $canSubmitSpaceSettings = ($manageableRows !== []) || $hasSupplementalSpaceContr
                   Centro notifiche non incluso nel pacchetto attuale
                 </span>
               <?php endif; ?>
+              <?php if (!empty($administrationAccessible)): ?><a class="btn btn-default" href="<?= site_url('admin/amministrazione') ?>">Apri amministrazione</a><?php endif; ?>
+              <?php if (!empty($clinicalSetupAccessible)): ?>
+                <a class="btn btn-default" href="<?= site_url('cartella-clinica/configurazione') ?>" style="margin-left:8px;">Prepara moduli clinici</a>
+              <?php endif; ?>
               <?php if ($billingWorkspaceAccessible): ?>
                 <a class="btn btn-default" href="<?= portal_tenant_space_url('fatturazione') ?>" style="margin-left:8px;">
                   <i class="fa fa-calculator"></i> Apri modulo fatturazione

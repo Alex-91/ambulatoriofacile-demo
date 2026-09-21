@@ -78,6 +78,7 @@ class BillingDocumentsController extends BillingAdminBaseController
         $tenantId = (int) ($tenantScope['tenant_id'] ?? 0);
         $formContext = $this->documents->buildFormContext($tenantId);
         $appointmentPrefill = $this->consumeAppointmentPrefill();
+        if (isset($appointmentPrefill['administration_tenant_id']) && (int)$appointmentPrefill['administration_tenant_id'] !== $tenantId) $appointmentPrefill=[];
         if ($appointmentPrefill !== []) {
             $formContext = $this->applyAppointmentPrefill($formContext, $appointmentPrefill);
         }
