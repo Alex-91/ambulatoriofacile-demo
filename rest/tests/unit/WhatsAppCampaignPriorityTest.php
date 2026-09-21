@@ -58,6 +58,33 @@ final class WhatsAppCampaignPriorityTest extends CIUnitTestCase
         $this->campaignDb->table('platform_whatsapp_campaign_recipients')->insert(['id_whatsapp_campaign_recipient' => 9, 'id_whatsapp_campaign' => 2, 'id_tenant' => 99, 'id_client' => 9, 'recipient_phone' => '+393000000009', 'patient_name' => 'Altro spazio', 'status' => 'pending']);
     }
 
+    public function testRemainingEstimateUsesCurrentPolicyAndNeverRewritesThePlan(): void
+    {
+        $saved = json_encode(['estimated_completion_at' => '2026-09-26T14:00:00+02:00']);
+        $this->campaignDb->table('platform_whatsapp_campaigns')->where('id_whatsapp_campaign', 1)->update(['priority_plan_json' => $saved]);
+        $before = $this->rows();
+        $service = $this->service('2026-09-12T08:00:00+02:00');
+        $this->assertSame('2026-09-12T08:10:00+02:00', $service->estimateRemainingCompletion(5, 1));
+        $this->assertSame($before, $this->rows());
+        $this->assertSame($saved, $this->campaignDb->table('platform_whatsapp_campaigns')->where('id_whatsapp_campaign', 1)->get()->getRowArray()['priority_plan_json']);
+        $this->assertNull($service->estimateRemainingCompletion(99, 1));
+        $this->campaignDb->table('platform_whatsapp_campaign_recipients')->where('id_whatsapp_campaign_recipient', 3)->update(['status' => 'sent']);
+        $this->assertSame('2026-09-12T08:05:00+02:00', $service->estimateRemainingCompletion(5, 1));
+        $this->campaignDb->table('platform_whatsapp_campaigns')->where('id_whatsapp_campaign', 1)->update(['status' => 'completed']);
+        $this->assertNull($service->estimateRemainingCompletion(5, 1));
+    }
+
+    public function testRemainingEstimateHonorsReservedSlotAndDailyLimit(): void
+    {
+        $now = new DateTimeImmutable('2026-09-12T22:00:00+02:00');
+        $storedNow = $now->setTimezone(new \DateTimeZone(date_default_timezone_get()));
+        $this->campaignDb->table('platform_notification_rate_limits')->insert([
+            'id_tenant' => 5, 'channel' => 'wa', 'counter_date' => $storedNow->format('Y-m-d'),
+            'sent_today' => 249, 'next_allowed_at' => $storedNow->modify('+5 minutes')->format('Y-m-d H:i:s'),
+        ]);
+        $this->assertSame('2026-09-13T07:35:00+02:00', $this->service($now->format(DATE_ATOM))->estimateRemainingCompletion(5, 1));
+    }
+
     public function testPreviewDoesNotWriteAndApplyPreservesRecipientsAndCompletedSends(): void
     {
         $service = $this->service();

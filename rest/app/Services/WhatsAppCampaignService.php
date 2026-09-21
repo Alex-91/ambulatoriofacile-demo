@@ -131,6 +131,7 @@ class WhatsAppCampaignService
         $selected = $campaignId > 0 ? $this->campaignById($tenantId, $campaignId) : ($campaigns[0] ?? null);
         $recipients = [];
         if (is_array($selected)) {
+            $selected['remaining_completion_at'] = $this->estimateRemainingCompletion($tenantId, (int) $selected['id_whatsapp_campaign']);
             $selected['priority_plan'] = json_decode((string) ($selected['priority_plan_json'] ?? ''), true) ?: null;
             $recipientQuery = $this->platformDb->table(self::RECIPIENTS)
                 ->where('id_whatsapp_campaign', (int) $selected['id_whatsapp_campaign']);
@@ -362,7 +363,29 @@ class WhatsAppCampaignService
         return $db->query("SELECT c.id_client, {$mobile} AS cellulare, {$phone} AS telefono, {$surname} AS sort_surname, {$name} AS sort_name, TRIM(CONCAT_WS(' ', {$name}, {$surname})) AS patient_name, {$appointmentSelect} AS next_appointment_at FROM dap02_clients c {$appointmentJoin} ORDER BY c.id_client ASC", $params)->getResultArray();
     }
 
+    public function estimateRemainingCompletion(int $tenantId, int $campaignId): ?string
+    {
+        $campaign = $this->campaignById($tenantId, $campaignId);
+        if (!$campaign || !in_array($campaign['status'], ['queued', 'running'], true)) {
+            return null;
+        }
+        $pending = $this->platformDb->table(self::RECIPIENTS)
+            ->where('id_tenant', $tenantId)->where('id_whatsapp_campaign', $campaignId)
+            ->where('status', 'pending')->countAllResults();
+        if ($pending === 0) { return null; }
+        $tenant = $this->tenantCatalog->getTenantById($tenantId) ?? ['id_tenant' => $tenantId];
+        $now = $this->planner->now();
+        [$earliest, $spacing, $dailyLimit, $usedToday, $ahead] = $this->planningLimits($tenant, $now, $campaignId);
+        return $this->planner->estimateCompletion($pending + $ahead, $earliest, $spacing, $dailyLimit, $usedToday, $now)->format(DATE_ATOM);
+    }
+
     private function buildPlan(array $tenant, array $rows, \DateTimeImmutable $now, int $campaignId = 0): array
+    {
+        [$earliest, $spacing, $dailyLimit, $usedToday, $ahead] = $this->planningLimits($tenant, $now, $campaignId);
+        return $this->planner->build($rows, $now, $earliest, $spacing, $dailyLimit, $usedToday, $ahead);
+    }
+
+    private function planningLimits(array $tenant, \DateTimeImmutable $now, int $campaignId): array
     {
         $tenantId = (int) $tenant['id_tenant'];
         $policy = $this->notificationPolicies->resolve($tenantId, (string) ($tenant['tenant_name'] ?? ''));
@@ -377,11 +400,14 @@ class WhatsAppCampaignService
                 if ($due > $earliest) { $earliest = $due; }
             }
         }
-        $query = $this->platformDb->table(self::CAMPAIGNS)->selectSum('pending_recipients', 'ahead')->where('id_tenant', $tenantId)->whereIn('status', ['queued', 'running']);
-        if ($campaignId > 0) { $query->where('id_whatsapp_campaign <', $campaignId); }
-        $ahead = (int) ($query->get()->getRowArray()['ahead'] ?? 0);
-        $usedToday = ($rate['counter_date'] ?? '') === date('Y-m-d') ? (int) ($rate['sent_today'] ?? 0) : 0;
-        return $this->planner->build($rows, $now, $earliest, $spacing, $dailyLimit, $usedToday, $ahead);
+        $query = $this->platformDb->table(self::RECIPIENTS . ' r')
+            ->join(self::CAMPAIGNS . ' c', 'c.id_whatsapp_campaign = r.id_whatsapp_campaign')
+            ->where('c.id_tenant', $tenantId)->where('r.id_tenant', $tenantId)
+            ->where('r.status', 'pending')->whereIn('c.status', ['queued', 'running']);
+        if ($campaignId > 0) { $query->where('c.id_whatsapp_campaign <', $campaignId); }
+        $ahead = $query->countAllResults();
+        $usedToday = ($rate['counter_date'] ?? '') === $now->setTimezone(new \DateTimeZone(date_default_timezone_get()))->format('Y-m-d') ? (int) ($rate['sent_today'] ?? 0) : 0;
+        return [$earliest, $spacing, $dailyLimit, $usedToday, $ahead];
     }
 
     /** Preview or atomically reorder only pending recipients. Existing sends,
