@@ -227,6 +227,11 @@ $routes->group('admin', static function($routes){
     $routes->get('notifiche', 'Admin\NotifyController::form');
     $routes->post('notifiche/send', 'Admin\NotifyController::send');
     $routes->get('fatturazione', 'Admin\BillingDashboardController::index');
+    $routes->get('fatturazione-poliambulatori', 'Admin\PolyclinicController::index');
+    $routes->post('fatturazione-poliambulatori/azione', 'Admin\PolyclinicController::command');
+    $routes->get('fatturazione-poliambulatori/export', 'Admin\PolyclinicController::export');
+    $routes->get('fatturazione-poliambulatori/pdf/(:num)', 'Admin\PolyclinicController::pdf/$1');
+    $routes->post('fatturazione-poliambulatori/xml/(:num)', 'Admin\PolyclinicController::xml/$1');
     $routes->get('fatturazione-documento', 'Admin\BillingDocumentSettingsController::index');
     $routes->post('fatturazione-documento/save', 'Admin\BillingDocumentSettingsController::save');
     $routes->get('fatturazione-documenti', 'Admin\BillingDocumentsController::index');

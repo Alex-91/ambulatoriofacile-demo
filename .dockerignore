@@ -48,3 +48,5 @@ ops/*.local.*
 .vscode
 Thumbs.db
 desktop.ini
+
+ops/polyclinic-ui-preview.php

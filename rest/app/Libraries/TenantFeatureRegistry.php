@@ -25,6 +25,11 @@ class TenantFeatureRegistry
                 'menu_prefixes' => ['chat'],
                 'schede_codes' => ['chat'],
             ],
+            'polyclinic_billing' => [
+                'route_prefixes' => ['admin/fatturazione-poliambulatori'],
+                'menu_prefixes' => ['fatturazione-poliambulatori', 'admin/fatturazione-poliambulatori'],
+                'schede_codes' => [],
+            ],
             'billing' => [
                 'route_prefixes' => [
                     'admin/fatturazione',

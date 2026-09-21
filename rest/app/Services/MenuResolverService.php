@@ -8,13 +8,16 @@ class MenuResolverService
 {
     private AdminMenuVisibilityService $adminMenuVisibility;
     private MenuRegistryService $menuRegistry;
+    private ?PolyclinicFeatureService $polyclinicFeatures;
 
     public function __construct(
         ?AdminMenuVisibilityService $adminMenuVisibility = null,
-        ?MenuRegistryService $menuRegistry = null
+        ?MenuRegistryService $menuRegistry = null,
+        ?PolyclinicFeatureService $polyclinicFeatures = null
     ) {
         $this->adminMenuVisibility = $adminMenuVisibility ?? new AdminMenuVisibilityService();
         $this->menuRegistry = $menuRegistry ?? new MenuRegistryService();
+        $this->polyclinicFeatures = $polyclinicFeatures;
     }
 
     /**
@@ -458,6 +461,7 @@ class MenuResolverService
     {
         $menuItems = $this->injectVisitTypesMenu($menuItems, $tenantId);
         $menuItems = $this->injectBillingMenu($menuItems, $tenantId);
+        $menuItems = $this->injectPolyclinicMenu($menuItems, $tenantId);
         $menuItems = $this->injectBillingDocumentsMenu($menuItems, $tenantId);
         $menuItems = $this->injectBillingScheduleMenu($menuItems, $tenantId);
         $menuItems = $this->injectBillingReportsMenu($menuItems, $tenantId);
@@ -539,6 +543,23 @@ class MenuResolverService
      * @param list<array<string, mixed>> $menuItems
      * @return list<array<string, mixed>>
      */
+    private function injectPolyclinicMenu(array $menuItems, int $tenantId): array
+    {
+        // Remove stale cached entries as well as hiding the entry for disabled spaces.
+        $menuItems=array_values(array_filter($menuItems, fn($row)=>
+            !in_array(strtolower($this->normalizePath((string)($row['link']??''))), ['fatturazione-poliambulatori','admin/fatturazione-poliambulatori'],true)));
+        try {
+            $enabled=$tenantId > 0 && ($this->polyclinicFeatures ?? new PolyclinicFeatureService())->isEnabledForTenant($tenantId);
+        } catch (\Throwable $e) {
+            log_message('error','Impossibile verificare abilitazione Fatturazione poliambulatori: '.$e->getMessage());
+            $enabled=false;
+        }
+        if ($enabled) {
+            $menuItems[]=['titolo_menu'=>'Fatturazione poliambulatori','link'=>'fatturazione-poliambulatori','class_icon'=>'fa-hospital-o'];
+        }
+        return $menuItems;
+    }
+
     private function injectBillingMenu(array $menuItems, int $tenantId): array
     {
         if (!$this->isAdminBillingFeatureEnabled($tenantId)) {

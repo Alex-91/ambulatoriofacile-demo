@@ -288,6 +288,16 @@ class TenantFeatureService
                 'tenant_default_enabled' => 0,
                 'sort_order' => 144,
             ],
+            PolyclinicFeatureService::FEATURE_KEY => [
+                'feature_name' => 'Fatturazione poliambulatori',
+                'feature_scope' => 'billing',
+                'description' => 'Modulo indipendente per accettazione, prestazioni, incassi, compensi e contabilità del poliambulatorio. Archivio e report separati dalla Fatturazione. Richiede installazione esplicita sullo spazio.',
+                'default_enabled' => 0,
+                'icon_class' => 'fa-hospital-o',
+                'is_tenant_managed' => 0,
+                'tenant_default_enabled' => 0,
+                'sort_order' => 137,
+            ],
             BillingModule::FEATURE_KEY => [
                 'feature_name' => 'Fatturazione',
                 'feature_scope' => 'billing',

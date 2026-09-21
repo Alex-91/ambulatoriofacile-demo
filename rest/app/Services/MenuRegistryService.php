@@ -225,6 +225,17 @@ class MenuRegistryService
                 ],
             ],
             [
+                'key' => 'fatturazione-poliambulatori',
+                'link' => 'fatturazione-poliambulatori',
+                'title' => 'Fatturazione poliambulatori',
+                'icon' => 'fa-hospital-o',
+                'order' => 1395,
+                'default' => false,
+                'group' => 'Menu operativo',
+                'description' => 'Accettazione, fatture, incassi e compensi del poliambulatorio in un archivio dedicato.',
+                'route_prefixes' => ['admin/fatturazione-poliambulatori'],
+            ],
+            [
                 'key' => 'fatturazione',
                 'link' => 'fatturazione',
                 'title' => 'Fatturazione',
