@@ -25,7 +25,8 @@ final class MenuRegistryServiceTest extends CIUnitTestCase
         $item = (new MenuRegistryService())->findTenantContextItem('spazio/invii-whatsapp');
 
         $this->assertIsArray($item);
-        $this->assertSame('Invii WhatsApp', $item['title'] ?? null);
+        $this->assertSame('Invii massivi', $item['title'] ?? null);
+        $this->assertSame('spazio/invii-massivi', $item['link'] ?? null);
         $this->assertContains('spazio/invii-whatsapp/create', $item['route_prefixes'] ?? []);
     }
 

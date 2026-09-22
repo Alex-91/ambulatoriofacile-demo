@@ -967,9 +967,9 @@ $oldValue = static function (string $key, $fallback = '') {
                   </div>
 
                   <div style="height:8px;"></div>
-                  <h4 style="margin-top:8px;">Governance canali notifiche appuntamenti</h4>
+                  <h4 style="margin-top:8px;">Abilitazione canali dello spazio</h4>
                   <p class="text-muted">
-                    Qui il master piattaforma decide quali canali lo studio ha realmente acquistato o può usare. Quando un canale viene spento qui, il tenant lo vede non disponibile e non può selezionarlo nei suoi flussi.
+                    Qui il master piattaforma decide quali canali lo studio ha realmente acquistato o può usare. Il controllo SMS abilita anche gli invii massivi; per le campagne l'email è sempre disponibile. Quando un canale viene spento qui, il tenant lo vede non disponibile e non può selezionarlo nei suoi flussi.
                   </p>
                   <div class="row">
                     <?php foreach ($appointmentNotificationChannelMeta as $channelKey => $channelMeta): ?>

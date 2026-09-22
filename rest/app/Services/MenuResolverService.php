@@ -267,9 +267,7 @@ class MenuResolverService
                 && !empty($tenantFeatureFlags['appointment_notifications']),
             'can_manage_whatsapp_campaigns' => $tenantId > 0
                 && $hasTenantMasterAccess
-                && (int) ($session->get('platform_user_id') ?? 0) > 0
-                && !empty($tenantFeatureFlags['appointment_notifications'])
-                && !empty($tenantFeatureFlags['appointment_notifications_whatsapp']),
+                && (int) ($session->get('platform_user_id') ?? 0) > 0,
             'can_manage_otp_devices' => $tenantId > 0
                 && $hasTenantManagementAccess
                 && (int) ($session->get('platform_user_id') ?? 0) > 0,

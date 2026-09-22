@@ -103,6 +103,10 @@ $routes->post('login/spazio/notifiche-appuntamenti/whatsapp/reconnect', 'Tenant\
 $routes->post('login/spazio/notifiche-appuntamenti/whatsapp/disconnect', 'Tenant\AppointmentNotifications::whatsappDisconnect');
 $routes->post('login/spazio/notifiche-appuntamenti/whatsapp/change-device', 'Tenant\AppointmentNotifications::whatsappChangeDevice');
 $routes->get('login/spazio/invii-whatsapp', 'Tenant\WhatsAppCampaigns::index');
+$routes->get('login/spazio/invii-massivi', 'Tenant\WhatsAppCampaigns::index');
+$routes->post('login/spazio/invii-massivi/create', 'Tenant\WhatsAppCampaigns::create');
+$routes->post('login/spazio/invii-massivi/pause', 'Tenant\WhatsAppCampaigns::pause');
+$routes->post('login/spazio/invii-massivi/resume', 'Tenant\WhatsAppCampaigns::resume');
 $routes->post('login/spazio/invii-whatsapp/create', 'Tenant\WhatsAppCampaigns::create');
 $routes->post('login/api/whatsapp-gateway/incoming', 'Api\WhatsAppGatewayWebhookController::incoming');
 $routes->get('login/spazio/utenti', 'Tenant\SpaceUsers::index');
@@ -170,6 +174,10 @@ $routes->post('spazio/notifiche-appuntamenti/whatsapp/reconnect', 'Tenant\Appoin
 $routes->post('spazio/notifiche-appuntamenti/whatsapp/disconnect', 'Tenant\AppointmentNotifications::whatsappDisconnect');
 $routes->post('spazio/notifiche-appuntamenti/whatsapp/change-device', 'Tenant\AppointmentNotifications::whatsappChangeDevice');
 $routes->get('spazio/invii-whatsapp', 'Tenant\WhatsAppCampaigns::index');
+$routes->get('spazio/invii-massivi', 'Tenant\WhatsAppCampaigns::index');
+$routes->post('spazio/invii-massivi/create', 'Tenant\WhatsAppCampaigns::create');
+$routes->post('spazio/invii-massivi/pause', 'Tenant\WhatsAppCampaigns::pause');
+$routes->post('spazio/invii-massivi/resume', 'Tenant\WhatsAppCampaigns::resume');
 $routes->post('spazio/invii-whatsapp/create', 'Tenant\WhatsAppCampaigns::create');
 $routes->post('api/whatsapp-gateway/incoming', 'Api\WhatsAppGatewayWebhookController::incoming');
 $routes->post('demo/api/whatsapp-gateway/incoming', 'Api\WhatsAppGatewayWebhookController::incoming');

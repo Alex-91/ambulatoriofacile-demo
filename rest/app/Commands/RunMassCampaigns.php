@@ -2,17 +2,16 @@
 
 namespace App\Commands;
 
-use App\Services\WhatsAppCampaignService;
-use App\Services\WhatsAppSmsFallbackService;
+use App\Services\MassCampaignService;
 use CodeIgniter\CLI\BaseCommand;
 use CodeIgniter\CLI\CLI;
 use Config\Database;
 
-class RunWhatsAppCampaigns extends BaseCommand
+class RunMassCampaigns extends BaseCommand
 {
-    protected $group = 'WhatsApp';
-    protected $name = 'whatsapp-campaigns:run';
-    protected $description = 'Compatibilità scheduler: campagne email/SMS e riconciliazione separata dei promemoria WhatsApp.';
+    protected $group = 'Comunicazioni';
+    protected $name = 'mass-campaigns:run';
+    protected $description = 'Processa campagne email e SMS: un tentativo al minuto per spazio.';
 
     public function run(array $params)
     {
@@ -22,16 +21,13 @@ class RunWhatsAppCampaigns extends BaseCommand
                 'campaigns' => $db->tableExists('platform_mass_campaigns'),
                 'recipients' => $db->tableExists('platform_mass_campaign_recipients'),
                 'rate_limits' => $db->tableExists('platform_mass_campaign_rate_limits'),
-                'notification_policies' => $db->tableExists('platform_tenant_notification_policies'),
-                'notification_rate_limits' => $db->tableExists('platform_notification_rate_limits'),
-                'notification_fallbacks' => $db->tableExists('platform_notification_fallbacks'),
             ];
 
             CLI::write(json_encode(['ok' => !in_array(false, $tables, true), 'tables' => $tables], JSON_UNESCAPED_SLASHES) ?: '{"ok":false}', !in_array(false, $tables, true) ? 'green' : 'red');
             return;
         }
 
-        $campaigns = new WhatsAppCampaignService();
+        $campaigns = new MassCampaignService();
         $startedAt = microtime(true);
         $deadline = $startedAt + 50.0;
         $items = [];
@@ -48,7 +44,7 @@ class RunWhatsAppCampaigns extends BaseCommand
             } elseif ($status === 'failed') {
                 $failed++;
             }
-            if (in_array($status, ['schema_missing', 'claim_failed', 'outside_window'], true)) {
+            if (in_array($status, ['schema_missing', 'claim_failed'], true)) {
                 break;
             }
 
@@ -71,7 +67,6 @@ class RunWhatsAppCampaigns extends BaseCommand
             usleep($waitSeconds * 1000000);
         }
 
-        $fallbacks = ($result['status'] ?? '') === 'outside_window' ? ['status' => 'outside_window'] : (new WhatsAppSmsFallbackService())->reconcile(20);
         $result['window'] = [
             'attempts' => count($items),
             'sent' => $sent,
@@ -79,7 +74,6 @@ class RunWhatsAppCampaigns extends BaseCommand
             'elapsed_seconds' => round(microtime(true) - $startedAt, 3),
             'items' => $items,
         ];
-        $result['fallbacks'] = $fallbacks;
         CLI::write(json_encode($result, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '{"ok":false}', !empty($result['ok']) ? 'green' : 'red');
     }
 }

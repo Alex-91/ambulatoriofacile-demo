@@ -46,6 +46,9 @@ class WhatsAppSmsFallbackService
         bool $smsChannelSelected,
         bool $immediate = false
     ): array {
+        if ($sourceType === 'whatsapp_campaign_recipient' || $messageType === 'mass_campaign') {
+            return ['registered' => false, 'reason' => 'campaigns_use_dedicated_queue'];
+        }
         if (!$this->platformDb->tableExists(self::TABLE)) {
             return ['registered' => false, 'reason' => 'schema_missing'];
         }
@@ -132,6 +135,8 @@ class WhatsAppSmsFallbackService
             ->select('f.*, t.tenant_name')
             ->join('platform_tenants t', 't.id_tenant = f.id_tenant')
             ->where('f.status', 'pending')
+            ->where('f.source_type !=', 'whatsapp_campaign_recipient')
+            ->where('f.message_type !=', 'mass_campaign')
             ->where('f.due_at <=', date('Y-m-d H:i:s'))
             ->orderBy("CASE WHEN f.message_type = 'appointment_reminder' THEN 0 ELSE 1 END", 'ASC', false)
             ->orderBy('f.due_at', 'ASC')
