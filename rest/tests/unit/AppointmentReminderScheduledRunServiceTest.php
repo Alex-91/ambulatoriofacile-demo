@@ -153,6 +153,21 @@ final class AppointmentReminderScheduledRunServiceTest extends CIUnitTestCase
         $this->assertSame('2026-09-04', $received['reference_date']);
     }
 
+    public function testHistoricalFailureDoesNotStarveTodaysMorningBatch(): void
+    {
+        $stateDir = $this->root . DIRECTORY_SEPARATOR . 'state';
+        mkdir($stateDir, 0775, true);
+        file_put_contents($stateDir . '/appointment_reminder_scheduler_2026-09-04.json', json_encode(['status' => 'retry_required']));
+        $seen = [];
+        $service = $this->service(static function (array $options) use (&$seen): array {
+            $seen[] = $options['reference_date'];
+            return ['failed' => 0, 'deferred' => 0, 'tenants' => []];
+        }, $stateDir);
+        $service->run(['now' => new \DateTimeImmutable('2026-09-05 08:00:00', new \DateTimeZone('Europe/Rome'))]);
+        $service->run(['now' => new \DateTimeImmutable('2026-09-05 09:00:00', new \DateTimeZone('Europe/Rome'))]);
+        $this->assertSame(['2026-09-05', '2026-09-04'], $seen);
+    }
+
     private function service(\Closure $dispatcher, ?string $stateDir = null): AppointmentReminderScheduledRunService
     {
         return new AppointmentReminderScheduledRunService(

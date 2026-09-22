@@ -133,6 +133,7 @@ class WhatsAppSmsFallbackService
             ->join('platform_tenants t', 't.id_tenant = f.id_tenant')
             ->where('f.status', 'pending')
             ->where('f.due_at <=', date('Y-m-d H:i:s'))
+            ->orderBy("CASE WHEN f.message_type = 'appointment_reminder' THEN 0 ELSE 1 END", 'ASC', false)
             ->orderBy('f.due_at', 'ASC')
             ->get(max(1, min(200, $limit)))
             ->getResultArray();
@@ -186,6 +187,14 @@ class WhatsAppSmsFallbackService
 
                 foreach ($tenantRows as $row) {
                     $summary['checked']++;
+                    if ($this->reminderNoLongerUpcoming($tenantId, $row)) {
+                        $this->update((int) $row['id_notification_fallback'], [
+                            'status' => 'cancelled',
+                            'checked_at' => date('Y-m-d H:i:s'),
+                            'error_text' => 'Promemoria scaduto: appuntamento trascorso, annullato o non disponibile.',
+                        ]);
+                        continue;
+                    }
                     $messageId = trim((string) ($row['whatsapp_provider_id'] ?? ''));
                     $knownFailure = (string) ($row['whatsapp_status'] ?? '') === 'failed';
                     if (!$knownFailure && $timelineError !== null) {
@@ -219,13 +228,18 @@ class WhatsAppSmsFallbackService
                         continue;
                     }
 
-                    $rate = $this->rateLimiter->claim($tenantId, AppointmentNotificationSettingsService::CHANNEL_SMS, $policy);
+                    $rate = $this->rateLimiter->claim(
+                        $tenantId, AppointmentNotificationSettingsService::CHANNEL_SMS, $policy, true,
+                        (string) ($row['source_type'] ?? '') === 'whatsapp_campaign_recipient'
+                    );
                     if (empty($rate['allowed'])) {
                         $this->update((int) $row['id_notification_fallback'], [
                             'whatsapp_status' => $whatsAppStatus,
                             'checked_at' => date('Y-m-d H:i:s'),
                             'due_at' => (string) (($rate['next_allowed_at'] ?? '') ?: date('Y-m-d H:i:s', time() + 60)),
-                            'error_text' => 'Fallback differito dal limite SMS dello spazio.',
+                            'error_text' => str_starts_with((string) ($rate['reason'] ?? ''), 'reminder_priority')
+                                ? 'Fallback campagna rinviato per dare priorità ai promemoria.'
+                                : 'Fallback differito dal limite SMS dello spazio.',
                         ]);
                         $summary['deferred']++;
                         continue;
@@ -293,6 +307,25 @@ class WhatsAppSmsFallbackService
     private function gateway(): WhatsAppGatewayClient
     {
         return $this->gateway ??= new WhatsAppGatewayClient();
+    }
+
+    private function reminderNoLongerUpcoming(int $tenantId, array $row): bool
+    {
+        if (($row['source_type'] ?? '') !== 'appointment'
+            || ($row['message_type'] ?? '') !== AppointmentNotificationSettingsService::TYPE_REMINDER) {
+            return false;
+        }
+        $db = (new TenantDatabaseConnector())->connect($this->tenant($tenantId));
+        $appointment = $db->query(
+            "SELECT s.data_slot, COALESCE(a.ora_inizio_appuntamento, s.ora_inizio) AS appointment_time
+             FROM dap12_agenda_appuntamenti a
+             INNER JOIN dap11_agenda_slot s ON s.id_slot = a.id_slot
+             WHERE a.id_appuntamento = ? AND a.stato <> 'ANNULLATO' LIMIT 1",
+            [(int) ($row['source_id'] ?? 0)]
+        )->getRowArray();
+        return !$appointment || !AppointmentReminderPriorityService::isFutureAppointment(
+            (string) $appointment['data_slot'], (string) $appointment['appointment_time']
+        );
     }
 
     /** @return array<string, mixed> */

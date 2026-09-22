@@ -11,11 +11,13 @@ class NotificationRateLimiterService
 
     private BaseConnection $platformDb;
     private TenantNotificationPolicyService $policies;
+    private AppointmentReminderPriorityService $reminderPriority;
 
-    public function __construct(?BaseConnection $platformDb = null, ?TenantNotificationPolicyService $policies = null)
+    public function __construct(?BaseConnection $platformDb = null, ?TenantNotificationPolicyService $policies = null, ?AppointmentReminderPriorityService $reminderPriority = null)
     {
         $this->platformDb = $platformDb ?? Database::connect('platform');
         $this->policies = $policies ?? new TenantNotificationPolicyService($this->platformDb);
+        $this->reminderPriority = $reminderPriority ?? new AppointmentReminderPriorityService();
     }
 
     /**
@@ -25,11 +27,29 @@ class NotificationRateLimiterService
      * @param array<string, mixed> $policy
      * @return array{allowed:bool,reason:string,next_allowed_at:?string,sent_today:int,tracked:bool}
      */
-    public function claim(int $tenantId, string $channel, array $policy, bool $manageTransaction = true): array
+    public function claim(int $tenantId, string $channel, array $policy, bool $manageTransaction = true, bool $campaign = false): array
     {
         $channel = strtolower(trim($channel));
         if ($tenantId <= 0 || !in_array($channel, ['email', 'wa', 'sms'], true)) {
             return ['allowed' => false, 'reason' => 'invalid_context', 'next_allowed_at' => null, 'sent_today' => 0, 'tracked' => false];
+        }
+        if ($campaign) {
+            try {
+                $pending = $this->reminderPriority->hasPending($tenantId);
+                if (!$pending && $channel === 'sms' && $this->platformDb->tableExists(WhatsAppSmsFallbackService::TABLE)) {
+                    $pending = $this->platformDb->table(WhatsAppSmsFallbackService::TABLE)
+                        ->where('id_tenant', $tenantId)->where('status', 'pending')
+                        ->where('message_type', AppointmentNotificationSettingsService::TYPE_REMINDER)
+                        ->countAllResults() > 0;
+                }
+                $reason = $pending ? 'reminder_priority' : '';
+            } catch (\Throwable $e) {
+                // An unavailable tenant must not let a campaign consume reminder capacity.
+                $reason = 'reminder_priority_unavailable';
+            }
+            if ($reason !== '') {
+                return ['allowed' => false, 'reason' => $reason, 'next_allowed_at' => date('Y-m-d H:i:s', time() + 60), 'sent_today' => 0, 'tracked' => false];
+            }
         }
         if (!$this->platformDb->tableExists(self::TABLE)) {
             return ['allowed' => true, 'reason' => 'schema_missing', 'next_allowed_at' => null, 'sent_today' => 0, 'tracked' => false];

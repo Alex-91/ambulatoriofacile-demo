@@ -189,7 +189,8 @@ class WhatsAppCampaignService
             $tenantId,
             AppointmentNotificationSettingsService::CHANNEL_WHATSAPP,
             $policy,
-            false
+            false,
+            true
         );
         if (empty($rate['allowed'])) {
             $nextAt = (string) (($rate['next_allowed_at'] ?? '') ?: date('Y-m-d H:i:s', time() + 60));

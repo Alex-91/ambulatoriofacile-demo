@@ -15,6 +15,16 @@ Il comando corrente è `php spark appointment-reminders:run`. Una volta installa
 - lo stato per appuntamento e canale impedisce di ripetere gli invii già riusciti durante i ricontrolli;
 - un batch incompleto viene ripreso mantenendo la sua data di riferimento originale.
 
+### Priorità rispetto alle campagne
+
+Prima di riservare un invio di campagna WhatsApp (o il suo fallback SMS), il sistema verifica in sola lettura i promemoria ancora da inviare per lo stesso spazio. Se ne trova, rinvia la campagna di un minuto senza consumare il contatore giornaliero o l'intervallo del canale. Anche prima delle 08:00 vengono considerati i promemoria previsti per la mattina, evitando che la campagna consumi in anticipo la capacità disponibile. Gli altri spazi possono proseguire.
+
+Il controllo comprende i batch incompleti e, fino alle 08:59, gli appuntamenti aggiunti durante la finestra di raccolta. Dopo le 09:00 un batch completato non viene riaperto. Un errore nella verifica sospende la campagna finché la verifica torna disponibile. Gli SMS di recupero dei promemoria precedono quelli delle campagne.
+
+Gli appuntamenti con data e ora già trascorse vengono esclusi, anche durante il recupero di batch vecchi e prima del fallback SMS. I reminder di appuntamenti ancora futuri possono essere recuperati in ritardo. Nella finestra delle 08:00 il batch odierno precede gli arretrati, così un vecchio errore non impedisce la raccolta del giorno.
+
+La frequenza del task (ogni 5 minuti) è distinta dal ritmo dei messaggi: il valore predefinito WhatsApp è un messaggio ogni 5 minuti, email e SMS uno ogni 30 secondi, salvo configurazione specifica dello spazio. I limiti giornalieri continuano ad applicarsi anche ai promemoria.
+
 Installazione o riallineamento del task Coolify, dopo che il codice è stato pubblicato su `main` e rilasciato su `login`:
 
 ```powershell

@@ -26,8 +26,8 @@ final class AppointmentReminderScheduledRunService
     }
 
     /**
-     * Runs the oldest unfinished daily reminder batch. When no backlog exists,
-     * today's batch becomes eligible at 08:00 Europe/Rome.
+     * Collects today's reminders during 08:00-08:59 Europe/Rome.
+     * Outside that window, resumes the oldest unfinished daily batch.
      *
      * @param array<string, mixed> $options
      * @return array<string, mixed>
@@ -79,7 +79,9 @@ final class AppointmentReminderScheduledRunService
                 ];
             }
 
-            $referenceDate = $requestedReferenceDate ?: $this->oldestIncompleteReferenceDate($today);
+            // A failing historical batch must not prevent today's collection.
+            $referenceDate = $requestedReferenceDate
+                ?: ($this->isInsideStartWindow($now) ? $today : $this->oldestIncompleteReferenceDate($today));
             if ($referenceDate === null) {
                 if (!$force && !$this->isInsideStartWindow($now)) {
                     return [
@@ -266,6 +268,7 @@ final class AppointmentReminderScheduledRunService
             'deferred',
             'already_sent',
             'invalid_recipient',
+            'expired',
         ]));
     }
 

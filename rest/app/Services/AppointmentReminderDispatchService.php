@@ -42,6 +42,7 @@ class AppointmentReminderDispatchService
     public function run(array $options = []): array
     {
         $sendMode = !empty($options['send']);
+        $pendingOnly = !$sendMode && !empty($options['pending_only']);
         $tenantFilterId = max(0, (int) ($options['tenant_id'] ?? 0));
         $forcedChannel = strtolower(trim((string) ($options['channel'] ?? 'auto')));
         $forceRecipient = $this->channelService->normalizeRecipientContext((string) ($options['force_recipient'] ?? ''));
@@ -73,6 +74,7 @@ class AppointmentReminderDispatchService
             'deferred' => 0,
             'already_sent' => 0,
             'invalid_recipient' => 0,
+            'expired' => 0,
             'tenants' => [],
         ];
 
@@ -99,7 +101,7 @@ class AppointmentReminderDispatchService
                 : $referenceDate
                     ->modify('+' . max(0, (int) ($plan['lead_days'] ?? 2)) . ' day')
                     ->format('Y-m-d');
-            $confirmationInstructions = WhatsAppGatewayClient::isRoutedToGateway($tenantId)
+            $confirmationInstructions = !$pendingOnly && WhatsAppGatewayClient::isRoutedToGateway($tenantId)
                 ? $this->whatsAppChatbotService->instructionsForTenant(
                     $tenantId,
                     AppointmentNotificationSettingsService::TYPE_REMINDER
@@ -118,6 +120,8 @@ class AppointmentReminderDispatchService
                 'already_sent' => 0,
                 'invalid_recipient' => 0,
                 'preview' => [],
+                'pending' => 0,
+                'expired' => 0,
             ];
 
             try {
@@ -133,13 +137,18 @@ class AppointmentReminderDispatchService
                 $tenantSummary['candidates'] = count($rows);
                 $summary['processed_tenants']++;
 
-                $stateDir = $this->storagePaths->reminderStateDir($tenant, true);
+                $stateDir = $this->storagePaths->reminderStateDir($tenant, $sendMode);
                 $states = [];
                 foreach ($channels as $channel) {
                     $states[$channel] = $this->loadState($stateDir . DIRECTORY_SEPARATOR . 'appointment_reminders_' . $channel . '_' . $targetDate . '.json');
                 }
 
                 foreach ($rows as $row) {
+                    if (!AppointmentReminderPriorityService::isFutureAppointment($targetDate, (string) ($row['ora_label'] ?? ''))) {
+                        $tenantSummary['expired']++;
+                        $summary['expired']++;
+                        continue;
+                    }
                     $appointmentId = (int) ($row['id_appuntamento'] ?? 0);
                     $patientLabel = trim((string) ($row['patient_cognome'] ?? '') . ' ' . (string) ($row['patient_nome'] ?? ''));
                     $recipient = $hasForcedRecipient ? $forceRecipient : $this->buildRecipientContext($row, $patientLabel);
@@ -168,6 +177,22 @@ class AppointmentReminderDispatchService
                                     $patientLabel,
                                     ''
                                 );
+                            }
+                        }
+                        continue;
+                    }
+
+                    if ($pendingOnly) {
+                        foreach ($rowChannels as $channel) {
+                            if (!isset($states[$channel]['sent'][(string) $appointmentId])
+                                && $this->channelService->describeRecipientForChannel($channel, $recipient) !== '') {
+                                // A successful WhatsApp send suppresses its immediate SMS fallback.
+                                if ($channel === AppointmentNotificationSettingsService::CHANNEL_SMS
+                                    && in_array(AppointmentNotificationSettingsService::CHANNEL_WHATSAPP, $rowChannels, true)
+                                    && isset($states[AppointmentNotificationSettingsService::CHANNEL_WHATSAPP]['sent'][(string) $appointmentId])) {
+                                    continue;
+                                }
+                                $tenantSummary['pending']++;
                             }
                         }
                         continue;
@@ -204,6 +229,10 @@ class AppointmentReminderDispatchService
                     $whatsAppDeferred = false;
 
                     foreach ($orderedChannels as $channel) {
+                        // Recheck after any pacing sleep: a long batch can cross the appointment time.
+                        if (!AppointmentReminderPriorityService::isFutureAppointment($targetDate, (string) ($row['ora_label'] ?? ''))) {
+                            break;
+                        }
                         if (
                             $channel === AppointmentNotificationSettingsService::CHANNEL_SMS
                             && $hasWhatsApp
