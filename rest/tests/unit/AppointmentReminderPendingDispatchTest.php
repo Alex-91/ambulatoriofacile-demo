@@ -63,6 +63,40 @@ final class AppointmentReminderPendingDispatchTest extends CIUnitTestCase
         $this->assertSame(1, $result['tenants'][0]['expired']);
     }
 
+    public function testSmsFallbackAlreadySentStopsWhatsAppRetryAndCampaignBlock(): void
+    {
+        file_put_contents($this->root . '/appointment_reminders_sms_2099-01-01.json', json_encode(['sent' => ['1' => ['sent_at' => '2098-12-30']]]));
+        $result = $this->dispatcher([$this->row(1)])->run(['pending_only' => true, 'target_date' => '2099-01-01']);
+        $this->assertSame(0, $result['tenants'][0]['pending']);
+    }
+
+    public function testPoisonRecipientBacksOffWhileOtherRecipientsKeepPriority(): void
+    {
+        foreach (['wa', 'sms'] as $channel) {
+            file_put_contents($this->root . '/appointment_reminders_' . $channel . '_2099-01-01.json', json_encode([
+                'failures' => ['1' => ['attempts' => 1, 'retry_at' => time() + 900]],
+            ]));
+        }
+        $result = $this->dispatcher([$this->row(1), $this->row(2)])->run(['pending_only' => true, 'target_date' => '2099-01-01']);
+        $this->assertSame(2, $result['tenants'][0]['pending']);
+        $result = $this->dispatcher([$this->row(1)])->run(['pending_only' => true, 'target_date' => '2099-01-01']);
+        $this->assertSame(0, $result['tenants'][0]['pending']);
+    }
+
+    public function testRepeatedProviderFailureHasBoundedRetries(): void
+    {
+        $failure = [];
+        $now = 1000;
+        for ($attempt = 1; $attempt <= 3; $attempt++) {
+            $this->assertTrue(\App\Services\AppointmentReminderRetry::ready($failure, $now));
+            $failure = \App\Services\AppointmentReminderRetry::failed($failure, $now);
+            $this->assertFalse(\App\Services\AppointmentReminderRetry::ready($failure, $now + 300));
+            $now = $failure['retry_at'];
+        }
+        $this->assertTrue(\App\Services\AppointmentReminderRetry::exhausted($failure));
+        $this->assertFalse(\App\Services\AppointmentReminderRetry::ready($failure, $now + 86400));
+    }
+
     private function row(int $id): array
     {
         return ['id_appuntamento' => $id, 'ora_label' => '10:00', 'cellulare' => '+393331234567', 'appointment_reminder_sms_enabled' => 1];

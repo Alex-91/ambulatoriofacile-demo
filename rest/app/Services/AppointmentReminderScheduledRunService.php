@@ -128,6 +128,7 @@ final class AppointmentReminderScheduledRunService
             $tenantErrors = $this->tenantErrors((array) ($summary['tenants'] ?? []));
             $completed = (int) ($summary['failed'] ?? 0) === 0
                 && (int) ($summary['deferred'] ?? 0) === 0
+                && (int) ($summary['retry_waiting'] ?? 0) === 0
                 && $tenantErrors === [];
             $finishedAt = new \DateTimeImmutable('now', $timezone);
             $status = $completed ? 'completed' : 'retry_required';
@@ -269,6 +270,7 @@ final class AppointmentReminderScheduledRunService
             'already_sent',
             'invalid_recipient',
             'expired',
+            'retry_waiting',
         ]));
     }
 

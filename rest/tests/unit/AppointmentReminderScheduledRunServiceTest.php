@@ -168,6 +168,13 @@ final class AppointmentReminderScheduledRunServiceTest extends CIUnitTestCase
         $this->assertSame(['2026-09-05', '2026-09-04'], $seen);
     }
 
+    public function testBackoffDoesNotCloseBatchBeforeScheduledRetry(): void
+    {
+        $service = $this->service(static fn(): array => ['failed' => 0, 'deferred' => 0, 'retry_waiting' => 1, 'tenants' => []]);
+        $result = $service->run(['now' => new \DateTimeImmutable('2026-09-22 08:00:00', new \DateTimeZone('Europe/Rome'))]);
+        $this->assertSame('retry_required', $result['status']);
+    }
+
     private function service(\Closure $dispatcher, ?string $stateDir = null): AppointmentReminderScheduledRunService
     {
         return new AppointmentReminderScheduledRunService(

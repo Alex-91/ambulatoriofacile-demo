@@ -25,6 +25,8 @@ Gli appuntamenti con data e ora già trascorse vengono esclusi, anche durante il
 
 La frequenza del task (ogni 5 minuti) è distinta dal ritmo dei messaggi: il valore predefinito WhatsApp è un messaggio ogni 5 minuti, email e SMS uno ogni 30 secondi, salvo configurazione specifica dello spazio. I limiti giornalieri continuano ad applicarsi anche ai promemoria.
 
+Un tentativo rifiutato dal provider viene ritentato dopo 15 minuti e poi dopo 30 minuti, fino a tre tentativi per appuntamento, data e canale. Durante l'attesa non blocca gli altri destinatari né la campagna. Il batch resta aperto fino al retry; dopo tre errori l'esito resta fallito nei log e non viene ritentato automaticamente. Un SMS di fallback già inviato impedisce di ritentare lo stesso promemoria su WhatsApp.
+
 Installazione o riallineamento del task Coolify, dopo che il codice è stato pubblicato su `main` e rilasciato su `login`:
 
 ```powershell

@@ -75,6 +75,7 @@ class AppointmentReminderDispatchService
             'already_sent' => 0,
             'invalid_recipient' => 0,
             'expired' => 0,
+            'retry_waiting' => 0,
             'tenants' => [],
         ];
 
@@ -122,6 +123,7 @@ class AppointmentReminderDispatchService
                 'preview' => [],
                 'pending' => 0,
                 'expired' => 0,
+                'retry_waiting' => 0,
             ];
 
             try {
@@ -184,7 +186,8 @@ class AppointmentReminderDispatchService
 
                     if ($pendingOnly) {
                         foreach ($rowChannels as $channel) {
-                            if (!isset($states[$channel]['sent'][(string) $appointmentId])
+                            if (!AppointmentReminderRetry::delivered($states, $channel, $appointmentId)
+                                && AppointmentReminderRetry::ready($states[$channel]['failures'][(string) $appointmentId] ?? [])
                                 && $this->channelService->describeRecipientForChannel($channel, $recipient) !== '') {
                                 // A successful WhatsApp send suppresses its immediate SMS fallback.
                                 if ($channel === AppointmentNotificationSettingsService::CHANNEL_SMS
@@ -240,11 +243,20 @@ class AppointmentReminderDispatchService
                         ) {
                             continue;
                         }
-                        if (isset($states[$channel]['sent'][(string) $appointmentId])) {
+                        if (AppointmentReminderRetry::delivered($states, $channel, $appointmentId)) {
                             $tenantSummary['already_sent']++;
                             $summary['already_sent']++;
                             if ($channel === AppointmentNotificationSettingsService::CHANNEL_WHATSAPP) {
                                 $whatsAppSucceeded = true;
+                            }
+                            continue;
+                        }
+
+                        $previousFailure = $states[$channel]['failures'][(string) $appointmentId] ?? [];
+                        if (!AppointmentReminderRetry::ready($previousFailure)) {
+                            if (!AppointmentReminderRetry::exhausted($previousFailure)) {
+                                $tenantSummary['retry_waiting']++;
+                                $summary['retry_waiting']++;
                             }
                             continue;
                         }
@@ -372,6 +384,11 @@ class AppointmentReminderDispatchService
                         } else {
                             $tenantSummary['failed']++;
                             $summary['failed']++;
+                            $states[$channel]['failures'][(string) $appointmentId] = AppointmentReminderRetry::failed($previousFailure);
+                            $this->saveState(
+                                $stateDir . DIRECTORY_SEPARATOR . 'appointment_reminders_' . $channel . '_' . $targetDate . '.json',
+                                $states[$channel]
+                            );
                         }
 
                         $isImmediateSmsFallback = $channel === AppointmentNotificationSettingsService::CHANNEL_WHATSAPP
