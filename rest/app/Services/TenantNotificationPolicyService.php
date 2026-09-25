@@ -79,6 +79,25 @@ class TenantNotificationPolicyService
             ->where('id_tenant', $tenantId)
             ->get(1)
             ->getRowArray();
+        // The period is server-owned: ordinary saves and mode switches never reset it.
+        $previous = $this->decode((string) ($row['config_json'] ?? ''));
+        $policy['sms']['monthly_period'] = (string) ($previous['sms']['monthly_period'] ?? '');
+        if (!$policy['sms']['monthly_auto_renew'] && $policy['sms']['monthly_period'] === '') {
+            $policy['sms']['monthly_period'] = SmsMonthlyQuotaService::periodKey([]);
+        }
+        if (!empty($raw['sms']['renew_quota'])) {
+            if ($policy['sms']['monthly_auto_renew'] || !$policy['sms']['monthly_limit_enabled']) {
+                throw new \InvalidArgumentException('Il rinnovo manuale richiede un plafond attivo senza rinnovo automatico.');
+            }
+            if (!$this->platformDb->tableExists(SmsMonthlyQuotaService::TABLE)) {
+                throw new \RuntimeException('Installa il contatore SMS prima di rinnovare il plafond.');
+            }
+            do {
+                $period = 'R' . bin2hex(random_bytes(3));
+            } while ($period === $policy['sms']['monthly_period'] || $this->platformDb->table(SmsMonthlyQuotaService::TABLE)
+                ->where('id_tenant', $tenantId)->where('month_key', $period)->countAllResults() > 0);
+            $policy['sms']['monthly_period'] = $period;
+        }
         $submittedPassword = (string) (((array) ($raw['email'] ?? []))['smtp_password'] ?? '');
         if (strlen($submittedPassword) > 1024) {
             throw new \InvalidArgumentException('La password SMTP non può superare 1024 caratteri.');
@@ -313,6 +332,10 @@ class TenantNotificationPolicyService
             ],
             'sms' => [
                 'sender' => $smsSender,
+                'monthly_limit_enabled' => !empty($sms['monthly_limit_enabled']),
+                'monthly_auto_renew' => !array_key_exists('monthly_auto_renew', $sms) || !empty($sms['monthly_auto_renew']),
+                'monthly_period' => (string) ($sms['monthly_period'] ?? ''),
+                'monthly_limit' => $this->integer($sms['monthly_limit'] ?? 1000, 1, 1000000, $strict, 'Limite SMS mensile'),
                 'messages_per_interval' => $this->integer(
                     $sms['messages_per_interval'] ?? $defaults['sms']['messages_per_interval'],
                     1,
@@ -374,6 +397,10 @@ class TenantNotificationPolicyService
             ],
             'sms' => [
                 'sender' => 'AmbFacile',
+                'monthly_limit_enabled' => false,
+                'monthly_auto_renew' => true,
+                'monthly_period' => '',
+                'monthly_limit' => 1000,
                 'messages_per_interval' => 10,
                 'interval_minutes' => 5,
                 'daily_limit' => 500,

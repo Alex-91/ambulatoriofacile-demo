@@ -51,6 +51,7 @@ final class SmsProviderConfigurationServiceTest extends CIUnitTestCase
                 smsfactor_webhook_signature_encrypted TEXT NULL,
                 aruba_username_encrypted TEXT NULL,
                 aruba_password_encrypted TEXT NULL,
+                http_config_encrypted TEXT NULL,
                 updated_by_platform_user_id INTEGER NULL,
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
@@ -60,6 +61,24 @@ final class SmsProviderConfigurationServiceTest extends CIUnitTestCase
             $this->platformDb,
             new SmsProviderSecretsService('unit-test-sms-key')
         );
+    }
+
+    public function testHttpConfigurationIsEncryptedInheritedAndRetained(): void
+    {
+        $config = ['url' => 'https://sms.example.com/send', 'body' => ['to' => '{recipient}', 'text' => '{message}'],
+            'headers' => ['Authorization' => 'Bearer private-token'], 'success_path' => 'ok', 'success_value' => true];
+        $display = $this->service->saveGlobal(['provider' => 'http', 'http_config' => json_encode($config)]);
+        $this->assertTrue($display['http_config_stored']);
+        $this->assertStringNotContainsString('private-token', json_encode($display));
+        $this->assertSame($config, $this->service->resolveRuntime(7)['http']);
+        $row = $this->platformDb->table(SmsProviderConfigurationService::TABLE)->get()->getRowArray();
+        $this->assertStringNotContainsString('private-token', $row['http_config_encrypted']);
+        $this->service->saveGlobal(['provider' => 'http', 'http_config' => '']);
+        $this->assertSame($config, $this->service->resolveRuntime()['http']);
+        $config['headers']['Authorization'] = 'Bearer tenant-token';
+        $this->service->saveTenant(7, ['mode' => 'custom', 'provider' => 'http', 'http_config' => json_encode($config)]);
+        $this->assertSame($config, $this->service->resolveRuntime(7)['http']);
+        $this->assertSame('Bearer private-token', $this->service->resolveRuntime()['http']['headers']['Authorization']);
     }
 
     public function testGlobalCredentialsAreEncryptedAndNeverReturnedForDisplay(): void

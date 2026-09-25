@@ -105,6 +105,7 @@ class SmsProviderConfigurationService
             'tenant_id' => $tenantId,
             'inherited' => false,
             'tenant_sender_override' => trim((string) ($tenantRow['default_sender'] ?? '')),
+            'http' => json_decode($this->decryptColumn($tenantRow, 'http_config_encrypted'), true) ?: [],
         ];
         $runtime['provider_label'] = self::providerLabel((string) $runtime['provider']);
         $runtime['configured'] = self::runtimeIsConfigured($runtime);
@@ -168,6 +169,16 @@ class SmsProviderConfigurationService
         }
 
         $existing = $this->findRow($scopeKey) ?? [];
+        $httpEncrypted = $existing['http_config_encrypted'] ?? null;
+        if (!empty($raw['clear_http_config'])) { $httpEncrypted = null; }
+        $httpInput = trim((string) ($raw['http_config'] ?? ''));
+        if ($httpInput !== '') {
+            if (strlen($httpInput) > 16000) { throw new \InvalidArgumentException('Configurazione HTTP troppo lunga.'); }
+            $httpConfig = json_decode($httpInput, true, 32, JSON_THROW_ON_ERROR);
+            if (!is_array($httpConfig)) { throw new \InvalidArgumentException('Inserisci un oggetto JSON.'); }
+            GenericSmsClient::validate($httpConfig);
+            $httpEncrypted = $this->secrets->encrypt($httpInput);
+        }
         $provider = self::normalizeProvider((string) ($raw['provider'] ?? ($existing['provider'] ?? self::PROVIDER_SMSFACTOR)));
         $sender = trim((string) ($raw['sender'] ?? ($existing['default_sender'] ?? 'AmbFacile')));
         if (preg_match('/^[A-Za-z0-9]{1,11}$/', $sender) !== 1) {
@@ -212,6 +223,7 @@ class SmsProviderConfigurationService
         }
 
         $candidate = [
+            'http' => json_decode((string) $this->secrets->decrypt($httpEncrypted), true) ?: [],
             'provider' => $provider,
             'sender' => $sender,
             'smsfactor' => [
@@ -228,9 +240,9 @@ class SmsProviderConfigurationService
         ];
         if (!$inheritGlobal && !self::runtimeIsConfigured($candidate)) {
             throw new \InvalidArgumentException(
-                $provider === self::PROVIDER_SMSFACTOR
+                $provider === 'http' ? 'Configura il provider HTTP prima di attivarlo.' : ($provider === self::PROVIDER_SMSFACTOR
                     ? 'Inserisci il token API SMSFactor per attivare questa configurazione.'
-                    : 'Inserisci username e password Aruba SMS per attivare questa configurazione.'
+                    : 'Inserisci username e password Aruba SMS per attivare questa configurazione.')
             );
         }
 
@@ -248,6 +260,11 @@ class SmsProviderConfigurationService
             'updated_at' => $now,
         ], $encrypted);
 
+        if ($this->db->fieldExists('http_config_encrypted', self::TABLE)) {
+            $payload['http_config_encrypted'] = $httpEncrypted;
+        } elseif ($provider === 'http' || $httpInput !== '') {
+            throw new \RuntimeException('Esegui la migration del provider HTTP prima di salvare.');
+        }
         if ($existing) {
             $ok = $this->db->table(self::TABLE)
                 ->where('id_sms_provider_setting', (int) $existing['id_sms_provider_setting'])
@@ -264,6 +281,7 @@ class SmsProviderConfigurationService
     /** @param array<string, mixed> $base @param array<string, mixed> $row @return array<string, mixed> */
     private function overlayRow(array $base, array $row, bool $allowEnvironmentSecrets): array
     {
+        $base['http'] = json_decode($this->decryptColumn($row, 'http_config_encrypted'), true) ?: [];
         $base['provider'] = self::normalizeProvider((string) ($row['provider'] ?? $base['provider']));
         $base['provider_label'] = self::providerLabel((string) $base['provider']);
         $base['sender'] = trim((string) ($row['default_sender'] ?? $base['sender']));
@@ -295,6 +313,7 @@ class SmsProviderConfigurationService
         };
 
         return [
+            'http_config_stored' => $stored($row, 'http_config_encrypted'),
             'schema_ready' => $this->schemaReady(),
             'mode' => $mode,
             'provider' => (string) ($runtime['provider'] ?? self::PROVIDER_ARUBA),
@@ -345,6 +364,7 @@ class SmsProviderConfigurationService
     private static function runtimeIsConfigured(array $runtime): bool
     {
         $provider = self::normalizeProvider((string) ($runtime['provider'] ?? ''));
+        if ($provider === 'http') { return !empty($runtime['http']); }
         if ($provider === self::PROVIDER_SMSFACTOR) {
             return trim((string) ($runtime['smsfactor']['api_token'] ?? '')) !== '';
         }
@@ -355,6 +375,8 @@ class SmsProviderConfigurationService
 
     private static function normalizeProvider(string $provider): string
     {
+        if (strtolower(trim($provider)) === 'http') { return 'http'; }
+        if (!in_array(strtolower(trim($provider)), ['', 'aruba', 'smsfactor'], true)) { throw new \InvalidArgumentException('Provider SMS non supportato.'); }
         return strtolower(trim($provider)) === self::PROVIDER_SMSFACTOR
             ? self::PROVIDER_SMSFACTOR
             : self::PROVIDER_ARUBA;
@@ -367,6 +389,7 @@ class SmsProviderConfigurationService
 
     public static function providerLabel(string $provider): string
     {
+        if (self::normalizeProvider($provider) === 'http') { return 'HTTP personalizzato'; }
         return self::normalizeProvider($provider) === self::PROVIDER_SMSFACTOR ? 'SMSFactor' : 'Aruba SMS';
     }
 }

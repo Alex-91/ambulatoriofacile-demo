@@ -92,6 +92,7 @@ class PlatformAppointmentNotificationsController extends BaseController
             'smsProviderConfigured' => $smsProviderConfigured,
             'globalSmsProvider' => $globalSmsProvider,
             'tenantSmsProvider' => $tenantSmsProvider,
+            'smsMonthlyUsage' => (new \App\Services\SmsMonthlyQuotaService())->usage($policyTenantId, $policy),
         ]);
     }
 
@@ -275,6 +276,8 @@ class PlatformAppointmentNotificationsController extends BaseController
     private function smsProviderInput(): array
     {
         return [
+            'http_config' => (string) ($this->request->getPost('http_config') ?? ''),
+            'clear_http_config' => (bool) $this->request->getPost('clear_http_config'),
             'mode' => trim((string) ($this->request->getPost('mode') ?? 'inherit')),
             'provider' => trim((string) ($this->request->getPost('provider') ?? 'smsfactor')),
             'sender' => trim((string) ($this->request->getPost('sender') ?? 'AmbFacile')),

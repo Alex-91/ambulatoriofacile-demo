@@ -176,6 +176,7 @@ $logStatusLabels = [
                     <select class="form-control" name="provider">
                       <option value="smsfactor" <?= ($globalSmsProvider['provider'] ?? '') === 'smsfactor' ? 'selected' : '' ?>>SMSFactor</option>
                       <option value="aruba" <?= ($globalSmsProvider['provider'] ?? '') === 'aruba' ? 'selected' : '' ?>>Aruba SMS</option>
+<option value="http" <?= ($globalSmsProvider['provider'] ?? '') === 'http' ? 'selected' : '' ?>>HTTP personalizzato</option>
                     </select>
                   </div>
                   <div class="col-md-6 form-group">
@@ -184,7 +185,8 @@ $logStatusLabels = [
                     <small class="text-muted">Massimo 11 caratteri alfanumerici.</small>
                   </div>
                 </div>
-                <div class="provider-grid">
+                <?= view('admin/partials/sms_http_provider', ['smsConfig' => $globalSmsProvider]) ?>
+<div class="provider-grid">
                   <section class="delivery-policy-card">
                     <h4><i class="fa fa-paper-plane"></i> SMSFactor</h4>
                     <p>Token Bearer, endpoint e firma usata per autenticare le ricevute di consegna.</p>
@@ -280,6 +282,7 @@ $logStatusLabels = [
                         <select class="form-control" name="provider">
                           <option value="smsfactor" <?= ($tenantSmsProvider['provider'] ?? '') === 'smsfactor' ? 'selected' : '' ?>>SMSFactor</option>
                           <option value="aruba" <?= ($tenantSmsProvider['provider'] ?? '') === 'aruba' ? 'selected' : '' ?>>Aruba SMS</option>
+<option value="http" <?= ($tenantSmsProvider['provider'] ?? '') === 'http' ? 'selected' : '' ?>>HTTP personalizzato</option>
                         </select>
                       </div>
                       <div class="col-md-4 form-group">
@@ -287,7 +290,8 @@ $logStatusLabels = [
                         <input class="form-control" name="sender" maxlength="11" pattern="[A-Za-z0-9]{1,11}" required value="<?= esc((string) ($tenantSmsProvider['sender'] ?? $policy['sms']['sender'] ?? 'AmbFacile'), 'attr') ?>">
                       </div>
                     </div>
-                    <div class="provider-grid">
+                    <?= view('admin/partials/sms_http_provider', ['smsConfig' => $tenantSmsProvider]) ?>
+<div class="provider-grid">
                       <div>
                         <h5><strong>Credenziali SMSFactor dedicate</strong></h5>
                         <div class="form-group"><label>Token API <?= !empty($tenantSmsProvider['smsfactor_api_token_stored']) ? '<span class="label label-success">salvato per lo spazio</span>' : '<span class="label label-default">non salvato</span>' ?></label><input class="form-control" type="password" name="smsfactor_api_token" maxlength="4096" autocomplete="new-password" placeholder="Lascia vuoto per mantenere il valore"><?php if (!empty($tenantSmsProvider['smsfactor_api_token_stored'])): ?><label class="checkbox-inline"><input type="checkbox" name="clear_smsfactor_api_token" value="1"> Rimuovi token dedicato</label><?php endif; ?></div>
@@ -401,6 +405,17 @@ $logStatusLabels = [
                         <div class="form-group"><label>SMS</label><input class="form-control" type="number" min="1" max="100" name="sms[messages_per_interval]" value="<?= (int) $policyValue('sms', 'messages_per_interval', $policy['sms']['messages_per_interval'] ?? 10) ?>"></div>
                         <div class="form-group"><label>Ogni minuti</label><input class="form-control" type="number" min="1" max="1440" name="sms[interval_minutes]" value="<?= (int) $policyValue('sms', 'interval_minutes', $policy['sms']['interval_minutes'] ?? 5) ?>"></div>
                         <div class="form-group daily-limit"><label>Massimo al giorno</label><input class="form-control" type="number" min="1" max="5000" name="sms[daily_limit]" value="<?= (int) $policyValue('sms', 'daily_limit', $policy['sms']['daily_limit'] ?? 500) ?>"></div>
+<div class="form-group daily-limit">
+<p><strong><?= ($policy['sms']['monthly_auto_renew'] ?? true) ? 'Tentativi SMS nel mese' : 'Tentativi SMS nel plafond corrente' ?>: <?= isset($smsMonthlyUsage) ? (int) $smsMonthlyUsage : 'contatore da installare' ?></strong></p>
+<label><input type="checkbox" name="sms[monthly_limit_enabled]" value="1" <?= !empty($policy['sms']['monthly_limit_enabled']) ? 'checked' : '' ?>> Attiva limite SMS</label>
+<input class="form-control" type="number" min="1" max="1000000" name="sms[monthly_limit]" value="<?= (int) ($policy['sms']['monthly_limit'] ?? 1000) ?>">
+<input type="hidden" name="sms[monthly_auto_renew]" value="0">
+<label><input type="checkbox" name="sms[monthly_auto_renew]" value="1" <?= ($policy['sms']['monthly_auto_renew'] ?? true) ? 'checked' : '' ?>> Rinnova automaticamente ogni mese</label>
+<p class="help-block">Con rinnovo attivo il plafond riparte il primo giorno del mese (ora italiana). Senza rinnovo, il residuo resta disponibile nei mesi successivi e, quando si esaurisce, gli invii restano bloccati. Alla prima disattivazione si mantiene il consumo del mese corrente; i salvataggi successivi non azzerano il plafond.</p>
+<label><input type="checkbox" name="sms[renew_quota]" value="1"> Rinnova ora il plafond manuale al salvataggio</label>
+<p class="help-block">Il rinnovo manuale apre un nuovo plafond completo, senza sommare il residuo. Disponibile solo con limite attivo e rinnovo automatico disattivato.</p>
+<p class="help-block">Tetto condiviso da campagne, promemoria e altri SMS dello spazio, con qualsiasi fornitore. Si contano i tentativi, inclusi quelli falliti o senza conferma. Disattivare il limite o cambiare fornitore non azzera il conteggio. Il conteggio parte dall’installazione dell’aggiornamento.</p>
+</div>
                       </div>
                     </section>
                   </div>

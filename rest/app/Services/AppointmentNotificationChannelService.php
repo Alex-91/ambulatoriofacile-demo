@@ -173,7 +173,13 @@ class AppointmentNotificationChannelService
             return $this->invalidRecipientResult(AppointmentNotificationSettingsService::CHANNEL_SMS);
         }
 
-        return $this->sendSms($target, $message, $options);
+        try {
+            return $this->sendSms($target, $message, $options);
+        } catch (\Throwable $e) {
+            return ['ok' => false, 'channel' => 'sms', 'recipient' => $target,
+                'provider' => 'SMS', 'provider_id' => '',
+                'error' => 'Invio SMS bloccato: configurazione o servizio non disponibile.'];
+        }
     }
 
     /**
@@ -596,6 +602,24 @@ class AppointmentNotificationChannelService
             $sender = trim((string) (($smsRuntime['sender'] ?? '') ?: $defaultSender));
         }
 
+        try {
+            $quotaPolicy = $tenantId > 0 ? (new TenantNotificationPolicyService())->resolve($tenantId) : [];
+            if (!(new SmsMonthlyQuotaService())->claim($tenantId, $quotaPolicy)) {
+                return ['ok' => false, 'channel' => 'sms', 'recipient' => $recipient,
+                    'provider' => $smsRuntime['provider_label'] ?? 'SMS', 'provider_id' => '',
+                    'error' => ($quotaPolicy['sms']['monthly_auto_renew'] ?? true)
+                        ? 'Limite SMS mensile raggiunto: invii bloccati fino al prossimo mese.'
+                        : 'Plafond SMS esaurito: invii bloccati fino al rinnovo manuale del master.',
+                    'reason' => 'monthly_limit'];
+            }
+        } catch (\Throwable $e) {
+            return ['ok' => false, 'channel' => 'sms', 'recipient' => $recipient,
+                'provider' => $smsRuntime['provider_label'] ?? 'SMS', 'provider_id' => '',
+                'error' => 'Impossibile verificare il limite SMS mensile: invio bloccato.', 'reason' => 'monthly_quota_unavailable'];
+        }
+        if ($smsProvider === 'http') {
+            return (new GenericSmsClient())->send((array) ($smsRuntime['http'] ?? []), $recipient, $message, $sender);
+        }
         if ($smsProvider === 'smsfactor') {
             try {
                 $smsFactor = (array) ($smsRuntime['smsfactor'] ?? []);
@@ -683,6 +707,7 @@ class AppointmentNotificationChannelService
                 'message' => $e->getMessage(),
                 'tenant_id' => $tenantId,
             ]);
+            if ($tenantId > 0) { throw new \RuntimeException('Configurazione SMS dello spazio non disponibile.', 0, $e); }
             return SmsProviderConfigurationService::environmentRuntime();
         }
     }
