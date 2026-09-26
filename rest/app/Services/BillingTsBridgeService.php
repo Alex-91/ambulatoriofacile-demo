@@ -856,8 +856,8 @@ class BillingTsBridgeService
             'expense_type_code' => $this->resolveExpenseTypeCode($billingDocument, $profile),
             'payment_mode' => $this->mapPaymentMethodToTs((string) ($billingDocument['payment_method'] ?? '')),
             'amount_total' => round((float) ($billingDocument['amount_total'] ?? 0), 2),
-            'vat_rate' => $this->billingVatRateForTs($billingDocument),
-            'vat_nature' => strtoupper(trim((string) ($billingDocument['vat_nature'] ?? ''))),
+            'vat_rate' => TsVatService::normalizeRate($billingDocument['vat_rate'] ?? null),
+            'vat_nature' => TsVatService::billingNatureCode($billingDocument, $profile),
         ];
     }
 
@@ -910,10 +910,8 @@ class BillingTsBridgeService
             'expense_type_code' => $this->resolveExpenseTypeCode($billingDocument, $profile),
             'payment_mode' => $this->mapPaymentMethodToTs((string) ($billingDocument['payment_method'] ?? '')),
             'amount_total' => round((float) ($billingDocument['amount_total'] ?? 0), 2),
-            'vat_rate' => $this->billingVatRateForTs($billingDocument),
-            'vat_nature' => trim((string) ($billingDocument['vat_nature'] ?? '')) !== ''
-                ? strtoupper(trim((string) ($billingDocument['vat_nature'] ?? '')))
-                : null,
+            'vat_rate' => TsVatService::normalizeRate($billingDocument['vat_rate'] ?? null),
+            'vat_nature' => TsVatService::billingNatureCode($billingDocument, $profile) ?: null,
             'opposition_flag' => (int) ($billingDocument['ts_opposition_flag'] ?? 0) === 1 ? 1 : 0,
             'notes' => trim((string) ($billingDocument['notes'] ?? '')) !== ''
                 ? trim((string) ($billingDocument['notes'] ?? ''))
@@ -941,14 +939,6 @@ class BillingTsBridgeService
      * @param array<string, mixed> $billingDocument
      * @return array<string, mixed>|null
      */
-    private function billingVatRateForTs(array $billingDocument): ?float
-    {
-        $rate = $this->normalizeNullableDecimal($billingDocument['vat_rate'] ?? null);
-        // Billing stores zero for exempt invoices; TS represents them by nature alone.
-        // Preserve a positive rate so validation still rejects contradictory fiscal data.
-        return $rate === 0.0 && trim((string) ($billingDocument['vat_nature'] ?? '')) !== '' ? null : $rate;
-    }
-
     private function findLinkedTsDocument(array $billingDocument, TsDocumentModel $tsDocuments): ?array
     {
         $linkedId = (int) ($billingDocument['linked_ts_document_id'] ?? 0);
@@ -980,7 +970,9 @@ class BillingTsBridgeService
         $localState = trim((string) ($tsDocument['local_state'] ?? 'draft'));
         $tsState = trim((string) ($tsDocument['ts_state'] ?? ''));
 
-        return $localState === 'sent' || in_array($tsState, ['accepted', 'varied', 'cancelled'], true);
+        return $localState === 'sent' || in_array($tsState, ['accepted', 'varied', 'cancelled'], true)
+            || trim((string) ($tsDocument['ts_protocol'] ?? '')) !== ''
+            || trim((string) ($tsDocument['ts_sent_at'] ?? '')) !== '';
     }
 
     private function resolveBillingTsStateFromTsDocument(array $tsDocument): string

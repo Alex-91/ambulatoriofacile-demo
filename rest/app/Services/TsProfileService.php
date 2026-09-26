@@ -415,6 +415,8 @@ class TsProfileService
 
         return [
             'document_type' => $documentType,
+            'vat_nature_code' => strtoupper(trim((string) ($payload['default_vat_nature_code']
+                ?? $existing['vat_nature_code'] ?? ''))),
             'expense_type_code' => $expenseType,
             'payment_mode' => $paymentMode,
             'opposition_flag' => in_array(strtolower(trim((string) $oppositionValue)), ['1', 'true', 'on', 'yes'], true),
@@ -428,6 +430,7 @@ class TsProfileService
     {
         return [
             'document_type' => 'F',
+            'vat_nature_code' => '',
             'expense_type_code' => 'SP',
             'payment_mode' => 'tracciato',
             'opposition_flag' => false,
@@ -464,6 +467,10 @@ class TsProfileService
             $payload,
             is_array($currentMetadata['document_defaults'] ?? null) ? $currentMetadata['document_defaults'] : []
         );
+        $natureCode = (string) $metadata['document_defaults']['vat_nature_code'];
+        if ($natureCode !== '' && !TsVatService::isNatureCode($natureCode)) {
+            throw new \RuntimeException('Il codice natura IVA predefinito per TS deve essere un codice sintetico, ad esempio N1 o N2.2.');
+        }
         $metadata['service_expense_types'] = $this->normalizeServiceExpenseTypes(
             is_array($payload['service_expense_types'] ?? null)
                 ? $payload['service_expense_types']

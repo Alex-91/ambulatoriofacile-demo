@@ -164,12 +164,30 @@ class TsDocumentService
             $profile = $this->profiles->getDefaultProfileForTenant($tenantId);
         }
 
+        $validation = $this->decodeValidationJson((string) ($document['validation_json'] ?? ''));
+        $vatRefreshed = false;
+        if (is_array($document) && is_array($profile)) {
+            $refreshed = TsVatService::refreshPendingBillingDocument($document, $profile);
+            $vatRefreshed = $refreshed !== $document;
+            if ($vatRefreshed) {
+                $document = $refreshed;
+                $duplicate = $documents->findByIdentifierHash((string) ($document['document_identifier_hash'] ?? ''));
+                $validation = $this->validation->validateDraft(
+                    (new TsPayloadBuilderService())->buildValidationPayload($document, $profile),
+                    $profile,
+                    is_array($duplicate) && (int) $duplicate['id_ts_document'] !== $documentId,
+                    'manual'
+                );
+            }
+        }
+
         return [
             'profile' => $profile,
+            'vat_refreshed' => $vatRefreshed,
             'document' => $this->buildEditableDocument($document, $this->resolveProfileDocumentDefaults($profile)),
             'parent_document' => $this->resolveParentDocumentSummary($documents, $document),
             'related_operations' => $this->listRelatedOperations($documents, $document),
-            'validation' => $this->decodeValidationJson((string) ($document['validation_json'] ?? '')),
+            'validation' => $validation,
             'request_snapshot' => $this->decodeValidationJson((string) ($document['request_payload_json'] ?? '')),
             'response_snapshot' => $this->decodeValidationJson((string) ($document['response_payload_json'] ?? '')),
             'events' => $documentId > 0 ? $events->listForDocument($documentId) : [],
@@ -222,7 +240,11 @@ class TsDocumentService
             throw new \RuntimeException('Il documento è inviato, in elaborazione o in attesa di verifica e non può essere modificato.');
         }
 
+        $persistedCurrent = $current;
         $sourceType = trim((string) ($current['source_type'] ?? 'manual'));
+        if (is_array($current)) {
+            $current = TsVatService::refreshPendingBillingDocument($current, $profile);
+        }
         $normalized = $this->normalizeDraftPayload($payload, $profile, $current);
         $duplicateFound = false;
         $existing = null;
@@ -299,7 +321,7 @@ class TsDocumentService
         try {
             if ($current) {
                 $documentId = $currentId;
-                if (!$documents->updateEditableSnapshot($documentId, $current, $record)) {
+                if (!$documents->updateEditableSnapshot($documentId, $persistedCurrent, $record)) {
                     throw new \RuntimeException('Il documento TS è cambiato durante il salvataggio. Riaprilo prima di procedere.');
                 }
             } else {
@@ -802,7 +824,7 @@ class TsDocumentService
                     : ($current['document_type'] ?? 'F')
             )
         )));
-        $vatRate = $this->normalizeNullableDecimal(
+        $vatRate = TsVatService::normalizeRate(
             $lockAllFields
                 ? ($current['vat_rate'] ?? null)
                 : (
@@ -924,7 +946,7 @@ class TsDocumentService
                 'payment_mode' => array_key_exists($paymentMode, $this->config->paymentModes) ? $paymentMode : 'tracciato',
                 'amount_total' => '0,00',
                 'vat_rate' => '',
-                'vat_nature' => '',
+                'vat_nature' => (string) ($defaults['vat_nature_code'] ?? ''),
                 'opposition_flag' => !empty($defaults['opposition_flag']) ? 1 : 0,
                 'notes' => '',
                 'local_state' => 'draft',
@@ -979,6 +1001,7 @@ class TsDocumentService
 
         return [
             'document_type' => trim((string) ($defaults['document_type'] ?? 'F')),
+            'vat_nature_code' => TsVatService::profileNatureCode($profile ?? []),
             'expense_type_code' => trim((string) ($defaults['expense_type_code'] ?? 'SP')),
             'payment_mode' => trim((string) ($defaults['payment_mode'] ?? 'tracciato')),
             'opposition_flag' => !empty($defaults['opposition_flag']),

@@ -371,8 +371,9 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
                   </div>
                   <div class="col-md-4">
                     <div class="form-group">
-                      <label>Natura IVA</label>
-                      <input class="form-control" type="text" name="vat_nature" maxlength="16" value="<?= esc($fieldValue('vat_nature')) ?>" placeholder="Es. N4 o esente">
+                      <label>Natura IVA (testo in fattura)</label>
+                      <input class="form-control" type="text" name="vat_nature" maxlength="16" value="<?= esc($fieldValue('vat_nature')) ?>" placeholder="Es. esente IVA">
+                      <small class="help-block">Solo testo in fattura. Per TS, con aliquota zero o vuota, viene usato il codice natura della configurazione Sistema TS.</small>
                     </div>
                   </div>
                 </div>
@@ -532,6 +533,7 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
       var $linkPill = $root.find('[data-role="patient-link-pill"]');
       var debounceTimer = null;
       var pendingRequest = null;
+      var searchRevision = 0;
 
       if (!$search.length || !$hiddenName.length || !$lastName.length || !$firstName.length || !$taxCode.length || !$clientId.length || endpoint === '') {
         return;
@@ -564,7 +566,27 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
 
       function hideResults() {
         $results.hide().empty();
+        $search.attr('aria-expanded', 'false');
       }
+
+      $results.appendTo(document.body).css({ position: 'fixed', zIndex: 3000, marginTop: 0 });
+      function positionPatientResults() {
+        if (!$results.is(':visible')) { return; }
+        var rect = $search[0].getBoundingClientRect();
+        var height = window.innerHeight;
+        if (rect.bottom <= 0 || rect.top >= height) { hideResults(); return; }
+        var below = height - rect.bottom - 12;
+        var above = rect.top - 12;
+        var openAbove = below < 160 && above > below;
+        $results.css({
+          left: Math.max(8, rect.left), width: Math.min(rect.width, window.innerWidth - 16),
+          maxHeight: Math.max(40, Math.min(240, openAbove ? above : below)),
+          top: openAbove ? 'auto' : rect.bottom + 4,
+          bottom: openAbove ? height - rect.top + 4 : 'auto'
+        });
+      }
+      window.addEventListener('resize', positionPatientResults);
+      window.addEventListener('scroll', positionPatientResults, true);
 
       function refreshLinkedState(forceMessage) {
         var linkedId = parseInt($clientId.val() || '0', 10) || 0;
@@ -634,6 +656,8 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
         });
 
         $results.show();
+        $search.attr('aria-expanded', 'true');
+        positionPatientResults();
       }
 
       function search(term) {
@@ -641,8 +665,10 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
           pendingRequest.abort();
         }
 
-        pendingRequest = $.getJSON(endpoint, { term: term })
+        var revision = searchRevision;
+        var request = $.getJSON(endpoint, { term: term })
           .done(function (response) {
+            if (revision !== searchRevision || $.trim($search.val() || '') !== term || document.activeElement !== $search[0]) { return; }
             if (!response || response.ok !== true) {
               setHelp('Ricerca pazienti momentaneamente non disponibile. Puoi comunque compilare la fattura manualmente.', 'warning');
               hideResults();
@@ -651,16 +677,22 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
 
             renderResults($.isArray(response.results) ? response.results : []);
           })
-          .fail(function () {
+          .fail(function (_, status) {
+            if (status === 'abort' || revision !== searchRevision) { return; }
             setHelp('Ricerca pazienti momentaneamente non disponibile. Puoi comunque compilare la fattura manualmente.', 'warning');
             hideResults();
           })
           .always(function () {
-            pendingRequest = null;
+            if (pendingRequest === request) { pendingRequest = null; }
           });
+        pendingRequest = request;
       }
 
       function handleSearchInput() {
+        searchRevision++;
+        hideResults();
+        window.clearTimeout(debounceTimer);
+        if (pendingRequest) { pendingRequest.abort(); pendingRequest = null; }
         var term = $.trim($search.val() || '');
         syncHiddenPatientName();
 
@@ -691,6 +723,9 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
       $search.on('input', function () {
         handleSearchInput();
       });
+      $search.on('keydown', function (event) {
+        if (event.key === 'Escape' || event.key === 'Tab') { hideResults(); }
+      });
 
       $unlinkButton.on('click', function () {
         unlinkPatient();
@@ -717,7 +752,7 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
       });
 
       $(document).on('click', function (event) {
-        if (!$(event.target).closest($root).length) {
+        if (!$(event.target).closest($root).length && !$(event.target).closest($results).length) {
           hideResults();
         }
       });
@@ -739,6 +774,7 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
       var inputSelector = '.js-service-autocomplete-input';
       var debounceTimer = null;
       var pendingRequest = null;
+      var searchRevision = 0;
 
       if (endpoint === '') {
         return;

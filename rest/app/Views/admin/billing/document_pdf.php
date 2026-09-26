@@ -1,4 +1,9 @@
 <?php
+if (!empty($preview['template']['designer'])) {
+    echo view('admin/billing/designer_document', ['preview'=>$preview, 'pdfMode'=>true]);
+    return;
+}
+
 $preview = is_array($preview ?? null) ? $preview : [];
 $tenant = is_array($preview['tenant'] ?? null) ? $preview['tenant'] : [];
 $document = is_array($preview['document'] ?? null) ? $preview['document'] : [];
@@ -23,6 +28,7 @@ $headerTitle = trim((string) ($branding['header_title'] ?? '')) !== ''
     : trim((string) ($template['document_title'] ?? 'Documento fatturazione'));
 $headerSubtitle = trim((string) ($branding['header_subtitle'] ?? ''));
 $footerNote = trim((string) ($branding['footer_note'] ?? ''));
+$termsText = trim((string) ($branding['terms_text'] ?? ''));
 $issuerName = trim((string) ($fiscalData['business_name'] ?? ''));
 if ($issuerName === '') {
     $issuerName = trim((string) ($tenant['tenant_name'] ?? 'Studio attivo'));
@@ -79,27 +85,15 @@ if (!empty($pensionFund['enabled']) && trim((string) ($pensionFund['name'] ?? ''
 </head>
 <body>
   <?php if (!empty($layout['show_header'])): ?>
-    <div class="header">
-      <div class="title"><?= esc($headerTitle) ?></div>
-      <?php if ($headerSubtitle !== ''): ?>
-        <div class="subtitle"><?= esc($headerSubtitle) ?></div>
-      <?php endif; ?>
-      <div class="subtitle" style="margin-top:6px;">
-        <?= esc($issuerName) ?>
-        <?php if ($issuerLocation !== ''): ?><br><?= esc($issuerLocation) ?><?php endif; ?>
-        <?php if ($issuerIdentifiers !== []): ?><br><?= esc(implode(' · ', $issuerIdentifiers)) ?><?php endif; ?>
-        <?php if ($pensionFundLabel !== ''): ?><br><?= esc('Cassa previdenziale: ' . $pensionFundLabel) ?><?php endif; ?>
-      </div>
-      <?php if (!empty($layout['show_logo']) && trim((string) ($branding['logo_mode'] ?? 'none')) !== 'none' && $resolvedLogoUrl !== ''): ?>
-        <div style="margin-top:10px;">
-          <img src="<?= esc($resolvedLogoUrl) ?>" alt="Logo studio" style="max-width:160px; max-height:56px;">
-        </div>
-      <?php endif; ?>
+    <div class="header" style="<?= ($branding['header_style'] ?? '') === 'plain' ? 'background:#fff;color:#222;border-bottom:1px solid #ddd;' : '' ?>">
+      <?= view('admin/billing/document_header', compact('template', 'branding', 'layout', 'fields', 'fiscalData', 'issuerName', 'issuerLocation', 'pensionFundLabel', 'headerTitle', 'headerSubtitle', 'resolvedLogoUrl', 'document', 'preview')) ?>
     </div>
   <?php endif; ?>
 
   <div class="body">
+      <?= view('admin/billing/issuer_block', compact('branding', 'fields', 'fiscalData', 'issuerName', 'issuerLocation', 'pensionFundLabel')) ?>
     <div class="row">
+      <?php if ($layout['show_document_box'] ?? true): ?>
       <div class="col-50">
         <div class="box">
           <div class="label">Documento</div>
@@ -115,7 +109,8 @@ if (!empty($pensionFund['enabled']) && trim((string) ($pensionFund['name'] ?? ''
           <?php endif; ?>
         </div>
       </div>
-      <?php if (!empty($layout['show_patient_box'])): ?>
+      <?php endif; ?>
+        <?php if (!empty($layout['show_patient_box'])): ?>
         <div class="col-50 right">
           <div class="box">
             <div class="label"><?= esc((string) ($labels['patient_section_title'] ?? 'Dati paziente')) ?></div>
@@ -126,6 +121,7 @@ if (!empty($pensionFund['enabled']) && trim((string) ($pensionFund['name'] ?? ''
               <div class="label" style="margin-top:8px;">Codice fiscale</div>
               <div class="value"><?= esc((string) ($document['patient_tax_code'] ?? '-')) ?></div>
             <?php endif; ?>
+            <?= view('admin/billing/patient_details', ['document' => $document, 'template' => $template, 'fields' => $fields]) ?>
           </div>
         </div>
       <?php endif; ?>
@@ -135,16 +131,18 @@ if (!empty($pensionFund['enabled']) && trim((string) ($pensionFund['name'] ?? ''
       <table>
         <thead>
           <tr>
-            <th>Descrizione</th>
-            <th style="width:90px;">Qta</th>
-            <th style="width:110px;">Prezzo</th>
-            <th style="width:110px;">Totale</th>
+            <th style="width:40%;">Descrizione</th>
+            <th style="width:23%;">IVA / Esenzione</th>
+            <th style="width:7%;">Qta</th>
+            <th style="width:15%;">Prezzo</th>
+            <th style="width:15%;">Totale</th>
           </tr>
         </thead>
         <tbody>
           <?php foreach ($lineItems as $item): ?>
             <tr>
               <td><?= esc((string) ($item['description'] ?? '')) ?></td>
+              <td style="overflow-wrap:break-word;word-wrap:break-word;"><?= esc(number_format((float) ($document['vat_rate'] ?? 0), 2, ',', '.')) ?>%<?php if (trim((string) ($document['vat_nature'] ?? '')) !== ''): ?><br><?= nl2br(esc((string) $document['vat_nature'])) ?><?php endif; ?></td>
               <td><?= esc((string) ($item['quantity'] ?? '1')) ?></td>
               <td>EUR <?= number_format((float) ($item['unit_amount'] ?? 0), 2, ',', '.') ?></td>
               <td>EUR <?= number_format((float) ($item['line_total'] ?? 0), 2, ',', '.') ?></td>
@@ -220,10 +218,10 @@ if (!empty($pensionFund['enabled']) && trim((string) ($pensionFund['name'] ?? ''
       </div>
     <?php endif; ?>
 
-    <?php if (!empty($layout['show_terms_box'])): ?>
+    <?php if (!empty($layout['show_terms_box']) && $termsText !== ''): ?>
       <div class="box">
         <div class="label"><?= esc((string) ($labels['terms_label'] ?? 'Informativa')) ?></div>
-        <div class="value"><?= $footerNote !== '' ? nl2br(esc($footerNote)) : 'Informativa personalizzabile del documento fatturazione.' ?></div>
+        <div class="value"><?= nl2br(esc($termsText)) ?></div>
       </div>
     <?php endif; ?>
   </div>

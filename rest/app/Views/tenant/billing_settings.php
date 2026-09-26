@@ -195,8 +195,14 @@ if ($serviceRows === []) {
                       <input class="form-control" type="number" min="0" max="100" step="0.01" name="default_vat_rate" value="<?= esc($fieldValue('default_vat_rate', $vat['default_rate'] ?? '0.00')) ?>">
                     </div>
                     <div class="form-group">
+                      <label>Marca da bollo predefinita (€)</label>
+                      <input class="form-control" type="number" min="0" max="9999" step="0.01" name="default_stamp_duty_amount" value="<?= esc($fieldValue('default_stamp_duty_amount', $defaults['stamp_duty_amount'] ?? '0.00')) ?>">
+                      <small class="help-block">Importo proposto nelle nuove fatture, modificabile prima del salvataggio. Usa 0 per non applicarlo automaticamente.</small>
+                    </div>
+                    <div class="form-group">
                       <label>Natura IVA</label>
                       <input class="form-control" name="default_vat_nature" maxlength="16" value="<?= esc($fieldValue('default_vat_nature', $vat['default_nature'] ?? '')) ?>" placeholder="Es. N4 o esente">
+                      <small class="help-block">Testo riportato in fattura.</small>
                     </div>
                   </div>
                   <span class="config-help">Usati come proposta nei nuovi documenti; puoi cambiarli sulla singola fattura.</span>

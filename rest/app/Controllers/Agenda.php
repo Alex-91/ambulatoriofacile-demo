@@ -4874,7 +4874,6 @@ public function eseguiRepairRecurringExtraSlots()
                 'patient_name' => $patientLabel,
                 'patient_tax_code' => (string) ($snapshot['patient_tax_code'] ?? ''),
                 'ts_sync_enabled' => $tsEnabled ? 1 : 0,
-                'ts_expense_type_code' => 'SP',
                 'notes' => $this->buildAppointmentDocumentInternalNote($snapshot),
             ],
             'line_items' => [[

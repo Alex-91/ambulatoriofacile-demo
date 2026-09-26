@@ -108,7 +108,7 @@ class TsDocumentValidationService
             $errors[] = 'L importo deve essere maggiore di zero.';
         }
 
-        $vatRateRaw = $payload['vat_rate'] ?? null;
+        $vatRateRaw = TsVatService::normalizeRate($payload['vat_rate'] ?? null);
         $vatRatePresent = $vatRateRaw !== null && $vatRateRaw !== '';
         $vatRate = $vatRatePresent ? (float) $vatRateRaw : null;
         $vatNature = strtoupper(trim((string) ($payload['vat_nature'] ?? '')));
@@ -125,7 +125,7 @@ class TsDocumentValidationService
             }
         }
 
-        if ($vatNature !== '' && !preg_match('/^[A-Z0-9.]{2,10}$/', $vatNature)) {
+        if ($vatNature !== '' && !TsVatService::isNatureCode($vatNature)) {
             $errors[] = 'La natura IVA deve usare un codice sintetico valido, ad esempio N2.2.';
         }
 

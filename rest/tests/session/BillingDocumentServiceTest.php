@@ -236,6 +236,8 @@ final class BillingDocumentServiceTest extends CIUnitTestCase
             ->with($this->callback(static function (array $record): bool {
                 return ($record['document_number'] ?? '') === 'FT-20260706-01'
                     && ($record['local_state'] ?? '') === 'issued'
+                    && (json_decode($record['template_snapshot_json'], true)['patient_details']['patient_address'] ?? '') === 'Via Sintetica 12'
+                    && (json_decode($record['template_snapshot_json'], true)['patient_details']['patient_city'] ?? '') === 'Firenze'
                     && (int) ($record['created_by'] ?? 0) === 17
                     && (int) ($record['ts_sync_enabled'] ?? 0) === 1
                     && ($record['ts_sync_state'] ?? '') === 'ready'
@@ -294,6 +296,8 @@ final class BillingDocumentServiceTest extends CIUnitTestCase
             'issue_date' => '2026-07-06',
             'payment_date' => '2026-07-06',
             'patient_name' => 'Mario Rossi',
+            'patient_address' => 'Via Sintetica 12',
+            'patient_city' => 'Firenze',
             'patient_tax_code' => 'RSSMRA80A01H501Z',
             'payment_method' => 'bank_transfer',
             'item_description' => ['Seduta fisioterapica'],

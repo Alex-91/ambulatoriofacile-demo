@@ -311,6 +311,15 @@ $defaultOppositionFlag = old('default_opposition_flag') !== null
                 </div>
 
                 <div class="ts-panel ts-defaults-panel">
+                  <h4 style="margin-top:0;">Natura IVA per l’invio delle fatture</h4>
+                  <div class="form-group">
+                    <label>Codice natura IVA predefinito per TS</label>
+                    <input class="form-control" type="text" name="default_vat_nature_code" maxlength="10" value="<?= esc((string) (old('default_vat_nature_code') ?? ($documentDefaults['vat_nature_code'] ?? ''))) ?>" placeholder="Es. N1 o N2.2">
+                    <p class="help-block">Usato per le fatture da inviare a TS con aliquota IVA zero o vuota. Se l’aliquota è maggiore di zero, viene inviata solo l’aliquota. Il testo Natura IVA della fattura resta descrittivo e non viene trasmesso a TS.</p>
+                  </div>
+                </div>
+
+                <div class="ts-panel ts-defaults-panel">
                   <h4 style="margin-top:0;">Valori predefiniti per i nuovi documenti TS</h4>
                   <p class="text-muted" style="margin:0 0 14px 0;">
                     Questi valori vengono proposti nei nuovi documenti TS manuali. Restano sempre modificabili sul singolo documento e non sovrascrivono le fatture già create.

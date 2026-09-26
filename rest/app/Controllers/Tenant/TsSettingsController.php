@@ -92,6 +92,7 @@ class TsSettingsController extends BaseController
                     'default_document_type' => $this->request->getPost('default_document_type'),
                     'default_expense_type_code' => $this->request->getPost('default_expense_type_code'),
                     'default_payment_mode' => $this->request->getPost('default_payment_mode'),
+                    'default_vat_nature_code' => $this->request->getPost('default_vat_nature_code'),
                     'default_opposition_flag' => $this->request->getPost('default_opposition_flag'),
                     'service_expense_types' => $this->requestServiceExpenseTypes(),
                 ],

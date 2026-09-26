@@ -75,7 +75,10 @@ class TsDocumentModel extends Model
 
     private function compareAndUpdate(int $id, array $expected, array $changes): bool
     {
-        if ($id <= 0 || !in_array($expected['local_state'] ?? '', ['draft', 'to_validate', 'ready', 'rejected'], true)) {
+        if ($id <= 0 || !in_array($expected['local_state'] ?? '', ['draft', 'to_validate', 'ready', 'rejected'], true)
+            || trim((string) ($expected['ts_protocol'] ?? '')) !== ''
+            || trim((string) ($expected['ts_sent_at'] ?? '')) !== ''
+            || in_array($expected['ts_state'] ?? '', ['accepted', 'varied', 'cancelled'], true)) {
             return false;
         }
         $builder = $this->db->table($this->table)->where($this->primaryKey, $id);

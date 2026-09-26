@@ -107,9 +107,10 @@ class BillingSettingsController extends BaseController
         $emailDelivery = is_array($current['email_delivery'] ?? null) ? $current['email_delivery'] : [];
 
         return [
-            'document_title' => $this->requestString('document_title', (string) ($current['document_title'] ?? 'Documento fatturazione'), 120),
+            'document_title' => $this->requestString('document_title', (string) ($current['document_title'] ?? 'Documento fatturazione'), 0),
             'document_code_prefix' => $this->requestString('document_code_prefix', (string) ($current['document_code_prefix'] ?? 'FT'), 12),
             'defaults' => [
+                'stamp_duty_amount' => $this->requestString('default_stamp_duty_amount', (string) ($defaults['stamp_duty_amount'] ?? '0.00'), 10),
                 'document_type' => $this->requestString('default_document_type', (string) ($defaults['document_type'] ?? 'invoice'), 20),
                 'payment_method' => $this->requestString('default_payment_method', (string) ($defaults['payment_method'] ?? 'bank_transfer'), 30),
                 'ts_expense_type_code' => (string) ($defaults['ts_expense_type_code'] ?? 'SP'),
@@ -117,6 +118,7 @@ class BillingSettingsController extends BaseController
             ],
             // Queste preferenze restano nella schermata Documento fatturazione.
             'branding' => $branding,
+            'designer' => $current['designer'] ?? null,
             'layout' => $layout,
             'fields' => $fields,
             'labels' => $labels,

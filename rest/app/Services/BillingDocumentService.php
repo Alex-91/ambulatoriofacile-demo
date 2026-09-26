@@ -202,7 +202,7 @@ class BillingDocumentService
 
         if (!$this->schemaIsReady($schemaStatus)) {
             return [
-                'document' => $this->buildDefaultDocument($template, $tsEnabled),
+                'document' => $this->buildDefaultDocument($template, $tsEnabled, null, $tsEnabled ? $this->tsProfiles->getDefaultProfileForTenant($tenantId) : null),
                 'line_items' => [],
                 'template' => $template,
                 'ts_enabled' => $tsEnabled,
@@ -225,7 +225,11 @@ class BillingDocumentService
         $lineItems = $this->decodeLineItems((string) ($document['line_items_json'] ?? ''));
 
         if ($document === null) {
-            $document = $this->buildDefaultDocument($template, $tsEnabled, $documents);
+            $document = $this->buildDefaultDocument($template, $tsEnabled, $documents, $tsEnabled ? $this->tsProfiles->getDefaultProfileForTenant($tenantId) : null);
+        } else {
+            $snapshot = $this->decodeJsonArray((string) ($document['template_snapshot_json'] ?? ''));
+            $details = is_array($snapshot['patient_details'] ?? null) ? $snapshot['patient_details'] : [];
+            $document = array_merge($details, $document);
         }
 
         return [
@@ -516,6 +520,11 @@ class BillingDocumentService
 
         $template = (array) (($this->settings->resolveTenantSettings($tenantId))['config'] ?? []);
         $normalized = $this->normalizePayload($payload, $template, $tenantId);
+        // Preserve the patient's print details at the time of saving the document.
+        $template['patient_details'] = array_intersect_key($normalized, array_flip([
+            'patient_last_name', 'patient_first_name', 'patient_address', 'patient_city',
+            'patient_email', 'patient_phone', 'patient_mobile',
+        ]));
         $validationErrors = $this->validatePayload($normalized, $template, $tenantId);
         if ($validationErrors !== []) {
             throw new \RuntimeException(implode(' ', $validationErrors));
@@ -770,7 +779,7 @@ class BillingDocumentService
      * @param array<string, mixed> $template
      * @return array<string, mixed>
      */
-    private function buildDefaultDocument(array $template, bool $tsEnabled, ?BillingDocumentModel $documents = null): array
+    private function buildDefaultDocument(array $template, bool $tsEnabled, ?BillingDocumentModel $documents = null, ?array $tsProfile = null): array
     {
         $defaults = is_array($template['defaults'] ?? null) ? $template['defaults'] : [];
         $vat = is_array($template['vat'] ?? null) ? $template['vat'] : [];
@@ -778,6 +787,11 @@ class BillingDocumentService
         $documentType = trim((string) ($defaults['document_type'] ?? 'invoice'));
         $paymentMethod = trim((string) ($defaults['payment_method'] ?? 'bank_transfer'));
         $tsExpenseType = strtoupper(trim((string) ($defaults['ts_expense_type_code'] ?? 'SP')));
+        $tsMetadata = $this->decodeJsonArray((string) ($tsProfile['metadata_json'] ?? ''));
+        $profileExpenseType = strtoupper(trim((string) ($tsMetadata['document_defaults']['expense_type_code'] ?? '')));
+        if (array_key_exists($profileExpenseType, $this->tsConfig->supportedExpenseTypes)) {
+            $tsExpenseType = $profileExpenseType;
+        }
         $vatRate = $this->normalizeMoney($vat['default_rate'] ?? 0);
         $vatNature = strtoupper(substr(trim((string) ($vat['default_nature'] ?? '')), 0, 16));
         $defaultDueDays = max(0, min(365, (int) ($emailDelivery['default_due_days'] ?? 30)));
@@ -814,7 +828,7 @@ class BillingDocumentService
             'payment_method' => $paymentMethod,
             'payment_status' => 'unpaid',
             'subtotal_amount' => 0,
-            'stamp_duty_amount' => 0,
+            'stamp_duty_amount' => $this->normalizeMoney($defaults['stamp_duty_amount'] ?? 0),
             'vat_rate' => $vatRate,
             'vat_nature' => $vatNature,
             'amount_total' => 0,

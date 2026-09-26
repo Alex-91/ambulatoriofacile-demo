@@ -61,9 +61,7 @@ class TsPayloadBuilderService
                 'expense_type_code' => trim((string) ($document['expense_type_code'] ?? 'SP')),
                 'payment_mode' => trim((string) ($document['payment_mode'] ?? '')),
                 'amount_total' => round((float) ($document['amount_total'] ?? 0), 2),
-                'vat_rate' => $document['vat_rate'] !== null && $document['vat_rate'] !== ''
-                    ? round((float) $document['vat_rate'], 2)
-                    : null,
+                'vat_rate' => TsVatService::normalizeRate($document['vat_rate'] ?? null),
                 'vat_nature' => strtoupper(trim((string) ($document['vat_nature'] ?? ''))),
                 'opposition_flag' => (int) ($document['opposition_flag'] ?? 0) === 1 ? 1 : 0,
                 'notes' => trim((string) ($document['notes'] ?? '')),
@@ -239,7 +237,7 @@ class TsPayloadBuilderService
         $documentDevice = max(0, (int) ($document['document_device'] ?? 0));
         $paymentMode = trim((string) ($document['payment_mode'] ?? ''));
         $documentType = trim((string) ($document['document_type'] ?? 'F'));
-        $vatRate = $document['vat_rate'] ?? null;
+        $vatRate = TsVatService::normalizeRate($document['vat_rate'] ?? null);
         $vatNature = strtoupper(trim((string) ($document['vat_nature'] ?? '')));
 
         $payload = [

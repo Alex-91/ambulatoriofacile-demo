@@ -112,6 +112,11 @@ class TsSecretsService
             trim((string) getenv('database.platform.DB_ENCRYPTION_KEY')),
             trim((string) getenv('database.default.DB_ENCRYPTION_KEY')),
             trim((string) (config(Encryption::class)->key ?? '')),
+            // Keep existing sources first so saved credentials remain readable.
+            // env() also supports keys exposed only through $_ENV or $_SERVER.
+            trim((string) env('database.platform.DB_ENCRYPTION_KEY', '')),
+            trim((string) env('database.default.DB_ENCRYPTION_KEY', '')),
+            trim((string) env('DB_ENCRYPTION_KEY', '')),
         ];
 
         foreach ($seedCandidates as $seed) {
@@ -120,6 +125,10 @@ class TsSecretsService
             }
         }
 
-        throw new \RuntimeException('Chiave di cifratura TS non configurata.');
+        throw new \RuntimeException(
+            'Chiave di cifratura TS non configurata sul server. '
+            . 'Configurare TS_BILLING_SECRET_KEY nell’ambiente del server; '
+            . 'username, password e PIN del Sistema TS non sostituiscono questa chiave.'
+        );
     }
 }

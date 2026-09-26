@@ -1,3 +1,6 @@
+# Synthetic billing designer verification output
+/rest/build/billing-port/
+
 .env
 .env.local
 .env.production

@@ -136,6 +136,8 @@ class TsDispatchService
             'profile' => $this->buildProfileLogContext($profile),
         ]);
 
+        $persistedDocument = $document;
+        $document = TsVatService::refreshPendingBillingDocument($document, $profile);
         $validation = $this->validation->validateDraft(
             $this->payloadBuilder->buildValidationPayload($document, $profile),
             $profile,
@@ -163,7 +165,9 @@ class TsDispatchService
             ]);
             $message = implode(' ', (array) ($validation['errors'] ?? []));
 
-            $validationSaved = $documents->updateEditableSnapshot($documentId, $document, [
+            $validationSaved = $documents->updateEditableSnapshot($documentId, $persistedDocument, [
+                'vat_rate' => $document['vat_rate'] ?? null,
+                'vat_nature' => $document['vat_nature'] ?? null,
                 'local_state' => 'to_validate',
                 'validation_json' => $validationJson,
                 'request_payload_json' => $this->encodeJson($storedSnapshot),
@@ -205,7 +209,9 @@ class TsDispatchService
             'warnings' => array_values((array) ($validation['warnings'] ?? [])),
         ]);
 
-        $claimed = $documents->updateEditableSnapshot($documentId, $document, [
+        $claimed = $documents->updateEditableSnapshot($documentId, $persistedDocument, [
+            'vat_rate' => $document['vat_rate'] ?? null,
+            'vat_nature' => $document['vat_nature'] ?? null,
             'local_state' => 'sending',
             'validation_json' => $this->encodeJson([
                 'valid' => true,
