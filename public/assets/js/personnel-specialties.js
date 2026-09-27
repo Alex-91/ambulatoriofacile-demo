@@ -43,7 +43,7 @@
         list.append(label);
       });
       empty.hidden = count > 0;
-      empty.textContent = query ? 'Nessuna specializzazione trovata. Puoi aggiungerla da “Gestione specializzazioni”.' : 'Nessuna specializzazione disponibile. Inseriscila da “Gestione specializzazioni”.';
+      empty.textContent = query ? 'Nessuna specializzazione trovata. Puoi aggiungerla da “Gestione branche”.' : 'Nessuna specializzazione disponibile. Inseriscila da “Gestione branche”.';
     }
     function setOptions(options, ids) {
       generation++; close(false); search.value = ''; status.textContent = '';

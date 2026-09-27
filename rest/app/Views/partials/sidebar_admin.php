@@ -80,10 +80,28 @@ if ($billingMenuRows) {
     } catch (\Throwable $e) {log_message('error','Acceptance menu: '.$e->getMessage());}
 }
 $billingGroupRendered=false;
-$specializationsHref=site_url('admin/fatturazione/gestione?tab=catalogo&kind=branch&context=personale');
-$specializationsActive=$isLinkActive(site_url('admin/fatturazione/gestione')) && service('request')->getGet('tab')==='catalogo' && (service('request')->getGet('kind')??'branch')==='branch';
+$isLocationsMenu=static fn(string $link): bool => in_array(strtolower($normalizePath($link)),['agenda/gestione-sedi','agenda/sedi','anagrafica/sedi','admin/anagrafica/sedi'],true);
+$registryLinks=[];
+if ($acceptanceEnabled) {
+    $registryLinks['Gestione branche']=site_url('admin/fatturazione/gestione?tab=catalogo&kind=branch&context=personale');
+    $registryLinks['Gestione prestazioni']=site_url('admin/fatturazione/gestione?tab=catalogo&kind=service');
+}
+foreach ($menu_items as $row) {
+    if ($isLocationsMenu((string)($row['link']??''))) $registryLinks['Gestione sedi']=admin_menu_resolve_href((string)$row['link']);
+}
+$registryActiveLabel='';
+foreach ($registryLinks as $label=>$href) {
+    $matches=$isLinkActive($href);
+    parse_str((string)parse_url($href,PHP_URL_QUERY),$query);
+    foreach ($query as $key=>$value) {
+        if ($key==='context') continue;
+        $matches=$matches && (string)(service('request')->getGet($key)??($key==='kind'?'branch':''))===$value;
+    }
+    if ($label==='Gestione sedi') $matches=$matches || $isLinkActive(site_url('admin/anagrafica/sedi'));
+    if ($matches) $registryActiveLabel=$label;
+}
 $billingGroupActive=(bool)preg_match('~(?:^|/)(?:admin/fatturazione(?!-ts(?:/|$))(?:[-/]|$)|spazio/fatturazione(?:/|$))~',$currentPath);
-$billingGroupActive=$billingGroupActive && !$specializationsActive;
+$billingGroupActive=$billingGroupActive && $registryActiveLabel==='';
 ?>
 <link rel="stylesheet" href="<?= base_url('public/assets/fontawesome/css/all.min.css') ?>">
 <link rel="stylesheet" href="<?= base_url('public/assets/fontawesome/css/v4-shims.min.css') ?>">
@@ -135,7 +153,18 @@ $billingGroupActive=$billingGroupActive && !$specializationsActive;
 
       <?php if ($acceptanceEnabled): ?>
         <li class="<?= $isLinkActive(site_url('admin/accettazione'))?'active':'' ?>"><a href="<?= site_url('admin/accettazione') ?>"><i class="fa fa-user-check" aria-hidden="true"></i> Accettazione</a></li>
-        <li class="<?= $specializationsActive?'active':'' ?>"><a href="<?= esc($specializationsHref) ?>" <?= $specializationsActive?'aria-current="page"':'' ?>><i class="fa fa-stethoscope" aria-hidden="true"></i> Gestione specializzazioni</a></li>
+      <?php endif ?>
+      <?php if ($registryLinks): ?>
+      <li class="registry-menu-parent">
+        <details class="billing-menu-group registry-menu-group" <?= $registryActiveLabel!==''?'open':'' ?>>
+          <summary><i class="fa fa-address-book" aria-hidden="true"></i><span>Anagrafica</span><span class="billing-menu-chevron" aria-hidden="true">›</span></summary>
+          <nav aria-label="Sezioni anagrafica"><ul class="nav nav-pills nav-stacked">
+            <?php foreach ($registryLinks as $label=>$href): $selected=$registryActiveLabel===$label; ?>
+            <li class="<?= $selected?'active':'' ?>"><a href="<?= esc($href) ?>" <?= $selected?'aria-current="page"':'' ?>><?= esc($label) ?></a></li>
+            <?php endforeach ?>
+          </ul></nav>
+        </details>
+      </li>
       <?php endif ?>
       <?php foreach ($menu_items as $menu): ?>
         <?php
@@ -144,6 +173,7 @@ $billingGroupActive=$billingGroupActive && !$specializationsActive;
           if ($normalizedMenuLink === '' || $normalizedMenuLink === 'logout' || $normalizedMenuLink === 'admin/personale/logout') {
               continue;
           }
+          if ($isLocationsMenu($menuLink)) continue;
 
           if ($isTsMenu($menuLink)) {
               if (!$tsGroupRendered) {
@@ -191,7 +221,7 @@ $billingGroupActive=$billingGroupActive && !$specializationsActive;
               $menuLink
           );
           $itemHref = admin_menu_resolve_href($menuLink);
-          $isActive = $isLinkActive($itemHref);
+          $isActive = $registryActiveLabel==='' && $isLinkActive($itemHref);
         ?>
         <li class="<?= $isActive ? 'active' : '' ?>">
           <a href="<?= esc($itemHref) ?>">

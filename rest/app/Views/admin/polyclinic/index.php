@@ -18,10 +18,11 @@ $select=static function(string $name,string $label,array $choices,$value='',bool
 $options=[]; foreach(($catalog??[]) as $k=>$items) { $options[$k]=[]; foreach($items as $item) if($item['active']) $options[$k][$item['id']]=$item['name']; }
 $error=$error??null;
 $personnelSpecialties=($tab??'')==='catalogo' && (service('request')->getGet('kind')??'branch')==='branch';
-$pageHeading=($tab??'')==='accettazione'?'Accettazione':($personnelSpecialties?'Gestione specializzazioni':'Fatturazione');
-$pageDescription=($tab??'')==='accettazione'?'Arrivo, attesa e prestazioni del paziente':($personnelSpecialties?'Specializzazioni facoltative condivise con personale e prestazioni':'Documenti, incassi e compensi in un unico spazio');
+$registryServices=($tab??'')==='catalogo' && service('request')->getGet('kind')==='service';
+$pageHeading=($tab??'')==='accettazione'?'Accettazione':($personnelSpecialties?'Gestione branche':($registryServices?'Gestione prestazioni':'Fatturazione'));
+$pageDescription=($tab??'')==='accettazione'?'Arrivo, attesa e prestazioni del paziente':($personnelSpecialties?'Aree di attività condivise da professionisti e prestazioni':($registryServices?'Servizi erogati dai professionisti e prezzi di base':'Documenti, incassi e compensi in un unico spazio'));
 ?>
-<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Fatturazione · AmbulatorioFacile</title>
+<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title><?= esc($pageHeading) ?> · AmbulatorioFacile</title>
 <link rel="stylesheet" href="<?= base_url('public/bootstrap/css/bootstrap.min.css') ?>"><link rel="stylesheet" href="<?= base_url('public/dist/css/AdminLTE.css') ?>"><link rel="stylesheet" href="<?= base_url('public/dist/css/skins/_all-skins.min.css') ?>">
 <style>
 .pc{max-width:1440px;margin:auto;padding:28px;color:#183c43;background:#f4f8f9;min-height:90vh}.pc h1{font-size:30px;font-weight:700}.pc h2{font-size:22px;margin:0 0 18px}.pc h3{font-size:17px}.pc nav{display:flex;gap:8px;flex-wrap:wrap;margin:22px 0}.pc nav a,.pc button,.pc .pc-link{border:1px solid #b8d5d8;padding:10px 15px;border-radius:8px;background:white;color:#17636b;display:inline-block}.pc nav a.active,.pc button{background:#17636b;color:white}.pc .pc-card{background:white;border:1px solid #d9e6e8;border-radius:12px;padding:22px;margin-bottom:20px}.pc .pc-form{display:flex;align-items:end;gap:14px;flex-wrap:wrap;margin:12px 0}.pc label{display:flex;flex-direction:column;gap:6px;font-size:12px;min-width:140px;max-width:100%;flex:1}.pc input,.pc select{padding:9px;border:1px solid #b9cdd1;border-radius:6px;width:100%;font-size:14px;color:#183c43;background:white}.pc .pc-scroll{overflow:auto}.pc table{width:100%;margin:15px 0;border-collapse:collapse}.pc th,.pc td{padding:11px;text-align:left;border-bottom:1px solid #e0e9ea;vertical-align:top}.pc th{font-size:12px;color:#567078}.pc small,.pc .pc-muted{color:#5c747b}.pc .pc-error{border-left:4px solid #ac3838;padding:14px;background:#fff0ee;margin:14px 0}.pc .pc-success{padding:14px;background:#e5f5ec;margin:14px 0}.pc details{margin:12px 0}.pc summary{cursor:pointer;font-weight:bold}.pc .pc-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}.pc .pc-number{font-size:25px;font-weight:bold}.pc .pc-badge{padding:4px 8px;background:#edf5f6;border-radius:5px;white-space:nowrap}.pc .pc-danger{background:#9d3b36}.pc a{color:#17636b}
@@ -33,7 +34,7 @@ $pageDescription=($tab??'')==='accettazione'?'Arrivo, attesa e prestazioni del p
 </head><body class="billing-unified-page skin-blue sidebar-mini"><div class="wrapper"><?= view('partials/header',['menu_items'=>$menu_items]) ?>
 <div class="content-wrapper"><section class="content"><div class="row"><aside class="col-md-3">
 <?= view('partials/sidebar_admin',['menu_items'=>$menu_items??[]]) ?>
-</aside><div class="col-md-9"><div class="billing-workspace"><main class="pc bw-content"><header class="bw-heading"><div><h1><?= esc($pageHeading) ?></h1><p><?= esc($pageDescription) ?></p></div><a class="bw-button bw-primary" href="<?= site_url('admin/fatturazione-documenti/nuovo') ?>">＋ Nuova fattura</a></header>
+</aside><div class="col-md-9"><div class="billing-workspace"><main class="pc bw-content"><header class="bw-heading"><div><h1><?= esc($pageHeading) ?></h1><p><?= esc($pageDescription) ?></p></div><?php if(!$personnelSpecialties && !$registryServices): ?><a class="bw-button bw-primary" href="<?= site_url('admin/fatturazione-documenti/nuovo') ?>">＋ Nuova fattura</a><?php endif ?></header>
 <?= view('admin/billing/navigation',['tenantScope'=>$tenantScope??[]]) ?>
 <?php if($personnelSpecialties): ?><p><a href="<?= site_url('admin/personale/modifica_personale') ?>">← Torna al Personale</a></p><?php endif ?>
 <?php if($base==='admin/fatturazione-poliambulatori'): ?>
@@ -63,7 +64,7 @@ $editId=(int)service('request')->getGet('edit'); $edit=[];foreach($catalog[$kind
 ?>
 
 <?php if($kind==='branch'): ?><p>Inserisci qui le specializzazioni dello spazio. Saranno selezionabili nelle schede del personale e nelle prestazioni. Archivia una voce per escluderla dalle nuove assegnazioni.</p><a class="pc-link" href="<?= site_url('admin/personale/modifica_personale') ?>">Vai al personale</a><?php endif ?>
-<section class="pc-card"><h2><?= $kind==='branch'?($edit?'Modifica specializzazione':'Nuova specializzazione'):(($edit?'Modifica':'Nuova voce').' · '.esc(Clinic::KINDS[$kind])) ?></h2>
+<section class="pc-card"><h2><?= $kind==='branch'?($edit?'Modifica branca':'Nuova branca'):(($edit?'Modifica':'Nuova voce').' · '.esc(Clinic::KINDS[$kind])) ?></h2>
 <?php $form('catalog','catalogo',['kind'=>$kind,'id'=>$edit['id']??0,'version'=>$edit['version']??0]); $input('code','Codice',$edit['code']??''); $input('name','Nome',$edit['name']??''); $select('active','Disponibilità',[1=>'Attiva',0=>'Archiviata'],$edit['active']??1);
 if($kind==='doctor') $input('agenda_id','Identificativo medico agenda',$ed['agenda_id']??0,'number',false);
 if($kind==='service') { $select('branch_id','Specializzazione (facoltativa)',$options['branch'],$ed['branch_id']??'',true); $input('price','Prezzo base',Money::decimal((int)($ed['price_cents']??0))); }

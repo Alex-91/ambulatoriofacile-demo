@@ -1,7 +1,7 @@
 <?php $selectedSpecialties=array_map('intval',is_array($selectedSpecialties??null)?$selectedSpecialties:[]); ?>
 <div class="ps-select" id="personnel-specialty-select" data-options-url="<?= site_url('admin/personale/specialita/opzioni') ?>">
   <div class="ps-label-row"><label id="ps-label" for="professional_specialty_ids">Specializzazioni <span>(facoltative)</span></label>
-    <a class="ps-manage" href="<?= site_url('admin/fatturazione/gestione?tab=catalogo&kind=branch&context=personale') ?>" target="_blank" rel="noopener">Gestione specializzazioni <span class="sr-only">(si apre in una nuova scheda)</span></a>
+    <a class="ps-manage" href="<?= site_url('admin/fatturazione/gestione?tab=catalogo&kind=branch&context=personale') ?>" target="_blank" rel="noopener">Gestione branche <span class="sr-only">(si apre in una nuova scheda)</span></a>
   </div>
   <input type="hidden" name="professional_specialties_catalog" value="1">
   <select multiple name="professional_specialty_ids[]" id="professional_specialty_ids" class="form-control" aria-describedby="ps-help">

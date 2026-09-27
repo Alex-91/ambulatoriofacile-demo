@@ -2,7 +2,7 @@
 // Read-only synthetic rendering. Does not bootstrap the app or load environment credentials.
 if(PHP_SAPI!=='cli') exit(1);
 require dirname(__DIR__).'/rest/tests/_support/billing_sidebar_fixture.php';
-function service($name) {return new class {public function getPath(){return match($GLOBALS['argv'][1]??''){ 'outside'=>'/agenda','schedule'=>'/admin/fatturazione-scadenzario','reports'=>'/admin/fatturazione-statistiche','ts'=>'/admin/sistema-ts/documenti',default=>'/admin/fatturazione-documenti'};}public function getGet($key){return null;}};}
+function service($name) {return new class {public function getPath(){return match($GLOBALS['argv'][1]??''){ 'branches','services'=>'/admin/fatturazione/gestione','locations'=>'/agenda/gestione-sedi','outside'=>'/agenda','schedule'=>'/admin/fatturazione-scadenzario','reports'=>'/admin/fatturazione-statistiche','ts'=>'/admin/sistema-ts/documenti',default=>'/admin/fatturazione-documenti'};}public function getGet($key){$mode=$GLOBALS['argv'][1]??'';if(in_array($mode,['branches','services'],true))return match($key){'tab'=>'catalogo','kind'=>$mode==='branches'?'branch':'service',default=>null};return null;}};}
 function esc($v,$context=null){return htmlspecialchars((string)$v,ENT_QUOTES|ENT_SUBSTITUTE,'UTF-8');}
 function site_url($v='/'){return '/'.ltrim($v,'/');}
 function base_url($v){return '/'.ltrim($v,'/');}

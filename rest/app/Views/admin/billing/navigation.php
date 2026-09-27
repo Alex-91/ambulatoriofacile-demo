@@ -12,7 +12,6 @@ if ($billingSpace>0) {
 $billingTabs=['Fatture'=>'admin/fatturazione-documenti','Incassi'=>'admin/fatturazione-scadenzario'];
 if (array_filter($billingOptions)) {
     $billingTabs['Listini']='admin/fatturazione/gestione?tab=catalogo&kind=list';
-    $billingTabs['Prestazioni e listini']='admin/fatturazione/gestione?tab=catalogo&kind=service';
 }
 if (!empty($billingOptions['billing_agreements'])) $billingTabs['Convenzioni']='admin/fatturazione/gestione?tab=catalogo&kind=agreement';
 if (!empty($billingOptions['billing_compensation'])) $billingTabs['Compensi']='admin/fatturazione/gestione?tab=catalogo&kind=rule';
