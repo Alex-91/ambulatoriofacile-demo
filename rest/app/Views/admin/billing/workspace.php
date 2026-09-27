@@ -10,10 +10,11 @@ $tsEnabled=!empty($tsEnabled);
 <title>Fatturazione · AmbulatorioFacile</title>
 <link rel="stylesheet" href="<?= base_url('public/bootstrap/css/bootstrap.min.css') ?>">
 <link rel="stylesheet" href="<?= base_url('public/dist/css/AdminLTE.css') ?>">
-<link rel="stylesheet" href="<?= base_url('public/assets/fontawesome/css/font-awesome.min.css') ?>">
+<link rel="stylesheet" href="<?= base_url('public/assets/fontawesome/css/all.min.css') ?>">
+<link rel="stylesheet" href="<?= base_url('public/assets/fontawesome/css/v4-shims.min.css') ?>">
 <link rel="stylesheet" href="<?= base_url('public/dist/css/skins/_all-skins.min.css') ?>">
 <link rel="stylesheet" href="<?= base_url('public/assets/css/billing-ts-ui.css') ?>">
-<link rel="stylesheet" href="<?= base_url('public/assets/css/billing-workspace.css?v=20260927-menu') ?>">
+<link rel="stylesheet" href="<?= base_url('public/assets/css/billing-workspace.css?v=20260927-icons') ?>">
 </head><body class="skin-blue sidebar-mini billing-ts-ui module-fatturazione">
 <div class="wrapper"><?= view('partials/header',['menu_items'=>$menu_items??[]]) ?>
 <div class="content-wrapper"><section class="content billing-archive-content"><div class="row billing-archive-layout">
@@ -66,4 +67,4 @@ $tsEnabled=!empty($tsEnabled);
 </div><aside id="bw-detail" aria-label="Dettaglio fattura" aria-live="polite"><div class="bw-detail-card bw-empty">Seleziona una fattura nell’elenco.</div></aside>
 </div>
 <script type="application/json" id="bw-data"><?= json_encode(array_map(static function($row) use($tsEnabled){return ['id'=>(int)$row['id_billing_document'],'number'=>$row['document_number'],'patient'=>$row['patient_name'],'tax'=>$row['patient_tax_code']??'','date'=>$row['issue_date'],'doctors'=>array_keys($row['doctors']),'status'=>$row['status_label'],'type'=>$row['document_type'],'ts'=>$row['ts_sync_state'],'net'=>$row['revenue_cents'],'cash'=>$row['cash_cents'],'due'=>$row['outstanding_cents'],'fees'=>$row['fee_due_cents'],'draft'=>$row['local_state']==='draft','email_sent'=>!empty($row['invoice_email_sent_at']),'overdue'=>$row['local_state']==='issued' && $row['outstanding_cents']>0 && !empty($row['due_date']) && $row['due_date']<date('Y-m-d')];},$documents),JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_THROW_ON_ERROR) ?></script>
-</main></div></div></section></div></div><script src="<?= base_url('public/assets/js/billing-workspace.js?v=20260927-menu') ?>"></script></body></html>
+</main></div></div></section></div></div><script src="<?= base_url('public/assets/js/billing-workspace.js?v=20260927-icons') ?>"></script></body></html>

@@ -15,7 +15,12 @@ const server=http.createServer((req,res)=>{
 (async()=>{await new Promise(r=>server.listen(0,'127.0.0.1',r));let browser;
 try{browser=await chromium.launch({headless:true});const page=await browser.newPage({viewport:{width:1586,height:980}});const errors=[];page.on('pageerror',e=>errors.push(e.message));
 await page.route('**/*',r=>new URL(r.request().url()).hostname==='127.0.0.1'?r.continue():r.abort());const url='http://127.0.0.1:'+server.address().port;
-await page.goto(url);if(errors.length) throw new Error(errors.join('; '));await page.getByRole('button',{name:'FT-003',exact:true}).click();
+await page.goto(url);
+await page.evaluate(()=>document.fonts.ready);
+const menuFonts=await page.locator('.admin-sidebar-menu .fa').evaluateAll(icons=>icons.map(icon=>{const style=getComputedStyle(icon,'::before');return {family:style.fontFamily,content:style.content,loaded:document.fonts.check(style.fontWeight+' 16px '+style.fontFamily)};}));
+assert.equal(menuFonts.length,6);for(const font of menuFonts){assert.match(font.family,/Font Awesome 6/);assert(font.loaded);assert.notEqual(font.content,'none');}
+assert(await page.evaluate(()=>performance.getEntriesByType('resource').some(r=>r.name.includes('/webfonts/fa-solid-900.woff2'))));
+if(errors.length) throw new Error(errors.join('; '));await page.getByRole('button',{name:'FT-003',exact:true}).click();
 assert.match(await page.locator('#bw-detail').innerText(),/Paolo DEMO Blu/);assert.match(await page.locator('#bw-detail').innerText(),/77,00/);
 assert.match(await page.locator('#bw-kpi-net').innerText(),/520,00/);assert.match(await page.locator('#bw-kpi-cash').innerText(),/253,00/);assert.match(await page.locator('#bw-kpi-due').innerText(),/267,00/);
 assert.match(await page.getByRole('link',{name:'Nota di credito',exact:true}).getAttribute('href'),/#pc-credit$/);
