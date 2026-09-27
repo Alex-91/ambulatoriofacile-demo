@@ -57,7 +57,16 @@ class BillingDocumentsController extends BillingAdminBaseController
             unset($row);
         }
 
-        return view('admin/billing/documents', [
+        $capabilities=\App\Services\BillingCapabilities::resolve($tenantId);
+        $workspaceUnified=false;
+        if (!empty($listing['table_available'])) {
+            $workspaceDb=(new \App\Services\BillingTenantDatabaseContextService())->resolveTenantContext($tenantId)['db'];
+            $workspaceUnified=(bool)\App\Services\UnifiedBillingArchive::state($workspaceDb);
+            $listing['documents']=(new \App\Services\BillingWorkspacePresenter())->enrich($workspaceDb,$listing['documents'],$capabilities);
+        }
+        return view('admin/billing/workspace', [
+            'capabilities'=>$capabilities,
+            'workspaceUnified'=>$workspaceUnified,
             'menu_items' => $this->adminMenuItems(),
             'tenantScope' => $tenantScope,
             'tsEnabled' => !empty($moduleStatus['ts_enabled']),

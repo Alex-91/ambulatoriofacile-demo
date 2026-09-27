@@ -19,10 +19,10 @@ if (!empty($billingOptions['billing_services'])) {
 if (!empty($billingOptions['billing_agreements'])) $billingTabs['Convenzioni']='admin/fatturazione/gestione?tab=catalogo&kind=agreement';
 if (!empty($billingOptions['billing_compensation'])) $billingTabs['Compensi']='admin/fatturazione/gestione?tab=catalogo&kind=rule';
 $billingTabs['Report']='admin/fatturazione-statistiche';
-if ($billingArchive) $billingTabs['Commercialista e XML']='admin/fatturazione/gestione?tab=integrazioni';
+if ($billingArchive) $billingTabs['Collegamenti']='admin/fatturazione/gestione?tab=integrazioni';
 if (!empty($billingTsEnabled)) $billingTabs['Sistema TS']='admin/sistema-ts/documenti';
 ?>
-<nav aria-label="Fatturazione" style="display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 20px;padding:12px;background:#fff;border:1px solid #dce5eb;border-radius:8px">
-<?php foreach($billingTabs as $label=>$url): ?><a class="btn btn-default" href="<?= site_url($url) ?>"><?= esc($label) ?></a><?php endforeach ?>
+<nav class="bw-tabs" aria-label="Fatturazione" style="display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 20px">
+<?php foreach($billingTabs as $label=>$url): ?><a class="btn btn-default" <?= ($activeBillingTab??'')===$label?'aria-current="page"':'' ?> href="<?= site_url($url) ?>"><?= esc($label) ?></a><?php endforeach ?>
 </nav>
 <?php if($hasPreviousArchive): ?><div class="alert alert-info">Lo spazio contiene documenti nell’archivio precedente. L’unificazione deve essere completata prima di usare le funzioni integrate. <a href="<?= site_url('admin/fatturazione-poliambulatori?tab=documenti') ?>">Consulta i documenti precedenti</a>.</div><?php endif ?>

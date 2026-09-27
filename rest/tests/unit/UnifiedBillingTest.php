@@ -29,6 +29,23 @@ final class UnifiedBillingTest extends CIUnitTestCase
     }
     protected function tearDown(): void { $this->db->close(); parent::tearDown(); }
 
+    public function testWorkspaceUsesRealBalancesWithoutCountingCreditsAsCash(): void
+    {
+        (new UnifiedBillingArchive())->migrate($this->db,true);
+        $this->db->table('pc_orders')->where('id',1)->update(['doctor_id'=>7,'snapshot_json'=>json_encode(['doctor'=>'Dottoressa Test','agreement'=>'Fondo Test'])]);
+        $before=$this->db->table('billing_documents')->orderBy('id_billing_document')->get()->getResultArray();
+        $rows=(new \App\Services\BillingWorkspacePresenter())->enrich($this->db,$before,['billing_agreements'=>true]);
+        $this->assertSame(13000,array_sum(array_column($rows,'revenue_cents')));
+        $this->assertSame(4000,array_sum(array_column($rows,'cash_cents')));
+        $this->assertSame(9000,array_sum(array_column($rows,'outstanding_cents')));
+        $this->assertSame('Rettificata',$rows[1]['status_label']);
+        $this->assertSame('Nota di credito',$rows[2]['status_label']);
+        $this->assertSame([7=>'Dottoressa Test'],$rows[1]['doctors']);
+        $this->assertSame(['Fondo Test'],$rows[1]['agreements']);
+        $this->assertSame(0,$rows[1]['fee_due_cents']);
+        $this->assertSame($before,$this->db->table('billing_documents')->orderBy('id_billing_document')->get()->getResultArray());
+    }
+
     public function testMigrationPreservesOriginalsAndAllReferencesAndIsRepeatable(): void
     {
         $original=$this->db->table('billing_documents')->get()->getResultArray();
