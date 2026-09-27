@@ -26,6 +26,7 @@ const server=http.createServer((req,res)=>{
     const errors=[];page.on('pageerror',e=>errors.push(e.message));
     const url=`http://127.0.0.1:${server.address().port}`;
     await page.goto(url+'/?tab=documenti');
+    assert.equal(await page.locator('.admin-sidebar-menu').count(),1);
     const nav=page.getByRole('navigation',{name:'Fatturazione',exact:true});
     for(const label of ['Documenti','Incassi','Prestazioni e listini','Convenzioni','Compensi','Sistema TS'])assert.strictEqual(await nav.getByRole('link',{name:label,exact:true}).count(),1,label);
     assert.strictEqual(await page.getByRole('heading',{name:'Fatturazione',exact:true}).count(),1);
@@ -38,7 +39,17 @@ const server=http.createServer((req,res)=>{
     assert.strictEqual(await nav.getByRole('link',{name:'Sistema TS',exact:true}).count(),1);
     assert.strictEqual(await page.getByRole('heading',{name:'Compensi maturati e liquidazioni'}).count(),0);
     await page.screenshot({path:path.join(output,'basic.png'),fullPage:true});
-    for(const section of ['catalogo','accettazione','report','integrazioni']){await page.goto(url+'/?tab='+section);assert.strictEqual(await page.locator('form form').count(),0);assert.strictEqual(await page.locator('form[method=post]').count(),await page.locator('form[method=post] input[name=csrf_synthetic]').count());}
+    for(const section of ['catalogo','accettazione','report','integrazioni']){await page.goto(url+'/?tab='+section);assert.equal(await page.locator('.admin-sidebar-menu').count(),1);assert.strictEqual(await page.locator('form form').count(),0);assert.strictEqual(await page.locator('form[method=post]').count(),await page.locator('form[method=post] input[name=csrf_synthetic]').count());}
+    for(const [kind,label] of [['service','Prestazioni e listini'],['agreement','Convenzioni'],['rule','Compensi']]){
+      await page.goto(url+'/?tab=catalogo&kind='+kind);
+      const menu=page.getByRole('navigation',{name:'Sezioni fatturazione',exact:true});
+      assert.equal(await menu.locator('[aria-current=page]').innerText(),label);
+      const sidebar=await page.locator('.admin-sidebar-menu').boundingBox(),content=await page.locator('main.pc').boundingBox();
+      assert(sidebar.x+sidebar.width<=content.x+1,'Menu must stay to the left of the content');
+    }
+    await page.screenshot({path:path.join(output,'compensi-menu.png'),fullPage:true});
+    await page.setViewportSize({width:390,height:844});await page.goto(url+'/?tab=catalogo&kind=rule');
+    assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
     assert.deepStrictEqual(errors,[]);console.log('Unified billing browser: advanced/basic navigation, TS queue link, installment interaction, 6 sections and CSRF passed.');
   }finally{if(browser)await browser.close();await new Promise(resolve=>server.close(resolve));}
 })().catch(e=>{console.error(e);process.exitCode=1;});

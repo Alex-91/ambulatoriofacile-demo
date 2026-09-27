@@ -12,10 +12,12 @@ $catalog=\App\Services\BillingDocumentDesigner::catalog();
 <link rel="stylesheet" href="<?= base_url('public/bootstrap/css/bootstrap.min.css') ?>">
 <link rel="stylesheet" href="<?= base_url('public/dist/css/AdminLTE.css') ?>">
 <link rel="stylesheet" href="<?= base_url('public/dist/css/skins/_all-skins.min.css') ?>">
-<link rel="stylesheet" href="<?= base_url('public/assets/css/billing-designer.css') ?>">
+<link rel="stylesheet" href="<?= base_url('public/assets/fontawesome/css/all.min.css') ?>">
+<link rel="stylesheet" href="<?= base_url('public/assets/fontawesome/css/v4-shims.min.css') ?>">
+<link rel="stylesheet" href="<?= base_url('public/assets/css/billing-designer.css?v=20260927-menu') ?>">
 </head><body class="skin-blue sidebar-mini"><div class="wrapper">
 <?= view('partials/header',['menu_items'=>$menu_items??[]]) ?>
-<main class="content-wrapper"><section class="bd-app">
+<main class="content-wrapper"><section class="content"><div class="row"><aside class="col-md-3"><?= view('partials/sidebar_admin',['menu_items'=>$menu_items??[]]) ?></aside><div class="col-md-9"><section class="bd-app">
 <header class="bd-top"><div><a href="<?= site_url('admin/fatturazione') ?>">← Fatturazione</a><h1>Disegna il tuo documento</h1><p>Componi i blocchi, scegli i contenuti, controlla la stampa.</p></div><span class="bd-badge">A4 · griglia di stampa</span></header>
 <?php if (!empty($success)): ?><div class="alert alert-success"><?= esc($success) ?></div><?php endif; ?>
 <?php foreach (($errors??[]) as $error): ?><div class="alert alert-danger"><?= esc(is_array($error)?implode(' ',$error):$error) ?></div><?php endforeach; ?>
@@ -46,7 +48,7 @@ $catalog=\App\Services\BillingDocumentDesigner::catalog();
 <aside class="bd-inspector"><h2>Proprietà del blocco</h2><div id="bd-properties"></div><div class="bd-note"><strong>Stampa protetta</strong><p>Margini A4 di 12 mm. Nessuna posizione assoluta o sovrapposizione. Tabelle e testi lunghi occupano una riga intera e continuano sulle pagine successive.</p><p>Il PDF di prova usa lo stesso motore delle fatture. Controllalo prima di salvare, soprattutto dopo modifiche a logo, testo e dimensioni.</p></div></aside>
 </div><aside class="bd-live"><div class="bd-live-heading"><strong>Anteprima in tempo reale</strong><span id="bd-live-status" role="status">Preparazione…</span></div><p>Dati di esempio · formato A4</p><div id="bd-live-viewport"><div id="bd-live-paper"><iframe id="bd-live-frame" title="Anteprima in tempo reale del documento" sandbox="allow-same-origin"></iframe></div></div></aside></div></form>
 <dialog id="bd-preview-dialog"><div class="bd-dialog-top"><strong>Anteprima con dati di esempio</strong><button type="button" id="bd-close-preview">Chiudi</button></div><iframe id="bd-frame" title="Anteprima A4" sandbox="allow-same-origin"></iframe></dialog>
-</section></main></div>
+</section></div></div></section></main></div>
 <script id="bd-initial" type="application/json"><?= json_encode(['model'=>$initial,'catalog'=>$catalog,'csrfName'=>csrf_token()],JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_UNESCAPED_UNICODE) ?></script>
 <script src="<?= base_url('public/plugins/jQuery/jQuery-2.1.4.min.js') ?>"></script><script src="<?= base_url('public/bootstrap/js/bootstrap.min.js') ?>"></script>
 <script src="<?= base_url('public/assets/js/billing-designer.js') ?>"></script>

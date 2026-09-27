@@ -9,7 +9,7 @@ function site_url($path='') {return '/'.$path;}
 function portal_tenant_space_url($path='') {return '/login/spazio/'.$path;}
 function csrf_field() {return '<input type="hidden" name="csrf_test" value="synthetic">';}
 function csrf_token() {return 'csrf_test';}
-function view($name,$data=[]) {return '';}
+function view($name,$data=[]) {return $name==='partials/sidebar_admin'?'<div class="box admin-sidebar-menu">Menu · Fatturazione</div>':'';}
 if (($argv[1]??'')==='render') {
  $input=json_decode(stream_get_contents(STDIN),true,64,JSON_THROW_ON_ERROR);
  $cfg=$settings->defaultConfig();$cfg['designer']=App\Services\BillingDocumentDesigner::validate(json_decode($input['designer_json'],true));

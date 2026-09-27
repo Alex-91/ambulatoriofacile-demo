@@ -108,6 +108,7 @@ class MenuResolverService
         }
 
         return [
+            'tenant_id' => (int) $context['tenant_id'],
             'tenant_name' => (string) $context['tenant_name'],
             'menu_items' => $this->injectFeatureAwareAdminMenus($menuItems, (int) $context['tenant_id']),
             'primary_action' => $primaryAction,

@@ -22,8 +22,9 @@ function base_url($v) { return '/'.ltrim($v,'/'); }
 function site_url($v) { return '/'.ltrim($v,'/'); }
 function csrf_field() { return '<input type="hidden" name="csrf_synthetic" value="preview-only">'; }
 function session() { return new class { public function getFlashdata($k) { return null; } }; }
-function service($name) { return new class { public function getGet($key) { return $_GET[$key]??null; } }; }
+function service($name) { return new class { public function getGet($key) { return $_GET[$key]??null; } public function getPath() { return '/admin/fatturazione/gestione'; } }; }
 function view($name,$data) {
+ if($name==='partials/sidebar_admin') return '<div class="box box-solid admin-sidebar-menu"><div class="box-header">Menu</div><a href="/admin/fatturazione">Fatturazione</a>'.view('admin/billing/navigation',['billingNavigationLayout'=>'sidebar']).'</div>';
  if($name==='admin/billing/navigation') {
   $navigation=['capabilities'=>array_fill_keys(array_keys(\App\Services\BillingCapabilities::FEATURES),($_GET['mode']??'advanced')!=='basic'),'unified'=>true,'ts_enabled'=>true];
   extract($data); ob_start(); require dirname(__DIR__).'/rest/app/Views/admin/billing/navigation.php'; return ob_get_clean();

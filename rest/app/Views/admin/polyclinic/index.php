@@ -27,7 +27,9 @@ $error=$error??null;
 <link rel="stylesheet" href="<?= base_url('public/assets/fontawesome/css/v4-shims.min.css') ?>">
 <link rel="stylesheet" href="<?= base_url('public/assets/css/billing-workspace.css?v=20260927-icons') ?>">
 </head><body class="skin-blue sidebar-mini"><div class="wrapper"><?= view('partials/header',['menu_items'=>$menu_items]) ?>
-<div class="billing-workspace"><main class="pc bw-content"><header class="bw-heading"><div><h1>Fatturazione</h1><p>Documenti, incassi e compensi in un unico spazio</p></div><a class="bw-button bw-primary" href="<?= site_url('admin/fatturazione-documenti/nuovo') ?>">＋ Nuova fattura</a></header>
+<div class="content-wrapper"><section class="content"><div class="row"><aside class="col-md-3">
+<?= view('partials/sidebar_admin',['menu_items'=>$menu_items??[]]) ?>
+</aside><div class="col-md-9"><div class="billing-workspace"><main class="pc bw-content"><header class="bw-heading"><div><h1>Fatturazione</h1><p>Documenti, incassi e compensi in un unico spazio</p></div><a class="bw-button bw-primary" href="<?= site_url('admin/fatturazione-documenti/nuovo') ?>">＋ Nuova fattura</a></header>
 <?= view('admin/billing/navigation',['tenantScope'=>$tenantScope??[]]) ?>
 <?php if($base==='admin/fatturazione-poliambulatori'): ?>
 <nav aria-label="Archivio precedente"><?php foreach(['accettazione'=>'Accettazione','catalogo'=>'Prestazioni, convenzioni e compensi','documenti'=>'Documenti','report'=>'Report','integrazioni'=>'Commercialista e XML'] as $legacyTab=>$legacyLabel): ?><a href="<?= site_url($base.'?tab='.$legacyTab) ?>"><?= esc($legacyLabel) ?></a><?php endforeach ?></nav>
@@ -104,7 +106,7 @@ if($kind==='rule') { $select('doctor_id','Professionista',$options['doctor'],$ed
 <section class="pc-card"><h2>Copertura funzionale</h2><p>La disponibilità dei collegamenti esterni dipende dall’attivazione e dal collaudo dello spazio.</p><table><thead><tr><th>Ambito</th><th>Funzioni</th></tr></thead><tbody>
 <?php foreach(['Agenda'=>'Multi-medico e multi-stanza nel modulo agenda esistente.','Accettazione'=>'Arrivo, attesa, visita, conclusione e collegamento appuntamento.','Cartella clinica'=>'Cartella, referti, allegati e consensi nel modulo clinico, se abilitato.','Prestazioni e listini'=>'Catalogo, branche, prezzi base e tariffe per listino.','Fatture e incassi'=>'Emissione, rate, pagamenti parziali, rimborsi e note di credito proporzionali.','Compensi'=>'Regole per medico/prestazione, quota fissa o percentuale, maturazione e liquidazioni.','Convenzioni / assicurazioni / SSN'=>'Listino, copertura ente, autorizzazione e quota paziente. Flussi regionali e portali assicurativi non collegati.','Report'=>'Analisi per medico, branca, prestazione, convenzione e periodo.','Commercialista'=>'Prima nota CSV configurabile; import nativo Passepartout da validare.','Fatturazione elettronica'=>'Preparazione XML FPR12 e registrazione manuale esiti; canale SdI automatico da collegare.','Sistema TS'=>'Modulo esistente; profilo reale da collaudare. Note di credito e incassi parziali richiedono gestione TS dedicata.'] as $label=>$description): ?><tr><th><?= esc($label) ?></th><td><?= esc($description) ?></td></tr><?php endforeach ?></tbody></table></section>
 <?php endif ?>
-</main></div></div><script src="<?= base_url('public/assets/js/billing-workspace.js?v=20260927-icons') ?>"></script><script>
+</main></div></div></div></section></div></div><script src="<?= base_url('public/assets/js/billing-workspace.js?v=20260927-icons') ?>"></script><script>
 if(location.hash==='#pc-credit') document.getElementById('pc-credit')?.setAttribute('open','');
 document.addEventListener('click',function(event){
  if(event.target.id==='pc-add-rate'){const root=document.getElementById('pc-installments');const row=root.querySelector('.pc-rate');if(row){const copy=row.cloneNode(true);copy.querySelectorAll('input').forEach(i=>i.value='');root.appendChild(copy);}}

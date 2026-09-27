@@ -121,6 +121,11 @@ $isLinkActive = static function (string $href) use ($normalizePath, $currentPath
       <?php endif; ?>
     </ul>
 
+    <?php if (preg_match('~(?:^|/)(?:admin/(?:fatturazione(?:[-/]|$)|sistema-ts(?:/|$))|spazio/fatturazione(?:/|$))~', $currentPath)): ?>
+      <div style="padding:14px 15px 6px;color:#7d8b8f;font-size:11px;font-weight:700;text-transform:uppercase">Fatturazione</div>
+      <?= view('admin/billing/navigation', ['tenantScope'=>['tenant_id'=>(int)($resolvedSidebar['tenant_id']??0)], 'billingNavigationLayout'=>'sidebar'], ['saveData'=>false]) ?>
+    <?php endif; ?>
+
     <?php if ($contextActions !== []): ?>
       <div style="padding:14px 15px 6px; color:#7d8b8f; font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase;">
         Spazio e accessi
