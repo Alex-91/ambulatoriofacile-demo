@@ -9,3 +9,7 @@ Nessuna modifica a dati, migrazioni, numerazione, impostazioni di fatturazione, 
 Verifiche: 59 test PHPUnit, 417 asserzioni; browser su interfaccia reale con fixture sintetiche (desktop, mobile, spazio base, vuoto, filtri, dettaglio, riepiloghi e form cumulativo TS), regressioni browser designer/autocomplete/gestione avanzata. Immagini di collaudo in rest/build/billing-workspace, escluse dai commit.
 
 Comandi dalla root: node rest/tests/billing_workspace_browser.cjs; dalla cartella rest: php -d xdebug.mode=off vendor/bin/phpunit --no-coverage --filter 'UnifiedBillingTest|Polyclinic|BillingTsBridgeServiceTest|BillingDocumentServiceTest|BillingReport|BillingEmail|BillingPortRegressionTest|TsOperationClosureTest|TsReconciliationTest'.
+
+## Correzione menu
+
+Ripristinati header e menu applicativi originali. Lo stile del mockup è limitato al contenuto della fatturazione; rimossi sidebar scura, marchio alternativo e relativo toggle mobile. Nessuna modifica ai dati o alle funzioni. Verifica browser su desktop/mobile e sul registro incassi superata.

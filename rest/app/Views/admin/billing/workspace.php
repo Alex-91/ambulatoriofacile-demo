@@ -11,16 +11,16 @@ $tsEnabled=!empty($tsEnabled);
 <link rel="stylesheet" href="<?= base_url('public/bootstrap/css/bootstrap.min.css') ?>">
 <link rel="stylesheet" href="<?= base_url('public/dist/css/AdminLTE.css') ?>">
 <link rel="stylesheet" href="<?= base_url('public/assets/fontawesome/css/font-awesome.min.css') ?>">
-<link rel="stylesheet" href="<?= base_url('public/assets/css/billing-workspace.css?v=20260927') ?>">
-</head><body class="billing-workspace">
-<div class="bw-shell">
-<aside class="bw-sidebar" id="bw-sidebar"><a class="bw-brand" href="<?= site_url('/') ?>"><span class="bw-brand-mark">a</span>Ambulatorio<span>Facile</span></a>
-<?= view('partials/sidebar_admin',['menu_items'=>$menu_items??[]]) ?>
-</aside>
-<div class="bw-main">
-<header class="bw-topbar"><button type="button" class="bw-mobile-menu" aria-controls="bw-sidebar" aria-expanded="false" aria-label="Apri menu">☰</button><span class="bw-space-icon" aria-hidden="true">◇</span><strong><?= esc($tenantScope['tenant_name']??'Spazio attivo') ?></strong><span class="bw-feature-status"><span></span><?= array_filter($capabilities)?'Funzioni avanzate attive':'Gestione fatturazione' ?></span><a href="<?= site_url('admin/fatturazione-documento') ?>">Impostazioni documento</a></header>
-<main class="bw-content" id="billing-workspace">
+<link rel="stylesheet" href="<?= base_url('public/dist/css/skins/_all-skins.min.css') ?>">
+<link rel="stylesheet" href="<?= base_url('public/assets/css/billing-ts-ui.css') ?>">
+<link rel="stylesheet" href="<?= base_url('public/assets/css/billing-workspace.css?v=20260927-menu') ?>">
+</head><body class="skin-blue sidebar-mini billing-ts-ui module-fatturazione">
+<div class="wrapper"><?= view('partials/header',['menu_items'=>$menu_items??[]]) ?>
+<div class="content-wrapper"><section class="content billing-archive-content"><div class="row billing-archive-layout">
+<aside class="col-md-3 billing-archive-nav"><?= view('partials/sidebar_admin',['menu_items'=>$menu_items??[]]) ?></aside>
+<div class="col-md-9"><main class="billing-workspace bw-content" id="billing-workspace">
 <header class="bw-heading"><div><h1>Fatturazione</h1><p>Documenti, incassi e compensi in un unico spazio</p></div><a class="bw-button bw-primary" href="<?= site_url('admin/fatturazione-documenti/nuovo') ?>"><span aria-hidden="true">＋</span> Nuova fattura</a></header>
+<p class="bw-settings-link"><a href="<?= site_url('admin/fatturazione-documento') ?>">Impostazioni documento</a></p>
 <?= view('admin/billing/navigation',['tenantScope'=>$tenantScope,'activeBillingTab'=>'Documenti']) ?>
 <?php foreach(['success'=>'success','warning'=>'warning'] as $key=>$tone): if(!empty($$key)): ?><div class="alert alert-<?= $tone ?>"><?= esc($$key) ?></div><?php endif; endforeach ?>
 <?php if(!empty($errors['generic'])): ?><div class="alert alert-danger"><?= esc($errors['generic']) ?></div><?php endif ?>
@@ -66,4 +66,4 @@ $tsEnabled=!empty($tsEnabled);
 </div><aside id="bw-detail" aria-label="Dettaglio fattura" aria-live="polite"><div class="bw-detail-card bw-empty">Seleziona una fattura nell’elenco.</div></aside>
 </div>
 <script type="application/json" id="bw-data"><?= json_encode(array_map(static function($row) use($tsEnabled){return ['id'=>(int)$row['id_billing_document'],'number'=>$row['document_number'],'patient'=>$row['patient_name'],'tax'=>$row['patient_tax_code']??'','date'=>$row['issue_date'],'doctors'=>array_keys($row['doctors']),'status'=>$row['status_label'],'type'=>$row['document_type'],'ts'=>$row['ts_sync_state'],'net'=>$row['revenue_cents'],'cash'=>$row['cash_cents'],'due'=>$row['outstanding_cents'],'fees'=>$row['fee_due_cents'],'draft'=>$row['local_state']==='draft','email_sent'=>!empty($row['invoice_email_sent_at']),'overdue'=>$row['local_state']==='issued' && $row['outstanding_cents']>0 && !empty($row['due_date']) && $row['due_date']<date('Y-m-d')];},$documents),JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_THROW_ON_ERROR) ?></script>
-</main></div></div><script src="<?= base_url('public/assets/js/billing-workspace.js?v=20260927') ?>"></script></body></html>
+</main></div></div></section></div></div><script src="<?= base_url('public/assets/js/billing-workspace.js?v=20260927-menu') ?>"></script></body></html>

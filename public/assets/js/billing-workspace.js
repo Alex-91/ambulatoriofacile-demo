@@ -1,6 +1,5 @@
 (function(){
 'use strict';
-document.querySelector('.bw-mobile-menu')?.addEventListener('click',e=>{const visible=document.getElementById('bw-sidebar').classList.toggle('is-open');e.currentTarget.setAttribute('aria-expanded',String(visible));});
 const root=document.getElementById('billing-workspace');if(!root)return;
 const data=JSON.parse(document.getElementById('bw-data').textContent);
 const byId=new Map(data.map(d=>[String(d.id),d]));

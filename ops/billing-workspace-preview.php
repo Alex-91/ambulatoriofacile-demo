@@ -6,7 +6,8 @@ function site_url($v='/'){return '/'.ltrim($v,'/');}
 function base_url($v){return '/'.ltrim($v,'/');}
 function csrf_field(){return '<input type="hidden" name="csrf_synthetic" value="synthetic">';}
 function view($name,$data=[]){
- if($name==='partials/sidebar_admin') return '<div class="admin-sidebar-menu"><ul class="nav"><li><a href="/">⌂　Dashboard</a></li><li><a href="/agenda">▦　Agenda</a></li><li><a href="/pazienti">♙　Pazienti</a></li><li><a href="/cartella">▤　Cartella clinica</a></li><li class="active"><a href="/admin/fatturazione">▣　Fatturazione</a></li><li><a href="/settings">⚙　Impostazioni</a></li></ul></div>';
+ if($name==='partials/header') return '<header class="main-header"><a class="logo" href="/">AmbulatorioFacile</a><nav class="navbar navbar-static-top">Menu applicazione</nav></header>';
+ if($name==='partials/sidebar_admin') return '<div class="box box-solid admin-sidebar-menu"><div class="box-header with-border"><h3 class="box-title">Menu</h3></div><ul class="nav nav-pills nav-stacked"><li><a href="/">⌂　Dashboard</a></li><li><a href="/agenda">▦　Agenda</a></li><li><a href="/pazienti">♙　Pazienti</a></li><li><a href="/cartella">▤　Cartella clinica</a></li><li class="active"><a href="/admin/fatturazione">▣　Fatturazione</a></li><li><a href="/settings">⚙　Impostazioni</a></li></ul></div>';
  extract($data);$navigation=['capabilities'=>$GLOBALS['capabilities'],'unified'=>true,'ts_enabled'=>true];
  ob_start();require dirname(__DIR__).'/rest/app/Views/'.$name.'.php';return ob_get_clean();
 }
