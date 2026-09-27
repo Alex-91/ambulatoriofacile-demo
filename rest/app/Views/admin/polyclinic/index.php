@@ -25,6 +25,9 @@ $error=$error??null;
 </style></head><body class="skin-blue sidebar-mini"><div class="wrapper"><?= view('partials/header',['menu_items'=>$menu_items]) ?>
 <main class="pc"><a href="<?= site_url('/') ?>">← Home</a><h1>Fatturazione</h1><p><?= esc($tenantScope['tenant_name']??'') ?> · Accettazione, amministrazione e controllo economico</p>
 <?= view('admin/billing/navigation',['tenantScope'=>$tenantScope??[]]) ?>
+<?php if($base==='admin/fatturazione-poliambulatori'): ?>
+<nav aria-label="Archivio precedente"><?php foreach(['accettazione'=>'Accettazione','catalogo'=>'Prestazioni, convenzioni e compensi','documenti'=>'Documenti','report'=>'Report','integrazioni'=>'Commercialista e XML'] as $legacyTab=>$legacyLabel): ?><a href="<?= site_url($base.'?tab='.$legacyTab) ?>"><?= esc($legacyLabel) ?></a><?php endforeach ?></nav>
+<?php endif ?>
 <nav><a href="<?= site_url($base.'?tab=documenti') ?>">Registro incassi</a><a href="<?= site_url($base.'?tab=report') ?>">Analisi prestazioni</a></nav>
 <?php if($error || session()->getFlashdata('pc_error')): ?><div role="alert" class="pc-error"><?= esc($error?:session()->getFlashdata('pc_error')) ?></div><?php endif ?>
 <?php if($message=session()->getFlashdata('pc_success')): ?><div role="status" class="pc-success"><?= esc($message) ?></div><?php endif ?>

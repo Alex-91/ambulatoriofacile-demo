@@ -546,6 +546,15 @@ class MenuResolverService
         // Remove stale cached entries as well as hiding the entry for disabled spaces.
         $menuItems=array_values(array_filter($menuItems, fn($row)=>
             !in_array(strtolower($this->normalizePath((string)($row['link']??''))), ['fatturazione-poliambulatori','admin/fatturazione-poliambulatori'],true)));
+        // Older spaces may have only the independent clinic entitlement.
+        // Keep their access until billing is explicitly enabled and migrated.
+        $hasBilling=false;
+        foreach ($menuItems as $row) {
+            if (in_array(strtolower($this->normalizePath((string)($row['link']??''))), ['fatturazione','admin/fatturazione'],true)) $hasBilling=true;
+        }
+        if (!$hasBilling && $tenantId>0 && ($this->polyclinicFeatures ?? new PolyclinicFeatureService())->isEnabledForTenant($tenantId)) {
+            $menuItems[]=['titolo_menu'=>'Fatturazione','link'=>'fatturazione-poliambulatori','class_icon'=>'fa-file-text-o'];
+        }
         return $menuItems;
     }
 

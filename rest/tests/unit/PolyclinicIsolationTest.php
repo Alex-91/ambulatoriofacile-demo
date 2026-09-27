@@ -35,6 +35,10 @@ final class PolyclinicIsolationTest extends CIUnitTestCase
         $enabled=$method->invoke($menus,$rows,2);
         $this->assertSame(['fatturazione'],array_column($enabled,'link'));
         $this->assertSame('Fatturazione',$enabled[0]['titolo_menu']);
+        $legacyOnly=$method->invoke($menus,[['link'=>'fatturazione-poliambulatori','titolo_menu'=>'Vecchia cache']],2);
+        $this->assertSame(['fatturazione-poliambulatori'],array_column($legacyOnly,'link'));
+        $this->assertSame('Fatturazione',$legacyOnly[0]['titolo_menu']);
+        $this->assertSame([],$method->invoke($menus,[['link'=>'fatturazione-poliambulatori']],1));
     }
 
     public function testModuleIsOffByDefaultAndSchemaIsNotAnAutomaticMigration(): void

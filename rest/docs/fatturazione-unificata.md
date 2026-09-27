@@ -41,3 +41,9 @@ node rest/tests/unified_billing_browser.cjs
 ```
 
 Per questa modifica non sono stati eseguiti deploy o migrazioni di database remoti.
+
+## Controllo compatibilità prima del rilascio — 27 settembre 2026
+
+Base verificata con `origin/main` aggiornato: `45485a05`, comprensiva del designer e dei default TS/bollo. Le impostazioni e i modelli salvati degli spazi non vengono riscritti dall'unificazione. Gli spazi con il solo vecchio modulo conservano un accesso dal menu e la navigazione precedente fino all'attivazione esplicita della fatturazione unica.
+
+Verifiche combinate: 58 test, 408 asserzioni; regressioni standalone su preferenze, bollo, tipo spesa TS, crittografia, natura IVA, designer, testi lunghi e renderer precedente; tre test browser su navigazione unificata, designer e autocomplete. Tutti superati con fixture sintetiche, senza accesso ai database live. Questi controlli non sostituiscono il backup e la verifica della migrazione sul singolo spazio.
