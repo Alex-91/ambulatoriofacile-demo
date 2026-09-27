@@ -15,7 +15,8 @@ $tsEnabled=!empty($tsEnabled);
 <link rel="stylesheet" href="<?= base_url('public/dist/css/skins/_all-skins.min.css') ?>">
 <link rel="stylesheet" href="<?= base_url('public/assets/css/billing-ts-ui.css') ?>">
 <link rel="stylesheet" href="<?= base_url('public/assets/css/billing-workspace.css?v=20260927-icons') ?>">
-</head><body class="skin-blue sidebar-mini billing-ts-ui module-fatturazione">
+<link rel="stylesheet" href="<?= base_url('public/assets/css/billing-sections.css?v=20260927-group') ?>">
+</head><body class="billing-unified-page skin-blue sidebar-mini billing-ts-ui module-fatturazione">
 <div class="wrapper"><?= view('partials/header',['menu_items'=>$menu_items??[]]) ?>
 <div class="content-wrapper"><section class="content billing-archive-content"><div class="row billing-archive-layout">
 <aside class="col-md-3 billing-archive-nav"><?= view('partials/sidebar_admin',['menu_items'=>$menu_items??[]]) ?></aside>

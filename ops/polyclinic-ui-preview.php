@@ -2,6 +2,7 @@
 // Synthetic, read-only view preview. No framework bootstrap, .env, sessions or database.
 if (!in_array(PHP_SAPI,['cli','cli-server'],true)) { http_response_code(404); exit; }
 $repo=dirname(__DIR__);
+require $repo.'/rest/tests/_support/billing_sidebar_fixture.php';
 if (PHP_SAPI==='cli-server') {
     if (($_SERVER['REQUEST_METHOD']??'')!=='GET') { http_response_code(405); exit; }
     $path=rawurldecode(parse_url($_SERVER['REQUEST_URI'],PHP_URL_PATH)?:'/');
@@ -23,8 +24,8 @@ function site_url($v) { return '/'.ltrim($v,'/'); }
 function csrf_field() { return '<input type="hidden" name="csrf_synthetic" value="preview-only">'; }
 function session() { return new class { public function getFlashdata($k) { return null; } }; }
 function service($name) { return new class { public function getGet($key) { return $_GET[$key]??null; } public function getPath() { return '/admin/fatturazione/gestione'; } }; }
-function view($name,$data) {
- if($name==='partials/sidebar_admin') return '<div class="box box-solid admin-sidebar-menu"><div class="box-header">Menu</div><a href="/admin/fatturazione">Fatturazione</a>'.view('admin/billing/navigation',['billingNavigationLayout'=>'sidebar']).'</div>';
+function view($name,$data=[], $options=[]) {
+ if($name==='partials/sidebar_admin') {extract($data);ob_start();require dirname(__DIR__).'/rest/app/Views/partials/sidebar_admin.php';return ob_get_clean();}
  if($name==='admin/billing/navigation') {
   $navigation=['capabilities'=>array_fill_keys(array_keys(\App\Services\BillingCapabilities::FEATURES),($_GET['mode']??'advanced')!=='basic'),'unified'=>true,'ts_enabled'=>true];
   extract($data); ob_start(); require dirname(__DIR__).'/rest/app/Views/admin/billing/navigation.php'; return ob_get_clean();

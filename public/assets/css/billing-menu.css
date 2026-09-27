@@ -1,0 +1,137 @@
+body .admin-sidebar-menu.admin-sidebar-menu {
+  overflow: visible;
+  border: 0 !important;
+  border-top: 0 !important;
+  border-radius: 3px !important;
+  background: #fff !important;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, .1);
+  color: #444;
+  font-family: 'Source Sans Pro', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.42857143;
+}
+body .admin-sidebar-menu.admin-sidebar-menu > .box-header {
+  position: relative;
+  display: block;
+  min-height: 0;
+  padding: 10px;
+  border-bottom: 1px solid #f4f4f4 !important;
+  background: #fff;
+}
+body .admin-sidebar-menu.admin-sidebar-menu > .box-header .box-title {
+  display: inline-block;
+  margin: 0;
+  color: #444;
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 1;
+}
+body .admin-sidebar-menu.admin-sidebar-menu > .box-header > .box-tools {
+  position: absolute;
+  top: 5px;
+  right: 10px;
+}
+body .admin-sidebar-menu.admin-sidebar-menu > .box-body {
+  padding: 0;
+  border-radius: 0 0 3px 3px;
+}
+body .admin-sidebar-menu.admin-sidebar-menu .text-muted { color: #777 !important; }
+body .admin-sidebar-menu.admin-sidebar-menu .nav-pills.nav-stacked {
+  margin-right: 0;
+  margin-bottom: 0;
+  margin-left: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+body .admin-sidebar-menu.admin-sidebar-menu .nav-pills.nav-stacked > li,
+body .admin-sidebar-menu.admin-sidebar-menu .nav-pills.nav-stacked > li + li {
+  margin: 0;
+  border-bottom: 1px solid #f4f4f4;
+}
+body .admin-sidebar-menu.admin-sidebar-menu .nav-pills.nav-stacked > li:last-of-type { border-bottom: 0; }
+body .admin-sidebar-menu.admin-sidebar-menu .nav-pills.nav-stacked > li > a {
+  padding: 10px 15px;
+  border-top: 0;
+  border-left: 3px solid transparent;
+  border-radius: 0;
+  color: #444;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.42857143;
+}
+body .admin-sidebar-menu.admin-sidebar-menu .nav-pills.nav-stacked > li > a:hover,
+body .admin-sidebar-menu.admin-sidebar-menu .nav-pills.nav-stacked > li > a:focus {
+  background: #eee;
+  color: #444;
+}
+body .admin-sidebar-menu.admin-sidebar-menu .nav-pills.nav-stacked > li.active > a,
+body .admin-sidebar-menu.admin-sidebar-menu .nav-pills.nav-stacked > li.active > a:hover,
+body .admin-sidebar-menu.admin-sidebar-menu .nav-pills.nav-stacked > li.active > a:focus {
+  border-left-color: #2c8895;
+  background: #2c8895;
+  color: #fff;
+  font-weight: 600;
+}
+body .admin-sidebar-menu.admin-sidebar-menu .label {
+  border: 0;
+  border-radius: .25em;
+  font-size: 75%;
+  font-weight: 700;
+}
+body .admin-sidebar-menu.admin-sidebar-menu .btn {
+  min-height: 0;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.42857143;
+  transform: none;
+  transition: none;
+}
+body .admin-sidebar-menu.admin-sidebar-menu .btn:hover,
+body .admin-sidebar-menu.admin-sidebar-menu .btn:active,
+body .admin-sidebar-menu.admin-sidebar-menu .btn:focus { transform: none; }
+body .admin-sidebar-menu.admin-sidebar-menu .btn-info {
+  border-color: #46b8da;
+  background: #5bc0de;
+  color: #fff;
+}
+body .admin-sidebar-menu.admin-sidebar-menu .btn-info:hover,
+body .admin-sidebar-menu.admin-sidebar-menu .btn-info:focus,
+body .admin-sidebar-menu.admin-sidebar-menu .btn-info:active {
+  border-color: #269abc;
+  background: #31b0d5;
+  color: #fff;
+}
+body .admin-sidebar-menu.admin-sidebar-menu .btn-box-tool {
+  min-height: 0;
+  margin: 0;
+  padding: 5px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none !important;
+  color: #97a0b3;
+  font-size: 12px;
+}
+body .admin-sidebar-menu.admin-sidebar-menu .btn-box-tool:hover,
+body .admin-sidebar-menu.admin-sidebar-menu .btn-box-tool:focus {
+  background: rgba(0, 0, 0, .1) !important;
+  color: #606c84;
+}
+/* Shared sidebar, identical on billing and other application pages. */
+.admin-sidebar-menu.admin-sidebar-menu .billing-menu-group{margin:0;border:0}
+.admin-sidebar-menu.admin-sidebar-menu .billing-menu-group>summary{display:flex;align-items:center;gap:10px;padding:12px 15px;list-style:none;cursor:pointer;color:#365469;border-top:3px solid transparent;font-weight:600}
+.admin-sidebar-menu.admin-sidebar-menu .billing-menu-group>summary::-webkit-details-marker{display:none}
+.admin-sidebar-menu.admin-sidebar-menu .billing-menu-group>summary:hover{background:#f0f7f9}
+.admin-sidebar-menu.admin-sidebar-menu .billing-menu-group[open]>summary{color:#007e90;background:#e8f6f8}
+.admin-sidebar-menu.admin-sidebar-menu .billing-menu-chevron{margin-left:auto;font-size:23px;line-height:1;transition:transform .15s}
+.admin-sidebar-menu.admin-sidebar-menu .billing-menu-group[open] .billing-menu-chevron{transform:rotate(90deg)}
+body .admin-sidebar-menu.admin-sidebar-menu .billing-menu-group .nav.nav-pills.nav-stacked>li>a{padding:10px 15px 10px 40px;border:0;border-radius:0;color:#4b6074;font-size:13px;background:transparent}
+body .admin-sidebar-menu.admin-sidebar-menu .billing-menu-group .nav.nav-pills.nav-stacked>li.active>a{background:#e4f5f8;color:#007a8e;box-shadow:inset 3px 0 #008c9f;font-weight:700}
+body .admin-sidebar-menu.admin-sidebar-menu .billing-menu-group .nav.nav-pills.nav-stacked>li>a:hover{background:#f0f7f9;color:#007a8e}
+.admin-sidebar-menu.admin-sidebar-menu .billing-menu-group :focus-visible{outline:3px solid #58b7d1;outline-offset:-3px}
+

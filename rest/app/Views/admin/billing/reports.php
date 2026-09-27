@@ -94,8 +94,9 @@ if (trim((string) ($filters['date_from'] ?? '')) !== '' || trim((string) ($filte
     @media (max-width:1100px) { .billing-report-kpis { grid-template-columns:repeat(2, minmax(0, 1fr)); } .billing-report-grid { grid-template-columns:1fr; } }
     @media (max-width:767px) { .billing-report-kpis { grid-template-columns:1fr; } .billing-month-row { grid-template-columns:62px minmax(70px,1fr) 88px; } .billing-report-filter-actions { justify-content:flex-start; } }
   </style>
+<link rel="stylesheet" href="<?= base_url('public/assets/css/billing-sections.css?v=20260927-group') ?>">
 </head>
-<body class="skin-blue sidebar-mini billing-ts-ui module-fatturazione">
+<body class="billing-unified-page skin-blue sidebar-mini billing-ts-ui module-fatturazione">
 <div class="wrapper">
   <?= view('partials/header', ['menu_items' => $menu_items]) ?>
 

@@ -33,18 +33,14 @@ $error = trim((string) ($error ?? ''));
     .state-chip { display:inline-block; padding:5px 10px; border-radius:999px; background:#eef5f6; color:#1b6770; font-size:12px; font-weight:700; }
   </style>
   <link href="<?= base_url('public/assets/css/billing-ts-ui.css') ?>" rel="stylesheet" />
+<link rel="stylesheet" href="<?= base_url('public/assets/css/billing-sections.css?v=20260927-group') ?>">
 </head>
-<body class="skin-blue sidebar-mini billing-ts-ui module-sistema-ts">
+<body class="billing-unified-page skin-blue sidebar-mini billing-ts-ui module-sistema-ts">
 <div class="wrapper">
   <?= view('partials/header', ['menu_items' => $menu_items]) ?>
 
   <div class="content-wrapper">
-    <section class="content-header">
-      <h1>Documenti TS</h1>
-      <p class="text-muted" style="margin:8px 0 0 0;">
-        Elenco locale dei documenti Sistema Tessera Sanitaria dello spazio <?= esc((string) ($tenantScope['tenant_name'] ?? 'attivo')) ?>.
-      </p>
-    </section>
+
 
     <section class="content">
       <div class="row">
@@ -53,6 +49,12 @@ $error = trim((string) ($error ?? ''));
         </div>
 
         <div class="col-md-9">
+    <section class="content-header billing-section-heading">
+      <h1>Documenti TS</h1>
+      <p class="text-muted" style="margin:8px 0 0 0;">
+        Elenco locale dei documenti Sistema Tessera Sanitaria dello spazio <?= esc((string) ($tenantScope['tenant_name'] ?? 'attivo')) ?>.
+      </p>
+    </section>
           <?php if (!empty($success)): ?>
             <div class="alert alert-success"><?= esc((string) $success) ?></div>
           <?php endif; ?>

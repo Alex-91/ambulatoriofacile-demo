@@ -134,13 +134,23 @@ if (!is_string($supportedExpenseDetailsJson) || $supportedExpenseDetailsJson ===
     .patient-autocomplete-help.is-warning { color:#9a6a06; }
   </style>
   <link href="<?= base_url('public/assets/css/billing-ts-ui.css') ?>" rel="stylesheet" />
+<link rel="stylesheet" href="<?= base_url('public/assets/css/billing-sections.css?v=20260927-group') ?>">
 </head>
-<body class="skin-blue sidebar-mini billing-ts-ui module-sistema-ts">
+<body class="billing-unified-page skin-blue sidebar-mini billing-ts-ui module-sistema-ts">
 <div class="wrapper">
   <?= view('partials/header', ['menu_items' => $menu_items]) ?>
 
   <div class="content-wrapper">
-    <section class="content-header">
+
+
+    <section class="content">
+      <div class="row">
+        <div class="col-md-3">
+          <?= view('partials/sidebar_admin', ['menu_items' => $menu_items]) ?>
+        </div>
+
+        <div class="col-md-9">
+    <section class="content-header billing-section-heading">
       <h1><?= esc((string) ($pageTitle ?? 'Documento TS')) ?></h1>
       <p class="text-muted" style="margin:8px 0 0 0;">
         <?php if ($isCancellationDocument): ?>
@@ -154,8 +164,6 @@ if (!is_string($supportedExpenseDetailsJson) || $supportedExpenseDetailsJson ===
         <?php endif; ?>
       </p>
     </section>
-
-    <section class="content">
       <?php if (($isVariationDocument || $isCancellationDocument) && in_array($documentState,['draft','to_validate','ready','rejected'],true)): ?>
       <form method="post" action="<?= site_url('admin/sistema-ts/documenti/abbandona/'.$documentId) ?>" style="margin-bottom:15px" onsubmit="return confirm('Abbandonare questa operazione locale? Nessun annullamento verrà inviato al Sistema TS.');">
         <?= csrf_field() ?><button class="btn btn-default">Abbandona operazione locale</button>
@@ -176,12 +184,7 @@ if (!is_string($supportedExpenseDetailsJson) || $supportedExpenseDetailsJson ===
       <?php if (array_filter($events,static fn($event)=>($event['event_type'] ?? '')==='outcome_reconciled')): ?>
         <p><a href="<?= site_url('admin/sistema-ts/documenti/riscontro/'.$documentId) ?>">Scarica l’ultimo riscontro della verifica manuale TS</a></p>
       <?php endif ?>
-      <div class="row">
-        <div class="col-md-3">
-          <?= view('partials/sidebar_admin', ['menu_items' => $menu_items]) ?>
-        </div>
 
-        <div class="col-md-9">
           <?php if (!empty($success)): ?>
             <div class="alert alert-success"><?= esc((string) $success) ?></div>
           <?php endif; ?>

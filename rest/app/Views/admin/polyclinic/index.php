@@ -26,7 +26,8 @@ $error=$error??null;
 <link rel="stylesheet" href="<?= base_url('public/assets/fontawesome/css/all.min.css') ?>">
 <link rel="stylesheet" href="<?= base_url('public/assets/fontawesome/css/v4-shims.min.css') ?>">
 <link rel="stylesheet" href="<?= base_url('public/assets/css/billing-workspace.css?v=20260927-icons') ?>">
-</head><body class="skin-blue sidebar-mini"><div class="wrapper"><?= view('partials/header',['menu_items'=>$menu_items]) ?>
+<link rel="stylesheet" href="<?= base_url('public/assets/css/billing-sections.css?v=20260927-group') ?>">
+</head><body class="billing-unified-page skin-blue sidebar-mini"><div class="wrapper"><?= view('partials/header',['menu_items'=>$menu_items]) ?>
 <div class="content-wrapper"><section class="content"><div class="row"><aside class="col-md-3">
 <?= view('partials/sidebar_admin',['menu_items'=>$menu_items??[]]) ?>
 </aside><div class="col-md-9"><div class="billing-workspace"><main class="pc bw-content"><header class="bw-heading"><div><h1>Fatturazione</h1><p>Documenti, incassi e compensi in un unico spazio</p></div><a class="bw-button bw-primary" href="<?= site_url('admin/fatturazione-documenti/nuovo') ?>">＋ Nuova fattura</a></header>
@@ -34,7 +35,7 @@ $error=$error??null;
 <?php if($base==='admin/fatturazione-poliambulatori'): ?>
 <nav aria-label="Archivio precedente"><?php foreach(['accettazione'=>'Accettazione','catalogo'=>'Prestazioni, convenzioni e compensi','documenti'=>'Documenti','report'=>'Report','integrazioni'=>'Commercialista e XML'] as $legacyTab=>$legacyLabel): ?><a href="<?= site_url($base.'?tab='.$legacyTab) ?>"><?= esc($legacyLabel) ?></a><?php endforeach ?></nav>
 <?php endif ?>
-<nav><a href="<?= site_url($base.'?tab=documenti') ?>">Registro incassi</a><a href="<?= site_url($base.'?tab=report') ?>">Analisi prestazioni</a></nav>
+
 <?php if($error || session()->getFlashdata('pc_error')): ?><div role="alert" class="pc-error"><?= esc($error?:session()->getFlashdata('pc_error')) ?></div><?php endif ?>
 <?php if($message=session()->getFlashdata('pc_success')): ?><div role="status" class="pc-success"><?= esc($message) ?></div><?php endif ?>
 <?php if(!$ready): ?><section class="pc-card"><h2>Modulo da attivare</h2><p>Lo schema amministrativo non è ancora installato per questo spazio. L’installazione deve essere eseguita dall’amministratore sull’ambiente scelto.</p></section>
@@ -56,7 +57,7 @@ $error=$error??null;
 $kind=(string)(service('request')->getGet('kind')??'branch'); if(!isset(Clinic::KINDS[$kind]))$kind='branch';
 $editId=(int)service('request')->getGet('edit'); $edit=[];foreach($catalog[$kind] as $item)if((int)$item['id']===$editId)$edit=$item; $ed=$edit['data']??[];
 ?>
-<nav><?php foreach(Clinic::KINDS as $k=>$label): if(($k==='agreement' && empty($capabilities['billing_agreements'])) || ($k==='rule' && empty($capabilities['billing_compensation']))) continue; ?><a class="<?= $kind===$k?'active':'' ?>" href="<?= site_url($base.'?tab=catalogo&kind='.$k) ?>"><?= esc($label) ?></a><?php endforeach ?></nav>
+
 <section class="pc-card"><h2><?= $edit?'Modifica':'Nuova voce' ?> · <?= esc(Clinic::KINDS[$kind]) ?></h2>
 <?php $form('catalog','catalogo',['kind'=>$kind,'id'=>$edit['id']??0,'version'=>$edit['version']??0]); $input('code','Codice',$edit['code']??''); $input('name','Nome',$edit['name']??''); $select('active','Disponibilità',[1=>'Attiva',0=>'Archiviata'],$edit['active']??1);
 if($kind==='doctor') $input('agenda_id','Identificativo medico agenda',$ed['agenda_id']??0,'number',false);

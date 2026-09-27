@@ -15,7 +15,8 @@ $catalog=\App\Services\BillingDocumentDesigner::catalog();
 <link rel="stylesheet" href="<?= base_url('public/assets/fontawesome/css/all.min.css') ?>">
 <link rel="stylesheet" href="<?= base_url('public/assets/fontawesome/css/v4-shims.min.css') ?>">
 <link rel="stylesheet" href="<?= base_url('public/assets/css/billing-designer.css?v=20260927-menu') ?>">
-</head><body class="skin-blue sidebar-mini"><div class="wrapper">
+<link rel="stylesheet" href="<?= base_url('public/assets/css/billing-sections.css?v=20260927-group') ?>">
+</head><body class="billing-unified-page skin-blue sidebar-mini"><div class="wrapper">
 <?= view('partials/header',['menu_items'=>$menu_items??[]]) ?>
 <main class="content-wrapper"><section class="content"><div class="row"><aside class="col-md-3"><?= view('partials/sidebar_admin',['menu_items'=>$menu_items??[]]) ?></aside><div class="col-md-9"><section class="bd-app">
 <header class="bd-top"><div><a href="<?= site_url('admin/fatturazione') ?>">← Fatturazione</a><h1>Disegna il tuo documento</h1><p>Componi i blocchi, scegli i contenuti, controlla la stampa.</p></div><span class="bd-badge">A4 · griglia di stampa</span></header>

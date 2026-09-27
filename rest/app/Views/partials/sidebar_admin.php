@@ -37,7 +37,29 @@ $isLinkActive = static function (string $href) use ($normalizePath, $currentPath
 
     return $currentPath === $itemPath || str_starts_with($currentPath, $itemPath . '/');
 };
+$isBillingMenu = static function(string $link): bool {
+    $path=trim((string)parse_url($link,PHP_URL_PATH),'/');
+    return (bool)preg_match('~^(?:admin/)?(?:fatturazione(?:[-/]|$)|sistema-ts(?:/|$))~',$path);
+};
+$billingMenuRows=array_filter($menu_items,static fn($row)=>$isBillingMenu((string)($row['link']??'')));
+$billingHasCore=(bool)array_filter($billingMenuRows,static fn($row)=>str_contains((string)($row['link']??''),'fatturazione') && !str_contains((string)$row['link'],'fatturazione-ts'));
+$billingExtraLinks=[];
+if ($billingMenuRows) {
+    $contextActions=array_values(array_filter($contextActions,static function($action) use (&$billingExtraLinks): bool {
+        $href=(string)($action['href']??'');
+        if (preg_match('~/(?:spazio/fatturazione|spazio/sistema-ts)(?:/|$)~',$href) && empty($action['disabled'])) {
+            $billingExtraLinks[(string)$action['label']]=$href;
+            return false;
+        }
+        return true;
+    }));
+}
+$billingGroupRendered=false;
+$billingGroupActive=(bool)preg_match('~(?:^|/)(?:admin/(?:fatturazione(?:[-/]|$)|sistema-ts(?:/|$))|spazio/(?:fatturazione|sistema-ts)(?:/|$))~',$currentPath);
 ?>
+<link rel="stylesheet" href="<?= base_url('public/assets/fontawesome/css/all.min.css') ?>">
+<link rel="stylesheet" href="<?= base_url('public/assets/fontawesome/css/v4-shims.min.css') ?>">
+<link rel="stylesheet" href="<?= base_url('public/assets/css/billing-menu.css?v=20260927-group') ?>">
 <div class="box box-solid admin-sidebar-menu" style="margin-bottom:0 !important">
   <div class="box-header with-border">
     <h3 class="box-title">Menu</h3>
@@ -91,6 +113,25 @@ $isLinkActive = static function (string $href) use ($normalizePath, $currentPath
               continue;
           }
 
+          if ($isBillingMenu($menuLink)) {
+              if (!$billingGroupRendered) {
+                  $billingGroupRendered=true;
+                  ?>
+                  <li class="billing-menu-parent">
+                    <details class="billing-menu-group" <?= $billingGroupActive?'open':'' ?>>
+                      <summary><i class="fa fa-calculator" aria-hidden="true"></i><span>Fatturazione</span><span class="billing-menu-chevron" aria-hidden="true">›</span></summary>
+                      <?= view('admin/billing/navigation', [
+                          'tenantScope'=>['tenant_id'=>(int)($resolvedSidebar['tenant_id']??0)],
+                          'billingNavigationLayout'=>'sidebar', 'billingHasCore'=>$billingHasCore,
+                          'billingExtraLinks'=>$billingExtraLinks, 'activeBillingTab'=>null,
+                      ], ['saveData'=>false]) ?>
+                    </details>
+                  </li>
+                  <?php
+              }
+              continue;
+          }
+
           $menuLabel = admin_menu_pretty_title((string) ($menu['titolo_menu'] ?? ''), $menuLink);
           $icon = admin_menu_resolve_icon(
               (string) ($menu['icon'] ?? $menu['class_icon'] ?? ''),
@@ -120,11 +161,6 @@ $isLinkActive = static function (string $href) use ($normalizePath, $currentPath
         </li>
       <?php endif; ?>
     </ul>
-
-    <?php if (preg_match('~(?:^|/)(?:admin/(?:fatturazione(?:[-/]|$)|sistema-ts(?:/|$))|spazio/fatturazione(?:/|$))~', $currentPath)): ?>
-      <div style="padding:14px 15px 6px;color:#7d8b8f;font-size:11px;font-weight:700;text-transform:uppercase">Fatturazione</div>
-      <?= view('admin/billing/navigation', ['tenantScope'=>['tenant_id'=>(int)($resolvedSidebar['tenant_id']??0)], 'billingNavigationLayout'=>'sidebar'], ['saveData'=>false]) ?>
-    <?php endif; ?>
 
     <?php if ($contextActions !== []): ?>
       <div style="padding:14px 15px 6px; color:#7d8b8f; font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase;">

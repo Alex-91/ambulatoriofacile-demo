@@ -19,8 +19,9 @@ $environmentLabel = defined('ENVIRONMENT') && ENVIRONMENT === 'production' ? 'Pr
   <link href="<?= base_url('public/dist/css/AdminLTE.css') ?>" rel="stylesheet" />
   <link href="<?= base_url('public/dist/css/skins/_all-skins.min.css') ?>" rel="stylesheet" />
   <link href="<?= base_url('public/assets/css/billing-ts-ui.css') ?>" rel="stylesheet" />
+<link rel="stylesheet" href="<?= base_url('public/assets/css/billing-sections.css?v=20260927-group') ?>">
 </head>
-<body class="skin-blue sidebar-mini billing-ts-ui module-fatturazione">
+<body class="billing-unified-page skin-blue sidebar-mini billing-ts-ui module-fatturazione">
 <div class="wrapper">
   <?= view('partials/header', ['menu_items' => $menu_items]) ?>
 

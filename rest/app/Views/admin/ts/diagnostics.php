@@ -119,18 +119,14 @@ $selectedRawPreview = $truncateText($selectedRaw, $rawPreviewLimit);
     .toolbar-row .btn { margin-right:8px; margin-bottom:8px; }
   </style>
   <link href="<?= base_url('public/assets/css/billing-ts-ui.css') ?>" rel="stylesheet" />
+<link rel="stylesheet" href="<?= base_url('public/assets/css/billing-sections.css?v=20260927-group') ?>">
 </head>
-<body class="skin-blue sidebar-mini billing-ts-ui module-sistema-ts">
+<body class="billing-unified-page skin-blue sidebar-mini billing-ts-ui module-sistema-ts">
 <div class="wrapper">
   <?= view('partials/header', ['menu_items' => $menu_items]) ?>
 
   <div class="content-wrapper">
-    <section class="content-header">
-      <h1>Diagnostica TS</h1>
-      <p class="text-muted" style="margin:8px 0 0 0;">
-        Ricerca trace di supporto per lo spazio <?= esc((string) ($tenantScope['tenant_name'] ?? 'attivo')) ?> con dettaglio operativo, timeline e download JSON sanificato.
-      </p>
-    </section>
+
 
     <section class="content">
       <div class="row">
@@ -139,6 +135,12 @@ $selectedRawPreview = $truncateText($selectedRaw, $rawPreviewLimit);
         </div>
 
         <div class="col-md-9">
+    <section class="content-header billing-section-heading">
+      <h1>Diagnostica TS</h1>
+      <p class="text-muted" style="margin:8px 0 0 0;">
+        Ricerca trace di supporto per lo spazio <?= esc((string) ($tenantScope['tenant_name'] ?? 'attivo')) ?> con dettaglio operativo, timeline e download JSON sanificato.
+      </p>
+    </section>
           <?php if (trim((string) $successMessage) !== ''): ?>
             <div class="alert alert-success"><?= esc((string) $successMessage) ?></div>
           <?php endif; ?>

@@ -1,0 +1,28 @@
+/* Shared visual language for interactive billing sections; print templates are excluded. */
+body.billing-unified-page{--af-app-bg:#f5f8fb;--af-border:#e0e7ef;--af-ink:#132440;--af-text:#344963;--af-muted:#647087;--af-module-accent:#008c9f;--af-module-hover:#087485;--af-module-ink:#00788e;--af-module-soft:#e4f5f8;--af-module-border:#b9dce3;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#132440;background:#f5f8fb}
+body.billing-unified-page .content-wrapper{background:#f5f8fb}
+body.billing-unified-page .content>.row>.col-md-9{min-width:0}
+body.billing-unified-page .content>.row>.col-md-9 :is(.pc,.bd-app){background:transparent;padding:0;min-height:0;max-width:none}
+body.billing-unified-page .content>.row>.col-md-9 :is(.billing-modulebar,.billing-archive-modulebar,.config-modulebar,.ts-modulebar,.content-header){background:transparent;border:0;box-shadow:none;padding:0;margin:0 0 24px}
+body.billing-unified-page .content>.row>.col-md-9 :is(.billing-modulebar,.billing-archive-modulebar,.config-modulebar,.ts-modulebar)::before{display:none}
+body.billing-unified-page .content>.row>.col-md-9 :is(.billing-eyebrow,.billing-module-icon,.config-module-icon,.ts-module-icon){display:none}
+body.billing-unified-page .content>.row>.col-md-9 h1{font-size:32px;font-weight:750;letter-spacing:-1px;color:#132440;margin:0 0 6px}
+body.billing-unified-page .content>.row>.col-md-9 :is(.bw-heading p,.bd-top p,.billing-title-row p,.config-modulebar p,.ts-modulebar p,.content-header p){color:#647087;font-size:16px}
+body.billing-unified-page .content>.row>.col-md-9 :is(.box,.pc-card,.billing-archive-panel,.billing-kpi-card,.billing-report-filter,.billing-report-kpi,.billing-report-panel,.summary-strip,.config-panel,.ts-panel,.bd-library,.bd-inspector,.bd-live){background:#fff;border:1px solid #e0e7ef;border-radius:8px;box-shadow:0 2px 4px #1d385305}
+body.billing-unified-page .content>.row>.col-md-9 :is(.btn,.pc-link,.pc button,.bd-app button,.billing-action){border-radius:6px;box-shadow:none}
+body.billing-unified-page .content>.row>.col-md-9 :is(.btn-primary,.pc button,.bd-primary,.billing-action-primary){background:#008c9f;border-color:#008c9f;color:white}
+body.billing-unified-page .content>.row>.col-md-9 :is(.btn-primary,.pc button,.bd-primary,.billing-action-primary):hover{background:#087485;border-color:#087485}
+body.billing-unified-page .content>.row>.col-md-9 .pc button.pc-danger{background:#a63838;border-color:#a63838}
+body.billing-unified-page .content>.row>.col-md-9 :is(.form-control,.pc input,.pc select,.bd-app input:not([type=checkbox]),.bd-app select,.bd-app textarea){border:1px solid #d6e1ed;border-radius:6px;box-shadow:none;color:#344963;background:#fff}
+body.billing-unified-page .content>.row>.col-md-9 :is(.table,.pc table) th{background:#f3f5f8;color:#344963;border-color:#e7edf4;font-size:12px;font-weight:600;padding:14px}
+body.billing-unified-page .content>.row>.col-md-9 :is(.table,.pc table) td{border-color:#e7edf4;padding:14px;font-size:13px}
+body.billing-unified-page .content>.row>.col-md-9 .pc nav a{border:1px solid #d6e1ed;border-radius:6px;color:#344963;background:white}
+body.billing-unified-page .content>.row>.col-md-9 .pc nav a.active{background:#e4f5f8;border-color:#b9dce3;color:#00788e}
+body.billing-unified-page .content>.row>.col-md-9 :focus-visible{outline:3px solid #58b7d1;outline-offset:2px}
+@media(max-width:767px){body.billing-unified-page .content>.row>.col-md-9 h1{font-size:25px}body.billing-unified-page .content>.row>.col-md-9{margin-top:20px}}
+
+body.billing-unified-page .billing-report-kpi.is-primary{color:#132440;background:#fff;border-color:#e0e7ef}
+body.billing-unified-page .billing-report-kpi.is-primary :is(span,small){color:#647087}
+
+body.billing-unified-page .content>.row>.col-md-9 :is(h1,h2,h3,p,span,strong,small,label,input,select,textarea,button,td,th,a):not(.fa):not(.fas):not(.far):not(.fab){font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+body.billing-unified-page .content>.row>.col-md-9 .form-control{border-radius:6px!important}

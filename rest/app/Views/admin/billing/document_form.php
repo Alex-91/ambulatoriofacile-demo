@@ -145,8 +145,9 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
     .patient-linked-summary small { display:block; margin-top:4px; color:#517064; }
   </style>
   <link href="<?= base_url('public/assets/css/billing-ts-ui.css') ?>" rel="stylesheet" />
+<link rel="stylesheet" href="<?= base_url('public/assets/css/billing-sections.css?v=20260927-group') ?>">
 </head>
-<body class="skin-blue sidebar-mini billing-ts-ui module-fatturazione">
+<body class="billing-unified-page skin-blue sidebar-mini billing-ts-ui module-fatturazione">
 <div class="wrapper">
   <?= view('partials/header', ['menu_items' => $menu_items]) ?>
 
