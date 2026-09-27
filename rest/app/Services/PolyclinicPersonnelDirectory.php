@@ -109,7 +109,31 @@ final class PolyclinicPersonnelDirectory
         }
         $names=[];
         foreach ($this->db->table('pc_catalog')->where('kind','branch')->orderBy('name')->get()->getResultArray() as $b) if (in_array((int)$b['id'],array_map('intval',$current['data']['branch_ids']??[]),true)) $names[]=$b['name'];
-        return ['available'=>true,'enabled'=>(bool)($current['data']['professional_enabled']??$current['active']??false),'specialties'=>implode(', ',$names),'catalog_id'=>is_numeric($current['id']??null)?(int)$current['id']:0,'legacy_options'=>$unlinked,'agenda_id'=>(int)$staff[$pid]['legacy_id_dot'],'version'=>(int)($current['version']??0)];
+        return ['available'=>true,'enabled'=>(bool)($current['data']['professional_enabled']??$current['active']??false),'specialties'=>implode(', ',$names),'specialty_ids'=>array_map('intval',$current['data']['branch_ids']??[]),'specialty_options'=>$this->specialtyOptions(),'catalog_id'=>is_numeric($current['id']??null)?(int)$current['id']:0,'legacy_options'=>$unlinked,'agenda_id'=>(int)$staff[$pid]['legacy_id_dot'],'version'=>(int)($current['version']??0)];
+    }
+
+    public function specialtyOptions(): array
+    {
+        if (!$this->available()) return [];
+        return array_map(static fn(array $row): array => [
+            'id'=>(int)$row['id'], 'name'=>$row['name'], 'active'=>(bool)$row['active'],
+        ], $this->db->table('pc_catalog')->select('id,name,active')->where('kind','branch')->orderBy('name')->get()->getResultArray());
+    }
+
+    /** IDs belong to this space's catalog. Archived assignments may be retained, never newly added. */
+    public function selectedSpecialtyIds(array $input, array $existing=[]): array
+    {
+        $values=$input['professional_specialty_ids']??[];
+        if (!is_array($values) || count($values)>15) throw new DomainException('Seleziona al massimo 15 specialità dall’elenco.');
+        $options=array_column($this->specialtyOptions(),null,'id');
+        $ids=[];
+        foreach ($values as $value) {
+            if (!is_scalar($value) || !preg_match('/^[1-9][0-9]{0,9}$/D',(string)$value)) throw new DomainException('Seleziona una specialità valida dall’elenco.');
+            $id=(int)$value;
+            if (!isset($options[$id]) || (!$options[$id]['active'] && !in_array($id,$existing,true))) throw new DomainException('Una specialità non è più disponibile. Aggiorna l’elenco e riprova.');
+            $ids[]=$id;
+        }
+        return array_values(array_unique($ids));
     }
 
     public static function specialties(string $input): array
@@ -125,7 +149,9 @@ final class PolyclinicPersonnelDirectory
     public function saveProfile(int $pid,array $input,int $actor=0): void
     {
         if (!$this->available()) throw new DomainException('Configurazione prestazioni non disponibile.');
-        $names=self::specialties((string)($input['professional_specialties']??''));
+        $useCatalog=($input['professional_specialties_catalog']??'')==='1';
+        // Compatibility for forms opened before the selector was introduced.
+        $names=$useCatalog?[]:self::specialties((string)($input['professional_specialties']??''));
         $this->db->transBegin();
         try {
             $this->db->table('pc_settings')->where('name','write_lock')->set('version','version + 1',false)->update();
@@ -140,7 +166,8 @@ final class PolyclinicPersonnelDirectory
             }
             $p=$this->staff()[$pid];
             $old=$id?$this->db->table('pc_catalog')->where('id',$id)->get()->getRowArray():null;
-            $d=$old?PolyclinicAdministrationService::data($old):[];$branchIds=[];
+            $d=$old?PolyclinicAdministrationService::data($old):[];
+            $branchIds=$useCatalog?$this->selectedSpecialtyIds($input,array_map('intval',$d['branch_ids']??[])):[];
             foreach ($names as $name) {
                 $b=$this->db->table('pc_catalog')->where('kind','branch')->where('name',$name)->get()->getRowArray();
                 if (!$b) {$this->db->table('pc_catalog')->insert(['kind'=>'branch','code'=>'SPEC-'.substr(hash('sha256',mb_strtolower($name)),0,30),'name'=>$name,'data_json'=>'{}','active'=>1]);$branchIds[]=(int)$this->db->insertID();}

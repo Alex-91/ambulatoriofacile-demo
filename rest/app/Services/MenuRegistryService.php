@@ -49,6 +49,7 @@ class MenuRegistryService
                     'admin/personale/modifica_personale',
                     'admin/personale/search',
                     'admin/personale/get',
+                    'admin/personale/specialita/opzioni',
                     'admin/personale/update',
                     'admin/personale/elimina-account',
                     'admin/personale/elimina-dottore',

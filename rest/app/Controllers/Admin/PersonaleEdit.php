@@ -76,6 +76,14 @@ class PersonaleEdit extends BaseController
         return $this->response->setHeader('Content-Type','application/json; charset=utf-8')->setBody($json);
     }
 
+    public function specialtyOptions()
+    {
+        if ($redirect=$this->guardAdmin()) return $redirect;
+        if (!\App\Services\PolyclinicPersonnelDirectory::enabledInCurrentSpace()) return $this->response->setStatusCode(403)->setJSON(['ok'=>false]);
+        $directory=new \App\Services\PolyclinicPersonnelDirectory(\Config\Database::connect());
+        return $this->response->setHeader('Cache-Control','no-store')->setJSON(['ok'=>true,'options'=>$directory->specialtyOptions()]);
+    }
+
     public function get(int $idPersonale)
     {
         if ($redirect = $this->guardAdmin()) {
@@ -234,7 +242,14 @@ if ($datascadenza !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $datascadenza))
 
         $professionalPosted=$this->request->getPost('professional_profile_present')==='1' && \App\Services\PolyclinicPersonnelDirectory::enabledInCurrentSpace();
         if ($professionalPosted) {
-            try { \App\Services\PolyclinicPersonnelDirectory::specialties((string)$this->request->getPost('professional_specialties')); }
+            try {
+                $directory=new \App\Services\PolyclinicPersonnelDirectory($db);
+                if ($this->request->getPost('professional_specialties_catalog')==='1') {
+                    $directory->selectedSpecialtyIds((array)$this->request->getPost(),$directory->profile($idPersonale)['specialty_ids']??[]);
+                } else {
+                    \App\Services\PolyclinicPersonnelDirectory::specialties((string)$this->request->getPost('professional_specialties'));
+                }
+            }
             catch (\DomainException $e) {return redirect()->back()->with('errors',['generic'=>$e->getMessage()]);}
         }
         $okPers = $model->updatePersonaleEncrypted($idPersonale, $data);

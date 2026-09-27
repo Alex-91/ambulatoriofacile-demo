@@ -62,7 +62,8 @@ $kind=(string)(service('request')->getGet('kind')??'branch'); if(!isset(Clinic::
 $editId=(int)service('request')->getGet('edit'); $edit=[];foreach($catalog[$kind] as $item)if((int)$item['id']===$editId)$edit=$item; $ed=$edit['data']??[];
 ?>
 
-<section class="pc-card"><h2><?= $edit?'Modifica':'Nuova voce' ?> · <?= esc(Clinic::KINDS[$kind]) ?></h2>
+<?php if($kind==='branch'): ?><p>Inserisci qui le specialità dello spazio. Saranno selezionabili nelle schede del personale e nelle prestazioni. Archivia una voce per escluderla dalle nuove assegnazioni.</p><a class="pc-link" href="<?= site_url('admin/personale/modifica_personale') ?>">Vai al personale</a><?php endif ?>
+<section class="pc-card"><h2><?= $kind==='branch'?($edit?'Modifica specialità':'Nuova specialità'):(($edit?'Modifica':'Nuova voce').' · '.esc(Clinic::KINDS[$kind])) ?></h2>
 <?php $form('catalog','catalogo',['kind'=>$kind,'id'=>$edit['id']??0,'version'=>$edit['version']??0]); $input('code','Codice',$edit['code']??''); $input('name','Nome',$edit['name']??''); $select('active','Disponibilità',[1=>'Attiva',0=>'Archiviata'],$edit['active']??1);
 if($kind==='doctor') $input('agenda_id','Identificativo medico agenda',$ed['agenda_id']??0,'number',false);
 if($kind==='service') { $select('branch_id','Branca (facoltativa)',$options['branch'],$ed['branch_id']??'',true); $input('price','Prezzo base',Money::decimal((int)($ed['price_cents']??0))); }

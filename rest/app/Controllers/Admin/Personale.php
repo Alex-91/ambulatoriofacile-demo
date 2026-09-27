@@ -48,11 +48,14 @@ class Personale extends BaseController
         // menu admin in sessione
         $menuData = session()->get('menuDataAdmin');
         $menu_items = $menuData['result'] ?? [];
+        $professionalDirectory = new \App\Services\PolyclinicPersonnelDirectory($this->db);
+        $professionalAvailable = \App\Services\PolyclinicPersonnelDirectory::enabledInCurrentSpace() && $professionalDirectory->available();
 
         return view('admin/personale_create', [
             'menu_items' => $menu_items,
             'pageTitle'  => 'Inserisci Personale',
-            'professionalAvailable' => \App\Services\PolyclinicPersonnelDirectory::enabledInCurrentSpace() && (new \App\Services\PolyclinicPersonnelDirectory($this->db))->available(),
+            'professionalAvailable' => $professionalAvailable,
+            'specialtyOptions' => $professionalAvailable ? $professionalDirectory->specialtyOptions() : [],
             'gruppi'     => $locationCatalog->listSelectableLocations(),
             'tipi'       => $tM->orderBy('des_tipo', 'ASC')->findAll(),
             'errors'     => session()->getFlashdata('errors') ?? [],

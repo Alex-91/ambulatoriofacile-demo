@@ -13,4 +13,5 @@ function view($name,$data=[],$options=[]){
 }
 $menu_items=[['link'=>'personale/modifica_personale','titolo_menu'=>'Personale']];
 $professionalAvailable=true;$gruppi=[['id_gruppo'=>1,'nome'=>'Sede test']];$tipi=[['id_type_doctors'=>1,'des_tipo'=>'Dottore Generale'],['id_type_doctors'=>3,'des_tipo'=>'Segreteria']];
+$specialtyOptions=[['id'=>11,'name'=>'Cardiologia','active'=>true],['id'=>12,'name'=>'Medicina dello sport','active'=>true],['id'=>13,'name'=>'Dermatologia','active'=>true],['id'=>14,'name'=>'Specialità archiviata','active'=>false]];
 require dirname(__DIR__).'/rest/app/Views/admin/'.(($argv[1]??'')==='create'?'personale_create':'personale_modifica').'.php';

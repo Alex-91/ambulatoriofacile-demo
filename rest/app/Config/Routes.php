@@ -429,6 +429,7 @@ $routes->get('personale/modifica_personale', 'PersonaleEdit::index');
 
 $routes->get('personale/search', 'PersonaleEdit::search');      // AJAX
 $routes->get('personale/get/(:num)', 'PersonaleEdit::get/$1');  // AJAX
+$routes->get('personale/specialita/opzioni', 'PersonaleEdit::specialtyOptions');
 $routes->post('personale/update', 'PersonaleEdit::update');     // POST
 $routes->post('personale/disattiva', 'PersonaleEdit::disableAccess');
 $routes->post('personale/elimina-account', 'PersonaleEdit::deletePersonnel');

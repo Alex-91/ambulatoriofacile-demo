@@ -57,4 +57,25 @@ final class PolyclinicPersonnelDirectoryTest extends CIUnitTestCase
     public function testStaleVersionAndMissingPersonnelAreRejected(): void {
         $this->directory->saveProfile(1,['professional_enabled'=>1]);$this->rejects(fn()=>$this->directory->saveProfile(1,['professional_enabled'=>0,'professional_version'=>0]));$this->rejects(fn()=>$this->directory->saveProfile(999,['professional_enabled'=>1]));$this->assertTrue($this->directory->profile(1)['enabled']);
     }
+    public function testCatalogSelectionRetainsIdsAndDoesNotCreateSpecialties(): void {
+        $a=$this->clinic->saveCatalog(['kind'=>'branch','code'=>'CARD','name'=>'Cardiologia','active'=>1]);
+        $b=$this->clinic->saveCatalog(['kind'=>'branch','code'=>'SPORT','name'=>'Medicina dello sport','active'=>1]);
+        $input=['professional_specialties_catalog'=>'1','professional_specialty_ids'=>[(string)$a,(string)$b,(string)$a],'professional_enabled'=>1];
+        $this->directory->saveProfile(1,$input);
+        $p=$this->directory->profile(1);$this->assertSame([$a,$b],$p['specialty_ids']);
+        $this->db->table('pc_catalog')->where('id',$a)->update(['name'=>'Cardiologia clinica','active'=>0]);
+        $this->directory->saveProfile(1,array_merge($input,['professional_version'=>$p['version']]));
+        $p=$this->directory->profile(1);$this->assertSame([$a,$b],$p['specialty_ids']);$this->assertStringContainsString('Cardiologia clinica',$p['specialties']);
+        $this->assertCount(2,$this->directory->specialtyOptions());
+        $this->rejects(fn()=>$this->directory->saveProfile(2,$input));
+        $this->directory->saveProfile(1,['professional_specialties_catalog'=>'1','professional_version'=>$p['version'],'professional_enabled'=>1]);
+        $this->assertSame([],$this->directory->profile(1)['specialty_ids']);
+    }
+    public function testCatalogSelectionRejectsForeignKindsUnknownIdsAndMalformedPayloads(): void {
+        $doctor=$this->oldDoctor();
+        foreach ([[$doctor],[999999],['abc'],[['id'=>1]],'1',array_fill(0,16,'1')] as $ids) {
+            $this->rejects(fn()=>$this->directory->saveProfile(1,['professional_specialties_catalog'=>'1','professional_specialty_ids'=>$ids,'professional_enabled'=>1]));
+        }
+        $this->assertSame(0,$this->directory->profile(1)['catalog_id']);
+    }
 }

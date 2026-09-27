@@ -14,6 +14,8 @@ $success = $success ?? null;
   <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css" rel="stylesheet" />
   <link href="<?= base_url('public/dist/css/AdminLTE.css') ?>" rel="stylesheet" />
   <link href="<?= base_url('public/dist/css/skins/_all-skins.min.css') ?>" rel="stylesheet" />
+  <link rel="stylesheet" href="<?= base_url('public/assets/css/personnel-specialties.css') ?>">
+  <script defer src="<?= base_url('public/assets/js/personnel-specialties.js') ?>"></script>
   <style>
     .res-item { cursor:pointer; }
     .res-item:hover { background:#f5f5f5; }
@@ -214,15 +216,14 @@ $success = $success ?? null;
                 </div>
 
                 <hr>
-                <fieldset id="professional-profile" style="display:none;margin:16px 0;padding:16px;border:1px solid #d6e1ed;border-radius:8px" disabled>
-                  <legend>Prestazioni e specialità (facoltativo)</legend>
+                <fieldset id="professional-profile" class="personnel-professional-profile" style="display:none" disabled>
+                  <legend>Attività professionale</legend>
                   <input type="hidden" name="professional_profile_present" value="1"><input type="hidden" name="professional_version" id="professional_version" value="0">
                   <input type="hidden" name="professional_enabled" value="0">
-                  <label><input type="checkbox" name="professional_enabled" id="professional_enabled" value="1"> Utilizzabile come professionista nelle prestazioni e nei compensi</label>
-                  <p class="text-muted">Si usa questa stessa anagrafica. Il collegamento all’agenda è automatico, quando presente; un’agenda propria non è obbligatoria.</p>
-                  <div class="form-group"><label for="professional_specialties">Specialità / branche</label><input class="form-control" name="professional_specialties" id="professional_specialties" maxlength="1000" placeholder="Es. Cardiologia, Medicina dello sport"><small>Facoltative, separate da virgola. Sono disponibili anche nelle prestazioni.</small></div>
+                  <label class="professional-choice"><input type="checkbox" name="professional_enabled" id="professional_enabled" value="1"> Eroga prestazioni ai pazienti</label>
+                  <p class="professional-help">Rende questa persona selezionabile quando registri una prestazione. Le regole dei compensi si impostano in Fatturazione → Compensi.</p>
+                  <?= view('partials/personnel_specialty_select') ?>
                   <div class="form-group" id="professional-legacy-wrap"><label for="professional_legacy_id">Collega un professionista già inserito</label><select class="form-control" name="professional_legacy_id" id="professional_legacy_id"><option value="0">Nessun collegamento precedente</option></select><small>Scegli solo la stessa persona: fatture, prestazioni e compensi storici conservano i loro riferimenti.</small></div>
-                  <a href="<?= site_url('admin/fatturazione/gestione?tab=catalogo&kind=branch&context=personale') ?>">Gestisci le specialità</a>
                 </fieldset>
                 <h4 style="margin-top:0;">Credenziali (dap01_users)</h4>
 
@@ -470,7 +471,7 @@ function syncPersonnelAdminChoice(){
         var professional=res.professional||{};
         $('#professional-profile').toggle(!!professional.available).prop('disabled',!professional.available);
         $('#professional_enabled').prop('checked',!!professional.enabled);
-        $('#professional_specialties').val(professional.specialties||'');
+        document.getElementById('personnel-specialty-select').specialtySelect.setOptions(professional.specialty_options||[],professional.specialty_ids||[]);
         $('#professional_version').val(professional.version||0);
         var legacy=$('#professional_legacy_id').empty().append($('<option>').val('0').text(professional.catalog_id?'Già collegato al personale':'Nessun collegamento precedente'));
         (professional.legacy_options||[]).forEach(function(item){legacy.append($('<option>').val(item.id).text(item.name));});

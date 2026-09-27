@@ -29,6 +29,8 @@ $oldIsPersonnelAdmin = (int)($old['is_personale_admin'] ?? ($old['is_general_adm
 <html>
 <head>
   <meta charset="UTF-8">
+  <link rel="stylesheet" href="<?= base_url('public/assets/css/personnel-specialties.css') ?>">
+  <script defer src="<?= base_url('public/assets/js/personnel-specialties.js') ?>"></script>
   <title>AmbulatorioFacile | Inserisci Personale</title>
   <link rel="icon" href="<?= base_url('public/assets/images/logonew.jpg') ?>" type="image/x-icon" sizes="any">
   <meta content='width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no' name='viewport'>
@@ -247,11 +249,12 @@ $oldIsPersonnelAdmin = (int)($old['is_personale_admin'] ?? ($old['is_general_adm
                 <div class="row" style="margin-top:6px;">
                   <div class="col-md-12">
                     <?php if (!empty($professionalAvailable)): ?>
-                    <fieldset style="margin:16px 0;padding:16px;border:1px solid #d6e1ed;border-radius:8px">
-                      <legend>Prestazioni e specialità (facoltativo)</legend>
+                    <fieldset class="personnel-professional-profile">
+                      <legend>Attività professionale</legend>
                       <input type="hidden" name="professional_profile_present" value="1">
-                      <div class="form-group"><label>Professionista nelle prestazioni e nei compensi</label><select class="form-control" name="professional_enabled"><option value="">Automatico per medici e infermieri</option><option value="1" <?= oldv('professional_enabled',$old)==='1'?'selected':'' ?>>Sì, anche senza agenda</option><option value="0" <?= oldv('professional_enabled',$old)==='0'?'selected':'' ?>>No</option></select></div>
-                      <div class="form-group"><label>Specialità / branche</label><input class="form-control" name="professional_specialties" maxlength="1000" value="<?= oldv('professional_specialties',$old) ?>" placeholder="Es. Cardiologia, Medicina dello sport"><small>Facoltative, separate da virgola. Il collegamento all’agenda viene recuperato dall’anagrafica.</small></div>
+                      <div class="form-group"><label for="professional_enabled">Eroga prestazioni ai pazienti</label><select class="form-control" id="professional_enabled" name="professional_enabled"><option value="">Automatico: sì per medici e infermieri</option><option value="1" <?= oldv('professional_enabled',$old)==='1'?'selected':'' ?>>Sì</option><option value="0" <?= oldv('professional_enabled',$old)==='0'?'selected':'' ?>>No</option></select></div>
+                      <p class="professional-help">Rende questa persona selezionabile quando registri una prestazione. Le regole dei compensi si impostano in Fatturazione → Compensi.</p>
+                      <?= view('partials/personnel_specialty_select',['specialtyOptions'=>$specialtyOptions??[],'selectedSpecialties'=>$old['professional_specialty_ids']??[]]) ?>
                     </fieldset>
                     <?php endif ?>
                     <label>Visibilità moduli</label>
