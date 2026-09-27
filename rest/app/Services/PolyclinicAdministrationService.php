@@ -98,12 +98,23 @@ final class PolyclinicAdministrationService
     {
         $r=$this->row('pc_catalog',$id);
         if ($r['kind']!==$kind || ($active && !(int)$r['active'])) throw new DomainException('Voce di catalogo non disponibile.');
+        if ($kind==='doctor' && (new PolyclinicPersonnelDirectory($this->db))->available()) {
+            foreach ((new PolyclinicPersonnelDirectory($this->db))->doctors($this->db->table('pc_catalog')->where('kind','doctor')->get()->getResultArray()) as $doctor) {
+                if ((string)$doctor['id']===(string)$id) {if ($active && !$doctor['active']) throw new DomainException('Professionista non attivo nel personale.');return $doctor;}
+            }
+        }
         return $r;
+    }
+    private function doctor($id): array
+    {
+        $resolved=(new PolyclinicPersonnelDirectory($this->db))->materialize($id);
+        return $this->catalogItem($resolved,'doctor');
     }
     public function catalog(): array
     {
         $out=array_fill_keys(array_keys(self::KINDS),[]);
         foreach ($this->db->table('pc_catalog')->orderBy('name')->get()->getResultArray() as $r) { $r['data']=self::data($r); $out[$r['kind']][]=$r; }
+        $out['doctor']=(new PolyclinicPersonnelDirectory($this->db))->doctors($out['doctor']);
         return $out;
     }
 
@@ -116,7 +127,7 @@ final class PolyclinicAdministrationService
             $data=[];
             if ($kind==='doctor') $data=['agenda_id'=>max(0,(int)($in['agenda_id']??0))];
             if ($kind==='service') {
-                $branch=$this->catalogItem((int)($in['branch_id']??0),'branch');
+                $branch=!empty($in['branch_id'])?$this->catalogItem((int)$in['branch_id'],'branch'):['id'=>0];
                 $price=PolyclinicMoney::cents($in['price']??'0');
                 if ($price<0) throw new DomainException('Prezzo negativo non ammesso.');
                 $data=['branch_id'=>(int)$branch['id'],'price_cents'=>$price];
@@ -129,7 +140,7 @@ final class PolyclinicAdministrationService
                 if ($coverage>0 && $data['payer']==='') throw new DomainException('Indicare il soggetto pagatore.');
             }
             if ($kind==='rule') {
-                $doctor=$this->catalogItem((int)($in['doctor_id']??0),'doctor');
+                $doctor=$this->doctor($in['doctor_id']??0);
                 $service=$this->catalogItem((int)($in['service_id']??0),'service');
                 $mode=self::enum($in['mode']??'percent',['percent','fixed']);
                 $value=PolyclinicMoney::cents($in['value']??'0');
@@ -178,7 +189,7 @@ final class PolyclinicAdministrationService
             if ($old=$this->replay('pc_encounters',$in)) return (int)$old['id'];
             $appointmentId=(int)($in['appointment_id']??0);
             $patientId=self::positive($in['patient_id']??0);
-            $doctor=$this->catalogItem((int)($in['doctor_id']??0),'doctor');
+            $doctor=$this->doctor($in['doctor_id']??0);
             $date=self::date((string)($in['visit_date']??''));
             if (!$this->patientLookup) throw new DomainException('Ricerca pazienti non configurata.');
             $patient=($this->patientLookup)($patientId);
@@ -218,8 +229,8 @@ final class PolyclinicAdministrationService
             $e=$this->row('pc_encounters',(int)($in['encounter_id']??0));
             if (in_array($e['state'],['cancelled','completed'],true)) throw new DomainException('Prestazioni modificabili prima della chiusura della visita.');
             $s=$this->catalogItem((int)($in['service_id']??0),'service'); $sd=self::data($s);
-            $doctor=$this->catalogItem((int)($in['doctor_id']??$e['doctor_id']),'doctor');
-            $branch=$this->catalogItem((int)$sd['branch_id'],'branch');
+            $doctor=$this->doctor($in['doctor_id']??$e['doctor_id']);
+            $branch=!empty($sd['branch_id'])?$this->catalogItem((int)$sd['branch_id'],'branch'):['id'=>0,'name'=>'Non specificata'];
             $qty=self::positive($in['quantity']??1); if ($qty>1000) throw new DomainException('Quantità massima 1000.');
             $agreementId=(int)($in['agreement_id']??0); $listId=(int)($in['list_id']??0); $coverage=0; $agreement=[]; $ad=[];
             if ($agreementId) {

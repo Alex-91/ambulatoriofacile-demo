@@ -17,6 +17,9 @@ $select=static function(string $name,string $label,array $choices,$value='',bool
 <?php };
 $options=[]; foreach(($catalog??[]) as $k=>$items) { $options[$k]=[]; foreach($items as $item) if($item['active']) $options[$k][$item['id']]=$item['name']; }
 $error=$error??null;
+$personnelSpecialties=($tab??'')==='catalogo' && (service('request')->getGet('kind')??'branch')==='branch';
+$pageHeading=($tab??'')==='accettazione'?'Accettazione':($personnelSpecialties?'Specialità del personale':'Fatturazione');
+$pageDescription=($tab??'')==='accettazione'?'Arrivo, attesa e prestazioni del paziente':($personnelSpecialties?'Specialità facoltative condivise con personale e prestazioni':'Documenti, incassi e compensi in un unico spazio');
 ?>
 <!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Fatturazione · AmbulatorioFacile</title>
 <link rel="stylesheet" href="<?= base_url('public/bootstrap/css/bootstrap.min.css') ?>"><link rel="stylesheet" href="<?= base_url('public/dist/css/AdminLTE.css') ?>"><link rel="stylesheet" href="<?= base_url('public/dist/css/skins/_all-skins.min.css') ?>">
@@ -30,8 +33,9 @@ $error=$error??null;
 </head><body class="billing-unified-page skin-blue sidebar-mini"><div class="wrapper"><?= view('partials/header',['menu_items'=>$menu_items]) ?>
 <div class="content-wrapper"><section class="content"><div class="row"><aside class="col-md-3">
 <?= view('partials/sidebar_admin',['menu_items'=>$menu_items??[]]) ?>
-</aside><div class="col-md-9"><div class="billing-workspace"><main class="pc bw-content"><header class="bw-heading"><div><h1>Fatturazione</h1><p>Documenti, incassi e compensi in un unico spazio</p></div><a class="bw-button bw-primary" href="<?= site_url('admin/fatturazione-documenti/nuovo') ?>">＋ Nuova fattura</a></header>
+</aside><div class="col-md-9"><div class="billing-workspace"><main class="pc bw-content"><header class="bw-heading"><div><h1><?= esc($pageHeading) ?></h1><p><?= esc($pageDescription) ?></p></div><a class="bw-button bw-primary" href="<?= site_url('admin/fatturazione-documenti/nuovo') ?>">＋ Nuova fattura</a></header>
 <?= view('admin/billing/navigation',['tenantScope'=>$tenantScope??[]]) ?>
+<?php if($personnelSpecialties): ?><p><a href="<?= site_url('admin/personale/modifica_personale') ?>">← Torna al Personale</a></p><?php endif ?>
 <?php if($base==='admin/fatturazione-poliambulatori'): ?>
 <nav aria-label="Archivio precedente"><?php foreach(['accettazione'=>'Accettazione','catalogo'=>'Prestazioni, convenzioni e compensi','documenti'=>'Documenti','report'=>'Report','integrazioni'=>'Commercialista e XML'] as $legacyTab=>$legacyLabel): ?><a href="<?= site_url($base.'?tab='.$legacyTab) ?>"><?= esc($legacyLabel) ?></a><?php endforeach ?></nav>
 <?php endif ?>
@@ -41,7 +45,7 @@ $error=$error??null;
 <?php if(!$ready): ?><section class="pc-card"><h2>Modulo da attivare</h2><p>Lo schema amministrativo non è ancora installato per questo spazio. L’installazione deve essere eseguita dall’amministratore sull’ambiente scelto.</p></section>
 <?php elseif($error): ?><section class="pc-card">Correggere i filtri o tornare a una sezione dal menu.</section>
 <?php elseif($tab==='accettazione'): ?>
-<section class="pc-card"><h2>Accettazione pazienti</h2><form class="pc-form" method="get"><input type="hidden" name="tab" value="accettazione"><?php $input('date','Giornata',$date,'date'); $input('q','Cerca paziente per nome o codice fiscale',service('request')->getGet('q')??'','search',false); ?><button>Cerca</button><a class="pc-link" href="<?= site_url('agenda/gestione-pazienti') ?>">Anagrafica pazienti</a></form>
+<section class="pc-card"><h2>Accettazione pazienti</h2><p class="pc-muted">I professionisti provengono dal Personale. <a href="<?= site_url('admin/personale/modifica_personale') ?>">Gestisci anagrafiche e specialità</a>.</p><form class="pc-form" method="get"><input type="hidden" name="tab" value="accettazione"><?php $input('date','Giornata',$date,'date'); $input('q','Cerca paziente per nome o codice fiscale',service('request')->getGet('q')??'','search',false); ?><button>Cerca</button><a class="pc-link" href="<?= site_url('agenda/gestione-pazienti') ?>">Anagrafica pazienti</a></form>
 <?php if($patients): $patientChoices=[];foreach($patients as $p) $patientChoices[$p['id_client']]=$p['patient_name'].' · '.$p['patient_tax_code']; $form('arrival','accettazione'); $select('patient_id','Paziente',$patientChoices); $select('doctor_id','Professionista',$options['doctor']); $input('visit_date','Data visita',$date,'date'); $input('appointment_id','Appuntamento agenda (facoltativo)','','number',false); ?><button>Registra arrivo</button></form><?php endif ?>
 <p class="pc-muted">Cerca il paziente nell’anagrafica per registrarne l’arrivo. Per collegare un appuntamento, il professionista deve avere il relativo collegamento agenda configurato.</p></section>
 <?php foreach($encounters as $e): ?><section class="pc-card"><h2><?= esc($e['patient_name']) ?> <span class="pc-badge"><?= esc(Clinic::STATES[$e['state']]) ?></span></h2><p><?= esc($options['doctor'][$e['doctor_id']]??'Professionista archiviato') ?> · Visita #<?= (int)$e['id'] ?></p>
@@ -61,7 +65,7 @@ $editId=(int)service('request')->getGet('edit'); $edit=[];foreach($catalog[$kind
 <section class="pc-card"><h2><?= $edit?'Modifica':'Nuova voce' ?> · <?= esc(Clinic::KINDS[$kind]) ?></h2>
 <?php $form('catalog','catalogo',['kind'=>$kind,'id'=>$edit['id']??0,'version'=>$edit['version']??0]); $input('code','Codice',$edit['code']??''); $input('name','Nome',$edit['name']??''); $select('active','Disponibilità',[1=>'Attiva',0=>'Archiviata'],$edit['active']??1);
 if($kind==='doctor') $input('agenda_id','Identificativo medico agenda',$ed['agenda_id']??0,'number',false);
-if($kind==='service') { $select('branch_id','Branca',$options['branch'],$ed['branch_id']??''); $input('price','Prezzo base',Money::decimal((int)($ed['price_cents']??0))); }
+if($kind==='service') { $select('branch_id','Branca (facoltativa)',$options['branch'],$ed['branch_id']??'',true); $input('price','Prezzo base',Money::decimal((int)($ed['price_cents']??0))); }
 if($kind==='agreement') { $select('agreement_kind','Tipo',['private'=>'Convenzione privata','insurance'=>'Assicurazione','ssn'=>'SSN'],$ed['kind']??'private'); $select('list_id','Listino',$options['list'],$ed['list_id']??''); $input('coverage','Copertura ente %',Money::decimal((int)($ed['coverage_bps']??0))); $input('payer','Ente pagatore',$ed['payer']??'','text',false); $select('authorization_required','Autorizzazione obbligatoria',[0=>'No',1=>'Sì'],!empty($ed['authorization_required'])?1:0); }
 if($kind==='rule') { $select('doctor_id','Professionista',$options['doctor'],$ed['doctor_id']??''); $select('service_id','Prestazione',$options['service'],$ed['service_id']??''); $select('mode','Calcolo',['percent'=>'Percentuale','fixed'=>'Quota fissa per prestazione'],$ed['mode']??'percent'); $input('value','Valore (% oppure euro)',Money::decimal((int)($ed['value']??0))); $select('basis','Maturazione',['collected'=>'Sull’incassato','billed'=>'Sul fatturato'],$ed['basis']??'collected'); }
 ?><button>Salva</button></form>

@@ -152,6 +152,7 @@ class PersonaleEdit extends BaseController
             'ok' => true,
             'access' => $this->accessStatus((int)($p['id_user'] ?? 0)),
             'personale' => $p,
+            'professional' => \App\Services\PolyclinicPersonnelDirectory::enabledInCurrentSpace() ? (new \App\Services\PolyclinicPersonnelDirectory($db))->profile($idPersonale) : ['available'=>false],
             'user' => $userRow ? [
                 'id_user' => (int)$userRow['id_user'],
                 'username'=> (string)$userRow['username'],
@@ -231,6 +232,11 @@ if ($datascadenza !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $datascadenza))
         }
         $data['id_gruppo'] = $staffLinks->primaryGroupId($selectedLuoghi);
 
+        $professionalPosted=$this->request->getPost('professional_profile_present')==='1' && \App\Services\PolyclinicPersonnelDirectory::enabledInCurrentSpace();
+        if ($professionalPosted) {
+            try { \App\Services\PolyclinicPersonnelDirectory::specialties((string)$this->request->getPost('professional_specialties')); }
+            catch (\DomainException $e) {return redirect()->back()->with('errors',['generic'=>$e->getMessage()]);}
+        }
         $okPers = $model->updatePersonaleEncrypted($idPersonale, $data);
 
         // aggiorno credenziali (username non cifrato, password cifrata se compilata)
@@ -305,6 +311,10 @@ if ($datascadenza !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $datascadenza))
             }
         }
 
+        if ($okPers && $okUser && $okAppAdmin && $okLinks && $professionalPosted) {
+            try {(new \App\Services\PolyclinicPersonnelDirectory($db))->saveProfile($idPersonale,(array)$this->request->getPost(),(int)(session()->get('utente_sess')->id_user??0));}
+            catch (\Throwable $e) {log_message('error','Personnel professional profile: '.$e->getMessage());return redirect()->back()->with('errors',['generic'=>'Anagrafica aggiornata, profilo prestazioni non salvato: '.$e->getMessage()]);}
+        }
         if ($okPers && $okUser && $okAppAdmin && $okLinks) {
             return redirect()->to(site_url('admin/personale/modifica_personale'))
                 ->with('success', 'Personale aggiornato con successo.');

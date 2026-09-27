@@ -33,6 +33,8 @@ assert.equal(await page.locator('.ts-menu-parent').count(),1);
 assert.equal(await page.getByRole('navigation',{name:'Sezioni fatturazione',includeHidden:true}).locator('a[href*="sistema-ts"]').count(),0);
 const tsLinks=await page.getByRole('navigation',{name:'Sezioni Sistema TS',includeHidden:true}).locator('a').allTextContents();
 assert.deepEqual(tsLinks,['Riepilogo','Documenti e invii','Nuovo documento','Diagnostica','Configurazione']);
+assert.equal(await page.locator('.admin-sidebar-menu a[href="/admin/accettazione"]').count(),1);
+for(const label of ['Accettazione','Branche','Professionisti']) assert.equal(await page.getByRole('navigation',{name:'Sezioni fatturazione',includeHidden:true}).getByRole('link',{name:label,exact:true}).count(),0);
 const billingLinks=await page.getByRole('navigation',{name:'Sezioni fatturazione',includeHidden:true}).locator('a').evaluateAll(links=>links.map(a=>[a.textContent,a.getAttribute('href')]));
 await page.goto(url+'/?mode=outside');
 const group=page.locator('.billing-menu-parent .billing-menu-group');assert.equal(await group.getAttribute('open'),null);
@@ -52,7 +54,7 @@ for(const [mode,label] of [['schedule','Incassi'],['reports','Report'],['ts','']
  assert.equal(menuColor,'rgb(232, 246, 248)');
  await page.screenshot({path:path.join(output,mode+'-menu.png'),fullPage:true});
 }
-await page.goto(url+'/?mode=basic');assert.equal(await page.getByRole('link',{name:'Compensi',exact:true}).count(),0);assert.equal(await page.locator('#bw-kpi-drafts').count(),1);await page.screenshot({path:path.join(output,'basic.png'),fullPage:true});
+await page.goto(url+'/?mode=basic');assert.equal(await page.locator('.admin-sidebar-menu a[href="/admin/accettazione"]').count(),0);assert.equal(await page.getByRole('link',{name:'Compensi',exact:true}).count(),0);assert.equal(await page.locator('#bw-kpi-drafts').count(),1);await page.screenshot({path:path.join(output,'basic.png'),fullPage:true});
 await page.setViewportSize({width:390,height:844});await page.goto(url);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth));assert.equal(await page.locator('.bw-sidebar').count(),0);assert.equal(await page.locator('.main-header').count(),1);await page.screenshot({path:path.join(output,'mobile.png'),fullPage:true});
 await page.goto(url+'/?mode=empty');assert(await page.locator('#bw-empty').isVisible());assert.equal(await page.locator('#bw-bulk-inputs input').count(),0);assert.deepEqual(errors,[]);
 console.log('PASS: real workspace rendering, detail selection, invoice/credit KPIs, filters, capability visibility, cumulative TS form, mobile layout and empty state.');

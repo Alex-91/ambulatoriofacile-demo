@@ -235,6 +235,7 @@ class MenuRegistryService
                 'description' => 'Apri il modulo documenti cliente, separato ma compatibile con il Sistema TS.',
                 'route_prefixes' => [
                     'admin/fatturazione',
+                    'admin/accettazione',
                 ],
             ],
             [

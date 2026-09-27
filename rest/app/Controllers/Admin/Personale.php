@@ -52,6 +52,7 @@ class Personale extends BaseController
         return view('admin/personale_create', [
             'menu_items' => $menu_items,
             'pageTitle'  => 'Inserisci Personale',
+            'professionalAvailable' => \App\Services\PolyclinicPersonnelDirectory::enabledInCurrentSpace() && (new \App\Services\PolyclinicPersonnelDirectory($this->db))->available(),
             'gruppi'     => $locationCatalog->listSelectableLocations(),
             'tipi'       => $tM->orderBy('des_tipo', 'ASC')->findAll(),
             'errors'     => session()->getFlashdata('errors') ?? [],
@@ -269,6 +270,9 @@ class Personale extends BaseController
             }
 
             $this->assignDefaultStaffSchede($idUser);
+            if (($post['professional_profile_present']??'')==='1' && \App\Services\PolyclinicPersonnelDirectory::enabledInCurrentSpace()) {
+                (new \App\Services\PolyclinicPersonnelDirectory($this->db))->saveProfile($idPersonale,$post,(int)$me->id_user);
+            }
 
             $this->db->transComplete();
 

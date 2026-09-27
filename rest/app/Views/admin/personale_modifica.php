@@ -214,6 +214,16 @@ $success = $success ?? null;
                 </div>
 
                 <hr>
+                <fieldset id="professional-profile" style="display:none;margin:16px 0;padding:16px;border:1px solid #d6e1ed;border-radius:8px" disabled>
+                  <legend>Prestazioni e specialità (facoltativo)</legend>
+                  <input type="hidden" name="professional_profile_present" value="1"><input type="hidden" name="professional_version" id="professional_version" value="0">
+                  <input type="hidden" name="professional_enabled" value="0">
+                  <label><input type="checkbox" name="professional_enabled" id="professional_enabled" value="1"> Utilizzabile come professionista nelle prestazioni e nei compensi</label>
+                  <p class="text-muted">Si usa questa stessa anagrafica. Il collegamento all’agenda è automatico, quando presente; un’agenda propria non è obbligatoria.</p>
+                  <div class="form-group"><label for="professional_specialties">Specialità / branche</label><input class="form-control" name="professional_specialties" id="professional_specialties" maxlength="1000" placeholder="Es. Cardiologia, Medicina dello sport"><small>Facoltative, separate da virgola. Sono disponibili anche nelle prestazioni.</small></div>
+                  <div class="form-group" id="professional-legacy-wrap"><label for="professional_legacy_id">Collega un professionista già inserito</label><select class="form-control" name="professional_legacy_id" id="professional_legacy_id"><option value="0">Nessun collegamento precedente</option></select><small>Scegli solo la stessa persona: fatture, prestazioni e compensi storici conservano i loro riferimenti.</small></div>
+                  <a href="<?= site_url('admin/fatturazione/gestione?tab=catalogo&kind=branch&context=personale') ?>">Gestisci le specialità</a>
+                </fieldset>
                 <h4 style="margin-top:0;">Credenziali (dap01_users)</h4>
 
                 <div class="row">
@@ -341,6 +351,7 @@ $success = $success ?? null;
     $('#deleteAccountConfirmMessage').val('');
     $('#tipo').html('<option value="">Seleziona...</option>');
     $('#luoghi').html('');
+    $('#professional-profile').hide().prop('disabled',true);
     $('#titolare,#sostituto,#is_personale_admin,#show_in_agenda,#show_in_posta,#show_in_chat').prop('checked', false);
     $('#personale_admin_wrap').hide();
     $('#datascadenza').val('');
@@ -456,6 +467,15 @@ function syncPersonnelAdminChoice(){
 
         var p = res.personale || {};
         var u = res.user || null;
+        var professional=res.professional||{};
+        $('#professional-profile').toggle(!!professional.available).prop('disabled',!professional.available);
+        $('#professional_enabled').prop('checked',!!professional.enabled);
+        $('#professional_specialties').val(professional.specialties||'');
+        $('#professional_version').val(professional.version||0);
+        var legacy=$('#professional_legacy_id').empty().append($('<option>').val('0').text(professional.catalog_id?'Già collegato al personale':'Nessun collegamento precedente'));
+        (professional.legacy_options||[]).forEach(function(item){legacy.append($('<option>').val(item.id).text(item.name));});
+        $('#professional-legacy-wrap').toggle(!professional.catalog_id && (professional.legacy_options||[]).length>0);
+        legacy.prop('disabled',!!professional.catalog_id);
         var access = res.access || {};
         $('#accessBox').toggle(!!access.available);
         $('#accessStatus').text(access.blocked ? 'Account disattivato.' : 'Account non bloccato.');

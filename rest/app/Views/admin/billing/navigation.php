@@ -10,10 +10,7 @@ if ($billingSpace>0) {
     } catch (\Throwable $e) { log_message('error','Billing navigation: '.$e->getMessage()); }
 }
 $billingTabs=['Fatture'=>'admin/fatturazione-documenti','Incassi'=>'admin/fatturazione-scadenzario'];
-if (array_filter($billingOptions)) $billingTabs['Accettazione']='admin/fatturazione/gestione?tab=accettazione';
 if (array_filter($billingOptions)) {
-    $billingTabs['Branche']='admin/fatturazione/gestione?tab=catalogo&kind=branch';
-    $billingTabs['Professionisti']='admin/fatturazione/gestione?tab=catalogo&kind=doctor';
     $billingTabs['Listini']='admin/fatturazione/gestione?tab=catalogo&kind=list';
     $billingTabs['Prestazioni e listini']='admin/fatturazione/gestione?tab=catalogo&kind=service';
 }

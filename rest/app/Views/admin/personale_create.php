@@ -246,6 +246,14 @@ $oldIsPersonnelAdmin = (int)($old['is_personale_admin'] ?? ($old['is_general_adm
 
                 <div class="row" style="margin-top:6px;">
                   <div class="col-md-12">
+                    <?php if (!empty($professionalAvailable)): ?>
+                    <fieldset style="margin:16px 0;padding:16px;border:1px solid #d6e1ed;border-radius:8px">
+                      <legend>Prestazioni e specialità (facoltativo)</legend>
+                      <input type="hidden" name="professional_profile_present" value="1">
+                      <div class="form-group"><label>Professionista nelle prestazioni e nei compensi</label><select class="form-control" name="professional_enabled"><option value="">Automatico per medici e infermieri</option><option value="1" <?= oldv('professional_enabled',$old)==='1'?'selected':'' ?>>Sì, anche senza agenda</option><option value="0" <?= oldv('professional_enabled',$old)==='0'?'selected':'' ?>>No</option></select></div>
+                      <div class="form-group"><label>Specialità / branche</label><input class="form-control" name="professional_specialties" maxlength="1000" value="<?= oldv('professional_specialties',$old) ?>" placeholder="Es. Cardiologia, Medicina dello sport"><small>Facoltative, separate da virgola. Il collegamento all’agenda viene recuperato dall’anagrafica.</small></div>
+                    </fieldset>
+                    <?php endif ?>
                     <label>Visibilità moduli</label>
                     <p class="text-muted" style="margin:4px 0 8px 0;">
                       Decide in quali moduli il personale deve comparire. Per i dottori puoi tenerlo visibile in agenda ma nasconderlo da posta e chat.

@@ -45,7 +45,10 @@ class PolyclinicController extends BillingAdminBaseController
         $data=['menu_items'=>$this->adminMenuItems(),'tenantScope'=>$this->resolveTenantScope(),'ready'=>false,'tab'=>'accettazione','date'=>date('Y-m-d'),'error'=>null,'patients'=>[]];
         try {
             [$tenantId,$db,$service]=$this->context();
-            $tab=(string)($this->request->getGet('tab')??'documenti');
+            $acceptanceRoute=str_ends_with(rtrim($this->request->getUri()->getPath(),'/'),'/accettazione');
+            $tab=$acceptanceRoute?'accettazione':(string)($this->request->getGet('tab')??'documenti');
+            if (!$this->legacy() && $tab==='accettazione' && !$acceptanceRoute) return redirect()->to(site_url('admin/accettazione').'?'.http_build_query((array)$this->request->getGet()));
+            if (!$this->legacy() && $tab==='catalogo' && $this->request->getGet('kind')==='doctor') return redirect()->to(site_url('admin/personale/modifica_personale'));
             if ($this->legacy() && !$this->request->getGet('document') && \App\Services\UnifiedBillingArchive::state($db)) return redirect()->to(site_url(self::URL.'?'.http_build_query((array)$this->request->getGet())));
             if (!in_array($tab,['accettazione','catalogo','documenti','report','integrazioni','requisiti'],true)) $tab='accettazione';
             $data['tab']=$tab;
@@ -88,6 +91,7 @@ class PolyclinicController extends BillingAdminBaseController
         $tab=(string)($in['tab']??'accettazione'); if (in_array($tab,['accettazione','catalogo','documenti','integrazioni'],true)) $target.='?tab='.$tab;
         if (!empty($in['return_date']) && preg_match('/^\d{4}-\d{2}-\d{2}$/D',(string)$in['return_date'])) $target.='&date='.$in['return_date'];
         if ($tab==='catalogo' && isset(PolyclinicAdministrationService::KINDS[$in['kind']??''])) $target.='&kind='.urlencode($in['kind']);
+        if (!$this->legacy() && $tab==='accettazione') $target='admin/accettazione?'.http_build_query(['date'=>$in['return_date']??date('Y-m-d')]);
         if (($in['action']??'')==='tariff') $target.='&kind=list';
         if ((int)($in['billing_id']??0)>0) $target=$baseUrl.'?tab=documenti&document='.(int)$in['billing_id'];
         try {
@@ -97,7 +101,7 @@ class PolyclinicController extends BillingAdminBaseController
             \App\Services\BillingCapabilities::assertCommand($this->capabilities(),$in);
             $documentId=(int)($in['billing_id']??0);
             switch ($in['action']??'') {
-                case 'catalog': $service->saveCatalog($in); break;
+                case 'catalog': if (!$this->legacy() && ($in['kind']??'')==='doctor') throw new DomainException('Gestire i professionisti dall’anagrafica del personale.'); $service->saveCatalog($in); break;
                 case 'tariff': $service->saveTariff($in); break;
                 case 'arrival': $service->arrive($in); break;
                 case 'transition': $service->transition($in); break;

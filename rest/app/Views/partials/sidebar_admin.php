@@ -72,6 +72,13 @@ if ($billingMenuRows) {
         return true;
     }));
 }
+$acceptanceEnabled=false;
+if ($billingMenuRows) {
+    try {
+        $tenantId=(int)($resolvedSidebar['tenant_id']??0);
+        $acceptanceEnabled=$tenantId>0?(bool)array_filter(\App\Services\BillingCapabilities::resolve($tenantId)):(bool)array_filter($GLOBALS['capabilities']??[]);
+    } catch (\Throwable $e) {log_message('error','Acceptance menu: '.$e->getMessage());}
+}
 $billingGroupRendered=false;
 $billingGroupActive=(bool)preg_match('~(?:^|/)(?:admin/fatturazione(?!-ts(?:/|$))(?:[-/]|$)|spazio/fatturazione(?:/|$))~',$currentPath);
 ?>
@@ -123,6 +130,9 @@ $billingGroupActive=(bool)preg_match('~(?:^|/)(?:admin/fatturazione(?!-ts(?:/|$)
         </li>
       <?php endif; ?>
 
+      <?php if ($acceptanceEnabled): ?>
+        <li class="<?= $isLinkActive(site_url('admin/accettazione'))?'active':'' ?>"><a href="<?= site_url('admin/accettazione') ?>"><i class="fa fa-user-check" aria-hidden="true"></i> Accettazione</a></li>
+      <?php endif ?>
       <?php foreach ($menu_items as $menu): ?>
         <?php
           $menuLink = trim((string) ($menu['link'] ?? ''));
@@ -170,6 +180,7 @@ $billingGroupActive=(bool)preg_match('~(?:^|/)(?:admin/fatturazione(?!-ts(?:/|$)
           }
 
           $menuLabel = admin_menu_pretty_title((string) ($menu['titolo_menu'] ?? ''), $menuLink);
+          if (in_array($normalizedMenuLink,['personale/modifica_personale','admin/personale/modifica_personale'],true)) $menuLabel='Personale';
           $icon = admin_menu_resolve_icon(
               (string) ($menu['icon'] ?? $menu['class_icon'] ?? ''),
               $menuLabel,
