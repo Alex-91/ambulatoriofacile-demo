@@ -28,7 +28,7 @@ const server=http.createServer((req,res)=>{
     await page.goto(url+'/?tab=documenti');
     assert.equal(await page.locator('.admin-sidebar-menu').count(),1);
     const nav=page.getByRole('navigation',{name:'Sezioni fatturazione',exact:true});
-    for(const label of ['Documenti','Incassi','Prestazioni e listini','Convenzioni','Compensi','Sistema TS'])assert.strictEqual(await nav.getByRole('link',{name:label,exact:true}).count(),1,label);
+    for(const label of ['Documenti','Incassi','Prestazioni e listini','Convenzioni','Compensi'])assert.strictEqual(await nav.getByRole('link',{name:label,exact:true}).count(),1,label);
     assert.strictEqual(await page.getByRole('heading',{name:'Fatturazione',exact:true}).count(),1);
     await page.getByText('Sistema TS · invio cumulativo',{exact:true}).click();
     assert.strictEqual(await page.locator('select[name=ts_sync_enabled]').count(),1);
@@ -36,7 +36,7 @@ const server=http.createServer((req,res)=>{
     await page.screenshot({path:path.join(output,'advanced.png'),fullPage:true});
     await page.goto(url+'/?tab=documenti&mode=basic');
     for(const label of ['Prestazioni e listini','Convenzioni','Compensi'])assert.strictEqual(await nav.getByRole('link',{name:label,exact:true}).count(),0,label);
-    assert.strictEqual(await nav.getByRole('link',{name:'Sistema TS',exact:true}).count(),1);
+    assert.strictEqual(await nav.getByRole('link',{name:'Sistema TS',exact:true}).count(),0);assert.equal(await page.locator('.ts-menu-parent').count(),1);
     assert.strictEqual(await page.getByRole('heading',{name:'Compensi maturati e liquidazioni'}).count(),0);
     await page.screenshot({path:path.join(output,'basic.png'),fullPage:true});
     for(const section of ['catalogo','accettazione','report','integrazioni']){await page.goto(url+'/?tab='+section);assert.equal(await page.locator('.admin-sidebar-menu').count(),1);assert.strictEqual(await page.locator('form form').count(),0);assert.strictEqual(await page.locator('form[method=post]').count(),await page.locator('form[method=post] input[name=csrf_synthetic]').count());}

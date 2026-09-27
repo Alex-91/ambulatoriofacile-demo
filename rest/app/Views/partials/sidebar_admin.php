@@ -39,15 +39,33 @@ $isLinkActive = static function (string $href) use ($normalizePath, $currentPath
 };
 $isBillingMenu = static function(string $link): bool {
     $path=trim((string)parse_url($link,PHP_URL_PATH),'/');
-    return (bool)preg_match('~^(?:admin/)?(?:fatturazione(?:[-/]|$)|sistema-ts(?:/|$))~',$path);
+    return (bool)preg_match('~^(?:admin/)?fatturazione(?!-ts(?:/|$))(?:[-/]|$)~',$path);
 };
+$isTsMenu=static fn(string $link): bool => (bool)preg_match('~^(?:admin/)?(?:sistema-ts|fatturazione-ts)(?:/|$)~',trim((string)parse_url($link,PHP_URL_PATH),'/'));
+$tsMenuRows=array_filter($menu_items,static fn($row)=>$isTsMenu((string)($row['link']??'')));
+$tsLinks=['Riepilogo'=>site_url('admin/sistema-ts'),'Documenti e invii'=>site_url('admin/sistema-ts/documenti'),'Nuovo documento'=>site_url('admin/sistema-ts/documenti/nuovo'),'Diagnostica'=>site_url('admin/sistema-ts/diagnostica')];
+$tsGroupRendered=false;
+$tsGroupActive=(bool)preg_match('~(?:^|/)(?:admin/(?:sistema-ts|fatturazione-ts)|spazio/sistema-ts)(?:/|$)~',$currentPath);
+if ($tsMenuRows) {
+    $contextActions=array_values(array_filter($contextActions,static function($action) use (&$tsLinks): bool {
+        $href=(string)($action['href']??'');
+        if (preg_match('~/spazio/sistema-ts(?:/|$)~',$href) && empty($action['disabled'])) {
+            $tsLinks['Configurazione']=$href;return false;
+        }
+        return true;
+    }));
+}
+$tsActiveLabel='';
+foreach ($tsLinks as $label=>$href) {
+    if ($isLinkActive($href)) $tsActiveLabel=$label;
+}
 $billingMenuRows=array_filter($menu_items,static fn($row)=>$isBillingMenu((string)($row['link']??'')));
 $billingHasCore=(bool)array_filter($billingMenuRows,static fn($row)=>str_contains((string)($row['link']??''),'fatturazione') && !str_contains((string)$row['link'],'fatturazione-ts'));
 $billingExtraLinks=[];
 if ($billingMenuRows) {
     $contextActions=array_values(array_filter($contextActions,static function($action) use (&$billingExtraLinks): bool {
         $href=(string)($action['href']??'');
-        if (preg_match('~/(?:spazio/fatturazione|spazio/sistema-ts)(?:/|$)~',$href) && empty($action['disabled'])) {
+        if (preg_match('~/spazio/fatturazione(?:/|$)~',$href) && empty($action['disabled'])) {
             $billingExtraLinks[(string)$action['label']]=$href;
             return false;
         }
@@ -55,7 +73,7 @@ if ($billingMenuRows) {
     }));
 }
 $billingGroupRendered=false;
-$billingGroupActive=(bool)preg_match('~(?:^|/)(?:admin/(?:fatturazione(?:[-/]|$)|sistema-ts(?:/|$))|spazio/(?:fatturazione|sistema-ts)(?:/|$))~',$currentPath);
+$billingGroupActive=(bool)preg_match('~(?:^|/)(?:admin/fatturazione(?!-ts(?:/|$))(?:[-/]|$)|spazio/fatturazione(?:/|$))~',$currentPath);
 ?>
 <link rel="stylesheet" href="<?= base_url('public/assets/fontawesome/css/all.min.css') ?>">
 <link rel="stylesheet" href="<?= base_url('public/assets/fontawesome/css/v4-shims.min.css') ?>">
@@ -110,6 +128,25 @@ $billingGroupActive=(bool)preg_match('~(?:^|/)(?:admin/(?:fatturazione(?:[-/]|$)
           $menuLink = trim((string) ($menu['link'] ?? ''));
           $normalizedMenuLink = strtolower($normalizePath($menuLink));
           if ($normalizedMenuLink === '' || $normalizedMenuLink === 'logout' || $normalizedMenuLink === 'admin/personale/logout') {
+              continue;
+          }
+
+          if ($isTsMenu($menuLink)) {
+              if (!$tsGroupRendered) {
+                  $tsGroupRendered=true;
+                  ?>
+                  <li class="ts-menu-parent">
+                    <details class="billing-menu-group ts-menu-group" <?= $tsGroupActive?'open':'' ?>>
+                      <summary><i class="fa fa-heartbeat" aria-hidden="true"></i><span>Sistema TS</span><span class="billing-menu-chevron" aria-hidden="true">›</span></summary>
+                      <nav aria-label="Sezioni Sistema TS"><ul class="nav nav-pills nav-stacked">
+                        <?php foreach ($tsLinks as $label=>$href): $selected=$tsActiveLabel===$label; ?>
+                        <li class="<?= $selected?'active':'' ?>"><a href="<?= esc($href) ?>" <?= $selected?'aria-current="page"':'' ?>><?= esc($label) ?></a></li>
+                        <?php endforeach ?>
+                      </ul></nav>
+                    </details>
+                  </li>
+                  <?php
+              }
               continue;
           }
 

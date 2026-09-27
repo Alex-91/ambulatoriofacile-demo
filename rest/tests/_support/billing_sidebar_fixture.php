@@ -7,7 +7,7 @@ namespace App\Services {
                 ['link'=>'dashboard','titolo_menu'=>'Dashboard'],['link'=>'agenda','titolo_menu'=>'Agenda'],
                 ['link'=>'fatturazione','titolo_menu'=>'Fatturazione'],['link'=>'fatturazione-documenti','titolo_menu'=>'Lista fatture'],
                 ['link'=>'fatturazione-documento','titolo_menu'=>'Documento fatturazione'],['link'=>'sistema-ts','titolo_menu'=>'Sistema TS'],
-            ],'context_actions'=>[['href'=>'http://localhost/spazio/fatturazione','label'=>'Configura fatturazione']]];
+            ],'context_actions'=>[['href'=>'http://localhost/spazio/fatturazione','label'=>'Configura fatturazione'],['href'=>'http://localhost/spazio/sistema-ts','label'=>'Configura Sistema TS']]];
         }
     }
 }

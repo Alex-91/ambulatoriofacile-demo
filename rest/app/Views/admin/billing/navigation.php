@@ -1,11 +1,9 @@
 <?php
 $billingSpace=(int)($tenantScope['tenant_id']??0);
-$billingTsEnabled=!empty($navigation['ts_enabled']);
 $billingOptions=$navigation['capabilities']??[]; $billingArchive=!empty($navigation['unified'])?['preview'=>true]:[]; $hasPreviousArchive=false;
 if ($billingSpace>0) {
     try {
         $billingOptions=\App\Services\BillingCapabilities::resolve($billingSpace);
-        $billingTsEnabled=(new \App\Services\TsFeatureService())->isEnabledForTenant($billingSpace);
         $billingDb=(new \App\Services\BillingTenantDatabaseContextService())->resolveTenantContext($billingSpace)['db'];
         $billingArchive=\App\Services\UnifiedBillingArchive::state($billingDb);
         $hasPreviousArchive=!$billingArchive && $billingDb->tableExists('pc_documents') && (new \App\Services\PolyclinicFeatureService())->isEnabledForTenant($billingSpace);
@@ -23,13 +21,11 @@ if (!empty($billingOptions['billing_agreements'])) $billingTabs['Convenzioni']='
 if (!empty($billingOptions['billing_compensation'])) $billingTabs['Compensi']='admin/fatturazione/gestione?tab=catalogo&kind=rule';
 $billingTabs['Report']='admin/fatturazione-statistiche';
 if ($billingArchive) $billingTabs['Collegamenti']='admin/fatturazione/gestione?tab=integrazioni';
-if (!empty($billingTsEnabled)) $billingTabs['Sistema TS']='admin/sistema-ts/documenti';
 $billingTabs['Modello documento']='admin/fatturazione-documento';
 if ($billingArchive) {
     $billingTabs['Registro incassi']='admin/fatturazione/gestione?tab=documenti';
     $billingTabs['Analisi prestazioni']='admin/fatturazione/gestione?tab=report';
 }
-if (($billingHasCore??true)===false) $billingTabs=array_intersect_key($billingTabs,['Sistema TS'=>true]);
 foreach (($billingExtraLinks??[]) as $label=>$url) $billingTabs[$label]=$url;
 if (!isset($activeBillingTab)) {
     $billingCurrentPath=trim(service('uri')->getPath(),'/');

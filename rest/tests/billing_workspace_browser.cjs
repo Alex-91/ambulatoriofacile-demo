@@ -29,21 +29,26 @@ await page.locator('#bw-select-all').check();assert.equal(await page.locator('#b
 await page.locator('#bw-search').fill('Elena');assert.equal(await page.locator('.bw-row:visible').count(),1);assert.match(await page.locator('#bw-detail').innerText(),/Elena/);assert.equal(await page.locator('#bw-bulk-inputs input').count(),0);assert.match(await page.locator('#bw-kpi-due').innerText(),/80,00/);
 await page.locator('#bw-search').fill('');await page.locator('#bw-doctor').selectOption('1');assert.equal(await page.locator('.bw-row:visible').count(),5);
 await page.locator('#bw-doctor').selectOption('');await page.locator('#bw-status').selectOption('Nota di credito');assert.equal(await page.locator('.bw-row:visible').count(),1);assert.match(await page.locator('#bw-kpi-cash').innerText(),/0,00/);
-const billingLinks=await page.getByRole('navigation',{name:'Sezioni fatturazione'}).locator('a').evaluateAll(links=>links.map(a=>[a.textContent,a.getAttribute('href')]));
+assert.equal(await page.locator('.ts-menu-parent').count(),1);
+assert.equal(await page.getByRole('navigation',{name:'Sezioni fatturazione',includeHidden:true}).locator('a[href*="sistema-ts"]').count(),0);
+const tsLinks=await page.getByRole('navigation',{name:'Sezioni Sistema TS',includeHidden:true}).locator('a').allTextContents();
+assert.deepEqual(tsLinks,['Riepilogo','Documenti e invii','Nuovo documento','Diagnostica','Configurazione']);
+const billingLinks=await page.getByRole('navigation',{name:'Sezioni fatturazione',includeHidden:true}).locator('a').evaluateAll(links=>links.map(a=>[a.textContent,a.getAttribute('href')]));
 await page.goto(url+'/?mode=outside');
-const group=page.locator('.billing-menu-group');assert.equal(await group.getAttribute('open'),null);
+const group=page.locator('.billing-menu-parent .billing-menu-group');assert.equal(await group.getAttribute('open'),null);
 await group.locator('summary').click();assert.notEqual(await group.getAttribute('open'),null);
 assert.deepEqual(await group.locator('nav a').evaluateAll(links=>links.map(a=>[a.textContent,a.getAttribute('href')])),billingLinks);
 await group.locator('summary').focus();await page.keyboard.press('Enter');assert.equal(await group.getAttribute('open'),null);
 assert.equal(await page.locator('.billing-menu-parent').count(),1);
-for(const [mode,label] of [['schedule','Incassi'],['reports','Report'],['ts','Sistema TS']]){
+for(const [mode,label] of [['schedule','Incassi'],['reports','Report'],['ts','']]){
  await page.goto(url+'/?mode='+mode);
- const menu=page.getByRole('navigation',{name:'Sezioni fatturazione'});
+ const menu=page.getByRole('navigation',{name:'Sezioni fatturazione',includeHidden:true});
  assert.deepEqual(await menu.locator('a').evaluateAll(links=>links.map(a=>[a.textContent,a.getAttribute('href')])),billingLinks);
- assert.equal(await menu.locator('[aria-current=page]').innerText(),label);
+ if(label) assert.equal(await menu.locator('[aria-current=page]').innerText(),label);
+ else {assert.equal(await menu.locator('[aria-current=page]').count(),0);assert.equal(await page.getByRole('navigation',{name:'Sezioni Sistema TS',includeHidden:true}).locator('[aria-current=page]').innerText(),'Documenti e invii');}
  assert.equal(await page.locator('.billing-menu-parent').count(),1);
  assert.equal(await page.locator('.bw-tabs').count(),0);
- const menuColor=await page.locator('.billing-menu-group summary').evaluate(e=>getComputedStyle(e).backgroundColor);
+ const menuColor=await page.locator((mode==='ts'?'.ts-menu-parent':'.billing-menu-parent')+' summary').evaluate(e=>getComputedStyle(e).backgroundColor);
  assert.equal(menuColor,'rgb(232, 246, 248)');
  await page.screenshot({path:path.join(output,mode+'-menu.png'),fullPage:true});
 }
