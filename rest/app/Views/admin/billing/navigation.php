@@ -9,7 +9,7 @@ if ($billingSpace>0) {
         $hasPreviousArchive=!$billingArchive && $billingDb->tableExists('pc_documents') && (new \App\Services\PolyclinicFeatureService())->isEnabledForTenant($billingSpace);
     } catch (\Throwable $e) { log_message('error','Billing navigation: '.$e->getMessage()); }
 }
-$billingTabs=['Documenti'=>'admin/fatturazione-documenti','Incassi'=>'admin/fatturazione-scadenzario'];
+$billingTabs=['Fatture'=>'admin/fatturazione-documenti','Incassi'=>'admin/fatturazione-scadenzario'];
 if (array_filter($billingOptions)) $billingTabs['Accettazione']='admin/fatturazione/gestione?tab=accettazione';
 if (array_filter($billingOptions)) {
     $billingTabs['Branche']='admin/fatturazione/gestione?tab=catalogo&kind=branch';

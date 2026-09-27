@@ -23,7 +23,7 @@ $tsEnabled=!empty($tsEnabled);
 <div class="col-md-9"><main class="billing-workspace bw-content" id="billing-workspace">
 <header class="bw-heading"><div><h1>Fatturazione</h1><p>Documenti, incassi e compensi in un unico spazio</p></div><a class="bw-button bw-primary" href="<?= site_url('admin/fatturazione-documenti/nuovo') ?>"><span aria-hidden="true">＋</span> Nuova fattura</a></header>
 <p class="bw-settings-link"><a href="<?= site_url('admin/fatturazione-documento') ?>">Impostazioni documento</a></p>
-<?= view('admin/billing/navigation',['tenantScope'=>$tenantScope,'activeBillingTab'=>'Documenti']) ?>
+<?= view('admin/billing/navigation',['tenantScope'=>$tenantScope,'activeBillingTab'=>'Fatture']) ?>
 <?php foreach(['success'=>'success','warning'=>'warning'] as $key=>$tone): if(!empty($$key)): ?><div class="alert alert-<?= $tone ?>"><?= esc($$key) ?></div><?php endif; endforeach ?>
 <?php if(!empty($errors['generic'])): ?><div class="alert alert-danger"><?= esc($errors['generic']) ?></div><?php endif ?>
 <?php if(empty($listing['table_available'])): ?><div class="alert alert-warning"><?= esc($listing['schema_message']??'Archivio non disponibile.') ?></div><?php endif ?>

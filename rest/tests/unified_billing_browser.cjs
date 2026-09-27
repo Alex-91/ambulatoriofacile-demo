@@ -28,7 +28,7 @@ const server=http.createServer((req,res)=>{
     await page.goto(url+'/?tab=documenti');
     assert.equal(await page.locator('.admin-sidebar-menu').count(),1);
     const nav=page.getByRole('navigation',{name:'Sezioni fatturazione',exact:true});
-    for(const label of ['Documenti','Incassi','Prestazioni e listini','Convenzioni','Compensi'])assert.strictEqual(await nav.getByRole('link',{name:label,exact:true}).count(),1,label);
+    for(const label of ['Fatture','Incassi','Prestazioni e listini','Convenzioni','Compensi'])assert.strictEqual(await nav.getByRole('link',{name:label,exact:true}).count(),1,label);
     assert.strictEqual(await page.getByRole('heading',{name:'Fatturazione',exact:true}).count(),1);
     await page.getByText('Sistema TS · invio cumulativo',{exact:true}).click();
     assert.strictEqual(await page.locator('select[name=ts_sync_enabled]').count(),1);
