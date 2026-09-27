@@ -83,6 +83,7 @@ $environmentLabel = defined('ENVIRONMENT') && ENVIRONMENT === 'production' ? 'Pr
                 </a>
               </div>
             </header>
+<?= view('admin/billing/navigation',['tenantScope'=>$tenantScope??[]]) ?>
 
             <div class="billing-kpi-grid billing-archive-kpis">
               <article class="billing-kpi-card">
@@ -254,7 +255,7 @@ $environmentLabel = defined('ENVIRONMENT') && ENVIRONMENT === 'production' ? 'Pr
                             && $paymentStatus !== 'paid'
                             && $dueDate !== ''
                             && $dueDate < date('Y-m-d');
-                          $tsSelectable = $tsEnabled
+                          $tsSelectable = $tsEnabled && empty($row['ts_blocking_reason'])
                             && $localState === 'issued'
                             && !empty($row['ts_sync_enabled'])
                             && !in_array($tsState, ['sent', 'sending'], true);

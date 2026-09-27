@@ -1,4 +1,5 @@
 <?php
+if (!empty($preview['managed_collections'])) { echo view('admin/polyclinic/document_pdf',['preview'=>$preview]); return; }
 if (!empty($preview['template']['designer'])) {
     echo view('admin/billing/designer_document', ['preview'=>$preview, 'showToolbar'=>true]);
     return;

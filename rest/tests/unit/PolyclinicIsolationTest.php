@@ -24,7 +24,7 @@ final class PolyclinicIsolationTest extends CIUnitTestCase
         $this->assertSame('polyclinic_billing',TenantFeatureRegistry::resolveFeatureKeyFromMenuLink('fatturazione-poliambulatori'));
     }
 
-    public function testMenuHidesStaleEntryWhenDisabledAndKeepsBillingSeparate(): void
+    public function testMenuAlwaysRemovesDuplicateBillingEntry(): void
     {
         $features=$this->createMock(PolyclinicFeatureService::class);
         $features->method('isEnabledForTenant')->willReturnCallback(static fn($id)=>$id===2);
@@ -33,8 +33,8 @@ final class PolyclinicIsolationTest extends CIUnitTestCase
         $rows=[['link'=>'fatturazione','titolo_menu'=>'Fatturazione'],['link'=>'fatturazione-poliambulatori','titolo_menu'=>'Vecchia cache']];
         $this->assertSame(['fatturazione'],array_column($method->invoke($menus,$rows,1),'link'));
         $enabled=$method->invoke($menus,$rows,2);
-        $this->assertSame(['fatturazione','fatturazione-poliambulatori'],array_column($enabled,'link'));
-        $this->assertSame('Fatturazione poliambulatori',$enabled[1]['titolo_menu']);
+        $this->assertSame(['fatturazione'],array_column($enabled,'link'));
+        $this->assertSame('Fatturazione',$enabled[0]['titolo_menu']);
     }
 
     public function testModuleIsOffByDefaultAndSchemaIsNotAnAutomaticMigration(): void

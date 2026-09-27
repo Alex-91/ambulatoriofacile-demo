@@ -21,6 +21,7 @@ final class PolyclinicViewsTest extends CIUnitTestCase
     }
     public function testFeatureGateCoversAllAdministrationEndpoints(): void
     {
+        foreach (['','/azione','/export','/xml/1','/pdf/1'] as $suffix) $this->assertSame('billing',\App\Libraries\TenantFeatureRegistry::resolveFeatureKeyFromRoutePath('admin/fatturazione/gestione'.$suffix));
         foreach (['','/azione','/export','/xml/1','/pdf/1'] as $suffix) $this->assertSame('polyclinic_billing',\App\Libraries\TenantFeatureRegistry::resolveFeatureKeyFromRoutePath('admin/fatturazione-poliambulatori'.$suffix));
         $filters=new \Config\Filters();
         $this->assertSame(\App\Filters\BillingCsrfFilter::class,$filters->aliases['polycliniccsrf']);

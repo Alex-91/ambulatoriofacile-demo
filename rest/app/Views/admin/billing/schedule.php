@@ -62,6 +62,7 @@ $stateLabels = [
                 <a class="billing-action billing-action-primary" href="<?= site_url('admin/fatturazione-documenti/nuovo') ?>"><i class="fa fa-plus"></i> Nuova fattura</a>
               </div>
             </header>
+<?= view('admin/billing/navigation',['tenantScope'=>$tenantScope??[]]) ?>
 
             <div class="billing-kpi-grid billing-schedule-kpis">
               <article class="billing-kpi-card billing-kpi-danger"><span>Scadute</span><strong><?= (int) ($summary['overdue_count'] ?? 0) ?></strong><p>da sollecitare</p></article>
@@ -120,7 +121,7 @@ $stateLabels = [
                           <?php if ($reminderCount > 0): ?><small><?= $reminderCount ?> <?= $reminderCount === 1 ? 'sollecito inviato' : 'solleciti inviati' ?></small><?php endif; ?>
                         </td>
                         <td class="text-right billing-schedule-actions">
-                          <?php if (!$isPaid): ?>
+                          <?php if (!empty($row['managed_collections'])): ?><a class="btn btn-default" href="<?= site_url('admin/fatturazione/gestione?tab=documenti&document='.$documentId) ?>">Registra incasso</a><small>Residuo € <?= number_format((float)$row['remaining_amount'],2,',','.') ?></small><?php elseif (!$isPaid): ?>
                             <a class="billing-icon-action" href="<?= site_url('admin/fatturazione-documenti/email/' . $documentId . '?type=reminder') ?>" title="Invia sollecito" aria-label="Invia sollecito"><i class="fa fa-bell-o"></i></a>
                             <form method="post" action="<?= site_url('admin/fatturazione-documenti/pagamento/' . $documentId) ?>" class="billing-inline-form" onsubmit="return confirm('Segnare questa fattura come pagata?');">
                               <?= csrf_field() ?><input type="hidden" name="payment_status" value="paid"><input type="hidden" name="payment_date" value="<?= esc($today, 'attr') ?>"><input type="hidden" name="return_to" value="schedule">

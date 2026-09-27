@@ -186,7 +186,7 @@ public function __construct()
     // Scoped to FSE, billing and TS forms; GET also issues the CSRF cookie.
     // Include GET so cookie-based CSRF protection also issues the initial cookie.
     public array $filters = [
-        'polycliniccsrf' => ['before'=>['admin/fatturazione-poliambulatori','admin/fatturazione-poliambulatori/*'], 'after'=>['admin/fatturazione-poliambulatori','admin/fatturazione-poliambulatori/*']],
+        'polycliniccsrf' => ['before'=>['admin/fatturazione-poliambulatori','admin/fatturazione-poliambulatori/*','admin/fatturazione/gestione','admin/fatturazione/gestione/*'], 'after'=>['admin/fatturazione-poliambulatori','admin/fatturazione-poliambulatori/*','admin/fatturazione/gestione','admin/fatturazione/gestione/*']],
         'administrationcsrf' => ['before'=>['admin/amministrazione','admin/amministrazione/*'], 'after'=>['admin/amministrazione','admin/amministrazione/*']],
         'clinicalcsrf' => ['before'=>['cartella-clinica/*'], 'after'=>['cartella-clinica/*']],
         'personnelcsrf' => ['before'=>['admin/personale/modifica_personale','admin/personale/disattiva'], 'after'=>['admin/personale/modifica_personale','admin/personale/disattiva']],

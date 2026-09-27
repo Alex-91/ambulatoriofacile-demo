@@ -80,6 +80,10 @@ class BillingTsBridgeService
             $billingId = (int) ($row['id_billing_document'] ?? 0);
             $tsDocument = $tsDocumentsByBillingId[$billingId] ?? null;
             $item = $this->buildQueueItem($row, $tsDocument);
+            if (UnifiedBillingArchive::manages($db,$billingId)) {
+                $item['blocking_reason']=(new PolyclinicAdministrationService($db))->tsBlockingReason($billingId);
+                if ($item['blocking_reason']!=='') $item['can_send_now']=false;
+            }
 
             if ($this->isBillingTsDocumentSent($tsDocument)) {
                 $sent[] = $item;
@@ -143,6 +147,8 @@ class BillingTsBridgeService
             );
         }
 
+        foreach ($actionMap as $id=>&$action) if (UnifiedBillingArchive::manages($db,(int)$id)) { $action['can_delete']=false; $action['can_edit']=false; $action['locked_reason']='Documento con registro incassi: usare il dettaglio e le note di credito.'; $action['ts_blocking_reason']=(new PolyclinicAdministrationService($db))->tsBlockingReason((int)$id); }
+        unset($action);
         return $actionMap;
     }
 
@@ -184,6 +190,7 @@ class BillingTsBridgeService
             throw new \RuntimeException('Fattura non trovata.');
         }
 
+        UnifiedBillingArchive::assertOrdinaryMutation($db,$billingDocumentId);
         $relatedTsDocuments = $this->loadRelatedTsDocumentsForBilling($db, $billingDocument);
         $primaryTsDocument = $this->resolvePrimaryTsDocument($billingDocument, $relatedTsDocuments);
         $actionState = $this->buildBillingDocumentActionState($billingDocument, $primaryTsDocument);
@@ -248,6 +255,22 @@ class BillingTsBridgeService
      */
     public function prepareBillingDocumentForTs(int $tenantId, int $billingDocumentId, int $userId = 0): array
     {
+        $context=$this->billingContext->resolveTenantContext($tenantId);
+        $db=$context['db'];
+        if (!UnifiedBillingArchive::manages($db,$billingDocumentId)) return $this->prepareBillingDocumentUnlocked($tenantId,$billingDocumentId,$userId);
+        // Hold the ledger lock while the existing bridge validates and links the TS snapshot.
+        // The connector uses separate connections, so do not wrap its writes in this transaction.
+        $db->transBegin();
+        try {
+            $db->table('pc_settings')->where('name','write_lock')->set('version','version + 1',false)->update();
+            if ($db->affectedRows()!==1) throw new \RuntimeException('Registro incassi non disponibile.');
+            $result=$this->prepareBillingDocumentUnlocked($tenantId,$billingDocumentId,$userId);
+            $db->transCommit(); return $result;
+        } catch (\Throwable $e) { $db->transRollback(); throw $e; }
+    }
+
+    private function prepareBillingDocumentUnlocked(int $tenantId, int $billingDocumentId, int $userId = 0): array
+    {
         $billingDocumentId = max(0, $billingDocumentId);
         if ($tenantId <= 0 || $billingDocumentId <= 0) {
             throw new \InvalidArgumentException('Documento fatturazione non valido per la preparazione TS.');
@@ -265,7 +288,8 @@ class BillingTsBridgeService
             throw new \RuntimeException('Documento fatturazione non trovato.');
         }
 
-        $eligibility = $this->validateBillingEligibility($billingDocument);
+        $advancedBlock=UnifiedBillingArchive::manages($billingContext['db'],$billingDocumentId) ? (new PolyclinicAdministrationService($billingContext['db']))->tsBlockingReason($billingDocumentId) : '';
+        $eligibility = $advancedBlock!=='' ? ['blocked'=>true,'message'=>$advancedBlock] : $this->validateBillingEligibility($billingDocument);
         if (!empty($eligibility['blocked'])) {
             $this->updateBillingLinkState($billingDocuments, $billingDocumentId, 0, 'error', $userId);
 

@@ -115,6 +115,8 @@ class BillingDocumentsController extends BillingAdminBaseController
 
         $tenantScope = $this->resolveTenantScope();
         $tenantId = (int) ($tenantScope['tenant_id'] ?? 0);
+        $archiveDb=(new \App\Services\BillingTenantDatabaseContextService())->resolveTenantContext($tenantId)['db'];
+        if (\App\Services\UnifiedBillingArchive::manages($archiveDb,$documentId)) return redirect()->to(site_url('admin/fatturazione/gestione?tab=documenti&document='.$documentId));
         $formContext = $this->documents->buildFormContext($tenantId, $documentId);
         if ((int) ($formContext['document']['id_billing_document'] ?? 0) <= 0) {
             return redirect()->to(site_url('admin/fatturazione-documenti'))->with('errors', [

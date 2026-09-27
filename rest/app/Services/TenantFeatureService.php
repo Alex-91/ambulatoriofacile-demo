@@ -288,8 +288,11 @@ class TenantFeatureService
                 'tenant_default_enabled' => 0,
                 'sort_order' => 144,
             ],
+            'billing_services' => ['feature_name'=>'Prestazioni e listini','feature_scope'=>'billing','description'=>'Funzione facoltativa della Fatturazione, disponibile per qualsiasi spazio.','default_enabled'=>0,'icon_class'=>'fa-calculator','is_tenant_managed'=>1,'tenant_default_enabled'=>1,'sort_order'=>136],
+            'billing_agreements' => ['feature_name'=>'Convenzioni e assicurazioni','feature_scope'=>'billing','description'=>'Funzione facoltativa della Fatturazione, disponibile per qualsiasi spazio.','default_enabled'=>0,'icon_class'=>'fa-calculator','is_tenant_managed'=>1,'tenant_default_enabled'=>1,'sort_order'=>136],
+            'billing_compensation' => ['feature_name'=>'Compensi professionisti','feature_scope'=>'billing','description'=>'Funzione facoltativa della Fatturazione, disponibile per qualsiasi spazio.','default_enabled'=>0,'icon_class'=>'fa-calculator','is_tenant_managed'=>1,'tenant_default_enabled'=>1,'sort_order'=>136],
             PolyclinicFeatureService::FEATURE_KEY => [
-                'feature_name' => 'Fatturazione poliambulatori',
+                'feature_name' => 'Archivio amministrativo precedente (compatibilità)',
                 'feature_scope' => 'billing',
                 'description' => 'Modulo indipendente per accettazione, prestazioni, incassi, compensi e contabilità del poliambulatorio. Archivio e report separati dalla Fatturazione. Richiede installazione esplicita sullo spazio.',
                 'default_enabled' => 0,

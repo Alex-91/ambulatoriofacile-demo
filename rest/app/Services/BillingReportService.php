@@ -96,6 +96,7 @@ class BillingReportService
             $row['payment_method_label'] = $paymentMethodLabels[$paymentMethod] ?? $paymentMethod;
             $row['local_state_label'] = $localStateLabels[$localState] ?? $localState;
             $row['ts_sync_state_label'] = $tsSyncLabels[$tsSyncState] ?? $tsSyncState;
+            if ($documentType==='credit_note') foreach (['amount_total','subtotal_amount','stamp_duty_amount'] as $moneyField) $row[$moneyField]=-abs((float)$row[$moneyField]);
             $row['service_descriptions'] = $this->decodeServiceDescriptions((string) ($row['line_items_json'] ?? ''));
         }
         unset($row);

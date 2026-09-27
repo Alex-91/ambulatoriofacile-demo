@@ -235,6 +235,11 @@ $routes->group('admin', static function($routes){
     $routes->get('notifiche', 'Admin\NotifyController::form');
     $routes->post('notifiche/send', 'Admin\NotifyController::send');
     $routes->get('fatturazione', 'Admin\BillingDashboardController::index');
+    $routes->get('fatturazione/gestione', 'Admin\PolyclinicController::index');
+    $routes->post('fatturazione/gestione/azione', 'Admin\PolyclinicController::command');
+    $routes->get('fatturazione/gestione/export', 'Admin\PolyclinicController::export');
+    $routes->get('fatturazione/gestione/pdf/(:num)', 'Admin\PolyclinicController::pdf/$1');
+    $routes->post('fatturazione/gestione/xml/(:num)', 'Admin\PolyclinicController::xml/$1');
     $routes->get('fatturazione-poliambulatori', 'Admin\PolyclinicController::index');
     $routes->post('fatturazione-poliambulatori/azione', 'Admin\PolyclinicController::command');
     $routes->get('fatturazione-poliambulatori/export', 'Admin\PolyclinicController::export');

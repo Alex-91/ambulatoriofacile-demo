@@ -546,15 +546,6 @@ class MenuResolverService
         // Remove stale cached entries as well as hiding the entry for disabled spaces.
         $menuItems=array_values(array_filter($menuItems, fn($row)=>
             !in_array(strtolower($this->normalizePath((string)($row['link']??''))), ['fatturazione-poliambulatori','admin/fatturazione-poliambulatori'],true)));
-        try {
-            $enabled=$tenantId > 0 && ($this->polyclinicFeatures ?? new PolyclinicFeatureService())->isEnabledForTenant($tenantId);
-        } catch (\Throwable $e) {
-            log_message('error','Impossibile verificare abilitazione Fatturazione poliambulatori: '.$e->getMessage());
-            $enabled=false;
-        }
-        if ($enabled) {
-            $menuItems[]=['titolo_menu'=>'Fatturazione poliambulatori','link'=>'fatturazione-poliambulatori','class_icon'=>'fa-hospital-o'];
-        }
         return $menuItems;
     }
 

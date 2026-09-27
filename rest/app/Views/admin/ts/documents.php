@@ -121,14 +121,14 @@ $error = trim((string) ($error ?? ''));
                       <tbody>
                         <?php foreach ($pendingBillingDocuments as $row): ?>
                           <tr>
-                            <td><input type="checkbox" class="billing-ts-check" name="billing_document_ids[]" value="<?= (int) ($row['id_billing_document'] ?? 0) ?>"></td>
+                            <td><input type="checkbox" class="billing-ts-check" <?= !empty($row['blocking_reason'])?'disabled':'' ?> name="billing_document_ids[]" value="<?= (int) ($row['id_billing_document'] ?? 0) ?>"></td>
                             <td>#<?= (int) ($row['id_billing_document'] ?? 0) ?> / <?= esc((string) ($row['document_number'] ?? '-')) ?></td>
                             <td><?= esc((string) ($row['patient_name'] ?? '-')) ?></td>
                             <td><?= esc((string) ($row['issue_date'] ?? '-')) ?></td>
                             <td>&euro; <?= number_format((float) ($row['amount_total'] ?? 0), 2, ',', '.') ?></td>
                             <td><?= esc(trim((string) ($row['ts_expense_type_code'] ?? '')) !== '' ? (string) ($row['ts_expense_type_code'] ?? '') : 'SP') ?></td>
                             <td>
-                              <?= esc((string) ($row['ts_sync_state'] ?? 'ready')) ?>
+                              <?= esc((string) ($row['ts_sync_state'] ?? 'ready')) ?><?php if(!empty($row['blocking_reason'])): ?><small class="text-warning"><?= esc($row['blocking_reason']) ?></small><?php endif ?>
                               <?php if (trim((string) ($row['ts_local_state'] ?? '')) !== ''): ?>
                                 / <?= esc((string) ($uiStateLabels[(string) ($row['ts_local_state'] ?? '')] ?? (string) ($row['ts_local_state'] ?? ''))) ?>
                               <?php endif; ?>
@@ -310,7 +310,7 @@ $error = trim((string) ($error ?? ''));
   (function () {
     var checkAll = document.getElementById('billing-ts-check-all');
     var bulkButton = document.getElementById('billing-ts-bulk-send-btn');
-    var rowChecks = Array.prototype.slice.call(document.querySelectorAll('.billing-ts-check'));
+    var rowChecks = Array.prototype.slice.call(document.querySelectorAll('.billing-ts-check:not(:disabled)'));
 
     if (!checkAll || !bulkButton || rowChecks.length === 0) {
       return;

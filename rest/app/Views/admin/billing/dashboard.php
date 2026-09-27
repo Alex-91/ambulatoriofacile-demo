@@ -63,6 +63,7 @@ $environmentLabel = defined('ENVIRONMENT') && ENVIRONMENT === 'production' ? 'Pr
                 </a>
               </div>
             </header>
+<?= view('admin/billing/navigation',['tenantScope'=>$tenantScope??[]]) ?>
 
             <div class="billing-kpi-grid">
               <article class="billing-kpi-card">

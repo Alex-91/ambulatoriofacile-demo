@@ -120,6 +120,7 @@ if (trim((string) ($filters['date_from'] ?? '')) !== '' || trim((string) ($filte
                 </div>
               </div>
             </header>
+<?= view('admin/billing/navigation',['tenantScope'=>$tenantScope??[]]) ?>
 
             <?php if (!empty($errors['generic'])): ?>
               <div class="alert alert-danger"><?= esc((string) $errors['generic']) ?></div>

@@ -29,7 +29,7 @@ final class PolyclinicAccountingExport
         if ($to<$from) throw new DomainException('Periodo non valido.');
         $config=$this->validateConfiguration($config+['columns'=>implode(',',self::FIELDS)]);
         $rows=[];
-        $documents=$db->table('pc_documents')->where('local_state','issued')->where('issue_date >=',$from)->where('issue_date <=',$to)->orderBy('id_billing_document')->get()->getResultArray();
+        $documents=$db->table(UnifiedBillingArchive::table($db))->where('local_state','issued')->where('issue_date >=',$from)->where('issue_date <=',$to)->orderBy('id_billing_document')->get()->getResultArray();
         foreach ($documents as $d) {
             if (!in_array($d['document_type'],['invoice','credit_note'],true)) continue;
             $total=PolyclinicMoney::cents($d['amount_total']); $subtotal=PolyclinicMoney::cents($d['subtotal_amount']); $stamp=PolyclinicMoney::cents($d['stamp_duty_amount']); $vat=$total-$subtotal-$stamp;
@@ -41,11 +41,20 @@ final class PolyclinicAccountingExport
             }
         }
         if ($db->tableExists('pc_payments')) {
-            $payments=$db->table('pc_payments p')->select('p.*,d.document_number,d.patient_name,d.patient_tax_code')->join('pc_documents d','d.id_billing_document=p.billing_id')->where('p.payment_date >=',$from)->where('p.payment_date <=',$to)->orderBy('p.id')->get()->getResultArray();
+            $payments=$db->table('pc_payments p')->select('p.*,d.document_number,d.patient_name,d.patient_tax_code')->join(UnifiedBillingArchive::table($db).' d','d.id_billing_document=p.billing_id')->where('p.payment_date >=',$from)->where('p.payment_date <=',$to)->orderBy('p.id')->get()->getResultArray();
             foreach ($payments as $p) {
                 $amount=(int)$p['amount_cents'];
                 $common=['entry_id'=>'PAY-'.$p['id'],'date'=>$p['payment_date'],'document'=>$p['document_number'],'customer'=>$p['patient_name'],'tax_code'=>$p['patient_tax_code']??'','vat_nature'=>'','reference'=>$p['reference']];
                 foreach ([[$p['method']==='cash'?$config['cash_account']:$config['bank_account'],$amount],[$config['customer_account'],-$amount]] as [$account,$value]) $rows[]=$common+['account'=>$account,'debit'=>PolyclinicMoney::decimal(max(0,$value)),'credit'=>PolyclinicMoney::decimal(max(0,-$value))];
+            }
+        }
+        if (UnifiedBillingArchive::state($db)) {
+            // Ordinary invoices have one payment on the document; managed invoices use the ledger above.
+            $ordinary=$db->table('billing_documents d')->select('d.*')->join('pc_document_state s','s.billing_id=d.id_billing_document','left')->where('s.billing_id',null)->where('d.local_state','issued')->where('d.payment_status','paid')->where('d.payment_date >=',$from)->where('d.payment_date <=',$to)->get()->getResultArray();
+            foreach ($ordinary as $d) {
+                $amount=PolyclinicMoney::cents($d['amount_total'])*($d['document_type']==='credit_note'?-1:1);
+                $common=['entry_id'=>'PAY-DOC-'.$d['id_billing_document'],'date'=>$d['payment_date'],'document'=>$d['document_number'],'customer'=>$d['patient_name'],'tax_code'=>$d['patient_tax_code']??'','vat_nature'=>'','reference'=>'Pagamento documento'];
+                foreach ([[$d['payment_method']==='cash'?$config['cash_account']:$config['bank_account'],$amount],[$config['customer_account'],-$amount]] as [$account,$value]) $rows[]=$common+['account'=>$account,'debit'=>PolyclinicMoney::decimal(max(0,$value)),'credit'=>PolyclinicMoney::decimal(max(0,-$value))];
             }
         }
         return $rows;

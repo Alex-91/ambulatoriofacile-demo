@@ -12,7 +12,8 @@ if (PHP_SAPI==='cli-server') {
         if (!$asset || !str_starts_with($asset,$root.DIRECTORY_SEPARATOR) || !isset($types[$ext])) { http_response_code(404); exit; }
         header('Content-Type: '.$types[$ext]); readfile($asset); exit;
     }
-} else { $_GET['tab']=$argv[1]??'accettazione'; $_GET['kind']=$argv[2]??'service'; }
+} else { $_GET['tab']=$argv[1]??'accettazione'; $_GET['kind']=$argv[2]??'service'; $_GET['mode']=$argv[3]??'advanced'; }
+require $repo.'/rest/app/Services/BillingCapabilities.php';
 require $repo.'/rest/app/Services/PolyclinicMoney.php';
 require $repo.'/rest/app/Services/PolyclinicAdministrationService.php';
 require $repo.'/rest/app/Services/PolyclinicAccountingExport.php';
@@ -22,9 +23,16 @@ function site_url($v) { return '/'.ltrim($v,'/'); }
 function csrf_field() { return '<input type="hidden" name="csrf_synthetic" value="preview-only">'; }
 function session() { return new class { public function getFlashdata($k) { return null; } }; }
 function service($name) { return new class { public function getGet($key) { return $_GET[$key]??null; } }; }
-function view($name,$data) { return '<header style="background:#17636b;color:white;padding:15px 28px">AmbulatorioFacile · Anteprima sintetica · azioni disabilitate</header>'; }
+function view($name,$data) {
+ if($name==='admin/billing/navigation') {
+  $navigation=['capabilities'=>array_fill_keys(array_keys(\App\Services\BillingCapabilities::FEATURES),($_GET['mode']??'advanced')!=='basic'),'unified'=>true,'ts_enabled'=>true];
+  extract($data); ob_start(); require dirname(__DIR__).'/rest/app/Views/admin/billing/navigation.php'; return ob_get_clean();
+ }
+ return '<header style="background:#17636b;color:white;padding:15px 28px">AmbulatorioFacile · Anteprima sintetica · azioni disabilitate</header>';
+}
 $tab=$_GET['tab']??'accettazione';
 if (!in_array($tab,['accettazione','catalogo','documenti','report','integrazioni','requisiti'],true)) exit(1);
+$unified=true; $capabilities=array_fill_keys(array_keys(\App\Services\BillingCapabilities::FEATURES),($_GET['mode']??'advanced')!=='basic');
 $ready=true; $date='2026-09-21'; $menu_items=[]; $tenantScope=['tenant_name'=>'Centro dimostrativo'];
 $catalog=array_fill_keys(array_keys(\App\Services\PolyclinicAdministrationService::KINDS),[]);
 foreach (['branch'=>'Cardiologia','doctor'=>'Dott.ssa Medico Sintetico','service'=>'Visita cardiologica','list'=>'Convenzionati','agreement'=>'Fondo dimostrativo','rule'=>'Compenso visita'] as $kind=>$name) $catalog[$kind][]=['id'=>1,'name'=>$name,'code'=>'TEST','active'=>1,'version'=>0,'data'=>['branch_id'=>1,'price_cents'=>10000]];

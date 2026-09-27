@@ -142,7 +142,7 @@ class BillingDocumentService
 
         return [
             'table_available' => true,
-            'summary' => $summary,
+            'summary' => UnifiedBillingArchive::collectionSummary($db,$summary),
             'recent_documents' => $recent,
             'schema_message' => $this->schemaStatusMessage($schemaStatus),
         ];
@@ -275,6 +275,9 @@ class BillingDocumentService
         $summary = $this->emptyScheduleSummary();
 
         foreach ($documents as &$document) {
+            $document['managed_collections']=UnifiedBillingArchive::manages($db,(int)$document['id_billing_document']);
+            $remaining=(float)$document['amount_total'];
+            if ($document['managed_collections']) { $b=(new PolyclinicAdministrationService($db))->balance((int)$document['id_billing_document']); $remaining=$b['due_cents']/100; $document['remaining_amount']=$remaining; }
             $paymentStatus = trim((string) ($document['payment_status'] ?? 'unpaid'));
             $dueDateValue = trim((string) ($document['due_date'] ?? ''));
             $scheduleState = 'without_due_date';
@@ -286,7 +289,7 @@ class BillingDocumentService
             } elseif ($dueDateValue === '') {
                 $summary['without_due_date_count']++;
                 $summary['outstanding_count']++;
-                $summary['outstanding_amount'] += (float) ($document['amount_total'] ?? 0);
+                $summary['outstanding_amount'] += $remaining;
             } else {
                 $dueDate = \DateTimeImmutable::createFromFormat('!Y-m-d', $dueDateValue);
                 if ($dueDate instanceof \DateTimeImmutable) {
@@ -296,7 +299,7 @@ class BillingDocumentService
 
                 $summary[$scheduleState . '_count']++;
                 $summary['outstanding_count']++;
-                $summary['outstanding_amount'] += (float) ($document['amount_total'] ?? 0);
+                $summary['outstanding_amount'] += $remaining;
             }
 
             $document['schedule_state'] = $scheduleState;
@@ -352,6 +355,7 @@ class BillingDocumentService
         $context = $this->resolveTenantDocumentContext($tenantId);
         /** @var BillingDocumentModel $documents */
         $documents = $context['documents'];
+        UnifiedBillingArchive::assertOrdinaryMutation($context['db'],$documentId);
         $document = $documents->find($documentId);
         if (!is_array($document)) {
             throw new \RuntimeException('Fattura non trovata.');
@@ -449,6 +453,18 @@ class BillingDocumentService
         $catalog = is_array($template['service_catalog'] ?? null)
             ? array_values($template['service_catalog'])
             : [];
+        if (UnifiedBillingArchive::state($context['db']) && !empty(BillingCapabilities::resolve($tenantId)['billing_services'])) {
+            $configured=[];
+            foreach ($context['db']->table('pc_catalog')->where('kind','service')->where('active',1)->orderBy('name')->get()->getResultArray() as $row) {
+                $data=PolyclinicAdministrationService::data($row);
+                $configured[]=['description'=>$row['name'],'unit_amount'=>PolyclinicMoney::decimal((int)$data['price_cents'])];
+            }
+            $catalog=array_merge($configured,$catalog);
+            $seen=[]; $catalog=array_values(array_filter($catalog,function($row) use(&$seen) {
+                $key=$this->serviceCatalogDescriptionKey((string)($row['description']??''));
+                if (isset($seen[$key])) return false; $seen[$key]=true; return true;
+            }));
+        }
         $normalizedTerm = $this->serviceCatalogDescriptionKey($term);
         $limit = max(1, min(50, $limit));
         $results = [];
@@ -513,6 +529,7 @@ class BillingDocumentService
         }
 
         $documentId = (int) ($payload['id_billing_document'] ?? 0);
+        \App\Services\UnifiedBillingArchive::assertOrdinaryMutation($db,$documentId);
         $current = $documentId > 0 ? $documents->find($documentId) : null;
         if ($documentId > 0 && !is_array($current)) {
             throw new \RuntimeException('Documento fatturazione non trovato.');
@@ -663,6 +680,8 @@ class BillingDocumentService
             'payment_method_label' => $this->paymentMethodLabels()[(string) ($document['payment_method'] ?? '')] ?? (string) ($document['payment_method'] ?? ''),
             'local_state_label' => $this->localStateLabels()[(string) ($document['local_state'] ?? '')] ?? (string) ($document['local_state'] ?? ''),
             'ts_sync_label' => $this->tsSyncStateLabels()[(string) ($document['ts_sync_state'] ?? '')] ?? (string) ($document['ts_sync_state'] ?? ''),
+            'managed_collections'=>UnifiedBillingArchive::manages($context['db'],$documentId),
+            'collection_balance'=>UnifiedBillingArchive::manages($context['db'],$documentId)?(new PolyclinicAdministrationService($context['db']))->balance($documentId):null,
             'generated_at' => date('Y-m-d H:i:s'),
         ];
     }
@@ -923,6 +942,7 @@ class BillingDocumentService
     {
         return [
             'unpaid' => 'Da pagare',
+            'partial' => 'Parzialmente pagata',
             'paid' => 'Pagata',
         ];
     }

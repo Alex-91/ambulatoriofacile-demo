@@ -11,16 +11,17 @@ final class PolyclinicAdministrationService
     public const KINDS = ['branch'=>'Branche', 'doctor'=>'Professionisti', 'service'=>'Prestazioni', 'list'=>'Listini', 'agreement'=>'Convenzioni / assicurazioni / SSN', 'rule'=>'Regole compensi'];
     private BaseConnection $db;
     private int $actor;
-    private ?\Closure $patientLookup;
+    private ?\Closure $patientLookup; private bool $compensationEnabled;
+    private string $archiveGeneration;
 
-    public function __construct(BaseConnection $db, int $actor = 0, ?\Closure $patientLookup = null) { $this->db=$db; $this->actor=$actor; $this->patientLookup=$patientLookup; }
+    public function __construct(BaseConnection $db, int $actor = 0, ?\Closure $patientLookup = null, bool $compensationEnabled = true) { $this->db=$db; $this->actor=$actor; $this->patientLookup=$patientLookup; $this->compensationEnabled=$compensationEnabled; $this->archiveGeneration=UnifiedBillingArchive::table($db); }
 
     public function ready(): bool
     {
         foreach (['pc_catalog','pc_tariffs','pc_encounters','pc_orders','pc_document_state','pc_credit_allocations','pc_payments','pc_installments','pc_settlements','pc_demo_runs','pc_audit','pc_settings'] as $t) {
             if (!$this->db->tableExists($t)) return false;
         }
-        return $this->db->tableExists('pc_documents');
+        return $this->db->tableExists(UnifiedBillingArchive::table($this->db));
     }
 
     private function atomic(callable $fn)
@@ -31,6 +32,7 @@ final class PolyclinicAdministrationService
             // Serialize administrative mutations per tenant, including idempotency and aggregate limits.
             $this->db->table('pc_settings')->where('name','write_lock')->set('version','version + 1',false)->update();
             if ($this->db->affectedRows()!==1) throw new DomainException('Blocco amministrativo non disponibile.');
+            if (UnifiedBillingArchive::table($this->db)!==$this->archiveGeneration) throw new DomainException('Archivio aggiornato durante l’operazione: riaprire il documento.');
             $result=$fn();
             if (!$this->db->transStatus()) throw new DomainException('Operazione non salvata.');
             $this->db->transCommit();
@@ -234,6 +236,7 @@ final class PolyclinicAdministrationService
             $total=$unit*$qty; if ($total>999999999) throw new DomainException('Importo oltre il limite.');
             $rule=null;
             foreach ($this->catalog()['rule'] as $r) if ($r['active'] && (int)$r['data']['doctor_id']===(int)$doctor['id'] && (int)$r['data']['service_id']===(int)$s['id']) $rule=$r['data'];
+            if (!$this->compensationEnabled) $rule=['mode'=>'fixed','value'=>0,'basis'=>'collected'];
             if (!$rule) throw new DomainException('Configurare il compenso per medico e prestazione (anche zero).');
             $earned=$rule['mode']==='fixed' ? $rule['value']*$qty : PolyclinicMoney::proportion($total,$rule['value'],10000);
             if ($earned>$total) throw new DomainException('Compenso superiore al valore della prestazione.');
@@ -294,7 +297,7 @@ final class PolyclinicAdministrationService
                 $record['id_client']=null;
                 (new PolyclinicElectronicInvoice())->build($record+['id_billing_document'=>0],$recipient,$template['polyclinic_issuer']);
             }
-            $this->db->table('pc_documents')->insert($record); $id=(int)$this->db->insertID();
+            $this->db->table(UnifiedBillingArchive::table($this->db))->insert($record); $id=(int)$this->db->insertID();
             $this->db->table('pc_document_state')->insert(['billing_id'=>$id,'request_key'=>$key,'request_hash'=>self::requestHash($in),'einvoice_state'=>'not_prepared','created_at'=>date('Y-m-d H:i:s')]);
             $this->db->table('pc_orders')->whereIn('id',array_column($orders,'id'))->update(['billing_id'=>$id]);
             $this->audit('invoice_issued',$id,['encounter_id'=>$e['id']]); return $id;
@@ -305,14 +308,16 @@ final class PolyclinicAdministrationService
     {
         $base=$prefix.'-'.substr($date,0,4).'-PC-';
         $n=1;
-        $rows=$this->db->table('pc_documents')->select('document_number')->like('document_number',$base,'after')->get()->getResultArray();
+        $rows=$this->db->table(UnifiedBillingArchive::table($this->db))->select('document_number')->like('document_number',$base,'after')->get()->getResultArray();
         foreach ($rows as $r) $n=max($n,(int)substr($r['document_number'],strlen($base))+1);
         return $base.str_pad((string)$n,6,'0',STR_PAD_LEFT);
     }
 
     public function document(int $id): array
     {
-        $d=$this->db->table('pc_documents')->where('id_billing_document',$id)->get()->getRowArray();
+        if (UnifiedBillingArchive::table($this->db)!==$this->archiveGeneration) throw new DomainException('Archivio aggiornato: riaprire il documento.');
+        $this->state($id);
+        $d=$this->db->table($this->archiveGeneration)->where('id_billing_document',$id)->get()->getRowArray();
         if (!$d || $d['local_state']!=='issued') throw new DomainException('Documento emesso non trovato nello spazio.');
         return $d;
     }
@@ -338,6 +343,40 @@ final class PolyclinicAdministrationService
             'organization_net_cents'=>$payerNet,'organization_paid_cents'=>$payerPaid,'patient_net_cents'=>$total-$credit-$payerNet,'patient_paid_cents'=>$paid-$payerPaid];
     }
 
+    public function tsBlockingReason(int $id): string
+    {
+        $d=$this->document($id); $b=$this->balance($id);
+        if ($d['document_type']!=='invoice') return 'Le note di credito richiedono la gestione del rimborso nel Sistema TS.';
+        if ($b['credit_cents'] || $b['organization_net_cents']) return 'Verificare nel Sistema TS la quota sanitaria effettiva: documento con storni o quota ente.';
+        if ($b['due_cents'] || $b['paid_cents']!==$b['net_cents']) return 'Completare gli incassi prima della preparazione TS.';
+        $years=[]; foreach ($this->db->table('pc_payments')->where('billing_id',$id)->get()->getResultArray() as $p) {
+            if ((int)$p['amount_cents']<0) return 'Documento con rimborso: gestire la rettifica nel Sistema TS.';
+            $years[substr($p['payment_date'],0,4)]=true;
+        }
+        if (count($years)>1) return 'Pagamenti in anni diversi: verificare la ripartizione nel Sistema TS.';
+        return '';
+    }
+
+    private function assertTsMutable(int $id): void
+    {
+        $d=$this->document($id);
+        if (!empty($d['linked_ts_document_id']) || in_array($d['ts_sync_state']??'',['sending','sent','ready'],true)) throw new DomainException('Documento già preparato o inviato a TS: completare la riconciliazione nel Sistema TS prima di modificarne gli incassi.');
+    }
+
+    public function configureTs(array $in): void
+    {
+        $this->atomic(function() use($in) {
+            if (!UnifiedBillingArchive::state($this->db)) throw new DomainException('Unificare prima l’archivio.');
+            $id=self::positive($in['billing_id']??0); $state=$this->state($id); $this->assertTsMutable($id);
+            if ((int)$state['version']!==(int)($in['version']??-1)) throw new DomainException('Documento modificato: ricaricare.');
+            $code=strtoupper(trim((string)($in['ts_expense_type_code']??'')));
+            if (!empty($in['ts_sync_enabled']) && !preg_match('/^[A-Z0-9]{2}$/D',$code)) throw new DomainException('Indicare il tipo di spesa TS.');
+            $this->db->table('billing_documents')->where('id_billing_document',$id)->update(['ts_sync_enabled'=>!empty($in['ts_sync_enabled'])?1:0,'ts_expense_type_code'=>$code,'ts_opposition_flag'=>!empty($in['ts_opposition_flag'])?1:0,'ts_sync_state'=>!empty($in['ts_sync_enabled'])?'pending':'disabled']);
+            $this->db->table('pc_document_state')->where('id',$state['id'])->set('version','version + 1',false)->update();
+            $this->audit('ts_settings',$id);
+        });
+    }
+
     public function payment(array $in): int
     {
         return $this->atomic(function() use($in) {
@@ -345,6 +384,7 @@ final class PolyclinicAdministrationService
             if ($old=$this->replay('pc_payments',$in)) return (int)$old['id'];
             $id=self::positive($in['billing_id']??0); $this->state($id); $d=$this->document($id);
             if ($d['document_type']==='credit_note') throw new DomainException('Registrare il rimborso sulla fattura originaria.');
+            $this->assertTsMutable($id);
             $amount=PolyclinicMoney::cents($in['amount']??''); $b=$this->balance($id);
             if ($amount===0 || $amount>$b['due_cents'] || -$amount>$b['paid_cents']) throw new DomainException('Importo oltre il saldo incassabile/rimborsabile.');
             $payer=self::enum($in['payer']??'patient',['patient','organization']);
@@ -362,7 +402,7 @@ final class PolyclinicAdministrationService
         $b=$this->balance($id);
         $last=$this->db->table('pc_payments')->where('billing_id',$id)->orderBy('payment_date','DESC')->orderBy('id','DESC')->get()->getRowArray();
         $status=$b['due_cents']===0 ? 'paid' : ($b['paid_cents']>0 ? 'partial' : 'unpaid');
-        $this->db->table('pc_documents')->where('id_billing_document',$id)->update(['payment_status'=>$status,'payment_date'=>$status==='paid' && $last ? $last['payment_date'] : null,'paid_at'=>$status==='paid'?date('Y-m-d H:i:s'):null,'payment_method'=>$last['method']??'bank_transfer']);
+        $this->db->table(UnifiedBillingArchive::table($this->db))->where('id_billing_document',$id)->update(['payment_status'=>$status,'payment_date'=>$status==='paid' && $last ? $last['payment_date'] : null,'paid_at'=>$status==='paid'?date('Y-m-d H:i:s'):null,'payment_method'=>$last['method']??'bank_transfer']);
         $this->db->table('pc_document_state')->where('billing_id',$id)->set('version','version + 1',false)->update();
     }
 
@@ -373,6 +413,7 @@ final class PolyclinicAdministrationService
             if ($old=$this->replay('pc_document_state',$in)) return (int)$old['billing_id'];
             $id=self::positive($in['billing_id']??0); $this->state($id); $original=$this->document($id);
             if ($original['document_type']!=='invoice') throw new DomainException('Nota di credito ammessa solo su fattura.');
+            $this->assertTsMutable($id);
             $amount=PolyclinicMoney::cents($in['amount']??''); $b=$this->balance($id);
             if ($amount<=0 || $amount>$b['net_cents']) throw new DomainException('Credito superiore al residuo stornabile.');
             $reason=self::text($in['reason']??''); if ($reason==='') throw new DomainException('Causale obbligatoria.');
@@ -390,7 +431,7 @@ final class PolyclinicAdministrationService
             $credit=array_replace($credit,['document_number'=>$this->documentNumber('NC',$date),'document_type'=>'credit_note','issue_date'=>$date,'due_date'=>null,'payment_status'=>'paid','amount_total'=>PolyclinicMoney::decimal($amount),'subtotal_amount'=>PolyclinicMoney::decimal($amount),'stamp_duty_amount'=>'0.00','line_items_json'=>self::json([['description'=>'Storno proporzionale fattura '.$original['document_number'].': '.$reason,'quantity'=>1,'unit_amount'=>PolyclinicMoney::decimal($amount),'line_total'=>PolyclinicMoney::decimal($amount)]]),'notes'=>'Riferimento fattura '.$original['document_number'].' del '.$original['issue_date'].'. '.$reason,'ts_sync_enabled'=>0,'ts_sync_state'=>'disabled','reminder_count'=>0,'created_by'=>$this->actor?:null,'updated_by'=>$this->actor?:null,'created_at'=>date('Y-m-d H:i:s'),'updated_at'=>date('Y-m-d H:i:s')]);
             $credit['subtotal_amount']=PolyclinicMoney::decimal($creditSubtotal); $credit['stamp_duty_amount']=PolyclinicMoney::decimal($creditStamp);
             $creditLines=json_decode($credit['line_items_json'],true,512,JSON_THROW_ON_ERROR); $creditLines[0]['unit_amount']=$creditLines[0]['line_total']=PolyclinicMoney::decimal($creditSubtotal); $credit['line_items_json']=self::json($creditLines);
-            $this->db->table('pc_documents')->insert($credit); $creditId=(int)$this->db->insertID();
+            $this->db->table(UnifiedBillingArchive::table($this->db))->insert($credit); $creditId=(int)$this->db->insertID();
             $weights=[];
             foreach ($this->db->table('pc_orders')->where('billing_id',$id)->get()->getResultArray() as $order) {
                 $credited=(int)($this->db->table('pc_credit_allocations')->selectSum('amount_cents','amount')->where('order_id',$order['id'])->get()->getRowArray()['amount']??0);
@@ -478,7 +519,7 @@ final class PolyclinicAdministrationService
         $from=self::date((string)($in['from']??date('Y-m-01'))); $to=self::date((string)($in['to']??date('Y-m-d')));
         if ($to<$from) throw new DomainException('Periodo non valido.');
         $group=self::enum($in['group']??'doctor',['doctor','branch','service','agreement']);
-        $rows=[]; $documents=$this->db->table('pc_documents d')->select('d.*, s.original_id')->join('pc_document_state s','s.billing_id=d.id_billing_document')->where('d.issue_date >=',$from)->where('d.issue_date <=',$to)->where('d.local_state','issued')->orderBy('d.issue_date')->get()->getResultArray();
+        $rows=[]; $documents=$this->db->table(UnifiedBillingArchive::table($this->db).' d')->select('d.*, s.original_id')->join('pc_document_state s','s.billing_id=d.id_billing_document')->where('d.issue_date >=',$from)->where('d.issue_date <=',$to)->where('d.local_state','issued')->orderBy('d.issue_date')->get()->getResultArray();
         foreach ($documents as $d) {
             $credit=$d['document_type']==='credit_note'; $base=$credit?(int)$d['original_id']:(int)$d['id_billing_document']; $original=$this->document($base); $den=PolyclinicMoney::cents($original['amount_total']);
             $amount=PolyclinicMoney::cents($d['amount_total']);

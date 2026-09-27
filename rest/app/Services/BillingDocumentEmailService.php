@@ -61,7 +61,7 @@ class BillingDocumentEmailService
 
         $subjectTemplate = (string) ($emailDelivery[$deliveryType . '_subject'] ?? '');
         $bodyTemplate = (string) ($emailDelivery[$deliveryType . '_body'] ?? '');
-        $replacements = $this->templateReplacements($preview, $config);
+        $replacements = $this->templateReplacements($preview, $config, $deliveryType);
 
         return [
             'delivery_type' => $deliveryType,
@@ -106,7 +106,7 @@ class BillingDocumentEmailService
         $preview = is_array($context['preview'] ?? null) ? $context['preview'] : [];
         $settings = $this->settings->resolveTenantSettings($tenantId);
         $config = is_array($settings['config'] ?? null) ? $settings['config'] : [];
-        $replacements = $this->templateReplacements($preview, $config);
+        $replacements = $this->templateReplacements($preview, $config, $deliveryType);
         $subject = substr(trim(preg_replace('/[\r\n]+/', ' ', $this->replacePlaceholders($subject, $replacements))), 0, 255);
         $messageBody = substr($this->replacePlaceholders($messageBody, $replacements), 0, 5000);
 
@@ -195,7 +195,7 @@ class BillingDocumentEmailService
      * @param array<string, mixed> $config
      * @return array<string, string>
      */
-    private function templateReplacements(array $preview, array $config): array
+    private function templateReplacements(array $preview, array $config, string $deliveryType = 'invoice'): array
     {
         $document = is_array($preview['document'] ?? null) ? $preview['document'] : [];
         $tenant = is_array($preview['tenant'] ?? null) ? $preview['tenant'] : [];
@@ -210,7 +210,7 @@ class BillingDocumentEmailService
             '{numero}' => trim((string) ($document['document_number'] ?? '')),
             '{data_emissione}' => $this->formatDate((string) ($document['issue_date'] ?? '')),
             '{scadenza}' => $this->formatDate((string) ($document['due_date'] ?? ''), 'non indicata'),
-            '{totale}' => '€ ' . number_format((float) ($document['amount_total'] ?? 0), 2, ',', '.'),
+            '{totale}' => '€ ' . number_format($deliveryType==='reminder' && isset($preview['collection_balance']['due_cents']) ? $preview['collection_balance']['due_cents']/100 : (float)($document['amount_total']??0), 2, ',', '.'),
             '{modalita_pagamento}' => trim((string) ($preview['payment_method_label'] ?? '')),
             '{studio}' => $studio,
         ];
