@@ -27,12 +27,22 @@ final class PolyclinicPersonnelDirectory
         if (!$this->available()) return [];
         $select='p.id_personale,p.tipo,p.is_active';
         foreach (['legacy_id_dot','show_in_agenda'] as $field) $select.=$this->db->fieldExists($field,'dap03_personale')?',p.'.$field:($field==='show_in_agenda'?',1 AS show_in_agenda':',0 AS legacy_id_dot');
-        if ($this->db->DBDriver==='MySQLi') {
-            (new \App\Libraries\DatabaseConfig())->setEncryptionConfig($this->db,'utf8mb4');
+        if ($this->db->DBDriver!=='MySQLi') {
+            return array_column($this->db->table('dap03_personale p')->select($select.',p.nome,p.cognome',false)->get()->getResultArray(),null,'id_personale');
+        }
+        // Reading legacy encrypted names must not change the caller's encoding or encryption session.
+        $previous=$this->db->query('SELECT @@character_set_client AS cs_client, @@character_set_connection AS cs_connection, @@character_set_results AS cs_results, @@collation_connection AS collation_name, @@block_encryption_mode AS encryption_mode, @key_str AS encryption_key, @init_vector AS encryption_iv')->getRowArray();
+        try {
+            $charset=$previous['cs_client']==='utf8mb3'?'utf8':$previous['cs_client'];
+            (new \App\Libraries\DatabaseConfig())->setEncryptionConfig($this->db,$charset);
             $crypto=new \App\Libraries\Crypto_helper();
             $select.=','.$crypto->decrypt('p.nome').','.$crypto->decrypt('p.cognome');
-        } else $select.=',p.nome,p.cognome';
-        return array_column($this->db->table('dap03_personale p')->select($select,false)->get()->getResultArray(),null,'id_personale');
+            return array_column($this->db->table('dap03_personale p')->select($select,false)->get()->getResultArray(),null,'id_personale');
+        } finally {
+            $this->db->query('SET character_set_client=?, character_set_connection=?, character_set_results=?, collation_connection=?, block_encryption_mode=?, @key_str=?, @init_vector=?',[
+                $previous['cs_client'],$previous['cs_connection'],$previous['cs_results'],$previous['collation_name'],$previous['encryption_mode'],$previous['encryption_key'],$previous['encryption_iv'],
+            ]);
+        }
     }
 
     /** Read-only projection, including virtual IDs for personnel never used in a prestation. */
