@@ -15,7 +15,7 @@ $success = $success ?? null;
   <link href="<?= base_url('public/dist/css/AdminLTE.css') ?>" rel="stylesheet" />
   <link href="<?= base_url('public/dist/css/skins/_all-skins.min.css') ?>" rel="stylesheet" />
   <link rel="stylesheet" href="<?= base_url('public/assets/css/personnel-specialties.css') ?>">
-  <script defer src="<?= base_url('public/assets/js/personnel-specialties.js') ?>"></script>
+  <script defer src="<?= base_url('public/assets/js/personnel-specialties.js?v=20260927-specializzazioni') ?>"></script>
   <style>
     .res-item { cursor:pointer; }
     .res-item:hover { background:#f5f5f5; }

@@ -124,13 +124,13 @@ final class PolyclinicPersonnelDirectory
     public function selectedSpecialtyIds(array $input, array $existing=[]): array
     {
         $values=$input['professional_specialty_ids']??[];
-        if (!is_array($values) || count($values)>15) throw new DomainException('Seleziona al massimo 15 specialità dall’elenco.');
+        if (!is_array($values) || count($values)>15) throw new DomainException('Seleziona al massimo 15 specializzazioni dall’elenco.');
         $options=array_column($this->specialtyOptions(),null,'id');
         $ids=[];
         foreach ($values as $value) {
-            if (!is_scalar($value) || !preg_match('/^[1-9][0-9]{0,9}$/D',(string)$value)) throw new DomainException('Seleziona una specialità valida dall’elenco.');
+            if (!is_scalar($value) || !preg_match('/^[1-9][0-9]{0,9}$/D',(string)$value)) throw new DomainException('Seleziona una specializzazione valida dall’elenco.');
             $id=(int)$value;
-            if (!isset($options[$id]) || (!$options[$id]['active'] && !in_array($id,$existing,true))) throw new DomainException('Una specialità non è più disponibile. Aggiorna l’elenco e riprova.');
+            if (!isset($options[$id]) || (!$options[$id]['active'] && !in_array($id,$existing,true))) throw new DomainException('Una specializzazione non è più disponibile. Aggiorna l’elenco e riprova.');
             $ids[]=$id;
         }
         return array_values(array_unique($ids));
@@ -138,10 +138,10 @@ final class PolyclinicPersonnelDirectory
 
     public static function specialties(string $input): array
     {
-        if (mb_strlen($input)>1000) throw new DomainException('Specialità troppo lunghe (massimo 1000 caratteri).');
+        if (mb_strlen($input)>1000) throw new DomainException('Specializzazioni troppo lunghe (massimo 1000 caratteri).');
         $names=array_values(array_unique(array_filter(array_map('trim',explode(',',$input)))));
-        if (count($names)>15) throw new DomainException('Indicare al massimo 15 specialità.');
-        foreach ($names as $name) if (mb_strlen($name)>190 || preg_match('/[\x00-\x1f]/',$name)) throw new DomainException('Specialità non valida.');
+        if (count($names)>15) throw new DomainException('Indicare al massimo 15 specializzazioni.');
+        foreach ($names as $name) if (mb_strlen($name)>190 || preg_match('/[\x00-\x1f]/',$name)) throw new DomainException('Specializzazione non valida.');
         return $names;
     }
 

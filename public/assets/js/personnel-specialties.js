@@ -13,7 +13,7 @@
     function close(focus) { panel.hidden = true; trigger.setAttribute('aria-expanded', 'false'); if (focus) trigger.focus(); }
     function updateSummary() {
       var values = selected();
-      root.querySelector('#ps-summary').textContent = values.length ? values.length + (values.length === 1 ? ' specialità selezionata' : ' specialità selezionate') : 'Seleziona una o più specialità';
+      root.querySelector('#ps-summary').textContent = values.length ? values.length + (values.length === 1 ? ' specializzazione selezionata' : ' specializzazioni selezionate') : 'Seleziona una o più specializzazioni';
       chips.replaceChildren();
       values.forEach(function (o) {
         var chip = document.createElement('span'), text = document.createElement('span'), remove = document.createElement('button');
@@ -34,7 +34,7 @@
         label.className = 'ps-option' + (o.selected ? ' ps-selected' : ''); checkbox.type = 'checkbox'; checkbox.checked = o.selected;
         checkbox.disabled = archived && !original.has(o.value); text.textContent = o.textContent;
         checkbox.addEventListener('change', function () {
-          if (checkbox.checked && selected().length >= 15) { checkbox.checked = false; status.textContent = 'Puoi selezionare al massimo 15 specialità.'; return; }
+          if (checkbox.checked && selected().length >= 15) { checkbox.checked = false; status.textContent = 'Puoi selezionare al massimo 15 specializzazioni.'; return; }
           o.selected = checkbox.checked; label.classList.toggle('ps-selected', o.selected); status.textContent = '';
           updateSummary(); select.dispatchEvent(new Event('change', {bubbles:true}));
         });
@@ -43,7 +43,7 @@
         list.append(label);
       });
       empty.hidden = count > 0;
-      empty.textContent = query ? 'Nessuna specialità trovata. Puoi aggiungerla da “Gestisci specialità”.' : 'Nessuna specialità disponibile. Inseriscila da “Gestisci specialità”.';
+      empty.textContent = query ? 'Nessuna specializzazione trovata. Puoi aggiungerla da “Gestione specializzazioni”.' : 'Nessuna specializzazione disponibile. Inseriscila da “Gestione specializzazioni”.';
     }
     function setOptions(options, ids) {
       generation++; close(false); search.value = ''; status.textContent = '';

@@ -8,7 +8,7 @@ use DomainException;
 final class PolyclinicAdministrationService
 {
     public const STATES = ['arrived'=>'Arrivato', 'waiting'=>'In attesa', 'in_care'=>'In visita', 'completed'=>'Concluso', 'cancelled'=>'Annullato'];
-    public const KINDS = ['branch'=>'Branche', 'doctor'=>'Professionisti', 'service'=>'Prestazioni', 'list'=>'Listini', 'agreement'=>'Convenzioni / assicurazioni / SSN', 'rule'=>'Regole compensi'];
+    public const KINDS = ['branch'=>'Specializzazioni', 'doctor'=>'Professionisti', 'service'=>'Prestazioni', 'list'=>'Listini', 'agreement'=>'Convenzioni / assicurazioni / SSN', 'rule'=>'Regole compensi'];
     private BaseConnection $db;
     private int $actor;
     private ?\Closure $patientLookup; private bool $compensationEnabled;

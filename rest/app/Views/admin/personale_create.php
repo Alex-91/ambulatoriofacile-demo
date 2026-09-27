@@ -30,7 +30,7 @@ $oldIsPersonnelAdmin = (int)($old['is_personale_admin'] ?? ($old['is_general_adm
 <head>
   <meta charset="UTF-8">
   <link rel="stylesheet" href="<?= base_url('public/assets/css/personnel-specialties.css') ?>">
-  <script defer src="<?= base_url('public/assets/js/personnel-specialties.js') ?>"></script>
+  <script defer src="<?= base_url('public/assets/js/personnel-specialties.js?v=20260927-specializzazioni') ?>"></script>
   <title>AmbulatorioFacile | Inserisci Personale</title>
   <link rel="icon" href="<?= base_url('public/assets/images/logonew.jpg') ?>" type="image/x-icon" sizes="any">
   <meta content='width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no' name='viewport'>
@@ -252,7 +252,7 @@ $oldIsPersonnelAdmin = (int)($old['is_personale_admin'] ?? ($old['is_general_adm
                     <fieldset class="personnel-professional-profile">
                       <legend>Attività professionale</legend>
                       <input type="hidden" name="professional_profile_present" value="1">
-                      <div class="form-group"><label for="professional_enabled">Eroga prestazioni ai pazienti</label><select class="form-control" id="professional_enabled" name="professional_enabled"><option value="">Automatico: sì per medici e infermieri</option><option value="1" <?= oldv('professional_enabled',$old)==='1'?'selected':'' ?>>Sì</option><option value="0" <?= oldv('professional_enabled',$old)==='0'?'selected':'' ?>>No</option></select></div>
+                      <div class="form-group"><label for="professional_enabled">Eroga prestazioni ai pazienti</label><select class="form-control" id="professional_enabled" name="professional_enabled"><option value="1" <?= (string)($old['professional_enabled']??(in_array((int)($old['tipo']??1),[1,2],true)?'1':'0'))==='1'?'selected':'' ?>>Sì</option><option value="0" <?= (string)($old['professional_enabled']??(in_array((int)($old['tipo']??1),[1,2],true)?'1':'0'))==='0'?'selected':'' ?>>No</option></select></div>
                       <p class="professional-help">Rende questa persona selezionabile quando registri una prestazione. Le regole dei compensi si impostano in Fatturazione → Compensi.</p>
                       <?= view('partials/personnel_specialty_select',['specialtyOptions'=>$specialtyOptions??[],'selectedSpecialties'=>$old['professional_specialty_ids']??[]]) ?>
                     </fieldset>

@@ -80,7 +80,10 @@ if ($billingMenuRows) {
     } catch (\Throwable $e) {log_message('error','Acceptance menu: '.$e->getMessage());}
 }
 $billingGroupRendered=false;
+$specializationsHref=site_url('admin/fatturazione/gestione?tab=catalogo&kind=branch&context=personale');
+$specializationsActive=$isLinkActive(site_url('admin/fatturazione/gestione')) && service('request')->getGet('tab')==='catalogo' && (service('request')->getGet('kind')??'branch')==='branch';
 $billingGroupActive=(bool)preg_match('~(?:^|/)(?:admin/fatturazione(?!-ts(?:/|$))(?:[-/]|$)|spazio/fatturazione(?:/|$))~',$currentPath);
+$billingGroupActive=$billingGroupActive && !$specializationsActive;
 ?>
 <link rel="stylesheet" href="<?= base_url('public/assets/fontawesome/css/all.min.css') ?>">
 <link rel="stylesheet" href="<?= base_url('public/assets/fontawesome/css/v4-shims.min.css') ?>">
@@ -132,6 +135,7 @@ $billingGroupActive=(bool)preg_match('~(?:^|/)(?:admin/fatturazione(?!-ts(?:/|$)
 
       <?php if ($acceptanceEnabled): ?>
         <li class="<?= $isLinkActive(site_url('admin/accettazione'))?'active':'' ?>"><a href="<?= site_url('admin/accettazione') ?>"><i class="fa fa-user-check" aria-hidden="true"></i> Accettazione</a></li>
+        <li class="<?= $specializationsActive?'active':'' ?>"><a href="<?= esc($specializationsHref) ?>" <?= $specializationsActive?'aria-current="page"':'' ?>><i class="fa fa-stethoscope" aria-hidden="true"></i> Gestione specializzazioni</a></li>
       <?php endif ?>
       <?php foreach ($menu_items as $menu): ?>
         <?php
