@@ -9,8 +9,9 @@ $form=static function(string $action,string $tab,array $extra=[]) use($base,$dat
 <?= csrf_field() ?><input type="hidden" name="action" value="<?= esc($action) ?>"><input type="hidden" name="tab" value="<?= esc($tab) ?>"><input type="hidden" name="return_date" value="<?= esc($date) ?>"><input type="hidden" name="request_key" value="<?= bin2hex(random_bytes(16)) ?>">
 <?php foreach($extra as $k=>$v): ?><input type="hidden" name="<?= esc($k) ?>" value="<?= esc((string)$v) ?>"><?php endforeach;
 };
-$input=static function(string $name,string $label,$value='',string $type='text',bool $required=true): void { ?>
-<label><span class="pc-field-label"><?= esc($label) ?></span><input name="<?= esc($name) ?>" type="<?= esc($type) ?>" value="<?= esc((string)$value) ?>" <?= $required?'required':'' ?> <?= $type==='number'?'step="1" min="0"':'' ?> <?= $name==='price'?'inputmode="decimal" class="pc-price"':'' ?> maxlength="190"></label>
+$input=static function(string $name,string $label,$value='',string $type='text',bool $required=true): void {
+$isPrice=$name==='price'; ?>
+<label <?= $isPrice?'class="pc-price-field"':'' ?>><span class="pc-field-label"><?= esc($label) ?></span><?php if($isPrice): ?><span class="pc-money-control"><span class="pc-currency" aria-hidden="true">€</span><?php endif ?><input name="<?= esc($name) ?>" type="<?= esc($type) ?>" value="<?= esc((string)$value) ?>" <?= $required?'required':'' ?> <?= $type==='number'?'step="1" min="0"':'' ?> <?= $isPrice?'inputmode="decimal" class="pc-price" pattern="[0-9]{1,7}([.,][0-9]{1,2})?" title="Inserisci un prezzo in euro, con al massimo due decimali. Puoi usare punto o virgola." maxlength="10"':'maxlength="190"' ?>><?php if($isPrice): ?></span><?php endif ?></label>
 <?php };
 $select=static function(string $name,string $label,array $choices,$value='',bool $optional=false): void { ?>
 <label><span class="pc-field-label"><?= esc($label) ?></span><select name="<?= esc($name) ?>" <?= $optional?'':'required' ?>><?php if($optional): ?><option value="0">Nessuno / base</option><?php endif; foreach($choices as $k=>$v): ?><option value="<?= esc((string)$k) ?>" <?= (string)$k===(string)$value?'selected':'' ?>><?= esc((string)$v) ?></option><?php endforeach ?></select></label>
@@ -32,6 +33,21 @@ $pageDescription=($tab??'')==='accettazione'?'Arrivo, attesa e prestazioni del p
 <link rel="stylesheet" href="<?= base_url('public/assets/fontawesome/css/v4-shims.min.css') ?>">
 <link rel="stylesheet" href="<?= base_url('public/assets/css/billing-workspace.css?v=20260927-icons') ?>">
 <link rel="stylesheet" href="<?= base_url('public/assets/css/billing-sections.css?v=20260930-listini') ?>">
+<style>
+/* Keep tariff layout with the view, including installations with separately served assets. */
+body.billing-unified-page .content>.row>.col-md-9 .pc .pc-tariffs .pc-form{display:grid;grid-template-columns:minmax(140px,1fr) minmax(200px,2fr) 140px 130px;align-items:end;gap:18px;margin:0;padding:18px 0;border-bottom:1px solid #e7edf4}
+body.billing-unified-page .content>.row>.col-md-9 .pc .pc-tariffs .pc-form>label{margin:0;min-width:0}
+body.billing-unified-page .content>.row>.col-md-9 .pc .pc-tariff-name{display:flex;flex-direction:column;gap:6px;min-width:0}
+body.billing-unified-page .content>.row>.col-md-9 .pc .pc-field-label{display:block;font-size:13px;line-height:20px;font-weight:600}
+body.billing-unified-page .content>.row>.col-md-9 .pc .pc-tariff-name strong{display:flex;align-items:center;min-height:42px;font-size:14px;font-weight:500;overflow-wrap:anywhere}
+body.billing-unified-page .content>.row>.col-md-9 .pc .pc-money-control{display:block;position:relative;width:140px;max-width:100%}
+body.billing-unified-page .content>.row>.col-md-9 .pc .pc-money-control .pc-currency{position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:16px;color:#647087;pointer-events:none}
+body.billing-unified-page .content>.row>.col-md-9 .pc .pc-money-control input.pc-price{padding:10px 12px 10px 30px;height:42px;text-align:right;font-variant-numeric:tabular-nums}
+body.billing-unified-page .content>.row>.col-md-9 .pc .pc-tariffs button{height:42px;line-height:20px;padding:10px 12px;margin:0;white-space:nowrap}
+body.billing-unified-page .content>.row>.col-md-9 .pc .pc-tariffs select{height:42px}
+@media(max-width:1100px){body.billing-unified-page .content>.row>.col-md-9 .pc .pc-tariffs .pc-form{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
+@media(max-width:600px){body.billing-unified-page .content>.row>.col-md-9 .pc .pc-tariffs .pc-form{grid-template-columns:minmax(0,1fr)}body.billing-unified-page .content>.row>.col-md-9 .pc .pc-tariffs button{width:100%}}
+</style>
 </head><body class="billing-unified-page skin-blue sidebar-mini"><div class="wrapper"><?= view('partials/header',['menu_items'=>$menu_items]) ?>
 <div class="content-wrapper"><section class="content"><div class="row"><aside class="col-md-3">
 <?= view('partials/sidebar_admin',['menu_items'=>$menu_items??[]]) ?>
@@ -115,6 +131,20 @@ if($kind==='rule') { $select('doctor_id','Professionista',$options['doctor'],$ed
 <?php foreach(['Agenda'=>'Multi-medico e multi-stanza nel modulo agenda esistente.','Accettazione'=>'Arrivo, attesa, visita, conclusione e collegamento appuntamento.','Cartella clinica'=>'Cartella, referti, allegati e consensi nel modulo clinico, se abilitato.','Prestazioni e listini'=>'Catalogo, specializzazioni, prezzi base e tariffe per listino.','Fatture e incassi'=>'Emissione, rate, pagamenti parziali, rimborsi e note di credito proporzionali.','Compensi'=>'Regole per medico/prestazione, quota fissa o percentuale, maturazione e liquidazioni.','Convenzioni / assicurazioni / SSN'=>'Listino, copertura ente, autorizzazione e quota paziente. Flussi regionali e portali assicurativi non collegati.','Report'=>'Analisi per medico, specializzazione, prestazione, convenzione e periodo.','Commercialista'=>'Prima nota CSV configurabile; import nativo Passepartout da validare.','Fatturazione elettronica'=>'Preparazione XML FPR12 e registrazione manuale esiti; canale SdI automatico da collegare.','Sistema TS'=>'Modulo esistente; profilo reale da collaudare. Note di credito e incassi parziali richiedono gestione TS dedicata.'] as $label=>$description): ?><tr><th><?= esc($label) ?></th><td><?= esc($description) ?></td></tr><?php endforeach ?></tbody></table></section>
 <?php endif ?>
 </main></div></div></div></section></div></div><script src="<?= base_url('public/assets/js/billing-workspace.js?v=20260927-icons') ?>"></script><script>
+
+document.querySelectorAll('input.pc-price').forEach(function(input){
+ let previous=input.value;
+ input.addEventListener('input',function(){
+  if(/^[0-9]{0,7}([.,][0-9]{0,2})?$/.test(input.value)){previous=input.value;}
+  else{const position=input.selectionStart;input.value=previous;input.setSelectionRange(Math.max(0,position-1),Math.max(0,position-1));}
+ });
+ input.addEventListener('blur',function(){
+  if(!input.value)return;
+  const value=input.value.replace(',', '.');
+  if(/^[0-9]{1,7}(\.[0-9]{0,2})?$/.test(value)){input.value=Number(value).toFixed(2).replace('.', ',');previous=input.value;}
+ });
+});
+
 if(location.hash==='#pc-credit') document.getElementById('pc-credit')?.setAttribute('open','');
 document.addEventListener('click',function(event){
  if(event.target.id==='pc-add-rate'){const root=document.getElementById('pc-installments');const row=root.querySelector('.pc-rate');if(row){const copy=row.cloneNode(true);copy.querySelectorAll('input').forEach(i=>i.value='');root.appendChild(copy);}}
