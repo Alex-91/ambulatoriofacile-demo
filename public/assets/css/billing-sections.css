@@ -26,3 +26,17 @@ body.billing-unified-page .billing-report-kpi.is-primary :is(span,small){color:#
 
 body.billing-unified-page .content>.row>.col-md-9 :is(h1,h2,h3,p,span,strong,small,label,input,select,textarea,button,td,th,a):not(.fa):not(.fas):not(.far):not(.fab){font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
 body.billing-unified-page .content>.row>.col-md-9 .form-control{border-radius:6px!important}
+
+/* Consistent labels, controls and tariff columns. */
+body.billing-unified-page .pc .pc-form{gap:16px;align-items:flex-end}
+body.billing-unified-page .pc .pc-form>label{margin:0;flex:1 1 180px;min-width:0;font-weight:500;color:#344963}
+body.billing-unified-page .pc .pc-field-label{display:block;font-size:13px;line-height:20px;font-weight:600;color:#344963}
+body.billing-unified-page .pc .pc-form :is(input:not([type=hidden]),select){height:42px;line-height:20px;padding:10px 12px;min-width:0}
+body.billing-unified-page .pc .pc-form>button,body.billing-unified-page .pc .pc-form>.pc-link{min-height:42px;line-height:20px;margin:0;white-space:nowrap}
+body.billing-unified-page .pc .pc-price{text-align:right;font-variant-numeric:tabular-nums}
+body.billing-unified-page .pc .pc-tariffs .pc-form{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.5fr) minmax(110px,.65fr) 150px;padding:18px 0;border-bottom:1px solid #e7edf4;margin:0}
+body.billing-unified-page .pc .pc-tariffs .pc-form:last-child{border-bottom:0;padding-bottom:0}
+body.billing-unified-page .pc .pc-tariff-name{min-width:0;display:flex;flex-direction:column;gap:6px}
+body.billing-unified-page .pc .pc-tariff-name strong{display:flex;align-items:center;min-height:42px;font-size:14px;font-weight:500;overflow-wrap:anywhere;color:#344963}
+@media(max-width:1100px){body.billing-unified-page .pc .pc-tariffs .pc-form{grid-template-columns:1fr 1fr}}
+@media(max-width:600px){body.billing-unified-page .pc .pc-tariffs .pc-form{grid-template-columns:minmax(0,1fr)}body.billing-unified-page .pc .pc-form>label{flex-basis:100%}body.billing-unified-page .pc .pc-form>button{width:100%}}

@@ -10,17 +10,18 @@ $form=static function(string $action,string $tab,array $extra=[]) use($base,$dat
 <?php foreach($extra as $k=>$v): ?><input type="hidden" name="<?= esc($k) ?>" value="<?= esc((string)$v) ?>"><?php endforeach;
 };
 $input=static function(string $name,string $label,$value='',string $type='text',bool $required=true): void { ?>
-<label><?= esc($label) ?><input name="<?= esc($name) ?>" type="<?= esc($type) ?>" value="<?= esc((string)$value) ?>" <?= $required?'required':'' ?> <?= $type==='number'?'step="1" min="0"':'' ?> maxlength="190"></label>
+<label><span class="pc-field-label"><?= esc($label) ?></span><input name="<?= esc($name) ?>" type="<?= esc($type) ?>" value="<?= esc((string)$value) ?>" <?= $required?'required':'' ?> <?= $type==='number'?'step="1" min="0"':'' ?> <?= $name==='price'?'inputmode="decimal" class="pc-price"':'' ?> maxlength="190"></label>
 <?php };
 $select=static function(string $name,string $label,array $choices,$value='',bool $optional=false): void { ?>
-<label><?= esc($label) ?><select name="<?= esc($name) ?>" <?= $optional?'':'required' ?>><?php if($optional): ?><option value="0">Nessuno / base</option><?php endif; foreach($choices as $k=>$v): ?><option value="<?= esc((string)$k) ?>" <?= (string)$k===(string)$value?'selected':'' ?>><?= esc((string)$v) ?></option><?php endforeach ?></select></label>
+<label><span class="pc-field-label"><?= esc($label) ?></span><select name="<?= esc($name) ?>" <?= $optional?'':'required' ?>><?php if($optional): ?><option value="0">Nessuno / base</option><?php endif; foreach($choices as $k=>$v): ?><option value="<?= esc((string)$k) ?>" <?= (string)$k===(string)$value?'selected':'' ?>><?= esc((string)$v) ?></option><?php endforeach ?></select></label>
 <?php };
 $options=[]; foreach(($catalog??[]) as $k=>$items) { $options[$k]=[]; foreach($items as $item) if($item['active']) $options[$k][$item['id']]=$item['name']; }
 $error=$error??null;
 $personnelSpecialties=($tab??'')==='catalogo' && (service('request')->getGet('kind')??'branch')==='branch';
 $registryServices=($tab??'')==='catalogo' && service('request')->getGet('kind')==='service';
-$pageHeading=($tab??'')==='accettazione'?'Accettazione':($personnelSpecialties?'Gestione branche':($registryServices?'Gestione prestazioni':'Fatturazione'));
-$pageDescription=($tab??'')==='accettazione'?'Arrivo, attesa e prestazioni del paziente':($personnelSpecialties?'Aree di attività condivise da professionisti e prestazioni':($registryServices?'Servizi erogati dai professionisti e prezzi di base':'Documenti, incassi e compensi in un unico spazio'));
+$priceLists=($tab??'')==='catalogo' && service('request')->getGet('kind')==='list';
+$pageHeading=($tab??'')==='accettazione'?'Accettazione':($personnelSpecialties?'Gestione branche':($registryServices?'Gestione prestazioni':($priceLists?'Listini':'Fatturazione')));
+$pageDescription=($tab??'')==='accettazione'?'Arrivo, attesa e prestazioni del paziente':($personnelSpecialties?'Aree di attività condivise da professionisti e prestazioni':($registryServices?'Servizi erogati dai professionisti e prezzi di base':($priceLists?'Organizza i listini e definisci il prezzo di ogni prestazione':'Documenti, incassi e compensi in un unico spazio')));
 ?>
 <!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title><?= esc($pageHeading) ?> · AmbulatorioFacile</title>
 <link rel="stylesheet" href="<?= base_url('public/bootstrap/css/bootstrap.min.css') ?>"><link rel="stylesheet" href="<?= base_url('public/dist/css/AdminLTE.css') ?>"><link rel="stylesheet" href="<?= base_url('public/dist/css/skins/_all-skins.min.css') ?>">
@@ -30,11 +31,11 @@ $pageDescription=($tab??'')==='accettazione'?'Arrivo, attesa e prestazioni del p
 <link rel="stylesheet" href="<?= base_url('public/assets/fontawesome/css/all.min.css') ?>">
 <link rel="stylesheet" href="<?= base_url('public/assets/fontawesome/css/v4-shims.min.css') ?>">
 <link rel="stylesheet" href="<?= base_url('public/assets/css/billing-workspace.css?v=20260927-icons') ?>">
-<link rel="stylesheet" href="<?= base_url('public/assets/css/billing-sections.css?v=20260927-group') ?>">
+<link rel="stylesheet" href="<?= base_url('public/assets/css/billing-sections.css?v=20260930-listini') ?>">
 </head><body class="billing-unified-page skin-blue sidebar-mini"><div class="wrapper"><?= view('partials/header',['menu_items'=>$menu_items]) ?>
 <div class="content-wrapper"><section class="content"><div class="row"><aside class="col-md-3">
 <?= view('partials/sidebar_admin',['menu_items'=>$menu_items??[]]) ?>
-</aside><div class="col-md-9"><div class="billing-workspace"><main class="pc bw-content"><header class="bw-heading"><div><h1><?= esc($pageHeading) ?></h1><p><?= esc($pageDescription) ?></p></div><?php if(!$personnelSpecialties && !$registryServices): ?><a class="bw-button bw-primary" href="<?= site_url('admin/fatturazione-documenti/nuovo') ?>">＋ Nuova fattura</a><?php endif ?></header>
+</aside><div class="col-md-9"><div class="billing-workspace"><main class="pc bw-content"><header class="bw-heading"><div><h1><?= esc($pageHeading) ?></h1><p><?= esc($pageDescription) ?></p></div><?php if(!$personnelSpecialties && !$registryServices && !$priceLists): ?><a class="bw-button bw-primary" href="<?= site_url('admin/fatturazione-documenti/nuovo') ?>">＋ Nuova fattura</a><?php endif ?></header>
 <?= view('admin/billing/navigation',['tenantScope'=>$tenantScope??[]]) ?>
 <?php if($personnelSpecialties): ?><p><a href="<?= site_url('admin/personale/modifica_personale') ?>">← Torna al Personale</a></p><?php endif ?>
 <?php if($base==='admin/fatturazione-poliambulatori'): ?>
@@ -64,16 +65,16 @@ $editId=(int)service('request')->getGet('edit'); $edit=[];foreach($catalog[$kind
 ?>
 
 <?php if($kind==='branch'): ?><p>Inserisci qui le specializzazioni dello spazio. Saranno selezionabili nelle schede del personale e nelle prestazioni. Archivia una voce per escluderla dalle nuove assegnazioni.</p><a class="pc-link" href="<?= site_url('admin/personale/modifica_personale') ?>">Vai al personale</a><?php endif ?>
-<section class="pc-card"><h2><?= $kind==='branch'?($edit?'Modifica branca':'Nuova branca'):(($edit?'Modifica':'Nuova voce').' · '.esc(Clinic::KINDS[$kind])) ?></h2>
-<?php $form('catalog','catalogo',['kind'=>$kind,'id'=>$edit['id']??0,'version'=>$edit['version']??0]); $input('code','Codice',$edit['code']??''); $input('name','Nome',$edit['name']??''); $select('active','Disponibilità',[1=>'Attiva',0=>'Archiviata'],$edit['active']??1);
+<section class="pc-card"><h2><?= $kind==='branch'?($edit?'Modifica branca':'Nuova branca'):($kind==='list'?($edit?'Modifica listino':'Nuovo listino'):(($edit?'Modifica':'Nuova voce').' · '.esc(Clinic::KINDS[$kind]))) ?></h2>
+<?php $form('catalog','catalogo',['kind'=>$kind,'id'=>$edit['id']??0,'version'=>$edit['version']??0]); $input('code','Codice',$edit['code']??''); $input('name',$kind==='service'?'Nome prestazione':($kind==='list'?'Nome listino':'Nome'),$edit['name']??''); $select('active','Disponibilità',[1=>'Attiva',0=>'Archiviata'],$edit['active']??1);
 if($kind==='doctor') $input('agenda_id','Identificativo medico agenda',$ed['agenda_id']??0,'number',false);
-if($kind==='service') { $select('branch_id','Specializzazione (facoltativa)',$options['branch'],$ed['branch_id']??'',true); $input('price','Prezzo base',Money::decimal((int)($ed['price_cents']??0))); }
+if($kind==='service') { $select('branch_id','Specializzazione (facoltativa)',$options['branch'],$ed['branch_id']??'',true); $input('price','Prezzo base (€)',Money::decimal((int)($ed['price_cents']??0))); }
 if($kind==='agreement') { $select('agreement_kind','Tipo',['private'=>'Convenzione privata','insurance'=>'Assicurazione','ssn'=>'SSN'],$ed['kind']??'private'); $select('list_id','Listino',$options['list'],$ed['list_id']??''); $input('coverage','Copertura ente %',Money::decimal((int)($ed['coverage_bps']??0))); $input('payer','Ente pagatore',$ed['payer']??'','text',false); $select('authorization_required','Autorizzazione obbligatoria',[0=>'No',1=>'Sì'],!empty($ed['authorization_required'])?1:0); }
 if($kind==='rule') { $select('doctor_id','Professionista',$options['doctor'],$ed['doctor_id']??''); $select('service_id','Prestazione',$options['service'],$ed['service_id']??''); $select('mode','Calcolo',['percent'=>'Percentuale','fixed'=>'Quota fissa per prestazione'],$ed['mode']??'percent'); $input('value','Valore (% oppure euro)',Money::decimal((int)($ed['value']??0))); $select('basis','Maturazione',['collected'=>'Sull’incassato','billed'=>'Sul fatturato'],$ed['basis']??'collected'); }
 ?><button>Salva</button></form>
 <div class="pc-scroll"><table><thead><tr><th>Codice</th><th>Nome</th><th>Stato</th><th></th></tr></thead><tbody><?php foreach($catalog[$kind] as $item): ?><tr><td><?= esc($item['code']) ?></td><td><?= esc($item['name']) ?></td><td><?= $item['active']?'Attiva':'Archiviata' ?></td><td><a href="<?= site_url($base.'?tab=catalogo&kind='.$kind.'&edit='.$item['id']) ?>">Modifica</a></td></tr><?php endforeach ?></tbody></table></div></section>
-<?php if($kind==='list'): ?><section class="pc-card"><h2>Tariffe dei listini</h2><?php $form('tariff','catalogo',['version'=>-1]); $select('list_id','Listino',$options['list']); $select('service_id','Prestazione',$options['service']); $input('price','Prezzo'); ?><button>Aggiungi tariffa</button></form>
-<?php foreach($tariffs as $t): $form('tariff','catalogo',['list_id'=>$t['list_id'],'service_id'=>$t['service_id'],'version'=>$t['version']]); ?><span><?= esc(($options['list'][$t['list_id']]??'Archiviato').' · '.($options['service'][$t['service_id']]??'Archiviata')) ?></span><?php $input('price','Tariffa',Money::decimal((int)$t['amount_cents'])); ?><button>Aggiorna</button></form><?php endforeach ?></section><?php endif ?>
+<?php if($kind==='list'): ?><section class="pc-card pc-tariffs"><h2>Tariffe dei listini</h2><p class="pc-muted">Scegli il listino e la prestazione, poi inserisci il prezzo in euro.</p><?php $form('tariff','catalogo',['version'=>-1]); $select('list_id','Listino',$options['list']); $select('service_id','Prestazione',$options['service']); $input('price','Prezzo (€)'); ?><button>Aggiungi tariffa</button></form>
+<?php foreach($tariffs as $t): $form('tariff','catalogo',['list_id'=>$t['list_id'],'service_id'=>$t['service_id'],'version'=>$t['version']]); ?><div class="pc-tariff-name"><span class="pc-field-label">Listino</span><strong><?= esc($options['list'][$t['list_id']]??'Archiviato') ?></strong></div><div class="pc-tariff-name"><span class="pc-field-label">Prestazione</span><strong><?= esc($options['service'][$t['service_id']]??'Archiviata') ?></strong></div><?php $input('price','Prezzo (€)',Money::decimal((int)$t['amount_cents'])); ?><button>Aggiorna</button></form><?php endforeach ?></section><?php endif ?>
 <?php elseif($tab==='documenti'): ?>
 <?php if(!empty($detail)): $d=$detail['document']; $id=(int)$d['id_billing_document']; $b=$detail['balance']; ?>
 <section class="pc-card"><h2><?= $d['document_type']==='credit_note'?'Nota di credito':'Fattura' ?> <?= esc($d['document_number']) ?></h2><p><?= esc($d['patient_name']) ?> · <?= esc($d['issue_date']) ?></p><a class="pc-link" href="<?= site_url($base.'/pdf/'.$id) ?>">Scarica PDF</a>
