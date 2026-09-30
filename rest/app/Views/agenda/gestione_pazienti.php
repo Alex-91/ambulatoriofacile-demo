@@ -145,9 +145,39 @@
                 margin-top: 10px;
             }
         }
+
+        /* Invoice visual language, scoped to the patient workspace. */
+        .patient-workspace .content-wrapper{background:#f5f8fb;color:#344963;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+        .patient-workspace .content-header{padding:24px 20px 8px}
+        .patient-workspace .content-header h1{font-size:32px;font-weight:750;letter-spacing:-1px;color:#132440}
+        .patient-workspace .col-md-10>.box{border:1px solid #e0e7ef;border-radius:8px;box-shadow:0 2px 4px #1d385305;overflow:visible}
+        .patient-workspace .col-md-10>.box>.box-header{padding:20px 22px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;border-bottom:1px solid #e7edf4}
+        .patient-workspace .col-md-10 .box-title{font-size:20px;font-weight:600;color:#132440}
+        .patient-workspace .col-md-10 .box-tools{position:static;display:flex;gap:8px;flex-wrap:wrap}
+        .patient-workspace .col-md-10 .box-body{padding:22px}
+        .patient-workspace #formCercaPazienti>.row{display:flex;align-items:flex-end;flex-wrap:wrap}
+        .patient-workspace #formCercaPazienti label{font-size:13px;font-weight:600;margin-bottom:7px}
+        .patient-workspace .col-md-10 .form-control{height:42px;border:1px solid #d6e1ed;border-radius:6px;box-shadow:none;padding:10px 12px;color:#344963}
+        .patient-workspace .col-md-10 .btn,.patient-workspace .modal .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:38px;padding:8px 12px;border-radius:6px;font-size:13px;font-weight:600;box-shadow:none}
+        .patient-workspace #btnCercaPazienti{height:42px}
+        .patient-workspace :is(.col-md-10,.modal) :is(.btn-primary,.btn-success){background:#008c9f;border-color:#008c9f;color:#fff}
+        .patient-workspace :is(.col-md-10,.modal) :is(.btn-primary,.btn-success):hover{background:#087485;border-color:#087485}
+        .patient-workspace :is(.col-md-10,.modal) .btn-default{background:#fff;border-color:#d6e1ed;color:#344963}
+        .patient-workspace :is(.col-md-10,.modal) .btn-danger{background:#fff5f5;border-color:#ebcaca;color:#a63838}
+        .patient-workspace :is(.col-md-10,.modal) .btn-danger:hover{background:#a63838;color:#fff}
+        .patient-workspace .col-md-10 .table{border:0;margin-bottom:0}
+        .patient-workspace .col-md-10 .table th{background:#f3f5f8;color:#344963;font-size:12px;font-weight:600;padding:14px;border:0;border-bottom:1px solid #e7edf4}
+        .patient-workspace .col-md-10 .table td{padding:14px;font-size:13px;vertical-align:middle;border:0;border-bottom:1px solid #e7edf4;background:#fff}
+        .patient-workspace .col-md-10 .table tbody tr:hover td{background:#f5fafb}
+        .patient-workspace .patient-row-actions{display:flex;align-items:center;gap:8px;white-space:nowrap}
+        .patient-workspace .patient-actions-heading{width:1%;white-space:nowrap}
+        .patient-workspace .col-md-10 :focus-visible{outline:3px solid #58b7d1;outline-offset:2px}
+        .patient-workspace .modal-content{border:1px solid #e0e7ef;border-radius:8px}
+        @media(max-width:991px){.patient-workspace #formCercaPazienti>.row>div{width:100%;margin-bottom:12px}.patient-workspace #formCercaPazienti>.row>div:last-child label{display:none}}
+        @media(max-width:767px){.patient-workspace .content-header h1{font-size:25px}.patient-workspace .col-md-10 .box-body{padding:14px}.patient-workspace .patient-row-actions{flex-wrap:wrap;min-width:170px}}
     </style>
 </head>
-<body class="skin-blue sidebar-mini">
+<body class="skin-blue sidebar-mini patient-workspace">
 <div class="wrapper">
 
     <?= view('partials/header', ['menu_items' => $menu_items ?? []]) ?>
@@ -197,7 +227,7 @@
                             <form id="formCercaPazienti" action="#" method="get">
                             <div class="row" style="margin-bottom:15px;">
                                 <div class="col-md-4">
-                                    <label>Medico</label>
+                                    <label for="id_dot">Medico</label>
                                     <select id="id_dot" class="form-control">
                                         <?php foreach (($medici ?? []) as $m): ?>
                                             <?php
@@ -213,7 +243,7 @@
                                 </div>
 
                                 <div class="col-md-5">
-                                    <label>Cerca</label>
+                                    <label for="searchTerm">Cerca paziente</label>
                                     <div class="patient-search-autocomplete">
                                         <input
                                             type="text"
@@ -249,7 +279,7 @@
                                             <th>Cellulare</th>
                                             <th>Email</th>
                                             <th>Cod. fiscale</th>
-                                            <th style="width:140px;">Azioni</th>
+                                            <th class="patient-actions-heading">Azioni</th>
                                         </tr>
                                     </thead>
                                     <tbody id="tabellaPazientiBody">
@@ -921,13 +951,13 @@ function caricaPazienti(page) {
             html += '<td>' + escapeHtml(row.cellulare || '') + '</td>';
             html += '<td>' + escapeHtml(row.email || '') + '</td>';
             html += '<td>' + escapeHtml(row.cod_fis || '') + '</td>';
-            html += '<td>';
-            html += '<button type="button" class="btn btn-xs btn-primary btnModificaPaziente" data-id="' + row.id_paziente + '"><i class="fa fa-pencil"></i></button> ';
+            html += '<td><div class="patient-row-actions">';
+            html += '<button type="button" class="btn btn-xs btn-primary btnModificaPaziente" data-id="' + row.id_paziente + '"><i class="fa fa-pencil" aria-hidden="true"></i> Modifica</button> ';
             <?php if (!empty($clinicalRecordsEnabled)): ?>
             html += '<a class="btn btn-xs btn-default" href="<?= site_url('cartella-clinica/pazienti') ?>/' + encodeURIComponent(row.id_paziente) + '">Cartella e consensi</a> ';
             <?php endif ?>
-            html += '<button type="button" class="btn btn-xs btn-danger btnEliminaPazienteRiga" data-id="' + row.id_paziente + '"><i class="fa fa-trash"></i></button>';
-            html += '</td>';
+            html += '<button type="button" class="btn btn-xs btn-danger btnEliminaPazienteRiga" title="Elimina paziente" aria-label="Elimina paziente" data-id="' + row.id_paziente + '"><i class="fa fa-trash"></i></button>';
+            html += '</div></td>';
             html += '</tr>';
         });
 
