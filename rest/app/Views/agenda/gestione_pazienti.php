@@ -18,7 +18,8 @@
     <meta content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" name="viewport">
 
     <link href="<?= base_url('public/bootstrap/css/bootstrap.min.css') ?>" rel="stylesheet" />
-    <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css" rel="stylesheet" />
+    <link href="<?= base_url('public/assets/fontawesome/css/all.min.css') ?>" rel="stylesheet" />
+    <link href="<?= base_url('public/assets/fontawesome/css/v4-shims.min.css') ?>" rel="stylesheet" />
     <link href="<?= base_url('public/dist/css/AdminLTE.css') ?>" rel="stylesheet" />
     <link href="<?= base_url('public/dist/css/skins/_all-skins.min.css') ?>" rel="stylesheet" />
     <style>
@@ -152,6 +153,7 @@
         .patient-workspace .content-header h1{font-size:32px;font-weight:750;letter-spacing:-1px;color:#132440}
         .patient-workspace .col-md-10>.box{border:1px solid #e0e7ef;border-radius:8px;box-shadow:0 2px 4px #1d385305;overflow:visible}
         .patient-workspace .col-md-10>.box>.box-header{padding:20px 22px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;border-bottom:1px solid #e7edf4}
+        .patient-workspace .col-md-10>.box>.box-header::before,.patient-workspace .col-md-10>.box>.box-header::after{display:none}
         .patient-workspace .col-md-10 .box-title{font-size:20px;font-weight:600;color:#132440}
         .patient-workspace .col-md-10 .box-tools{position:static;display:flex;gap:8px;flex-wrap:wrap}
         .patient-workspace .col-md-10 .box-body{padding:22px}
