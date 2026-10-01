@@ -25,9 +25,9 @@
     <!-- iCheck -->
     <link href="<?= base_url('public/plugins/iCheck/flat/blue.css') ?>" rel="stylesheet" type="text/css" />
     <?= view('partials/italian_address_autocomplete_style') ?>
-</head>
+<?= view('partials/operational_workspace_assets') ?></head>
 
-  <body class="skin-blue sidebar-mini">
+  <body class="skin-blue sidebar-mini billing-unified-page">
 <div class="wrapper">
   <!-- HEADER: quello tuo centralizzato -->
 <?= view('partials/header', [
@@ -43,7 +43,7 @@
       <h1>Profilo <small>Modifica dati e medico associato</small></h1>
     </section>
 
-    <section class="content">
+    <section class="content"><?php if(empty($disableHeaderMenuFallback)): ?><div class="row"><aside class="col-md-3"><?= view('partials/sidebar_admin',['menu_items'=>$menu_items??[]]) ?></aside><div class="col-md-9"><?php endif ?>
 
       <?php if (!empty($agendaReturnUrl)): ?>
         <div class="alert alert-info">
@@ -369,7 +369,7 @@
 
 
       
-    </section>
+    <?php if(empty($disableHeaderMenuFallback)): ?></div></div><?php endif ?></section>
   </div>
 
 
@@ -625,7 +625,7 @@
         'province' => 'input[name="provincia"]',
     ]],
 ]) ?>
-</body>
+<script src="<?= base_url('public/assets/js/billing-workspace.js?v=20260927-icons') ?>"></script></body>
 </html>
 <script>
 (function() {

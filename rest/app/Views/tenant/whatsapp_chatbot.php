@@ -98,8 +98,8 @@ $formatDate = static function ($value): string {
     .status-pill.is-error { background:#fff0ee; color:#b42318; }
     @media(max-width:900px){ .bot-grid{grid-template-columns:1fr}.bot-rule-grid{grid-template-columns:1fr}.bot-rule-reply{grid-column:auto}.bot-hero{flex-direction:column}.bot-metrics{grid-template-columns:1fr} }
   </style>
-</head>
-<body class="skin-blue sidebar-mini billing-ts-ui">
+<?= view('partials/operational_workspace_assets') ?></head>
+<body class="skin-blue sidebar-mini billing-ts-ui billing-unified-page">
 <div class="wrapper">
   <?= view('partials/header', ['menu_items' => $menu_items, 'portal_console_header' => $platformConsole]) ?>
 
@@ -117,13 +117,11 @@ $formatDate = static function ($value): string {
     </section>
 
     <section class="content">
-      <?php if ($platformConsole): ?>
       <div class="row">
         <div class="col-md-3">
-          <?= view('partials/sidebar_platform', ['platformMasterEmails' => $platformMasterEmails ?? []]) ?>
+          <?= $platformConsole ? view('partials/sidebar_platform', ['platformMasterEmails' => $platformMasterEmails ?? []]) : view('partials/sidebar_admin',['menu_items'=>$menu_items??[]]) ?>
         </div>
         <div class="col-md-9">
-      <?php endif; ?>
       <?php if (!empty($success)): ?><div class="alert alert-success"><?= esc((string) $success) ?></div><?php endif; ?>
       <?php foreach ($errors as $error): ?><div class="alert alert-danger"><?= esc((string) $error) ?></div><?php endforeach; ?>
       <?php if (!$gatewayAvailable): ?>
@@ -294,10 +292,8 @@ $formatDate = static function ($value): string {
           </table>
         </div>
       </section>
-      <?php if ($platformConsole): ?>
         </div>
       </div>
-      <?php endif; ?>
     </section>
   </div>
 </div>
@@ -362,5 +358,5 @@ $formatDate = static function ($value): string {
   reindex();
 })();
 </script>
-</body>
+<script src="<?= base_url('public/assets/js/billing-workspace.js?v=20260927-icons') ?>"></script></body>
 </html>

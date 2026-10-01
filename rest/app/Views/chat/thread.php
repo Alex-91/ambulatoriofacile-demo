@@ -15,9 +15,9 @@
       .direct-chat-messages{ height: calc(100vh - 220px); }
     }
   </style>
-</head>
+<?= view('partials/operational_workspace_assets') ?></head>
 
-<body class="skin-blue sidebar-mini">
+<body class="skin-blue sidebar-mini billing-unified-page">
 <div class="wrapper">
   <!-- HEADER identico tuo -->
    <?= view('partials/header') ?>
@@ -27,7 +27,7 @@
       <h1>Chat</h1>
     </section>
 
-    <section class="content">
+    <section class="content"><div class="row"><aside class="col-md-3"><?= view('partials/sidebar_admin',['menu_items'=>$menu_items??[]]) ?></aside><div class="col-md-9">
       <div class="box box-primary direct-chat direct-chat-primary">
         <div class="box-header with-border">
           <h3 class="box-title">
@@ -169,7 +169,7 @@ echo esc($title);
         </div>
 
       </div>
-    </section>
+    </div></div></section>
   </div>
 </div>
 
@@ -242,7 +242,7 @@ echo esc($title);
 
   $(function(){ scrollBottom(); poll(); });
 </script>
-</body>
+<script src="<?= base_url('public/assets/js/billing-workspace.js?v=20260927-icons') ?>"></script></body>
 </html>
 <style>
   /* ===== Lista conversazioni – stile soft ===== */

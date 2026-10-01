@@ -48,9 +48,9 @@ function esc2($s) { return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); } 
 
     .direct-chat-messages { height: calc(100vh - 360px); min-height: 320px; }
   </style>
-</head>
+<?= view('partials/operational_workspace_assets') ?></head>
 
-<body class="skin-blue sidebar-mini">
+<body class="skin-blue sidebar-mini billing-unified-page">
 <div class="wrapper">
 
   <!-- HEADER identico tuo -->
@@ -62,7 +62,7 @@ function esc2($s) { return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); } 
       <h1>Chat interna</h1>
     </section>
 
-    <section class="content">
+    <section class="content"><div class="row"><aside class="col-md-3"><?= view('partials/sidebar_admin',['menu_items'=>$menu_items??[]]) ?></aside><div class="col-md-9">
 
       <?php if (session()->getFlashdata('error')): ?>
         <div class="alert alert-danger"><?= h(session()->getFlashdata('error')) ?></div>
@@ -316,7 +316,7 @@ if ($isGroup && !empty($selectedThread['group_key'])) {
         </div>
 
       </div>
-    </section>
+    </div></div></section>
   </div>
 </div>
 
@@ -692,7 +692,7 @@ function ensureThreadsFromServer(serverThreads){
   });
 }
 </script>
-</body>
+<script src="<?= base_url('public/assets/js/billing-workspace.js?v=20260927-icons') ?>"></script></body>
 </html>
 <style>
   /* ===== Lista conversazioni – stile soft ===== */
