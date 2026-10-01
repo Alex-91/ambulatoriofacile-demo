@@ -37,7 +37,7 @@ body.billing-unified-page .diagnostic-content{background:transparent;color:#3449
 <div class="content-wrapper"><section class="content"><div class="row"><aside class="col-md-3">
 <?= view('partials/sidebar_admin',['menu_items'=>$menu_items??[]]) ?>
 </aside><div class="col-md-9"><div class="diagnostic-content">
-<header><a href="<?= site_url('agenda/gestione-pazienti') ?>">← Pazienti</a><h1>Lista diagnostica</h1><p><?= esc($tenant['tenant_name'] ?? '') ?> · Accettazione e avanzamento degli esami</p></header><main>
+<header><a href="<?= site_url('agenda/gestione-pazienti') ?>">← Pazienti</a><h1>Lista diagnostica</h1><?php if ((int)($tenant['id_tenant']??0)===4 && function_exists('session_has_tenant_master_access') && session_has_tenant_master_access()): ?><p><a class="btn btn-primary" href="<?= site_url('cartella-clinica/demo-pacs') ?>">Demo PACS e immagini — apri presentazione</a></p><?php endif ?><p><?= esc($tenant['tenant_name'] ?? '') ?> · Accettazione e avanzamento degli esami</p></header><main>
 <?php if(session()->getFlashdata('success')): ?><div class="notice" role="status"><?= esc(session()->getFlashdata('success')) ?></div><?php endif ?>
 <form class="card actions" method="get" action="<?= $url ?>"><label>Giorno<input type="date" name="date" value="<?= esc($queue['date'],'attr') ?>" required></label><label><input type="checkbox" name="completed" value="1" <?= $queue['completed'] ? 'checked' : '' ?>> Includi eseguiti</label><button>Mostra esami</button></form>
 <?php if($queue['role']===4): ?><p><a href="<?= site_url('cartella-clinica/diagnostica/collegamenti') ?>">Verifica collegamenti PACS</a></p><?php endif ?>

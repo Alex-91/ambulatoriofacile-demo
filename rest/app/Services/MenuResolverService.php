@@ -568,13 +568,16 @@ class MenuResolverService
     {
         // Rebuild the entry on every request so revocation removes cached links too.
         $menuItems = array_values(array_filter($menuItems, fn($row) =>
-            strtolower($this->normalizePath((string) ($row['link'] ?? ''))) !== 'cartella-clinica/diagnostica'));
+            !in_array(strtolower($this->normalizePath((string) ($row['link'] ?? ''))), ['cartella-clinica/diagnostica','cartella-clinica/demo-pacs'], true)));
         if ($tenantId > 0 && ($this->pacsFeatures ?? new \App\Services\Pacs\PacsFeatureService())->isEnabledForTenant($tenantId)) {
             $menuItems[] = [
                 'titolo_menu' => 'Lista diagnostica',
                 'link' => 'cartella-clinica/diagnostica',
                 'class_icon' => 'fa-list-alt',
             ];
+            if ($tenantId === 4 && function_exists('session_has_tenant_master_access') && session_has_tenant_master_access()) {
+                $menuItems[] = ['titolo_menu'=>'Demo PACS e immagini','link'=>'cartella-clinica/demo-pacs','class_icon'=>'fa-picture-o'];
+            }
         }
         return $menuItems;
     }

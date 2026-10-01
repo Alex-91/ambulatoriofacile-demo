@@ -669,3 +669,6 @@ $routes->post('agenda/elimina-giorni-ferie-selezionati', 'Agenda::eliminaGiorniF
 $routes->get('agenda/gestione-sms-appuntamenti', 'Agenda::gestioneSmsAppuntamenti');
 $routes->post('agenda/salva-sms-appuntamenti', 'Agenda::salvaSmsAppuntamenti');
 $routes->post('agenda/disattiva-sms-appuntamenti', 'Agenda::disattivaSmsAppuntamenti');
+
+$routes->get('cartella-clinica/demo-pacs', 'PacsDemoController::index');
+$routes->get('cartella-clinica/demo-pacs/immagini/(:num)', 'PacsDemoController::image/$1');
