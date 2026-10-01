@@ -156,6 +156,7 @@ if (!function_exists('admin_menu_resolve_href')) {
         }
 
         if (in_array($normalized, [
+            'cartella-clinica/diagnostica',
             'agenda/gestione-ferie',
             'agenda/elenco-ferie',
             'agenda/slot-bloccati',

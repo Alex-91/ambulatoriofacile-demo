@@ -9,15 +9,18 @@ class MenuResolverService
     private AdminMenuVisibilityService $adminMenuVisibility;
     private MenuRegistryService $menuRegistry;
     private ?PolyclinicFeatureService $polyclinicFeatures;
+    private ?\App\Services\Pacs\PacsFeatureService $pacsFeatures;
 
     public function __construct(
         ?AdminMenuVisibilityService $adminMenuVisibility = null,
         ?MenuRegistryService $menuRegistry = null,
-        ?PolyclinicFeatureService $polyclinicFeatures = null
+        ?PolyclinicFeatureService $polyclinicFeatures = null,
+        ?\App\Services\Pacs\PacsFeatureService $pacsFeatures = null
     ) {
         $this->adminMenuVisibility = $adminMenuVisibility ?? new AdminMenuVisibilityService();
         $this->menuRegistry = $menuRegistry ?? new MenuRegistryService();
         $this->polyclinicFeatures = $polyclinicFeatures;
+        $this->pacsFeatures = $pacsFeatures;
     }
 
     /**
@@ -466,6 +469,7 @@ class MenuResolverService
         $menuItems = $this->injectBillingReportsMenu($menuItems, $tenantId);
         $menuItems = $this->injectTsBillingMenu($menuItems, $tenantId);
         $menuItems = $this->injectFse2Menu($menuItems, $tenantId);
+        $menuItems = $this->injectPacsMenu($menuItems, $tenantId);
         $menuItems = $this->injectBillingDocumentSettingsMenu($menuItems, $tenantId);
 
         return $this->reorderOperationalMenuItems($menuItems);
@@ -559,6 +563,21 @@ class MenuResolverService
         return $menuItems;
     }
 
+    /** @param list<array<string,mixed>> $menuItems @return list<array<string,mixed>> */
+    private function injectPacsMenu(array $menuItems, int $tenantId): array
+    {
+        // Rebuild the entry on every request so revocation removes cached links too.
+        $menuItems = array_values(array_filter($menuItems, fn($row) =>
+            strtolower($this->normalizePath((string) ($row['link'] ?? ''))) !== 'cartella-clinica/diagnostica'));
+        if ($tenantId > 0 && ($this->pacsFeatures ?? new \App\Services\Pacs\PacsFeatureService())->isEnabledForTenant($tenantId)) {
+            $menuItems[] = [
+                'titolo_menu' => 'Lista diagnostica',
+                'link' => 'cartella-clinica/diagnostica',
+                'class_icon' => 'fa-list-alt',
+            ];
+        }
+        return $menuItems;
+    }
     private function injectBillingMenu(array $menuItems, int $tenantId): array
     {
         if (!$this->isAdminBillingFeatureEnabled($tenantId)) {
