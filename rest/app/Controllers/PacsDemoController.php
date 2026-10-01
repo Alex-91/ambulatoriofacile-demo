@@ -48,4 +48,37 @@ class PacsDemoController extends PacsController
             return $this->privateResponse()->setHeader('Content-Type','image/png')->setBody(file_get_contents(APPPATH.'Resources/pacs-demo/'.sprintf('%02d',$number).'.png'));
         } catch (\Throwable $e) { return $this->failure($e); }
     }
-}
+    private function trialService(): \App\Services\Pacs\PacsTrialService
+    {
+        return new \App\Services\Pacs\PacsTrialService(WRITEPATH.'pacs-trial',4,(int)(session()->get('utente_sess')->id_user??0));
+    }
+    public function orders()
+    {
+        try {
+            $tenant=$this->demoContext();$service=$this->trialService();$orders=$service->listing();
+            $id=(string)$this->request->getGet('order');$selected=$id!==''?$service->read($id):null;
+            $catalog=\App\Services\Pacs\PacsTrialService::catalog();$stations=\App\Services\Pacs\PacsTrialService::stations();
+            $requestKey=bin2hex(random_bytes(16));
+            return $this->privateResponse()->setBody(view('clinical/pacs_trial',compact('tenant','orders','selected','catalog','stations','requestKey'),['saveData'=>false]));
+        } catch (\Throwable $e) { return $this->failure($e); }
+    }
+    public function saveOrder()
+    {
+        try {
+            $this->postOnly();$this->demoContext();$s=$this->trialService();
+            $action=(string)$this->request->getPost('action');$id=(string)$this->request->getPost('order');
+            if ($action==='create') $id=$s->create((array)$this->request->getPost(),(string)$this->request->getPost('request_key'));
+            else $s->change($id,(int)$this->request->getPost('revision'),$action,(string)$this->request->getPost('report'));
+            return redirect()->to(site_url('cartella-clinica/demo-pacs/richieste').'?order='.$id)->with('success','Operazione di prova salvata.')->setHeader('Cache-Control','no-store, private');
+        } catch (\Throwable $e) {
+            return redirect()->to(site_url('cartella-clinica/demo-pacs/richieste'))->with('error',$e instanceof PacsException?$e->getMessage():'Operazione di prova non riuscita.')->setHeader('Cache-Control','no-store, private');
+        }
+    }
+    public function exportOrder()
+    {
+        try {
+            $this->postOnly();$this->demoContext();$format=(string)$this->request->getPost('format');
+            $bytes=$this->trialService()->export((string)$this->request->getPost('order'),(int)$this->request->getPost('revision'),$format);
+            return $this->privateResponse()->setHeader('Content-Type',$format==='json'?'application/dicom+json':'application/dicom')->setHeader('Content-Disposition','attachment; filename="worklist-DEMO.'.$format.'"')->setBody($bytes);
+        } catch (\Throwable $e) { return $this->failure($e); }
+    }}

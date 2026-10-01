@@ -166,6 +166,20 @@ $billingGroupActive=$billingGroupActive && $registryActiveLabel==='';
         </details>
       </li>
       <?php endif ?>
+      <?php
+      $pacsAvailable=(bool)array_filter($menu_items,static fn($row)=>\App\Services\Pacs\PacsNavigation::owns((string)($row['link']??'')));
+      if ($pacsAvailable):
+          $pacsLinks=\App\Services\Pacs\PacsNavigation::links((int)($resolvedSidebar['tenant_id']??0),session_has_tenant_master_access());
+          $pacsActive='';
+          foreach($pacsLinks as $label=>$route) if ($currentPath===strtolower($normalizePath(site_url($route)))) $pacsActive=$label;
+      ?>
+      <li><details class="billing-menu-group" <?= $pacsActive!==''?'open':'' ?>>
+        <summary><i class="fa fa-picture-o" aria-hidden="true"></i><span>PACS / DICOM</span><span class="billing-menu-chevron" aria-hidden="true">›</span></summary>
+        <nav aria-label="Sezioni PACS DICOM"><ul class="nav nav-pills nav-stacked">
+        <?php foreach($pacsLinks as $label=>$route): ?><li class="<?= $pacsActive===$label?'active':'' ?>"><a href="<?= esc(site_url($route)) ?>" <?= $pacsActive===$label?'aria-current="page"':'' ?>><?= esc($label) ?></a></li><?php endforeach ?>
+        </ul></nav>
+      </details></li>
+      <?php endif ?>
       <?php foreach ($menu_items as $menu): ?>
         <?php
           $menuLink = trim((string) ($menu['link'] ?? ''));
@@ -173,7 +187,7 @@ $billingGroupActive=$billingGroupActive && $registryActiveLabel==='';
           if ($normalizedMenuLink === '' || $normalizedMenuLink === 'logout' || $normalizedMenuLink === 'admin/personale/logout') {
               continue;
           }
-          if ($isLocationsMenu($menuLink)) continue;
+          if ($isLocationsMenu($menuLink) || \App\Services\Pacs\PacsNavigation::owns($normalizedMenuLink)) continue;
 
           if ($isTsMenu($menuLink)) {
               if (!$tsGroupRendered) {

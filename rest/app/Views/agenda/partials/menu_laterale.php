@@ -173,27 +173,27 @@ try {
     if ($diagnosticTenantId<=0) $diagnosticTenantId=(int)((new \App\Services\TenantCatalogService())->resolveCurrentRuntimeTenant()['id_tenant'] ?? 0);
     $diagnosticQueueEnabled=(new \App\Services\Pacs\PacsFeatureService())->isEnabledForTenant($diagnosticTenantId);
 } catch (\Throwable) { $diagnosticQueueEnabled=false; }
-if (!$diagnosticQueueEnabled) {
-    $hideDiagnosticQueue=static function(array $nodes) use (&$hideDiagnosticQueue): array {
-        $filtered=[];
-        foreach ($nodes as $node) {
-            if (trim((string)agenda_menu_get_value_shared($node,'rotta',''),'/')==='cartella-clinica/diagnostica') continue;
-            $children=agenda_menu_children_from_node_shared($node);
-            if ($children) {
-                if (is_object($node)) { $node=clone $node; $node->children=$hideDiagnosticQueue($children); }
-                else $node['children']=$hideDiagnosticQueue($children);
-            }
-            $filtered[]=$node;
+$hidePacsNodes=static function(array $nodes) use (&$hidePacsNodes): array {
+    $filtered=[];
+    foreach($nodes as $node) {
+        if (\App\Services\Pacs\PacsNavigation::owns((string)agenda_menu_get_value_shared($node,'rotta','')) || agenda_menu_get_value_shared($node,'id_menu','')==='-904') continue;
+        $children=agenda_menu_children_from_node_shared($node);
+        if ($children) {
+            if (is_object($node)) {$node=clone $node;$node->children=$hidePacsNodes($children);}
+            else $node['children']=$hidePacsNodes($children);
         }
-        return $filtered;
-    };
-    $menuTree=$hideDiagnosticQueue($menuTree);
+        $filtered[]=$node;
+    }
+    return $filtered;
+};
+$menuTree=$hidePacsNodes($menuTree);
+if ($diagnosticQueueEnabled) {
+    helper('session_auth');$pacsChildren=[];
+    foreach(\App\Services\Pacs\PacsNavigation::links($diagnosticTenantId,session_has_tenant_master_access()) as $label=>$route) {
+        $pacsChildren[]=['id_menu'=>'pacs_'.md5($route),'id_menu_padre'=>'-904','tipo_voce'=>'ITEM','label_menu'=>$label,'icona'=>'fa fa-angle-right','rotta'=>$route,'children'=>[]];
+    }
+    $menuTree[]=['id_menu'=>'-904','id_menu_padre'=>0,'tipo_voce'=>'MENU','label_menu'=>'PACS / DICOM','icona'=>'fa fa-picture-o','rotta'=>'#','children'=>$pacsChildren];
 }
-if ($diagnosticQueueEnabled && !agenda_menu_has_route_shared($menuTree,'cartella-clinica/diagnostica')) {
-    $menuTree[]=['id_menu'=>'codex_diagnostica','id_menu_padre'=>0,'tipo_voce'=>'ITEM',
-        'label_menu'=>'Lista diagnostica','icona'=>'fa fa-list-alt','rotta'=>'cartella-clinica/diagnostica','children'=>[]];
-}
-
 if ($visitTypesFeatureEnabledResolved && !agenda_menu_has_route_shared($menuTree, 'agenda/gestione-tipi-visita')) {
     $menuTree[] = [
         'id_menu' => 'codex_tipi_visita',
