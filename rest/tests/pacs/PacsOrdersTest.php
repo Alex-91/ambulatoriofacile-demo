@@ -15,7 +15,7 @@ final class PacsOrdersTest extends CIUnitTestCase
     private MemoryPacsTransport $transport;
     private int $lookupCalls=0;
     private int $changeOnLookup=0;
-    private array $patient=['patient_last_name'=>'SINTÈTICO','patient_first_name'=>'PAZIENTE','patient_birth_date'=>'1980-01-01'];
+    private array $patient=['patient_last_name'=>'SINTÃˆTICO','patient_first_name'=>'PAZIENTE','patient_birth_date'=>'1980-01-01'];
     protected function setUp(): void
     {
         parent::setUp();
@@ -60,6 +60,33 @@ final class PacsOrdersTest extends CIUnitTestCase
         });
         return new PacsOrderService($this->db,$tenant,$user,$this->pacs($user,$tenant),$this->gate,$patients);
     }
+    public function testPatientSelectionIsTenantScopedAndFiltersCareRelationships(): void
+    {
+        $lookup=$this->getMockBuilder(TenantPatientLookupService::class)->disableOriginalConstructor()->onlyMethods(['searchPatientsForTenant'])->getMock();
+        $lookup->expects($this->once())->method('searchPatientsForTenant')->with(42,'Sintetico',20)->willReturn([
+            ['id_client'=>100,'patient_name'=>'Sintetico autorizzato','patient_birth_date'=>'1980-01-01','patient_tax_code'=>'TEST','patient_email'=>'not-exposed'],
+            ['id_client'=>200,'patient_name'=>'Altro medico'],
+            ['id_client'=>999,'patient_name'=>'Inesistente'],
+        ]);
+        $service=new PacsOrderService($this->db,42,1,$this->pacs(),$this->gate,$lookup);
+        $this->assertSame([], $service->selectablePatients('x')['patients']);
+        $result=$service->selectablePatients('Sintetico');
+        $this->assertTrue($result['doctor']);$this->assertCount(1,$result['patients']);
+        $this->assertSame(100,$result['patients'][0]['id_client']);
+        $this->assertArrayNotHasKey('patient_email',$result['patients'][0]);
+    }
+    public function testPatientSelectionDoesNotQueryForNonDoctorsOrDisabledFeature(): void
+    {
+        $lookup=$this->getMockBuilder(TenantPatientLookupService::class)->disableOriginalConstructor()->onlyMethods(['searchPatientsForTenant'])->getMock();
+        $lookup->expects($this->never())->method('searchPatientsForTenant');
+        foreach ([3,4] as $user) {
+            $service=new PacsOrderService($this->db,42,$user,$this->pacs($user),$this->gate,$lookup);
+            $this->assertSame(['doctor'=>false,'patients'=>[]],$service->selectablePatients('Sintetico'));
+        }
+        $this->gate->enabled=false;
+        $service=new PacsOrderService($this->db,42,1,$this->pacs(),$this->gate,$lookup);
+        $this->denied(fn()=>$service->selectablePatients('Sintetico'));
+    }
     private function input(): array
     { return ['description'=>'TC sintetica','procedure_code'=>'LAB-CT','coding_scheme'=>'99AFLAB','modality'=>'CT','station_ae'=>'FINDSCU','scheduled_at'=>'2026-09-20T10:30','reason'=>'Nota interna riservata']; }
     private function create(): array
@@ -79,7 +106,7 @@ final class PacsOrdersTest extends CIUnitTestCase
         $this->assertSame(1,$this->db->table('pacs_orders')->countAllResults());
         $raw=$this->db->table('pacs_orders')->get()->getRowArray();
         $this->assertStringNotContainsString('TC sintetica',$raw['payload_enc']);
-        $this->assertStringNotContainsString('SINTÈTICO',$raw['payload_enc']);
+        $this->assertStringNotContainsString('SINTÃˆTICO',$raw['payload_enc']);
         $this->assertMatchesRegularExpression('/^AF[A-F0-9]{14}$/',$raw['accession']);
         $this->assertLessThanOrEqual(64,strlen($raw['study_uid']));
         $this->denied(fn()=>$s->export(100,$id,1,'dicom'));
@@ -111,7 +138,7 @@ final class PacsOrdersTest extends CIUnitTestCase
         $json=$s->export(100,$id,2,'json'); $data=json_decode($json['bytes'],true,32,JSON_THROW_ON_ERROR);
         $this->assertSame('P-100',$data['00100020']['Value'][0]);
         $this->assertSame('TEST-HOSPITAL',$data['00100021']['Value'][0]);
-        $this->assertSame('SINTÈTICO^PAZIENTE',$data['00100010']['Value'][0]['Alphabetic']);
+        $this->assertSame('SINTÃˆTICO^PAZIENTE',$data['00100010']['Value'][0]['Alphabetic']);
         $this->assertSame('19800101',$data['00100030']['Value'][0]);
         $step=$data['00400100']['Value'][0];
         $this->assertSame('CT',$step['00080060']['Value'][0]);
@@ -123,7 +150,7 @@ final class PacsOrdersTest extends CIUnitTestCase
         $this->denied(fn()=>$s->cancel(100,$id,2));
         $file=$s->export(100,$id,3,'dicom');
         $this->assertSame('DICM',substr($file['bytes'],128,4));
-        $this->assertStringContainsString('SINTÈTICO^PAZIENTE',$file['bytes']);
+        $this->assertStringContainsString('SINTÃˆTICO^PAZIENTE',$file['bytes']);
         $this->assertSame('ready',$s->read(100,$id)['state']);
         $this->assertSame(hash('sha256',$file['bytes']),$s->read(100,$id)['last_export_sha256']);
         $s->cancel(100,$id,4);
@@ -161,7 +188,7 @@ final class PacsOrdersTest extends CIUnitTestCase
         $this->patient['patient_first_name']='CORRETTO';
         $this->denied(fn()=>$s->approve(100,$id,1,true));
         $s->update(100,$id,['patient_first_name'=>'SPOOFED','patient_name'=>'SPOOFED']+$this->input(),1);
-        $this->assertSame('SINTÈTICO^CORRETTO',$s->read(100,$id)['payload']['patient_name']);
+        $this->assertSame('SINTÃˆTICO^CORRETTO',$s->read(100,$id)['payload']['patient_name']);
         $s->approve(100,$id,2,true);
         $this->patient['patient_birth_date']='1981-01-01';
         $this->denied(fn()=>$s->export(100,$id,3,'dicom'));
@@ -225,6 +252,6 @@ final class PacsOrdersTest extends CIUnitTestCase
         $file=$s->export(100,$id,2,'dicom');
         $this->assertNotFalse(file_put_contents($root.'/worklists/af-synthetic.wl',$file['bytes']));
         $row=$s->read(100,$id);
-        file_put_contents($root.'/worklist-expected.json',json_encode(['accession'=>$row['accession'],'study_uid'=>$row['study_uid'],'patient_id'=>'P-100','issuer'=>'TEST-HOSPITAL','patient_name'=>'SINTÈTICO^PAZIENTE'],JSON_THROW_ON_ERROR));
+        file_put_contents($root.'/worklist-expected.json',json_encode(['accession'=>$row['accession'],'study_uid'=>$row['study_uid'],'patient_id'=>'P-100','issuer'=>'TEST-HOSPITAL','patient_name'=>'SINTÃˆTICO^PAZIENTE'],JSON_THROW_ON_ERROR));
     }
 }

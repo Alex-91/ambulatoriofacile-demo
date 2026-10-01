@@ -9,6 +9,15 @@ class PacsOrdersController extends PacsController
         [$pacs,$tenant]=$this->context();
         return [$pacs->orders(),$pacs,$tenant];
     }
+    public function selectPatient()
+    {
+        try {
+            [$orders,,$tenant]=$this->ordersContext();
+            $term=trim((string)$this->request->getPost('patient_search'));
+            $selection=$orders->selectablePatients($term);
+            return $this->privateResponse()->setBody(view('clinical/pacs_patient_selection',compact('selection','term','tenant'),['saveData'=>false]));
+        } catch (\Throwable $e) { return $this->failure($e); }
+    }
     public function index(int $patientId)
     {
         try {

@@ -22,6 +22,22 @@ class PacsOrderService
         $this->pacs ??=new PacsService($db,$tenantId,$userId);
         $this->patients ??=new TenantPatientLookupService();
     }
+    /** Search only within the active tenant and the doctor's care relationships. */
+    public function selectablePatients(string $term): array
+    {
+        $this->features->assertEnabled($this->tenantId);
+        $actor=$this->access->actor();
+        if ($actor['role']!==1) return ['doctor'=>false,'patients'=>[]];
+        $term=trim($term);
+        if (mb_strlen($term)<2 || mb_strlen($term)>100) return ['doctor'=>true,'patients'=>[]];
+        $patients=[];
+        foreach ($this->patients->searchPatientsForTenant($this->tenantId,$term,20) as $patient) {
+            try { $this->access->assertDoctor((int)$patient['id_client']); }
+            catch (\RuntimeException) { continue; }
+            $patients[]=array_intersect_key($patient,array_flip(['id_client','patient_name','patient_birth_date','patient_tax_code']));
+        }
+        return ['doctor'=>true,'patients'=>$patients];
+    }
     private function guard(int $patientId,bool $doctor=false): void
     {
         $this->features->assertEnabled($this->tenantId);

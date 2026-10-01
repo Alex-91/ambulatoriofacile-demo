@@ -10,6 +10,7 @@ final class PacsNavigation
             $links['Richieste di prova']='cartella-clinica/demo-pacs/richieste';
             $links['Immagini dimostrative']='cartella-clinica/demo-pacs';
         }
+        $links['Nuova richiesta']='cartella-clinica/diagnostica/nuova-richiesta';
         $links['Lista diagnostica']='cartella-clinica/diagnostica';
         if ($master) {
             $links['Verifica collegamenti']='cartella-clinica/diagnostica/collegamenti';

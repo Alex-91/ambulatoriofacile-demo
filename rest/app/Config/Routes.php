@@ -601,6 +601,8 @@ $routes->get('agenda/get-nota-giorno', 'Agenda::getNotaGiorno');
 $routes->post('agenda/salva-nota-giorno', 'Agenda::salvaNotaGiorno');
 $routes->get('agenda/gestione-pazienti', 'Agenda::gestionePazienti');
 $routes->get('cartella-clinica/pazienti/(:num)', 'ClinicalRecords::patient/$1');
+$routes->get('cartella-clinica/diagnostica/nuova-richiesta', 'PacsOrdersController::selectPatient');
+$routes->post('cartella-clinica/diagnostica/nuova-richiesta', 'PacsOrdersController::selectPatient');
 $routes->get('cartella-clinica/diagnostica', 'PacsOrdersController::queue');
 $routes->get('cartella-clinica/pazienti/(:num)/pacs', 'PacsController::patient/$1');
 $routes->get('admin/amministrazione', 'AdministrationController::index');

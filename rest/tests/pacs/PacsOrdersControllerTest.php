@@ -31,6 +31,20 @@ final class PacsOrdersControllerTest extends CIUnitTestCase
             $this->assertContains('clinicalcsrf',$active['before']); $this->assertContains('clinicalcsrf',$active['after']);
         }
     }
+    public function testPatientSelectionEscapesResultsAndUsesPatientRequestRoute(): void
+    {
+        $s=$this->getMockBuilder(PacsOrderService::class)->disableOriginalConstructor()->onlyMethods(['selectablePatients'])->getMock();
+        $s->expects($this->once())->method('selectablePatients')->with('Demo')->willReturn(['doctor'=>true,'patients'=>[
+            ['id_client'=>100,'patient_name'=>'Demo <script>','patient_birth_date'=>'1980-01-01','patient_tax_code'=>'SYNTHETIC']
+        ]]);
+        InjectedOrdersController::$orders=$s;
+        $this->request->setMethod('POST')->setGlobal('post',['patient_search'=>'Demo']);
+        $r=$this->controller(InjectedOrdersController::class)->execute('selectPatient');
+        $r->assertStatus(200);$body=$r->response()->getBody();
+        $this->assertStringContainsString('Demo &lt;script&gt;',$body);
+        $this->assertStringContainsString('pazienti/100/pacs/richieste',$body);
+        $this->assertStringNotContainsString('Demo <script>',$body);
+    }
     public function testMutationsArePostOnlyEvenWhenCalledDirectly(): void
     {
         InjectedOrdersController::$orders=$this->getMockBuilder(PacsOrderService::class)->disableOriginalConstructor()->getMock();

@@ -8,6 +8,14 @@ final class PacsTrialService
     {
         if ($tenantId!==4 || $userId<=0) throw new PacsException('Spazio di prova non disponibile.');
     }
+    public static function patients(): array
+    {
+        return [
+            'demo-pacs'=>['patient_last_name'=>'DEMO','patient_first_name'=>'PACS SINTETICO','patient_birth_date'=>'1980-01-01','pacs_id'=>'AF-DEMO-20261001'],
+            'demo-alfa'=>['patient_last_name'=>'DEMO','patient_first_name'=>'ALFA','patient_birth_date'=>'1975-06-15','pacs_id'=>'AF-DEMO-ALFA'],
+            'demo-beta'=>['patient_last_name'=>'DEMO','patient_first_name'=>'BETA','patient_birth_date'=>'1990-11-20','pacs_id'=>'AF-DEMO-BETA'],
+        ];
+    }
     public static function catalog(): array
     {
         return [
@@ -66,13 +74,15 @@ final class PacsTrialService
         $exam=self::catalog()[(string)($input['exam']??'')]??null;
         $station=self::stations()[(string)($input['station']??'')]??null;
         if (!$exam || !$station || $exam['modality']!==$station['modality']) throw new PacsException('Scegliere un esame e un’apparecchiatura compatibili.');
+        $patient=self::patients()[(string)($input['patient']??'demo-pacs')]??null;
+        if (!$patient) throw new PacsException('Selezionare un paziente di prova valido.');
         $payload=ModalityWorklist::payload([
             'description'=>$exam['label'].' DEMO','procedure_code'=>$exam['code'],'coding_scheme'=>'AF-DEMO',
             'modality'=>$exam['modality'],'station_ae'=>(string)$input['station'],
             'scheduled_at'=>$input['scheduled_at']??'','reason'=>$input['reason']??'',
-        ],['patient_last_name'=>'DEMO','patient_first_name'=>'PACS SINTETICO','patient_birth_date'=>'1980-01-01']);
+        ],$patient);
         $hash=hash('sha256',json_encode($payload,JSON_THROW_ON_ERROR));
-        return $this->store(function(array &$rows) use($payload,$hash,$key): string {
+        return $this->store(function(array &$rows) use($payload,$hash,$key,$patient): string {
             foreach ($rows as $row) if ($row['request_key']===$key) {
                 if (!hash_equals($row['input_hash'],$hash)) throw new PacsException('Modulo già salvato con dati diversi.');
                 return $row['id'];
@@ -81,7 +91,7 @@ final class PacsTrialService
             $id=bin2hex(random_bytes(16));
             $row=['id'=>$id,'request_key'=>$key,'input_hash'=>$hash,'accession'=>'DM'.strtoupper(bin2hex(random_bytes(7))),
                 'study_uid'=>ModalityWorklist::uid($id),'payload'=>$payload,'state'=>'draft','revision'=>1,'history'=>[],
-                'identity'=>['patient_id'=>'AF-DEMO-20261001','issuer'=>'AF-DEMO'],'report'=>''];
+                'identity'=>['patient_id'=>$patient['pacs_id'],'issuer'=>'AF-DEMO'],'report'=>''];
             $this->event($row,'Bozza salvata');$rows[$id]=$row;return $id;
         },true);
     }

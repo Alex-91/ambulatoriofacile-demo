@@ -30,8 +30,14 @@ try {
  $r=$s->change($id,6,'complete');check($r['state']==='performed');
  $r=$s->change($id,7,'report','Referto interamente sintetico');check($r['report']==='Referto interamente sintetico');check(count($r['history'])===8);
  $id2=$s->create($input,bin2hex(random_bytes(16)));check($id2!==$id);check($s->change($id2,1,'cancel')['state']==='cancelled');rejects(fn()=>$s->change($id2,2,'confirm'));
- check(count(PacsNavigation::links(4,true))===5);check(count(PacsNavigation::links(5,true))===3);check(count(PacsNavigation::links(4,false))===1);
+ check(count(PacsNavigation::links(4,true))===6);check(count(PacsNavigation::links(5,true))===4);check(count(PacsNavigation::links(4,false))===2);
  check(PacsNavigation::owns('cartella-clinica/demo-pacs/richieste'));check(!PacsNavigation::owns('cartella-clinica/pazienti/1'));
+ rejects(fn()=>$s->create(array_replace($input,['patient'=>'not-a-patient']),bin2hex(random_bytes(16))));
+ $other=$s->create(array_replace($input,['patient'=>'demo-alfa']),bin2hex(random_bytes(16)));
+ $otherRow=$s->read($other);check($otherRow['payload']['patient_name']==='DEMO^ALFA');check($otherRow['identity']['patient_id']==='AF-DEMO-ALFA');
+ $s->change($other,1,'confirm');$otherData=json_decode($s->export($other,2,'json'),true);
+ check($otherData['00100020']['Value'][0]==='AF-DEMO-ALFA');check($otherData['00100030']['Value'][0]==='19750615');
+ rejects(fn()=>$s->create(array_replace($input,['patient'=>'demo-beta']),$key));
  echo "PASS: $count assertions (storage, isolation, states, stale updates, idempotency, MWL, navigation)\n";
 } finally {
  if(is_dir($dir)) { $it=new RecursiveIteratorIterator(new RecursiveDirectoryIterator($dir,FilesystemIterator::SKIP_DOTS),RecursiveIteratorIterator::CHILD_FIRST);foreach($it as $f){$f->isDir()?rmdir($f->getPathname()):unlink($f->getPathname());}rmdir($dir); }

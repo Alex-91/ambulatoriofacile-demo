@@ -5,6 +5,8 @@ $base=PHP_OS_FAMILY==='Linux' ? sys_get_temp_dir().'/af-pacs-tests' : $repo.'/re
 $run=$base.'/run-'.bin2hex(random_bytes(8)).'/';
 foreach (['','cache','logs','session'] as $dir) if (!is_dir($run.$dir)) mkdir($run.$dir,0700,true);
 define('WRITEPATH',$run);
+// Shared UI assets live at the repository web root.
+define('FCPATH',$repo.DIRECTORY_SEPARATOR);
 require $repo.'/rest/vendor/autoload.php';
 require $repo.'/vendor/autoload.php';
 require $repo.'/ops/fse-validation/php-bootstrap.php';
