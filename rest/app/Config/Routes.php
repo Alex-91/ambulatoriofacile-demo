@@ -672,6 +672,8 @@ $routes->get('agenda/gestione-sms-appuntamenti', 'Agenda::gestioneSmsAppuntament
 $routes->post('agenda/salva-sms-appuntamenti', 'Agenda::salvaSmsAppuntamenti');
 $routes->post('agenda/disattiva-sms-appuntamenti', 'Agenda::disattivaSmsAppuntamenti');
 
+$routes->post('cartella-clinica/pazienti/(:num)/pacs-demo', 'PacsDemoController::savePatientOrder/$1');
+$routes->post('cartella-clinica/pazienti/(:num)/pacs-demo/worklist', 'PacsDemoController::exportPatientOrder/$1');
 $routes->get('cartella-clinica/demo-pacs/cartella', 'PacsDemoController::chart');
 $routes->get('cartella-clinica/demo-pacs/cartella/immagini/(:num)', 'PacsDemoController::chartImage/$1');
 $routes->get('cartella-clinica/demo-pacs', 'PacsDemoController::index');

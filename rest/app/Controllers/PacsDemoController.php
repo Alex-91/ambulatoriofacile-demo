@@ -84,6 +84,35 @@ class PacsDemoController extends PacsController
             return $this->privateResponse()->setHeader('Content-Type','image/png')->setBody(file_get_contents(APPPATH.'Resources/pacs-demo/'.sprintf('%02d',$number).'.png'));
         } catch (\Throwable $e) { return $this->failure($e); }
     }
+    private function patientDemoContext(int $patientId): array
+    {
+        $tenant=$this->demoContext();
+        $db=(new TenantDatabaseConnector())->connect($tenant);
+        $user=(int)(session()->get('utente_sess')->id_user??0);
+        (new ClinicalAccessPolicy($db,$user,4))->assertPatient($patientId,false);
+        return $tenant;
+    }
+    public function savePatientOrder(int $patientId)
+    {
+        $return=site_url('cartella-clinica/pazienti/'.$patientId);
+        try {
+            $this->postOnly();$this->patientDemoContext($patientId);$service=$this->trialService();
+            $action=(string)$this->request->getPost('action');$id=(string)$this->request->getPost('order');
+            if ($action==='create') $id=$service->create((array)$this->request->getPost(),(string)$this->request->getPost('request_key'),$patientId);
+            else $service->changeForPatient($patientId,$id,(int)$this->request->getPost('revision'),$action,(string)$this->request->getPost('report'));
+            return redirect()->to($return.'?demo_order='.$id.'#pacs-demo')->with('success','Esame di prova salvato nella sezione demo di questa cartella.')->setHeader('Cache-Control','no-store, private');
+        } catch (\Throwable $e) {
+            return redirect()->to($return.'#pacs-demo')->with('error',$e instanceof PacsException?$e->getMessage():'Operazione demo non disponibile.')->setHeader('Cache-Control','no-store, private');
+        }
+    }
+    public function exportPatientOrder(int $patientId)
+    {
+        try {
+            $this->postOnly();$this->patientDemoContext($patientId);$format=(string)$this->request->getPost('format');
+            $bytes=$this->trialService()->exportForPatient($patientId,(string)$this->request->getPost('order'),(int)$this->request->getPost('revision'),$format);
+            return $this->privateResponse()->setHeader('Content-Type',$format==='json'?'application/dicom+json':'application/dicom')->setHeader('Content-Disposition','attachment; filename="worklist-DEMO.'.$format.'"')->setBody($bytes);
+        } catch (\Throwable $e) { return $this->failure($e); }
+    }
     private function trialService(): \App\Services\Pacs\PacsTrialService
     {
         return new \App\Services\Pacs\PacsTrialService(WRITEPATH.'pacs-trial',4,(int)(session()->get('utente_sess')->id_user??0));
@@ -91,8 +120,9 @@ class PacsDemoController extends PacsController
     public function orders()
     {
         try {
-            $tenant=$this->demoContext();$service=$this->trialService();$orders=$service->listing();
+            $tenant=$this->demoContext();$service=$this->trialService();$orders=array_values(array_filter($service->listing(),static fn($row)=>empty($row['source_patient_id'])));
             $id=(string)$this->request->getGet('order');$selected=$id!==''?$service->read($id):null;
+            if (!empty($selected['source_patient_id'])) { $pid=(int)$selected['source_patient_id'];$this->patientDemoContext($pid);return redirect()->to(site_url('cartella-clinica/pazienti/'.$pid).'?demo_order='.$id.'#pacs-demo'); }
             $catalog=\App\Services\Pacs\PacsTrialService::catalog();$stations=\App\Services\Pacs\PacsTrialService::stations();
             $requestKey=bin2hex(random_bytes(16));
             return $this->privateResponse()->setBody(view('clinical/pacs_trial',compact('tenant','orders','selected','catalog','stations','requestKey'),['saveData'=>false]));
@@ -104,7 +134,7 @@ class PacsDemoController extends PacsController
             $this->postOnly();$this->demoContext();$s=$this->trialService();
             $action=(string)$this->request->getPost('action');$id=(string)$this->request->getPost('order');
             if ($action==='create') $id=$s->create((array)$this->request->getPost(),(string)$this->request->getPost('request_key'));
-            else $s->change($id,(int)$this->request->getPost('revision'),$action,(string)$this->request->getPost('report'));
+            else { if (!empty($s->read($id)['source_patient_id'])) throw new PacsException('Aprire questa prova dalla cartella del paziente.');$s->change($id,(int)$this->request->getPost('revision'),$action,(string)$this->request->getPost('report')); }
             return redirect()->to(site_url('cartella-clinica/demo-pacs/richieste').'?order='.$id)->with('success','Operazione di prova salvata.')->setHeader('Cache-Control','no-store, private');
         } catch (\Throwable $e) {
             return redirect()->to(site_url('cartella-clinica/demo-pacs/richieste'))->with('error',$e instanceof PacsException?$e->getMessage():'Operazione di prova non riuscita.')->setHeader('Cache-Control','no-store, private');
@@ -114,6 +144,7 @@ class PacsDemoController extends PacsController
     {
         try {
             $this->postOnly();$this->demoContext();$format=(string)$this->request->getPost('format');
+            if (!empty($this->trialService()->read((string)$this->request->getPost('order'))['source_patient_id'])) throw new PacsException('Esportare questa prova dalla cartella del paziente.');
             $bytes=$this->trialService()->export((string)$this->request->getPost('order'),(int)$this->request->getPost('revision'),$format);
             return $this->privateResponse()->setHeader('Content-Type',$format==='json'?'application/dicom+json':'application/dicom')->setHeader('Content-Disposition','attachment; filename="worklist-DEMO.'.$format.'"')->setBody($bytes);
         } catch (\Throwable $e) { return $this->failure($e); }

@@ -38,6 +38,17 @@ try {
  $s->change($other,1,'confirm');$otherData=json_decode($s->export($other,2,'json'),true);
  check($otherData['00100020']['Value'][0]==='AF-DEMO-ALFA');check($otherData['00100030']['Value'][0]==='19750615');
  rejects(fn()=>$s->create(array_replace($input,['patient'=>'demo-beta']),$key));
+ $chartId=$s->create($input,bin2hex(random_bytes(16)),100);
+ check(count($s->listingForPatient(100))===1);check($s->listingForPatient(200)===[]);
+ rejects(fn()=>$s->readForPatient(200,$chartId));rejects(fn()=>$s->changeForPatient(200,$chartId,1,'confirm'));
+ rejects(fn()=>$s->exportForPatient(200,$chartId,1,'json'));
+ $chartRow=$s->readForPatient(100,$chartId);check($chartRow['identity']['patient_id']==='AF-DEMO-CHART-100');
+ rejects(fn()=>$s->changeForPatient(100,$chartId,1,'images'));
+ foreach([[1,'confirm'],[2,'accept'],[3,'start'],[4,'complete'],[5,'images']] as [$rev,$action]) $s->changeForPatient(100,$chartId,$rev,$action);
+ check($s->readForPatient(100,$chartId)['sample_images']===true);
+ $s->changeForPatient(100,$chartId,6,'report','REFERTO DEMO');
+ check($s->listingForPatient(100)[0]['report']==='REFERTO DEMO');
+ rejects(fn()=>$s->changeForPatient(100,$chartId,7,'images'));
  echo "PASS: $count assertions (storage, isolation, states, stale updates, idempotency, MWL, navigation)\n";
 } finally {
  if(is_dir($dir)) { $it=new RecursiveIteratorIterator(new RecursiveDirectoryIterator($dir,FilesystemIterator::SKIP_DOTS),RecursiveIteratorIterator::CHILD_FIRST);foreach($it as $f){$f->isDir()?rmdir($f->getPathname()):unlink($f->getPathname());}rmdir($dir); }

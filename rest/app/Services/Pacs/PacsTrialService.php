@@ -68,7 +68,19 @@ final class PacsTrialService
     }
     private function event(array &$row,string $action): void
     { $row['history'][]=['action'=>$action,'at'=>gmdate('c'),'user'=>$this->userId]; }
-    public function create(array $input,string $key): string
+    public function listingForPatient(int $patientId): array
+    { return array_values(array_filter($this->listing(),static fn($row)=>(int)($row['source_patient_id']??0)===$patientId && $patientId>0)); }
+    public function readForPatient(int $patientId,string $id): array
+    {
+        $row=$this->read($id);
+        if ($patientId<=0 || (int)($row['source_patient_id']??0)!==$patientId) throw new PacsException('Richiesta di prova non disponibile per questo paziente.');
+        return $row;
+    }
+    public function changeForPatient(int $patientId,string $id,int $revision,string $action,string $report=''): array
+    { $this->readForPatient($patientId,$id);return $this->change($id,$revision,$action,$report); }
+    public function exportForPatient(int $patientId,string $id,int $revision,string $format): string
+    { $this->readForPatient($patientId,$id);return $this->export($id,$revision,$format); }
+    public function create(array $input,string $key,int $sourcePatientId=0): string
     {
         if (!preg_match('/^[a-f0-9]{32}$/D',$key)) throw new PacsException('Riaprire il modulo di prova.');
         $exam=self::catalog()[(string)($input['exam']??'')]??null;
@@ -76,20 +88,23 @@ final class PacsTrialService
         if (!$exam || !$station || $exam['modality']!==$station['modality']) throw new PacsException('Scegliere un esame e un’apparecchiatura compatibili.');
         $patient=self::patients()[(string)($input['patient']??'demo-pacs')]??null;
         if (!$patient) throw new PacsException('Selezionare un paziente di prova valido.');
+        if ($sourcePatientId<0) throw new PacsException('Paziente di prova non valido.');
+        // Only a local administrative ID is retained. Clinical demographics never enter the demo export.
+        if ($sourcePatientId>0) $patient=['patient_last_name'=>'DEMO','patient_first_name'=>'PAZIENTE '.$sourcePatientId,'patient_birth_date'=>'1980-01-01','pacs_id'=>'AF-DEMO-CHART-'.$sourcePatientId];
         $payload=ModalityWorklist::payload([
             'description'=>$exam['label'].' DEMO','procedure_code'=>$exam['code'],'coding_scheme'=>'AF-DEMO',
             'modality'=>$exam['modality'],'station_ae'=>(string)$input['station'],
             'scheduled_at'=>$input['scheduled_at']??'','reason'=>$input['reason']??'',
         ],$patient);
         $hash=hash('sha256',json_encode($payload,JSON_THROW_ON_ERROR));
-        return $this->store(function(array &$rows) use($payload,$hash,$key,$patient): string {
+        return $this->store(function(array &$rows) use($payload,$hash,$key,$patient,$sourcePatientId): string {
             foreach ($rows as $row) if ($row['request_key']===$key) {
                 if (!hash_equals($row['input_hash'],$hash)) throw new PacsException('Modulo già salvato con dati diversi.');
                 return $row['id'];
             }
             if (count($rows)>=200) throw new PacsException('Archivio di prova completo: contattare l’assistenza.');
             $id=bin2hex(random_bytes(16));
-            $row=['id'=>$id,'request_key'=>$key,'input_hash'=>$hash,'accession'=>'DM'.strtoupper(bin2hex(random_bytes(7))),
+            $row=['source_patient_id'=>$sourcePatientId,'id'=>$id,'request_key'=>$key,'input_hash'=>$hash,'accession'=>'DM'.strtoupper(bin2hex(random_bytes(7))),
                 'study_uid'=>ModalityWorklist::uid($id),'payload'=>$payload,'state'=>'draft','revision'=>1,'history'=>[],
                 'identity'=>['patient_id'=>$patient['pacs_id'],'issuer'=>'AF-DEMO'],'report'=>''];
             $this->event($row,'Bozza salvata');$rows[$id]=$row;return $id;
@@ -105,6 +120,9 @@ final class PacsTrialService
             if ($action==='cancel') {
                 if (!in_array($row['state'],['draft','ready','accepted'],true)) throw new PacsException('Annullamento non disponibile in questo stato.');
                 $row['state']='cancelled';$label='Richiesta annullata';
+            } elseif ($action==='images') {
+                if ($row['state']!=='performed' || !empty($row['sample_images'])) throw new PacsException('Immagini campione disponibili una sola volta dopo l’esecuzione.');
+                $row['sample_images']=true;$label='Immagini campione aggiunte (simulazione, non risultato clinico)';
             } elseif ($action==='report') {
                 if ($row['state']!=='performed' || mb_strlen(trim($report))<1 || mb_strlen($report)>5000) throw new PacsException('Compilare il referto di prova dopo l’esecuzione (massimo 5000 caratteri).');
                 $row['report']=trim($report);$label='Referto dimostrativo salvato';
