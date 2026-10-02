@@ -48,6 +48,42 @@ class PacsDemoController extends PacsController
             return $this->privateResponse()->setHeader('Content-Type','image/png')->setBody(file_get_contents(APPPATH.'Resources/pacs-demo/'.sprintf('%02d',$number).'.png'));
         } catch (\Throwable $e) { return $this->failure($e); }
     }
+    private function verifiedCase(): array
+    {
+        $case=json_decode(file_get_contents(APPPATH.'Resources/pacs-demo/verified-case.json'),true,64,JSON_THROW_ON_ERROR);
+        if (($case['marker']??'')!=='AF_VERIFIED_SYNTHETIC_CHART_V1'
+            || $case['images']['patient']!=='AF-CASE-20261002' || $case['images']['issuer']!=='AF-DEMO'
+            || $case['images']['study']!==$case['order']['study_uid']
+            || $case['images']['accession']!==$case['order']['accession']
+            || (int)$case['report']['id']!==(int)$case['order']['report_entry_id']) throw new PacsException('Caso sintetico non coerente.');
+        return $case;
+    }
+    public function chart()
+    {
+        try {
+            $tenant=$this->demoContext();$case=$this->verifiedCase();$connected=false;
+            try {
+                $study=$this->client()->verifiedStudy($case['images']['study'],$case['images']['patient'],$case['images']['issuer']);
+                $connected=hash_equals($case['order']['accession'],(string)$study['accession']);
+            } catch (\Throwable) {}
+            return $this->privateResponse()->setBody(view('clinical/pacs_demo_chart',compact('tenant','case','connected'),['saveData'=>false]));
+        } catch (\Throwable $e) { return $this->failure($e); }
+    }
+    public function chartImage(int $number)
+    {
+        try {
+            $this->demoContext();$case=$this->verifiedCase();$m=$case['images'];
+            if ($number<1 || $number>count($m['instances'])) throw new PacsException('Immagine del caso non disponibile.');
+            $client=$this->client();$study=$client->verifiedStudy($m['study'],$m['patient'],$m['issuer']);
+            if (!hash_equals($m['accession'],(string)$study['accession'])) throw new PacsException('Immagini non coerenti con la richiesta.');
+            $file=$client->download($m['study'],$m['series'],$m['instances'][$number-1],$m['patient'],$m['issuer']);
+            if (!hash_equals($m['hashes'][$number-1],hash('sha256',$file['bytes']))) throw new PacsException('Immagine del caso modificata.');
+            $this->demoContext();
+            if ($this->request->getGet('download')==='1') return $this->privateResponse()->setHeader('Content-Type','application/dicom')->setHeader('Content-Disposition','attachment; filename="caso-sintetico-'.sprintf('%02d',$number).'.dcm"')->setBody($file['bytes']);
+            // Same generated pixel phantom, verified against this case's exact DICOM above.
+            return $this->privateResponse()->setHeader('Content-Type','image/png')->setBody(file_get_contents(APPPATH.'Resources/pacs-demo/'.sprintf('%02d',$number).'.png'));
+        } catch (\Throwable $e) { return $this->failure($e); }
+    }
     private function trialService(): \App\Services\Pacs\PacsTrialService
     {
         return new \App\Services\Pacs\PacsTrialService(WRITEPATH.'pacs-trial',4,(int)(session()->get('utente_sess')->id_user??0));

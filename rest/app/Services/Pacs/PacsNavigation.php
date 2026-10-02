@@ -7,6 +7,7 @@ final class PacsNavigation
     {
         $links=[];
         if ($tenantId===4 && $master) {
+            $links['Cartella di prova completa']='cartella-clinica/demo-pacs/cartella';
             $links['Richieste di prova']='cartella-clinica/demo-pacs/richieste';
             $links['Immagini dimostrative']='cartella-clinica/demo-pacs';
         }

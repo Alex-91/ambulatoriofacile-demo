@@ -30,3 +30,11 @@ php ops/pacs-validation/trial-regression.php
 Il menu PACS / DICOM include Nuova richiesta: ricerca anagrafica nello spazio corrente, filtrata dalle relazioni di cura e accessibile ai medici. La selezione apre il percorso richieste già esistente; creazione, identità PACS, conferma, esportazione, avanzamento e referto mantengono i controlli di autorizzazione. La cartella ha un collegamento diretto Nuova richiesta per questo paziente. Nessuna modifica ai ruoli o migrazione.
 
 Il master TEST TEST può scegliere fra tre identità sintetiche in Richieste di prova. Il paziente selezionato è conservato nella richiesta e nella worklist; le immagini campione rimangono indipendenti. Il modulo di prova non legge l’anagrafica reale e non invia ai dispositivi.
+
+## Caso completo verificato (2 ottobre 2026)
+
+`demo-pacs/cartella` mostra al master di tenant 4 una proiezione in sola lettura del caso sintetico prodotto in un SQLite separato. Il caso passa attraverso PacsOrderService (creazione, conferma, export worklist, avanzamenti, linkImages e saveReport) e ClinicalRecordService::patient; non si inseriscono record nei database operativi. Il referto resta bozza, senza firma o invio FSE. Gli identificativi della nuova richiesta vengono usati dal generatore DICOM e dal PACS cloud reale; 16 download WADO sono verificati per SHA256. Le immagini sono consultate online e vincolate al manifest fisso.
+
+La pagina non è la cartella operativa modificabile e non importa le richieste salvate nel precedente modulo di prova. La selezione di pazienti reali resta nel percorso clinico con i permessi esistenti.
+
+Riproduzione: impostare AF_SYNTHETIC_STATE sullo stato privato del laboratorio marcato; eseguire `php ops/pacs-validation/complete-case.php prepare`, `python ops/pacs-validation/seed-complete-case.py <stato-privato>`, poi `php ops/pacs-validation/complete-case.php complete`. Su Windows specificare curl.cainfo con il bundle CA valido, senza disabilitare TLS. Il comando usa soltanto SQLite sotto writable/pacs-complete-case, non carica .env. Il risultato verificato si trova in verified-case.json; chiave e DB rimangono ignorati, non pubblicarli. Il seed ritenta gli stessi UID senza duplicarli. Il PACS usa tmpfs: dopo una ricreazione occorre ricaricare questi oggetti.

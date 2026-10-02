@@ -30,7 +30,7 @@ try {
  $r=$s->change($id,6,'complete');check($r['state']==='performed');
  $r=$s->change($id,7,'report','Referto interamente sintetico');check($r['report']==='Referto interamente sintetico');check(count($r['history'])===8);
  $id2=$s->create($input,bin2hex(random_bytes(16)));check($id2!==$id);check($s->change($id2,1,'cancel')['state']==='cancelled');rejects(fn()=>$s->change($id2,2,'confirm'));
- check(count(PacsNavigation::links(4,true))===6);check(count(PacsNavigation::links(5,true))===4);check(count(PacsNavigation::links(4,false))===2);
+ check(count(PacsNavigation::links(4,true))===7);check(count(PacsNavigation::links(5,true))===4);check(count(PacsNavigation::links(4,false))===2);
  check(PacsNavigation::owns('cartella-clinica/demo-pacs/richieste'));check(!PacsNavigation::owns('cartella-clinica/pazienti/1'));
  rejects(fn()=>$s->create(array_replace($input,['patient'=>'not-a-patient']),bin2hex(random_bytes(16))));
  $other=$s->create(array_replace($input,['patient'=>'demo-alfa']),bin2hex(random_bytes(16)));

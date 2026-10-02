@@ -1,0 +1,151 @@
+{
+  "marker": "AF_VERIFIED_SYNTHETIC_CHART_V1",
+  "verified_at": "2026-10-02T06:45:44+00:00",
+  "patient": {
+    "patient_name": "DEMO PACS COMPLETO",
+    "patient_last_name": "DEMO",
+    "patient_first_name": "PACS COMPLETO",
+    "patient_birth_date": "1980-01-01"
+  },
+  "order": {
+    "id": "b975aac1b6e148ccb3401cad4082448c",
+    "accession": "AF4591D70E48950A",
+    "study_uid": "2.25.246518141309924621240068607794242274444",
+    "state": "ready",
+    "workflow_stage": "performed",
+    "report_entry_id": 1,
+    "study_link_id": "be1f642fcd98d1485bd3234d1e71faf3",
+    "payload": {
+      "patient_name": "DEMO^PACS COMPLETO",
+      "birth_date": "19800101",
+      "sex": "",
+      "description": "Phantom sintetico - percorso completo",
+      "procedure_code": "DEMO-CASE",
+      "coding_scheme": "AF-DEMO",
+      "reason": "Solo collaudo, nessun valore clinico",
+      "modality": "OT",
+      "station_ae": "DEMO_CASE",
+      "scheduled_at": "2026-10-02T10:00",
+      "scheduled_utc": "2026-10-02 08:00:00",
+      "utc_offset": "+0200",
+      "pacs_patient_id": "AF-CASE-20261002",
+      "pacs_issuer": "AF-DEMO"
+    }
+  },
+  "report": {
+    "id": 1,
+    "kind": "report",
+    "occurred_at": "2026-10-02 10:15:00",
+    "state": "draft",
+    "content": {
+      "title": "Phantom sintetico - percorso completo · AF4591D70E48950A",
+      "body": "REFERTO SINTETICO DI COLLAUDO — SENZA VALORE CLINICO. Serie di 16 immagini geometriche generate al computer. Associazione verificata fra paziente, richiesta, studio PACS e documento in cartella. Nessuna valutazione diagnostica.",
+      "anamnesis": "",
+      "findings": "",
+      "diagnosis": "",
+      "therapy": "",
+      "follow_up": ""
+    }
+  },
+  "history": [
+    {
+      "event": "pacs_report_saved",
+      "actor_user_id": 1,
+      "recorded_at": "2026-10-02 06:45:23",
+      "order_revision": 8
+    },
+    {
+      "event": "pacs_order_images_linked",
+      "actor_user_id": 1,
+      "recorded_at": "2026-10-02 06:45:23",
+      "order_revision": 7
+    },
+    {
+      "event": "pacs_stage_performed",
+      "actor_user_id": 1,
+      "recorded_at": "2026-10-02 06:43:37",
+      "order_revision": 6
+    },
+    {
+      "event": "pacs_stage_in_progress",
+      "actor_user_id": 1,
+      "recorded_at": "2026-10-02 06:43:37",
+      "order_revision": 5
+    },
+    {
+      "event": "pacs_stage_accepted",
+      "actor_user_id": 1,
+      "recorded_at": "2026-10-02 06:43:37",
+      "order_revision": 4
+    },
+    {
+      "event": "pacs_order_exported",
+      "actor_user_id": 1,
+      "recorded_at": "2026-10-02 06:43:37",
+      "order_revision": 3
+    },
+    {
+      "event": "pacs_order_approved",
+      "actor_user_id": 1,
+      "recorded_at": "2026-10-02 06:43:37",
+      "order_revision": 2
+    },
+    {
+      "event": "pacs_order_created",
+      "actor_user_id": 1,
+      "recorded_at": "2026-10-02 06:43:37",
+      "order_revision": 1
+    }
+  ],
+  "images": {
+    "id": "b975aac1b6e148ccb3401cad4082448c",
+    "patient": "AF-CASE-20261002",
+    "issuer": "AF-DEMO",
+    "study": "2.25.246518141309924621240068607794242274444",
+    "accession": "AF4591D70E48950A",
+    "series": "2.25.123224004510112989724482617350484465682",
+    "instances": [
+      "2.25.16139418443504001109892727763380906964",
+      "2.25.176339511904556850152488283856449372366",
+      "2.25.45464712582700172900734694356478102720",
+      "2.25.236515376748499881817644229756670719468",
+      "2.25.326042777796421054594875414222726788682",
+      "2.25.302899974046098883920032592321206607286",
+      "2.25.208933130084839869888748331770552595690",
+      "2.25.109012329109927767554707058691402630838",
+      "2.25.151131680512990901539142918507325209033",
+      "2.25.340231680792480579719313624988668772271",
+      "2.25.70855063926287292148084583885860076705",
+      "2.25.60852627554684656148750119002307335407",
+      "2.25.220512208250223022143094201754023136759",
+      "2.25.246463957509962670892554849626135533575",
+      "2.25.313485954165497153720575370398302286872",
+      "2.25.224223323004335065902895035967098269088"
+    ],
+    "hashes": [
+      "15c812fd0ad6609907798cfe196cb1adf1ba2792eda054875005bb050abd968f",
+      "3fb1fb8c6531531974c1466c24c0dec93d6d1c45662d6a6c29f9fb6f10786c80",
+      "061f0939fe6628f5bed754cb815d5ed8944ce55c0b571a274262bdfb04b25c36",
+      "b8f004dcac4674a9c049623ff91519b23d44839985ef8cf302c22d572650cc5e",
+      "8e5b639d1f0150aeee38d4e3ddd22f15ba810295bbfb2bdb4746467148e9169b",
+      "781dd4c59b78367b04b8ce5353b06a3ad609f5333a2ed2dc20f8eda0e340dbac",
+      "01f58fad7f86ae88fbafe1b84f0c31cc40b01617127abd3ead1affb91de83598",
+      "1d1596f693617d1c6b0fbbef66dd92125f8666b46ca429372664efe18ea0a06d",
+      "daa386dcbc8d1e11b07cf608284bc8235edee684c4fceca1eecf6dbeb7740cb6",
+      "052c55b41c8045fb85435a370d993100aa827a58dec7bb10058913c614833d7b",
+      "57379c4fcb5e7daf1d880add56f8179b078db1117f74f41b2a8c2c54dbd933d9",
+      "cd4c43a5b6038490eb927c0c38cd165af7ee91963f3890e064dcc0be63856d3d",
+      "2905ee517c630b1970449e3a43ef17b4692b77fb1f31f66825c75da49dcb25c8",
+      "30351802457a491693fc2434f3dc8620cf297799c06ab02dae6b5f1ea110d7b4",
+      "a6a1b5c963ffd92fbb32ccb88fe936a0bfc14a48ed983080305cd7feff95edc6",
+      "0063da0a5379054007ceb4da0b6b2838345fcffd3de1b3721eefbec6371799da"
+    ]
+  },
+  "checks": [
+    "Richiesta creata, confermata ed esportata con PacsOrderService",
+    "Accettazione ed esecuzione registrate",
+    "Paziente, issuer, StudyUID e accession verificati sul PACS cloud",
+    "Referto salvato con ClinicalRecordService e letto nella cartella",
+    "16 immagini scaricate tramite PacsService con hash corrispondente"
+  ]
+}
