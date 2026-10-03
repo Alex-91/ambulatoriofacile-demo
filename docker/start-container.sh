@@ -301,6 +301,7 @@ bootstrap_demo_database
 
 if [ "${RUN_MIGRATIONS:-1}" = "1" ] && [ -f "$APP_ROOT/rest/spark" ]; then
   php "$APP_ROOT/rest/spark" migrate --all --no-header
+  php "$APP_ROOT/rest/spark" navigation:migrate --no-header
 fi
 
 seed_demo_runtime

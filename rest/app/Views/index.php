@@ -205,6 +205,9 @@
 <body>
   <div class="container" style="margin-top:0px">
     <div class="wrapper">
+      <?php if ((new \App\Services\UnifiedMenuService())->enabled()): ?>
+        <?= view('partials/unified_menu') ?>
+      <?php endif ?>
 <div class="topbar">
   <div class="title" aria-label="<?= esc('AmbulatorioFacile') ?>"><?= esc('AmbulatorioFacile') ?></div>
 <?php if ($showDemoRoleButton && $demoAccessUrl !== ''): ?>

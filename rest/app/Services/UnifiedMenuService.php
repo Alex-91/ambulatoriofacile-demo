@@ -128,7 +128,7 @@ final class UnifiedMenuService
         $userId = (int) (session()->get('platform_user_id') ?? 0);
         if ($userId <= 0 || !isset($this->homeOptions()[$href])) throw new \InvalidArgumentException('Pagina iniziale non accessibile.');
         $db = \Config\Database::connect('platform');
-        $db->query('INSERT INTO platform_navigation_preferences (id_tenant,id_platform_user,home_url,updated_at) VALUES (?,?,?,?) ON DUPLICATE KEY UPDATE home_url=VALUES(home_url),updated_at=VALUES(updated_at)', [$this->tenantId(), $userId, $href, date('Y-m-d H:i:s')]);
+        if (!$db->query('INSERT INTO platform_navigation_preferences (id_tenant,id_platform_user,home_url,updated_at) VALUES (?,?,?,?) ON DUPLICATE KEY UPDATE home_url=VALUES(home_url),updated_at=VALUES(updated_at)', [$this->tenantId(), $userId, $href, date('Y-m-d H:i:s')])) throw new \RuntimeException('Pagina iniziale non salvata. Riprova tra poco.');
     }
 
     public function setEnabled(bool $enabled): void
