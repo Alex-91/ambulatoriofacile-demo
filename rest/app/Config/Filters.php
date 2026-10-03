@@ -39,6 +39,7 @@ public function __construct()
      * or [filter_name => [classname1, classname2, ...]]
      */
     public array $aliases = [
+        'navigationtest' => \App\Filters\NavigationTestFilter::class,
         'csrf'          => CSRF::class,
         'fsecsrf'       => \App\Filters\FseCsrfFilter::class,
         'polycliniccsrf' => \App\Filters\BillingCsrfFilter::class,
@@ -80,10 +81,12 @@ public function __construct()
      */
     public array $required = [
         'before' => [
+              'navigationtest',
               'maintenance',
             'forcehttps', // Force Global Secure Requests
         ],
         'after' => [
+            'navigationtest',
             'performance', // Performance Metrics
             'toolbar',     // Debug Toolbar
         ],

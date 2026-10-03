@@ -1,4 +1,11 @@
 <?php
+if (empty($unifiedMenuBypass) && (new \App\Services\UnifiedMenuService())->enabled()) {
+    try {
+        $unifiedHtml = view('partials/unified_menu');
+        echo $unifiedHtml;
+        return;
+    } catch (\Throwable $e) { log_message('error', 'Unified menu fallback: ' . $e->getMessage()); }
+}
 helper(['portal', 'session_auth']);
 
 $menuTree = $menuAgenda ?? ($menu ?? []);
@@ -234,3 +241,6 @@ if ($patientExcelImportFeatureEnabledResolved && !agenda_menu_has_route_shared($
 <ul class="nav nav-pills nav-stacked" id="agendaMenuLaterale" style="margin-top:<?= $operationalProfileUrl !== null ? '12px' : '0' ?>;">
     <?= agenda_menu_render_tree_shared($menuTree, $currentPath) ?>
 </ul>
+<?php if (empty($unifiedMenuBypass) && $tenantId > 0 && session_has_tenant_master_access()): ?>
+<p style="padding:12px"><a href="<?= site_url('preferenze-navigazione') ?>">Preferenze personali e nuovo menu</a></p>
+<?php endif ?>

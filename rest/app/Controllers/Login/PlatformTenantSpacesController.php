@@ -337,6 +337,18 @@ class PlatformTenantSpacesController extends BaseController
             $savedTenant = (array) ($result['tenant'] ?? []);
             $savedTenantId = (int) ($savedTenant['id_tenant'] ?? 0);
 
+            // An explicit platform selection supersedes the space's opt-out.
+            if ($hasFeatureOverrideForm && $savedTenantId > 0) {
+                $menuFeature = (new PlatformFeaturesModel())->findByKey(\App\Services\UnifiedMenuService::FEATURE_KEY);
+                if ($menuFeature) {
+                    (new \App\Models\PlatformTenantFeaturePreferencesModel())->setPreference(
+                        $savedTenantId, (int) $menuFeature['id_feature'],
+                        in_array(\App\Services\UnifiedMenuService::FEATURE_KEY, $enabledFeatures, true),
+                        (int) session()->get('platform_user_id'), 'platform_master'
+                    );
+                }
+            }
+
             $shouldProvision = $savedTenantId > 0
                 && ($isCreate || (int) ($this->request->getPost('provision_after_save') ?? 0) === 1);
             $provisionSucceeded = false;

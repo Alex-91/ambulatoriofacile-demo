@@ -264,6 +264,7 @@ class TenantFeatureService
     private function platformCoreFeatureDefinitions(): array
     {
         return [
+            UnifiedMenuService::FEATURE_KEY => ['feature_name'=>'Nuovo menu unificato','feature_scope'=>'navigation','description'=>'Menu unico per agenda e portale operativo. Il master può tornare al menu precedente per tutto lo spazio.','default_enabled'=>1,'icon_class'=>'fa-bars','is_tenant_managed'=>1,'tenant_default_enabled'=>1,'sort_order'=>1],
             'admin_quotes' => ['feature_name'=>'Preventivi e listini','feature_scope'=>'billing','description'=>'Listini e preventivi con prezzi storicizzati. Richiede Fatturazione.','default_enabled'=>0,'icon_class'=>'fa-calculator','is_tenant_managed'=>0,'tenant_default_enabled'=>0,'sort_order'=>150],
             'admin_payers' => ['feature_name'=>'Convenzioni, assicurazioni e fondi','feature_scope'=>'billing','description'=>'Pratiche e registro incassi. Richiede Fatturazione e Preventivi. Invii esterni esclusi.','default_enabled'=>0,'icon_class'=>'fa-calculator','is_tenant_managed'=>0,'tenant_default_enabled'=>0,'sort_order'=>151],
             'admin_compensation' => ['feature_name'=>'Spettanze professionisti','feature_scope'=>'billing','description'=>'Calcolo e registro dei compensi sulle fatture. Richiede Fatturazione.','default_enabled'=>0,'icon_class'=>'fa-calculator','is_tenant_managed'=>0,'tenant_default_enabled'=>0,'sort_order'=>152],

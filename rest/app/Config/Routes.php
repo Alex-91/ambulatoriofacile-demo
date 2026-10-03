@@ -6,6 +6,9 @@ use CodeIgniter\Router\RouteCollection;
  * @var RouteCollection $routes
  */
 $routes->get('/', 'EntryController::index');
+$routes->get('preferenze-navigazione', 'NavigationPreferences::index');
+$routes->post('preferenze-navigazione/home', 'NavigationPreferences::saveHome', ['filter'=>'billingcsrf']);
+$routes->post('preferenze-navigazione/menu', 'NavigationPreferences::saveMenu', ['filter'=>'billingcsrf']);
 $routes->post('/', 'EntryController::submit');
 $routes->get('access', 'DemoController::access');
 $routes->get('access/entra', 'DemoAccessController::enter');

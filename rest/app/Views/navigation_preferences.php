@@ -1,0 +1,11 @@
+<?php helper(['form','session_auth']); ?>
+<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Preferenze personali | AmbulatorioFacile</title>
+<link rel="stylesheet" href="<?= base_url('public/bootstrap/css/bootstrap.min.css') ?>"><link rel="stylesheet" href="<?= base_url('public/dist/css/AdminLTE.css') ?>">
+<style>body{background:#f4f7fa}.af-preferences{max-width:1100px;margin:24px auto;padding:16px;display:grid;grid-template-columns:250px minmax(0,1fr);gap:24px}@media(max-width:650px){.af-preferences{grid-template-columns:1fr}}</style></head><body>
+<div class="af-preferences"><aside><?= view('partials/sidebar_admin') ?></aside><main>
+<h1>Preferenze personali</h1>
+<?php foreach (['success'=>'success','error'=>'danger'] as $key=>$class): if ($message=session()->getFlashdata($key)): ?><div class="alert alert-<?= $class ?>" role="status"><?= esc($message) ?></div><?php endif; endforeach ?>
+<section class="box box-body"><h2>Pagina iniziale</h2><p>Scegli la pagina da aprire dopo l’accesso. La preferenza riguarda solo il tuo account in questo spazio.</p>
+<form method="post" action="<?= site_url('preferenze-navigazione/home') ?>"><?= csrf_field() ?><div class="form-group"><label for="af-home-page">Pagina da aprire</label><select class="form-control" id="af-home-page" name="home_url" required><?php foreach ($options as $url=>$label): ?><option value="<?= esc($url) ?>" <?= $selected===$url?'selected':'' ?>><?= esc($label) ?></option><?php endforeach ?></select></div><button type="submit" class="btn btn-primary">Salva preferenza</button></form></section>
+<?php if (session_has_tenant_master_access()): ?><section class="box box-body"><h2>Menu dello spazio</h2><form method="post" action="<?= site_url('preferenze-navigazione/menu') ?>"><?= csrf_field() ?><label><input type="checkbox" name="legacy" value="1" <?= !$navigation->enabled()?'checked':'' ?> onchange="this.form.requestSubmit()"> Usa il menu precedente per tutto lo spazio</label><noscript><button type="submit">Applica</button></noscript></form></section><?php endif ?>
+<a href="<?= site_url('agenda') ?>">Torna all’agenda</a></main></div></body></html>

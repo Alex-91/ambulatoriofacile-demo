@@ -152,6 +152,13 @@ class TenantAppSessionBootstrapService
 
         $tenantRole = strtolower(trim((string) ($membership['tenant_role'] ?? $context->tenantRole)));
 
+        try {
+            $home = (new UnifiedMenuService())->preferredHome();
+            if ($home !== null) return $home;
+        } catch (\Throwable $e) {
+            log_message('error', 'Navigation home fallback: ' . $e->getMessage());
+        }
+
         if (session_should_open_agenda_first()) {
             return site_url('agenda');
         }

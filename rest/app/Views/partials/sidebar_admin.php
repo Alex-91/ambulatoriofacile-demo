@@ -1,4 +1,11 @@
 <?php
+if (empty($unifiedMenuBypass) && (new \App\Services\UnifiedMenuService())->enabled()) {
+    try {
+        $unifiedHtml = view('partials/unified_menu');
+        echo $unifiedHtml;
+        return;
+    } catch (\Throwable $e) { log_message('error', 'Unified menu fallback: ' . $e->getMessage()); }
+}
 helper('admin_menu');
 
 $resolvedSidebar = (new \App\Services\MenuResolverService())->resolveAdminSidebar(

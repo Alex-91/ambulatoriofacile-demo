@@ -37,6 +37,11 @@ class Home extends Controller
 
         $this->refreshHeaderSession();
 
+        try {
+            $preferred = (new \App\Services\UnifiedMenuService())->preferredHome();
+            if ($preferred !== null && strtok($preferred, '?') !== current_url()) return redirect()->to($preferred);
+        } catch (\Throwable $e) { log_message('error','Navigation home fallback: '.$e->getMessage()); }
+
         $session = session();
         $utente = $session->get('utente_sess');
 

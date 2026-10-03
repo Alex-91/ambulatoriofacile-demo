@@ -15,6 +15,13 @@ DEMO_AUTO_RESET_TZ="${DEMO_AUTO_RESET_TZ:-${TZ:-Europe/Rome}}"
 
 cd "$APP_ROOT"
 
+# A separate navigation preview uses copied databases and cannot send messages
+# or call clinical/financial gateways with credentials stored in those copies.
+if [ "${AF_NAVIGATION_TEST:-0}" = "1" ]; then
+  [ -n "${AF_TEST_DB_HOST:-}" ] && [ "${DB_HOST:-}" = "$AF_TEST_DB_HOST" ] && [ "${PLATFORM_DB_HOST:-}" = "$AF_TEST_DB_HOST" ] || exit 64
+  printf '%s\n' 'disable_functions=mail,fsockopen,pfsockopen,stream_socket_client,curl_exec,curl_multi_exec' 'allow_url_fopen=0' > /usr/local/etc/php/conf.d/zz-navigation-test.ini
+fi
+
 get_config_value() {
   key="$1"
   fallback="${2:-}"
