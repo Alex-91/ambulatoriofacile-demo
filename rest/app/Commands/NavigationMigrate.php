@@ -21,6 +21,8 @@ final class NavigationMigrate extends BaseCommand
         require_once APPPATH.'Database/Migrations/2026-10-03-100002_CreateNavigationLayouts.php';
         (new \App\Database\Migrations\CreateNavigationPreferences())->up();
         (new \App\Database\Migrations\CreateNavigationLayouts())->up();
+        require_once APPPATH.'Database/Migrations/2026-10-03-100003_SeedApprovedNavigationLayout.php';
+        (new \App\Database\Migrations\SeedApprovedNavigationLayout())->up();
         if (!$db->tableExists('platform_navigation_layouts')) {
             CLI::error('Navigation layout migration failed.');
             return EXIT_ERROR;

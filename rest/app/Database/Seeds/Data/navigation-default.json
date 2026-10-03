@@ -1,0 +1,600 @@
+[
+  {
+    "id": "g_1ad94eb3285832fe",
+    "parent": "",
+    "type": "group",
+    "label": "Oggi",
+    "icon": "fa:solid:house",
+    "hidden": false
+  },
+  {
+    "id": "g_0fdf485f5bfd3762",
+    "parent": "",
+    "type": "group",
+    "label": "Agenda",
+    "icon": "fa:solid:calendar-days",
+    "hidden": false
+  },
+  {
+    "id": "g_e44c38389eb5f0d8",
+    "parent": "",
+    "type": "group",
+    "label": "Pazienti",
+    "icon": "fa:solid:users",
+    "hidden": false
+  },
+  {
+    "id": "g_966cda0096db9b3c",
+    "parent": "",
+    "type": "group",
+    "label": "Esami",
+    "icon": "fa:solid:stethoscope",
+    "hidden": false
+  },
+  {
+    "id": "g_a3573199a663b82b",
+    "parent": "",
+    "type": "group",
+    "label": "Amministrazione",
+    "icon": "fa:solid:calculator",
+    "hidden": false
+  },
+  {
+    "id": "g_94b450b082870d8b",
+    "parent": "",
+    "type": "group",
+    "label": "Comunicazioni",
+    "icon": "fa:solid:comments",
+    "hidden": false
+  },
+  {
+    "id": "g_b35ee5000e8e7e05",
+    "parent": "",
+    "type": "group",
+    "label": "Personale",
+    "icon": "fa:solid:user-doctor",
+    "hidden": false
+  },
+  {
+    "id": "g_b6ce788d9786917c",
+    "parent": "",
+    "type": "group",
+    "label": "Report",
+    "icon": "fa:solid:chart-column",
+    "hidden": false
+  },
+  {
+    "id": "g_7b855ce7525ebc18",
+    "parent": "",
+    "type": "group",
+    "label": "Impostazioni",
+    "icon": "fa:solid:gears",
+    "hidden": false
+  },
+  {
+    "id": "g_0555729d4614da40",
+    "parent": "",
+    "type": "group",
+    "label": "Account e spazi",
+    "icon": "fa:solid:circle-user",
+    "hidden": false
+  },
+  {
+    "id": "l_59d6803446960013048a71862d94dac1f1eff476a83614d993694d567a0d4dc6",
+    "parent": "g_1ad94eb3285832fe",
+    "type": "link",
+    "label": "Riepilogo dello spazio",
+    "icon": "fa:solid:gauge-high",
+    "hidden": false
+  },
+  {
+    "id": "l_7fde270f4e8b8f293aa0703c4bcfec10833cb60acdba239a3aee41f9a5298522",
+    "parent": "g_94b450b082870d8b",
+    "type": "link",
+    "label": "Invii massivi",
+    "icon": "fa:solid:bullhorn",
+    "hidden": false
+  },
+  {
+    "id": "l_76e2abad2fd5a8c8ea657c708e038d2df12882203f2baea4bfd6c84536bb7598",
+    "parent": "g_0fdf485f5bfd3762",
+    "type": "link",
+    "label": "Agenda",
+    "icon": "fa:solid:calendar-day",
+    "hidden": false
+  },
+  {
+    "id": "l_fa39096ccad583682e271cb1bf631455b1ef52305333100874848c1ed774b897",
+    "parent": "g_0fdf485f5bfd3762",
+    "type": "link",
+    "label": "Storico memo",
+    "icon": "fa:solid:clock-rotate-left",
+    "hidden": false
+  },
+  {
+    "id": "l_f8f5d28565f067f7f50b156f636f37ac9f93db52d31709d3bec98552b04ebe61",
+    "parent": "g_0fdf485f5bfd3762",
+    "type": "link",
+    "label": "Copia appuntamenti",
+    "icon": "fa:solid:copy",
+    "hidden": false
+  },
+  {
+    "id": "l_ee97a6358dd92ebe222a8e3013c9a5839f2a75ad129d5a4558c57961ecd26035",
+    "parent": "g_0fdf485f5bfd3762",
+    "type": "link",
+    "label": "Copia appuntamenti per periodo",
+    "icon": "fa:solid:calendar-days",
+    "hidden": false
+  },
+  {
+    "id": "l_363db8a3abfc9c35106ad6745b42003aca296774d769a8967280f65921e7f21d",
+    "parent": "g_0fdf485f5bfd3762",
+    "type": "link",
+    "label": "Copia appuntamenti settimanale",
+    "icon": "fa:solid:calendar-week",
+    "hidden": false
+  },
+  {
+    "id": "l_fc68919ac14af1713ba38b5a9bfebdeb12b1ea8a48f7c2351330e081ca89d543",
+    "parent": "g_0fdf485f5bfd3762",
+    "type": "link",
+    "label": "Elimina appuntamenti",
+    "icon": "fa:solid:calendar-xmark",
+    "hidden": false
+  },
+  {
+    "id": "l_88bbaa0c3daf61e654e374d6d01914ac757fdaac6476abdbcd88c58aeca87673",
+    "parent": "g_e44c38389eb5f0d8",
+    "type": "link",
+    "label": "Gestione pazienti",
+    "icon": "fa:solid:address-book",
+    "hidden": false
+  },
+  {
+    "id": "l_f3f9ebf021cd2f077e50833cfb786ee841284ce9ea8dea717c8b86de7e607ccf",
+    "parent": "g_e44c38389eb5f0d8",
+    "type": "link",
+    "label": "Nuovo cliente",
+    "icon": "fa:solid:user-plus",
+    "hidden": false
+  },
+  {
+    "id": "l_088fccc7bcac083003967edfbb48a0db7c795c769441294f551306a27d78022a",
+    "parent": "g_e44c38389eb5f0d8",
+    "type": "link",
+    "label": "Modifica cliente",
+    "icon": "fa:solid:user-pen",
+    "hidden": false
+  },
+  {
+    "id": "l_aff003fd0052626c69ae7a464c83e76e08fa4c2b9b1a82f59df057b95f01e532",
+    "parent": "g_a3573199a663b82b",
+    "type": "link",
+    "label": "Fatture",
+    "icon": "fa:solid:file-invoice",
+    "hidden": false
+  },
+  {
+    "id": "l_3a5c17f917f851d806d2398d536936c307f026f1a3aab0911fccc9fcda3d20e1",
+    "parent": "g_a3573199a663b82b",
+    "type": "link",
+    "label": "Incassi",
+    "icon": "fa:solid:coins",
+    "hidden": false
+  },
+  {
+    "id": "l_bf816f8f5517ec198fa95b99130f8677da9a0ac56e3f574635e722f74d9529b1",
+    "parent": "g_a3573199a663b82b",
+    "type": "link",
+    "label": "Registro incassi",
+    "icon": "fa:solid:book",
+    "hidden": false
+  },
+  {
+    "id": "l_50ef52155b986a5e65c5c63195768ee2264eba07b552251f9b1f5019c4bbe399",
+    "parent": "g_a3573199a663b82b",
+    "type": "link",
+    "label": "Riepilogo",
+    "icon": "fa:solid:chart-pie",
+    "hidden": false
+  },
+  {
+    "id": "l_1d674545cac8db84f7b1d29fc02f21a3592c8fa45976691724da2b8b874433b6",
+    "parent": "g_a3573199a663b82b",
+    "type": "link",
+    "label": "Documenti e invii",
+    "icon": "fa:solid:file-export",
+    "hidden": false
+  },
+  {
+    "id": "l_892af0ee67110feb31c212bcd0c82844c9d7556badff1d319fdf93adfa827277",
+    "parent": "g_a3573199a663b82b",
+    "type": "link",
+    "label": "Nuovo documento",
+    "icon": "fa:solid:file-circle-plus",
+    "hidden": false
+  },
+  {
+    "id": "l_b2cb1cb011468150a351f5b409e86cfa6bc08ef2cbea05ccc1515d28f158b223",
+    "parent": "g_a3573199a663b82b",
+    "type": "link",
+    "label": "Diagnostica",
+    "icon": "fa:solid:plug-circle-check",
+    "hidden": false
+  },
+  {
+    "id": "l_b2adff4c8484bc536d946718b60a3edcd6d6cd4449bd6bb6b07185c3432939e3",
+    "parent": "g_94b450b082870d8b",
+    "type": "link",
+    "label": "Gestisci notifiche appuntamenti",
+    "icon": "fa:solid:bell",
+    "hidden": false
+  },
+  {
+    "id": "l_4ae7e555df280dbe4f898284b0c871a29459265198c27bb209352d4ecd1a60f7",
+    "parent": "g_b35ee5000e8e7e05",
+    "type": "link",
+    "label": "Nuovo personale",
+    "icon": "fa:solid:user-plus",
+    "hidden": false
+  },
+  {
+    "id": "l_caa0a757c7d34d532aa31fb2ae16b4ae05dc1a2814aa9bc15544d6f1995f5356",
+    "parent": "g_b35ee5000e8e7e05",
+    "type": "link",
+    "label": "Personale",
+    "icon": "fa:solid:user-doctor",
+    "hidden": false
+  },
+  {
+    "id": "l_74179c389311d1bef70c9c673ee3023b34007412f22e585426a9fe71c751e454",
+    "parent": "g_b35ee5000e8e7e05",
+    "type": "link",
+    "label": "Gestisci utenti dello spazio",
+    "icon": "fa:solid:users-gear",
+    "hidden": false
+  },
+  {
+    "id": "l_9b5373a92aaa85fac669b50ab230e99d604ac96b331f4ce9795ba2f9182cd036",
+    "parent": "g_b6ce788d9786917c",
+    "type": "link",
+    "label": "Report",
+    "icon": "fa:solid:chart-column",
+    "hidden": false
+  },
+  {
+    "id": "l_dbff68d9ab0220e38f964f8c92ca92d778feae623ec9289d5e654e0f5d85dd27",
+    "parent": "g_b6ce788d9786917c",
+    "type": "link",
+    "label": "Analisi prestazioni",
+    "icon": "fa:solid:chart-line",
+    "hidden": false
+  },
+  {
+    "id": "l_8ee9d12ee99b20121a6ce08cf5184aa405e728705e22767095de9ec2d8d1a65e",
+    "parent": "g_7b855ce7525ebc18",
+    "type": "link",
+    "label": "Configurazione slot",
+    "icon": "fa:solid:table-cells",
+    "hidden": false
+  },
+  {
+    "id": "l_db5eb8e3a0a7f8f5a2780e3470b6612ca78d4294bedba20d27d1afafcbcbbf30",
+    "parent": "g_7b855ce7525ebc18",
+    "type": "link",
+    "label": "Gestione sedi",
+    "icon": "fa:solid:location-dot",
+    "hidden": false
+  },
+  {
+    "id": "l_c67d82ade482b44cc344163e74d61b18fba2312e8e72390cb6334115cc30a551",
+    "parent": "g_7b855ce7525ebc18",
+    "type": "link",
+    "label": "Visibilita operatori",
+    "icon": "fa:solid:eye",
+    "hidden": false
+  },
+  {
+    "id": "l_8195c9890afa19a384f42b020ef668e79fd4aec20544fb49535045999b1b0e72",
+    "parent": "g_7b855ce7525ebc18",
+    "type": "link",
+    "label": "Permessi menu ruoli",
+    "icon": "fa:solid:shield-halved",
+    "hidden": false
+  },
+  {
+    "id": "l_1bbf86e61a1dd2c094de4b9c6ce34a3c7dcda82c3ce488ca1f16d5ff5fef61bb",
+    "parent": "g_0fdf485f5bfd3762",
+    "type": "link",
+    "label": "Inserisci slot extra",
+    "icon": "fa:solid:calendar-plus",
+    "hidden": false
+  },
+  {
+    "id": "l_389b9086ad97fe13f0f795f9b6aaae809ee86a70295b049d25c93c93bade558a",
+    "parent": "g_0fdf485f5bfd3762",
+    "type": "link",
+    "label": "Elimina slot extra",
+    "icon": "fa:solid:calendar-minus",
+    "hidden": false
+  },
+  {
+    "id": "l_c693d3ecc78b197c44a3849697247cac76836eb92187ea9c1de722ad80be93bc",
+    "parent": "g_0fdf485f5bfd3762",
+    "type": "link",
+    "label": "Inserisci ferie",
+    "icon": "fa:solid:umbrella-beach",
+    "hidden": false
+  },
+  {
+    "id": "l_210bea098b7015e4c64cdc3b4885c9e8cd599d4b6ece52c25fd654a981c29473",
+    "parent": "g_0fdf485f5bfd3762",
+    "type": "link",
+    "label": "Elenco ferie",
+    "icon": "fa:solid:list-ul",
+    "hidden": false
+  },
+  {
+    "id": "l_5d77fcc000076eb1ab7e0e4441526c6f3b95498cbb00e226f2061590872e2fb5",
+    "parent": "g_7b855ce7525ebc18",
+    "type": "link",
+    "label": "Tipi visita",
+    "icon": "fa:solid:notes-medical",
+    "hidden": false
+  },
+  {
+    "id": "l_e0b72329248f22ed9031ed3c021b8dd56c572142a18d700026c0e99804e3b405",
+    "parent": "g_7b855ce7525ebc18",
+    "type": "link",
+    "label": "Collegamenti",
+    "icon": "fa:solid:plug",
+    "hidden": false
+  },
+  {
+    "id": "l_a82ed139718c133911da3c24d9215d9115a454f80bf28f804b9c5e9200e3c43a",
+    "parent": "g_7b855ce7525ebc18",
+    "type": "link",
+    "label": "Modello documento",
+    "icon": "fa:solid:file-lines",
+    "hidden": false
+  },
+  {
+    "id": "l_69fa32711db33266531138db610cc0101a5539e6a74cb366714c8486664ad897",
+    "parent": "g_7b855ce7525ebc18",
+    "type": "link",
+    "label": "Configura Fatturazione",
+    "icon": "fa:solid:money-check-dollar",
+    "hidden": false
+  },
+  {
+    "id": "l_9c8d701d983c74ca5fb8752ad3d4a5a4986c5325c42039e906abf311d6cdf2a8",
+    "parent": "g_7b855ce7525ebc18",
+    "type": "link",
+    "label": "Configurazione",
+    "icon": "fa:solid:sliders",
+    "hidden": false
+  },
+  {
+    "id": "l_f55e31b061113e590a7767e13412629b2cf7b2d414c6d8efb05d0d46725240e6",
+    "parent": "g_7b855ce7525ebc18",
+    "type": "link",
+    "label": "Dimensioni testi agenda",
+    "icon": "fa:solid:text-height",
+    "hidden": false
+  },
+  {
+    "id": "l_f70b88a31c8d9add3c3605709ec0177f9b33629d5dfdf922ac1bb57c217a2ff6",
+    "parent": "g_7b855ce7525ebc18",
+    "type": "link",
+    "label": "Gestisci dispositivi OTP",
+    "icon": "fa:solid:mobile-screen-button",
+    "hidden": false
+  },
+  {
+    "id": "l_ddc8d7f880ac17d0e5ce356a9b7df937f4ce552142caa1dd4b0988e73fa6b834",
+    "parent": "g_7b855ce7525ebc18",
+    "type": "link",
+    "label": "Gestisci funzioni dello spazio",
+    "icon": "fa:solid:toggle-on",
+    "hidden": false
+  },
+  {
+    "id": "l_428f301171dd03ef6453a17ffd65c69f1fa2c86d1a3d282883a9dc6543b955bd",
+    "parent": "g_7b855ce7525ebc18",
+    "type": "link",
+    "label": "Preferenze personali",
+    "icon": "fa:solid:sliders",
+    "hidden": false
+  },
+  {
+    "id": "l_0543d34da20cd22efd7575e98f2adfda84ac40245a123079414b0fed0f03125e",
+    "parent": "g_0555729d4614da40",
+    "type": "link",
+    "label": "Account / spazio",
+    "icon": "fa:solid:building-circle-arrow-right",
+    "hidden": false,
+    "runtime_label": true
+  },
+  {
+    "id": "l_d7b18b6460525e8b66d4db42fdb73f7436534bb0bad3c2310681cbaea9505b91",
+    "parent": "g_0555729d4614da40",
+    "type": "link",
+    "label": "Account / spazio",
+    "icon": "fa:solid:building-circle-arrow-right",
+    "hidden": false,
+    "runtime_label": true
+  },
+  {
+    "id": "l_a35f159106f1ad40c9ec81a761d557132881e6b54b2d948de9ab2be34c78e02a",
+    "parent": "g_0555729d4614da40",
+    "type": "link",
+    "label": "Account / spazio",
+    "icon": "fa:solid:building-circle-arrow-right",
+    "hidden": false,
+    "runtime_label": true
+  },
+  {
+    "id": "l_27e496bf3864cafd469a933ecab9c1a4a3b87818e4aab670b344aa6928b39307",
+    "parent": "g_0555729d4614da40",
+    "type": "link",
+    "label": "Account / spazio",
+    "icon": "fa:solid:building-circle-arrow-right",
+    "hidden": false,
+    "runtime_label": true
+  },
+  {
+    "id": "l_10bba8a4a8882c0f9fbe1f31a3dae1397847a67d31c55666b4b123d1211216c7",
+    "parent": "g_0555729d4614da40",
+    "type": "link",
+    "label": "Account / spazio",
+    "icon": "fa:solid:right-from-bracket",
+    "hidden": false,
+    "runtime_label": true
+  },
+  {
+    "id": "l_f540b7e4653f3cb99e351ce8c1a7fae2d924a5ce502dd0850937f881bdbb4c4c",
+    "parent": "g_e44c38389eb5f0d8",
+    "type": "link",
+    "label": "Importa pazienti Excel",
+    "icon": "fa:solid:file-excel",
+    "hidden": false
+  },
+  {
+    "id": "l_01dffd62a75a63699710f214e3a26224d5326503797111f1ffca4043000cda9a",
+    "parent": "g_0555729d4614da40",
+    "type": "link",
+    "label": "Account / spazio",
+    "icon": "fa:solid:building-circle-arrow-right",
+    "hidden": false,
+    "runtime_label": true
+  },
+  {
+    "id": "l_837d7a5a96d614045951ac98e38db0caf5065ff9446bf699be461d671bb87036",
+    "parent": "g_a3573199a663b82b",
+    "type": "link",
+    "label": "FSE 2.0",
+    "icon": "fa:solid:file-medical",
+    "hidden": false
+  },
+  {
+    "id": "l_184dbf58db9f78c174dd391c46f8a78892c2eef4fee9ef2e95a8cbb588bba4cc",
+    "parent": "g_0fdf485f5bfd3762",
+    "type": "link",
+    "label": "Gestione SMS appuntamenti",
+    "icon": "fa:solid:comment-sms",
+    "hidden": false
+  },
+  {
+    "id": "l_a5181c6eab4e0252800035a3f28038e08426577ff8229bb281560a376e088db7",
+    "parent": "g_966cda0096db9b3c",
+    "type": "link",
+    "label": "Cartella di prova completa",
+    "icon": "fa:solid:folder-open",
+    "hidden": false
+  },
+  {
+    "id": "l_fdd6db3ad80aa914d0c0e86dc4f5a208ed0c51b518220bc217becbd108029332",
+    "parent": "g_966cda0096db9b3c",
+    "type": "link",
+    "label": "Richieste di prova",
+    "icon": "fa:solid:clipboard-list",
+    "hidden": false
+  },
+  {
+    "id": "l_fe0ec54d923fe4de7b5b7c9e38ffdd80be9f46d63cde030ecd66a5f0e774a07b",
+    "parent": "g_966cda0096db9b3c",
+    "type": "link",
+    "label": "Immagini dimostrative",
+    "icon": "fa:solid:images",
+    "hidden": false
+  },
+  {
+    "id": "l_88d43b3fb90168958104fb879de89e4440db1e09f073cfc98c7675ea9d7c96c5",
+    "parent": "g_966cda0096db9b3c",
+    "type": "link",
+    "label": "Nuova richiesta",
+    "icon": "fa:solid:file-circle-plus",
+    "hidden": false
+  },
+  {
+    "id": "l_ba14383b91bd9afd3d458df328db1326892949b4bd49664d083cd186e71e642b",
+    "parent": "g_966cda0096db9b3c",
+    "type": "link",
+    "label": "Lista diagnostica",
+    "icon": "fa:solid:list-check",
+    "hidden": false
+  },
+  {
+    "id": "l_c589a2765f3a21da614799629d7b9d93f2a2c6af3588a9eeaaf7d67cda4923b1",
+    "parent": "g_966cda0096db9b3c",
+    "type": "link",
+    "label": "Verifica collegamenti",
+    "icon": "fa:solid:network-wired",
+    "hidden": false
+  },
+  {
+    "id": "l_af20da6dcba46b0b7d16937ec8a81e513511d581b0d538cdd9af93d701b5b7e4",
+    "parent": "g_a3573199a663b82b",
+    "type": "link",
+    "label": "Accettazione",
+    "icon": "fa:solid:clipboard-user",
+    "hidden": false
+  },
+  {
+    "id": "l_1cc1fcf640731d2bf55abcf720f769cef415eb4427fe3138eb5b9aa825594198",
+    "parent": "g_a3573199a663b82b",
+    "type": "link",
+    "label": "Listini",
+    "icon": "fa:solid:tags",
+    "hidden": false
+  },
+  {
+    "id": "l_e8ac1aacd1db1c08006497bd9e428477dcc91c959b7f4cdcd22940aaa18d8a7f",
+    "parent": "g_a3573199a663b82b",
+    "type": "link",
+    "label": "Convenzioni",
+    "icon": "fa:solid:handshake",
+    "hidden": false
+  },
+  {
+    "id": "l_e20266ebc7de2f38ce1fca7ca976c041ad94fe6f4c639b94a0275015e6285b4a",
+    "parent": "g_a3573199a663b82b",
+    "type": "link",
+    "label": "Compensi",
+    "icon": "fa:solid:money-bill-transfer",
+    "hidden": false
+  },
+  {
+    "id": "l_d957f9d79cadbf2bc27f6b6d1033383007804c057f1bf992ad4427476c68c66c",
+    "parent": "g_7b855ce7525ebc18",
+    "type": "link",
+    "label": "Configurazione PACS",
+    "icon": "fa:solid:server",
+    "hidden": false
+  },
+  {
+    "id": "l_a5267cdbfd13a92876f912a736f00b5c2efe7f56a5fda0604e1044df2979f61f",
+    "parent": "g_7b855ce7525ebc18",
+    "type": "link",
+    "label": "Gestione branche",
+    "icon": "fa:solid:sitemap",
+    "hidden": false
+  },
+  {
+    "id": "l_faf31ce4f0d23b58e405bacddfc3c21e20837fc0eee07e4638fa5e022bd66205",
+    "parent": "g_7b855ce7525ebc18",
+    "type": "link",
+    "label": "Gestione prestazioni",
+    "icon": "fa:solid:briefcase-medical",
+    "hidden": false
+  },
+  {
+    "id": "l_f95881ad91624486f08f8794d2fd2b47c8a28cb41efa316dee7203e10706039b",
+    "parent": "g_7b855ce7525ebc18",
+    "type": "link",
+    "label": "Configura FSE 2.0",
+    "icon": "fa:solid:file-shield",
+    "hidden": false
+  }
+]
