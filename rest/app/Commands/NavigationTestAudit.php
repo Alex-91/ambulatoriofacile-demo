@@ -64,6 +64,10 @@ final class NavigationTestAudit extends BaseCommand
                 if($fixture){
                     foreach($emails as $i=>$email){
                         $candidates=array_values(array_filter($valid,static fn($m)=>$i===0?$m['tenant_role']==='tenant_master':$m['tenant_role']!=='tenant_master'));
+                        if (!$candidates && $i===1) {
+                            $operator=$tenantDb->table('dap01_users')->where('tipo_user',2)->orderBy('id_user')->get()->getRowArray();
+                            if ($operator) $candidates=[['id_tenant'=>$id,'tenant_role'=>'tenant_staff','app_user_id'=>$operator['id_user'],'is_app_admin'=>0,'invitation_status'=>'accepted','accepted_at'=>date('Y-m-d H:i:s'),'created_at'=>date('Y-m-d H:i:s'),'updated_at'=>date('Y-m-d H:i:s')]];
+                        }
                         if(!$candidates)continue;
                         $member=$candidates[0];$fixtureId=$fixtureUsers[$email];
                         if($db->table('platform_user_tenants')->where('id_tenant',$id)->where('id_platform_user',$fixtureId)->countAllResults())continue;

@@ -13,7 +13,14 @@ final class NavigationPreferences extends BaseController
     {
         if (!$this->allowed()) return redirect()->to(site_url('login'));
         $navigation = new UnifiedMenuService();
-        return view('navigation_preferences', ['navigation'=>$navigation,'options'=>$navigation->homeOptions(),'selected'=>$navigation->preferredHome()]);
+        return view('navigation_preferences', ['menuPreferences'=>$navigation,'options'=>$navigation->homeOptions(),'selected'=>$navigation->preferredHome()]);
+    }
+    public function landing()
+    {
+        if (!$this->allowed()) return redirect()->to(site_url('login'));
+        try { $target=(new UnifiedMenuService())->preferredHome(); }
+        catch (\Throwable $e) { $target=null; log_message('error','Navigation landing fallback: '.$e->getMessage()); }
+        return redirect()->to($target ?? site_url('agenda'));
     }
     public function saveHome()
     {

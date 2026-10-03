@@ -153,8 +153,8 @@ class TenantAppSessionBootstrapService
         $tenantRole = strtolower(trim((string) ($membership['tenant_role'] ?? $context->tenantRole)));
 
         try {
-            $home = (new UnifiedMenuService())->preferredHome();
-            if ($home !== null) return $home;
+            // Validate the saved destination on the next request, after tenant runtime binding.
+            if ((new UnifiedMenuService())->hasHomePreference()) return site_url('preferenze-navigazione/apertura');
         } catch (\Throwable $e) {
             log_message('error', 'Navigation home fallback: ' . $e->getMessage());
         }

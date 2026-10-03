@@ -37,6 +37,8 @@ final class UnifiedMenuService
             $html .= view('partials/sidebar_admin', ['unifiedMenuBypass' => true], ['saveData' => false]);
         }
         $groups = self::groupLinks(self::extractLinks($html));
+        // Agenda is the existing tenant landing page, even when its legacy sidebar omits a self-link.
+        if ($this->tenantId() > 0) $groups = array_filter(['Oggi'=>$groups['Oggi']??[], 'Agenda'=>[['label'=>'Agenda','href'=>site_url('agenda')]]] + $groups);
         $groups['Impostazioni'][] = ['label' => 'Preferenze personali', 'href' => site_url('preferenze-navigazione')];
         return $groups;
     }
@@ -110,6 +112,15 @@ final class UnifiedMenuService
         $row = $db->table('platform_navigation_preferences')->where('id_tenant', $this->tenantId())->where('id_platform_user', $userId)->get()->getRowArray();
         $href = (string) ($row['home_url'] ?? '');
         return $href !== '' && isset($this->homeOptions()[$href]) ? $href : null;
+    }
+
+    public function hasHomePreference(): bool
+    {
+        if (!$this->enabled()) return false;
+        $db=\Config\Database::connect('platform');
+        return $db->tableExists('platform_navigation_preferences')
+            && $db->table('platform_navigation_preferences')->where('id_tenant',$this->tenantId())
+                ->where('id_platform_user',(int)session()->get('platform_user_id'))->countAllResults()>0;
     }
 
     public function setHome(string $href): void
