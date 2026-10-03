@@ -1,5 +1,6 @@
 <?php
 require __DIR__.'/../app/Services/NavigationLayoutService.php';
+require __DIR__.'/../app/Services/NavigationIconService.php';
 use App\Services\NavigationLayoutService as Layout;
 function check($condition,$message){if(!$condition)throw new RuntimeException($message);}
 $group=['id'=>'g_root','parent'=>'','type'=>'group','label'=>'Esami','icon'=>'Esami','hidden'=>false];

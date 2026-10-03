@@ -84,6 +84,10 @@ final class UnifiedMenuService
     /** Inline SVG keeps navigation icons available on pages using different icon fonts. */
     public static function icon(string $group): string
     {
+        if(str_starts_with($group,'fa:')){
+            $svg=NavigationIconService::svg($group);
+            if($svg!=='')return $svg;
+        }
         $shape=match($group) {
             'Oggi'=>'<path d="m3 10 9-7 9 7v11H3zM9 21v-8h6v8"/>',
             'Agenda'=>'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4m10-4v4M3 11h18m-13 4h2m4 0h2"/>',

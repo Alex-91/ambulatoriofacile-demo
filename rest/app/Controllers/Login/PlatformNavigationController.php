@@ -15,7 +15,7 @@ final class PlatformNavigationController extends BaseController
         $scope=max(0,(int)$this->request->getGet('spazio'));
         $tenants=\Config\Database::connect('platform')->table('platform_tenants')->get()->getResultArray();
         if($scope && !in_array($scope,array_map('intval',array_column($tenants,'id_tenant')),true))return $this->response->setStatusCode(404)->setBody('Spazio inesistente.');
-        return view('admin/platform_navigation',['layout'=>(new NavigationLayoutService())->read($scope),'tenants'=>$tenants,'icons'=>NavigationLayoutService::ICONS]);
+        return view('admin/platform_navigation',['layout'=>(new NavigationLayoutService())->read($scope),'tenants'=>$tenants,'icons'=>NavigationLayoutService::ICONS,'iconCatalog'=>\App\Services\NavigationIconService::catalog()]);
     }
     public function save()
     {

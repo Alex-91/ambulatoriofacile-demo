@@ -63,7 +63,7 @@ final class NavigationLayoutService
         foreach($nodes as $node){
             if(!is_array($node))throw new \InvalidArgumentException('Voce non valida.');
             $id=(string)($node['id']??'');$type=$node['type']??'';$label=trim((string)($node['label']??''));
-            if(!preg_match('/^[gl]_[a-zA-Z0-9_-]{1,80}$/D',$id)||isset($map[$id])||!in_array($type,['group','link'],true)||!preg_match('/^.{1,90}$/usD',$label)||!in_array($node['icon']??'',self::ICONS,true))throw new \InvalidArgumentException('Identificativo, nome o icona non validi.');
+            if(!preg_match('/^[gl]_[a-zA-Z0-9_-]{1,80}$/D',$id)||isset($map[$id])||!in_array($type,['group','link'],true)||!preg_match('/^.{1,90}$/usD',$label)||!NavigationIconService::supported($node['icon']??null))throw new \InvalidArgumentException('Identificativo, nome o icona non validi.');
             if($type==='link' && (!isset($known[$id])||$known[$id]['type']!=='link'))throw new \InvalidArgumentException('Pagina non presente nel catalogo.');
             if(isset($known[$id]) && $known[$id]['type']!==$type)throw new \InvalidArgumentException('Tipo voce non modificabile.');
             $item=['id'=>$id,'parent'=>(string)($node['parent']??''),'type'=>$type,'label'=>$label,'icon'=>$node['icon'],'hidden'=>!empty($node['hidden'])];
