@@ -38,7 +38,10 @@ final class UnifiedMenuService
         }
         $groups = self::groupLinks(self::extractLinks($html));
         // Agenda is the existing tenant landing page, even when its legacy sidebar omits a self-link.
-        if ($this->tenantId() > 0) $groups = array_filter(['Oggi'=>$groups['Oggi']??[], 'Agenda'=>[['label'=>'Agenda','href'=>site_url('agenda')]]] + $groups);
+        if ($this->tenantId() > 0) {
+            $agendaLinks=array_values(array_filter($groups['Agenda']??[],static fn($link)=>$link['href']!==site_url('agenda')));
+            $groups=array_filter(['Oggi'=>$groups['Oggi']??[], 'Agenda'=>array_merge([['label'=>'Agenda','href'=>site_url('agenda')]],$agendaLinks)] + $groups);
+        }
         $groups['Impostazioni'][] = ['label' => 'Preferenze personali', 'href' => site_url('preferenze-navigazione')];
         $features=(new TenantFeatureService())->resolveEffectiveFeatureMapForTenant($this->tenantId());
         foreach ($groups as $name=>$links) {
@@ -127,16 +130,17 @@ final class UnifiedMenuService
             $text = strtolower($link['label'] . ' ' . $path);
             $group = match (true) {
                 (bool) preg_match('~logout|profilo$|spazi/cambia|imperson|selettore ruoli|apri spazio|\(attivo\)~', $text) => 'Account e spazi',
-                (bool) preg_match('~configura|impostaz|preferenze|spazio/(?:funzioni|pacs|fse|sistema-ts|fatturazione)|gestione-(?:tipi|sedi|stanze|branche)|disponibilit|permessi|menu-ruoli|slot-bloc|orari|ferie~', $text) => 'Impostazioni',
+                (bool) preg_match('~configura|impostaz|preferenze|spazio/(?:funzioni|pacs|fse|sistema-ts|fatturazione|dispositivi-otp)|gestione-(?:tipi|sedi|stanze|branche)|disponibilit|permessi|menu-ruoli|config-slot|slot-extra|slot-bloc|orari|ferie|visibilita|schede-utenti|dap14|dap15|/logs|otp-statistiche|fatturazione-documento(?:$|[? ])~', $text) => 'Impostazioni',
+                (bool) preg_match('~sistema-ts|fatturazione-ts~', $text) => 'Amministrazione',
                 (bool) preg_match('~pacs|dicom|diagnostic|lista.*esami~', $text) => 'Esami',
-                (bool) preg_match('~pazient|cartella-clinica|consens~', $text) => 'Pazienti',
+                (bool) preg_match('~pazient|cartella-clinica|consens|personale/(?:nuovo_cliente|modifica_cliente)~', $text) => 'Pazienti',
                 (bool) preg_match('~report|statistic~', $text) => 'Report',
                 (bool) preg_match('~fattur|incass|compens|listin|convenzion|sistema-ts|accettaz|preventiv|ssn~', $text) => 'Amministrazione',
                 (bool) preg_match('~messagg|posta|chat|whatsapp|campagn|promemoria|notific~', $text) => 'Comunicazioni',
-                (bool) preg_match('~personale|operator|medic|inferm|sostituz|assegnaz|inviti~', $text) => 'Personale',
-                (bool) preg_match('~agenda(?:/)?$|agenda(?:\?|/calendario)|vai.*agenda~', $text) => 'Agenda',
+                (bool) preg_match('~personale|operator|medic|inferm|sostitut|sostituz|assegnaz|inviti|spazio/utenti~', $text) => 'Personale',
+                (bool) preg_match('~agenda|appuntamenti|prenotazioni|memo~', $text) => 'Agenda',
                 (bool) preg_match('~dashboard|profilo operativo|/admin/?$|/home/?$~', $text) => 'Oggi',
-                default => 'Impostazioni',
+                default => 'Oggi',
             };
             if (str_starts_with(strtolower($link['label']), 'vai ') && $group === 'Agenda') $link['label'] = 'Agenda';
             if (str_contains(strtolower($link['label']), 'profilo operativo')) $link['label'] = 'Riepilogo dello spazio';
@@ -145,11 +149,75 @@ final class UnifiedMenuService
         return array_filter($groups);
     }
 
+    public const SECTION_SLUGS=['Oggi'=>'oggi','Agenda'=>'agenda','Pazienti'=>'pazienti','Esami'=>'esami','Amministrazione'=>'amministrazione','Comunicazioni'=>'comunicazioni','Personale'=>'personale','Report'=>'report','Impostazioni'=>'impostazioni','Account e spazi'=>'account'];
+
+    public static function sectionUrl(string $name,array $links): string
+    {
+        if ($name==='Agenda') return site_url('agenda');
+        if ($name==='Oggi' && count($links)===1) return $links[0]['href'];
+        return site_url('navigazione/'.self::SECTION_SLUGS[$name]);
+    }
+
+    /** The same areas as the approved prototype, containing only available real links. */
+    public static function tiles(string $group,array $links): array
+    {
+        $out=[];
+        foreach($links as $link){
+            $text=strtolower($link['href'].' '.$link['label']);
+            $title=match($group){
+                'Impostazioni'=>match(true){
+                    str_contains($text,'preferenze-navigazione')=>'Preferenze personali',
+                    (bool)preg_match('~sedi|stanze~',$text)=>'Struttura',
+                    (bool)preg_match('~pacs|fse|sistema-ts|fatturazione-ts~',$text)=>'Integrazioni',
+                    (bool)preg_match('~fatturazione|modello documento~',$text)=>'Fatturazione',
+                    (bool)preg_match('~branche|prestazioni|tipi-visita~',$text)=>'Catalogo prestazioni',
+                    (bool)preg_match('~dispositivi|otp~',$text)=>'Sicurezza',
+                    (bool)preg_match('~permessi|menu-ruoli|visibilita|schede-utenti|dap14|dap15|spazio/funzioni~',$text)=>'Accessi e permessi',
+                    (bool)preg_match('~agenda|slot|orari|ferie|disponibilit~',$text)=>'Agenda e disponibilità',
+                    default=>'Assistenza e diagnostica',
+                },
+                'Amministrazione'=>match(true){
+                    (bool)preg_match('~sistema-ts|fatturazione-ts~',$text)=>'Sistema TS',
+                    (bool)preg_match('~scadenz|incass~',$text)=>'Incassi e scadenze',
+                    (bool)preg_match('~compens|kind=rule~',$text)=>'Compensi',
+                    (bool)preg_match('~listin|convenzion|kind=(?:list|agreement)|catalogo~',$text)=>'Listini e convenzioni',
+                    str_contains($text,'accettaz')=>'Accettazione',
+                    default=>'Fatture',
+                },
+                'Personale'=>match(true){
+                    str_contains($text,'spazio/utenti')=>'Account e inviti',
+                    (bool)preg_match('~sostituz|sostitut~',$text)=>'Sostituzioni',
+                    (bool)preg_match('~assegnaz|visibilita-operatori~',$text)=>'Assegnazioni',
+                    default=>'Elenco personale',
+                },
+                'Comunicazioni'=>match(true){
+                    (bool)preg_match('~campagn|invii-massivi~',$text)=>'Campagne',
+                    (bool)preg_match('~promemoria|notific|reminder|sms-appuntamenti~',$text)=>'Promemoria appuntamenti',
+                    default=>'Messaggi',
+                },
+                'Pazienti'=>str_contains($text,'cartella-clinica')?'Cartella clinica':'Anagrafica pazienti',
+                'Esami'=>str_contains($text,'demo-pacs')?'Demo guidata':'Lista di lavoro esami',
+                'Report'=>preg_match('~fattur|incass|compens~',$text)?'Andamento economico':'Attività dello studio',
+                default=>$link['label'],
+            };
+            $out[$title][]=$link;
+        }
+        $order=match($group){
+            'Impostazioni'=>['Preferenze personali','Struttura','Catalogo prestazioni','Agenda e disponibilità','Accessi e permessi','Integrazioni','Fatturazione','Sicurezza','Assistenza e diagnostica'],
+            'Amministrazione'=>['Fatture','Incassi e scadenze','Listini e convenzioni','Compensi','Sistema TS','Accettazione'],
+            'Personale'=>['Elenco personale','Assegnazioni','Sostituzioni','Account e inviti'],
+            'Comunicazioni'=>['Promemoria appuntamenti','Messaggi','Campagne'],
+            default=>array_keys($out),
+        };
+        return array_filter(array_replace(array_fill_keys($order,[]),$out));
+    }
+
     public function homeOptions(): array
     {
         $options = [];
         foreach ($this->groups() as $group => $links) {
             if ($group === 'Account e spazi') continue;
+            $options[self::sectionUrl($group,$links)]=$group;
             foreach ($links as $link) $options[$link['href']] = $group . ' · ' . $link['label'];
         }
         return $options;

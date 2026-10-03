@@ -27,3 +27,17 @@ $locations=[['href'=>'/agenda/gestione-sedi','label'=>'Sedi']];
 check(UnifiedMenuService::filterEnabledLinks($locations,['agenda'=>true])===[],'Multi-location links require the tenant module');
 check(count(UnifiedMenuService::filterEnabledLinks($locations,['agenda'=>true,'multi_location'=>true]))===1,'Enabled multi-location stays visible');
 echo "PASS tenant module isolation, PACS dependencies, billing capabilities, SVG icons\n";
+$operational=UnifiedMenuService::groupLinks([
+ ['href'=>'/admin/personale/modifica_cliente','label'=>'Clienti'],
+ ['href'=>'/login/spazio/utenti','label'=>'Utenti dello spazio'],
+ ['href'=>'/admin/sistema-ts/diagnostica','label'=>'Diagnostica'],
+ ['href'=>'/admin/fatturazione-documenti','label'=>'Documenti e invii'],
+ ['href'=>'/agenda/storico-memo','label'=>'Storico memo'],
+ ['href'=>'/agenda/config-slot','label'=>'Slot'],
+ ['href'=>'/preferenze-navigazione','label'=>'Preferenze personali'],
+]);
+check(count($operational['Impostazioni'])===2,'Operational patient, personnel, TS and agenda pages must not fall under settings');
+check(count($operational['Amministrazione'])===2 && count($operational['Pazienti'])===1 && count($operational['Personale'])===1,'Prototype areas must contain the real operational pages');
+$tiles=UnifiedMenuService::tiles('Impostazioni',$operational['Impostazioni']);
+check(array_keys($tiles)===['Preferenze personali','Agenda e disponibilità'],'Settings must use ordered prototype tiles');
+echo "PASS prototype sections and settings tiles\n";

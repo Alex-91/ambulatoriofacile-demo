@@ -22,6 +22,19 @@ final class NavigationPreferences extends BaseController
         catch (\Throwable $e) { $target=null; log_message('error','Navigation landing fallback: '.$e->getMessage()); }
         return redirect()->to($target ?? site_url('agenda'));
     }
+    public function section(string $slug)
+    {
+        if (!$this->allowed()) return redirect()->to(site_url('login'));
+        $menu=new UnifiedMenuService();
+        if (!$menu->enabled()) return redirect()->to(site_url('agenda'));
+        $name=array_search($slug,UnifiedMenuService::SECTION_SLUGS,true);
+        $groups=$menu->groups();
+        if ($name===false || empty($groups[$name])) return $this->response->setStatusCode(404)->setBody('Sezione non disponibile per questo spazio e profilo.');
+        $tiles=UnifiedMenuService::tiles($name,$groups[$name]);
+        $selected=(string)$this->request->getGet('sezione');
+        if ($selected!=='' && !isset($tiles[$selected])) return $this->response->setStatusCode(404)->setBody('Sezione non disponibile.');
+        return view('navigation_section',['sectionName'=>$name,'sectionSlug'=>$slug,'sectionTiles'=>$tiles,'selectedTile'=>$selected]);
+    }
     public function saveHome()
     {
         if (!$this->allowed()) return $this->response->setStatusCode(403);
