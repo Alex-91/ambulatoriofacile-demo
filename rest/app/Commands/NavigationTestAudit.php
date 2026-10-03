@@ -77,7 +77,7 @@ final class NavigationTestAudit extends BaseCommand
                     }
                 }
                 $features=(new TenantFeatureService())->resolveEffectiveFeatureMapForTenant($id);
-                $report['tenants'][]=['tenant_id'=>$id,'users'=>$users,'memberships'=>count($members),'missing_app_users'=>$orphans,'stored_credentials'=>(int)$crypto['stored'],'readable_credentials'=>(int)$crypto['readable'],'new_menu'=>!empty($features[UnifiedMenuService::FEATURE_KEY])];
+                $report['tenants'][]=['tenant_id'=>$id,'users'=>$users,'memberships'=>count($members),'missing_app_users'=>$orphans,'stored_credentials'=>(int)$crypto['stored'],'readable_credentials'=>(int)$crypto['readable'],'new_menu'=>!empty($features[UnifiedMenuService::FEATURE_KEY]),'enabled_features'=>array_keys(array_filter($features))];
                 $report['failures']+=$orphans;
             }catch(\Throwable $e){$report['tenants'][]=['tenant_id'=>$id,'error'=>get_class($e),'location'=>basename($e->getFile()).':'.$e->getLine(),'detail'=>$e instanceof \Error?$e->getMessage():'Database check failed'];$report['failures']++;}
         }
