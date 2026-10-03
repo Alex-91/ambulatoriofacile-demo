@@ -23,5 +23,6 @@ $bad=$nodes;$bad[1]['icon']='<script>'; $cases[]=$bad;
 $cases[]=[$group];
 foreach($cases as $case){$rejected=false;try{Layout::validate($case,$nodes);}catch(InvalidArgumentException $e){$rejected=true;}check($rejected,'Invalid tree accepted');}
 check(Layout::linkId('https://a.invalid/app/agenda?x=1')===Layout::linkId('https://b.invalid/agenda?x=1'),'Environment-independent identity');
+check(Layout::linkId('https://a.invalid/demo/agenda?x=1')===Layout::linkId('https://b.invalid/agenda?x=1'),'Demo must use the approved shared layout identities');
 check(Layout::linkId('/agenda?x=1')!==Layout::linkId('/agenda?x=2'),'Query-specific destinations conflated');
 echo "PASS navigation layout validation, cycles, catalog integrity, permissions, hidden ancestors and route identity\n";

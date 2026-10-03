@@ -3,6 +3,8 @@ require __DIR__ . '/../app/Services/UnifiedMenuService.php';
 require __DIR__ . '/../app/Libraries/TenantFeatureRegistry.php';
 use App\Services\UnifiedMenuService;
 function check(bool $ok, string $message): void { if (!$ok) throw new RuntimeException($message); }
+check(UnifiedMenuService::filterEnabledLinks([['href'=>'https://example.com/demo/admin/accettazione','label'=>'Accettazione']],['billing'=>true])===[],'Demo must enforce billing submodule permissions');
+check(UnifiedMenuService::filterEnabledLinks([['href'=>'https://example.com/demo/personale/nuovo','label'=>'Nuovo personale']],[])===[],'Demo must enforce staff permissions');
 $links = UnifiedMenuService::extractLinks('<a href="#">Gruppo</a><a href="javascript:alert(1)">Bad</a><li class="disabled"><a href="/admin/fatture">Hidden</a></li><a href="/agenda">Vai all’agenda</a><a href="/agenda">Agenda</a><a href="/pacs" aria-disabled="true">No</a><a href="/pazienti">Pazienti</a><a href="/cartella-clinica/diagnostica">Diagnostica</a><a href="/login/spazio/pacs">Configurazione PACS</a>');
 check(count($links)===4,'Disabled, placeholder and duplicate entries must be excluded');
 $groups=UnifiedMenuService::groupLinks($links);

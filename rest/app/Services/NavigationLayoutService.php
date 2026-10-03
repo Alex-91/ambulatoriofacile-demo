@@ -9,7 +9,7 @@ final class NavigationLayoutService
     public function __construct() { $this->db=\Config\Database::connect('platform'); }
     public static function linkId(string $href): string
     {
-        $path=preg_replace('~^app/~','',ltrim((string)parse_url($href,PHP_URL_PATH),'/'));
+        $path=preg_replace('~^(?:app|demo)/~','',ltrim((string)parse_url($href,PHP_URL_PATH),'/'));
         return 'l_'.hash('sha256',$path.'?'.(string)parse_url($href,PHP_URL_QUERY));
     }
     private function row(int $scope): ?array

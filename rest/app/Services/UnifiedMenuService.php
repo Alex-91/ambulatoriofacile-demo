@@ -55,7 +55,7 @@ final class UnifiedMenuService
     {
         return array_values(array_filter($links,static function(array $link) use ($features): bool {
             $path=trim(strtolower((string)parse_url($link['href'],PHP_URL_PATH)),'/');
-            $path=preg_replace('~^app/~','',$path);
+            $path=preg_replace('~^(?:app|demo)/~','',$path);
             $required=[];
             $module=\App\Libraries\TenantFeatureRegistry::resolveFeatureKeyFromRoutePath($path);
             if ($module) $required[]=$module;
