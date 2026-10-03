@@ -10,7 +10,7 @@ $testUrl='https://af-menu-test.178.104.113.107.sslip.io'
 function Api([string]$method,[string]$path,$body=$null){
  $params=@{Method=$method;Uri=$api+$path;Headers=$headers;TimeoutSec=45}
  if($null -ne $body){$params.ContentType='application/json';$params.Body=$body|ConvertTo-Json -Depth 20 -Compress}
- try {Invoke-RestMethod @params} catch {throw "Coolify $method $path failed (details suppressed to protect credentials): $($_.Exception.Response.StatusCode)"}
+ try { $result=Invoke-RestMethod @params; Write-Output -InputObject $result } catch {throw "Coolify $method $path failed (details suppressed to protect credentials): $($_.Exception.Response.StatusCode)"}
 }
 $apps=@(Api Get '/applications')
 $matches=@($apps|Where-Object name -eq $appName)
@@ -36,6 +36,7 @@ if($Action -eq 'Prepare'){
  foreach($entry in @(Api Get '/applications/eei0est5n3e3l638djjynuk4/envs')){
   if(!$entry.is_preview -and $entry.key -in @('DB_ENCRYPTION_KEY','DB_ENCRYPTION_MODE','FILE_CRYPT_ALGO','FILE_CRYPT_KEY','FILE_CRYPT_IV','PLATFORM_MASTER_EMAILS','PRODUCT_BRAND_NAME','PRODUCT_BRAND_SHORT_NAME')){$envs[$entry.key]=[string]$entry.value}
  }
+ if(!$envs.ContainsKey('DB_ENCRYPTION_KEY')){throw 'Required approved data encryption key missing; preview must not deploy'}
  $envs.CI_ENVIRONMENT='production';$envs.RUN_MIGRATIONS='1';$envs.BOOTSTRAP_DEMO_DB='0';$envs.RUN_DEMO_SEED='0';$envs.DEMO_AUTO_RESET_ENABLED='0';$envs.DEMO_SITE_ENABLED='0'
  $envs.APP_BASE_URL=$testUrl+'/app/';$envs.APP_CANONICAL_URL=$testUrl;$envs.APP_PUBLIC_ACCESS_BASE_URL=$testUrl+'/';$envs.APP_ROOT_ENTRY='login'
  # Generate a new preview-only token signing key; never reuse a live signing key.
