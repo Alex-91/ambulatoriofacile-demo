@@ -7,25 +7,7 @@ $current = current_url();
 <nav class="af-unified-menu box box-solid" aria-label="Menu principale">
   <div class="box-header"><strong>Menu</strong></div>
   <div class="box-body">
-  <?php foreach ($groups as $name => $links):
-    $active = (bool) array_filter($links, static fn($link) => strtok($link['href'], '?') === $current);
-    $subgroups=$navigation::tiles($name,$links);
-  ?>
-    <?php if ($name==='Personale'): ?><div class="af-menu-divider">Gestione dello studio</div><?php endif ?>
-    <?php if (in_array($name,['Oggi','Agenda'],true) && count($links)===1): ?>
-      <a class="af-unified-entry" href="<?= esc($links[0]['href']) ?>" <?= $active ? 'aria-current="page"' : '' ?>><?= $navigation::icon($name) ?><span><?= esc($name) ?></span></a>
-    <?php else: ?>
-      <details name="af-navigation" class="af-menu-section <?= $name==='Account e spazi'?'af-menu-account':'' ?>" <?= $active?'open':'' ?>>
-        <summary><?= $navigation::icon($name) ?><span><?= esc($name) ?></span><svg class="af-menu-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></summary>
-        <div class="af-menu-children">
-        <?php foreach($subgroups as $title=>$items): ?>
-          <?php if(count($subgroups)>1 && count($items)>1): ?><div class="af-menu-subtitle"><?= esc($title) ?></div><?php endif ?>
-          <?php foreach($items as $link): ?><a class="af-unified-child" href="<?= esc($link['href']) ?>" <?= strtok($link['href'],'?')===$current?'aria-current="page"':'' ?>><?= $navigation::icon($name) ?><span><?= esc($link['label']) ?></span></a><?php endforeach ?>
-        <?php endforeach ?>
-        </div>
-      </details>
-    <?php endif ?>
-  <?php endforeach ?>
+  <?= view('partials/unified_menu_tree', ['tree'=>(new \App\Services\NavigationLayoutService())->tree($navigation->tenantId(),$groups),'current'=>$current], ['saveData'=>false]) ?>
   <?php if (session_has_tenant_master_access()): ?>
     <form method="post" action="<?= site_url('preferenze-navigazione/menu') ?>" class="af-menu-rollback">
       <?= csrf_field() ?><input type="hidden" name="return_to" value="<?= esc(current_url()) ?>">

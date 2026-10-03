@@ -17,7 +17,7 @@ final class NavigationTestAudit extends BaseCommand
             CLI::error('Only the isolated navigation preview is allowed.');return EXIT_ERROR;
         }
         $db=\Config\Database::connect('platform');
-        $emails=['audit-menu-master@preview.invalid','audit-menu-staff@preview.invalid'];
+        $emails=['audit-menu-master@preview.invalid','audit-menu-staff@preview.invalid','audit-menu-platform@preview.invalid'];
         if (($params[0]??'')==='cleanup') {
             foreach($emails as $email){
                 $row=$db->table('platform_users')->where('email',$email)->get()->getRowArray();
@@ -38,7 +38,7 @@ final class NavigationTestAudit extends BaseCommand
             foreach($emails as $email){
                 $existing=$db->table('platform_users')->where('email',$email)->get()->getRowArray();
                 if($existing){$fixtureUsers[$email]=(int)$existing['id_platform_user'];continue;}
-                $db->table('platform_users')->insert(['email'=>$email,'password_hash'=>password_hash($password,PASSWORD_DEFAULT),'first_name'=>'Collaudo','last_name'=>'Menu','is_platform_admin'=>0,'status'=>'active','must_reset_password'=>0,'email_verified_at'=>date('Y-m-d H:i:s'),'created_at'=>date('Y-m-d H:i:s'),'updated_at'=>date('Y-m-d H:i:s')]);
+                $db->table('platform_users')->insert(['email'=>$email,'password_hash'=>password_hash($password,PASSWORD_DEFAULT),'first_name'=>'Collaudo','last_name'=>'Menu','is_platform_admin'=>$email==='audit-menu-platform@preview.invalid'?1:0,'status'=>'active','must_reset_password'=>0,'email_verified_at'=>date('Y-m-d H:i:s'),'created_at'=>date('Y-m-d H:i:s'),'updated_at'=>date('Y-m-d H:i:s')]);
                 $fixtureUsers[$email]=(int)$db->insertID();
             }
         }
@@ -62,7 +62,7 @@ final class NavigationTestAudit extends BaseCommand
                     $valid[]=$member;
                 }
                 if($fixture){
-                    foreach($emails as $i=>$email){
+                    foreach(array_slice($emails,0,2) as $i=>$email){
                         $candidates=array_values(array_filter($valid,static fn($m)=>$i===0?$m['tenant_role']==='tenant_master':$m['tenant_role']!=='tenant_master'));
                         if (!$candidates && $i===1) {
                             $operator=$tenantDb->table('dap01_users')->where('tipo_user',2)->orderBy('id_user')->get()->getRowArray();

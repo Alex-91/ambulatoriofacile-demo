@@ -491,6 +491,11 @@ class MenuRegistryService
     {
         return [
             [
+                'key'=>'piattaforma/menu','link'=>'piattaforma/menu','title'=>'Gestione menu','icon'=>'fa-list-ul','order'=>250,
+                'group'=>'Console piattaforma','description'=>'Organizza menu e sottomenu per tutti gli spazi o per un singolo spazio.',
+                'route_prefixes'=>['login/piattaforma/menu','piattaforma/menu'],
+            ],
+            [
                 'key' => 'piattaforma/spazi-clienti',
                 'link' => 'piattaforma/spazi-clienti',
                 'title' => 'Spazi cliente',

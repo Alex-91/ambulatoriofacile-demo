@@ -60,6 +60,8 @@ $routes->get('login/piattaforma/impersonificazione', 'Login\PlatformImpersonatio
 $routes->post('login/piattaforma/impersonificazione/start', 'Login\PlatformImpersonationController::start');
 $routes->post('login/piattaforma/impersonificazione/stop', 'Login\PlatformImpersonationController::stop');
 $routes->get('login/piattaforma/funzioni', 'Login\PlatformFeaturesController::index');
+$routes->get('login/piattaforma/menu', 'Login\PlatformNavigationController::index');
+$routes->post('login/piattaforma/menu/save', 'Login\PlatformNavigationController::save', ['filter'=>'billingcsrf']);
 $routes->post('login/piattaforma/funzioni/save', 'Login\PlatformFeaturesController::save');
 $routes->get('login/piattaforma/dispositivi-otp', 'Login\PlatformOtpDevicesController::index');
 $routes->post('login/piattaforma/dispositivi-otp/disconnect', 'Login\PlatformOtpDevicesController::disconnect');

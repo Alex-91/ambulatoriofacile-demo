@@ -16,6 +16,11 @@ final class NavigationMigrate extends BaseCommand
             return EXIT_SUCCESS;
         }
         service('migrations')->force(APPPATH.'Database/Migrations/2026-10-03-100001_CreateNavigationPreferences.php','App','platform');
+        service('migrations')->force(APPPATH.'Database/Migrations/2026-10-03-100002_CreateNavigationLayouts.php','App','platform');
+        if (!$db->tableExists('platform_navigation_layouts')) {
+            CLI::error('Navigation layout migration failed.');
+            return EXIT_ERROR;
+        }
         if (!$db->tableExists('platform_navigation_preferences')) {
             CLI::error('Navigation preferences migration failed.');
             return EXIT_ERROR;
