@@ -20,6 +20,21 @@ L'opzione `fixture` crea due identita' temporanee nel solo test, usando `AF_TEST
 
 Il refresh notturno `d24ji8ae0gebi8x5r54phknn` dell'app toolbox `zczppid5npwqqfvkiat9up8s` e' sospeso durante la prova per non sovrascrivere le preferenze.
 
+### Esito del 3 ottobre 2026
+
+Codice collaudato online: `2c66671c`, deploy `vh7kgo4d8hniy94vh524afji`.
+
+- Cinque tenant, 26 credenziali cifrate leggibili su 26, nessun collegamento applicativo mancante.
+- Login HTTP con identita' sintetica master in tutti i cinque tenant; operatore nei quattro tenant con profilo personale disponibile.
+- Per ogni sessione: menu presente, preferenze HTTP 200, Agenda selezionabile, salvataggio della pagina iniziale e verifica dopo nuovo login riusciti.
+- Master: passaggio al vecchio menu e ripristino del nuovo riusciti in tutti i tenant. Operatore: cambio menu globale negato con HTTP 403.
+- Nessun redirect verso produzione nel collaudo. Login e demo live HTTP 200 e Coolify healthy.
+- Regressione menu superata; test sessione: 17 test, 34 asserzioni.
+
+Non sono state usate o cambiate le password personali dei clienti. Questi controlli verificano configurazione e flusso con account sintetici, non equivalgono a una prova manuale di ogni password cliente.
+
+Il database piattaforma copiato incontra una migration legacy che presuppone `dap01_users`. Il comando `navigation:migrate` applica e registra soltanto la migration dichiarata delle preferenze, separatamente; il bootstrap lo esegue dopo il tentativo delle migration generiche. La correzione generale delle migration legacy resta fuori da questo intervento e va valutata prima del rilascio produttivo.
+
 ## Dismissione dopo la prova dell'utente
 
 Non eliminare la preview prima che l'utente abbia terminato la verifica. Quando lo conferma:
