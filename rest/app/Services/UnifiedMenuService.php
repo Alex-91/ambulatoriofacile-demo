@@ -62,6 +62,8 @@ final class UnifiedMenuService
             elseif (str_contains($path,'cartella-clinica')) $required[]='clinical_records';
             if (str_contains($path,'importa-pazienti-excel')) $required[]='patient_excel_import';
             if (str_contains($path,'gestione-tipi-visita')) $required[]='agenda_visit_types';
+            if (preg_match('~/(?:gestione-sedi|gestione-stanze)(?:/|$)~',$path)) $required[]='multi_location';
+            if (preg_match('~^(?:admin/)?personale/(?:visibilita-moduli|dap14|dap15|schede-utenti)(?:/|$)~',$path) || preg_match('~/(?:visibilita-operatori|sostituti)(?:/|$)~',$path)) $required[]='staff_management';
             if (preg_match('~(?:spazio/utenti|(?:admin/)?personale/(?:nuovo|modifica_personale)$)~',$path)) $required[]='staff_management';
             if (str_contains($path,'notifiche-appuntamenti')) $required[]='appointment_notifications';
             if (str_contains($path,'fse2')) $required[]='fse2';

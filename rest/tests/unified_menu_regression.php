@@ -23,4 +23,7 @@ $billing=[['href'=>'/admin/fatturazione/gestione?tab=catalogo&kind=agreement','l
 check(UnifiedMenuService::filterEnabledLinks($billing,['billing'=>true])===[],'Optional billing capability must be enabled');
 check(count(UnifiedMenuService::filterEnabledLinks($billing,['billing'=>true,'billing_agreements'=>true]))===1,'Enabled billing capability must remain visible');
 check(str_contains(UnifiedMenuService::icon('Agenda'),'<svg'),'Icons must not depend on an external font');
+$locations=[['href'=>'/agenda/gestione-sedi','label'=>'Sedi']];
+check(UnifiedMenuService::filterEnabledLinks($locations,['agenda'=>true])===[],'Multi-location links require the tenant module');
+check(count(UnifiedMenuService::filterEnabledLinks($locations,['agenda'=>true,'multi_location'=>true]))===1,'Enabled multi-location stays visible');
 echo "PASS tenant module isolation, PACS dependencies, billing capabilities, SVG icons\n";
