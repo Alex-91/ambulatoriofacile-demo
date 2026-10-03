@@ -41,3 +41,6 @@ check(count($operational['Amministrazione'])===2 && count($operational['Pazienti
 $tiles=UnifiedMenuService::tiles('Impostazioni',$operational['Impostazioni']);
 check(array_keys($tiles)===['Preferenze personali','Agenda e disponibilità'],'Settings must use ordered prototype tiles');
 echo "PASS prototype sections and settings tiles\n";
+$catalog=UnifiedMenuService::groupLinks([['href'=>'/admin/fatturazione/gestione?tab=catalogo&kind=service','label'=>'Gestione prestazioni'],['href'=>'/admin/fatturazione/gestione?tab=integrazioni','label'=>'Collegamenti'],['href'=>'/admin/fatturazione/gestione?tab=report','label'=>'Analisi prestazioni']]);
+check(count($catalog['Impostazioni'])===2 && count($catalog['Report'])===1,'Catalog configuration and integrations must be separated from billing activities');
+check(array_keys(UnifiedMenuService::tiles('Impostazioni',$catalog['Impostazioni']))===['Catalogo prestazioni','Integrazioni'],'Catalog and integration tiles must match prototype');

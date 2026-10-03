@@ -127,9 +127,11 @@ final class UnifiedMenuService
         $groups = array_fill_keys(['Oggi', 'Agenda', 'Pazienti', 'Esami', 'Amministrazione', 'Comunicazioni', 'Personale', 'Report', 'Impostazioni', 'Account e spazi'], []);
         foreach ($links as $link) {
             $path = strtolower((string) parse_url($link['href'], PHP_URL_PATH));
-            $text = strtolower($link['label'] . ' ' . $path);
+            $text = strtolower($link['label'] . ' ' . $path . '?' . (string)parse_url($link['href'],PHP_URL_QUERY));
+            $text = rtrim($text,'?');
             $group = match (true) {
                 (bool) preg_match('~logout|profilo$|spazi/cambia|imperson|selettore ruoli|apri spazio|\(attivo\)~', $text) => 'Account e spazi',
+                (bool) preg_match('~(?:[?&])(?:kind=(?:branch|service)|tab=integrazioni)(?:&|$)~',$text) => 'Impostazioni',
                 (bool) preg_match('~configura|impostaz|preferenze|spazio/(?:funzioni|pacs|fse|sistema-ts|fatturazione|dispositivi-otp)|gestione-(?:tipi|sedi|stanze|branche)|disponibilit|permessi|menu-ruoli|config-slot|slot-extra|slot-bloc|orari|ferie|visibilita|schede-utenti|dap14|dap15|/logs|otp-statistiche|fatturazione-documento(?:$|[? ])~', $text) => 'Impostazioni',
                 (bool) preg_match('~sistema-ts|fatturazione-ts~', $text) => 'Amministrazione',
                 (bool) preg_match('~pacs|dicom|diagnostic|lista.*esami~', $text) => 'Esami',
@@ -168,7 +170,8 @@ final class UnifiedMenuService
                 'Impostazioni'=>match(true){
                     str_contains($text,'preferenze-navigazione')=>'Preferenze personali',
                     (bool)preg_match('~sedi|stanze~',$text)=>'Struttura',
-                    (bool)preg_match('~pacs|fse|sistema-ts|fatturazione-ts~',$text)=>'Integrazioni',
+                    (bool)preg_match('~pacs|fse|sistema-ts|fatturazione-ts|tab=integrazioni~',$text)=>'Integrazioni',
+                    (bool)preg_match('~kind=(?:branch|service)~',$text)=>'Catalogo prestazioni',
                     (bool)preg_match('~fatturazione|modello documento~',$text)=>'Fatturazione',
                     (bool)preg_match('~branche|prestazioni|tipi-visita~',$text)=>'Catalogo prestazioni',
                     (bool)preg_match('~dispositivi|otp~',$text)=>'Sicurezza',
