@@ -155,9 +155,7 @@ final class UnifiedMenuService
 
     public static function sectionUrl(string $name,array $links): string
     {
-        if ($name==='Agenda') return site_url('agenda');
-        if ($name==='Oggi' && count($links)===1) return $links[0]['href'];
-        return site_url('navigazione/'.self::SECTION_SLUGS[$name]);
+        return $links[0]['href'];
     }
 
     /** The same areas as the approved prototype, containing only available real links. */
@@ -220,7 +218,6 @@ final class UnifiedMenuService
         $options = [];
         foreach ($this->groups() as $group => $links) {
             if ($group === 'Account e spazi') continue;
-            $options[self::sectionUrl($group,$links)]=$group;
             foreach ($links as $link) $options[$link['href']] = $group . ' · ' . $link['label'];
         }
         return $options;
@@ -235,6 +232,10 @@ final class UnifiedMenuService
         if ($userId <= 0) return null;
         $row = $db->table('platform_navigation_preferences')->where('id_tenant', $this->tenantId())->where('id_platform_user', $userId)->get()->getRowArray();
         $href = (string) ($row['home_url'] ?? '');
+        // Older test preferences may point to a retired section chooser.
+        foreach($this->groups() as $name=>$links) {
+            if ($href===site_url('navigazione/'.self::SECTION_SLUGS[$name])) return $links[0]['href'];
+        }
         return $href !== '' && isset($this->homeOptions()[$href]) ? $href : null;
     }
 

@@ -33,7 +33,9 @@ final class NavigationPreferences extends BaseController
         $tiles=UnifiedMenuService::tiles($name,$groups[$name]);
         $selected=(string)$this->request->getGet('sezione');
         if ($selected!=='' && !isset($tiles[$selected])) return $this->response->setStatusCode(404)->setBody('Sezione non disponibile.');
-        return view('navigation_section',['sectionName'=>$name,'sectionSlug'=>$slug,'sectionTiles'=>$tiles,'selectedTile'=>$selected]);
+        // Keep old test bookmarks working without an intermediate chooser page.
+        $links=$selected!==''?$tiles[$selected]:$groups[$name];
+        return redirect()->to($links[0]['href']);
     }
     public function saveHome()
     {
