@@ -50,6 +50,9 @@ final class NavigationTestAudit extends BaseCommand
                 if($config['hostname']!==$expected)throw new \RuntimeException('Isolation check failed');
                 $tenantDb=$connector->connect($tenant);
                 $users=$tenantDb->table('dap01_users')->countAllResults();
+                (new \App\Libraries\DatabaseConfig())->setEncryptionConfig($tenantDb);
+                // Return counts only: no passwords or other decrypted values leave SQL.
+                $crypto=$tenantDb->query("SELECT COUNT(*) AS stored, SUM(AES_DECRYPT(UNHEX(password), @key_str, vector_id) IS NOT NULL) AS readable FROM dap01_users WHERE password IS NOT NULL AND password<>''")->getRowArray();
                 $members=$db->table('platform_user_tenants')->where('id_tenant',$id)->get()->getResultArray();
                 $valid=[];$orphans=0;
                 foreach($members as $member){
@@ -70,7 +73,7 @@ final class NavigationTestAudit extends BaseCommand
                     }
                 }
                 $features=(new TenantFeatureService())->resolveEffectiveFeatureMapForTenant($id);
-                $report['tenants'][]=['tenant_id'=>$id,'users'=>$users,'memberships'=>count($members),'missing_app_users'=>$orphans,'new_menu'=>!empty($features[UnifiedMenuService::FEATURE_KEY])];
+                $report['tenants'][]=['tenant_id'=>$id,'users'=>$users,'memberships'=>count($members),'missing_app_users'=>$orphans,'stored_credentials'=>(int)$crypto['stored'],'readable_credentials'=>(int)$crypto['readable'],'new_menu'=>!empty($features[UnifiedMenuService::FEATURE_KEY])];
                 $report['failures']+=$orphans;
             }catch(\Throwable $e){$report['tenants'][]=['tenant_id'=>$id,'error'=>get_class($e)];$report['failures']++;}
         }

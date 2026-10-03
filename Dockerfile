@@ -2,6 +2,7 @@
 FROM php@sha256:d2d7559c815220accfb1b48704a1ce59623aa21f7d2dcc9bff13838749a678d4
 
 ARG DEBIAN_FRONTEND=noninteractive
+ARG PHP_BUILD_JOBS=2
 ENV COMPOSER_ALLOW_SUPERUSER=1
 
 RUN apt-get update \
@@ -22,7 +23,7 @@ RUN apt-get update \
         libxml2-dev \
         libzip-dev \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install -j"$(nproc)" \
+    && docker-php-ext-install -j"${PHP_BUILD_JOBS}" \
         curl \
         dom \
         gd \
