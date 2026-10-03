@@ -300,7 +300,11 @@ clear_runtime_caches
 bootstrap_demo_database
 
 if [ "${RUN_MIGRATIONS:-1}" = "1" ] && [ -f "$APP_ROOT/rest/spark" ]; then
-  php "$APP_ROOT/rest/spark" migrate --all --no-header
+  # The navigation preview uses an existing multi-tenant snapshot. Legacy tenant
+  # migrations cannot run against its platform database; use the targeted schema.
+  if [ "${AF_NAVIGATION_TEST:-0}" != "1" ]; then
+    php "$APP_ROOT/rest/spark" migrate --all --no-header
+  fi
   php "$APP_ROOT/rest/spark" navigation:migrate --no-header
 fi
 

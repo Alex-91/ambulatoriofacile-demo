@@ -15,8 +15,12 @@ final class NavigationMigrate extends BaseCommand
             CLI::write('No platform tenant schema; navigation migration skipped.');
             return EXIT_SUCCESS;
         }
-        service('migrations')->force(APPPATH.'Database/Migrations/2026-10-03-100001_CreateNavigationPreferences.php','App','platform');
-        service('migrations')->force(APPPATH.'Database/Migrations/2026-10-03-100002_CreateNavigationLayouts.php','App','platform');
+        // force() toggles an already recorded migration DOWN. Bootstrap must only run
+        // these idempotent up() methods, including after repeated container starts.
+        require_once APPPATH.'Database/Migrations/2026-10-03-100001_CreateNavigationPreferences.php';
+        require_once APPPATH.'Database/Migrations/2026-10-03-100002_CreateNavigationLayouts.php';
+        (new \App\Database\Migrations\CreateNavigationPreferences())->up();
+        (new \App\Database\Migrations\CreateNavigationLayouts())->up();
         if (!$db->tableExists('platform_navigation_layouts')) {
             CLI::error('Navigation layout migration failed.');
             return EXIT_ERROR;
