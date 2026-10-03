@@ -52,7 +52,7 @@ final class NavigationTestAudit extends BaseCommand
                 $users=$tenantDb->table('dap01_users')->countAllResults();
                 (new \App\Libraries\DatabaseConfig())->setEncryptionConfig($tenantDb);
                 // Return counts only: no passwords or other decrypted values leave SQL.
-                $crypto=$tenantDb->query("SELECT COUNT(*) AS stored, SUM(AES_DECRYPT(UNHEX(password), @key_str, vector_id) IS NOT NULL) AS readable FROM dap01_users WHERE password IS NOT NULL AND password<>''")->getRowArray();
+                $crypto=$tenantDb->query("SELECT COUNT(*) AS `stored`, SUM(AES_DECRYPT(UNHEX(password), @key_str, vector_id) IS NOT NULL) AS readable FROM dap01_users WHERE password IS NOT NULL AND password<>''")->getRowArray();
                 $members=$db->table('platform_user_tenants')->where('id_tenant',$id)->get()->getResultArray();
                 $valid=[];$orphans=0;
                 foreach($members as $member){
