@@ -4,6 +4,24 @@ use App\Services\ClinicalJourneyService;
 
 final class ClinicalJourneyController extends ClinicalRecords
 {
+    public function signatureSettings()
+    {
+        try {
+            ClinicalJourneyService::assertTest();
+            [$records,$tenant,$db,$userId]=$this->context();
+            $actor=$records->actor();
+            if (!in_array($actor['role'],[1,4],true)) throw new \RuntimeException('Impostazioni riservate al medico e al responsabile dello spazio.');
+            $isDoctor=$actor['role']===1;
+            $store=new \App\Services\ClinicalSignaturePreferences((int)$tenant['id_tenant'],$isDoctor?$userId:0);
+            if (strtoupper($this->request->getMethod())==='POST') {
+                $store->save((array)$this->request->getPost());
+                return redirect()->to(site_url('cartella-clinica/impostazioni-firma'),303)->with('success','Preferenze salvate. Il servizio di firma resta da collegare.');
+            }
+            $preferences=$store->read();
+            $spacePreferences=(new \App\Services\ClinicalSignaturePreferences((int)$tenant['id_tenant'],0))->read();
+            return $this->response->setHeader('Cache-Control','no-store, private')->setBody(view('clinical/signature_settings',compact('tenant','isDoctor','preferences','spacePreferences')));
+        } catch (\Throwable $e) { return $this->problem($e); }
+    }
     public function queue()
     {
         try {

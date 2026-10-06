@@ -1,0 +1,16 @@
+<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Firma digitale | AmbulatorioFacile</title>
+<?= view('partials/operational_workspace_assets') ?>
+<?= view('partials/operational_workspace_style') ?>
+<style>.signature-settings{max-width:850px}.signature-settings .signature-card{background:white;border:1px solid #dce5e9;border-radius:12px;padding:24px;margin:20px 0}.signature-settings label{display:block;margin:20px 0 8px}.signature-settings select{width:100%;padding:12px;border:1px solid #afc2ca;border-radius:8px;background:white}.signature-settings .notice{background:#fff3cd;padding:16px;border-radius:8px}.signature-settings h2{font-size:20px}</style>
+</head><body class="billing-unified-page skin-blue sidebar-mini"><?= view('partials/operational_workspace_start',['menu_items'=>$menu_items??[]]) ?>
+<div class="signature-settings"><h1>Firma digitale</h1><p>Imposta come firmare i referti definitivi.</p>
+<?php if(session()->getFlashdata('success')): ?><p class="alert alert-success" role="status"><?= esc(session()->getFlashdata('success')) ?></p><?php endif ?>
+<section class="signature-card"><h2><?= $isDoctor?'La tua firma personale':'Preferenze dello spazio' ?></h2>
+<p><?= $isDoctor?'Queste preferenze riguardano soltanto il tuo profilo in questo spazio. Ogni medico autorizza la propria firma.':'Il responsabile può indicare il servizio previsto per lo spazio. Il collegamento e l’autorizzazione della firma restano personali per ciascun medico.' ?></p>
+<p>Servizio previsto per lo spazio: <strong><?= esc(\App\Services\ClinicalSignaturePreferences::PROVIDERS[$spacePreferences['provider']]??'Da scegliere') ?></strong></p>
+<form method="post" action="<?= site_url('cartella-clinica/impostazioni-firma') ?>"><?= csrf_field() ?>
+<label for="signature-mode">Modalità preferita</label><select id="signature-mode" name="mode"><option value="external" <?= $preferences['mode']==='external'?'selected':'' ?>>Firma esterna e caricamento del documento</option><option value="remote" <?= $preferences['mode']==='remote'?'selected':'' ?>>Firma remota nell’applicativo · da collegare</option></select>
+<label for="signature-provider">Servizio di firma remota</label><select id="signature-provider" name="provider"><?php foreach(\App\Services\ClinicalSignaturePreferences::PROVIDERS as $key=>$label): ?><option value="<?= esc($key,'attr') ?>" <?= $preferences['provider']===$key?'selected':'' ?>><?= esc($label) ?></option><?php endforeach ?></select>
+<p class="notice"><strong>Stato: non collegato.</strong> Salvare la scelta non attiva la firma. Il collegamento richiede l’integrazione del servizio scelto e il collaudo. Non inserire password, PIN o OTP: questa schermata non raccoglie credenziali.</p><button class="btn btn-primary">Salva preferenze</button></form></section>
+<section class="signature-card"><h2>Firma con un programma esterno</h2><p>Dalla scheda esame scarica il PDF definitivo, firmalo con il tuo programma e scegli «Carica referto firmato». Il documento deve superare la verifica prima di essere indicato come firmato.</p><p>Formati previsti: PDF firmato (PAdES) e P7M (CAdES). La verifica richiede anche la configurazione del validatore e dell’identità del medico.</p></section></div>
+<?= view('partials/operational_workspace_end') ?></body></html>

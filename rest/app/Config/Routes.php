@@ -610,6 +610,8 @@ $routes->get('agenda/gestione-pazienti', 'Agenda::gestionePazienti');
 $routes->get('cartella-clinica/pazienti/(:num)', 'ClinicalRecords::patient/$1');
 $routes->get('cartella-clinica/esame/(:num)', 'ClinicalJourneyController::show/$1');
 $routes->get('cartella-clinica/esami-test', 'ClinicalJourneyController::queue');
+$routes->get('cartella-clinica/impostazioni-firma', 'ClinicalJourneyController::signatureSettings');
+$routes->post('cartella-clinica/impostazioni-firma', 'ClinicalJourneyController::signatureSettings');
 $routes->post('cartella-clinica/esame/(:num)', 'ClinicalJourneyController::update/$1');
 $routes->get('cartella-clinica/diagnostica/nuova-richiesta', 'PacsOrdersController::selectPatient');
 $routes->post('cartella-clinica/diagnostica/nuova-richiesta', 'PacsOrdersController::selectPatient');
