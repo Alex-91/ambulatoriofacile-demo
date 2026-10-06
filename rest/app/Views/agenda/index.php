@@ -491,6 +491,26 @@
             min-width: 170px;
         }
 
+        #appointmentModal .appointment-clinical-next {
+            display: flex; align-items: center; justify-content: space-between; gap: 16px;
+            margin-top: 20px; padding: 16px; border: 1px solid #cbe3e7; border-radius: 10px; background: #eff8f9;
+        }
+        #appointmentModal .appointment-clinical-next strong { display: block; color: #24545b; }
+        #appointmentModal .appointment-clinical-next p { margin: 4px 0 0; color: #516775; }
+        #appointmentModal .appointment-clinical-next .btn { flex-shrink: 0; padding: 10px 18px; border-radius: 8px; }
+        #appointmentModal .appointment-danger-actions summary { cursor: pointer; color: #6b7280; padding: 8px 0; }
+        #appointmentModal .appointment-danger-actions[open] summary { margin-bottom: 10px; }
+        #appointmentModal .appointment-danger-actions .btn { min-width: 0; padding: 8px 12px; margin: 0 4px 6px 0; font-weight: 400; }
+        #appointmentModal .appointment-modal-footer { align-items: flex-start; }
+        #appointmentModal .appointment-modal-footer-right { width: auto; margin-left: auto; justify-content: flex-end; }
+        #appointmentModal .appointment-modal-footer-left { width: auto; }
+        @media(max-width:600px) {
+            #appointmentModal .appointment-clinical-next { flex-direction: column; align-items: stretch; }
+            #appointmentModal .appointment-modal-footer-right { width: 100%; display: grid; grid-template-columns: 1fr 1fr; order: 0; }
+            #appointmentModal .appointment-modal-footer-right .btn { min-width: 0; padding: 10px; }
+            #appointmentModal .appointment-modal-footer-left { width: 100%; order: 1; }
+        }
+
         @media (max-width: 991px) {
             .appointment-modal-footer {
                 align-items: stretch;
@@ -4548,10 +4568,17 @@ if ($appointmentModalRenderOrderKeys === []) {
                         <?= $appointmentModalBlockHtmlByKey[$appointmentModalRenderOrderKey] ?? '' ?>
                     <?php endforeach; ?>
                 </div>
+                <?php if ((string)env('AF_CLINICAL_JOURNEY_TEST')==='1' && (new \App\Services\ClinicalFeatureService())->isEnabledForCurrentTenant()): ?>
+                <div class="appointment-clinical-next" id="appointmentClinicalJourneyPanel" style="display:none">
+                    <div><strong>Percorso dell’esame</strong><p>Accettazione, esecuzione e referto dello stesso appuntamento.</p></div>
+                    <a class="btn btn-primary" id="btnOpenClinicalJourney" href="#"><i class="fa fa-stethoscope"></i> Apri esame <i class="fa fa-arrow-right" aria-hidden="true"></i></a>
+                </div>
+                <?php endif ?>
             </div>
 
             <div class="modal-footer appointment-modal-footer">
                 <div class="appointment-modal-footer-left">
+                    <details class="appointment-danger-actions"><summary>Altre azioni</summary>
                     <button type="button" class="btn btn-danger" id="btnDeleteExtraSlot" style="display:none;">
                         <i class="fa fa-trash"></i> Elimina slot extra
                     </button>
@@ -4559,12 +4586,10 @@ if ($appointmentModalRenderOrderKeys === []) {
                     <button type="button" class="btn btn-danger" id="btnDeleteAppointment" style="display:none;">
                         <i class="fa fa-trash"></i> Elimina appuntamento
                     </button>
+                    </details>
                 </div>
 
                 <div class="appointment-modal-footer-right">
-                    <?php if ((string)env('AF_CLINICAL_JOURNEY_TEST')==='1' && (new \App\Services\ClinicalFeatureService())->isEnabledForCurrentTenant()): ?>
-                    <a class="btn btn-info" id="btnOpenClinicalJourney" style="display:none" href="#"><i class="fa fa-stethoscope"></i> Apri esame</a>
-                    <?php endif ?>
                     <button type="button" class="btn btn-default" id="btnCancelAppointmentModal">
                         <i class="fa fa-times"></i> Chiudi
                     </button>
@@ -9204,7 +9229,9 @@ function renderAppointmentLinkedPatientInfo() {
 
 function setAppointmentModalEditingState(isEditing) {
     var journeyId = parseInt($('#app_id_appuntamento').val() || '0', 10);
-    $('#btnOpenClinicalJourney').toggle(!!isEditing && journeyId > 0).attr('href', <?= json_encode(site_url('cartella-clinica/esame')) ?> + '/' + journeyId);
+    $('#appointmentClinicalJourneyPanel').toggle(!!isEditing && journeyId > 0);
+    $('#btnOpenClinicalJourney').attr('href', <?= json_encode(site_url('cartella-clinica/esame')) ?> + '/' + journeyId);
+    $('#appointmentModal .appointment-danger-actions').prop('open', false);
     var $saveButton = $('#btnSaveAppointment');
     var buttonHtml = isEditing
         ? '<i class="fa fa-save"></i> Salva modifiche'
