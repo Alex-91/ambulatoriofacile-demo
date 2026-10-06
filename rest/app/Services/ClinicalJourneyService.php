@@ -3,11 +3,26 @@ namespace App\Services;
 
 use CodeIgniter\Database\BaseConnection;
 
-/** Acceptance-test workflow. Never enables simulated signatures in the clinical archive. */
+/** Tenant-scoped encounter workflow. Simulations use separate tables and an isolated test runtime. */
 final class ClinicalJourneyService
 {
     public const STAGES=['booked'=>'Prenotato','accepted'=>'Accettato','in_progress'=>'In esecuzione','performed'=>'Eseguito'];
     public function __construct(private BaseConnection $db,private int $tenantId,private int $userId) {}
+    public static function isTest(): bool
+    {
+        try { self::assertTest(); return true; } catch (\RuntimeException) { return false; }
+    }
+    private function table(string $suffix=''): string
+    {
+        return (self::isTest()?'clinical_journey_test':'clinical_journeys').$suffix;
+    }
+    public function assertReady(): void
+    {
+        (new ClinicalFeatureService())->assertEnabledForTenant($this->tenantId);
+        foreach ([$this->table(),$this->table('_events')] as $table) {
+            if (!$this->db->tableExists($table)) throw new \RuntimeException('Percorso esame da inizializzare. Il responsabile può preparare lo spazio dalla configurazione clinica.');
+        }
+    }
     public static function assertTest(): void
     {
         $host=(string)env('AF_TEST_DB_HOST');
@@ -18,7 +33,7 @@ final class ClinicalJourneyService
     }
     public function read(int $id): array
     {
-        self::assertTest();
+        $this->assertReady();
         $a=$this->db->table('dap12_agenda_appuntamenti a')->select('a.*,s.data_slot,s.ora_inizio')
             ->join('dap11_agenda_slot s','s.id_slot=a.id_slot')->where('a.id_appuntamento',$id)->get()->getRowArray();
         if (!$a || !$a['id_client'] || strtoupper((string)$a['stato'])==='ANNULLATO') throw new \RuntimeException('Appuntamento non disponibile o annullato.');
@@ -32,8 +47,10 @@ final class ClinicalJourneyService
         }
         if ($actor['role']!==4 && !in_array((int)$a['id_dot'],$access->agendaDoctorIds($allowed),true)) throw new \RuntimeException('Appuntamento non assegnato al tuo profilo.');
         $doctor=$actor['role']===1 && in_array((int)$a['id_dot'],$access->agendaDoctorIds([$actor['staff_id']]),true);
-        $row=$this->db->table('clinical_journey_test')->where('tenant_id',$this->tenantId)->where('appointment_id',$id)->get()->getRowArray();
+        $row=$this->db->table($this->table())->where('tenant_id',$this->tenantId)->where('appointment_id',$id)->get()->getRowArray();
+        if ($row && !self::isTest() && ((int)$row['patient_id']!==(int)$a['id_client'] || (int)$row['doctor_id']!==(int)$a['id_dot'])) throw new \RuntimeException('Paziente o medico dell’appuntamento sono cambiati dopo l’accettazione. Consultare il referto originale dalla cartella e verificare l’appuntamento con il responsabile.');
         $row ??=['tenant_id'=>$this->tenantId,'appointment_id'=>$id,'stage'=>'booked','revision'=>0,'report_id'=>null,'signature_simulated_at'=>null,'delivery_simulated_at'=>null];
+        $row+=['signature_simulated_at'=>null,'delivery_simulated_at'=>null];
         $report=$doctor && $row['report_id'] ? (new ClinicalRecordService($this->db,$this->tenantId,$this->userId))->entry((int)$a['id_client'],(int)$row['report_id']) : null;
         if ($report && ((int)$report['appointment_id']!==$id || (int)$report['author_user_id']!==$this->userId)) throw new \RuntimeException('Referto non coerente con l’appuntamento.');
         $patient=(new TenantPatientLookupService())->getPatientByIdForTenant($this->tenantId,(int)$a['id_client']);
@@ -45,15 +62,18 @@ final class ClinicalJourneyService
     public function act(int $id,array $input): void
     {
         $state=$this->read($id); $r=$state['row']; $a=$state['a']; $action=(string)($input['action']??'');
+        if (str_starts_with($action,'simulate_')) self::assertTest();
         if ((int)($input['revision']??-1)!==(int)$r['revision']) throw new \RuntimeException('La scheda è cambiata. Ricaricala prima di continuare.');
         if (!$state['doctor'] && $action!=='accept') throw new \RuntimeException('Questa operazione è riservata al medico dell’appuntamento.');
         $this->db->transBegin();
         try {
             if (!$r['revision']) {
-                $this->db->table('clinical_journey_test')->insert(['tenant_id'=>$this->tenantId,'appointment_id'=>$id,'stage'=>'booked','revision'=>0]);
+                $new=['tenant_id'=>$this->tenantId,'appointment_id'=>$id,'stage'=>'booked','revision'=>0];
+                if (!self::isTest()) $new+=['patient_id'=>(int)$a['id_client'],'doctor_id'=>(int)$a['id_dot']];
+                $this->db->table($this->table())->insert($new);
             }
             // Claim the row before writing a report or a simulated result.
-            $this->db->table('clinical_journey_test')->where('tenant_id',$this->tenantId)->where('appointment_id',$id)->where('revision',$r['revision'])->update(['revision'=>(int)$r['revision']+1]);
+            $this->db->table($this->table())->where('tenant_id',$this->tenantId)->where('appointment_id',$id)->where('revision',$r['revision'])->update(['revision'=>(int)$r['revision']+1]);
             if ($this->db->affectedRows()!==1) throw new \RuntimeException('Operazione concorrente. Ricaricare la scheda.');
             $changes=[]; $service=new ClinicalRecordService($this->db,$this->tenantId,$this->userId);
             $steps=['accept'=>['booked','accepted'],'start'=>['accepted','in_progress'],'finish'=>['in_progress','performed']];
@@ -77,8 +97,8 @@ final class ClinicalJourneyService
                 $changes['delivery_simulated_at']=gmdate('Y-m-d H:i:s');
             } else { throw new \RuntimeException('Operazione non valida.'); }
             $changes['updated_at']=gmdate('Y-m-d H:i:s');
-            $this->db->table('clinical_journey_test')->where('tenant_id',$this->tenantId)->where('appointment_id',$id)->update($changes);
-            $this->db->table('clinical_journey_test_events')->insert(['tenant_id'=>$this->tenantId,'appointment_id'=>$id,'actor_user_id'=>$this->userId,'action'=>$action,'recorded_at'=>gmdate('Y-m-d H:i:s')]);
+            $this->db->table($this->table())->where('tenant_id',$this->tenantId)->where('appointment_id',$id)->update($changes);
+            $this->db->table($this->table('_events'))->insert(['tenant_id'=>$this->tenantId,'appointment_id'=>$id,'actor_user_id'=>$this->userId,'action'=>$action,'recorded_at'=>gmdate('Y-m-d H:i:s')]);
             if (!$this->db->transStatus()) throw new \RuntimeException('Salvataggio non riuscito.');
             $this->db->transCommit();
         } catch (\Throwable $e) { $this->db->transRollback(); throw $e; }
@@ -86,7 +106,7 @@ final class ClinicalJourneyService
     public function events(int $id): array
     {
         $this->read($id);
-        return $this->db->table('clinical_journey_test_events')->where('tenant_id',$this->tenantId)->where('appointment_id',$id)->orderBy('id','DESC')->get(30)->getResultArray();
+        return $this->db->table($this->table('_events'))->where('tenant_id',$this->tenantId)->where('appointment_id',$id)->orderBy('id','DESC')->get(30)->getResultArray();
     }
 }
 

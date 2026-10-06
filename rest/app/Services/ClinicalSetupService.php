@@ -22,6 +22,7 @@ final class ClinicalSetupService
         if (!hash_equals($sample,$vault->open('setup',$vault->seal('setup',$sample)))) throw new PacsException('Cifratura non disponibile.');
         $migrations=[
             '2026-09-12-160001_CreateClinicalRecords'=>'CreateClinicalRecords',
+            '2026-10-06-190001_CreateClinicalJourneys'=>'CreateClinicalJourneys',
             '2026-09-14-090001_CreatePersonnelAccessBlocks'=>'CreatePersonnelAccessBlocks',
             '2026-09-14-120001_CreatePacsManagedProfiles'=>'CreatePacsManagedProfiles',
         ];

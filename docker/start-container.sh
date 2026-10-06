@@ -306,6 +306,7 @@ if [ "${RUN_MIGRATIONS:-1}" = "1" ] && [ -f "$APP_ROOT/rest/spark" ]; then
     php "$APP_ROOT/rest/spark" migrate --all --no-header
   fi
   php "$APP_ROOT/rest/spark" navigation:migrate --no-header
+  php "$APP_ROOT/rest/spark" clinical:journey-migrate --apply --no-header
 fi
 
 seed_demo_runtime

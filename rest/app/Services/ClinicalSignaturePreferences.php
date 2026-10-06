@@ -1,14 +1,14 @@
 <?php
 namespace App\Services;
 
-/** Test-only provider preferences. Never stores credentials or enables signing. */
+/** Tenant-scoped provider preferences. Never stores credentials or enables signing. */
 final class ClinicalSignaturePreferences
 {
     public const PROVIDERS=[''=>'Da scegliere','aruba'=>'Aruba','infocert'=>'InfoCert','namirial'=>'Namirial','other'=>'Altro servizio'];
     public function __construct(private int $tenantId, private int $userId) {}
     private function path(): string
     {
-        ClinicalJourneyService::assertTest();
+        (new ClinicalFeatureService())->assertEnabledForTenant($this->tenantId);
         if ($this->tenantId<=0 || $this->userId<0) throw new \RuntimeException('Profilo non valido.');
         return WRITEPATH.'clinical-signature-preferences/'.$this->tenantId.'-'.$this->userId.'.json';
     }

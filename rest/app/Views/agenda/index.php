@@ -4568,7 +4568,7 @@ if ($appointmentModalRenderOrderKeys === []) {
                         <?= $appointmentModalBlockHtmlByKey[$appointmentModalRenderOrderKey] ?? '' ?>
                     <?php endforeach; ?>
                 </div>
-                <?php if ((string)env('AF_CLINICAL_JOURNEY_TEST')==='1' && (new \App\Services\ClinicalFeatureService())->isEnabledForCurrentTenant()): ?>
+                <?php if ((new \App\Services\ClinicalFeatureService())->isEnabledForCurrentTenant()): ?>
                 <div class="appointment-clinical-next" id="appointmentClinicalJourneyPanel" style="display:none">
                     <div><strong>Percorso dell’esame</strong><p>Accettazione, esecuzione e referto dello stesso appuntamento.</p></div>
                     <a class="btn btn-primary" id="btnOpenClinicalJourney" href="#"><i class="fa fa-stethoscope"></i> Apri esame <i class="fa fa-arrow-right" aria-hidden="true"></i></a>
