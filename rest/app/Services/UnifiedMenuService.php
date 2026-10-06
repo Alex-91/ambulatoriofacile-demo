@@ -43,6 +43,9 @@ final class UnifiedMenuService
             $groups=array_filter(['Oggi'=>$groups['Oggi']??[], 'Agenda'=>array_merge([['label'=>'Agenda','href'=>site_url('agenda')]],$agendaLinks)] + $groups);
         }
         $groups['Impostazioni'][] = ['label' => 'Preferenze personali', 'href' => site_url('preferenze-navigazione')];
+        if ((string)env('AF_CLINICAL_JOURNEY_TEST')==='1') {
+            $groups['Agenda'][]=['label'=>'Accettazione e lista esami','href'=>site_url('cartella-clinica/esami-test')];
+        }
         $features=(new TenantFeatureService())->resolveEffectiveFeatureMapForTenant($this->tenantId());
         foreach ($groups as $name=>$links) {
             $groups[$name]=self::filterEnabledLinks($links,$features);

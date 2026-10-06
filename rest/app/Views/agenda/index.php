@@ -4562,6 +4562,9 @@ if ($appointmentModalRenderOrderKeys === []) {
                 </div>
 
                 <div class="appointment-modal-footer-right">
+                    <?php if ((string)env('AF_CLINICAL_JOURNEY_TEST')==='1' && (new \App\Services\ClinicalFeatureService())->isEnabledForCurrentTenant()): ?>
+                    <a class="btn btn-info" id="btnOpenClinicalJourney" style="display:none" href="#"><i class="fa fa-stethoscope"></i> Apri esame</a>
+                    <?php endif ?>
                     <button type="button" class="btn btn-default" id="btnCancelAppointmentModal">
                         <i class="fa fa-times"></i> Chiudi
                     </button>
@@ -9200,6 +9203,8 @@ function renderAppointmentLinkedPatientInfo() {
 }
 
 function setAppointmentModalEditingState(isEditing) {
+    var journeyId = parseInt($('#app_id_appuntamento').val() || '0', 10);
+    $('#btnOpenClinicalJourney').toggle(!!isEditing && journeyId > 0).attr('href', <?= json_encode(site_url('cartella-clinica/esame')) ?> + '/' + journeyId);
     var $saveButton = $('#btnSaveAppointment');
     var buttonHtml = isEditing
         ? '<i class="fa fa-save"></i> Salva modifiche'

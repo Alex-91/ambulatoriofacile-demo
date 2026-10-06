@@ -5,7 +5,7 @@ use App\Services\{ClinicalRecordService,ClinicalAccessPolicy,ClinicalVault,Tenan
 
 class ClinicalRecords extends BaseController
 {
-    private function context(): array
+    protected function context(): array
     {
         helper(['session_auth','form','url']);
         if (!session_access_is_confirmed()) throw new \RuntimeException('Accesso non confermato.');
