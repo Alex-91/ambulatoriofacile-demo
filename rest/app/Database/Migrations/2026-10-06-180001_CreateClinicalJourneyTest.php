@@ -7,8 +7,9 @@ final class CreateClinicalJourneyTest extends Migration
     {
         if ((string)env('AF_CLINICAL_JOURNEY_TEST')!=='1') return;
         \App\Services\ClinicalJourneyService::assertTest();
+        if (!$this->db->tableExists('dap02_clients')) return;
         $this->forge->addField([
-            'tenant_id'=>['type'=>'INT','unsigned'=>true], 'appointment_id'=>['type'=>'INT','unsigned'=>true],
+            'tenant_id'=>['type'=>'INT','unsigned'=>true], 'appointment_id'=>['type'=>'BIGINT','unsigned'=>true],
             'stage'=>['type'=>'VARCHAR','constraint'=>24,'default'=>'booked'], 'revision'=>['type'=>'INT','default'=>0],
             'report_id'=>['type'=>'INT','unsigned'=>true,'null'=>true],
             'signature_simulated_at'=>['type'=>'DATETIME','null'=>true], 'delivery_simulated_at'=>['type'=>'DATETIME','null'=>true], 'updated_at'=>['type'=>'DATETIME','null'=>true],

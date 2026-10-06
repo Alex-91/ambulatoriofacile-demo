@@ -8,6 +8,7 @@ final class ClinicalJourneyCheck extends BaseCommand
     public function run(array $params)
     {
         ClinicalJourneyService::assertTest();
+        require_once dirname(rtrim(ROOTPATH,'/\\')).'/vendor/autoload.php';
         $tenant=(new TenantCatalogService())->getTenantById(4);$db=(new TenantDatabaseConnector())->connect($tenant);
         $actors=[];foreach(['giuseppe','anna','segreteria'] as $slug) {$actors[$slug]=(int)$db->table('dap01_users')->where('username',$slug.'.percorso@example.test')->get()->getRowArray()['id_user'];}
         $a=$db->table('dap12_agenda_appuntamenti')->where('created_by',$actors['segreteria'])->where('note','Dati fittizi per collaudo percorso esame')->orderBy('id_appuntamento')->get()->getRowArray();

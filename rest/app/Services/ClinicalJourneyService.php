@@ -37,7 +37,10 @@ final class ClinicalJourneyService
         $report=$doctor && $row['report_id'] ? (new ClinicalRecordService($this->db,$this->tenantId,$this->userId))->entry((int)$a['id_client'],(int)$row['report_id']) : null;
         if ($report && ((int)$report['appointment_id']!==$id || (int)$report['author_user_id']!==$this->userId)) throw new \RuntimeException('Referto non coerente con l’appuntamento.');
         $patient=(new TenantPatientLookupService())->getPatientByIdForTenant($this->tenantId,(int)$a['id_client']);
-        return compact('a','row','actor','doctor','report','patient');
+        (new \App\Libraries\DatabaseConfig())->setEncryptionConfig($this->db);
+        $staff=$this->db->query('SELECT CAST(AES_DECRYPT(UNHEX(nome),@key_str,vector_id) AS CHAR) AS nome, CAST(AES_DECRYPT(UNHEX(cognome),@key_str,vector_id) AS CHAR) AS cognome FROM dap03_personale WHERE legacy_id_dot = ?',[$a['id_dot']])->getRowArray();
+        $doctorName=trim(($staff['nome']??'').' '.($staff['cognome']??''));
+        return compact('a','row','actor','doctor','report','patient','doctorName');
     }
     public function act(int $id,array $input): void
     {
@@ -86,3 +89,4 @@ final class ClinicalJourneyService
         return $this->db->table('clinical_journey_test_events')->where('tenant_id',$this->tenantId)->where('appointment_id',$id)->orderBy('id','DESC')->get(30)->getResultArray();
     }
 }
+
