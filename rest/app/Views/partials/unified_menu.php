@@ -8,7 +8,7 @@ $current = current_url();
   <div class="box-header"><strong>Menu</strong></div>
   <div class="box-body">
   <?= view('partials/unified_menu_tree', ['tree'=>(new \App\Services\NavigationLayoutService())->tree($navigation->tenantId(),$groups),'current'=>$current], ['saveData'=>false]) ?>
-  <?php if (session_has_tenant_master_access()): ?>
+  <?php if (session_has_tenant_master_access() && $navigation->tenantId() !== 4): ?>
     <form method="post" action="<?= site_url('preferenze-navigazione/menu') ?>" class="af-menu-rollback">
       <?= csrf_field() ?><input type="hidden" name="return_to" value="<?= esc(current_url()) ?>">
       <label><input type="checkbox" name="legacy" value="1" onchange="this.form.requestSubmit()"> Non ti piace? Clicca qui per tornare al menu precedente.</label>

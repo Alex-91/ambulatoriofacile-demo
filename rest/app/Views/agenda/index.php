@@ -5,6 +5,7 @@
     <?php $agendaTitle = (string)($pageTitle ?? 'Agenda'); ?>
     <?php
         helper(['portal', 'session_auth', 'tenant_feature']);
+        $studioPresentation = (int)((session()->get('tenant_context') ?? [])['tenant_id'] ?? 0) === 4;
         $agendaCompressedLayoutEnabled = tenant_feature_enabled('agenda_compressed_layout', false);
         $sharedMemoManagementEnabled = !empty($sharedMemoManagementEnabled);
         $agendaConsoleUrl = null;
@@ -3769,13 +3770,13 @@
                                         </button>
                                     <?php endif; ?>
                                 </div>
-                                <p class="agenda-view-help">
+                                <?php if (!$studioPresentation): ?><p class="agenda-view-help">
                                     <?php if (!empty($teamDayViewEnabled)): ?>
                                         Giorno Team mostra insieme le agende giornaliere di tutti i professionisti visibili, mentre note, blocchi e domiciliari restano agganciati al professionista selezionato in alto.
                                     <?php else: ?>
                                         Scegli la vista con cui navigare l'agenda del professionista selezionato.
                                     <?php endif; ?>
-                                </p>
+                                </p><?php endif; ?>
                             </div>
 
                             <div class="row" style="margin-bottom:10px;">
@@ -3841,10 +3842,10 @@
                             <div class="agenda-doctor-kicker">
                                 <i class="fa fa-user-md"></i> Professionista
                             </div>
-                            <label class="agenda-doctor-label" for="id_dot">Seleziona il dottore o infermiere da visualizzare in agenda</label>
-                            <p class="agenda-doctor-help">
+                            <label class="agenda-doctor-label" for="id_dot">Professionista in agenda</label>
+                            <?php if (!$studioPresentation): ?><p class="agenda-doctor-help">
                                 Calendario, note e operazioni dell'agenda si aggiornano in base al professionista selezionato.
-                            </p>
+                            </p><?php endif; ?>
                             <select id="id_dot" class="form-control agenda-doctor-select">
                                 <?php foreach (($medici ?? []) as $m): ?>
                                     <?php

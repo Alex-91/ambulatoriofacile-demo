@@ -41,7 +41,7 @@ body.billing-unified-page .clinical-content{--ink:#344963;--muted:#647087;--line
 </aside><div class="col-md-9"><div class="clinical-content">
 <header><a href="<?= site_url('agenda/gestione-pazienti') ?>">← Pazienti</a><div class="muted"><?= esc($tenant['tenant_name'] ?? 'AmbulatorioFacile') ?></div>
 <h1><?= esc($patient['patient_name'] ?? 'Cartella del paziente') ?></h1><div><?= esc($patient['patient_tax_code'] ?? '') ?> · Paziente #<?= (int)$patientId ?></div>
-<?php if(isset($pacsDemo)): ?><p><a class="button" href="<?= $base.'?demo_new=1#pacs-demo' ?>">Nuovo esame · demo</a> <a class="button secondary" href="#pacs-demo">Esami e referti di prova</a></p><?php endif ?>
+<?php if(isset($pacsDemo)): ?><p><a class="button" href="<?= $base.'?demo_new=1#pacs-demo' ?>">Nuovo esame</a> <a class="button secondary" href="#pacs-demo">Esami e referti</a></p><?php endif ?>
 <nav aria-label="Sezioni della cartella"><?php if($chart['clinical']): ?><a href="#documenti">Cronologia episodi</a><a class="button" href="#nuovo">+ Crea episodio clinico</a><a href="#prestazioni">Visite, esami e referti</a><?php if(!empty($pacsEnabled)): ?><a href="<?= $base.'/pacs' ?>">Esami e immagini</a><?php endif ?><?php endif ?><a href="#allegati">Documenti e allegati</a><a href="#consensi">Consensi</a><?php if(!empty($pacsEnabled)): ?><a href="<?= site_url('cartella-clinica/diagnostica') ?>">Lista diagnostica</a><?php endif ?></nav></header>
 <div class="clinical-workspace">
 <aside class="patient-sidebar" aria-label="Riepilogo paziente">
@@ -94,7 +94,7 @@ body.billing-unified-page .clinical-content{--ink:#344963;--muted:#647087;--line
 <?php if(!empty($pacsEnabled) || isset($pacsDemo)): ?><div class="exam-launch"><div><strong>Diagnostica e immagini</strong><p class="help">Richiesta, immagini PACS/DICOM e refertazione nel percorso del paziente.</p></div><div class="actions">
 <?php if(!empty($pacsEnabled) && $chart['actor']['role']===1): ?><a class="button" href="<?= $base.'/pacs/richieste#nuova-richiesta' ?>">+ Nuovo esame</a><?php endif ?>
 <?php if(!empty($pacsEnabled)): ?><a class="button secondary" href="<?= $base.'/pacs' ?>">Apri immagini PACS / DICOM</a><?php endif ?>
-<?php if(isset($pacsDemo)): ?><a class="button secondary" href="<?= $base.'?demo_new=1#pacs-demo' ?>">+ Nuovo esame · demo</a><?php endif ?>
+<?php if(isset($pacsDemo)): ?><a class="button secondary" href="<?= $base.'?demo_new=1#pacs-demo' ?>">+ Nuovo esame</a><?php endif ?>
 </div></div><?php endif ?>
 <div class="table-wrap"><table><thead><tr><th>Appuntamento</th><th>Prestazione</th><th>Stato</th></tr></thead><tbody>
 <?php foreach($chart['appointments'] as $appointment): ?><tr><td>#<?= (int)$appointment['id_appuntamento'] ?> · <?= esc(($appointment['data_slot'] ?? '').' '.($appointment['ora_inizio'] ?? '')) ?></td><td><?= esc($appointment['tipo_visita_label'] ?? 'Prestazione') ?><?php if(trim((string)($appointment['motivo_visita'] ?? ''))!==''): ?><br><small><?= esc($appointment['motivo_visita']) ?></small><?php endif ?></td><td><?= esc($appointment['stato']) ?><br><a href="#nuovo" data-appointment="<?= (int)$appointment['id_appuntamento'] ?>">Crea episodio clinico</a><?php if(!empty($pacsEnabled) && $chart['actor']['role']===1 && in_array((int)$appointment['id_dot'],$pacsAppointmentDoctorIds ?? [],true) && $appointment['stato']!=='ANNULLATO'): ?><br><a href="<?= $base.'/pacs/richieste?appointment='.(int)$appointment['id_appuntamento'] ?>">Richiedi esame</a><?php endif ?></td></tr><?php endforeach ?></tbody></table></div>
