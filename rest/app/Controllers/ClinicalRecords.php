@@ -30,14 +30,19 @@ class ClinicalRecords extends BaseController
             $fseEnabled = (new \App\Services\FseFeatureService())->isEnabledForTenant((int)$tenant['id_tenant']);
             $pacsEnabled = (new \App\Services\Pacs\PacsFeatureService())->isEnabledForTenant((int)$tenant['id_tenant']);
             $chart = $service->patient($patientId,max(1,(int)$this->request->getGet('page')), $fseEnabled);
+            $fixture=(new \App\Services\ClinicalFixturePresentation($db,(int)$tenant['id_tenant'],$userId))->read($patientId);
+            if ($fixture) { $fixture['objects']=array_merge($chart['objects'],$fixture['objects']); $chart=array_replace($chart,$fixture); }
             $focusedDocument=(int)$this->request->getGet('document')>0;
             if ($focusedDocument) {
-                $chart['entries']=[$service->entry($patientId,(int)$this->request->getGet('document'))];
+                if (!empty($chart['read_only'])) {
+                    $chart['entries']=array_values(array_filter($chart['entries'],fn($e)=>(int)$e['id']===(int)$this->request->getGet('document')));
+                    if (!$chart['entries']) throw new \RuntimeException('Documento non disponibile.');
+                } else $chart['entries']=[$service->entry($patientId,(int)$this->request->getGet('document'))];
                 $chart['total']=1; $chart['page']=1;
             }
             $pacsRequests=[]; $pacsRequestsUnavailable=false; $pacsAppointmentDoctorIds=[];
             if ($pacsEnabled && $chart['actor']['role']===1) $pacsAppointmentDoctorIds=(new ClinicalAccessPolicy($db,$userId))->agendaDoctorIds([$chart['actor']['staff_id']]);
-            if ($pacsEnabled && $chart['clinical']) {
+            if ($pacsEnabled && $chart['clinical'] && empty($chart['read_only'])) {
                 try { $pacsRequests=(new \App\Services\Pacs\PacsService($db,(int)$tenant['id_tenant'],$userId))->orders()->listing($patientId)['rows']; }
                 catch (\RuntimeException) { $pacsRequestsUnavailable=true; }
             }
@@ -85,7 +90,9 @@ class ClinicalRecords extends BaseController
     public function download(int $patientId,string $objectId)
     {
         try {
-            [$s]=$this->context(); $file=$s->download($patientId,$objectId);
+            [$s,$tenant,$db,$userId]=$this->context();
+            $file=(new \App\Services\ClinicalFixturePresentation($db,(int)$tenant['id_tenant'],$userId))->download($patientId,$objectId);
+            $file ??= $s->download($patientId,$objectId);
             return $this->privateResponse()->setHeader('Content-Type',$file['mime'])
                 ->setHeader('Content-Disposition',"attachment; filename=\"documento\"; filename*=UTF-8''".rawurlencode($file['name']))->setBody($file['bytes']);
         } catch (\Throwable $e) { return $this->failure($e); }

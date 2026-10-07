@@ -205,6 +205,53 @@ final class ClinicalRecordTest extends CIUnitTestCase
         try{$s->acceptSignature(100,$id,'%PDF-invalid','pades','VRDLGI70A01H501X',$validator);$this->fail();}catch(\RuntimeException $e){$this->assertSame('Invalid signature',$e->getMessage());}
         $this->assertSame('final',$s->entry(100,$id)['state']);$this->assertNull($s->entry(100,$id)['signed_object_id']);
     }
+
+    public function testMasterPresentationIsReadOnlyAndLimitedToGeneratedRecords(): void
+    {
+        require_once __DIR__.'/../_support/ClinicalMasterPlatformFixture.php';
+        $platform=new \Tests\Support\ClinicalMasterPlatformFixture(4,6);
+        $databaseProperty=new \ReflectionProperty($this->db,'database');
+        $originalDatabase=$databaseProperty->getValue($this->db);
+        try {
+            $this->db->table('dap01_users')->insert(['id_user'=>6,'username'=>'MASTER_TEST','is_active'=>1]);
+            $this->db->table('dap03_personale')->insert(['id_personale'=>60,'id_user'=>6,'tipo'=>4,'is_active'=>1]);
+            $doctor=$this->service(1,4);
+            $fixture=$doctor->saveEntry(100,$this->entry(['title'=>'Episodio generato']));
+            $private=$doctor->saveEntry(100,$this->entry(['title'=>'Documento non incluso']));
+            if (!is_dir($this->root)) mkdir($this->root,0700,true);
+            $path=$this->root.'/manifest.json';
+            file_put_contents($path,json_encode(['complete'=>true,'patients'=>[100],'entries'=>['100:0'=>$fixture],
+                'doctors'=>[['user'=>1]],'appointments'=>[7]]));
+            $vault=new ClinicalVault(4,null,$this->root);
+            $presentation=new \App\Services\ClinicalFixturePresentation($this->db,4,6,$vault,$path);
+            $this->assertNull($presentation->read(100)); // Same IDs in another database cannot qualify.
+            $databaseProperty->setValue($this->db,'af_ambiente_di_test');
+            $chart=$presentation->read(100);
+            $this->assertTrue($chart['read_only']);
+            $this->assertSame([$fixture],array_map('intval',array_column($chart['entries'],'id')));
+            $this->assertSame([7],array_map('intval',array_column($chart['appointments'],'id_appuntamento')));
+            $this->assertNull($presentation->read(200));
+            $this->assertNull($presentation->download(100,str_repeat('a',32)));
+            $this->assertNull((new \App\Services\ClinicalFixturePresentation($this->db,43,6,$vault,$path))->read(100));
+            $this->assertNull((new \App\Services\ClinicalFixturePresentation($this->db,4,1,$vault,$path))->read(100));
+            $master=$this->service(6,4,true);
+            $base=$master->patient(100);
+            $this->assertFalse($base['clinical']);
+            $html=view('clinical/patient',['chart'=>array_replace($base,$chart),'patient'=>['patient_name'=>'Giulia Rossi'],
+                'patientId'=>100,'tenant'=>['id_tenant'=>4],'editing'=>null,'revisionOf'=>null,'pacsEnabled'=>true,
+                'pacsDemo'=>['orders'=>[],'selected'=>null]]);
+            foreach (['Cronologia episodi','Episodio generato','id="prestazioni"','id="allegati"','id="consensi"','id="pacs-demo"'] as $text)
+                $this->assertStringContainsString($text,$html);
+            $this->assertStringNotContainsString('Documento non incluso',$html);
+            $this->assertStringNotContainsString('id="nuovo"',$html);
+            $this->assertStringNotContainsString('value="clinical"',$html);
+            try {$master->saveEntry(100,$this->entry());$this->fail('Master gained write access');} catch (\RuntimeException) {}
+            $platform->db->table('platform_user_tenants')->where('app_user_id',6)->delete();
+            $this->expectException(\RuntimeException::class);
+            $presentation->read(100);
+        } finally { $databaseProperty->setValue($this->db,$originalDatabase);$platform->close(); }
+    }
+
     public function testViewEscapesClinicalTextAndUsesCsrf(): void
     {
         $s=$this->service();$s->saveEntry(100,$this->entry());
