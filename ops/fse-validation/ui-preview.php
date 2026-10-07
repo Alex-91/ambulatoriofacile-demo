@@ -18,8 +18,10 @@ if (PHP_SAPI === 'cli-server') {
 } else {
     $name = $argv[1] ?? 'dashboard';
 }
-if (!in_array($name, ['dashboard','revision','signed','signed_lab','offline','new','rejected','timeout','toscana_lab','toscana_timeout','toscana_snapshot'], true)) { http_response_code(404); exit(1); }
+$nationalFixture = in_array($name, ['national_fresh','national_expired','national_missing','national_uncertain'], true);
+if (!$nationalFixture && !in_array($name, ['dashboard','revision','signed','signed_lab','offline','new','rejected','timeout','toscana_lab','toscana_timeout','toscana_snapshot'], true)) { http_response_code(404); exit(1); }
 require $repo . '/rest/app/Services/FseDocumentLifecycle.php';
+require $repo . '/rest/app/Services/FseValidationWindow.php';
 require $repo . '/rest/app/Services/FseOfflineLab.php';
 require $repo . '/rest/app/Services/FseToscanaSimulation.php';
 require $repo . '/rest/app/Services/FseReconciliationService.php';
@@ -44,7 +46,7 @@ $readiness = ['message'=>'Controlli locali sintetici. Accessi ufficiali non conf
     ['label'=>'Firma e certificati','status'=>'error','message'=>'Da configurare: firma clinica e certificati Gateway sono distinti.'],
     ['label'=>'Accreditamenti e abilitazioni','status'=>'warning','message'=>'In attesa di conferme ufficiali. Nessun invio abilitato.'],
 ]];
-$signed = in_array($name, ['signed','signed_lab'], true);
+$signed = $nationalFixture || in_array($name, ['signed','signed_lab'], true);
 $syntheticAppLab = $name === 'signed_lab';
 $doc = array_merge(require $repo . '/rest/tests/_support/fse_synthetic.php', [
     'id_fse_document'=>$signed ? 1 : 2, 'version_number'=>$signed ? 1 : 2, 'local_state'=>$signed ? 'signed' : 'draft',
@@ -72,7 +74,21 @@ if (in_array($name,['rejected','timeout'],true)) {
     $formContext['diagnosis']=(new \App\Services\FseReconciliationService())->inspect($formContext['document']);
     if ($uncertain) $warning=$feedback['message']; else $errors=['generic'=>$feedback['message']];
 }
-$file = in_array($name, ['revision','signed','signed_lab','new','rejected','timeout'], true) ? 'document_form' : $name;
+if ($nationalFixture) {
+    $formContext['profile']['access_mode'] = 'gateway';
+    $formContext['document']['validated_at'] = match ($name) {
+        'national_fresh' => date('Y-m-d H:i:s', time() - 60),
+        'national_expired' => date('Y-m-d H:i:s', time() - \App\Services\FseValidationWindow::SECONDS),
+        default => null,
+    };
+    if ($name === 'national_uncertain') {
+        $formContext['document']['local_state'] = 'validating';
+        $formContext['document']['gateway_state'] = 'VALIDATION_UNCERTAIN';
+        $formContext['can_revise'] = false;
+    }
+    $formContext['diagnosis'] = (new \App\Services\FseReconciliationService())->inspect($formContext['document']);
+}
+$file = $nationalFixture || in_array($name, ['revision','signed','signed_lab','new','rejected','timeout'], true) ? 'document_form' : $name;
 if (in_array($name,['toscana_lab','toscana_timeout'],true)) {
     $engine=new \App\Services\FseToscanaWorkflow();
     $lab=$engine->apply($engine->initial(42),42,9,'new','',0);

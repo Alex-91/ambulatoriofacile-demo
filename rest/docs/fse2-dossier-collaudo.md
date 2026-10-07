@@ -16,7 +16,55 @@ senza errori o test saltati. Report finale privato:
 `rest/writable/fse-validation-reports/20260909-195016-a5d25846/summary.json`;
 sorgenti censiti immutati durante l'esecuzione. Nessun rilascio in produzione.
 
-## Ultimo incremento: scritture locali e audit atomici
+## Incremento locale del 7 ottobre 2026: scadenza validazione nazionale
+
+Sul branch `codex/fse-validation-expiry-20261007` è stato aggiunto il controllo
+server della finestra di cinque giorni del Gateway nazionale, prima del lock
+di pubblicazione e subito dopo i controlli locali degli artefatti. Timestamp
+mancanti, malformati, futuri o scaduti bloccano la pubblicazione; al limite esatto
+di cinque giorni la validazione è considerata scaduta.
+
+Fonte: [chiarimento di LucaRogledi del 6 ottobre 2026 su Slack FSE](https://developersitalia.slack.com/archives/C03RDT88FSM/p1791272556210119?thread_ts=1791270743.499489&cid=C03RDT88FSM).
+Il chiarimento tecnico non annuncia la riapertura dell'accreditamento.
+
+Per l'originale nello stato `signed`, non pubblicato né cancellato, l'operatore
+può usare **Rivalida PDF firmato** sul file conservato: hash, firma e dati
+clinici rimangono invariati. Si riutilizzano i controlli locali della firma e
+il servizio nazionale VALIDATION. Solo HTTP 201 con workflow presente rinnova
+la validazione; il timestamp è quello di inizio richiesta, non di ricezione
+della risposta. La pubblicazione resta una seconda azione esplicita.
+
+Un rifiuto certo mantiene il documento firmato ma invalida il timestamp;
+timeout, eccezioni e risposte ambigue mantengono il lock `validating`, senza
+reinvio automatico. Audit di avvio con workflow precedente, timestamp e hash
+del firmato; confronto atomico di stato, workflow e timestamp contro richieste
+concorrenti. Nessuna migration necessaria. I blocchi Toscana, revisioni locali
+e profili disabilitati rimangono attivi.
+
+Verifica Windows PHP 8.3.6, bootstrap senza `.env`, SQLite in memoria e Gateway
+simulato: **303 test censiti, 300 superati, 1.521 asserzioni, 3 saltati**.
+I tre test saltati richiedono l'attivazione esplicita del runtime documentale
+Python/Java: non sono conteggiati come superati. Inclusi rendering HTML e CSRF,
+scadenza durante i controlli, conservazione del firmato, rifiuti/esiti incerti,
+richieste concorrenti e protezioni dei profili. Comando riproducibile:
+
+```powershell
+& 'C:\wamp64\bin\php\php8.3.6\php.exe' -d xdebug.mode=off rest/vendor/bin/phpunit -c ops/fse-validation/phpunit.xml --filter Fse --do-not-cache-result
+```
+
+Nessun invio reale al Gateway, prova ufficiale di accreditamento, rilascio,
+modifica a database clinici o di produzione. La validazione effettiva del PDF
+firmato sul Gateway deve ancora essere verificata nell'ambiente ufficiale.
+
+Preflight del rilascio richiesto su demo e login: gli otto file dell'intervento
+sono isolati sul branch `codex/fse-expiry-release-20261007`, basato su `main`
+`1228cb2e`. Suite ripetuta su questa base: **304 test censiti, 301 superati,
+1.541 asserzioni, gli stessi 3 test documentali saltati**. Il primo avvio nel
+nuovo checkout si era fermato per la cartella cache assente; dopo aver creato
+le sole cartelle runtime locali, la suite completa è passata. Nessun database
+reale utilizzato. Questo preflight non attesta l'esito del successivo deploy.
+
+## Incremento precedente: scritture locali e audit atomici
 
 Corrette e collaudate le scritture locali di bozze, preparazioni, acquisizione
 firma e revisioni: dati e audit obbligatorio nella stessa transazione, rollback

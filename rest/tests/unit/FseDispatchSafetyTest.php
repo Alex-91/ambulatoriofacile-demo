@@ -67,7 +67,7 @@ final class FseDispatchSafetyTest extends CIUnitTestCase
     private function document(string $state): int
     {
         return (int) $this->documents->insert(['id_fse_profile'=>7, 'profile_snapshot_json'=>'{"id_fse_profile":7}', 'local_state' => $state, 'signed_pdf_path' => $this->file, 'unsigned_pdf_path' => $this->file,
-            'validated_at' => '2026-09-07 10:00:00', 'workflow_instance_id' => 'previous-validation-workflow']);
+            'validated_at' => date('Y-m-d H:i:s', time() - 60), 'workflow_instance_id' => 'previous-validation-workflow']);
     }
 
     public function testPublicationTimeoutKeepsLockAndSavesCartIdInAudit(): void
@@ -88,6 +88,237 @@ final class FseDispatchSafetyTest extends CIUnitTestCase
         $this->assertSame('cart-test-42', json_decode($events[0]['context_json'], true)['x_cart_id']);
         $this->expectExceptionMessage('validato e poi firmato');
         $dispatch->publish(42, $id); // Must not issue a duplicate network write.
+    }
+
+    private function expiredSignedDocument(): int
+    {
+        $id = $this->document('signed');
+        $this->documents->update($id, ['validated_at' => '2026-10-01 10:00:00', 'signed_pdf_sha256' => hash_file('sha256', $this->file)]);
+        return $id;
+    }
+
+    public function testExpiredPublicationNeverContactsGateway(): void
+    {
+        $id = $this->expiredSignedDocument();
+        $gateway = $this->createMock(FseGatewayClient::class);
+        $gateway->expects($this->never())->method('create');
+        $dispatch = new FseDispatchService($this->contexts, $this->profiles, $gateway, $this->validation, static fn () => strtotime('2026-10-07 10:00:00'));
+        try {
+            $dispatch->publish(42, $id);
+            $this->fail('Expired validation accepted');
+        } catch (\RuntimeException $e) {
+            $this->assertStringContainsString('5 giorni', $e->getMessage());
+            $this->assertSame('signed', $this->documents->find($id)['local_state']);
+        }
+    }
+
+    public function testExpiryDuringLocalChecksRestoresSignedWithoutSending(): void
+    {
+        $id = $this->expiredSignedDocument();
+        $now = strtotime('2026-10-06 09:59:59');
+        $gateway = $this->createMock(FseGatewayClient::class);
+        $gateway->expects($this->never())->method('create');
+        $validator = $this->createMock(FseArtifactValidationService::class);
+        $validator->method('assertForDispatch')->willReturnCallback(static function () use (&$now) { $now += 2; return []; });
+        $dispatch = new FseDispatchService($this->contexts, $this->profiles, $gateway, $validator, static function () use (&$now) { return $now; });
+        try {
+            $dispatch->publish(42, $id);
+            $this->fail('Local checks crossed deadline');
+        } catch (\RuntimeException $e) {
+            $this->assertStringContainsString('5 giorni', $e->getMessage());
+            $this->assertSame('signed', $this->documents->find($id)['local_state']);
+        }
+    }
+
+    public function testRevalidationPreservesSignedPdfAndRequiresSeparatePublication(): void
+    {
+        $id = $this->expiredSignedDocument();
+        $before = $this->documents->find($id);
+        $now = strtotime('2026-10-07 10:00:00');
+        $started = $now;
+        $gateway = $this->createMock(FseGatewayClient::class);
+        $validator = $this->createMock(FseArtifactValidationService::class);
+        $validator->expects($this->exactly(2))->method('assertForDispatch')->with(42, $id, $this->isType('array'), true)->willReturn([]);
+        $gateway->expects($this->once())->method('validate')->with($this->isType('array'), $this->isType('array'), $this->file)
+            ->willReturnCallback(function () use ($id, &$now) {
+                $this->assertSame('validating', $this->documents->find($id)['local_state']);
+                $this->assertNull($this->documents->find($id)['validated_at']);
+                $now += 120;
+                return ['ok' => true, 'http_status' => 201, 'payload' => ['workflowInstanceId' => 'REVALIDATED.NEW']];
+            });
+        $gateway->expects($this->once())->method('create')->willReturn(['ok' => true, 'http_status' => 201, 'payload' => ['workflowInstanceId' => 'PUBLISH.NEW']]);
+        $dispatch = new FseDispatchService($this->contexts, $this->profiles, $gateway, $validator, static function () use (&$now) { return $now; });
+        $result = $dispatch->validate(42, $id, 9);
+        $this->assertSame('signed', $result['document']['local_state']);
+        $this->assertNull($result['document']['published_at']);
+        $this->assertSame(date('Y-m-d H:i:s', $started), $result['document']['validated_at']);
+        $this->assertSame('REVALIDATED.NEW', $result['document']['workflow_instance_id']);
+        foreach (['signed_pdf_path', 'signed_pdf_sha256', 'unsigned_pdf_path', 'profile_snapshot_json'] as $field) {
+            $this->assertSame($before[$field], $result['document'][$field]);
+        }
+        $this->assertSame($before['signed_pdf_sha256'], hash_file('sha256', $this->file));
+        $this->assertStringContainsString('azione esplicita', $result['message']);
+        $events = $this->events->listForDocument($id);
+        $this->assertCount(2, $events);
+        $this->assertContains('gateway_revalidation_started', array_column($events, 'event_type'));
+        $this->assertContains('gateway_revalidation', array_column($events, 'event_type'));
+        $this->assertSame('publishing', $dispatch->publish(42, $id)['document']['local_state']);
+    }
+
+    public static function revalidationOutcomes(): array
+    {
+        return [[400, false, false, [], 'signed'], [504, false, true, [], 'validating'],
+            [200, true, false, ['workflowInstanceId' => 'UNEXPECTED'], 'validating'],
+            [201, true, false, [], 'validating']];
+    }
+
+    #[DataProvider('revalidationOutcomes')]
+    public function testFailedRevalidationCannotPublishOrRepeatUncertainWrites(int $http, bool $ok, bool $uncertain, array $payload, string $state): void
+    {
+        $id = $this->expiredSignedDocument();
+        $gateway = $this->createMock(FseGatewayClient::class);
+        $gateway->expects($this->once())->method('validate')->willReturn(['ok' => $ok, 'http_status' => $http, 'outcome_uncertain' => $uncertain, 'payload' => $payload]);
+        $gateway->expects($this->never())->method('create');
+        $dispatch = new FseDispatchService($this->contexts, $this->profiles, $gateway, $this->validation, static fn () => strtotime('2026-10-07 10:00:00'));
+        $result = $dispatch->validate(42, $id);
+        $this->assertSame($state, $result['document']['local_state']);
+        $this->assertNull($result['document']['validated_at']);
+        $this->assertSame($this->file, $result['document']['signed_pdf_path']);
+        try { $dispatch->publish(42, $id); $this->fail('Failed validation published'); } catch (\RuntimeException $e) { $this->assertNotEmpty($e->getMessage()); }
+        if ($state === 'validating') {
+            $this->expectException(\RuntimeException::class);
+            $dispatch->validate(42, $id);
+        }
+    }
+
+    public function testRevalidationTransportExceptionKeepsLockAndInvalidatesOldStamp(): void
+    {
+        $id = $this->expiredSignedDocument();
+        $gateway = $this->createMock(FseGatewayClient::class);
+        $gateway->expects($this->once())->method('validate')->willThrowException(new \RuntimeException('PRIVATE transport failure'));
+        $dispatch = new FseDispatchService($this->contexts, $this->profiles, $gateway, $this->validation, static fn () => strtotime('2026-10-07 10:00:00'));
+        try { $dispatch->validate(42, $id); $this->fail('Expected uncertain outcome'); } catch (\RuntimeException $e) {
+            $this->assertStringNotContainsString('PRIVATE', $e->getMessage());
+            $this->assertSame('validating', $this->documents->find($id)['local_state']);
+            $this->assertNull($this->documents->find($id)['validated_at']);
+            $this->assertNull($this->documents->find($id)['workflow_instance_id']);
+        }
+        $this->expectException(\RuntimeException::class);
+        $dispatch->validate(42, $id);
+    }
+
+    public function testInvalidSignedArtifactPreventsRevalidationAndPreservesEvidence(): void
+    {
+        $id = $this->expiredSignedDocument();
+        $before = $this->documents->find($id);
+        $gateway = $this->createMock(FseGatewayClient::class);
+        $gateway->expects($this->never())->method('validate');
+        $validator = $this->createMock(FseArtifactValidationService::class);
+        $validator->expects($this->once())->method('assertForDispatch')->with(42, $id, $this->isType('array'), true)->willThrowException(new \RuntimeException('Firma non valida'));
+        try {
+            (new FseDispatchService($this->contexts, $this->profiles, $gateway, $validator, static fn () => strtotime('2026-10-07 10:00:00')))->validate(42, $id);
+            $this->fail('Invalid artifact sent');
+        } catch (\RuntimeException $e) {
+            $this->assertSame('Firma non valida', $e->getMessage());
+            foreach (['local_state', 'signed_pdf_path', 'signed_pdf_sha256', 'validated_at', 'workflow_instance_id'] as $field) {
+                $this->assertSame($before[$field], $this->documents->find($id)[$field]);
+            }
+        }
+    }
+
+    public function testConcurrentRevalidationInvalidatesStalePublicationSnapshot(): void
+    {
+        $id = $this->document('signed');
+        $profiles = $this->createMock(FseProfileService::class);
+        $profiles->method('runtimeProfileForDocument')->willReturnCallback(function () use ($id) {
+            $this->documents->update($id, ['workflow_instance_id' => 'CONCURRENT.REVALIDATION']);
+            return ['is_enabled' => 1, 'access_mode' => 'gateway'];
+        });
+        $gateway = $this->createMock(FseGatewayClient::class);
+        $gateway->expects($this->never())->method('create');
+        $this->expectExceptionMessage('altra richiesta');
+        (new FseDispatchService($this->contexts, $profiles, $gateway, $this->validation))->publish(42, $id);
+    }
+
+    public function testDefiniteRevalidationRejectionCanBeRetriedExplicitlyWithoutEditing(): void
+    {
+        $id = $this->expiredSignedDocument();
+        $gateway = $this->createMock(FseGatewayClient::class);
+        $gateway->expects($this->exactly(2))->method('validate')->willReturnOnConsecutiveCalls(
+            ['ok' => false, 'http_status' => 403, 'payload' => []],
+            ['ok' => true, 'http_status' => 201, 'payload' => ['workflowInstanceId' => 'RETRY.VALIDATED']]
+        );
+        $gateway->expects($this->never())->method('create');
+        $dispatch = new FseDispatchService($this->contexts, $this->profiles, $gateway, $this->validation, static fn () => strtotime('2026-10-07 10:00:00'));
+        $this->assertFalse($dispatch->validate(42, $id)['ok']);
+        $result = $dispatch->validate(42, $id);
+        $this->assertTrue($result['ok']);
+        $this->assertSame('signed', $result['document']['local_state']);
+        $this->assertSame($this->file, $result['document']['signed_pdf_path']);
+        $this->assertSame('RETRY.VALIDATED', $result['document']['workflow_instance_id']);
+    }
+
+    public function testFreshSignedDocumentCannotBeRevalidated(): void
+    {
+        $id = $this->document('signed');
+        $gateway = $this->createMock(FseGatewayClient::class);
+        $gateway->expects($this->never())->method('validate');
+        $this->expectException(\RuntimeException::class);
+        (new FseDispatchService($this->contexts, $this->profiles, $gateway, $this->validation))->validate(42, $id);
+    }
+
+    public static function blockedProfiles(): array
+    {
+        return [[['is_enabled' => 1, 'access_mode' => 'toscana_privati'], 'Toscana'],
+            [['is_enabled' => 0, 'access_mode' => 'gateway'], 'disattivato']];
+    }
+
+    #[DataProvider('blockedProfiles')]
+    public function testRevalidationDoesNotBypassProfileGates(array $profile, string $message): void
+    {
+        $id = $this->expiredSignedDocument();
+        $profiles = $this->createMock(FseProfileService::class);
+        $profiles->method('runtimeProfileForDocument')->willReturn($profile);
+        $gateway = $this->createMock(FseGatewayClient::class);
+        $gateway->expects($this->never())->method('validate');
+        $this->expectExceptionMessage($message);
+        (new FseDispatchService($this->contexts, $profiles, $gateway, $this->validation, static fn () => strtotime('2026-10-07 10:00:00')))->validate(42, $id);
+    }
+
+    public function testRevalidationLockBlocksConcurrentValidationAndPublication(): void
+    {
+        $id = $this->expiredSignedDocument();
+        $gateway = $this->createMock(FseGatewayClient::class);
+        $dispatch = new FseDispatchService($this->contexts, $this->profiles, $gateway, $this->validation, static fn () => strtotime('2026-10-07 10:00:00'));
+        $gateway->expects($this->never())->method('create');
+        $gateway->expects($this->once())->method('validate')->willReturnCallback(function () use ($id, $dispatch) {
+            foreach (['validate', 'publish'] as $method) {
+                try { $dispatch->$method(42, $id); $this->fail('Concurrent write accepted'); }
+                catch (\RuntimeException $e) { $this->assertNotEmpty($e->getMessage()); }
+            }
+            return ['ok' => true, 'http_status' => 201, 'payload' => ['workflowInstanceId' => 'LOCKED.VALIDATED']];
+        });
+        $this->assertSame('signed', $dispatch->validate(42, $id)['document']['local_state']);
+    }
+
+    public function testConcurrentRevalidationInvalidatesStaleValidationSnapshot(): void
+    {
+        $id = $this->expiredSignedDocument();
+        $profiles = $this->createMock(FseProfileService::class);
+        $profiles->method('runtimeProfileForDocument')->willReturnCallback(function () use ($id) {
+            $this->documents->update($id, ['validated_at' => '2026-10-07 10:00:00', 'workflow_instance_id' => 'NEW.VALIDATION']);
+            return ['is_enabled' => 1, 'access_mode' => 'gateway'];
+        });
+        $gateway = $this->createMock(FseGatewayClient::class);
+        $gateway->expects($this->never())->method('validate');
+        try {
+            (new FseDispatchService($this->contexts, $profiles, $gateway, $this->validation, static fn () => strtotime('2026-10-07 10:00:00')))->validate(42, $id);
+            $this->fail('Stale snapshot accepted');
+        } catch (\RuntimeException $e) {
+            $this->assertStringContainsString('altra richiesta', $e->getMessage());
+            $this->assertSame('NEW.VALIDATION', $this->documents->find($id)['workflow_instance_id']);
+            $this->assertSame('2026-10-07 10:00:00', $this->documents->find($id)['validated_at']);
+        }
     }
 
     public function testHttpRejectionAlsoSavesCartId(): void

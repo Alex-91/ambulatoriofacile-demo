@@ -25,6 +25,21 @@ final class FseViewsTest extends CIUnitTestCase
         $this->assertSame(1, $xp->query('//form[@method="post"]//input[@name="csrf_test"]')->length);
     }
 
+    public function testNationalValidationExpiryActionsAreExclusiveAndCsrfProtected(): void
+    {
+        foreach (['national_fresh', 'national_expired', 'national_missing', 'national_uncertain'] as $name) {
+            $xp = $this->renderFixture($name);
+            $fresh = $name === 'national_fresh';
+            $retry = in_array($name, ['national_expired', 'national_missing'], true);
+            $this->assertSame($fresh ? 1 : 0, $xp->query('//button[text()="Pubblica PDF firmato"]')->length, $name);
+            $this->assertSame($retry ? 1 : 0, $xp->query('//button[text()="Rivalida PDF firmato"]')->length, $name);
+            $this->assertSame($retry ? 1 : 0, $xp->query('//form[button[text()="Rivalida PDF firmato"]]/input[@name="csrf_test"]')->length, $name);
+            $this->assertSame(1, $xp->query('//fieldset[@disabled]')->length, $name);
+            $this->assertSame(0, $xp->query('//input[@type="file"]')->length, $name);
+            $this->assertSame(0, $xp->query('//form//form')->length, $name);
+        }
+    }
+
     public function testSignedOriginalHasDisabledClinicalFieldsAndCorrectionForm(): void
     {
         $xp = $this->renderFixture('signed');

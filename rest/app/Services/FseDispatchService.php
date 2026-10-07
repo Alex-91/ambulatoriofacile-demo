@@ -10,13 +10,15 @@ class FseDispatchService
     private FseProfileService $profiles;
     private FseGatewayClient $gateway;
     private FseArtifactValidationService $validation;
+    private \Closure $clock;
 
-    public function __construct(?FseTenantDatabaseContextService $contexts = null, ?FseProfileService $profiles = null, ?FseGatewayClient $gateway = null, ?FseArtifactValidationService $validation = null)
+    public function __construct(?FseTenantDatabaseContextService $contexts = null, ?FseProfileService $profiles = null, ?FseGatewayClient $gateway = null, ?FseArtifactValidationService $validation = null, ?\Closure $clock = null)
     {
         $this->contexts = $contexts ?? new FseTenantDatabaseContextService();
         $this->profiles = $profiles ?? new FseProfileService();
         $this->gateway = $gateway ?? new FseGatewayClient();
         $this->validation = $validation ?? new FseArtifactValidationService();
+        $this->clock = $clock ?? static fn (): int => time();
     }
 
     /** @return array<string,mixed> */
@@ -61,25 +63,42 @@ class FseDispatchService
         $previousState = (string) ($document['local_state'] ?? 'draft');
         $stateLocked = false;
         $requestStarted = false;
+        $revalidation = $operation === 'validation' && FseValidationWindow::canRevalidate($document, ($this->clock)());
+        $auditOperation = $revalidation ? 'revalidation' : $operation;
+        $validationStartedAt = null;
         try {
         if ($operation === 'validation') {
-            if (FseDocumentLifecycle::isSealed($document)) throw new \RuntimeException('Il referto consolidato non può essere rivalidato o sovrascritto: creare una correzione.');
-            if (!in_array($previousState, ['ready_to_validate', 'rejected'], true)) throw new \RuntimeException('Il PDF/CDA non è nello stato previsto per la validazione.');
-            $file = (string) ($document['unsigned_pdf_path'] ?? '');
-            if (!is_file($file)) throw new \RuntimeException('Genera prima il PDF con CDA da validare.');
-            $this->lockState($db, $documentId, [$previousState], 'validating');
+            if (!$revalidation && FseDocumentLifecycle::isSealed($document)) throw new \RuntimeException('Il referto consolidato non può essere rivalidato o sovrascritto: creare una correzione.');
+            if (!$revalidation && !in_array($previousState, ['ready_to_validate', 'rejected'], true)) throw new \RuntimeException('Il PDF/CDA non è nello stato previsto per la validazione.');
+            $file = (string) ($document[$revalidation ? 'signed_pdf_path' : 'unsigned_pdf_path'] ?? '');
+            if (!is_file($file)) throw new \RuntimeException($revalidation
+                ? 'PDF firmato conservato non disponibile: richiedere assistenza, senza rigenerare il documento.'
+                : 'Genera prima il PDF con CDA da validare.');
+            $this->lockState($db, $documentId, [$previousState], 'validating', $document);
             $stateLocked = true;
-            $this->validation->assertForDispatch($tenantId, $documentId, $runtime, false);
+            $this->validation->assertForDispatch($tenantId, $documentId, $runtime, $revalidation);
+            if ($revalidation) {
+                $audit->record($documentId, 'gateway_revalidation_started', 'Rivalidazione esplicita del PDF firmato invariato.', [
+                    'previous_workflow_instance_id' => $document['workflow_instance_id'] ?? null,
+                    'previous_validated_at' => $document['validated_at'] ?? null,
+                    'signed_pdf_sha256' => $document['signed_pdf_sha256'] ?? null,
+                ], $userId, 'info', true);
+            }
+            // A failed/uncertain request must never retain the old validation as usable.
+            $documents->update($documentId, ['validated_at' => null]);
+            $validationStartedAt = date('Y-m-d H:i:s', ($this->clock)());
             $requestStarted = true;
             $result = $this->gateway->validate($profile, $runtime, $file);
-            $successState = 'validated';
+            $successState = $revalidation ? 'signed' : 'validated';
         } elseif ($operation === 'publish') {
             $file = (string) ($document['signed_pdf_path'] ?? '');
             if (!is_file($file)) throw new \RuntimeException('Carica prima il PDF firmato PAdES.');
-            if ((string) $document['local_state'] !== 'signed' || empty($document['validated_at'])) throw new \RuntimeException('Il referto deve essere validato e poi firmato prima della pubblicazione.');
-            $this->lockState($db, $documentId, ['signed'], 'publishing');
+            if ((string) $document['local_state'] !== 'signed' || !empty($document['published_at']) || !empty($document['deleted_at'])) throw new \RuntimeException('Il referto deve essere validato e poi firmato prima della pubblicazione.');
+            FseValidationWindow::assertFresh($document, ($this->clock)());
+            $this->lockState($db, $documentId, ['signed'], 'publishing', $document);
             $stateLocked = true;
             $this->validation->assertForDispatch($tenantId, $documentId, $runtime, true);
+            FseValidationWindow::assertFresh($document, ($this->clock)());
             $requestStarted = true;
             $result = $this->gateway->create($profile, $runtime, $file);
             $successState = 'publishing';
@@ -104,11 +123,11 @@ class FseDispatchService
                     $message = 'Esecuzione Gateway interrotta: esito da riconciliare, nessun reinvio automatico.';
                     $documents->update($documentId, ['workflow_instance_id'=>null, 'trace_id'=>null, 'span_id'=>null, 'gateway_http_status'=>0, 'gateway_state'=>strtoupper($operation) . '_UNCERTAIN',
                         'last_gateway_message'=>$message, 'last_response_json'=>json_encode(['transport'=>['outcome_uncertain'=>true]])]);
-                    $audit->record($documentId, 'gateway_' . $operation, $message, [], $userId, 'error');
+                    $audit->record($documentId, 'gateway_' . $auditOperation, $message, [], $userId, 'error');
                     throw new \RuntimeException($message);
                 }
                 $documents->update($documentId, ['local_state' => $previousState, 'last_gateway_message' => 'Controllo locale non superato; nessun invio eseguito.']);
-                $audit->record($documentId, 'gateway_' . $operation, 'Controllo locale non superato; nessun invio eseguito.', [], $userId, 'error');
+                $audit->record($documentId, 'gateway_' . $auditOperation, 'Controllo locale non superato; nessun invio eseguito.', [], $userId, 'error');
             }
             throw $e;
         }
@@ -132,6 +151,9 @@ class FseDispatchService
         }
         $result['payload'] = $payload;
         $feedback = FseGatewayFeedback::describe($result, $operation, $successState, $gatewayState);
+        if ($revalidation && !empty($result['ok']) && !$uncertain) {
+            $feedback['message'] = 'PDF firmato rivalidato senza modifiche. La pubblicazione richiede una successiva azione esplicita entro 5 giorni.';
+        }
         $result['message'] = $feedback['message'];
         $result['feedback'] = $feedback;
         $diagnostics = [
@@ -150,11 +172,12 @@ class FseDispatchService
             'last_response_json' => json_encode(['payload' => $payload, 'transport' => $diagnostics], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), 'updated_by' => $userId ?: null,
         ];
         // Keep in-flight writes locked until their actual outcome has been reconciled.
+        if ($revalidation && empty($result['ok'])) $record['local_state'] = 'signed';
         if ($uncertain && $stateLocked) {
             $record['local_state'] = ['validation' => 'validating', 'publish' => 'publishing', 'delete' => 'deleting'][$operation];
         }
         if ($record['local_state'] === 'published') $record['published_at'] = $document['published_at'] ?? date('Y-m-d H:i:s');
-        if ($operation === 'validation' && !empty($result['ok'])) $record['validated_at'] = date('Y-m-d H:i:s');
+        if ($operation === 'validation') $record['validated_at'] = !empty($result['ok']) && !$uncertain ? $validationStartedAt : null;
         if ($record['local_state'] === 'deleted') $record['deleted_at'] = date('Y-m-d H:i:s');
         if ($operation === 'status') {
             // A delayed poll must not overwrite a newer operation started on another request.
@@ -165,7 +188,7 @@ class FseDispatchService
         } else {
             $documents->update($documentId, $record);
         }
-        $audit->record($documentId, 'gateway_' . $operation, (string) $record['last_gateway_message'], ['http_status' => $record['gateway_http_status'], 'workflow_instance_id' => $workflow, 'gateway_state' => $record['gateway_state']] + $diagnostics, $userId, $feedback['severity'] === 'success' ? 'info' : $feedback['severity']);
+        $audit->record($documentId, 'gateway_' . $auditOperation, (string) $record['last_gateway_message'], ['http_status' => $record['gateway_http_status'], 'workflow_instance_id' => $workflow, 'gateway_state' => $record['gateway_state']] + $diagnostics, $userId, $feedback['severity'] === 'success' ? 'info' : $feedback['severity']);
         $result['document'] = $documents->find($documentId);
         return $result;
     }
@@ -181,10 +204,14 @@ class FseDispatchService
     }
 
     /** @param list<string> $allowed */
-    private function lockState(\CodeIgniter\Database\BaseConnection $db, int $documentId, array $allowed, string $next): void
+    private function lockState(\CodeIgniter\Database\BaseConnection $db, int $documentId, array $allowed, string $next, ?array $snapshot = null): void
     {
-        $db->table('fse_documents')->where('id_fse_document', $documentId)->whereIn('local_state', $allowed)
-            ->update(['local_state' => $next, 'updated_at' => date('Y-m-d H:i:s')]);
+        $query = $db->table('fse_documents')->where('id_fse_document', $documentId)->whereIn('local_state', $allowed);
+        if ($snapshot !== null) {
+            $query->where('validated_at', $snapshot['validated_at'] ?? null)
+                ->where('workflow_instance_id', $snapshot['workflow_instance_id'] ?? null);
+        }
+        $query->update(['local_state' => $next, 'updated_at' => date('Y-m-d H:i:s')]);
         if ($db->affectedRows() !== 1) throw new \RuntimeException('Il referto è già in elaborazione da un’altra richiesta.');
     }
 }
