@@ -26,6 +26,7 @@
     const search = document.getElementById('episode-search');
     const paragraph = document.getElementById('episode-paragraph');
     const order = document.getElementById('episode-order');
+    const state = document.getElementById('episode-state');
     const normalize = value => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('it');
     function filter() {
         const term = normalize(search.value.trim());
@@ -33,7 +34,7 @@
         entries.forEach(entry => {
             const parts = Array.from(entry.querySelectorAll('[data-paragraph]'));
             const matched = !paragraph.value || parts.some(part => part.dataset.paragraph === paragraph.value);
-            entry.hidden = !matched || !normalize(entry.textContent).includes(term);
+            entry.hidden = !matched || (state && state.value && state.value !== entry.dataset.state) || !normalize(entry.textContent).includes(term);
             parts.forEach(part => { part.hidden = !!paragraph.value && part.dataset.paragraph !== paragraph.value; });
             if (!entry.hidden) visible++;
         });
@@ -41,6 +42,7 @@
     }
     search.addEventListener('input', filter);
     paragraph.addEventListener('change', filter);
+    if (state) state.addEventListener('change', filter);
     order.addEventListener('change', () => {
         if (!entries.length) return;
         const parent = entries[0].parentElement;

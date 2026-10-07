@@ -240,15 +240,40 @@ final class ClinicalRecordTest extends CIUnitTestCase
             $html=view('clinical/patient',['chart'=>array_replace($base,$chart),'patient'=>['patient_name'=>'Giulia Rossi'],
                 'patientId'=>100,'tenant'=>['id_tenant'=>4],'editing'=>null,'revisionOf'=>null,'pacsEnabled'=>true,
                 'pacsDemo'=>['orders'=>[],'selected'=>null]]);
-            foreach (['Cronologia episodi','Episodio generato','id="prestazioni"','id="allegati"','id="consensi"','id="pacs-demo"'] as $text)
+            foreach (['Cronologia clinica','Episodio generato','id="prestazioni"','id="allegati"','id="consensi"','id="pacs-demo"'] as $text)
                 $this->assertStringContainsString($text,$html);
             $this->assertStringNotContainsString('Documento non incluso',$html);
             $this->assertStringNotContainsString('id="nuovo"',$html);
             $this->assertStringNotContainsString('value="clinical"',$html);
             try {$master->saveEntry(100,$this->entry());$this->fail('Master gained write access');} catch (\RuntimeException) {}
+            $drafts=new \App\Services\ClinicalFixtureDrafts($presentation,$vault,6,$this->root.'/drafts');
+            $before=$this->db->table('clinical_entries')->countAllResults();
+            $draftId=$drafts->save(100,$this->entry(['title'=>'Bozza riservata']));
+            $saved=$drafts->entry(100,$draftId);
+            $this->assertSame('Bozza riservata',$saved['content']['title']);
+            $this->assertTrue($saved['fixture_draft']);
+            $this->assertSame(1,$saved['revision']);
+            $this->assertSame($before,$this->db->table('clinical_entries')->countAllResults());
+            $this->assertStringNotContainsString('Bozza riservata',file_get_contents($this->root.'/drafts/4-6-100.bin'));
+            $drafts->save(100,$this->entry(['id'=>$draftId,'revision'=>1,'title'=>'Bozza aggiornata']));
+            $this->assertSame(2,$drafts->entry(100,$draftId)['revision']);
+            foreach ([fn()=>$drafts->save(100,$this->entry(['id'=>$draftId,'revision'=>1])),
+                fn()=>$drafts->save(200,$this->entry()),fn()=>$drafts->save(100,$this->entry(['appointment_id'=>999])),
+                fn()=>$drafts->entry(100,$fixture),fn()=>$drafts->save(100,$this->entry(['previous_entry_id'=>$fixture]))] as $deny) {
+                try {$deny();$this->fail('Out-of-scope or stale draft accepted');} catch (\RuntimeException $e) {$this->assertNotEmpty($e->getMessage());}
+            }
+            $html=view('clinical/patient',['chart'=>array_replace($base,$chart,['fixture_drafts'=>true,'entries'=>[$saved]]),
+                'patient'=>['patient_name'=>'Giulia Rossi'],'patientId'=>100,'tenant'=>['id_tenant'=>4],
+                'editing'=>null,'revisionOf'=>null,'pacsEnabled'=>false]);
+            foreach(['Nuovo episodio clinico','name="anamnesis"','name="body"','/salva','Riprendi compilazione'] as $text) $this->assertStringContainsString($text,$html);
+            $this->assertStringNotContainsString('Paziente #',$html);
+            $this->assertStringNotContainsString('value="clinical"',$html);
+            $this->assertStringNotContainsString('Rendi definitivo',$html);
+            $code=\App\Services\ClinicalFixtureIdentity::fiscalCode(['patient_first_name'=>'Giulia','patient_last_name'=>'Rossi','patient_birth_date'=>'1987-04-12']);
+            $this->assertTrue((new \App\Services\FiscalCodeValidator())->validate($code)['valid']);
             $platform->db->table('platform_user_tenants')->where('app_user_id',6)->delete();
             $this->expectException(\RuntimeException::class);
-            $presentation->read(100);
+            $drafts->save(100,$this->entry());
         } finally { $databaseProperty->setValue($this->db,$originalDatabase);$platform->close(); }
     }
 
@@ -259,7 +284,7 @@ final class ClinicalRecordTest extends CIUnitTestCase
         // The shared header legitimately contains scripts; patient input must stay escaped.
         $this->assertStringNotContainsString('<script>patient</script>',$html);
         $this->assertStringContainsString('&lt;script&gt;patient&lt;/script&gt;',$html);
-        $this->assertStringContainsString('clinical-workspace.js?v=20261007',$html);
+        $this->assertStringContainsString('clinical-workspace.js?v=20261008',$html);
         $this->assertStringContainsString('id="episode-search"',$html);
         $this->assertStringContainsString('id="prestazioni"',$html);
         $this->assertStringNotContainsString('examPrototype',$html);

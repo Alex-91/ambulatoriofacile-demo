@@ -30,7 +30,15 @@ class ClinicalRecords extends BaseController
             $fseEnabled = (new \App\Services\FseFeatureService())->isEnabledForTenant((int)$tenant['id_tenant']);
             $pacsEnabled = (new \App\Services\Pacs\PacsFeatureService())->isEnabledForTenant((int)$tenant['id_tenant']);
             $chart = $service->patient($patientId,max(1,(int)$this->request->getGet('page')), $fseEnabled);
-            $fixture=(new \App\Services\ClinicalFixturePresentation($db,(int)$tenant['id_tenant'],$userId))->read($patientId);
+            $presentation=new \App\Services\ClinicalFixturePresentation($db,(int)$tenant['id_tenant'],$userId);
+            $fixture=$presentation->read($patientId);
+            $fixtureDraftService=new \App\Services\ClinicalFixtureDrafts($presentation,new ClinicalVault((int)$tenant['id_tenant']),$userId);
+            if ($fixture) {
+                $drafts=$fixtureDraftService->listing($patientId);
+                $fixture['entries']=array_merge($drafts,$fixture['entries']);
+                usort($fixture['entries'],static fn($a,$b)=>strcmp($b['occurred_at'],$a['occurred_at']));
+                $fixture['total']=count($fixture['entries']); $fixture['fixture_drafts']=true;
+            }
             if ($fixture) { $fixture['objects']=array_merge($chart['objects'],$fixture['objects']); $chart=array_replace($chart,$fixture); }
             $focusedDocument=(int)$this->request->getGet('document')>0;
             if ($focusedDocument) {
@@ -47,6 +55,7 @@ class ClinicalRecords extends BaseController
                 catch (\RuntimeException) { $pacsRequestsUnavailable=true; }
             }
             $patient = (new TenantPatientLookupService())->getPatientByIdForTenant((int)$tenant['id_tenant'],$patientId);
+            if ($fixture && empty($patient['patient_tax_code'])) $patient['patient_tax_code']=\App\Services\ClinicalFixtureIdentity::fiscalCode($patient);
             $pacsDemo=null;
             if ($pacsEnabled && (int)$tenant['id_tenant']===4 && $chart['actor']['role']===4) {
                 $trial=new \App\Services\Pacs\PacsTrialService(WRITEPATH.'pacs-trial',4,$userId);
@@ -54,13 +63,20 @@ class ClinicalRecords extends BaseController
                 $pacsDemo=['orders'=>$trial->listingForPatient($patientId),'selected'=>$demoId!==''?$trial->readForPatient($patientId,$demoId):null];
             }
             $editing = null; $revisionOf = null;
-            if ((int)$this->request->getGet('edit') > 0) $editing = $service->entry($patientId,(int)$this->request->getGet('edit'));
+            if ((int)$this->request->getGet('edit') > 0) $editing = $fixture ? $fixtureDraftService->entry($patientId,(int)$this->request->getGet('edit')) : $service->entry($patientId,(int)$this->request->getGet('edit'));
             if ((int)$this->request->getGet('revise') > 0) $revisionOf = $service->entry($patientId,(int)$this->request->getGet('revise'));
             return $this->privateResponse()->setBody(view('clinical/patient',compact('pacsDemo','chart','patient','patientId','tenant','editing','revisionOf','pacsEnabled','pacsRequests','pacsRequestsUnavailable','pacsAppointmentDoctorIds','focusedDocument')));
         } catch (\Throwable $e) { return $this->failure($e); }
     }
     public function save(int $patientId)
-    { return $this->mutate($patientId,fn($s)=>$s->saveEntry($patientId,(array)$this->request->getPost()),'Bozza salvata.'); }
+    {
+        return $this->mutate($patientId,function($s,$tenant,$db,$userId) use($patientId) {
+            $presentation=new \App\Services\ClinicalFixturePresentation($db,(int)$tenant['id_tenant'],$userId);
+            if ($presentation->read($patientId)) {
+                (new \App\Services\ClinicalFixtureDrafts($presentation,new ClinicalVault((int)$tenant['id_tenant']),$userId))->save($patientId,(array)$this->request->getPost());
+            } else $s->saveEntry($patientId,(array)$this->request->getPost());
+        },'Bozza salvata.');
+    }
     public function finalize(int $patientId,int $entryId)
     {
         return $this->mutate($patientId,function($s,$tenant) use($patientId,$entryId) {
