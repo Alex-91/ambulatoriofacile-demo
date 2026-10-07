@@ -209,7 +209,13 @@ final class ClinicalRecordTest extends CIUnitTestCase
     {
         $s=$this->service();$s->saveEntry(100,$this->entry());
         $html=view('clinical/patient',['chart'=>$s->patient(100),'patient'=>['patient_name'=>'<script>patient</script>'],'patientId'=>100,'tenant'=>[],'editing'=>null,'revisionOf'=>null]);
-        $this->assertStringNotContainsString('<script>',$html);$this->assertStringContainsString('&lt;script&gt;',$html);
+        // The shared header legitimately contains scripts; patient input must stay escaped.
+        $this->assertStringNotContainsString('<script>patient</script>',$html);
+        $this->assertStringContainsString('&lt;script&gt;patient&lt;/script&gt;',$html);
+        $this->assertStringContainsString('clinical-workspace.js?v=20261007',$html);
+        $this->assertStringContainsString('id="episode-search"',$html);
+        $this->assertStringContainsString('id="prestazioni"',$html);
+        $this->assertStringNotContainsString('examPrototype',$html);
         $this->assertStringContainsString(csrf_token(),$html);
         $filters=new \Config\Filters();$this->assertSame(['cartella-clinica/*'],$filters->filters['clinicalcsrf']['before']);
     }
