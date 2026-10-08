@@ -109,6 +109,10 @@ class BillingSettingsController extends BaseController
         return [
             'document_title' => $this->requestString('document_title', (string) ($current['document_title'] ?? 'Documento fatturazione'), 0),
             'document_code_prefix' => $this->requestString('document_code_prefix', (string) ($current['document_code_prefix'] ?? 'FT'), 12),
+            'numbering' => [
+                'mode' => $this->requestString('numbering_mode', (string) ($current['numbering']['mode'] ?? 'annual'), 20),
+                'digits' => $this->requestString('numbering_digits', (string) ($current['numbering']['digits'] ?? 4), 10),
+            ],
             'defaults' => [
                 'stamp_duty_amount' => $this->requestString('default_stamp_duty_amount', (string) ($defaults['stamp_duty_amount'] ?? '0.00'), 10),
                 'document_type' => $this->requestString('default_document_type', (string) ($defaults['document_type'] ?? 'invoice'), 20),

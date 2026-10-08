@@ -886,3 +886,35 @@ Tradotto in file concreti:
 3. creare `Config/TsBilling.php`
 4. creare struttura `ThirdParty/TesseraSanitaria/`
 5. creare migration `CreatePlatformTenantTsProfiles`
+
+## Numerazione protetta (8 ottobre 2026)
+
+Le impostazioni Fatturazione consentono prefisso (12 caratteri), cifre minime (1–8),
+progressione annuale con anno obbligatorio nel numero oppure continua. La numerazione
+è comune ai tipi di documento dello stesso database tenant. Una nuova bozza ha un
+riferimento BOZZA provvisorio; il progressivo fiscale si assegna alla conferma definitiva.
+Il numero inviato dal browser non viene utilizzato per assegnare il numero fiscale.
+
+La migration `2026-10-08-100001_ProtectBillingNumbering.php` aggiunge un indice UNIQUE
+su `document_number`, un mutex e contatori persistenti per anno/modalità continua.
+La transazione acquisisce il mutex prima di rileggere la bozza, incrementare il contatore
+e salvare il documento. Un rollback annulla anche l'incremento. Le fatture definitive
+non sono riscrivibili o cancellabili; la registrazione dei pagamenti resta disponibile.
+Cambiare prefisso o cifre non azzera un contatore. Alla prima inizializzazione si parte
+sopra il massimo suffisso numerico storico riconoscibile (fino a 8 cifre); formati storici
+diversi richiedono verifica prima del rilascio. Non è previsto un reset manuale.
+
+La migration blocca l'attivazione in presenza di numeri storici duplicati, anche su date
+diverse, senza modificare i documenti. Su MySQL richiede InnoDB. Il servizio di verifica
+schema controlla anche la presenza dell'indice univoco e delle tabelle dei contatori.
+Non eseguire collaudi su database live: i test usano esclusivamente SQLite sintetico.
+Collaudo MySQL 8.3/InnoDB eseguito su istanza locale temporanea: 80 emissioni concorrenti,
+unicità, rollback, cambio anno e progressione continua verificati.
+
+Verifiche: `php tests/billing_numbering_regression.php` (anche 4 processi/60 emissioni),
+e PHPUnit con bootstrap `tests/_support/billing_port_bootstrap.php` sui test
+`tests/session/BillingDocumentServiceTest.php` e `tests/session/BillingTsBridgeServiceTest.php`.
+
+Riferimento: [Agenzia delle Entrate, risoluzione 1/E del 10 gennaio 2013](https://def.finanze.it/DocTribFrontend/getPrassiDetail.do?id=%7B62A437BC-0CEF-4B6D-A540-EADB4180609F%7D).
+Sono ammessi sia progressivi continui sia annuali; l'anno esplicito adottato qui rende
+il numero completo univoco anche fra anni diversi.

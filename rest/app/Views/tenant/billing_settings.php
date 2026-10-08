@@ -132,10 +132,6 @@ if ($serviceRows === []) {
                       <span class="config-help">Titolo riportato nei nuovi documenti cliente.</span>
                     </div>
                     <div class="form-group">
-                      <label>Prefisso numerazione</label>
-                      <input class="form-control" name="document_code_prefix" maxlength="12" value="<?= esc($fieldValue('document_code_prefix', $config['document_code_prefix'] ?? 'FT')) ?>">
-                    </div>
-                    <div class="form-group">
                       <label>Tipo documento predefinito</label>
                       <select class="form-control" name="default_document_type">
                         <?php foreach ($documentTypes as $value => $label): ?>
@@ -152,6 +148,29 @@ if ($serviceRows === []) {
                       </select>
                     </div>
                   </div>
+                </section>
+
+                <section class="config-card config-card-full">
+                  <div class="config-card-head"><div><span class="config-card-eyebrow">Controllo dei progressivi</span><h2>Numerazione delle fatture</h2></div><i class="fa fa-lock"></i></div>
+                  <p>Il numero fiscale viene assegnato quando confermi il documento definitivo. Le bozze hanno un riferimento provvisorio e non consumano progressivi.</p>
+                  <div class="config-form-grid">
+                    <div class="form-group">
+                      <label>Prefisso numerazione</label>
+                      <input class="form-control" name="document_code_prefix" maxlength="12" value="<?= esc($fieldValue('document_code_prefix', $config['document_code_prefix'] ?? 'FT')) ?>">
+                    </div>
+                    <div class="form-group">
+                      <label for="numbering_mode">Ripartenza del progressivo</label>
+                      <select id="numbering_mode" name="numbering_mode" class="form-control">
+                        <option value="annual" <?= $fieldValue('numbering_mode', $config['numbering']['mode'] ?? 'annual') === 'annual' ? 'selected' : '' ?>>Ogni anno, da 1 (FT-2026-0001)</option>
+                        <option value="continuous" <?= $fieldValue('numbering_mode', $config['numbering']['mode'] ?? 'annual') === 'continuous' ? 'selected' : '' ?>>Mai, numerazione continua (FT-0001)</option>
+                      </select>
+                    </div>
+                    <div class="form-group">
+                      <label for="numbering_digits">Cifre minime del progressivo</label>
+                      <input id="numbering_digits" name="numbering_digits" type="number" min="1" max="8" required class="form-control" value="<?= esc($fieldValue('numbering_digits', $config['numbering']['digits'] ?? 4)) ?>">
+                    </div>
+                  </div>
+                  <p class="config-help">La ripartenza segue l’anno della data di emissione. L’anno è sempre incluso nella numerazione annuale. Cambiare prefisso o formato non azzera i contatori già utilizzati. I numeri sono univoci per questo spazio, anche tra tipi di documento diversi. I documenti definitivi non possono essere riscritti.</p>
                 </section>
 
                 <section class="config-card config-card-full config-services-card">

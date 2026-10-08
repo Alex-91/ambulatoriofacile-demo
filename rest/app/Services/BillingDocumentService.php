@@ -547,14 +547,6 @@ class BillingDocumentService
             throw new \RuntimeException(implode(' ', $validationErrors));
         }
 
-        $existing = $documents->findByDocumentNumberAndDate(
-            (string) ($normalized['document_number'] ?? ''),
-            (string) ($normalized['issue_date'] ?? '')
-        );
-        if (is_array($existing) && (int) ($existing['id_billing_document'] ?? 0) !== $documentId) {
-            throw new \RuntimeException('Esiste già un documento fatturazione con lo stesso numero e la stessa data.');
-        }
-
         $normalizedSaveMode = trim(strtolower($saveMode));
         $localState = str_starts_with($normalizedSaveMode, 'final') ? 'issued' : 'draft';
         $paymentDate = trim((string) ($normalized['payment_date'] ?? ''));
@@ -604,11 +596,28 @@ class BillingDocumentService
             $record['created_by'] = $userId > 0 ? $userId : null;
         }
 
-        $db->transBegin();
+        if (!$db->transBegin()) {
+            throw new \RuntimeException('Impossibile avviare il salvataggio protetto.');
+        }
 
         try {
+            $numbering = new BillingNumberingService();
+            $numbering->lock($db);
+            // Re-read after the lock: another request may already have issued this draft.
+            $current = $documentId > 0 ? $documents->find($documentId) : null;
+            if ($documentId > 0 && !is_array($current)) {
+                throw new \RuntimeException('Documento non più disponibile.');
+            }
+            if (($current['local_state'] ?? '') === 'issued') {
+                throw new \RuntimeException('Una fattura definitiva non può essere riscritta o riportata in bozza.');
+            }
+            $record['document_number'] = $localState === 'issued'
+                ? $numbering->allocate($db, $template, $record['issue_date'])
+                : ($current['document_number'] ?? ('BOZZA-' . bin2hex(random_bytes(12))));
             if (is_array($current)) {
-                $documents->update($documentId, $record);
+                if (!$documents->update($documentId, $record)) {
+                    throw new \RuntimeException('Aggiornamento documento non riuscito.');
+                }
                 $savedId = $documentId;
             } else {
                 $savedId = (int) $documents->insert($record);
@@ -626,7 +635,9 @@ class BillingDocumentService
                 throw new \RuntimeException('Persistenza documento fatturazione non riuscita.');
             }
 
-            $db->transCommit();
+            if (!$db->transCommit()) {
+                throw new \RuntimeException('Conferma del salvataggio non riuscita.');
+            }
 
             try {
                 // Document audit uses the tenant user; shared preferences reference platform_users.
@@ -828,9 +839,7 @@ class BillingDocumentService
         return [
             'id_billing_document' => 0,
             'id_client' => 0,
-            'document_number' => $documents instanceof BillingDocumentModel
-                ? $this->suggestDocumentNumber($documents, $template)
-                : $this->fallbackDocumentNumber($template),
+            'document_number' => '',
             'document_type' => $documentType,
             'issue_date' => date('Y-m-d'),
             'payment_date' => '',
@@ -961,35 +970,6 @@ class BillingDocumentService
             'sent' => 'Inviato a TS',
             'error' => 'Da correggere per TS',
         ];
-    }
-
-    /**
-     * @param array<string, mixed> $template
-     */
-    private function suggestDocumentNumber(BillingDocumentModel $documents, array $template): string
-    {
-        $prefix = trim((string) ($template['document_code_prefix'] ?? 'FT'));
-        if ($prefix === '') {
-            $prefix = 'FT';
-        }
-
-        $today = date('Y-m-d');
-        $countToday = (int) $documents->where('issue_date', $today)->countAllResults();
-
-        return strtoupper($prefix) . '-' . date('Ymd') . '-' . str_pad((string) ($countToday + 1), 2, '0', STR_PAD_LEFT);
-    }
-
-    /**
-     * @param array<string, mixed> $template
-     */
-    private function fallbackDocumentNumber(array $template): string
-    {
-        $prefix = trim((string) ($template['document_code_prefix'] ?? 'FT'));
-        if ($prefix === '') {
-            $prefix = 'FT';
-        }
-
-        return strtoupper($prefix) . '-' . date('Ymd') . '-01';
     }
 
     /**
@@ -1157,10 +1137,7 @@ class BillingDocumentService
     private function validatePayload(array $normalized, array $template, int $tenantId): array
     {
         $errors = [];
-        if (trim((string) ($normalized['document_number'] ?? '')) === '') {
-            $errors[] = 'Numero documento obbligatorio.';
-        }
-        if (trim((string) ($normalized['issue_date'] ?? '')) === '') {
+        if (trim((string) ($normalized['issue_date'] ?? '')) === '' || !$this->isValidOptionalDate((string) $normalized['issue_date'])) {
             $errors[] = 'Data emissione obbligatoria.';
         }
         if (!$this->isValidOptionalDate((string) ($normalized['due_date'] ?? ''))) {

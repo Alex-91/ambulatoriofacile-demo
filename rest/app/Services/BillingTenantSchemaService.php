@@ -15,6 +15,7 @@ class BillingTenantSchemaService
     private const TENANT_MIGRATION_FILES = [
         '2026-07-06-000003_CreateBillingDocumentsTable.php',
         '2026-08-03-000001_AddBillingCollectionsAndEmailDelivery.php',
+        '2026-10-08-100001_ProtectBillingNumbering.php',
     ];
 
     private TenantCatalogService $tenantCatalog;
@@ -125,6 +126,14 @@ class BillingTenantSchemaService
     private function hasRequiredSchema(BaseConnection $db): bool
     {
         if (!$db->tableExists('billing_documents')) {
+            return false;
+        }
+
+        if (!$db->tableExists('billing_numbering_lock') || !$db->tableExists('billing_numbering_counters')) {
+            return false;
+        }
+        $indexes = $db->getIndexData('billing_documents');
+        if (!isset($indexes['uq_billing_document_number']) || strtoupper($indexes['uq_billing_document_number']->type) !== 'UNIQUE') {
             return false;
         }
 

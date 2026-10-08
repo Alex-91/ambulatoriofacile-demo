@@ -219,9 +219,16 @@ class BillingTsBridgeService
 
         $relatedTsDocumentIds = array_values(array_unique($relatedTsDocumentIds));
 
-        $db->transBegin();
+        if (!$db->transBegin()) {
+            throw new \RuntimeException('Impossibile avviare la cancellazione protetta.');
+        }
 
         try {
+            (new BillingNumberingService())->lock($db);
+            $lockedDocument = $billingDocuments->find($billingDocumentId);
+            if (!is_array($lockedDocument) || ($lockedDocument['local_state'] ?? '') === 'issued') {
+                throw new \RuntimeException('La fattura è definitiva o non più disponibile: cancellazione bloccata.');
+            }
             if ($relatedTsDocumentIds !== []) {
                 $db->table('ts_documents')
                     ->whereIn('id_ts_document', $relatedTsDocumentIds)
@@ -695,7 +702,7 @@ class BillingTsBridgeService
     {
         $sent = $this->isBillingDocumentSent($billingDocument, $tsDocument);
         $sending = !$sent && $this->isBillingDocumentSending($billingDocument, $tsDocument);
-        $canManage = !$sent && !$sending;
+        $canManage = !$sent && !$sending && ($billingDocument['local_state'] ?? '') !== 'issued';
         $linkedTsDocumentId = is_array($tsDocument)
             ? (int) ($tsDocument['id_ts_document'] ?? 0)
             : (int) ($billingDocument['linked_ts_document_id'] ?? 0);
@@ -704,7 +711,9 @@ class BillingTsBridgeService
             'can_edit' => $canManage,
             'can_delete' => $canManage,
             'locked' => !$canManage,
-            'locked_reason' => $this->buildBillingDocumentLockMessage($billingDocument, $tsDocument),
+            'locked_reason' => ($billingDocument['local_state'] ?? '') === 'issued'
+                ? 'Fattura definitiva: numero e documento devono essere conservati; modifica e cancellazione non consentite.'
+                : $this->buildBillingDocumentLockMessage($billingDocument, $tsDocument),
             'linked_ts_document_id' => $linkedTsDocumentId,
             'ts_local_state' => trim((string) ($tsDocument['local_state'] ?? '')),
             'ts_state' => trim((string) ($tsDocument['ts_state'] ?? '')),

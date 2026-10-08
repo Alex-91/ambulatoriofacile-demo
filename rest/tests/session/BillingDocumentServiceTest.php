@@ -150,7 +150,7 @@ final class BillingDocumentServiceTest extends CIUnitTestCase
             $formContext['schema_message'] ?? ''
         );
         $this->assertSame(0, (int) ($formContext['document']['id_billing_document'] ?? -1));
-        $this->assertStringStartsWith('FT-', (string) ($formContext['document']['document_number'] ?? ''));
+        $this->assertSame('', (string) ($formContext['document']['document_number'] ?? ''));
         $this->assertSame('waiting_module', (string) ($formContext['document']['ts_sync_state'] ?? ''));
     }
 
@@ -202,24 +202,10 @@ final class BillingDocumentServiceTest extends CIUnitTestCase
                 'message' => '',
             ]);
 
-        $db = $this->getMockBuilder(Connection::class)
-            ->disableOriginalConstructor()
-            ->onlyMethods(['tableExists', 'transBegin', 'transStatus', 'transCommit', 'transRollback'])
-            ->getMock();
-
-        $db->expects($this->once())
-            ->method('tableExists')
-            ->with('billing_documents')
-            ->willReturn(true);
-        $db->expects($this->once())
-            ->method('transBegin');
-        $db->expects($this->once())
-            ->method('transStatus')
-            ->willReturn(true);
-        $db->expects($this->once())
-            ->method('transCommit');
-        $db->expects($this->never())
-            ->method('transRollback');
+        $db = Database::connect(['DBDriver'=>'SQLite3', 'database'=>':memory:', 'DBPrefix'=>'', 'DBDebug'=>true], false);
+        $db->query('CREATE TABLE billing_documents (document_number VARCHAR(32), issue_date DATE)');
+        require_once APPPATH . 'Database/Migrations/2026-10-08-100001_ProtectBillingNumbering.php';
+        (new \App\Database\Migrations\ProtectBillingNumbering(Database::forge($db)))->up();
 
         $documents = $this->getMockBuilder(\App\Models\BillingDocumentModel::class)
             ->disableOriginalConstructor()
@@ -227,14 +213,9 @@ final class BillingDocumentServiceTest extends CIUnitTestCase
             ->getMock();
 
         $documents->expects($this->once())
-            ->method('findByDocumentNumberAndDate')
-            ->with('FT-20260706-01', '2026-07-06')
-            ->willReturn(null);
-
-        $documents->expects($this->once())
             ->method('insert')
             ->with($this->callback(static function (array $record): bool {
-                return ($record['document_number'] ?? '') === 'FT-20260706-01'
+                return ($record['document_number'] ?? '') === 'FT-2026-0001'
                     && ($record['local_state'] ?? '') === 'issued'
                     && (json_decode($record['template_snapshot_json'], true)['patient_details']['patient_address'] ?? '') === 'Via Sintetica 12'
                     && (json_decode($record['template_snapshot_json'], true)['patient_details']['patient_city'] ?? '') === 'Firenze'
@@ -315,5 +296,49 @@ final class BillingDocumentServiceTest extends CIUnitTestCase
         $this->assertSame('issued', (string) ($result['local_state'] ?? ''));
         $this->assertSame(55, (int) (($result['document']['id_billing_document'] ?? 0)));
         $this->assertSame('ready', (string) ($result['document']['ts_sync_state'] ?? ''));
+    }
+
+    public function testProtectedNumberingLifecycleOnRealDatabase(): void
+    {
+        $db = Database::connect(['DBDriver'=>'SQLite3','database'=>':memory:','DBPrefix'=>'','DBDebug'=>true], false);
+        $fields = (new ReflectionClass(\App\Models\BillingDocumentModel::class))->getDefaultProperties()['allowedFields'];
+        $db->query('CREATE TABLE billing_documents (id_billing_document INTEGER PRIMARY KEY AUTOINCREMENT,'.implode(',', array_map(static fn($f)=>$f.' TEXT', $fields)).')');
+        require_once APPPATH . 'Database/Migrations/2026-10-08-100001_ProtectBillingNumbering.php';
+        (new \App\Database\Migrations\ProtectBillingNumbering(Database::forge($db)))->up();
+        $documents = new \App\Models\BillingDocumentModel($db);
+        $context = $this->getMockBuilder(BillingTenantDatabaseContextService::class)->disableOriginalConstructor()->onlyMethods(['resolveTenantContext'])->getMock();
+        $context->method('resolveTenantContext')->willReturn(['db'=>$db,'documents'=>$documents]);
+        $settings = $this->getMockBuilder(BillingDocumentSettingsService::class)->disableOriginalConstructor()->onlyMethods(['resolveTenantSettings','rememberServiceCatalogItems'])->getMock();
+        $settings->method('resolveTenantSettings')->willReturn(['config'=>['document_code_prefix'=>'FT']]);
+        $schema = $this->getMockBuilder(BillingTenantSchemaService::class)->disableOriginalConstructor()->onlyMethods(['ensureTenantSchemaReady'])->getMock();
+        $schema->method('ensureTenantSchemaReady')->willReturn(['ready'=>true]);
+        $features = $this->getMockBuilder(TsFeatureService::class)->disableOriginalConstructor()->onlyMethods(['isEnabledForTenant'])->getMock();
+        $features->method('isEnabledForTenant')->willReturn(false);
+        $profiles = $this->getMockBuilder(TsProfileService::class)->disableOriginalConstructor()->onlyMethods(['resolveExpenseTypeForLineItems'])->getMock();
+        $profiles->method('resolveExpenseTypeForLineItems')->willReturn(null);
+        $service = new BillingDocumentService($settings,$context,$features,config(TsBilling::class),$schema,tsProfiles:$profiles);
+        $payload = ['document_number'=>'FORGED','issue_date'=>'2026-12-31','patient_name'=>'SYNTHETIC','item_description'=>['Visita'],'item_qty'=>[1],'item_unit_amount'=>[100]];
+        $draft = $service->saveDraftForTenant(1,$payload)['document'];
+        $this->assertStringStartsWith('BOZZA-', $draft['document_number']);
+        $this->assertSame(0, $db->table('billing_numbering_counters')->countAllResults());
+        $payload['id_billing_document'] = $draft['id_billing_document'];
+        $issued = $service->saveDraftForTenant(1,$payload,0,'final')['document'];
+        $this->assertSame('FT-2026-0001', $issued['document_number']);
+        foreach (['draft','final'] as $mode) {
+            try { $service->saveDraftForTenant(1,$payload,0,$mode); $this->fail('Issued invoice overwritten'); }
+            catch (RuntimeException $e) { $this->assertStringContainsString('definitiva', $e->getMessage()); }
+        }
+        $this->assertSame('FT-2026-0001', $documents->find($draft['id_billing_document'])['document_number']);
+        $this->assertSame(1, (int)$db->table('billing_numbering_counters')->get()->getRowArray()['last_number']);
+        $bridge = (new ReflectionClass(\App\Services\BillingTsBridgeService::class))->newInstanceWithoutConstructor();
+        $action = (new ReflectionMethod($bridge,'buildBillingDocumentActionState'))->invoke($bridge,$issued,null);
+        $this->assertFalse($action['can_delete']);
+        $this->assertFalse($action['can_edit']);
+        unset($payload['id_billing_document']);
+        $payload['issue_date'] = '2027-01-01';
+        $this->assertSame('FT-2027-0001', $service->saveDraftForTenant(1,$payload,0,'final')['document']['document_number']);
+        $payload['issue_date'] = '2027-02-30';
+        $this->expectException(RuntimeException::class);
+        $service->saveDraftForTenant(1,$payload,0,'final');
     }
 }

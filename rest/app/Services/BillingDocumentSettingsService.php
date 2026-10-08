@@ -68,6 +68,7 @@ class BillingDocumentSettingsService
             throw new \RuntimeException('Feature Fatturazione non trovata nel catalogo piattaforma.');
         }
 
+        $rawConfig['numbering'] = $rawConfig['numbering'] ?? $current['config']['numbering'] ?? [];
         $config = $this->sanitizeConfig($rawConfig);
         $ok = $this->preferencesModel->setPreference(
             $tenantId,
@@ -151,6 +152,7 @@ class BillingDocumentSettingsService
             'version' => 2,
             'document_title' => 'Documento fatturazione',
             'document_code_prefix' => 'FT',
+            'numbering' => ['mode' => 'annual', 'digits' => 4],
             'defaults' => [
                 'document_type' => 'invoice',
                 'payment_method' => 'bank_transfer',
@@ -333,6 +335,7 @@ class BillingDocumentSettingsService
                 0,
                 (string) $defaults['document_title']
             ),
+            'numbering' => BillingNumberingService::config((array) ($rawConfig['numbering'] ?? [])),
             'document_code_prefix' => substr($documentCodePrefix, 0, 12),
             'designer' => isset($rawConfig['designer']) ? BillingDocumentDesigner::validate($rawConfig['designer']) : null,
             'defaults' => [

@@ -225,7 +225,7 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
                   <div class="col-md-3">
                     <div class="form-group">
                       <label>Numero documento *</label>
-                      <input class="form-control" type="text" name="document_number" maxlength="32" value="<?= esc($fieldValue('document_number')) ?>">
+                      <input class="form-control" type="text" name="document_number" readonly placeholder="Assegnato alla conferma definitiva" maxlength="32" value="<?= esc($fieldValue('document_number')) ?>">
                     </div>
                   </div>
                   <div class="col-md-3">
