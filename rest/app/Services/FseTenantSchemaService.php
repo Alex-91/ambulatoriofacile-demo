@@ -14,6 +14,7 @@ class FseTenantSchemaService
         '2026-09-07-220001_AddFseServiceDescription.php',
         '2026-09-07-230001_AddFseDocumentRevisions.php',
         '2026-09-08-100001_AddFseProfileSnapshot.php',
+        '2026-10-15-100001_AddFseRadiologyDetails.php',
     ];
 
     private TenantCatalogService $tenantCatalog;
@@ -136,6 +137,7 @@ class FseTenantSchemaService
             'revision_reason_enc',
             'edit_token',
             'profile_snapshot_json',
+            'radiology_details_enc',
             'workflow_instance_id',
             'validated_at',
             'published_at',

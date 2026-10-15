@@ -7,6 +7,6 @@ if (!function_exists('env')) {
 }
 require_once __DIR__ . '/../../rest/system/Config/BaseConfig.php';
 require_once __DIR__ . '/../../rest/app/Config/Fse2.php';
-foreach (['FseCertificateInspector', 'FseJwtService', 'FseGatewayResponse', 'FseGatewayTransport', 'FseGatewayClient'] as $service) {
+foreach (['FseCertificateInspector', 'FseToscanaStagePreflight', 'FseJwtService', 'FseGatewayResponse', 'FseGatewayTransport', 'FseGatewayClient'] as $service) {
     require_once __DIR__ . '/../../rest/app/Services/' . $service . '.php';
 }

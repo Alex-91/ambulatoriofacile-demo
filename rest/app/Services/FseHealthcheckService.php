@@ -55,6 +55,12 @@ class FseHealthcheckService
             $checks[] = ['label' => 'Interruttore invii', 'status' => 'warning', 'message' => !empty($profile['is_enabled'])
                 ? 'Attivo in configurazione: non equivale ad accreditamento o operatività.' : 'Disattivato: nessun invio dal profilo.'];
             if (($profile['access_mode'] ?? '') === 'toscana_privati') {
+                try {
+                    (new FseToscanaStagePreflight($this->config))->inspect($profile);
+                    $checks[] = $this->check('Certificati Toscana 090', true, 'Coppie A1/S1 090 dello stesso fornitore verificate localmente.', '');
+                } catch (\Throwable $e) {
+                    $checks[] = $this->check('Certificati Toscana 090', false, '', 'Verificare CN A1/S1, codice 090, fornitore, validità e corrispondenza delle chiavi nel preflight locale.');
+                }
                 $checks[] = ['label' => 'Percorso Toscana', 'status' => 'warning', 'message' => 'Invii operativi bloccati nel codice; simulazione offline disponibile.'];
             }
         }

@@ -1,5 +1,95 @@
 # Preparazione FSE Toscana Privati — 7 settembre 2026
 
+## Aggiornamento software del 15 ottobre 2026
+
+Fonte dei nuovi requisiti: risposta Regione Toscana fornita nella chat, ticket
+`20260921360019`. Per la nuova fase di conferimento servono i certificati SOGEI
+di test con CN `A1#090#NOMEFORNITOREXX` e `S1#090#NOMEFORNITOREXX`. Il suffisso
+effettivo e le eventuali nuove CSR vanno confermati con SOGEI; non sono stati
+inventati né sono state sostituite le credenziali precedenti. La disponibilità
+di una struttura per proseguire è da riconfermare, essendosi la precedente
+cliente orientata verso un altro fornitore. Il software non risolve questo
+requisito amministrativo.
+
+Implementati nel branch `codex/fse-toscana-090-rad-20261015`:
+
+- Preflight locale delle due coppie: validità, RSA almeno 2048 bit, corrispondenza
+  certificato/chiave, ruolo A1/S1, codice 090 e stesso suffisso fornitore.
+  Il risultato riporta solo metadati pubblici e resta `operational_ready=false`.
+  Il client regionale esegue gli stessi controlli prima di JWT e trasporto;
+  i profili nazionali mantengono le credenziali e gli endpoint propri.
+- Preparazione RAD nel gestionale per i profili Toscana di test: ordine,
+  identificativo locale del paziente, domini OID e codice esame obbligatori.
+  Dati aggiuntivi cifrati in `radiology_details_enc`; migration additiva
+  `2026-10-15-100001_AddFseRadiologyDetails.php`, inclusa nel runner FSE.
+  Le bozze esistenti non possono cambiare tipo; firma e artefatti consolidati
+  restano protetti. Gli invii operativi Toscana rimangono bloccati.
+- CDA RAD con LOINC `68604-8`, template RAD e sezioni radiologiche, collegato
+  al generatore già disponibile. RSA continua sul proprio generatore.
+- Smoke PHP→Python con RSA e RAD, PDF/A-3b, allegato CDA esatto e rifiuto delle
+  alterazioni; esportazione opzionale di quattro artefatti sintetici con hash.
+  I file esportati sono senza firma e non rappresentano casi ufficiali di
+  accreditamento. Le firme sono verificate nella suite sintetica dedicata.
+- Preparazione locale del contesto Docker di staging, con manifest e catalogo
+  completo RSA/RAD. Nessun container o servizio remoto avviato.
+
+### Comando per i futuri certificati 090
+
+Il modello privo di segreti è `ops/fse-validation/toscana-stage-profile.example.json`.
+Crearne una copia privata fuori da Git e dal webroot; tenere i materiali 090
+in una sottocartella distinta da quelli nazionali. I percorsi nel JSON sono
+relativi alla directory privata indicata con `--secrets-root`. L'audience va
+compilata solo dopo conferma CART.
+
+```powershell
+php ops/fse-validation/toscana-stage-preflight.php --profile='<profilo-privato.json>' --secrets-root='<directory-privata-certificati>'
+```
+
+Per impostazione predefinita nessuna rete e nessuna lettura di `.env` o DB.
+Il comando restituisce exit 2 se i controlli falliscono. Dopo autorizzazione
+CART esplicita si può aggiungere `--probe-tls --cart-authorized`: viene eseguito
+solo HEAD sull'endpoint fisso di stage, con mTLS, verifica CA/hostname e senza
+redirect, JWT o documenti. Un HTTP 401/403/404/405 prova solo che si è raggiunto
+un servizio HTTP attraverso TLS; non attesta autorizzazione API, mappatura CART,
+collaudo o accreditamento. Questa prova di rete non è stata eseguita.
+
+### Evidenze locali
+
+Catalogo pubblico fissato alla revisione `687cf371e1d0caf4f5f9f7bcc80eab3a97f09885`,
+Schematron RSA 8.3 e RAD 4.1. Il precedente catalogo Windows aveva solo RSA:
+creata una nuova directory con tutti i 13 file, preservando catalogo e settings
+precedenti. Le prove RAD si sono fermate correttamente quando il catalogo RAD
+mancava; con il catalogo completo gli 11 test RAD sono passati. Passati anche
+24 test RSA: PDF/A, firma valida, revoca, scadenza, autore errato e alterazioni.
+Le firme sintetiche non attestano la qualifica eIDAS della futura firma reale.
+
+Suite PHP con integrazione documentale attivata: 322 test, 1.620 asserzioni,
+nessun errore o skip. Rapporto privato nel checkout di task:
+`rest/writable/fse-toscana-090-rad-20261015.junit.xml`.
+L'ultima esportazione sintetica verificata è in
+`rest/writable/fse-stage-smoke-9ef90279120263d4/`: `report.json` e quattro file
+RSA/RAD XML/PDF, senza firma, con hash e dimensioni nel rapporto.
+Smoke RSA/RAD passato con zero chiamate di rete, nessun dato clinico reale
+e nessun accesso alla produzione. Contesto locale in
+`rest/writable/fse-container-contexts/` (ogni esecuzione crea una directory
+nuova e conserva le precedenti). La prova di migration ripetuta ha rilevato
+una cache dei nomi colonna obsoleta: invalidata prima e dopo l'aggiunta del
+campo RAD, quindi verificata su doppia esecuzione con dati preesistenti.
+
+Comandi per ripetere le prove usando percorsi privati espliciti:
+
+```powershell
+php ops/fse-validation/stage-smoke.php --python='<python-runtime>' --settings='<settings-rsa-rad.json>' --export-artifacts
+./ops/fse-validation/prepare-stage-runtime.ps1 -CatalogPath '<catalogo-completo-rsa-rad>' -RuntimeRoot '<runtime-pubblico-verificato>'
+```
+
+Restano da ottenere/verificare con gli enti: nuovi certificati 090, struttura
+di riferimento e consenso al percorso, utenza Zammad corretta, modulo CART,
+audience e mappatura del certificato, test ufficiali RSA/RAD, contratto degli
+esiti regionali, accreditamento nazionale e autorizzazione alla produzione.
+
+## Stato precedente e riferimenti storici
+
 Questo incremento è locale, non un accreditamento né un'attivazione di produzione.
 Il workflow clinico regionale non è ancora esposto agli operatori. Non usare dati reali nei test.
 

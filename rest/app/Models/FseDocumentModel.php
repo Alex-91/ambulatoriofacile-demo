@@ -11,7 +11,7 @@ class FseDocumentModel extends Model
     protected $returnType = 'array';
     protected $useTimestamps = true;
     protected $allowedFields = [
-        'id_fse_profile', 'profile_snapshot_json', 'id_client', 'source_type', 'source_ref_id', 'local_state', 'document_type',
+        'id_fse_profile', 'profile_snapshot_json', 'radiology_details_enc', 'id_client', 'source_type', 'source_ref_id', 'local_state', 'document_type',
         'document_title', 'loinc_code', 'loinc_display_name', 'document_unique_id', 'set_id', 'submission_id',
         'version_number', 'previous_document_id', 'document_oid_root', 'revision_reason_enc', 'edit_token',
         'patient_cf_enc', 'patient_cf_hash', 'patient_first_name_enc', 'patient_last_name_enc',

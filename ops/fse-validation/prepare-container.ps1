@@ -1,13 +1,14 @@
 # No Docker/build/deploy call: materialize a new, allowlisted, synthetic-only build context.
-param([switch]$AsObject)
+param([switch]$AsObject, [string]$CatalogPath='', [string]$RuntimeRoot='')
 $ErrorActionPreference = 'Stop'
 $repoRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
 $privateRoot = Join-Path $repoRoot 'rest/writable'
 $context = Join-Path $privateRoot ('fse-container-contexts/' + [Guid]::NewGuid().ToString('N'))
-$catalog = Join-Path $privateRoot 'fse-validation-catalog'
+$runtimePath = if ($RuntimeRoot) { [IO.Path]::GetFullPath($RuntimeRoot) } else { $privateRoot }
+$catalog = if ($CatalogPath) { [IO.Path]::GetFullPath($CatalogPath) } else { Join-Path $runtimePath 'fse-validation-catalog' }
 $manifest = Get-Content -LiteralPath (Join-Path $catalog 'manifest.json') -Raw | ConvertFrom-Json
 if ($manifest.revision -ne '687cf371e1d0caf4f5f9f7bcc80eab3a97f09885') { throw 'Unexpected catalog revision.' }
-$schArchive = Join-Path $privateRoot 'schxslt-1.10.1.zip'
+$schArchive = Join-Path $runtimePath 'schxslt-1.10.1.zip'
 if ((Get-FileHash -LiteralPath $schArchive -Algorithm SHA256).Hash.ToLowerInvariant() -ne '4f4f21edab7b37f96ad59ae12a344d3510f1092ac46b6d81a4efa0120b73cb58') { throw 'SchXslt archive hash mismatch.' }
 New-Item -ItemType Directory -Path $context | Out-Null
 function Copy-ApprovedFile([string]$Source, [string]$Relative) {
@@ -30,7 +31,7 @@ foreach ($property in $manifest.files.PSObject.Properties) {
 }
 # The compiler archive has been SHA-256 checked before extraction; never copy a private settings file.
 Expand-Archive -LiteralPath $schArchive -DestinationPath (Join-Path $context 'schxslt')
-Copy-ApprovedFile (Join-Path $privateRoot 'verapdf-1.30.2/bin/cli-1.30.2.jar') 'verapdf/bin/cli-1.30.2.jar'
+Copy-ApprovedFile (Join-Path $runtimePath 'verapdf-1.30.2/bin/cli-1.30.2.jar') 'verapdf/bin/cli-1.30.2.jar'
 $settings = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'settings.example.json') -Raw | ConvertFrom-Json
 $utf8 = New-Object Text.UTF8Encoding($false)
 [IO.File]::WriteAllText((Join-Path $context 'settings.json'), ($settings | ConvertTo-Json -Depth 4), $utf8)

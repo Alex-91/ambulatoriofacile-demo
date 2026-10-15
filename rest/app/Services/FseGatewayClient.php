@@ -9,12 +9,14 @@ class FseGatewayClient
     private FseJwtService $jwt;
     private Fse2 $config;
     private FseGatewayTransport $transport;
+    private FseToscanaStagePreflight $stagePreflight;
 
-    public function __construct(?FseJwtService $jwt = null, ?Fse2 $config = null, ?FseGatewayTransport $transport = null)
+    public function __construct(?FseJwtService $jwt = null, ?Fse2 $config = null, ?FseGatewayTransport $transport = null, ?FseToscanaStagePreflight $stagePreflight = null)
     {
         $this->jwt = $jwt ?? new FseJwtService();
         $this->config = $config ?? config(Fse2::class);
         $this->transport = $transport ?? new FseGatewayTransport();
+        $this->stagePreflight = $stagePreflight ?? new FseToscanaStagePreflight($this->config);
     }
 
     /** @param array<string,mixed> $profile @param array<string,mixed> $document @return array<string,mixed> */
@@ -129,6 +131,7 @@ class FseGatewayClient
         if (($profile['access_mode'] ?? '') === 'toscana_privati') {
             if (($profile['environment'] ?? 'test') !== 'test') throw new \RuntimeException('Toscana produzione non ancora disponibile: completare workflow e collaudo regionale.');
             if (!$this->config->allowToscanaStage) throw new \RuntimeException('Trasporto Toscana di collaudo disabilitato: richiede FSE2_ALLOW_TOSCANA_STAGE=true e autorizzazione CART.');
+            $this->stagePreflight->inspect($profile);
         }
         if ($this->config->gatewayCaBundle !== '' && (!is_file($this->config->gatewayCaBundle) || !is_readable($this->config->gatewayCaBundle))) {
             throw new \RuntimeException('Bundle CA del server Gateway non leggibile: verifica TLS obbligatoria.');

@@ -1,7 +1,7 @@
 <?php
 // Uses the real PHP->Python worker, but never bootstraps CI, .env, routes or databases.
 if (PHP_SAPI!=='cli') exit(1);
-$options=getopt('',['python:','settings:','manifest:']);
+$options=getopt('',['python:','settings:','manifest:','export-artifacts']);
 $repo=realpath(__DIR__.'/../..');
 $run=$repo.'/rest/writable/fse-stage-smoke-'.bin2hex(random_bytes(8));
 $report=['mode'=>'ISOLATED_APP_RUNTIME_SMOKE','started_at'=>gmdate('c'),'status'=>'incomplete','network_calls'=>0,
@@ -11,7 +11,7 @@ try {
     if (!isset($options['python'],$options['settings']) || !is_file($options['python']) || !is_file($options['settings'])) throw new RuntimeException('STAGE_RUNTIME_ARGUMENTS');
     $report['source_sha256']=[];
     $sources=['rest/app/Config/Fse2.php','rest/app/Services/FseArtifactValidationService.php','rest/app/Services/FseValidatorEnvironment.php','rest/app/Services/FseValidationJobs.php',
-        'rest/app/Services/FseCdaRsaBuilderService.php','rest/app/Services/FseSyntheticDocument.php','ops/fse-validation/validator.py'];
+        'rest/app/Services/FseCdaRsaBuilderService.php','rest/app/Services/FseCdaRadBuilderService.php','rest/app/Services/FseToscanaStagePreflight.php','rest/app/Services/FseSyntheticDocument.php','ops/fse-validation/validator.py'];
     foreach ($sources as $path) $report['source_sha256'][$path]=hash_file('sha256',$repo.'/'.$path);
     if (isset($options['manifest'])) {
         $manifest=json_decode(file_get_contents($options['manifest']),true,32,JSON_THROW_ON_ERROR);
@@ -22,7 +22,7 @@ try {
     if (!mkdir($run,0700)) throw new RuntimeException('STAGE_PRIVATE_STORAGE');
     define('WRITEPATH',$run.'/'); define('APPPATH',$repo.'/rest/app/');
     require __DIR__.'/gateway-bootstrap.php';
-    foreach (['FseValidationJobs','FseValidatorEnvironment','FseArtifactValidationService','FseCdaRsaBuilderService','FseSyntheticDocument'] as $class) require_once APPPATH.'Services/'.$class.'.php';
+    foreach (['FseValidationJobs','FseValidatorEnvironment','FseArtifactValidationService','FseCdaRsaBuilderService','FseCdaRadBuilderService','FseSyntheticDocument'] as $class) require_once APPPATH.'Services/'.$class.'.php';
     if (!function_exists('log_message')) { function log_message($level,$message): void { /* Never print worker/private paths. */ } }
     $config=new \App\Config\Fse2(); $config->validatorPython=realpath($options['python']); $config->validatorSettings=realpath($options['settings']);
     $validator=new \App\Services\FseArtifactValidationService($config);
@@ -33,6 +33,24 @@ try {
     try { $validator->check($cda.' ',$pdf); throw new RuntimeException('STAGE_ALTERATION_ACCEPTED'); }
     catch (RuntimeException $e) { if (!str_contains($e->getMessage(),'PDF_CDA_MISMATCH')) throw new RuntimeException('STAGE_NEGATIVE_CHECK_FAILED'); }
     $report['alteration_rejected']=true;
+    $rad = \App\Services\FseSyntheticDocument::data() + ['patient_local_id'=>'SYNTHETIC-100', 'patient_local_oid'=>'1.2.3.10',
+        'order_id'=>'SYNTHETIC-ORDER', 'order_oid'=>'1.2.3.11', 'exam_code'=>'36643-5', 'exam_code_system'=>'2.16.840.1.113883.6.1'];
+    $radCda = (new \App\Services\FseCdaRadBuilderService())->build($rad);
+    $radPdf = $validator->buildPdf($radCda);
+    $report['document_types'] = ['RSA'=>$report['artifact_check'], 'RAD'=>$validator->check($radCda,$radPdf)];
+    try { $validator->check($radCda.' ',$radPdf); throw new RuntimeException('STAGE_RAD_ALTERATION_ACCEPTED'); }
+    catch (RuntimeException $e) { if (!str_contains($e->getMessage(),'PDF_CDA_MISMATCH')) throw new RuntimeException('STAGE_RAD_NEGATIVE_CHECK_FAILED'); }
+    $report['rad_alteration_rejected'] = true;
+    if (array_key_exists('export-artifacts',$options)) {
+        $report['synthetic_artifacts'] = [];
+        foreach (['RSA'=>[$cda,$pdf], 'RAD'=>[$radCda,$radPdf]] as $type=>$bytes) {
+            foreach (['xml'=>$bytes[0], 'pdf'=>$bytes[1]] as $extension=>$contents) {
+                $name = strtolower($type).'-synthetic.'.$extension;
+                if (file_put_contents($run.'/'.$name,$contents) !== strlen($contents)) throw new RuntimeException('STAGE_EXPORT_FAILED');
+                $report['synthetic_artifacts'][$name] = ['sha256'=>hash('sha256',$contents),'bytes'=>strlen($contents),'official_test_case'=>false,'signed'=>false];
+            }
+        }
+    }
     $report['status']='passed_app_runtime_smoke';
 } catch (Throwable $e) {
     $report['status']='failed_or_incomplete';

@@ -1,0 +1,11 @@
+{
+  "access_mode": "toscana_privati",
+  "environment": "test",
+  "region_code": "090",
+  "gateway_base_url": "https://fse20gwstage.regione.toscana.it/gateway/v2",
+  "jwt_audience": "",
+  "auth_certificate_path": "toscana-090/auth.pem",
+  "auth_private_key_path": "toscana-090/auth.key.pem",
+  "signature_certificate_path": "toscana-090/sign.pem",
+  "signature_private_key_path": "toscana-090/sign.key.pem"
+}

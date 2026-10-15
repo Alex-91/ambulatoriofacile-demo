@@ -123,6 +123,16 @@ class FseDocumentService
         }
         $profile = $current ? $this->profiles->runtimeProfileForDocument($tenantId, $current)
             : $this->profiles->runtimeProfileForTenant($tenantId, max(0, (int) ($payload['id_fse_profile'] ?? 0)));
+        $type = (string) ($payload['document_type'] ?? $current['document_type'] ?? 'RSA');
+        if (!in_array($type, ['RSA', 'RAD'], true)) throw new \RuntimeException('Tipologia documentale non supportata.');
+        if ($current && $type !== ($current['document_type'] ?? 'RSA')) throw new \RuntimeException('La tipologia del referto non può essere modificata.');
+        $radiology = [];
+        if ($type === 'RAD') {
+            FseRadiologyData::assertLocalProfile($profile);
+            $radiology = FseRadiologyData::normalize($payload);
+            $payload['loinc_code'] = '68604-8'; $payload['loinc_display_name'] = 'Referto Radiologico';
+            $payload['document_title'] = 'Referto Radiologico';
+        }
         $plain = $this->normalizeClinicalPayload($payload, $profile);
         if (!empty($profile['care_regime']) && $plain['administrative_request'] !== $profile['care_regime']) throw new \RuntimeException('Regime del referto diverso dal profilo selezionato.');
         $errors = $this->validateClinicalPayload($plain);
@@ -141,7 +151,7 @@ class FseDocumentService
             'id_fse_profile' => (int) ($profile['id_fse_profile'] ?? 0),
             'profile_snapshot_json' => $current['profile_snapshot_json'] ?? json_encode(FseProfileService::snapshot($profile), JSON_THROW_ON_ERROR),
             'id_client' => !empty($current['previous_document_id']) ? ($current['id_client'] ?? null) : ((int) ($payload['id_client'] ?? 0) ?: null),
-            'source_type' => 'manual', 'local_state' => 'draft', 'document_type' => 'RSA',
+            'source_type' => 'manual', 'local_state' => 'draft', 'document_type' => $type,
             'document_title' => $plain['document_title'], 'loinc_code' => $plain['loinc_code'],
             'loinc_display_name' => $plain['loinc_display_name'], 'document_unique_id' => $unique,
             'set_id' => (string) ($current['set_id'] ?? $unique),
@@ -166,6 +176,7 @@ class FseDocumentService
             'gateway_state' => null, 'gateway_http_status' => null, 'last_gateway_message' => null,
             'last_response_json' => null, 'validated_at' => null, 'updated_by' => $userId > 0 ? $userId : null,
         ];
+        if ($type === 'RAD') $record['radiology_details_enc'] = $this->enc(json_encode($radiology, JSON_THROW_ON_ERROR));
         $id = FseLocalPersistenceService::write($db, function () use ($current, $record, $userId, $documents, $db, $id, $audit): int {
         if (!$current) {
             $record['created_by'] = $userId > 0 ? $userId : null;
@@ -217,7 +228,12 @@ class FseDocumentService
         ];
         $data['document_oid_root'] = trim((string) ($stored['document_oid_root'] ?? '')) ?: (string) ($profile['document_oid_root'] ?? '');
         $data['previous_document'] = (new FseRevisionService($this->contexts, $this->schema, $this->secrets, $this->validation))->parentForCda($tenantId, $stored);
-        $cda = $this->cda->build($data);
+        if (($stored['document_type'] ?? 'RSA') === 'RAD') {
+            FseRadiologyData::assertLocalProfile($profile);
+            $cda = (new FseCdaRadBuilderService())->build($data);
+        } else {
+            $cda = $this->cda->build($data);
+        }
         $xml = new \DOMDocument();
         if (!$xml->loadXML($cda, LIBXML_NONET)) {
             throw new \RuntimeException('Il CDA generato non è XML valido.');
@@ -228,7 +244,7 @@ class FseDocumentService
         $attempt = bin2hex(random_bytes(16));
         $cdaPath = $this->storage->store($tenantId, $documentId, 'cda-' . $attempt . '.xml', $cda);
         $pdfPath = $this->storage->store($tenantId, $documentId, 'referto-da-firmare-' . $attempt . '.pdf', $pdf);
-        FseLocalPersistenceService::write($context['db'], function () use ($documents, $documentId, $cdaPath, $cda, $data, $pdfPath, $pdf, $userId, $audit): void {
+        FseLocalPersistenceService::write($context['db'], function () use ($documents, $documentId, $cdaPath, $cda, $data, $stored, $pdfPath, $pdf, $userId, $audit): void {
         if (!$documents->update($documentId, [
             'local_state' => 'ready_to_validate', 'cda_path' => $cdaPath, 'cda_sha256' => hash('sha256', $cda),
             'document_oid_root' => $data['document_oid_root'], 'edit_token' => bin2hex(random_bytes(16)),
@@ -238,7 +254,7 @@ class FseDocumentService
             'workflow_instance_id' => null, 'trace_id' => null, 'span_id' => null,
             'gateway_state' => null, 'gateway_http_status' => null, 'last_gateway_message' => null, 'last_response_json' => null,
         ])) throw new \RuntimeException('Aggiornamento degli artefatti FSE non riuscito.');
-        $audit->record($documentId, 'artifacts_prepared', 'CDA RSA e PDF con CDA allegato generati; firma PAdES richiesta.', ['cda_sha256' => hash('sha256', $cda), 'pdf_sha256' => hash('sha256', $pdf)], $userId, required: true);
+        $audit->record($documentId, 'artifacts_prepared', 'CDA e PDF con CDA allegato generati; firma PAdES richiesta.', ['document_type' => $stored['document_type'] ?? 'RSA', 'cda_sha256' => hash('sha256', $cda), 'pdf_sha256' => hash('sha256', $pdf)], $userId, required: true);
         });
         } catch (\Throwable $e) {
             $context['db']->table('fse_documents')->where('id_fse_document', $documentId)->where('local_state', 'preparing')->update(['local_state' => $previousState]);
@@ -358,6 +374,14 @@ class FseDocumentService
     /** @param array<string,mixed> $row @return array<string,mixed> */
     private function editableDocument(array $row): array
     {
+        if (($row['document_type'] ?? '') === 'RAD') {
+            // A damaged encrypted record must never silently lose identifiers.
+            $json = (string) $this->secrets->decrypt((string) ($row['radiology_details_enc'] ?? ''));
+            $details = json_decode($json, true, 16, JSON_THROW_ON_ERROR);
+            if (!is_array($details)) throw new \RuntimeException('Dati RAD non disponibili.');
+            $row = array_merge($row, FseRadiologyData::normalize($details));
+        }
+        unset($row['radiology_details_enc']);
         $row['revision_reason'] = $this->dec((string) ($row['revision_reason_enc'] ?? ''));
         unset($row['revision_reason_enc']);
         foreach (['patient_cf', 'patient_first_name', 'patient_last_name', 'patient_birth_date', 'patient_email', 'patient_address', 'patient_city', 'author_cf', 'author_first_name', 'author_last_name', 'service_description', 'reason_text', 'history_text', 'findings_text', 'report_text', 'diagnosis_text', 'conclusions_text'] as $field) {

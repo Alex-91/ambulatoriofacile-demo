@@ -21,7 +21,8 @@ final class FseLocalPersistenceTest extends CIUnitTestCase
         foreach (['2026-09-04-010003_CreateFseDocumentsTables'=>'CreateFseDocumentsTables',
             '2026-09-07-220001_AddFseServiceDescription'=>'AddFseServiceDescription',
             '2026-09-07-230001_AddFseDocumentRevisions'=>'AddFseDocumentRevisions',
-            '2026-09-08-100001_AddFseProfileSnapshot'=>'AddFseProfileSnapshot'] as $file=>$name) {
+            '2026-09-08-100001_AddFseProfileSnapshot'=>'AddFseProfileSnapshot',
+            '2026-10-15-100001_AddFseRadiologyDetails'=>'AddFseRadiologyDetails'] as $file=>$name) {
             require_once APPPATH.'Database/Migrations/'.$file.'.php';
             $class='App\\Database\\Migrations\\'.$name; (new $class($forge))->up();
         }
@@ -36,7 +37,7 @@ final class FseLocalPersistenceTest extends CIUnitTestCase
         $secrets->method('encrypt')->willReturnCallback(fn($v)=>$v===null||$v===''?null:'test:'.base64_encode($v));
         $secrets->method('decrypt')->willReturnCallback(fn($v)=>$v?base64_decode(substr($v,5)):null);
         $this->payload=require SUPPORTPATH.'fse_synthetic.php';
-        $profile=$this->payload+['id_fse_profile'=>7,'access_mode'=>'toscana_privati','document_oid_root'=>'1.2.3.4'];
+        $profile=$this->payload+['id_fse_profile'=>7,'access_mode'=>'toscana_privati','environment'=>'test','document_oid_root'=>'1.2.3.4'];
         $profiles=$this->getMockBuilder(FseProfileService::class)->disableOriginalConstructor()->onlyMethods(['runtimeProfileForTenant','runtimeProfileForDocument'])->getMock();
         $profiles->method('runtimeProfileForTenant')->willReturn($profile);
         $profiles->method('runtimeProfileForDocument')->willReturn($profile);
@@ -81,6 +82,54 @@ final class FseLocalPersistenceTest extends CIUnitTestCase
         $this->failAudit(); $this->rejected(fn()=>$this->draft());
         $this->assertSame(0,$this->context['documents']->countAllResults());
         $this->assertSame(0,$this->context['events']->countAllResults());
+    }
+
+    private function radiologyPayload(): array
+    {
+        return array_replace($this->payload, ['document_type'=>'RAD','patient_local_id'=>'SYNTHETIC-LOCAL',
+            'patient_local_oid'=>'1.2.3.10','order_id'=>'SYNTHETIC-ORDER','order_oid'=>'1.2.3.11',
+            'exam_code'=>'36643-5','exam_code_system'=>'2.16.840.1.113883.6.1']);
+    }
+
+    public function testRadiologySavePrepareAndSignaturePreserveEncryptedIdentifiers(): void
+    {
+        $payload = $this->radiologyPayload();
+        $draft = $this->service->saveDraftForTenant(42, $payload, 1);
+        $id = (int)$draft['id_fse_document'];
+        $this->assertSame('RAD', $draft['document_type']);
+        $this->assertSame('68604-8', $draft['loinc_code']);
+        $this->assertSame('SYNTHETIC-ORDER', $draft['order_id']);
+        $this->assertStringNotContainsString('SYNTHETIC-ORDER', json_encode($this->row($id)));
+        $this->assertArrayNotHasKey('radiology_details_enc', $draft);
+        $prepared = $this->service->prepareForSignature(42, $id, 1);
+        $xml = $this->files[$prepared['cda_path']];
+        $this->assertStringContainsString('2.16.840.1.113883.2.9.10.1.7.1', $xml);
+        $this->assertStringContainsString('SYNTHETIC-ORDER', $xml);
+        $this->assertStringNotContainsString('2.16.840.1.113883.2.9.10.1.9.1', $xml);
+        $signed = $this->service->acceptSignedPdf(42, $id, '%PDF-'.str_repeat('synthetic',20), 1);
+        $this->assertSame('signed', $signed['local_state']);
+        $this->assertSame($payload['order_id'], $signed['order_id']);
+        $this->expectException(\RuntimeException::class);
+        $this->service->saveDraftForTenant(42, $signed, 1);
+    }
+
+    public function testRadiologyTypeCannotChangeAndAuditFailureRollsBackClinicalDetails(): void
+    {
+        $draft = $this->service->saveDraftForTenant(42, $this->radiologyPayload(), 1);
+        $id = (int)$draft['id_fse_document']; $before = $this->row($id);
+        $this->rejected(fn()=>$this->service->saveDraftForTenant(42, array_replace($draft,['document_type'=>'RSA']), 1));
+        $this->assertSame($before, $this->row($id));
+        $this->failAudit();
+        $this->rejected(fn()=>$this->service->saveDraftForTenant(42, array_replace($draft,['order_id'=>'CHANGED']), 1));
+        $this->assertSame($before, $this->row($id));
+    }
+
+    public function testIncompleteRadiologyCannotCreateDraft(): void
+    {
+        $payload=$this->radiologyPayload(); unset($payload['order_id']);
+        try { $this->service->saveDraftForTenant(42,$payload,1); $this->fail('Incomplete RAD accepted'); }
+        catch (\InvalidArgumentException $e) { $this->assertStringContainsString('order_id',$e->getMessage()); }
+        $this->assertSame(0,$this->context['documents']->countAllResults());
     }
     public function testSilentAuditFailureCannotProduceSuccessfulDraft(): void
     {

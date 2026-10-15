@@ -19,7 +19,7 @@ if (PHP_SAPI === 'cli-server') {
     $name = $argv[1] ?? 'dashboard';
 }
 $nationalFixture = in_array($name, ['national_fresh','national_expired','national_missing','national_uncertain'], true);
-if (!$nationalFixture && !in_array($name, ['dashboard','revision','signed','signed_lab','offline','new','rejected','timeout','toscana_lab','toscana_timeout','toscana_snapshot'], true)) { http_response_code(404); exit(1); }
+if (!$nationalFixture && !in_array($name, ['rad','dashboard','revision','signed','signed_lab','offline','new','rejected','timeout','toscana_lab','toscana_timeout','toscana_snapshot'], true)) { http_response_code(404); exit(1); }
 require $repo . '/rest/app/Services/FseDocumentLifecycle.php';
 require $repo . '/rest/app/Services/FseValidationWindow.php';
 require $repo . '/rest/app/Services/FseOfflineLab.php';
@@ -88,7 +88,12 @@ if ($nationalFixture) {
     }
     $formContext['diagnosis'] = (new \App\Services\FseReconciliationService())->inspect($formContext['document']);
 }
-$file = $nationalFixture || in_array($name, ['revision','signed','signed_lab','new','rejected','timeout'], true) ? 'document_form' : $name;
+if ($name === 'rad') {
+    $formContext['document'] = array_replace($doc,['document_type'=>'RAD','document_title'=>'Referto Radiologico',
+        'previous_document_id'=>null,'patient_local_id'=>'SYNTHETIC-LOCAL','patient_local_oid'=>'1.2.3.10',
+        'order_id'=>'SYNTHETIC-ORDER','order_oid'=>'1.2.3.11','exam_code'=>'36643-5','exam_code_system'=>'2.16.840.1.113883.6.1']);
+}
+$file = $nationalFixture || in_array($name, ['rad','revision','signed','signed_lab','new','rejected','timeout'], true) ? 'document_form' : $name;
 if (in_array($name,['toscana_lab','toscana_timeout'],true)) {
     $engine=new \App\Services\FseToscanaWorkflow();
     $lab=$engine->apply($engine->initial(42),42,9,'new','',0);

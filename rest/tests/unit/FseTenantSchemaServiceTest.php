@@ -23,6 +23,7 @@ final class FseTenantSchemaServiceTest extends CIUnitTestCase
     public function testUpgradeIsIdempotentAndPreservesExistingClinicalData(): void
     {
         require_once APPPATH . 'Database/Migrations/2026-09-07-220001_AddFseServiceDescription.php';
+        require_once APPPATH . 'Database/Migrations/2026-10-15-100001_AddFseRadiologyDetails.php';
         $db = Database::connect(['DBDriver' => 'SQLite3', 'database' => ':memory:', 'DBPrefix' => '', 'DBDebug' => true], false);
         try {
             $forge = Database::forge($db);
@@ -32,10 +33,13 @@ final class FseTenantSchemaServiceTest extends CIUnitTestCase
             $migration = new \App\Database\Migrations\AddFseServiceDescription($forge);
             $migration->up();
             $migration->up();
+            $radiology = new \App\Database\Migrations\AddFseRadiologyDetails($forge);
+            $radiology->up(); $radiology->up();
             $this->assertTrue($db->fieldExists('service_description_enc', 'fse_documents'));
             $row = $db->table('fse_documents')->get()->getRowArray();
             $this->assertSame('synthetic-encrypted-placeholder', $row['report_text_enc']);
             $this->assertNull($row['service_description_enc']);
+            $this->assertNull($row['radiology_details_enc']);
         } finally {
             $db->close();
         }
@@ -86,6 +90,7 @@ final class FseTenantSchemaServiceTest extends CIUnitTestCase
             $this->assertTrue($db->tableExists('fse_document_events'));
             $this->assertContains('patient_birth_date_enc', $db->getFieldNames('fse_documents'));
             $this->assertContains('service_description_enc', $db->getFieldNames('fse_documents'));
+            $this->assertContains('radiology_details_enc', $db->getFieldNames('fse_documents'));
             $this->assertFalse($db->tableExists('platform_tenant_fse_profiles'));
         } finally {
             $db->close();

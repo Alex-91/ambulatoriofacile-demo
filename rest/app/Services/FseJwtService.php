@@ -29,7 +29,10 @@ class FseJwtService
         $certificatePem = $this->readFile($certificatePath, 'certificato signature');
         $privateKeyPem = $this->readFile($privateKeyPath, 'chiave privata signature');
         $privateKeyPassphrase = (string) ($profile['signature_private_key_passphrase'] ?? '');
-        FseCertificateInspector::inspect($certificatePem, $privateKeyPem, $privateKeyPassphrase);
+        $certificate = FseCertificateInspector::inspect($certificatePem, $privateKeyPem, $privateKeyPassphrase);
+        if (($profile['access_mode'] ?? '') === 'toscana_privati' && ($profile['environment'] ?? 'test') === 'test') {
+            FseToscanaStagePreflight::assertIdentity($certificate, 'S1');
+        }
         $commonName = $this->certificateCommonName($certificatePem);
         $x5c = $this->certificateDerBase64($certificatePem);
         $baseUrl = $this->config->jwtAudienceForProfile($profile);
@@ -87,7 +90,10 @@ class FseJwtService
         $privateKeyPath = $this->config->resolveCertificatePath((string) ($profile['signature_private_key_path'] ?? ''));
         $certificatePem = $this->readFile($certificatePath, 'certificato signature');
         $privateKeyPem = $this->readFile($privateKeyPath, 'chiave privata signature');
-        FseCertificateInspector::inspect($certificatePem, $privateKeyPem, (string) ($profile['signature_private_key_passphrase'] ?? ''));
+        $certificate = FseCertificateInspector::inspect($certificatePem, $privateKeyPem, (string) ($profile['signature_private_key_passphrase'] ?? ''));
+        if (($profile['access_mode'] ?? '') === 'toscana_privati' && ($profile['environment'] ?? 'test') === 'test') {
+            FseToscanaStagePreflight::assertIdentity($certificate, 'S1');
+        }
         $now = time();
         $claims = [
             'iss' => 'auth:' . $this->certificateCommonName($certificatePem),

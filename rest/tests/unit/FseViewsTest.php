@@ -25,6 +25,16 @@ final class FseViewsTest extends CIUnitTestCase
         $this->assertSame(1, $xp->query('//form[@method="post"]//input[@name="csrf_test"]')->length);
     }
 
+    public function testRadiologyFieldsAreRequiredAndNoGatewayWriteIsOffered(): void
+    {
+        $xp=$this->renderFixture('rad');
+        $this->assertSame(6,$xp->query('//input[@data-rad-field and @required]')->length);
+        $this->assertSame('SYNTHETIC-ORDER',$xp->evaluate('string(//input[@name="order_id"]/@value)'));
+        $this->assertSame('RAD',$xp->evaluate('string(//input[@name="document_type"]/@value)'));
+        $this->assertStringNotContainsString('Pubblica PDF firmato',$xp->evaluate('string(//main)'));
+        $this->assertSame(0,$xp->query('//form//form')->length);
+    }
+
     public function testNationalValidationExpiryActionsAreExclusiveAndCsrfProtected(): void
     {
         foreach (['national_fresh', 'national_expired', 'national_missing', 'national_uncertain'] as $name) {

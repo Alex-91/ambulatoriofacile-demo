@@ -29,7 +29,12 @@ class FseCdaRadBuilderService
         foreach ([['55111-9','Esame eseguito',$data['service_description']],['18782-3','Referto radiologico',$data['report_text']]] as [$code,$title,$text]) {
             $component=$node('component'); $section=$node('section'); $section->appendChild($node('code',['code'=>$code,'codeSystem'=>\App\Config\Fse2::LOINC_OID])); $section->appendChild($node('title',[],$title));
             $narrative=$node('text'); $narrative->appendChild($node('paragraph',[],$text));
-            if($code==='18782-3' && trim((string)($data['conclusions_text'] ?? ''))!=='') $narrative->appendChild($node('paragraph',[],'Conclusioni: '.$data['conclusions_text']));
+            if ($code==='18782-3') {
+                foreach (['reason_text'=>'Quesito','history_text'=>'Anamnesi','findings_text'=>'Reperti','diagnosis_text'=>'Diagnosi','conclusions_text'=>'Conclusioni'] as $field=>$label) {
+                    $value=trim((string)($data[$field] ?? ''));
+                    if ($value!=='') $narrative->appendChild($node('paragraph',[],$label.': '.$value));
+                }
+            }
             $section->appendChild($narrative);
             if($code==='55111-9') {
                 $entry=$node('entry'); $act=$node('act',['classCode'=>'ACT','moodCode'=>'EVN']);

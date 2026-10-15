@@ -1,14 +1,14 @@
 # Builds a private allowlisted CONTEXT only. No Docker, Coolify, DB or network call.
-param()
+param([string]$CatalogPath='', [string]$RuntimeRoot='')
 $ErrorActionPreference='Stop'
 $repoRoot=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
-$prepared=& (Join-Path $PSScriptRoot 'prepare-container.ps1') -AsObject
+$prepared=& (Join-Path $PSScriptRoot 'prepare-container.ps1') -AsObject -CatalogPath $CatalogPath -RuntimeRoot $RuntimeRoot
 $context=$prepared.Context
 if (!$context -or !(Test-Path -LiteralPath $context)) { throw 'Stage context not created.' }
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'stage-runtime.Dockerfile') -Destination (Join-Path $context 'Dockerfile')
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'stage-smoke.php') -Destination (Join-Path $context 'stage-smoke.php')
 $sources=@('rest/app/Config/Fse2.php','rest/app/Services/FseArtifactValidationService.php','rest/app/Services/FseValidatorEnvironment.php','rest/app/Services/FseValidationJobs.php',
-    'rest/app/Services/FseCdaRsaBuilderService.php','rest/app/Services/FseSyntheticDocument.php','ops/fse-validation/validator.py')
+    'rest/app/Services/FseCdaRsaBuilderService.php','rest/app/Services/FseCdaRadBuilderService.php','rest/app/Services/FseToscanaStagePreflight.php','rest/app/Services/FseSyntheticDocument.php','ops/fse-validation/validator.py')
 $hashes=[ordered]@{}
 foreach ($path in $sources) { $hashes[$path]=(Get-FileHash -LiteralPath (Join-Path $repoRoot $path) -Algorithm SHA256).Hash.ToLowerInvariant() }
 $encoding=New-Object Text.UTF8Encoding($false)

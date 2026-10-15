@@ -122,7 +122,9 @@ final class FseGatewayPreparationTest extends CIUnitTestCase
                     return $response->result('{"workflowInstanceId":"test-wif","detail":"PRIVATE"}', $http);
                 }
             );
-            $gateway = new FseGatewayClient($jwt, $config, $transport);
+            $preflight = $this->createMock(\App\Services\FseToscanaStagePreflight::class);
+            $preflight->expects($this->exactly(4))->method('inspect')->willReturn(['network_calls'=>0]);
+            $gateway = new FseGatewayClient($jwt, $config, $transport, $preflight);
             $results=[];
             $results[]=$gateway->validateAndCreate($profile, $document, $file);
             $results[]=$gateway->replace($profile, $document, $file, '1.2.3^TEST.1');
