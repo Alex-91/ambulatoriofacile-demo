@@ -820,6 +820,9 @@ class BillingTsBridgeService
      */
     private function validateBillingEligibility(array $billingDocument): array
     {
+        if (BillingBusinessRecipient::isBusiness($billingDocument)) {
+            return ['blocked' => true, 'message' => 'Le fatture a strutture non sono destinate al Sistema TS.'];
+        }
         if (trim((string) ($billingDocument['local_state'] ?? 'draft')) !== 'issued') {
             return [
                 'blocked' => true,

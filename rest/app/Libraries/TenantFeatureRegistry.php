@@ -32,6 +32,7 @@ class TenantFeatureRegistry
             ],
             'billing' => [
                 'route_prefixes' => [
+                    'admin/fatturazione-strutture',
                     'admin/fatturazione',
                     'admin/fatturazione-documento',
                     'admin/fatturazione-documenti',
@@ -39,6 +40,8 @@ class TenantFeatureRegistry
                     'login/spazio/fatturazione',
                 ],
                 'menu_prefixes' => [
+                    'fatturazione-strutture',
+                    'admin/fatturazione-strutture',
                     'fatturazione',
                     'fatturazione-documento',
                     'fatturazione-documenti',

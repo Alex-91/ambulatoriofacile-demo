@@ -465,6 +465,10 @@ class MenuResolverService
         $menuItems = $this->injectBillingMenu($menuItems, $tenantId);
         $menuItems = $this->injectPolyclinicMenu($menuItems, $tenantId);
         $menuItems = $this->injectBillingDocumentsMenu($menuItems, $tenantId);
+        $menuItems = array_values(array_filter($menuItems, fn(array $row): bool => !in_array(strtolower($this->normalizePath((string) ($row['link'] ?? ''))), ['fatturazione-strutture', 'admin/fatturazione-strutture'], true)));
+        if ($this->isAdminBillingFeatureEnabled($tenantId)) {
+            $menuItems[] = ['titolo_menu' => 'Fatture a strutture', 'link' => 'fatturazione-strutture', 'class_icon' => 'fa-building-o'];
+        }
         $menuItems = $this->injectBillingScheduleMenu($menuItems, $tenantId);
         $menuItems = $this->injectBillingReportsMenu($menuItems, $tenantId);
         $menuItems = $this->injectTsBillingMenu($menuItems, $tenantId);

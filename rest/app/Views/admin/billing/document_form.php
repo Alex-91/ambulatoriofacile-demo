@@ -1,4 +1,7 @@
 <?php
+$businessMode = !empty($businessMode);
+$documentBase = $businessMode ? 'admin/fatturazione-strutture' : 'admin/fatturazione-documenti';
+if ($businessMode) $pageTitle = 'Fattura a clinica, azienda o ente';
 $menu_items = $menu_items ?? ((session()->get('menuDataAdmin')['result'] ?? []));
 $formContext = is_array($formContext ?? null) ? $formContext : [];
 $document = is_array($formContext['document'] ?? null) ? $formContext['document'] : [];
@@ -15,7 +18,7 @@ $serviceExpenseTypeMapJson = json_encode(
 if (!is_string($serviceExpenseTypeMapJson) || $serviceExpenseTypeMapJson === '') {
     $serviceExpenseTypeMapJson = '{}';
 }
-$tsEnabled = !empty($formContext['ts_enabled']);
+$tsEnabled = !$businessMode && !empty($formContext['ts_enabled']);
 $tableAvailable = !array_key_exists('table_available', $formContext) || !empty($formContext['table_available']);
 $schemaMessage = trim((string) ($formContext['schema_message'] ?? ''));
 $sourceContext = is_array($formContext['source_context'] ?? null) ? $formContext['source_context'] : [];
@@ -155,7 +158,7 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
     <section class="content-header">
       <h1><?= esc((string) ($pageTitle ?? 'Documento fatturazione')) ?></h1>
       <p class="text-muted" style="margin:8px 0 0 0;">
-        Compila il documento cliente e usa il template di Fatturazione per ottenere subito anteprima e PDF.
+        <?= $businessMode ? 'Inserisci la struttura destinataria e le prestazioni professionali da fatturare.' : 'Compila il documento cliente e usa il template di Fatturazione per ottenere subito anteprima e PDF.' ?>
       </p>
     </section>
 
@@ -182,7 +185,7 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
           <?php endif; ?>
 
           <div class="document-form-actions">
-            <a class="btn btn-default" href="<?= site_url('admin/fatturazione-documenti') ?>">
+            <a class="btn btn-default" href="<?= site_url($documentBase) ?>">
               <i class="fa fa-arrow-left"></i> Torna alla lista fatture
             </a>
             <?php if (trim((string) ($sourceContext['return_url'] ?? '')) !== ''): ?>
@@ -211,10 +214,10 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
             </div>
           <?php endif; ?>
 
-          <form class="js-billing-document-form" method="post" action="<?= site_url('admin/fatturazione-documenti/save') ?>" data-service-autocomplete-url="<?= esc(site_url('admin/fatturazione-documenti/prestazioni/search')) ?>">
+          <form class="js-billing-document-form" method="post" action="<?= site_url($documentBase . '/save') ?>" data-service-autocomplete-url="<?= esc(site_url('admin/fatturazione-documenti/prestazioni/search')) ?>">
             <?= csrf_field() ?>
             <input type="hidden" name="id_billing_document" value="<?= $documentId ?>">
-            <input type="hidden" name="id_client" value="<?= esc($fieldValue('id_client', '0')) ?>">
+            <input type="hidden" name="id_client" value="<?= $businessMode ? '0' : esc($fieldValue('id_client', '0')) ?>">
 
             <div class="box box-default">
               <div class="box-header with-border">
@@ -258,6 +261,9 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
                   </div>
                 </div>
 
+                <?php if ($businessMode): ?>
+                  <?= view('admin/billing/business_fields', ['fieldValue' => $fieldValue]) ?>
+                <?php else: ?>
                 <div class="row js-patient-autocomplete" data-autocomplete-url="<?= esc(site_url('admin/fatturazione-documenti/pazienti/search')) ?>">
                   <input type="hidden" name="patient_name" value="<?= esc($fieldValue('patient_name')) ?>">
                   <?php if ($linkedPatientVisibleId > 0): ?>
@@ -353,6 +359,7 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
                   </div>
                 </div>
 
+                <?php endif; ?>
                 <div class="row">
                   <div class="col-md-4">
                     <div class="form-group">
@@ -374,7 +381,7 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
                     <div class="form-group">
                       <label>Natura IVA (testo in fattura)</label>
                       <input class="form-control" type="text" name="vat_nature" maxlength="16" value="<?= esc($fieldValue('vat_nature')) ?>" placeholder="Es. esente IVA">
-                      <small class="help-block">Solo testo in fattura. Per TS, con aliquota zero o vuota, viene usato il codice natura della configurazione Sistema TS.</small>
+                      <small class="help-block"><?= $businessMode ? 'Indicazione riportata nel PDF quando l’aliquota IVA è zero.' : 'Solo testo in fattura. Per TS, con aliquota zero o vuota, viene usato il codice natura della configurazione Sistema TS.' ?></small>
                     </div>
                   </div>
                 </div>
@@ -395,7 +402,7 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
                         <?php foreach ($itemRows as $row): ?>
                           <tr>
                             <td class="billing-service-cell">
-                              <input class="form-control js-service-autocomplete-input" type="text" name="item_description[]" value="<?= esc((string) ($row['description'] ?? '')) ?>" maxlength="190" placeholder="Es. Visita specialistica" autocomplete="off" aria-autocomplete="list" aria-expanded="false">
+                              <input class="form-control js-service-autocomplete-input" type="text" name="item_description[]" value="<?= esc((string) ($row['description'] ?? '')) ?>" maxlength="190" placeholder="<?= $businessMode ? 'Es. Prestazioni professionali di ottobre' : 'Es. Visita specialistica' ?>" autocomplete="off" aria-autocomplete="list" aria-expanded="false">
                               <div class="service-autocomplete-menu" data-role="service-results"></div>
                             </td>
                             <td>
@@ -409,7 +416,7 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
                       </tbody>
                     </table>
                   </div>
-                  <small class="text-muted">Lascia vuote le righe inutilizzate. Il totale viene calcolato automaticamente dalla somma delle righe più la marca da bollo.</small>
+                  <small class="text-muted"><?= $businessMode ? 'Descrivi liberamente le prestazioni, ad esempio: prestazioni professionali di ottobre. Il totale comprende le righe, l’eventuale IVA e il bollo.' : 'Lascia vuote le righe inutilizzate. Il totale viene calcolato automaticamente dalla somma delle righe più la marca da bollo.' ?></small>
                 </div>
 
                 <div class="row">
@@ -431,9 +438,13 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
 
             <div class="box box-default">
               <div class="box-header with-border">
-                <h3 class="box-title">Preparazione Sistema TS</h3>
+                <h3 class="box-title"><?= $businessMode ? 'Salvataggio fattura' : 'Preparazione Sistema TS' ?></h3>
               </div>
               <div class="box-body">
+                <?php if ($businessMode): ?>
+                  <p>Documento intestato alla struttura, senza collegamento a un paziente. Puoi salvare una bozza oppure confermare la fattura e scaricare il PDF.</p>
+                  <p class="text-muted">L’invio elettronico allo SdI non è disponibile da questa schermata.</p>
+                <?php else: ?>
                 <div class="alert alert-info">
                   Il documento resta nel modulo Fatturazione. Se attivi questa sezione e salvi la fattura come definitiva, la ritroverai nel modulo Sistema TS tra quelle da inviare. Se vuoi, puoi anche inviarla subito direttamente da qui.
                 </div>
@@ -471,6 +482,7 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
                     </div>
                   </div>
                 </div>
+                <?php endif; ?>
               </div>
               <div class="box-footer">
                 <button class="btn btn-default" type="submit" name="save_mode" value="draft" <?= $saveDisabled ? 'disabled' : '' ?>>

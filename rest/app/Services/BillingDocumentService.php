@@ -151,7 +151,7 @@ class BillingDocumentService
     /**
      * @return array<string, mixed>
      */
-    public function listDocumentsForTenant(int $tenantId, int $limit = 50): array
+    public function listDocumentsForTenant(int $tenantId, int $limit = 50, bool $businessOnly = false): array
     {
         $dashboard = $this->buildDashboardForTenant($tenantId, 6);
         if (!$dashboard['table_available']) {
@@ -170,7 +170,11 @@ class BillingDocumentService
 
         $context = $this->resolveTenantDocumentContext($tenantId);
         $db = $context['db'];
-        $documents = $db->table('billing_documents')
+        $builder = $db->table('billing_documents');
+        if ($businessOnly) {
+            $builder->like('template_snapshot_json', '"recipient_type":"business"');
+        }
+        $documents = $builder
             ->select('id_billing_document, document_number, document_type, issue_date, payment_date, due_date, patient_name, patient_tax_code, patient_email, payment_method, payment_status, paid_at, amount_total, local_state, invoice_email_sent_at, last_reminder_sent_at, reminder_count, email_last_recipient, email_last_error, ts_sync_enabled, ts_sync_state, linked_ts_document_id, updated_at')
             ->orderBy('issue_date', 'DESC')
             ->orderBy('id_billing_document', 'DESC')
@@ -536,11 +540,19 @@ class BillingDocumentService
         }
 
         $template = (array) (($this->settings->resolveTenantSettings($tenantId))['config'] ?? []);
+        if ($current !== null && BillingBusinessRecipient::isBusiness($current) !== (($payload['recipient_type'] ?? 'patient') === 'business')) {
+            throw new \RuntimeException('Il tipo di intestatario non può essere cambiato: apri il documento dalla sua sezione di fatturazione.');
+        }
         $normalized = $this->normalizePayload($payload, $template, $tenantId);
+        if (($normalized['recipient_type'] ?? '') === 'business') {
+            $template['recipient_type'] = 'business';
+        }
         // Preserve the patient's print details at the time of saving the document.
         $template['patient_details'] = array_intersect_key($normalized, array_flip([
             'patient_last_name', 'patient_first_name', 'patient_address', 'patient_city',
             'patient_email', 'patient_phone', 'patient_mobile',
+            'recipient_type', 'business_vat_number', 'business_postal_code', 'business_province',
+            'business_country', 'business_recipient_code', 'business_pec',
         ]));
         $validationErrors = $this->validatePayload($normalized, $template, $tenantId);
         if ($validationErrors !== []) {
@@ -1021,6 +1033,15 @@ class BillingDocumentService
      */
     private function normalizePayload(array $payload, array $template, int $tenantId): array
     {
+        $business = ($payload['recipient_type'] ?? 'patient') === 'business';
+        if ($business) {
+            $payload['id_client'] = 0;
+            $payload['patient_last_name'] = '';
+            $payload['patient_first_name'] = '';
+            $payload['ts_sync_enabled'] = false;
+            $payload['ts_opposition_flag'] = false;
+            $payload['ts_expense_type_code'] = '';
+        }
         $documentNumber = trim((string) ($payload['document_number'] ?? ''));
         $documentType = trim((string) ($payload['document_type'] ?? 'invoice'));
         if (!array_key_exists($documentType, $this->documentTypeLabels())) {
@@ -1045,7 +1066,7 @@ class BillingDocumentService
             $payload['item_qty'] ?? [],
             $payload['item_unit_amount'] ?? []
         );
-        $mappedExpenseType = $this->tsProfiles->resolveExpenseTypeForLineItems($tenantId, $lineItems);
+        $mappedExpenseType = $business ? null : $this->tsProfiles->resolveExpenseTypeForLineItems($tenantId, $lineItems);
         $subtotal = 0.0;
         foreach ($lineItems as $item) {
             $subtotal += (float) ($item['line_total'] ?? 0);
@@ -1053,10 +1074,13 @@ class BillingDocumentService
 
         $stampDuty = $this->normalizeMoney($payload['stamp_duty_amount'] ?? 0);
         $amountTotal = round($subtotal + $stampDuty, 2);
+        if ($business) {
+            $amountTotal = round($amountTotal + round($subtotal * $this->normalizeMoney($payload['vat_rate'] ?? 0) / 100, 2), 2);
+        }
         $tsSyncEnabled = $this->toBool($payload['ts_sync_enabled'] ?? false);
         $tsEnabled = $this->tsFeatures->isEnabledForTenant($tenantId);
 
-        return [
+        return ($business ? BillingBusinessRecipient::details($payload) : []) + [
             'id_billing_document' => (int) ($payload['id_billing_document'] ?? 0),
             'id_client' => (int) ($payload['id_client'] ?? 0),
             'document_number' => $documentNumber,
@@ -1136,7 +1160,8 @@ class BillingDocumentService
      */
     private function validatePayload(array $normalized, array $template, int $tenantId): array
     {
-        $errors = [];
+        $business = ($normalized['recipient_type'] ?? '') === 'business';
+        $errors = $business ? BillingBusinessRecipient::errors($normalized) : [];
         if (trim((string) ($normalized['issue_date'] ?? '')) === '' || !$this->isValidOptionalDate((string) $normalized['issue_date'])) {
             $errors[] = 'Data emissione obbligatoria.';
         }
@@ -1148,10 +1173,10 @@ class BillingDocumentService
         }
         $patientEmail = trim((string) ($normalized['patient_email'] ?? ''));
         if ($patientEmail !== '' && filter_var($patientEmail, FILTER_VALIDATE_EMAIL) === false) {
-            $errors[] = 'Email del paziente non valida.';
+            $errors[] = $business ? 'Email della struttura non valida.' : 'Email del paziente non valida.';
         }
         if (trim((string) ($normalized['patient_name'] ?? '')) === '') {
-            $errors[] = 'Nome cliente o paziente obbligatorio.';
+            $errors[] = $business ? 'Ragione sociale obbligatoria.' : 'Nome cliente o paziente obbligatorio.';
         }
         if ((array) ($normalized['line_items'] ?? []) === []) {
             $errors[] = 'Inserisci almeno una riga nel documento.';

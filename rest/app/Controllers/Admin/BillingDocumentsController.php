@@ -12,6 +12,42 @@ use App\Services\BillingPdfOptionsFactory;
 
 class BillingDocumentsController extends BillingAdminBaseController
 {
+    private bool $businessMode = false;
+
+    private function documentBase(): string
+    {
+        return $this->businessMode ? 'admin/fatturazione-strutture' : 'admin/fatturazione-documenti';
+    }
+
+    public function businessIndex()
+    {
+        if ($guard = $this->ensureAccess()) return $guard;
+        $scope = $this->resolveTenantScope();
+        return view('admin/billing/business_documents', [
+            'menu_items' => $this->adminMenuItems(),
+            'listing' => $this->documents->listDocumentsForTenant((int) $scope['tenant_id'], 250, true),
+            'success' => session()->getFlashdata('success'),
+            'errors' => session()->getFlashdata('errors') ?? [],
+        ]);
+    }
+
+    public function businessCreate()
+    {
+        $this->businessMode = true;
+        return $this->create();
+    }
+
+    public function businessEdit(int $documentId = 0)
+    {
+        $this->businessMode = true;
+        return $this->edit($documentId);
+    }
+
+    public function businessSave()
+    {
+        $this->businessMode = true;
+        return $this->save();
+    }
     private BillingDocumentService $documents;
     private BillingDocumentEmailService $emailDelivery;
     private BillingTsBridgeService $billingTsBridge;
@@ -86,17 +122,18 @@ class BillingDocumentsController extends BillingAdminBaseController
         $tenantScope = $this->resolveTenantScope();
         $tenantId = (int) ($tenantScope['tenant_id'] ?? 0);
         $formContext = $this->documents->buildFormContext($tenantId);
-        $appointmentPrefill = $this->consumeAppointmentPrefill();
+        $appointmentPrefill = $this->businessMode ? [] : $this->consumeAppointmentPrefill();
         if (isset($appointmentPrefill['administration_tenant_id']) && (int)$appointmentPrefill['administration_tenant_id'] !== $tenantId) $appointmentPrefill=[];
         if ($appointmentPrefill !== []) {
             $formContext = $this->applyAppointmentPrefill($formContext, $appointmentPrefill);
         }
-        $formContext = $this->populatePatientDocumentFields($tenantId, $formContext);
+        if (!$this->businessMode) $formContext = $this->populatePatientDocumentFields($tenantId, $formContext);
         $formContext['edit_locked'] = false;
         $formContext['edit_lock_reason'] = '';
         $formContext['action_state'] = $this->billingTsBridge->describeBillingDocumentAction($tenantId, 0);
 
         return view('admin/billing/document_form', [
+            'businessMode' => $this->businessMode,
             'menu_items' => $this->adminMenuItems(),
             'tenantScope' => $tenantScope,
             'formContext' => $formContext,
@@ -134,12 +171,17 @@ class BillingDocumentsController extends BillingAdminBaseController
         }
 
         $actionState = $this->billingTsBridge->describeBillingDocumentAction($tenantId, $documentId);
-        $formContext = $this->populatePatientDocumentFields($tenantId, $formContext);
+        $isBusiness = \App\Services\BillingBusinessRecipient::isBusiness($formContext['document']);
+        if ($isBusiness !== $this->businessMode) {
+            return redirect()->to(site_url(($isBusiness ? 'admin/fatturazione-strutture' : 'admin/fatturazione-documenti') . '/modifica/' . $documentId));
+        }
+        if (!$this->businessMode) $formContext = $this->populatePatientDocumentFields($tenantId, $formContext);
         $formContext['edit_locked'] = !empty($actionState['locked']);
         $formContext['edit_lock_reason'] = trim((string) ($actionState['locked_reason'] ?? ''));
         $formContext['action_state'] = $actionState;
 
         return view('admin/billing/document_form', [
+            'businessMode' => $this->businessMode,
             'menu_items' => $this->adminMenuItems(),
             'tenantScope' => $tenantScope,
             'formContext' => $formContext,
@@ -160,10 +202,10 @@ class BillingDocumentsController extends BillingAdminBaseController
         $tenantId = (int) ($tenantScope['tenant_id'] ?? 0);
         $documentId = (int) ($this->request->getPost('id_billing_document') ?? 0);
         $editUrl = $documentId > 0
-            ? site_url('admin/fatturazione-documenti/modifica/' . $documentId)
-            : site_url('admin/fatturazione-documenti/nuovo');
+            ? site_url($this->documentBase() . '/modifica/' . $documentId)
+            : site_url($this->documentBase() . '/nuovo');
         $redirectUrl = $editUrl;
-        $listUrl = site_url('admin/fatturazione-documenti');
+        $listUrl = site_url($this->documentBase());
         $tsListUrl = site_url('admin/sistema-ts/documenti');
 
         try {
@@ -178,12 +220,22 @@ class BillingDocumentsController extends BillingAdminBaseController
             }
 
             $saveMode = trim((string) ($this->request->getPost('save_mode') ?? 'draft'));
-            $sendToTsNow = $saveMode === 'final_send_ts';
+            if ($this->businessMode && !in_array($saveMode, ['draft', 'final'], true)) {
+                throw new \RuntimeException('Seleziona Salva bozza oppure Salva fattura.');
+            }
+            $sendToTsNow = !$this->businessMode && $saveMode === 'final_send_ts';
             $normalizedSaveMode = $sendToTsNow ? 'final' : $saveMode;
             $tsSyncEnabled = $sendToTsNow ? '1' : $this->request->getPost('ts_sync_enabled');
             $result = $this->documents->saveDraftForTenant(
                 $tenantId,
                 [
+                    'recipient_type' => $this->businessMode ? 'business' : 'patient',
+                    'business_vat_number' => $this->request->getPost('business_vat_number'),
+                    'business_postal_code' => $this->request->getPost('business_postal_code'),
+                    'business_province' => $this->request->getPost('business_province'),
+                    'business_country' => $this->request->getPost('business_country'),
+                    'business_recipient_code' => $this->request->getPost('business_recipient_code'),
+                    'business_pec' => $this->request->getPost('business_pec'),
                     'id_billing_document' => $documentId,
                     'id_client' => $this->request->getPost('id_client'),
                     'document_number' => $this->request->getPost('document_number'),
@@ -219,7 +271,7 @@ class BillingDocumentsController extends BillingAdminBaseController
 
             $savedId = (int) ($result['document']['id_billing_document'] ?? 0);
             $targetUrl = $savedId > 0
-                ? site_url('admin/fatturazione-documenti/modifica/' . $savedId)
+                ? site_url($this->documentBase() . '/modifica/' . $savedId)
                 : $redirectUrl;
 
             if ($sendToTsNow && $savedId > 0) {

@@ -256,6 +256,10 @@ $routes->group('admin', static function($routes){
     $routes->get('fatturazione-documento', 'Admin\BillingDocumentSettingsController::index');
     $routes->post('fatturazione-documento/save', 'Admin\BillingDocumentSettingsController::save');
     $routes->post('fatturazione-documento/preview', 'Admin\BillingDocumentSettingsController::previewDesigner');
+    $routes->get('fatturazione-strutture', 'Admin\BillingDocumentsController::businessIndex');
+    $routes->get('fatturazione-strutture/nuovo', 'Admin\BillingDocumentsController::businessCreate');
+    $routes->get('fatturazione-strutture/modifica/(:num)', 'Admin\BillingDocumentsController::businessEdit/$1');
+    $routes->post('fatturazione-strutture/save', 'Admin\BillingDocumentsController::businessSave');
     $routes->get('fatturazione-documenti', 'Admin\BillingDocumentsController::index');
     $routes->get('fatturazione-documenti/nuovo', 'Admin\BillingDocumentsController::create');
     $routes->get('fatturazione-documenti/modifica/(:num)', 'Admin\BillingDocumentsController::edit/$1');

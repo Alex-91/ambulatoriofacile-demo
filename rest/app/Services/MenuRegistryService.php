@@ -240,6 +240,17 @@ class MenuRegistryService
                 ],
             ],
             [
+                'key' => 'fatturazione-strutture',
+                'link' => 'fatturazione-strutture',
+                'title' => 'Fatture a strutture',
+                'icon' => 'fa-building-o',
+                'order' => 1412,
+                'default' => false,
+                'group' => 'Menu operativo',
+                'description' => 'Fatture a cliniche, aziende ed enti senza collegamento a un paziente.',
+                'route_prefixes' => ['admin/fatturazione-strutture'],
+            ],
+            [
                 'key' => 'fatturazione-documenti',
                 'link' => 'fatturazione-documenti',
                 'title' => 'Lista fatture',
