@@ -8,7 +8,7 @@ function base_url($path=''){return '/'.$path;}
 function portal_tenant_space_url($path=''){return '/login/spazio/'.$path;}
 function csrf_field(){return '<input type="hidden" name="csrf_test" value="synthetic">';}
 function csrf_token(){return 'csrf_test';}
-function view($name,$data=[]){return '';}
+function view($name,$data=[]){return $name==='partials/sidebar_admin'?'<nav class="box box-primary"><div class="box-body"><a href="/agenda">Agenda</a><hr><a href="/login/spazio/chatbot-whatsapp">Assistente WhatsApp</a></div></nav>':'';}
 define('APPPATH',dirname(__DIR__,2).'/app/');
 spl_autoload_register(static function($class){if(str_starts_with($class,'App\\')){$file=APPPATH.str_replace('\\','/',substr($class,4)).'.php';if(is_file($file))require $file;}});
 $catalog=['doctors'=>[['id'=>10,'label'=>'Dott. Marco Rossi']],'visits'=>[['id'=>1,'label'=>'Prima visita','duration'=>30],['id'=>2,'label'=>'Visita di controllo','duration'=>20]],'locations'=>[['id'=>1,'label'=>'Studio centrale']]];

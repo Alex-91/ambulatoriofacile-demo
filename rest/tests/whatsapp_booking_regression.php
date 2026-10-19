@@ -40,11 +40,18 @@ $catalog=['doctors'=>[['id'=>1]],'visits'=>[['id'=>1]],'locations'=>[['id'=>3]]]
 foreach(['cf','both'] as $mode){$c['patient_mode']=$mode;$c['single_visit']=true;$c['default_visit_id']=1;$p=new BookingFakePort();$p->found=true;$s=[];foreach(['prenota','1','1','RSSMRA85T10A562S'] as $text){$r=$engine->advance($c,$s,$text,$p);$s=$r['state'];}check($s['step']===($mode==='both'?'name':'summary'),'Existing patient identification policy');}
 $p=new class extends BookingFakePort {public function choices($c,$s,$step){return array_map(static fn($i)=>['id'=>$i,'label'=>'Opzione '.$i],range(1,12));}};
 $r=$engine->advance($c,[],'prenota',$p);check(str_contains($r['reply'],'5. Opzione 5')&&!str_contains($r['reply'],'Opzione 6'),'Five dates per page');$r=$engine->advance($c,$r['state'],'altro',$p);check(str_contains($r['reply'],'1. Opzione 6'),'Next five dates');
-check(count($r['buttons'])===6 && $r['buttons'][5]['title']==='Mostra altri giorni','Five selectable dates and next page action');
+check(count($r['buttons'])===7 && $r['buttons'][5]['title']==='Mostra altri giorni','Five selectable dates and next page action');
+$second=$r;
+$back=$engine->advance($c,$second['state'],$second['buttons'][6]['id'],$p);
+check($back['state']['offset']===0 && count($back['buttons'])===6 && !in_array('Giorni precedenti',array_column($back['buttons'],'title'),true),'Back button restores first five dates and disappears');
+$boundary=$engine->advance($c,$back['state'],'precedenti',$p);check($boundary['state']['offset']===0,'Previous cannot go below first page');
+$again=$engine->advance($c,$back['state'],$back['buttons'][5]['id'],$p);check($again['state']['offset']===5,'Forward after going back restores second page');
 $old=$r['buttons'][0]['id'];
 $r=$engine->advance($c,$r['state'],$r['buttons'][5]['id'],$p);
-check(count($r['buttons'])===2 && str_contains($r['reply'],'1. Opzione 11') && !str_contains($r['reply'],'Mostra altri giorni'),'Last partial page has no next button');
+check(count($r['buttons'])===3 && str_contains($r['reply'],'1. Opzione 11') && !str_contains($r['reply'],'Mostra altri giorni'),'Last partial page has no next button');
 $last=$r;
+$back=$engine->advance($c,$last['state'],$last['buttons'][2]['id'],$p);check($back['state']['offset']===5 && str_contains($back['reply'],'1. Opzione 6'),'Back from partial final page restores previous five days');
+$chosen=$engine->advance($c,$back['state'],$back['buttons'][4]['id'],$p);check($chosen['state']['day']===10,'Date selection after going back is correct');
 $r=$engine->advance($c,$r['state'],'altro',$p);check($r['state']['offset']===10,'End of dates does not wrap to first page');
 $r=$engine->advance($c,$r['state'],$old,$p);check($r['state']['step']==='day'&&str_contains($r['reply'],'non è più valida'),'Previous page button rejected');
 $r=$engine->advance($c,$last['state'],$last['buttons'][1]['id'],$p);check($r['state']['day']===12 && $r['state']['step']==='time','Date on final page selects correct day');

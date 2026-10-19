@@ -2,3 +2,8 @@
 @media(max-width:1000px){.wb-layout{grid-template-columns:1fr}.wb-preview{max-width:600px;width:100%}}@media(max-width:560px){.wb-page{padding:15px}.wb-choice,.wb-fields{grid-template-columns:1fr}.wb-panel{padding:16px}.wb-page .form-control{font-size:16px}.wb-tabs button,.wb-tabs a{min-height:44px}.wb-page h1{font-size:24px}}
 
 .wb-chat-options{display:flex;flex-direction:column;gap:6px;margin-top:10px;white-space:normal}.wb-chat-options button{white-space:normal;text-align:left;max-width:100%}
+
+.wb-shell{display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:24px;max-width:1600px;margin:auto;padding:24px}.wb-shell .wb-page{min-width:0;width:100%;padding:0}.wb-navigation{min-width:0}.wb-shell .wb-layout{grid-template-columns:minmax(0,1.5fr) minmax(260px,1fr)}
+@media(max-width:1250px){.wb-shell .wb-layout{grid-template-columns:1fr}.wb-shell .wb-preview{max-width:600px;width:100%}}
+@media(max-width:991px){.wb-shell{grid-template-columns:1fr}.wb-navigation{grid-row:1}}
+@media(max-width:560px){.wb-shell{padding:15px}}

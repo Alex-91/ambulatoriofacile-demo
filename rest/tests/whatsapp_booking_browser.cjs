@@ -25,15 +25,20 @@ const server=http.createServer(async(req,res)=>{
  const page=await browser.newPage({viewport:{width:1440,height:1080}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
  try{
   await page.goto('http://127.0.0.1:'+server.address().port);
+  const mainBox=await page.locator('#wb-app').boundingBox(),menuBox=await page.locator('.wb-navigation').boundingBox();assert(menuBox.x>=mainBox.x+mainBox.width,'Shared menu must be on the right');assert(await page.locator('.wb-navigation').isVisible());
   for(const key of ['location','location_id','lead_hours','window_days'])assert.equal(await page.locator('[name="booking['+key+']"]').count(),0,'Agenda field must not be configurable: '+key);
   await page.locator('#wb-single').check();assert(await page.locator('#wb-order').isHidden());assert.equal(await page.locator('[name="booking[default_visit_id]"]').count(),0);
   await page.locator('#wb-patient').selectOption('name');assert(await page.locator('#wb-unknown').isHidden());
   const send=async(text,expected)=>{await page.locator('#wb-message').fill(text);await page.locator('#wb-chat-form button').click();await page.waitForFunction(s=>document.querySelector('#wb-chat').lastElementChild.textContent.includes(s),expected);};
   await send('Buongiorno','Prenota un appuntamento');await page.locator('#wb-chat button:enabled').filter({hasText:'Prenota'}).click();await page.waitForFunction(()=>document.querySelector('#wb-chat').lastElementChild.textContent.includes('Quale giorno'));const firstDates=await page.locator('#wb-chat button:enabled').allTextContents();assert.equal(firstDates.length,6);assert.equal(firstDates[5],'Mostra altri giorni');
   await page.locator('#wb-chat button:enabled').filter({hasText:'Mostra altri giorni'}).click();await page.waitForFunction(first=>document.querySelector('#wb-chat').lastElementChild.textContent.includes('Quale giorno')&&!document.querySelector('#wb-chat').lastElementChild.textContent.includes(first),firstDates[0]);
-  const nextDates=await page.locator('#wb-chat button:enabled').allTextContents();assert.equal(nextDates.length,6);assert(nextDates.slice(0,5).every(d=>!firstDates.includes(d)));
+  const nextDates=await page.locator('#wb-chat button:enabled').allTextContents();assert.equal(nextDates.length,7);assert(nextDates.slice(0,5).every(d=>!firstDates.includes(d)));
   await page.locator('#wb-chat button:enabled').filter({hasText:'Mostra altri giorni'}).click();await page.waitForFunction(()=>document.querySelector('#wb-chat').lastElementChild.textContent.includes('Non ci sono altri giorni'));
-  assert.equal(await page.locator('#wb-chat button:enabled').count(),2);
+  assert.equal(await page.locator('#wb-chat button:enabled').count(),3);
+  await page.locator('#wb-chat button:enabled').filter({hasText:'Giorni precedenti'}).click();await page.waitForFunction(day=>document.querySelector('#wb-chat').lastElementChild.textContent.includes(day),nextDates[0]);
+  assert.deepEqual(await page.locator('#wb-chat button:enabled').allTextContents(),nextDates);
+  await page.locator('#wb-chat button:enabled').filter({hasText:'Giorni precedenti'}).click();await page.waitForFunction(day=>document.querySelector('#wb-chat').lastElementChild.textContent.includes(day),firstDates[0]);
+  assert.deepEqual(await page.locator('#wb-chat button:enabled').allTextContents(),firstDates);
   await send('1','orario');await send('1','nome');await send('Andrea','cognome');await send('Esempio','Riepilogo');await send('1','confermato');
   await page.locator('[data-panel="availability"]').click();assert(await page.locator('#wb-visits').isHidden());await page.locator('select[name="booking[confirmation]"]').selectOption('manual');
   await page.locator('[data-panel="flow"]').click();await page.locator('#wb-patient').selectOption('cf');assert(await page.locator('#wb-unknown').isVisible());

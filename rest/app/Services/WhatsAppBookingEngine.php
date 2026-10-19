@@ -54,6 +54,10 @@ final class WhatsAppBookingEngine
         if (in_array($s['step'],['day','visit','time','cancel_pick'],true)) {
             $choices = $s['choices'] ?? [];
             $pageSize=$s['step']==='day'?5:2;
+            if($s['step']==='day' && in_array($command,['precedenti','giorni precedenti'],true)){
+                $s['offset']=max(0,($s['offset']??0)-5);
+                return ['state'=>$s,'reply'=>$this->menu($s,$c)];
+            }
             if ($command === 'altro' || ($s['step']==='day' && $command==='mostra altri giorni')) {
                 $next=($s['offset']??0)+$pageSize;
                 $s['offset']=$next<count($choices)?$next:($s['step']==='day'?($s['offset']??0):0);
@@ -119,6 +123,7 @@ final class WhatsAppBookingEngine
             foreach(array_slice($s['choices']??[],$s['offset']??0,$step==='day'?5:2) as $i=>$choice)$actions[(string)($i+1)]=$choice['label'];
             if($step==='day'){
                 if(($s['offset']??0)+5<count($s['choices']??[]))$actions['altro']='Mostra altri giorni';
+                if(($s['offset']??0)>0)$actions['precedenti']='Giorni precedenti';
             }elseif(count($s['choices']??[])>2)$actions['altro']='Altre opzioni';
         }elseif($step==='summary')$actions=['1'=>$c['confirmation']==='manual'?'Invia richiesta':'Conferma','2'=>'Cambia giorno'];
         elseif($step==='cancel_confirm')$actions=['1'=>'Annulla appuntamento','2'=>'Mantieni'];
@@ -144,6 +149,7 @@ final class WhatsAppBookingEngine
         $lines=[['cancel_pick'=>'Quale appuntamento vuoi annullare?', 'day'=>'Quale giorno preferisci?','visit'=>'Quale prestazione vuoi prenotare?','time'=>'Seleziona un orario disponibile.'][$s['step']]];
         foreach(array_slice($s['choices'],$s['offset']??0,$s['step']==='day'?5:2) as $i=>$choice) $lines[]=($i+1).'. '.$choice['label'];
         if($s['step']==='day'){
+            if(($s['offset']??0)>0)$lines[]='Seleziona Giorni precedenti oppure scrivi precedenti per tornare alle 5 date precedenti.';
             $lines[]=($s['offset']??0)+5<count($s['choices'])?'Seleziona Mostra altri giorni oppure scrivi altro per le prossime 5 date disponibili.':'Non ci sono altri giorni disponibili in agenda.';
         }elseif(count($s['choices'])>2)$lines[]='Scrivi altro per le altre opzioni.';
         $lines[]='Scrivi annulla per interrompere.'.($c['handoff']?' Per assistenza scrivi segreteria.':'');
