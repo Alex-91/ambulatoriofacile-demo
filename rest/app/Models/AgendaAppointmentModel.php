@@ -41,6 +41,7 @@ class AgendaAppointmentModel extends Model
             !empty($data['custom_time_residual_slots_feature_enabled'])
         );
         $slotLockRequired = !array_key_exists('slot_lock_required', $data) || !empty($data['slot_lock_required']);
+        $checkActiveLocks = $slotLockRequired || !empty($data['check_active_locks']);
 
         if ($idSlot <= 0 || $idDot <= 0) {
             throw new Exception('Slot o dottore non valorizzati.');
@@ -92,7 +93,7 @@ class AgendaAppointmentModel extends Model
             $customTimeFeatureEnabled,
             0,
             $tokenLock,
-            $slotLockRequired
+            $checkActiveLocks
         );
         if (!empty($window['custom_start'])) {
             $plan['duration_minutes'] = (int) ($window['duration_minutes'] ?? 0);
@@ -114,7 +115,7 @@ class AgendaAppointmentModel extends Model
         try {
             (new \App\Services\AgendaResourceGuard($this->db))->assertAvailable($slot,$window,$idDot);
             $this->lockSlotRowsForUpdate($initialCoveredSlotIds);
-            $this->assertCoveredSlotsAvailable($initialCoveredSlotIds, 0, $tokenLock, $slotLockRequired);
+            $this->assertCoveredSlotsAvailable($initialCoveredSlotIds, 0, $tokenLock, $checkActiveLocks);
 
             if (
                 !empty($window['custom_start'])
@@ -691,7 +692,7 @@ class AgendaAppointmentModel extends Model
                 ];
             }
 
-            $typeRow = (new AgendaVisitTypeModel())->findType($selectedTypeId);
+            $typeRow = (new AgendaVisitTypeModel($this->db))->findType($selectedTypeId);
             if (!$typeRow) {
                 throw new Exception('Tipo visita non trovato.');
             }

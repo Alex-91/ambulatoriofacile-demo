@@ -93,6 +93,11 @@ class AgendaVisitTypeSchemaService
         $this->schemaEnsured = true;
     }
 
+    public function isReady(): bool
+    {
+        return $this->hasRequiredSchema();
+    }
+
     private function attemptRuntimeMigration(): void
     {
         try {

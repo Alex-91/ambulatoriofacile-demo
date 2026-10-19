@@ -464,6 +464,12 @@ class MenuRegistryService
                 ],
             ],
             [
+                'key' => 'spazio/chatbot-whatsapp', 'link' => 'spazio/chatbot-whatsapp',
+                'title' => 'Prenotazioni WhatsApp', 'icon' => 'fa-comments', 'order' => 2205,
+                'group' => 'Console spazio', 'description' => 'Percorso di prenotazione e richieste alla segreteria.',
+                'route_prefixes' => ['spazio/chatbot-whatsapp', 'login/spazio/chatbot-whatsapp'],
+            ],
+            [
                 'key' => 'spazio/fse2',
                 'link' => 'spazio/fse2',
                 'title' => 'Configura FSE 2.0',

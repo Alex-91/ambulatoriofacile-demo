@@ -31,10 +31,10 @@ class DoctorPatientSearchModel extends Model
     private ?bool $pazSpecColumnExistsCache = null;
     private ?bool $clientShareAllDoctorsColumnExistsCache = null;
 
-    public function __construct()
+    public function __construct(?\CodeIgniter\Database\BaseConnection $db = null)
     {
-        parent::__construct();
-        $this->db = \Config\Database::connect();
+        parent::__construct($db);
+        $this->db = $db ?? \Config\Database::connect();
 
         $dbConfig = new DatabaseConfig();
         $dbConfig->setEncryptionConfig($this->db);
@@ -80,13 +80,17 @@ class DoctorPatientSearchModel extends Model
         ];
     }
 
-    public function syncClient(int $idClient): void
+    public function syncClient(int $idClient, bool $repairSchema = true): void
     {
         if ($idClient <= 0 || !$this->tableExists()) {
             return;
         }
 
-        $this->ensurePazSpecStructure();
+        if ($repairSchema) {
+            $this->ensurePazSpecStructure();
+        } elseif (!$this->hasPazSpecColumn()) {
+            throw new \RuntimeException('Aggiornare lo schema di ricerca pazienti prima di utilizzare le prenotazioni automatiche.');
+        }
 
         $this->db->table(self::TABLE)
             ->where('id_client', $idClient)

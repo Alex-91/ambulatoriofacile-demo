@@ -49,6 +49,7 @@ public function __construct()
         'navigationtest' => \App\Filters\NavigationTestFilter::class,
         'accountantisolation' => \App\Filters\AccountantIsolationFilter::class,
         'csrf'          => CSRF::class,
+        'whatsappbookingcsrf' => \App\Filters\WhatsAppBookingCsrfFilter::class,
         'fsecsrf'       => \App\Filters\FseCsrfFilter::class,
         'polycliniccsrf' => \App\Filters\BillingCsrfFilter::class,
         'billingcsrf'   => \App\Filters\BillingCsrfFilter::class,

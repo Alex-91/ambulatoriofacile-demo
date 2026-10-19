@@ -421,6 +421,8 @@ class MenuResolverService
         }
 
         $tenantContextFlags = [
+            'spazio/chatbot-whatsapp' => !empty($context['can_manage_tenant_features']) || !empty($context['can_manage_tenant_users']),
+
             'spazio/utenti' => !empty($context['can_manage_tenant_users']),
             'spazio/dispositivi-otp' => !empty($context['can_manage_otp_devices']),
             'spazio/funzioni' => !empty($context['can_manage_tenant_features']),

@@ -219,6 +219,14 @@ class WhatsAppChatbotService
                 return ['ok' => true, 'status' => 'ignored'];
             }
 
+            $booking = (new WhatsAppBookingService($this->platformDb))->incoming($tenantId, $phoneKey, $messageKey, $text);
+            if ($booking !== null) {
+                $this->sendReplyOrFail($messageRowId, $tenantId, $from, $booking['reply'], [
+                    'status' => 'processed', 'action_name' => 'booking',
+                    'appointment_id' => !empty($booking['appointment_id']) ? (int) $booking['appointment_id'] : null,
+                ]);
+                return ['ok' => true, 'status' => 'processed', 'action' => 'booking', 'appointment_id' => $booking['appointment_id']];
+            }
             $rule = $this->ruleEngine->match($config, $text);
             if ($rule === null) {
                 $fallback = trim((string) ($config['fallback_reply'] ?? ''));
@@ -572,6 +580,10 @@ class WhatsAppChatbotService
      */
     private function retryReply(int $messageRowId, int $tenantId, string $recipient, array $claim): array
     {
+        if (($claim['action_name'] ?? '') === 'booking' && empty($this->configForTenant($tenantId)['enabled'])) {
+            $this->finishMessage($messageRowId, ['status' => 'ignored']);
+            return ['ok' => true, 'status' => 'ignored'];
+        }
         $reply = trim((string) ($claim['reply_text'] ?? ''));
         if ($reply === '') {
             $this->finishMessage($messageRowId, ['status' => 'failed', 'error_text' => 'Testo risposta non disponibile.']);

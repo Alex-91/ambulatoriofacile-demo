@@ -7,7 +7,6 @@ use App\Models\PlatformTenantsModel;
 use App\Services\AppointmentNotificationSettingsService;
 use App\Services\PlatformAdminAccessService;
 use App\Services\WhatsAppChatbotService;
-use App\Services\WhatsAppGatewayClient;
 
 class PlatformWhatsAppChatbotController extends BaseController
 {
@@ -50,17 +49,12 @@ class PlatformWhatsAppChatbotController extends BaseController
         $tenantId = (int) ($tenant['id_tenant'] ?? 0);
         $service = new WhatsAppChatbotService();
 
-        return view('tenant/whatsapp_chatbot', [
-            'platformConsole' => true,
-            'platformMasterEmails' => $this->platformAdminAccess->configuredMasterEmails(),
+        return view('admin/whatsapp_chatbot_activation', [
             'tenantCatalog' => $tenantCatalog,
             'tenantSelectionUrl' => portal_platform_url('chatbot-whatsapp'),
             'tenant' => $tenant ?? [],
             'config' => $tenantId > 0 ? $service->configForTenant($tenantId) : [],
-            'dashboard' => $tenantId > 0 ? $service->dashboardForTenant($tenantId, 50) : [],
-            'gatewayAvailable' => $tenantId > 0 && WhatsAppGatewayClient::isAvailableForTenant($tenantId),
             'saveUrl' => $this->chatbotUrl($tenantId, true),
-            'notificationsUrl' => $tenantId > 0 ? portal_platform_url('whatsapp') . '?tenant_id=' . $tenantId : portal_platform_url('whatsapp'),
             'success' => session()->getFlashdata('success'),
             'errors' => array_merge($errors, (array) (session()->getFlashdata('errors') ?? [])),
         ]);
@@ -78,24 +72,13 @@ class PlatformWhatsAppChatbotController extends BaseController
                 throw new \RuntimeException('Lo spazio selezionato non ha il canale WhatsApp attivo.');
             }
 
-            $rules = [];
-            foreach ((array) $this->request->getPost('rules') as $index => $rule) {
-                if (!is_array($rule)) {
-                    continue;
-                }
-                $rule['enabled'] = (int) ($rule['enabled'] ?? 0) === 1;
-                $rule['id'] = (string) ($rule['id'] ?? ('rule-' . ((int) $index + 1)));
-                $rules[] = $rule;
+            $service = new WhatsAppChatbotService();
+            $config = $service->configForTenant($tenantId);
+            $config['enabled'] = $this->request->getPost('enabled') === '1';
+            $service->saveConfig($tenantId, $config, (int) (session()->get('platform_user_id') ?? 0));
+            if (!$config['enabled']) {
+                (new \App\Services\WhatsAppBookingService())->clearSessions($tenantId);
             }
-
-            (new WhatsAppChatbotService())->saveConfig($tenantId, [
-                'enabled' => (int) ($this->request->getPost('enabled') ?? 0) === 1,
-                'response_window_hours' => (int) ($this->request->getPost('response_window_hours') ?? 168),
-                'prompt_text' => (string) ($this->request->getPost('prompt_text') ?? ''),
-                'fallback_reply' => (string) ($this->request->getPost('fallback_reply') ?? ''),
-                'open_on' => (array) $this->request->getPost('open_on'),
-                'rules' => $rules,
-            ], (int) (session()->get('platform_user_id') ?? 0));
 
             return redirect()->to($this->chatbotUrl($tenantId))
                 ->with('success', 'Chatbot WhatsApp aggiornato per lo spazio selezionato.');
