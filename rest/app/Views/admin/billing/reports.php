@@ -116,7 +116,7 @@ if (trim((string) ($filters['date_from'] ?? '')) !== '' || trim((string) ($filte
                   <span class="billing-module-icon"><i class="fa fa-bar-chart"></i></span>
                   <div>
                     <h1>Statistiche e report</h1>
-                    <p>Analizza il fatturato e prepara i dati da inviare al commercialista.</p>
+                    <p>Analizza il fatturato ed esporta i dati.</p>
                   </div>
                 </div>
               </div>
@@ -332,7 +332,7 @@ if (trim((string) ($filters['date_from'] ?? '')) !== '' || trim((string) ($filte
                 <div class="billing-report-panel-body" style="padding-top:0;">
                   <div class="billing-report-accountant-note">
                     <i class="fa fa-file-excel-o"></i>
-                    <div><strong>Export per il commercialista</strong><br><span>Scegli CSV per lavorare i dati in Excel oppure PDF per un riepilogo pronto da condividere. Entrambi rispettano i filtri correnti.</span></div>
+                    <div><strong>Esportazione dati</strong><br><span>Scegli CSV per lavorare i dati in Excel oppure PDF per un riepilogo pronto da condividere. Entrambi rispettano i filtri correnti.</span></div>
                   </div>
                 </div>
               </section>
