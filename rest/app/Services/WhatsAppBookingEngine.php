@@ -53,12 +53,14 @@ final class WhatsAppBookingEngine
         if (in_array($s['step'],['done','pending','handoff'],true)) return ['state'=>$s,'reply'=>'La richiesta è già stata registrata. Per una nuova prenotazione scrivi '.($c['keywords'][0]??'un messaggio').'.'];
         if (in_array($s['step'],['day','visit','time','cancel_pick'],true)) {
             $choices = $s['choices'] ?? [];
-            if ($command === 'altro') {
-                $s['offset'] = (($s['offset'] ?? 0)+2) < count($choices) ? ($s['offset'] ?? 0)+2 : 0;
+            $pageSize=$s['step']==='day'?5:2;
+            if ($command === 'altro' || ($s['step']==='day' && $command==='mostra altri giorni')) {
+                $next=($s['offset']??0)+$pageSize;
+                $s['offset']=$next<count($choices)?$next:($s['step']==='day'?($s['offset']??0):0);
                 return ['state'=>$s,'reply'=>$this->menu($s,$c)];
             }
             $index = ctype_digit($text) ? (int)$text-1 : -1;
-            $choice = $index>=0 && $index<2 ? ($choices[($s['offset']??0)+$index] ?? null) : null;
+            $choice = $index>=0 && $index<$pageSize ? ($choices[($s['offset']??0)+$index] ?? null) : null;
             if (!$choice) return ['state'=>$s,'reply'=>"Seleziona un numero tra quelli indicati.\n".$this->menu($s,$c)];
             if ($s['step']==='cancel_pick'){$s['cancel_appointment']=$choice;$s['step']='cancel_confirm';unset($s['choices']);return ['state'=>$s,'reply'=>'Annullare l’appuntamento del '.$choice['label']."?\n1. Annulla appuntamento\n2. Mantieni"]; }
             if ($s['step']==='visit') { $s['visit_id']=(int)$choice['id']; return $this->choose($c,$s,isset($s['day'])?'time':'day',$port); }
@@ -114,8 +116,10 @@ final class WhatsAppBookingEngine
         $s=$result['state'];$step=$s['step']??'';$actions=[];
         if($step==='home'){$actions=['1'=>'Prenota'];if($c['cancellation'])$actions['2']='Annulla appuntamento';}
         elseif(in_array($step,['day','visit','time','cancel_pick'],true)){
-            foreach(array_slice($s['choices']??[],$s['offset']??0,2) as $i=>$choice)$actions[(string)($i+1)]=$choice['label'];
-            if(count($s['choices']??[])>2)$actions['altro']='Altre opzioni';
+            foreach(array_slice($s['choices']??[],$s['offset']??0,$step==='day'?5:2) as $i=>$choice)$actions[(string)($i+1)]=$choice['label'];
+            if($step==='day'){
+                if(($s['offset']??0)+5<count($s['choices']??[]))$actions['altro']='Mostra altri giorni';
+            }elseif(count($s['choices']??[])>2)$actions['altro']='Altre opzioni';
         }elseif($step==='summary')$actions=['1'=>$c['confirmation']==='manual'?'Invia richiesta':'Conferma','2'=>'Cambia giorno'];
         elseif($step==='cancel_confirm')$actions=['1'=>'Annulla appuntamento','2'=>'Mantieni'];
         elseif($step==='empty')$actions=['annulla'=>'Chiudi conversazione'];
@@ -138,8 +142,10 @@ final class WhatsAppBookingEngine
     private function menu(array $s,array $c): string
     {
         $lines=[['cancel_pick'=>'Quale appuntamento vuoi annullare?', 'day'=>'Quale giorno preferisci?','visit'=>'Quale prestazione vuoi prenotare?','time'=>'Seleziona un orario disponibile.'][$s['step']]];
-        foreach(array_slice($s['choices'],$s['offset']??0,2) as $i=>$choice) $lines[]=($i+1).'. '.$choice['label'];
-        if(count($s['choices'])>2)$lines[]='Scrivi altro per le altre opzioni.';
+        foreach(array_slice($s['choices'],$s['offset']??0,$s['step']==='day'?5:2) as $i=>$choice) $lines[]=($i+1).'. '.$choice['label'];
+        if($s['step']==='day'){
+            $lines[]=($s['offset']??0)+5<count($s['choices'])?'Seleziona Mostra altri giorni oppure scrivi altro per le prossime 5 date disponibili.':'Non ci sono altri giorni disponibili in agenda.';
+        }elseif(count($s['choices'])>2)$lines[]='Scrivi altro per le altre opzioni.';
         $lines[]='Scrivi annulla per interrompere.'.($c['handoff']?' Per assistenza scrivi segreteria.':'');
         return implode("\n",$lines);
     }

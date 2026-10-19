@@ -39,7 +39,16 @@ $c['unknown_patient']='staff';$p->found=false;$p->empty=false;$s=[];foreach(['pr
 $catalog=['doctors'=>[['id'=>1]],'visits'=>[['id'=>1]],'locations'=>[['id'=>3]]];$c=WhatsAppBookingConfig::normalize(['start_mode'=>'keyword','doctor_id'=>1,'location_id'=>3,'location'=>'Studio','visit_ids'=>[1]]);WhatsAppBookingConfig::validate($c,$catalog);
 foreach(['cf','both'] as $mode){$c['patient_mode']=$mode;$c['single_visit']=true;$c['default_visit_id']=1;$p=new BookingFakePort();$p->found=true;$s=[];foreach(['prenota','1','1','RSSMRA85T10A562S'] as $text){$r=$engine->advance($c,$s,$text,$p);$s=$r['state'];}check($s['step']===($mode==='both'?'name':'summary'),'Existing patient identification policy');}
 $p=new class extends BookingFakePort {public function choices($c,$s,$step){return array_map(static fn($i)=>['id'=>$i,'label'=>'Opzione '.$i],range(1,12));}};
-$r=$engine->advance($c,[],'prenota',$p);check(str_contains($r['reply'],'2. Opzione 2')&&!str_contains($r['reply'],'Opzione 3'),'Eight numbered choices');$r=$engine->advance($c,$r['state'],'altro',$p);check(str_contains($r['reply'],'1. Opzione 3'),'Next choices page');
+$r=$engine->advance($c,[],'prenota',$p);check(str_contains($r['reply'],'5. Opzione 5')&&!str_contains($r['reply'],'Opzione 6'),'Five dates per page');$r=$engine->advance($c,$r['state'],'altro',$p);check(str_contains($r['reply'],'1. Opzione 6'),'Next five dates');
+check(count($r['buttons'])===6 && $r['buttons'][5]['title']==='Mostra altri giorni','Five selectable dates and next page action');
+$old=$r['buttons'][0]['id'];
+$r=$engine->advance($c,$r['state'],$r['buttons'][5]['id'],$p);
+check(count($r['buttons'])===2 && str_contains($r['reply'],'1. Opzione 11') && !str_contains($r['reply'],'Mostra altri giorni'),'Last partial page has no next button');
+$last=$r;
+$r=$engine->advance($c,$r['state'],'altro',$p);check($r['state']['offset']===10,'End of dates does not wrap to first page');
+$r=$engine->advance($c,$r['state'],$old,$p);check($r['state']['step']==='day'&&str_contains($r['reply'],'non è più valida'),'Previous page button rejected');
+$r=$engine->advance($c,$last['state'],$last['buttons'][1]['id'],$p);check($r['state']['day']===12 && $r['state']['step']==='time','Date on final page selects correct day');
+$first=$engine->advance($c,[],'prenota',$p);$selected=$engine->advance($c,$first['state'],'5',$p);check($selected['state']['day']===5,'Fifth date accepted as text');
 $c['single_visit']=false;
 foreach(['doctor_id'=>2,'visit_ids'=>[2],'keywords'=>['annulla']] as $key=>$value){try{WhatsAppBookingConfig::validate(array_replace($c,[$key=>$value]),$catalog);check(false,'Invalid config accepted');}catch(InvalidArgumentException $expected){check(true,'Invalid config rejected');}}
 $auto=WhatsAppBookingConfig::normalize(['start_mode'=>'keyword','doctor_id'=>1,'visit_ids'=>[1],'location_id'=>999,'location'=>'Obsoleta','lead_hours'=>168,'window_days'=>1]);

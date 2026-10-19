@@ -265,8 +265,8 @@ func (m *Manager) SendText(ctx context.Context, tenantID int64, accountID, phone
 	return m.sendMessage(ctx, tenantID, accountID, phone, text, nil)
 }
 func (m *Manager) SendInteractive(ctx context.Context, tenantID int64, accountID, phone, text string, choices []ReplyChoice) (SendResult, error) {
-	if len(choices) < 1 || len(choices) > 3 {
-		return SendResult{}, fmt.Errorf("provide between 1 and 3 choices")
+	if len(choices) < 1 || len(choices) > 10 {
+		return SendResult{}, fmt.Errorf("provide between 1 and 10 choices")
 	}
 	return m.sendMessage(ctx, tenantID, accountID, phone, text, choices)
 }
@@ -274,7 +274,7 @@ func buildReplyMessage(text string, choices []ReplyChoice) (*waE2E.Message, erro
 	if len(choices) == 0 {
 		return &waE2E.Message{Conversation: proto.String(text)}, nil
 	}
-	if len(choices) > 3 {
+	if len(choices) > 10 {
 		return nil, fmt.Errorf("too many choices")
 	}
 	buttons := []*waE2E.InteractiveMessage_NativeFlowMessage_NativeFlowButton{}
@@ -286,6 +286,15 @@ func buildReplyMessage(text string, choices []ReplyChoice) (*waE2E.Message, erro
 		seen[choice.ID] = true
 		params, _ := json.Marshal(map[string]string{"display_text": choice.Title, "id": choice.ID})
 		buttons = append(buttons, &waE2E.InteractiveMessage_NativeFlowMessage_NativeFlowButton{Name: proto.String("quick_reply"), ButtonParamsJSON: proto.String(string(params))})
+	}
+	// Larger menus use a selectable list instead of exceeding quick-reply limits.
+	if len(choices) > 3 {
+		rows := make([]map[string]string, 0, len(choices))
+		for _, choice := range choices {
+			rows = append(rows, map[string]string{"id": choice.ID, "title": choice.Title, "description": choice.Description})
+		}
+		params, _ := json.Marshal(map[string]any{"title": "Scegli un'opzione", "sections": []map[string]any{{"title": "Opzioni disponibili", "rows": rows}}})
+		buttons = []*waE2E.InteractiveMessage_NativeFlowMessage_NativeFlowButton{{Name: proto.String("single_select"), ButtonParamsJSON: proto.String(string(params))}}
 	}
 	return &waE2E.Message{InteractiveMessage: &waE2E.InteractiveMessage{
 		Body:               &waE2E.InteractiveMessage_Body{Text: proto.String(text)},
@@ -324,7 +333,11 @@ func (m *Manager) sendMessage(ctx context.Context, tenantID int64, accountID, ph
 	to := types.NewJID(normalizedPhone, types.DefaultUserServer)
 	extra := whatsmeow.SendRequestExtra{}
 	if len(choices) > 0 {
-		nodes := []waBinary.Node{{Tag: "biz", Content: []waBinary.Node{{Tag: "interactive", Attrs: waBinary.Attrs{"type": "native_flow", "v": "1"}, Content: []waBinary.Node{{Tag: "native_flow", Attrs: waBinary.Attrs{"v": "9", "name": "mixed"}}}}}}}
+		flowName, flowVersion := "mixed", "9"
+		if len(choices) > 3 {
+			flowName, flowVersion = "single_select", "2"
+		}
+		nodes := []waBinary.Node{{Tag: "biz", Content: []waBinary.Node{{Tag: "interactive", Attrs: waBinary.Attrs{"type": "native_flow", "v": "1"}, Content: []waBinary.Node{{Tag: "native_flow", Attrs: waBinary.Attrs{"v": flowVersion, "name": flowName}}}}}}}
 		extra.AdditionalNodes = &nodes
 	}
 	response, err := current.client.SendMessage(ctx, to, message, extra)

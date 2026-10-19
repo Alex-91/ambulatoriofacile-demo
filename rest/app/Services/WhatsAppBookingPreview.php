@@ -10,7 +10,7 @@ final class WhatsAppBookingPreview
         if($step==='visit')return array_values(array_filter($this->catalog['visits'],static fn($v)=>in_array((int)$v['id'],$c['visit_ids'],true)));
         if($step==='day'){
             $day=(new \DateTimeImmutable('now',new \DateTimeZone('Europe/Rome')))->modify('+1 day');
-            return [['id'=>$day->format('Y-m-d'),'label'=>$day->format('d/m/Y')],['id'=>$day->modify('+1 day')->format('Y-m-d'),'label'=>$day->modify('+1 day')->format('d/m/Y')]];
+            return array_map(static function($offset)use($day){$date=$day->modify('+'.$offset.' days');return ['id'=>$date->format('Y-m-d'),'label'=>$date->format('d/m/Y')];},range(0,11));
         }
         return [['id'=>1,'label'=>'09:00'],['id'=>2,'label'=>'10:30'],['id'=>3,'label'=>'15:00']];
     }
