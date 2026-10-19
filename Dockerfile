@@ -68,8 +68,10 @@ RUN chmod +x /usr/local/bin/start-container \
     && chown -R www-data:www-data /var/www/html
 
 # A broken validator prevents image publication. This bypasses app/bootstrap/DB.
-RUN su -s /bin/sh www-data -c 'php /var/www/html/ops/fse-validation/runtime-self-test.php' > /opt/fse/build-self-test.json \
-    && cat /opt/fse/build-self-test.json
+RUN self_test_status=0; \
+    su -s /bin/sh www-data -c 'php /var/www/html/ops/fse-validation/runtime-self-test.php' > /opt/fse/build-self-test.json || self_test_status=$?; \
+    cat /opt/fse/build-self-test.json; \
+    exit "$self_test_status"
 
 EXPOSE 80
 
