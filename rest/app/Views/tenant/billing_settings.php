@@ -355,6 +355,54 @@ if ($serviceRows === []) {
                 </section>
               </div>
 
+              <?php if (($tenantContext->tenantRole ?? '') === 'tenant_master'): ?>
+              <section class="config-card" style="margin-bottom:20px;padding:20px;">
+                <h2>Esportazione Excel (XLSX)</h2><p><a href="<?= site_url('admin/fatturazione-commercialista') ?>">Gestisci la delega al commercialista</a></p>
+                <p>Scegli le colonne e il loro ordine. La stessa configurazione viene usata anche dal commercialista con delega.</p>
+                <p class="config-help">Imponibile: onorario registrato, escluso il bollo. Marca da bollo: importo addebitato in fattura (2 € se riaddebitato, 0 € se assente). Importi in euro.</p>
+                <input type="hidden" name="xlsx_columns_present" value="1">
+                <?php
+                  $xlsxFields = \App\Services\BillingXlsxExportService::fields();
+                  $xlsxSelected = old('xlsx_columns_present') !== null ? (array) old('xlsx_columns') : ($config['xlsx_columns'] ?? \App\Services\BillingXlsxExportService::defaultColumns());
+                  $xlsxOrder = array_values(array_unique(array_merge(array_values(array_intersect($xlsxSelected, array_keys($xlsxFields))), array_keys($xlsxFields))));
+                ?>
+                <div id="billing-xlsx-fields">
+                  <?php foreach ($xlsxOrder as $key): ?>
+                  <div class="billing-xlsx-field" style="display:flex;align-items:center;gap:8px;padding:6px 0;">
+                    <label style="flex:1;margin:0;"><input type="checkbox" name="xlsx_columns[]" value="<?= esc($key) ?>" <?= in_array($key, $xlsxSelected, true) ? 'checked' : '' ?>> <?= esc($xlsxFields[$key][0]) ?></label>
+                    <button type="button" class="btn btn-default btn-sm" data-xlsx-move="up" aria-label="Sposta su: <?= esc($xlsxFields[$key][0]) ?>">↑</button>
+                    <button type="button" class="btn btn-default btn-sm" data-xlsx-move="down" aria-label="Sposta giù: <?= esc($xlsxFields[$key][0]) ?>">↓</button>
+                  </div>
+                  <?php endforeach ?>
+                </div>
+                <p id="billing-xlsx-summary" aria-live="polite"></p>
+                <p class="config-help">Sono disponibili i dati registrati nei documenti. Data visita, riferimenti alla fattura stornata e tipologia destinatario del modello esterno non sono attualmente registrati. I campi aggiuntivi per strutture (P.IVA, CAP, provincia, paese, codice destinatario e PEC) usano solo i dati salvati. Gli indirizzi e l’emittente provengono dai dati conservati nella fattura, se presenti.</p>
+              </section>
+              <script>
+                (function () {
+                  var list = document.getElementById('billing-xlsx-fields');
+                  function update() {
+                    var selected = list.querySelectorAll('input:checked');
+                    document.getElementById('billing-xlsx-summary').textContent = selected.length + ' colonne selezionate. Usa le frecce per cambiare ordine.';
+                    list.querySelector('input').setCustomValidity(selected.length ? '' : 'Seleziona almeno un campo Excel.');
+                    Array.from(list.children).forEach(function (row, index) {
+                      row.querySelector('[data-xlsx-move="up"]').disabled = index === 0;
+                      row.querySelector('[data-xlsx-move="down"]').disabled = index === list.children.length - 1;
+                    });
+                  }
+                  list.addEventListener('change', update);
+                  list.addEventListener('click', function (event) {
+                    var button = event.target.closest('[data-xlsx-move]');
+                    if (!button) return;
+                    var row = button.parentElement;
+                    if (button.dataset.xlsxMove === 'up' && row.previousElementSibling) list.insertBefore(row, row.previousElementSibling);
+                    if (button.dataset.xlsxMove === 'down' && row.nextElementSibling) list.insertBefore(row.nextElementSibling, row);
+                    button.focus(); update();
+                  });
+                  update();
+                })();
+              </script>
+              <?php endif ?>
               <div class="config-sticky-actions">
                 <span>Le modifiche saranno proposte solo ai documenti creati da ora.</span>
                 <div>

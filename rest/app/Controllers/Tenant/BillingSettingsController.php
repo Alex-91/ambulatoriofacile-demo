@@ -95,6 +95,10 @@ class BillingSettingsController extends BaseController
      */
     private function requestConfigPayload(array $current): array
     {
+        if ($this->request->getPost('xlsx_columns_present') !== null
+            && $this->tenantContext->getCurrentTenant()?->tenantRole !== 'tenant_master') {
+            throw new \RuntimeException('Solo il titolare dello spazio può configurare le colonne XLSX.');
+        }
         $branding = is_array($current['branding'] ?? null) ? $current['branding'] : [];
         $layout = is_array($current['layout'] ?? null) ? $current['layout'] : [];
         $fields = is_array($current['fields'] ?? null) ? $current['fields'] : [];
@@ -107,6 +111,9 @@ class BillingSettingsController extends BaseController
         $emailDelivery = is_array($current['email_delivery'] ?? null) ? $current['email_delivery'] : [];
 
         return [
+            'xlsx_columns' => $this->request->getPost('xlsx_columns_present') !== null
+                ? \App\Services\BillingXlsxExportService::validateColumns($this->request->getPost('xlsx_columns'))
+                : ($current['xlsx_columns'] ?? \App\Services\BillingXlsxExportService::defaultColumns()),
             'document_title' => $this->requestString('document_title', (string) ($current['document_title'] ?? 'Documento fatturazione'), 0),
             'document_code_prefix' => $this->requestString('document_code_prefix', (string) ($current['document_code_prefix'] ?? 'FT'), 12),
             'numbering' => [

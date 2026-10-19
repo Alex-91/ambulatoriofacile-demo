@@ -50,6 +50,8 @@ class BillingReportService
             'document_type' => $documentType,
             'payment_method' => $paymentMethod,
             'ts_sync_state' => '',
+            'document_number' => mb_substr(trim((string) ($input['document_number'] ?? '')), 0, 80),
+            'payment_status' => in_array($input['payment_status'] ?? '', ['paid', 'unpaid'], true) ? $input['payment_status'] : '',
             'patient' => mb_substr(trim((string) ($input['patient'] ?? '')), 0, 120),
         ];
     }
@@ -73,7 +75,7 @@ class BillingReportService
         }
 
         $builder = $db->table('billing_documents')
-            ->select('id_billing_document, document_number, document_type, issue_date, payment_date, patient_name, patient_tax_code, payment_method, line_items_json, subtotal_amount, stamp_duty_amount, vat_rate, vat_nature, amount_total, notes, ts_expense_type_code, ts_sync_state, local_state');
+            ->select('id_billing_document, document_number, document_type, issue_date, payment_date, patient_name, patient_tax_code, payment_method, line_items_json, subtotal_amount, stamp_duty_amount, vat_rate, vat_nature, amount_total, notes, ts_expense_type_code, ts_sync_state, local_state, payment_status, due_date, ts_opposition_flag, template_snapshot_json');
 
         $this->applyFilters($builder, $filters);
         $rows = $builder
@@ -125,7 +127,7 @@ class BillingReportService
         }
 
         fwrite($handle, "\xEF\xBB\xBF");
-        fputcsv($handle, [
+        $headers = [
             'Numero documento',
             'Tipo documento',
             'Data emissione',
@@ -141,14 +143,18 @@ class BillingReportService
             'Totale documento',
             'Tipo spesa TS',
             'Note',
-        ], ';');
+        ];
+        if (!empty($report['include_status'])) {
+            $headers = array_merge($headers, ['Stato documento', 'Stato pagamento', 'Stato TS']);
+        }
+        fputcsv($handle, $headers, ';', '"', '');
 
         foreach ((array) ($report['documents'] ?? []) as $row) {
             if (!is_array($row)) {
                 continue;
             }
 
-            fputcsv($handle, array_map([$this, 'safeCsvCell'], [
+            $csvRow = [
                 (string) ($row['document_number'] ?? ''),
                 (string) ($row['document_type_label'] ?? ''),
                 $this->formatDateForExport((string) ($row['issue_date'] ?? '')),
@@ -164,7 +170,13 @@ class BillingReportService
                 $this->formatMoneyForExport($row['amount_total'] ?? 0),
                 (string) ($row['ts_expense_type_code'] ?? ''),
                 preg_replace('/\s+/', ' ', trim((string) ($row['notes'] ?? ''))) ?? '',
-            ]), ';');
+            ];
+            if (!empty($report['include_status'])) {
+                foreach (['local_state_label', 'payment_status_label', 'ts_sync_state_label'] as $key) {
+                    $csvRow[] = (string) ($row[$key] ?? '');
+                }
+            }
+            fputcsv($handle, array_map([$this, 'safeCsvCell'], $csvRow), ';', '"', '');
         }
 
         rewind($handle);
@@ -183,6 +195,44 @@ class BillingReportService
     /**
      * @return array<string, array<string, string>>
      */
+    public function buildSelectedAccountantCsv(int $tenantId, $selection): string
+    {
+        return $this->buildAccountantCsv(['documents' => $this->selectedDocumentsForTenant($tenantId, $selection), 'include_status' => true]);
+    }
+
+    public function selectedDocumentsForTenant(int $tenantId, $selection): array
+    {
+        if ($tenantId <= 0 || !is_array($selection) || $selection === [] || count($selection) > 500) {
+            throw new \InvalidArgumentException('Seleziona da 1 a 500 fatture da esportare.');
+        }
+        $ids = [];
+        foreach ($selection as $value) {
+            if ((!is_int($value) && !is_string($value)) || !preg_match('/^[1-9][0-9]*$/D', (string) $value)
+                || filter_var($value, FILTER_VALIDATE_INT) === false) {
+                throw new \InvalidArgumentException('Selezione fatture non valida.');
+            }
+            $ids[] = (int) $value;
+        }
+        $ids = array_values(array_unique($ids));
+        $context = $this->tenantDbContext->resolveTenantContext($tenantId);
+        $rows = $context['db']->table('billing_documents')
+            ->whereIn('id_billing_document', $ids)->orderBy('issue_date', 'ASC')->orderBy('id_billing_document', 'ASC')
+            ->get()->getResultArray();
+        if (count($rows) !== count($ids)) {
+            throw new \RuntimeException('Una o più fatture selezionate non sono disponibili in questo spazio. Ricarica la lista.');
+        }
+        foreach ($rows as &$row) {
+            $row['document_type_label'] = $this->documents->documentTypeLabels()[$row['document_type']] ?? $row['document_type'];
+            $row['payment_method_label'] = $this->documents->paymentMethodLabels()[$row['payment_method']] ?? $row['payment_method'];
+            $row['local_state_label'] = $this->documents->localStateLabels()[$row['local_state']] ?? $row['local_state'];
+            $row['payment_status_label'] = $this->documents->paymentStatusLabels()[$row['payment_status']] ?? $row['payment_status'];
+            $row['ts_sync_state_label'] = $this->documents->tsSyncStateLabels()[$row['ts_sync_state']] ?? $row['ts_sync_state'];
+            $row['service_descriptions'] = $this->decodeServiceDescriptions((string) ($row['line_items_json'] ?? ''));
+        }
+        unset($row);
+        return $rows;
+    }
+
     private function filterOptions(): array
     {
         return [
@@ -205,6 +255,8 @@ class BillingReportService
      */
     private function applyFilters($builder, array $filters): void
     {
+        if (($filters['document_number'] ?? '') !== '') { $builder->like('document_number', $filters['document_number']); }
+        if (($filters['payment_status'] ?? '') !== '') { $builder->where('payment_status', $filters['payment_status']); }
         if ($filters['date_from'] !== '') {
             $builder->where('issue_date >=', $filters['date_from']);
         }

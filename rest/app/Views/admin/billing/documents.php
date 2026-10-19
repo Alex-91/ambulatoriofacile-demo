@@ -181,11 +181,14 @@ $environmentLabel = defined('ENVIRONMENT') && ENVIRONMENT === 'production' ? 'Pr
                 <div>
                   <span class="billing-bulk-icon"><i class="fa fa-paper-plane-o"></i></span>
                   <strong id="billing-bulk-summary">0 fatture selezionate</strong>
-                  <span>Solo documenti definitivi pronti per il Sistema TS.</span>
+                  <span>Esporta la selezione oppure inviala a TS se tutti i documenti sono idonei.</span>
                 </div>
                 <button class="billing-bulk-send" id="billing-bulk-send" type="submit" disabled>
                   <i class="fa fa-paper-plane-o"></i> Invia selezionate a TS
                 </button>
+                <button class="billing-bulk-send" id="billing-bulk-csv" type="submit" formaction="<?= site_url('admin/fatturazione-documenti/export-selezionate') ?>" disabled><i class="fa fa-download"></i> CSV</button>
+                <button class="billing-bulk-send" id="billing-bulk-xlsx" type="submit" formaction="<?= site_url('admin/fatturazione-documenti/export-selezionate') ?>" disabled><i class="fa fa-file-excel-o"></i> XLSX</button>
+                <button class="billing-bulk-send" id="billing-bulk-pdf" type="submit" formaction="<?= site_url('admin/fatturazione-documenti/export-selezionate') ?>" disabled><i class="fa fa-download"></i> PDF / ZIP</button>
               </div>
             </form>
 
@@ -196,7 +199,7 @@ $environmentLabel = defined('ENVIRONMENT') && ENVIRONMENT === 'production' ? 'Pr
                   <span>La casella seleziona la pagina corrente</span>
                   <button class="billing-select-all-filtered" id="billing-select-all-filtered" type="button" disabled>
                     <i class="fa fa-check-square-o"></i>
-                    <span id="billing-select-all-filtered-label">Seleziona tutte le fatture disponibili all'invio TS</span>
+                    <span id="billing-select-all-filtered-label">Seleziona tutte le fatture disponibili</span>
                   </button>
                 </div>
               </div>
@@ -222,7 +225,7 @@ $environmentLabel = defined('ENVIRONMENT') && ENVIRONMENT === 'production' ? 'Pr
                     <thead>
                       <tr>
                         <th class="billing-select-col">
-                          <input type="checkbox" id="billing-select-all" aria-label="Seleziona le fatture inviabili a TS nella pagina corrente" <?= $tsEnabled ? '' : 'disabled' ?>>
+                          <input type="checkbox" id="billing-select-all" aria-label="Seleziona le fatture nella pagina corrente">
                         </th>
                         <th class="billing-index-col">#</th>
                         <th><button class="billing-table-sort" type="button" data-sort-key="number">Numero <i class="fa fa-sort"></i></button></th>
@@ -282,11 +285,7 @@ $environmentLabel = defined('ENVIRONMENT') && ENVIRONMENT === 'production' ? 'Pr
                             data-client="<?= esc(mb_strtolower((string) ($row['patient_name'] ?? '')), 'attr') ?>"
                             data-amount="<?= esc((string) ((float) ($row['amount_total'] ?? 0)), 'attr') ?>">
                           <td class="billing-select-col">
-                            <?php if ($tsSelectable): ?>
-                              <input class="billing-document-select" type="checkbox" value="<?= $documentId ?>" aria-label="Seleziona <?= esc((string) ($row['document_number'] ?? 'fattura')) ?> per invio TS">
-                            <?php else: ?>
-                              <span class="billing-not-selectable" title="<?= esc(!$tsEnabled ? 'Sistema TS non attivo' : 'Il documento non è pronto per l’invio TS') ?>">—</span>
-                            <?php endif; ?>
+                              <input class="billing-document-select" type="checkbox" value="<?= $documentId ?>" data-ts-eligible="<?= $tsSelectable ? '1' : '0' ?>" aria-label="Seleziona <?= esc((string) ($row['document_number'] ?? 'fattura')) ?>">
                           </td>
                           <td class="billing-index-col billing-row-index"><?= $index + 1 ?></td>
                           <td>
@@ -394,6 +393,7 @@ $environmentLabel = defined('ENVIRONMENT') && ENVIRONMENT === 'production' ? 'Pr
 </div>
 <script src="<?= base_url('public/plugins/jQuery/jQuery-2.1.4.min.js') ?>"></script>
 <script src="<?= base_url('public/bootstrap/js/bootstrap.min.js') ?>"></script>
+<script src="<?= base_url('public/assets/js/billing-csv-export.js') ?>"></script>
 <script>
   (function () {
     var root = document.getElementById('billing-archive');
@@ -424,6 +424,9 @@ $environmentLabel = defined('ENVIRONMENT') && ENVIRONMENT === 'production' ? 'Pr
     var bulkSummary = document.getElementById('billing-bulk-summary');
     var bulkButton = document.getElementById('billing-bulk-send');
     var filters = { status: 'all', payment: 'all', type: 'all', ts: 'all' };
+    var csvButton = document.getElementById('billing-bulk-csv');
+    var xlsxButton = document.getElementById('billing-bulk-xlsx');
+    var pdfButton = document.getElementById('billing-bulk-pdf');
     var currentPage = 1;
     var rowLimit = 10;
     var sortKey = 'date';
@@ -462,7 +465,7 @@ $environmentLabel = defined('ENVIRONMENT') && ENVIRONMENT === 'production' ? 'Pr
         || (filters.payment === 'to_send' && row.getAttribute('data-status') === 'issued' && row.getAttribute('data-email-sent') === '0')
         || (filters.payment === 'overdue' && row.getAttribute('data-overdue') === '1')
         || (filters.payment === 'unpaid' && row.getAttribute('data-status') === 'issued' && row.getAttribute('data-payment') === 'unpaid')
-        || (filters.payment === 'paid' && row.getAttribute('data-payment') === 'paid');
+        || (filters.payment === 'paid' && row.getAttribute('data-status') === 'issued' && row.getAttribute('data-payment') === 'paid');
       return (!term || normalize(row.getAttribute('data-search')).indexOf(term) !== -1)
         && (filters.status === 'all' || row.getAttribute('data-status') === filters.status)
         && paymentMatches
@@ -500,7 +503,10 @@ $environmentLabel = defined('ENVIRONMENT') && ENVIRONMENT === 'production' ? 'Pr
         bulkInputs.appendChild(hidden);
       });
       bulkBar.hidden = selected.length === 0;
-      bulkButton.disabled = selected.length === 0;
+      bulkButton.disabled = selected.length === 0 || !selected.every(function (input) { return input.getAttribute('data-ts-eligible') === '1'; });
+      csvButton.disabled = selected.length === 0;
+      xlsxButton.disabled = selected.length === 0;
+      pdfButton.disabled = selected.length === 0;
       bulkSummary.textContent = selected.length + (selected.length === 1 ? ' fattura selezionata' : ' fatture selezionate');
 
       if (selectAll) {
@@ -515,10 +521,10 @@ $environmentLabel = defined('ENVIRONMENT') && ENVIRONMENT === 'production' ? 'Pr
         var allMatchingSelected = matchingEligible.length > 0 && matchingEligible.every(function (input) { return input.checked; });
         selectAllFiltered.disabled = matchingEligible.length === 0;
         selectAllFilteredLabel.textContent = matchingEligible.length === 0
-          ? "Nessuna fattura disponibile all'invio TS"
+          ? "Nessuna fattura disponibile"
           : (allMatchingSelected
-            ? 'Deseleziona tutte le ' + matchingEligible.length + " fatture disponibili all'invio TS"
-            : 'Seleziona tutte le ' + matchingEligible.length + " fatture disponibili all'invio TS");
+            ? 'Deseleziona tutte le ' + matchingEligible.length + " fatture disponibili"
+            : 'Seleziona tutte le ' + matchingEligible.length + " fatture disponibili");
       }
     }
 
@@ -527,7 +533,8 @@ $environmentLabel = defined('ENVIRONMENT') && ENVIRONMENT === 'production' ? 'Pr
       search.value = '';
       period.value = 'all';
       Array.prototype.slice.call(root.querySelectorAll('.billing-filter-segment button')).forEach(function (button) {
-        button.classList.toggle('is-active', button.getAttribute('data-filter-value') === 'all');
+        var group = button.parentNode.getAttribute('data-filter-group');
+        button.classList.toggle('is-active', button.getAttribute('data-filter-value') === filters[group]);
       });
       currentPage = 1;
       render();
@@ -637,6 +644,12 @@ $environmentLabel = defined('ENVIRONMENT') && ENVIRONMENT === 'production' ? 'Pr
     }
     bulkForm.addEventListener('submit', function (event) {
       var selected = selectedInputs();
+      if (event.submitter === csvButton || event.submitter === pdfButton || event.submitter === xlsxButton) {
+        event.preventDefault();
+        if (selected.length > 0) window.downloadSelectedBillingCsv(bulkForm, event.submitter, csvButton.formAction, syncBulkSelection, event.submitter === pdfButton ? 'pdf' : (event.submitter === xlsxButton ? 'xlsx' : 'csv'));
+        return;
+      }
+      if (bulkButton.disabled) { event.preventDefault(); return; }
       if (selected.length === 0 || !window.confirm('Inviare a TS ' + selected.length + (selected.length === 1 ? ' fattura selezionata?' : ' fatture selezionate?'))) {
         event.preventDefault();
       }

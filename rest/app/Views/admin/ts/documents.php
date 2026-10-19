@@ -89,6 +89,15 @@ $error = trim((string) ($error ?? ''));
           <?php endif; ?>
 
           <div class="box box-warning">
+            <form id="billing-ts-export-form" method="post" action="<?= site_url('admin/fatturazione-documenti/export-selezionate') ?>" style="padding:12px;">
+              <?= csrf_field() ?>
+              <input type="hidden" name="return_to" value="ts_documents">
+              <div id="billing-ts-export-inputs"></div>
+              <button class="btn btn-default btn-sm" id="billing-ts-export-btn" type="submit" disabled><i class="fa fa-download"></i> CSV</button>
+              <button class="btn btn-default btn-sm" id="billing-ts-xlsx-btn" type="submit" disabled><i class="fa fa-file-excel-o"></i> XLSX</button>
+              <button class="btn btn-default btn-sm" id="billing-ts-pdf-btn" type="submit" disabled><i class="fa fa-download"></i> PDF / ZIP</button>
+              <span id="billing-ts-export-count" aria-live="polite">0 fatture selezionate</span>
+            </form>
             <div class="box-header with-border">
               <h3 class="box-title">Fatture da inviare a TS</h3>
             </div>
@@ -123,7 +132,7 @@ $error = trim((string) ($error ?? ''));
                       <tbody>
                         <?php foreach ($pendingBillingDocuments as $row): ?>
                           <tr>
-                            <td><input type="checkbox" class="billing-ts-check" <?= !empty($row['blocking_reason'])?'disabled':'' ?> name="billing_document_ids[]" value="<?= (int) ($row['id_billing_document'] ?? 0) ?>"></td>
+                            <td><input type="checkbox" class="billing-csv-check <?= empty($row['blocking_reason']) ? 'billing-ts-check' : '' ?>" <?= empty($row['blocking_reason']) ? 'name="billing_document_ids[]"' : '' ?> value="<?= (int) ($row['id_billing_document'] ?? 0) ?>" aria-label="Seleziona fattura <?= esc((string) ($row['document_number'] ?? '')) ?>"></td>
                             <td>#<?= (int) ($row['id_billing_document'] ?? 0) ?> / <?= esc((string) ($row['document_number'] ?? '-')) ?></td>
                             <td><?= esc((string) ($row['patient_name'] ?? '-')) ?></td>
                             <td><?= esc((string) ($row['issue_date'] ?? '-')) ?></td>
@@ -176,6 +185,7 @@ $error = trim((string) ($error ?? ''));
                   <table class="table table-bordered table-striped" style="margin-bottom:0;">
                     <thead>
                       <tr>
+                        <th><input type="checkbox" id="billing-csv-sent-all" aria-label="Seleziona tutte le fatture già inviate per CSV"></th>
                         <th>Fattura</th>
                         <th>Cliente</th>
                         <th>Emissione</th>
@@ -189,6 +199,7 @@ $error = trim((string) ($error ?? ''));
                     <tbody>
                       <?php foreach ($sentBillingDocuments as $row): ?>
                         <tr>
+                          <td><input type="checkbox" class="billing-csv-check billing-csv-sent-check" value="<?= (int) $row['id_billing_document'] ?>" aria-label="Seleziona fattura <?= esc((string) ($row['document_number'] ?? '')) ?> per CSV"></td>
                           <td>#<?= (int) ($row['id_billing_document'] ?? 0) ?> / <?= esc((string) ($row['document_number'] ?? '-')) ?></td>
                           <td><?= esc((string) ($row['patient_name'] ?? '-')) ?></td>
                           <td><?= esc((string) ($row['issue_date'] ?? '-')) ?></td>
@@ -308,8 +319,39 @@ $error = trim((string) ($error ?? ''));
 </div>
 <script src="<?= base_url('public/plugins/jQuery/jQuery-2.1.4.min.js') ?>"></script>
 <script src="<?= base_url('public/bootstrap/js/bootstrap.min.js') ?>"></script>
+<script src="<?= base_url('public/assets/js/billing-csv-export.js') ?>"></script>
 <script>
   (function () {
+    var csvChecks = Array.prototype.slice.call(document.querySelectorAll('.billing-csv-check'));
+    var exportForm = document.getElementById('billing-ts-export-form');
+    function syncExportSelection() {
+      var selected = csvChecks.filter(function (input) { return input.checked; });
+      var container = document.getElementById('billing-ts-export-inputs');
+      container.innerHTML = '';
+      selected.forEach(function (input) {
+        var hidden = document.createElement('input');
+        hidden.type = 'hidden'; hidden.name = 'billing_document_ids[]'; hidden.value = input.value;
+        container.appendChild(hidden);
+      });
+      document.getElementById('billing-ts-export-btn').disabled = selected.length === 0;
+      document.getElementById('billing-ts-xlsx-btn').disabled = selected.length === 0;
+      document.getElementById('billing-ts-pdf-btn').disabled = selected.length === 0;
+      document.getElementById('billing-ts-export-count').textContent = selected.length + ' fatture selezionate';
+    }
+    csvChecks.forEach(function (input) { input.addEventListener('change', syncExportSelection); });
+    var sentAll = document.getElementById('billing-csv-sent-all');
+    if (sentAll) sentAll.addEventListener('change', function () {
+      document.querySelectorAll('.billing-csv-sent-check').forEach(function (input) { input.checked = sentAll.checked; });
+      syncExportSelection();
+    });
+    exportForm.addEventListener('submit', function (event) {
+      event.preventDefault();
+      syncExportSelection();
+      if (csvChecks.some(function (input) { return input.checked; })) {
+        window.downloadSelectedBillingCsv(exportForm, event.submitter || document.getElementById('billing-ts-export-btn'), exportForm.action, syncExportSelection, event.submitter && event.submitter.id === 'billing-ts-pdf-btn' ? 'pdf' : (event.submitter && event.submitter.id === 'billing-ts-xlsx-btn' ? 'xlsx' : 'csv'));
+      }
+    });
+    syncExportSelection();
     var checkAll = document.getElementById('billing-ts-check-all');
     var bulkButton = document.getElementById('billing-ts-bulk-send-btn');
     var rowChecks = Array.prototype.slice.call(document.querySelectorAll('.billing-ts-check:not(:disabled)'));
@@ -319,6 +361,7 @@ $error = trim((string) ($error ?? ''));
     }
 
     function syncBulkState() {
+      syncExportSelection();
       var anyChecked = rowChecks.some(function (input) {
         return input.checked;
       });

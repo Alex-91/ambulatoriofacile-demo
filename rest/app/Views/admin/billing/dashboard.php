@@ -47,6 +47,9 @@ $environmentLabel = defined('ENVIRONMENT') && ENVIRONMENT === 'production' ? 'Pr
                 </div>
               </div>
               <div class="billing-module-actions">
+                <?php if (session_has_tenant_master_access()): ?>
+                <a class="billing-action billing-action-secondary" href="<?= site_url('admin/fatturazione-commercialista') ?>"><i class="fa fa-user"></i> Commercialista</a>
+                <?php endif ?>
                 <a class="billing-action billing-action-secondary" href="<?= site_url('admin/fatturazione-scadenzario') ?>">
                   <i class="fa fa-calendar"></i> Scadenzario
                 </a>

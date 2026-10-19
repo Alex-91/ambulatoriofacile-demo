@@ -21,6 +21,13 @@ public function __construct()
     {
         parent::__construct();
 
+        // Magic links and exported patient data must never enter the debug toolbar.
+        $uri = (string) ($_SERVER['REQUEST_URI'] ?? '');
+        if (preg_match('~/(?:commercialista|admin/fatturazione-commercialista)(?:[/?]|$)~', $uri)
+            || session()->has('accountant_email')) {
+            $this->required['after'] = array_values(array_diff($this->required['after'], ['toolbar', 'performance']));
+        }
+
         if ($this->isMaintenanceEnabled()) {
             $this->required['after'] = array_values(array_filter(
                 $this->required['after'],
@@ -40,6 +47,7 @@ public function __construct()
      */
     public array $aliases = [
         'navigationtest' => \App\Filters\NavigationTestFilter::class,
+        'accountantisolation' => \App\Filters\AccountantIsolationFilter::class,
         'csrf'          => CSRF::class,
         'fsecsrf'       => \App\Filters\FseCsrfFilter::class,
         'polycliniccsrf' => \App\Filters\BillingCsrfFilter::class,
@@ -99,16 +107,20 @@ public function __construct()
      * @var array<string, array<string, array<string, string>>>|array<string, list<string>>
      */
     public array $globals = [
+        'after' => ['accountantisolation'],
         'before' => [
+            'accountantisolation',
             'cors',
-            'platformimpersonation',
-            'tenantruntime',
+            'platformimpersonation' => ['except' => ['commercialista', 'commercialista/*']],
+            'tenantruntime' => ['except' => ['commercialista', 'commercialista/*']],
             'personnelaccess',
-            'cryptodb',
+            'cryptodb' => ['except' => ['commercialista', 'commercialista/*']],
             'auth' => [
                 'except' => [
                     '',
                     '/',
+                    'commercialista',
+                    'commercialista/*',
                     'access',
                     'access/*',
                     'vertical/*',
@@ -196,8 +208,8 @@ public function __construct()
         'fsecsrf' => ['before' => ['admin/fse2', 'admin/fse2/*', 'spazio/fse2', 'spazio/fse2/*', 'login/spazio/fse2', 'login/spazio/fse2/*'],
                    'after' => ['admin/fse2', 'admin/fse2/*', 'spazio/fse2', 'spazio/fse2/*', 'login/spazio/fse2', 'login/spazio/fse2/*']],
         'billingcsrf' => [
-            'before' => ['admin/fatturazione-strutture', 'admin/fatturazione-strutture/*', 'admin/fatturazione-documenti', 'admin/fatturazione-documenti/*', 'admin/fatturazione-scadenzario', 'admin/fatturazione-documento', 'admin/fatturazione-documento/*', 'spazio/fatturazione', 'spazio/fatturazione/*', 'login/spazio/fatturazione', 'login/spazio/fatturazione/*', 'admin/sistema-ts', 'admin/sistema-ts/*', 'admin/fatturazione-ts', 'admin/fatturazione-ts/*', 'spazio/sistema-ts', 'spazio/sistema-ts/*', 'spazio/fatturazione-ts', 'spazio/fatturazione-ts/*', 'login/spazio/sistema-ts', 'login/spazio/sistema-ts/*', 'login/spazio/fatturazione-ts', 'login/spazio/fatturazione-ts/*'],
-            'after' => ['admin/fatturazione-strutture', 'admin/fatturazione-strutture/*', 'admin/fatturazione-documenti', 'admin/fatturazione-documenti/*', 'admin/fatturazione-scadenzario', 'admin/fatturazione-documento', 'admin/fatturazione-documento/*', 'spazio/fatturazione', 'spazio/fatturazione/*', 'login/spazio/fatturazione', 'login/spazio/fatturazione/*', 'admin/sistema-ts', 'admin/sistema-ts/*', 'admin/fatturazione-ts', 'admin/fatturazione-ts/*', 'spazio/sistema-ts', 'spazio/sistema-ts/*', 'spazio/fatturazione-ts', 'spazio/fatturazione-ts/*', 'login/spazio/sistema-ts', 'login/spazio/sistema-ts/*', 'login/spazio/fatturazione-ts', 'login/spazio/fatturazione-ts/*'],
+            'before' => ['commercialista', 'commercialista/*', 'admin/fatturazione-commercialista', 'admin/fatturazione-commercialista/*', 'admin/fatturazione-strutture', 'admin/fatturazione-strutture/*', 'admin/fatturazione-documenti', 'admin/fatturazione-documenti/*', 'admin/fatturazione-scadenzario', 'admin/fatturazione-documento', 'admin/fatturazione-documento/*', 'spazio/fatturazione', 'spazio/fatturazione/*', 'login/spazio/fatturazione', 'login/spazio/fatturazione/*', 'admin/sistema-ts', 'admin/sistema-ts/*', 'admin/fatturazione-ts', 'admin/fatturazione-ts/*', 'spazio/sistema-ts', 'spazio/sistema-ts/*', 'spazio/fatturazione-ts', 'spazio/fatturazione-ts/*', 'login/spazio/sistema-ts', 'login/spazio/sistema-ts/*', 'login/spazio/fatturazione-ts', 'login/spazio/fatturazione-ts/*'],
+            'after' => ['commercialista', 'commercialista/*', 'admin/fatturazione-commercialista', 'admin/fatturazione-commercialista/*', 'admin/fatturazione-strutture', 'admin/fatturazione-strutture/*', 'admin/fatturazione-documenti', 'admin/fatturazione-documenti/*', 'admin/fatturazione-scadenzario', 'admin/fatturazione-documento', 'admin/fatturazione-documento/*', 'spazio/fatturazione', 'spazio/fatturazione/*', 'login/spazio/fatturazione', 'login/spazio/fatturazione/*', 'admin/sistema-ts', 'admin/sistema-ts/*', 'admin/fatturazione-ts', 'admin/fatturazione-ts/*', 'spazio/sistema-ts', 'spazio/sistema-ts/*', 'spazio/fatturazione-ts', 'spazio/fatturazione-ts/*', 'login/spazio/sistema-ts', 'login/spazio/sistema-ts/*', 'login/spazio/fatturazione-ts', 'login/spazio/fatturazione-ts/*'],
         ],
     ];
 

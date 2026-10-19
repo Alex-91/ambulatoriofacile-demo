@@ -52,6 +52,17 @@ class BillingDocumentSettingsService
         ];
     }
 
+    /** Read-only preferences for exports; access is checked by the calling controller. */
+    public function resolveXlsxColumns(int $tenantId): array
+    {
+        if ($tenantId <= 0) { throw new \InvalidArgumentException('Spazio non valido.'); }
+        $feature = $this->featuresModel->findByKey(BillingModule::FEATURE_KEY);
+        $row = $feature ? $this->preferencesModel->where('id_tenant', $tenantId)
+            ->where('id_feature', (int) $feature['id_feature'])->first() : null;
+        $config = $this->decodeConfig((string) ($row['config_json'] ?? ''));
+        return BillingXlsxExportService::validateColumns($config['xlsx_columns'] ?? BillingXlsxExportService::defaultColumns());
+    }
+
     /**
      * @param array<string, mixed> $rawConfig
      * @return array<string, mixed>
@@ -68,6 +79,7 @@ class BillingDocumentSettingsService
             throw new \RuntimeException('Feature Fatturazione non trovata nel catalogo piattaforma.');
         }
 
+        $rawConfig['xlsx_columns'] = $rawConfig['xlsx_columns'] ?? $current['config']['xlsx_columns'] ?? BillingXlsxExportService::defaultColumns();
         $rawConfig['numbering'] = $rawConfig['numbering'] ?? $current['config']['numbering'] ?? [];
         $config = $this->sanitizeConfig($rawConfig);
         $ok = $this->preferencesModel->setPreference(
@@ -149,6 +161,7 @@ class BillingDocumentSettingsService
     public function defaultConfig(): array
     {
         return [
+            'xlsx_columns' => BillingXlsxExportService::defaultColumns(),
             'version' => 2,
             'document_title' => 'Documento fatturazione',
             'document_code_prefix' => 'FT',
@@ -328,6 +341,7 @@ class BillingDocumentSettingsService
         }
 
         return [
+            'xlsx_columns' => BillingXlsxExportService::validateColumns($rawConfig['xlsx_columns'] ?? BillingXlsxExportService::defaultColumns()),
             'version' => 2,
             'document_title' => $this->sanitizeText(
                 // The legacy preferences remain available when opening an older invoice.

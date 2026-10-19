@@ -69,6 +69,62 @@ class BillingReportsController extends BillingAdminBaseController
             ->setBody($csv);
     }
 
+    public function exportSelected()
+    {
+        if ($guard = $this->ensureAccess()) {
+            return $guard;
+        }
+        $scope = $this->resolveTenantScope();
+        $this->response->setHeader('X-CSRF-Name', csrf_token())->setHeader('X-CSRF-Hash', csrf_hash());
+        try {
+            $tenantId = (int) ($scope['tenant_id'] ?? 0);
+            $format = (string) ($this->request->getPost('export_format') ?? 'csv');
+            if (!in_array($format, ['csv', 'pdf', 'xlsx'], true)) {
+                throw new \InvalidArgumentException('Formato di esportazione non valido.');
+            }
+            $rows = $this->reports->selectedDocumentsForTenant($tenantId, $this->request->getPost('billing_document_ids'));
+            if ($format === 'pdf') {
+                $file = (new \App\Services\BillingDocumentExportService())->build($tenantId, $rows);
+            } elseif ($format === 'xlsx') {
+                $file = ['body' => (new \App\Services\BillingXlsxExportService())->buildForTenant($tenantId, ['documents' => $rows]),
+                    'type' => \App\Services\BillingXlsxExportService::MIME, 'name' => 'fatture-selezionate.xlsx'];
+            } else {
+                $file = ['body' => $this->reports->buildAccountantCsv(['documents' => $rows, 'include_status' => true]),
+                    'type' => 'text/csv; charset=UTF-8', 'name' => 'fatture-selezionate-commercialista.csv'];
+            }
+        } catch (\Throwable $e) {
+            $message = $e instanceof \InvalidArgumentException || $e instanceof \RuntimeException
+                ? $e->getMessage() : 'Impossibile generare le fatture selezionate. Riprova.';
+            log_message('error', 'Selected billing export failed: ' . $e->getMessage());
+            if ($this->request->isAJAX()) {
+                return $this->response->setStatusCode(422)->setHeader('Cache-Control', 'no-store')->setJSON(['error' => $message]);
+            }
+            $target = $this->request->getPost('return_to') === 'ts_documents' ? 'admin/sistema-ts/documenti' : 'admin/fatturazione-documenti';
+            return redirect()->to(site_url($target))->with('errors', ['generic' => $message]);
+        }
+        return $this->response->setHeader('Content-Type', $file['type'])
+            ->setHeader('Content-Disposition', 'attachment; filename="' . $file['name'] . '"')
+            ->setHeader('Cache-Control', 'no-store, max-age=0')->setHeader('X-Content-Type-Options', 'nosniff')->setBody($file['body']);
+    }
+
+    public function exportXlsx()
+    {
+        if ($guard = $this->ensureAccess()) { return $guard; }
+        try {
+            $scope = $this->resolveTenantScope();
+            $tenantId = (int) ($scope['tenant_id'] ?? 0);
+            $report = $this->reports->buildReportForTenant($tenantId, (array) $this->request->getGet());
+            if (empty($report['table_available'])) { throw new \RuntimeException('Archivio fatture non disponibile.'); }
+            $body = (new \App\Services\BillingXlsxExportService())->buildForTenant($tenantId, $report);
+            return $this->response->setHeader('Content-Type', \App\Services\BillingXlsxExportService::MIME)
+                ->setHeader('Content-Disposition', 'attachment; filename="fatture-' . $this->periodLabelForFilename($report) . '.xlsx"')
+                ->setHeader('Cache-Control', 'no-store, private')->setHeader('X-Content-Type-Options', 'nosniff')->setBody($body);
+        } catch (\Throwable $e) {
+            log_message('error', 'Billing XLSX export failed: ' . $e->getMessage());
+            return redirect()->to(site_url('admin/fatturazione-statistiche'))->with('errors', ['generic' => 'Impossibile generare il file Excel. Riprova con un periodo più breve.']);
+        }
+    }
+
     public function exportPdf()
     {
         if ($guard = $this->ensureAccess()) {

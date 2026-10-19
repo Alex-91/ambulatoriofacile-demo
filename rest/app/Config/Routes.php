@@ -42,6 +42,19 @@ $routes->set404Override('App\Controllers\Errors::redirectHome');
 //$routes->get('agenda', 'Home::agenda');
 //$routes->get('chat',  'Home::chat');
 
+$routes->group('commercialista', [], static function ($routes) {
+    $routes->get('/', 'AccountantController::index');
+    $routes->post('accesso', 'AccountantController::requestLogin');
+    $routes->get('conferma', 'AccountantController::confirm');
+    $routes->get('accetta', 'AccountantController::acceptForm');
+    $routes->post('accetta', 'AccountantController::accept');
+    $routes->post('esci', 'AccountantController::logout');
+    $routes->post('medico/(:num)/export-selezionate', 'AccountantController::exportSelected/$1');
+    $routes->get('medico/(:num)', 'AccountantController::documents/$1');
+    $routes->get('medico/(:num)/export/(:segment)', 'AccountantController::export/$1/$2');
+    $routes->get('medico/(:num)/fattura/(:num)', 'AccountantController::invoice/$1/$2');
+});
+
 $routes->get('login', 'Login\LoginController::index');
 $routes->head('login', 'Login\LoginController::index');
 $routes->get('pwa-manifest', 'PwaController::loginManifest');
@@ -272,6 +285,11 @@ $routes->group('admin', static function($routes){
     $routes->post('fatturazione-documenti/elimina/(:num)', 'Admin\BillingDocumentsController::delete/$1');
     $routes->get('fatturazione-documenti/preview/(:num)', 'Admin\BillingDocumentsController::preview/$1');
     $routes->get('fatturazione-documenti/pdf/(:num)', 'Admin\BillingDocumentsController::downloadPdf/$1');
+    $routes->get('fatturazione-commercialista', 'Admin\AccountantDelegationsController::index');
+    $routes->post('fatturazione-commercialista/invita', 'Admin\AccountantDelegationsController::invite');
+    $routes->post('fatturazione-commercialista/revoca/(:num)', 'Admin\AccountantDelegationsController::revoke/$1');
+    $routes->post('fatturazione-documenti/export-selezionate', 'Admin\BillingReportsController::exportSelected');
+    $routes->get('fatturazione-statistiche/export-xlsx', 'Admin\BillingReportsController::exportXlsx');
     $routes->get('fatturazione-statistiche', 'Admin\BillingReportsController::index');
     $routes->get('fatturazione-statistiche/export', 'Admin\BillingReportsController::export');
     $routes->get('fatturazione-statistiche/export-pdf', 'Admin\BillingReportsController::exportPdf');

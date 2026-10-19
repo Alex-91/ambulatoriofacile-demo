@@ -14,6 +14,7 @@ $schemaMessage = trim((string) ($report['schema_message'] ?? ''));
 $errors = is_array($errors ?? null) ? $errors : [];
 $exportUrl = site_url('admin/fatturazione-statistiche/export') . '?' . http_build_query($filters);
 $exportPdfUrl = site_url('admin/fatturazione-statistiche/export-pdf') . '?' . http_build_query($filters);
+$exportXlsxUrl = site_url('admin/fatturazione-statistiche/export-xlsx') . '?' . http_build_query($filters);
 $maxMonthlyAmount = 0.0;
 foreach ($monthlyBreakdown as $month) {
     $maxMonthlyAmount = max($maxMonthlyAmount, (float) ($month['amount'] ?? 0));
@@ -276,14 +277,13 @@ if (trim((string) ($filters['date_from'] ?? '')) !== '' || trim((string) ($filte
                     <h2>Documenti del report</h2>
                     <p><?= count($documents) ?> risultati &middot; <?= esc($periodText) ?></p>
                   </div>
-                  <?php if ($documents !== []): ?>
                     <label class="sr-only" for="billing-report-export-format">Formato esportazione</label>
-                    <select class="billing-report-export-select" id="billing-report-export-format" data-csv-url="<?= esc($exportUrl) ?>" data-pdf-url="<?= esc($exportPdfUrl) ?>">
+                    <select class="billing-report-export-select" id="billing-report-export-format" data-csv-url="<?= esc($exportUrl) ?>" data-pdf-url="<?= esc($exportPdfUrl) ?>" data-xlsx-url="<?= esc($exportXlsxUrl) ?>">
                       <option value="">Scarica report...</option>
                       <option value="csv">Scarica CSV</option>
+                      <option value="xlsx">Scarica XLSX</option>
                       <option value="pdf">Scarica PDF</option>
                     </select>
-                  <?php endif; ?>
                 </div>
                 <?php if ($documents === []): ?>
                   <div class="billing-report-empty">
@@ -332,7 +332,7 @@ if (trim((string) ($filters['date_from'] ?? '')) !== '' || trim((string) ($filte
                 <div class="billing-report-panel-body" style="padding-top:0;">
                   <div class="billing-report-accountant-note">
                     <i class="fa fa-file-excel-o"></i>
-                    <div><strong>Esportazione dati</strong><br><span>Scegli CSV per lavorare i dati in Excel oppure PDF per un riepilogo pronto da condividere. Entrambi rispettano i filtri correnti.</span></div>
+                    <div><strong>Esporta report</strong><br><span>Scegli XLSX per le colonne configurate dal medico, CSV per tutti i dati oppure PDF per un riepilogo pronto da condividere. Tutti i formati rispettano i filtri correnti.</span></div>
                   </div>
                 </div>
               </section>
@@ -392,7 +392,7 @@ if (trim((string) ($filters['date_from'] ?? '')) !== '' || trim((string) ($filte
         var format = exportFormat.value;
         var targetUrl = format === 'csv'
           ? exportFormat.getAttribute('data-csv-url')
-          : (format === 'pdf' ? exportFormat.getAttribute('data-pdf-url') : '');
+          : (format === 'pdf' ? exportFormat.getAttribute('data-pdf-url') : (format === 'xlsx' ? exportFormat.getAttribute('data-xlsx-url') : ''));
         exportFormat.value = '';
         if (targetUrl) {
           window.location.href = targetUrl;
