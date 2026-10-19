@@ -18,7 +18,9 @@ final class WhatsAppBookingPreview
     public function summary(array $c,array $s): string
     {
         $visits=array_column($this->catalog['visits'],null,'id');$doctors=array_column($this->catalog['doctors'],null,'id');
-        return "Riepilogo dimostrativo\n".($visits[$s['visit_id']]['label']??'Prestazione')."\n".($doctors[$c['doctor_id']]['label']??'Medico')."\n".'Sede dell’agenda (dimostrativa)'."\n".$s['day'].' alle '.$s['slot']['label']."\n".trim(($s['patient']['nome']??'').' '.($s['patient']['cognome']??''));
+        return "Riepilogo dimostrativo\n".($c['single_visit']?'Appuntamento · 30 minuti':($visits[$s['visit_id']??0]['label']??'Prestazione'))."\n".($doctors[$c['doctor_id']]['label']??'Medico')."\n".'Sede dell’agenda (dimostrativa)'."\n".$s['day'].' alle '.$s['slot']['label']."\n".trim(($s['patient']['nome']??'').' '.($s['patient']['cognome']??''));
     }
+    public function cancellations(array $c,string $cf): array {return $this->patientFound?[['id'=>1,'label'=>date('d/m/Y',strtotime('+2 days')).' 09:00 · Sede dimostrativa']]:[];}
+    public function cancel(array $c,array $s): void {}
     public function book(array $c,array $s): int {return 0;}
 }

@@ -26,13 +26,18 @@ const server=http.createServer(async(req,res)=>{
  try{
   await page.goto('http://127.0.0.1:'+server.address().port);
   for(const key of ['location','location_id','lead_hours','window_days'])assert.equal(await page.locator('[name="booking['+key+']"]').count(),0,'Agenda field must not be configurable: '+key);
-  await page.locator('#wb-single').check();assert(await page.locator('#wb-order').isHidden());assert(await page.locator('#wb-default').isVisible());
+  await page.locator('#wb-single').check();assert(await page.locator('#wb-order').isHidden());assert.equal(await page.locator('[name="booking[default_visit_id]"]').count(),0);
   await page.locator('#wb-patient').selectOption('name');assert(await page.locator('#wb-unknown').isHidden());
   const send=async(text,expected)=>{await page.locator('#wb-message').fill(text);await page.locator('#wb-chat-form button').click();await page.waitForFunction(s=>document.querySelector('#wb-chat').lastElementChild.textContent.includes(s),expected);};
-  await send('prenota','Quale giorno');await send('1','orario');await send('1','nome');await send('Andrea','cognome');await send('Esempio','Riepilogo');await send('1','confermato');
+  await send('Buongiorno','Prenota un appuntamento');await page.locator('#wb-chat button:enabled').filter({hasText:'Prenota'}).click();await page.waitForFunction(()=>document.querySelector('#wb-chat').lastElementChild.textContent.includes('Quale giorno'));await send('1','orario');await send('1','nome');await send('Andrea','cognome');await send('Esempio','Riepilogo');await send('1','confermato');
   await page.locator('[data-panel="availability"]').click();assert(await page.locator('#wb-visits').isHidden());await page.locator('select[name="booking[confirmation]"]').selectOption('manual');
   await page.locator('[data-panel="flow"]').click();await page.locator('#wb-patient').selectOption('cf');assert(await page.locator('#wb-unknown').isVisible());
-  await send('prenota','Quale giorno');await send('1','orario');await send('1','codice fiscale');await send('RSSMRA85T10A562S','Riepilogo');await send('1','non è ancora confermato');
+  await send('Buongiorno','Prenota un appuntamento');await page.locator('#wb-chat button:enabled').filter({hasText:'Prenota'}).click();await page.waitForFunction(()=>document.querySelector('#wb-chat').lastElementChild.textContent.includes('Quale giorno'));await send('1','orario');await send('1','codice fiscale');await send('RSSMRA85T10A562S','Riepilogo');await send('1','non è ancora confermato');
+  await send('Ciao','Prenota un appuntamento');
+  await page.locator('#wb-chat button:enabled').filter({hasText:'Annulla appuntamento'}).click();await page.waitForFunction(()=>document.querySelector('#wb-chat').lastElementChild.textContent.includes('codice fiscale'));
+  await send('RSSMRA85T10A562S','Quale appuntamento');
+  await page.locator('#wb-chat button:enabled').first().click();await page.waitForFunction(()=>document.querySelector('#wb-chat').lastElementChild.textContent.includes('Mantieni'));
+  await page.locator('#wb-chat button:enabled').filter({hasText:'Annulla appuntamento'}).click();await page.waitForFunction(()=>document.querySelector('#wb-chat').lastElementChild.textContent.includes('Appuntamento annullato'));
   fs.mkdirSync(path.join(root,'output/whatsapp-booking'),{recursive:true});await page.screenshot({path:path.join(root,'output/whatsapp-booking/desktop.png'),fullPage:true});
   for(const width of [768,390,320]){await page.setViewportSize({width,height:900});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+1),'Horizontal overflow at '+width);}
   await page.screenshot({path:path.join(root,'output/whatsapp-booking/mobile.png'),fullPage:true});assert.deepEqual(errors,[]);

@@ -2,6 +2,7 @@ package gateway
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"go.mau.fi/whatsmeow"
+	waBinary "go.mau.fi/whatsmeow/binary"
 	waE2E "go.mau.fi/whatsmeow/proto/waE2E"
 	"go.mau.fi/whatsmeow/store/sqlstore"
 	"go.mau.fi/whatsmeow/types"
@@ -253,10 +255,51 @@ func (m *Manager) Logout(ctx context.Context, tenantID int64, accountID string) 
 	return nil
 }
 
+type ReplyChoice struct {
+	ID          string `json:"id"`
+	Title       string `json:"title"`
+	Description string `json:"description,omitempty"`
+}
+
 func (m *Manager) SendText(ctx context.Context, tenantID int64, accountID, phone, text string) (SendResult, error) {
+	return m.sendMessage(ctx, tenantID, accountID, phone, text, nil)
+}
+func (m *Manager) SendInteractive(ctx context.Context, tenantID int64, accountID, phone, text string, choices []ReplyChoice) (SendResult, error) {
+	if len(choices) < 1 || len(choices) > 3 {
+		return SendResult{}, fmt.Errorf("provide between 1 and 3 choices")
+	}
+	return m.sendMessage(ctx, tenantID, accountID, phone, text, choices)
+}
+func buildReplyMessage(text string, choices []ReplyChoice) (*waE2E.Message, error) {
+	if len(choices) == 0 {
+		return &waE2E.Message{Conversation: proto.String(text)}, nil
+	}
+	if len(choices) > 3 {
+		return nil, fmt.Errorf("too many choices")
+	}
+	buttons := []*waE2E.InteractiveMessage_NativeFlowMessage_NativeFlowButton{}
+	seen := map[string]bool{}
+	for _, choice := range choices {
+		if !strings.HasPrefix(choice.ID, "wa:") || len(choice.ID) > 100 || len([]rune(choice.Title)) < 1 || len([]rune(choice.Title)) > 20 || seen[choice.ID] {
+			return nil, fmt.Errorf("invalid reply choice")
+		}
+		seen[choice.ID] = true
+		params, _ := json.Marshal(map[string]string{"display_text": choice.Title, "id": choice.ID})
+		buttons = append(buttons, &waE2E.InteractiveMessage_NativeFlowMessage_NativeFlowButton{Name: proto.String("quick_reply"), ButtonParamsJSON: proto.String(string(params))})
+	}
+	return &waE2E.Message{InteractiveMessage: &waE2E.InteractiveMessage{
+		Body:               &waE2E.InteractiveMessage_Body{Text: proto.String(text)},
+		InteractiveMessage: &waE2E.InteractiveMessage_NativeFlowMessage_{NativeFlowMessage: &waE2E.InteractiveMessage_NativeFlowMessage{Buttons: buttons, MessageVersion: proto.Int32(3)}},
+	}}, nil
+}
+func (m *Manager) sendMessage(ctx context.Context, tenantID int64, accountID, phone, text string, choices []ReplyChoice) (SendResult, error) {
 	text = strings.TrimSpace(text)
 	if text == "" || len([]rune(text)) > 4096 {
 		return SendResult{}, fmt.Errorf("text must contain between 1 and 4096 characters")
+	}
+	message, err := buildReplyMessage(text, choices)
+	if err != nil {
+		return SendResult{}, err
 	}
 	normalizedPhone, err := NormalizePhone(phone)
 	if err != nil {
@@ -279,7 +322,12 @@ func (m *Manager) SendText(ctx context.Context, tenantID int64, accountID, phone
 	}
 
 	to := types.NewJID(normalizedPhone, types.DefaultUserServer)
-	response, err := current.client.SendMessage(ctx, to, &waE2E.Message{Conversation: proto.String(text)})
+	extra := whatsmeow.SendRequestExtra{}
+	if len(choices) > 0 {
+		nodes := []waBinary.Node{{Tag: "biz", Content: []waBinary.Node{{Tag: "interactive", Attrs: waBinary.Attrs{"type": "native_flow", "v": "1"}, Content: []waBinary.Node{{Tag: "native_flow", Attrs: waBinary.Attrs{"v": "9", "name": "mixed"}}}}}}}
+		extra.AdditionalNodes = &nodes
+	}
+	response, err := current.client.SendMessage(ctx, to, message, extra)
 	if err != nil {
 		current.setError(err)
 		return SendResult{}, err
@@ -623,6 +671,23 @@ func incomingSenderAddress(info types.MessageInfo) string {
 }
 
 func incomingMessageContent(message *waE2E.Message) (string, string) {
+	if reply := message.GetInteractiveResponseMessage(); reply != nil {
+		params := reply.GetNativeFlowResponseMessage().GetParamsJSON()
+		var data struct {
+			ID string `json:"id"`
+		}
+		if len(params) <= 4096 && json.Unmarshal([]byte(params), &data) == nil && strings.HasPrefix(data.ID, "wa:") && len(data.ID) <= 100 {
+			return data.ID, "text"
+		}
+		return "", "unsupported"
+	}
+	if reply := message.GetButtonsResponseMessage(); reply != nil {
+		return reply.GetSelectedButtonID(), "text"
+	}
+	if reply := message.GetListResponseMessage(); reply != nil {
+		return reply.GetSingleSelectReply().GetSelectedRowID(), "text"
+	}
+
 	if text := strings.TrimSpace(message.GetConversation()); text != "" {
 		return text, "text"
 	}

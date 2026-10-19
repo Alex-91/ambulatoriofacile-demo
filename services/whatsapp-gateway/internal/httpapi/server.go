@@ -32,6 +32,7 @@ func New(manager *gateway.Manager, authenticator *auth.Authenticator, logger *sl
 	mux.Handle("DELETE /v1/accounts/{accountID}/session", authenticator.Middleware(http.HandlerFunc(server.logout)))
 	mux.Handle("GET /v1/accounts/{accountID}/messages", authenticator.Middleware(http.HandlerFunc(server.incomingMessages)))
 	mux.Handle("POST /v1/accounts/{accountID}/messages/text", authenticator.Middleware(http.HandlerFunc(server.sendText)))
+	mux.Handle("POST /v1/accounts/{accountID}/messages/interactive", authenticator.Middleware(http.HandlerFunc(server.sendInteractive)))
 
 	return server.securityHeaders(server.recoverPanic(server.logRequests(mux)))
 }
@@ -138,6 +139,26 @@ func (s *Server) sendText(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (s *Server) sendInteractive(w http.ResponseWriter, r *http.Request) {
+	var request struct {
+		To      string                `json:"to"`
+		Text    string                `json:"text"`
+		Choices []gateway.ReplyChoice `json:"choices"`
+	}
+	if err := decodeJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_json", err.Error())
+		return
+	}
+	ctx, cancel := contextWithTimeout(r, 90*time.Second)
+	defer cancel()
+	result, err := s.manager.SendInteractive(ctx, auth.TenantID(r.Context()), r.PathValue("accountID"), request.To, request.Text, request.Choices)
+	if err != nil {
+		s.writeManagerError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "provider": "ambulatoriofacile-whatsapp-gateway", "message": result})
+}
+
 func (s *Server) incomingMessages(w http.ResponseWriter, r *http.Request) {
 	limit := 50
 	if rawLimit := strings.TrimSpace(r.URL.Query().Get("limit")); rawLimit != "" {
@@ -176,10 +197,10 @@ func (s *Server) incomingMessages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"ok":       true,
-		"count":    len(messages),
+		"ok":        true,
+		"count":     len(messages),
 		"direction": direction,
-		"messages": messages,
+		"messages":  messages,
 	})
 }
 

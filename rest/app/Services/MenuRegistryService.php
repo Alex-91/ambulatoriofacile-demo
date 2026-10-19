@@ -465,7 +465,7 @@ class MenuRegistryService
             ],
             [
                 'key' => 'spazio/chatbot-whatsapp', 'link' => 'spazio/chatbot-whatsapp',
-                'title' => 'Prenotazioni WhatsApp', 'icon' => 'fa-comments', 'order' => 2205,
+                'title' => 'Assistente WhatsApp', 'icon' => 'fa-comments', 'order' => 2205,
                 'group' => 'Console spazio', 'description' => 'Percorso di prenotazione e richieste alla segreteria.',
                 'route_prefixes' => ['spazio/chatbot-whatsapp', 'login/spazio/chatbot-whatsapp'],
             ],

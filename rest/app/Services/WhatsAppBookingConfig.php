@@ -6,8 +6,8 @@ final class WhatsAppBookingConfig
 {
     public static function defaults(): array
     {
-        return ['configured' => false, 'keywords' => ['prenota', 'appuntamento', 'visita'],
-            'order' => 'day', 'single_visit' => false, 'default_visit_id' => 0, 'visit_ids' => [],
+        return ['configured' => false, 'start_mode'=>'auto', 'idle_minutes'=>30, 'cancellation'=>true, 'keywords' => ['prenota', 'appuntamento', 'visita'],
+            'order' => 'day', 'single_visit' => false, 'visit_ids' => [],
             'doctor_id' => 0,
             'confirmation' => 'auto', 'patient_mode' => 'cf', 'unknown_patient' => 'create',
             'handoff' => true, 'welcome' => 'Buongiorno, sono l’assistente dello studio. Ti aiuto a prenotare un appuntamento.',
@@ -18,12 +18,13 @@ final class WhatsAppBookingConfig
     public static function normalize(array $input): array
     {
         $c = self::defaults();
-        foreach (['configured','single_visit','handoff'] as $key) $c[$key] = filter_var($input[$key] ?? $c[$key], FILTER_VALIDATE_BOOLEAN);
-        foreach (['order'=>['visit','day'], 'confirmation'=>['auto','manual'], 'patient_mode'=>['name','birth','cf','both'], 'unknown_patient'=>['create','staff']] as $key=>$values) {
+        foreach (['configured','single_visit','handoff','cancellation'] as $key) $c[$key] = filter_var($input[$key] ?? $c[$key], FILTER_VALIDATE_BOOLEAN);
+        foreach (['start_mode'=>['auto','keyword'], 'order'=>['visit','day'], 'confirmation'=>['auto','manual'], 'patient_mode'=>['name','birth','cf','both'], 'unknown_patient'=>['create','staff']] as $key=>$values) {
             $c[$key] = in_array($input[$key] ?? null, $values, true) ? $input[$key] : $c[$key];
         }
-        foreach (['doctor_id','default_visit_id'] as $key) $c[$key] = max(0, (int)($input[$key] ?? 0));
+        foreach (['doctor_id'] as $key) $c[$key] = max(0, (int)($input[$key] ?? 0));
         $c['visit_ids'] = array_values(array_unique(array_filter(array_map('intval', (array)($input['visit_ids'] ?? [])), static fn($id)=>$id>0)));
+        $c['idle_minutes']=max(5,min(120,(int)($input['idle_minutes']??30)));
         $keywords = $input['keywords'] ?? $c['keywords'];
         if (is_string($keywords)) $keywords = preg_split('/[,;\r\n]+/u', $keywords);
         $c['keywords'] = array_slice(array_values(array_unique(array_filter(array_map(static fn($v)=>mb_strtolower(mb_substr(trim((string)$v),0,50)), (array)$keywords)))),0,20);
@@ -33,10 +34,10 @@ final class WhatsAppBookingConfig
 
     public static function validate(array $c, array $catalog): void
     {
-        if (!$c['keywords'] || array_intersect($c['keywords'], ['annulla','segreteria','altro','conferma'])) throw new \InvalidArgumentException('Inserisci parole chiave diverse dai comandi annulla, segreteria, altro e conferma.');
+        if (($c['start_mode']==='keyword' && !$c['keywords']) || array_intersect($c['keywords'], ['annulla','segreteria','altro','conferma'])) throw new \InvalidArgumentException('Inserisci parole chiave diverse dai comandi annulla, segreteria, altro e conferma.');
         if (!in_array($c['doctor_id'], array_map('intval',array_column($catalog['doctors'],'id')),true)) throw new \InvalidArgumentException('Seleziona un’agenda dello spazio.');
-        $ids = $c['single_visit'] ? [$c['default_visit_id']] : $c['visit_ids'];
-        if (!$ids || array_diff($ids,array_map('intval',array_column($catalog['visits'],'id')))) throw new \InvalidArgumentException('Seleziona almeno una prestazione attiva dello spazio.');
+        $ids = $c['visit_ids'];
+        if (!$c['single_visit'] && (!$ids || array_diff($ids,array_map('intval',array_column($catalog['visits'],'id'))))) throw new \InvalidArgumentException('Seleziona almeno una prestazione attiva dello spazio.');
         if (!$c['welcome'] || !$c['no_availability'] || !$c['handoff_message']) throw new \InvalidArgumentException('Completa i messaggi automatici.');
     }
 }

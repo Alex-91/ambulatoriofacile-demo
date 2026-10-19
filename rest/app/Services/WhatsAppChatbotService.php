@@ -219,12 +219,14 @@ class WhatsAppChatbotService
                 return ['ok' => true, 'status' => 'ignored'];
             }
 
-            $booking = (new WhatsAppBookingService($this->platformDb))->incoming($tenantId, $phoneKey, $messageKey, $text);
+            $legacyRule=$this->ruleEngine->match($config,$text);
+            $legacyAction=in_array($legacyRule['action']??'',[WhatsAppChatbotRuleEngine::ACTION_CONFIRM,WhatsAppChatbotRuleEngine::ACTION_CANCEL],true);
+            $booking = (new WhatsAppBookingService($this->platformDb))->incoming($tenantId, $phoneKey, $messageKey, $text,$legacyAction);
             if ($booking !== null) {
                 $this->sendReplyOrFail($messageRowId, $tenantId, $from, $booking['reply'], [
                     'status' => 'processed', 'action_name' => 'booking',
                     'appointment_id' => !empty($booking['appointment_id']) ? (int) $booking['appointment_id'] : null,
-                ]);
+                ],$booking['buttons']??[]);
                 return ['ok' => true, 'status' => 'processed', 'action' => 'booking', 'appointment_id' => $booking['appointment_id']];
             }
             $rule = $this->ruleEngine->match($config, $text);
@@ -560,9 +562,9 @@ class WhatsAppChatbotService
     /**
      * @param array<string, mixed> $finish
      */
-    private function sendReplyOrFail(int $messageRowId, int $tenantId, string $recipient, string $reply, array $finish): void
+    private function sendReplyOrFail(int $messageRowId, int $tenantId, string $recipient, string $reply, array $finish, array $buttons=[]): void
     {
-        $result = $this->gatewayClient()->sendText($tenantId, $recipient, $reply);
+        $result = $buttons?$this->gatewayClient()->sendInteractive($tenantId,$recipient,$reply,$buttons):$this->gatewayClient()->sendText($tenantId, $recipient, $reply);
         $finish['reply_text'] = $reply;
         if (empty($result['ok'])) {
             $finish['status'] = 'reply_failed';
@@ -590,7 +592,9 @@ class WhatsAppChatbotService
             throw new \RuntimeException('Testo risposta non disponibile.');
         }
 
-        $result = $this->gatewayClient()->sendText($tenantId, $recipient, $reply);
+        $receipt=($claim['action_name']??'')==='booking'?(new WhatsAppBookingService($this->platformDb))->receipt($tenantId,(string)($claim['message_key']??'')):null;
+        $buttons=$receipt['buttons']??[];
+        $result = $buttons?$this->gatewayClient()->sendInteractive($tenantId,$recipient,$reply,$buttons):$this->gatewayClient()->sendText($tenantId, $recipient, $reply);
         if (empty($result['ok'])) {
             $this->finishMessage($messageRowId, [
                 'status' => 'reply_failed',

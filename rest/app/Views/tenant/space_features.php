@@ -616,7 +616,7 @@ $canSubmitSpaceSettings = ($manageableRows !== []) || $hasSupplementalSpaceContr
             <span class="status-chip">Centrali: <?= count($lockedRows) ?></span>
             <span class="status-chip">Non incluse: <?= count($unavailableRows) ?></span>
             <div style="margin-top:12px;">
-              <a class="btn btn-default" href="<?= portal_tenant_space_url('chatbot-whatsapp') ?>"><i class="fa fa-comments"></i> Prenotazioni WhatsApp</a>
+              <a class="btn btn-default" href="<?= portal_tenant_space_url('chatbot-whatsapp') ?>"><i class="fa fa-comments"></i> Assistente WhatsApp</a>
               <?php if ($appointmentNotificationsAvailable): ?>
                 <a class="btn btn-default" href="<?= portal_tenant_space_url('notifiche-appuntamenti') ?>">
                   <i class="fa fa-comments"></i> Apri centro notifiche appuntamenti

@@ -38,7 +38,7 @@ try{
     $db->query("INSERT INTO dap03_personale VALUES(1,10,1,HEX(AES_ENCRYPT('Marco',@key_str,@init_vector)),HEX(AES_ENCRYPT('Esempio',@key_str,@init_vector)),@init_vector)");
     $day=(new DateTimeImmutable('now',new DateTimeZone('Europe/Rome')))->modify('+3 days')->format('Y-m-d');
     for($i=0;$i<12;$i++){$start=$day.' '.sprintf('%02d:%02d:00',9+intdiv($i,4),($i%4)*15);$end=date('Y-m-d H:i:s',strtotime($start)+900);$db->table('dap11_agenda_slot')->insert(['id_slot'=>$i+1,'id_dot'=>10,'data_slot'=>$day,'ora_inizio'=>$start,'ora_fine'=>$end,'stato'=>'LIBERO','id_stanza'=>1,'id_amb_legacy'=>1]);}
-    $c=WhatsAppBookingConfig::normalize(['doctor_id'=>10,'location_id'=>1,'location'=>'Studio centrale','visit_ids'=>[1,2],'single_visit'=>true,'default_visit_id'=>1,'patient_mode'=>'name']);
+    $c=WhatsAppBookingConfig::normalize(['start_mode'=>'keyword','doctor_id'=>10,'location_id'=>1,'location'=>'Studio centrale','visit_ids'=>[1,2],'single_visit'=>false,'patient_mode'=>'name']);
     verify($agenda->catalog()['doctors'][0]['label']==='Esempio Marco','Encrypted doctor read');
     $s=['visit_id'=>1,'day'=>$day];$slots=$agenda->choices($c,$s,'time');verify(count($slots)===11,'30 minute contiguous spans');
     verify($agenda->choices($c,['visit_id'=>2,'day'=>$day],'time')===[],'Incompatible duration excluded');
@@ -76,7 +76,7 @@ try{
     $s['booking_key']=bin2hex(random_bytes(16));try{$agenda->book($c,$s);throw new RuntimeException('Double booking accepted');}catch(WhatsAppBookingUnavailable $expected){verify(true,'Occupied slot rejected');}
     $gateway=new BookingGatewayStub();$service=new WhatsAppBookingService($db,static fn($tenant,$phone)=>new WhatsAppBookingAgenda($db,$phone),$gateway);
     $c['confirmation']='manual';$service->save(1,$c);$i=0;$phone='393330000001';
-    foreach(['prenota','1','1','Anna','Bianchi','1'] as $text)$result=$service->incoming(1,$phone,hash('sha256','msg'.++$i),$text);
+    foreach(['prenota','1','1','1','Anna','Bianchi','1'] as $text)$result=$service->incoming(1,$phone,hash('sha256','msg'.++$i),$text);
     $requests=$service->requests(1);verify(count($requests)===1&&$requests[0]['kind']==='approval','Pending request persisted');verify($db->table('dap12_agenda_appuntamenti')->countAllResults()===1,'Pending request does not occupy agenda');
     verify($service->incoming(1,$phone,hash('sha256','msg'.$i),'1')===$result,'Inbound receipt replay');verify($service->requests(2)===[],'Tenant request isolation');
     try{$service->resolve(2,(int)$requests[0]['id'],'approve',1);throw new RuntimeException('Cross tenant approval');}catch(RuntimeException $expected){verify($expected->getMessage()==='Richiesta non trovata.','Cross tenant action denied');}
@@ -98,6 +98,31 @@ try{
     verify(count(array_filter($outcomes,static fn($v)=>$v==='booked'))===1,'Exactly one simultaneous booking succeeds');
     verify($db->table('dap12_agenda_appuntamenti')->countAllResults()===3,'No double booking under concurrency');
     verify($db->table('dap02_clients')->countAllResults()===3,'Failed bookings roll back new patient creation');
+    $authorized=new WhatsAppBookingAgenda($db,'393330000000');
+    verify(count($authorized->cancellations($c,'RSSMRA85T10A562S'))===1,'Own number and tax code find appointment');
+    verify((new WhatsAppBookingAgenda($db,'393330099999'))->cancellations($c,'RSSMRA85T10A562S')===[],'Different phone cannot discover appointments by tax code');
+    $wrong=$c;$wrong['doctor_id']=20;verify($authorized->cancellations($wrong,'RSSMRA85T10A562S')===[],'Cancellation stays in selected doctor agenda');
+    $cancel=['cancel_cf'=>'RSSMRA85T10A562S','cancel_appointment'=>['id'=>$id]];
+    try{(new WhatsAppBookingAgenda($db,'393330099999'))->cancel($c,$cancel);throw new RuntimeException('Unauthorized cancellation');}catch(WhatsAppBookingUnavailable $expected){verify(true,'Forged appointment ID rejected');}
+    $authorized->cancel($c,$cancel);$authorized->cancel($c,$cancel);
+    verify($db->table('dap12_agenda_appuntamenti')->where('id_appuntamento',$id)->get()->getRowArray()['stato']==='ANNULLATO','Cancellation is durable and replay-safe');
+    verify($db->table('dap11_agenda_slot')->where('id_slot',1)->get()->getRowArray()['stato']==='LIBERO','Cancellation releases agenda slot');
+    $direct=WhatsAppBookingConfig::normalize(['doctor_id'=>10,'single_visit'=>true,'keywords'=>[]]);
+    $db->table('dap11_agenda_slot')->insert(['id_slot'=>200,'id_dot'=>10,'data_slot'=>$day,'ora_inizio'=>$day.' 16:00:00','ora_fine'=>$day.' 16:40:00','stato'=>'LIBERO','id_stanza'=>1,'id_amb_legacy'=>1]);
+    $directChoices=$agenda->choices($direct,['day'=>$day],'time');$slot=array_values(array_filter($directChoices,static fn($v)=>$v['id']===200))[0];
+    $directId=$agenda->book($direct,['day'=>$day,'slot'=>$slot,'patient'=>['nome'=>'Diretta','cognome'=>'Esempio'],'booking_key'=>bin2hex(random_bytes(16))]);
+    $record=$db->table('dap12_agenda_appuntamenti')->where('id_appuntamento',$directId)->get()->getRowArray();
+    verify(empty($record['id_tipo_visita'])&&(int)$record['durata_minuti']===40,'Direct booking uses exact slot duration and no visit');
+    verify($db->table('dap45_agenda_appuntamenti_slot')->where('id_appuntamento',$directId)->countAllResults()===1,'Direct booking reserves exactly one slot');
+    $db->table('platform_whatsapp_chatbots')->where('id_tenant',1)->update(['is_enabled'=>1]);$service->save(1,$direct);
+    $welcome=$service->incoming(1,'393330000008',hash('sha256','auto-first'),'ciao');verify(str_contains($welcome['reply'],$direct['welcome']),'First arbitrary message welcomes');
+    $next=$service->incoming(1,'393330000008',hash('sha256','auto-next'),$welcome['buttons'][0]['id']);verify(!str_contains($next['reply'],$direct['welcome']),'No repeated greeting during conversation');
+    $db->table('platform_whatsapp_booking_sessions')->where('phone_key','393330000008')->update(['expires_at'=>'2000-01-01 00:00:00']);
+    $restart=$service->incoming(1,'393330000008',hash('sha256','auto-expired'),'ciao');verify(str_contains($restart['reply'],$direct['welcome']),'Idle conversation automatically welcomes again');
+    verify($service->receipt(1,hash('sha256','auto-first'))===$welcome,'Retry retains exact button IDs from durable receipt');
+    $db->query('CREATE TABLE platform_whatsapp_chatbot_interactions (id_tenant INT,phone_key VARCHAR(32),status VARCHAR(20),expires_at DATETIME)');
+    $db->resetDataCache();$db->table('platform_whatsapp_chatbot_interactions')->insert(['id_tenant'=>1,'phone_key'=>'393330000009','status'=>'pending','expires_at'=>date('Y-m-d H:i:s',time()+3600)]);
+    verify($service->incoming(1,'393330000009',hash('sha256','reminder-priority'),'1',true)===null,'Pending reminder keeps priority when no assistant conversation is active');
     echo "PASS $count MySQL integration checks: migration, encryption, isolation, locks, booking, idempotency, approval, delivery retry and three concurrent writers.\n";
     $db->close();Database::connect('platform')->close();
 }finally{$admin->query('DROP DATABASE '.$name);$admin->close();}

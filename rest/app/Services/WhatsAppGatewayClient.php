@@ -125,10 +125,22 @@ class WhatsAppGatewayClient
      */
     public function sendText(int $tenantId, string $recipient, string $message): array
     {
-        $requestTarget = '/v1/accounts/' . rawurlencode($this->accountId) . '/messages/text';
+        return $this->sendMessage($tenantId,$recipient,$message,[]);
+    }
+
+    public function sendInteractive(int $tenantId,string $recipient,string $message,array $choices): array
+    {
+        if(!$choices)return $this->sendText($tenantId,$recipient,$message);
+        return $this->sendMessage($tenantId,$recipient,$message,$choices);
+    }
+
+    private function sendMessage(int $tenantId,string $recipient,string $message,array $choices): array
+    {
+        $requestTarget = '/v1/accounts/' . rawurlencode($this->accountId) . ($choices?'/messages/interactive':'/messages/text');
         $body = json_encode([
             'to' => $recipient,
             'text' => $message,
+            ...($choices?['choices'=>$choices]:[]),
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
 
         $headers = $this->signer->headers('POST', $requestTarget, $tenantId, $body);

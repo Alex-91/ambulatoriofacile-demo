@@ -51,12 +51,12 @@ class WhatsAppBooking extends BaseController
             $c=WhatsAppBookingConfig::normalize((array)$this->request->getPost('booking'));
             $catalog=WhatsAppBookingAgenda::forTenant($this->tenantId)->catalog();WhatsAppBookingConfig::validate($c,$catalog);
             $key='wa_preview_'.$this->tenantId;$stored=session()->get($key)??[];$hash=hash('sha256',json_encode($c));
-            $state=($stored['hash']??'')===$hash?($stored['state']??[]):[];
+            $state=($stored['hash']??'')===$hash && ($stored['last_activity']??0)>time()-$c['idle_minutes']*60?($stored['state']??[]):[];
             if($this->request->getPost('reset')==='1')$state=[];
             $message=mb_substr((string)$this->request->getPost('message'),0,1000);
             $result=(new WhatsAppBookingEngine())->advance($c,$state,$message,new WhatsAppBookingPreview($catalog,$this->request->getPost('patient_found')!=='0'));
-            session()->set($key,['hash'=>$hash,'state'=>$result['state']??$state]);
-            return $this->response->setJSON(['reply'=>$result['reply']??'Scrivi una parola chiave di avvio.','csrf'=>csrf_hash()]);
+            session()->set($key,['hash'=>$hash,'state'=>$result['state']??$state,'last_activity'=>time()]);
+            return $this->response->setJSON(['reply'=>$result['reply']??'Scrivi una parola chiave di avvio.','buttons'=>$result['buttons']??[],'csrf'=>csrf_hash()]);
         }catch(\Throwable $e){return $this->response->setStatusCode(422)->setJSON(['error'=>$e->getMessage(),'csrf'=>csrf_hash()]);}
     }
 }

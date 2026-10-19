@@ -50,7 +50,7 @@ class WhatsAppBookingService
     }
 
     /** Serialized per tenant/phone, with durable reply receipts and a 30-minute session. */
-    public function incoming(int $tenant,string $phone,string $messageKey,string $text): ?array
+    public function incoming(int $tenant,string $phone,string $messageKey,string $text,bool $legacyAction=false): ?array
     {
         if(!$this->ready()||!$this->enabled($tenant))return null;
         $lock='wa-book-'.substr(hash('sha256',$tenant.'|'.$phone),0,48);
@@ -64,12 +64,14 @@ class WhatsAppBookingService
             $fingerprint=hash('sha256',$this->json($c));
             $valid=$row && $row['expires_at']>gmdate('Y-m-d H:i:s') && ($stored['config_hash']??'')===$fingerprint;
             $state=$valid?($stored['state']??[]):[];
+            if($legacyAction && (!$state || in_array($state['step']??'',['done','pending','handoff'],true)) && $this->db->tableExists('platform_whatsapp_chatbot_interactions')){
+                $pending=$this->db->table('platform_whatsapp_chatbot_interactions')->where(['id_tenant'=>$tenant,'phone_key'=>$phone,'status'=>'pending'])->where('expires_at >',date('Y-m-d H:i:s'))->countAllResults();
+                if($pending>0)return null;
+            }
             $starts=in_array(mb_strtolower(trim($text)),$c['keywords'],true);
-            if(!$starts && in_array($state['step']??'',['done','pending'],true))return null;
-            if(!$valid && !empty($stored['state']) && !$starts){
-                $result=['state'=>[],'reply'=>'La sessione è scaduta o la configurazione è cambiata. Per ricominciare scrivi '.$c['keywords'][0].'.'];
+            if($c['start_mode']==='keyword' && !$valid && !empty($stored['state']) && !$starts && !str_starts_with($text,'wa:')){
+                $result=['state'=>[],'reply'=>'La sessione è scaduta. Per ricominciare scrivi '.($c['keywords'][0]??'prenota').'.'];
             }else{
-                if(!$state && !$starts)return null;
                 $result=(new WhatsAppBookingEngine())->advance($c,$state,$text,$this->agenda($tenant,$phone));
             }
             if($result===null)return null;
@@ -79,15 +81,22 @@ class WhatsAppBookingService
                     'phone_key'=>$phone,'kind'=>$result['request'],'status'=>'pending','state_json'=>$this->json($result['state']),'config_json'=>$this->json($c),
                 ]);
                 $this->upsert('sessions',['id_tenant'=>$tenant,'phone_key'=>$phone],[
-                    'state_json'=>$this->json(['state'=>$result['state'],'config_hash'=>$fingerprint]),'expires_at'=>gmdate('Y-m-d H:i:s',time()+1800),
+                    'state_json'=>$this->json(['state'=>$result['state'],'config_hash'=>$fingerprint]),'expires_at'=>gmdate('Y-m-d H:i:s',time()+$c['idle_minutes']*60),
                 ]);
-                $result=['reply'=>$result['reply'],'appointment_id'=>$result['appointment_id']??0];
+                $result=['reply'=>$result['reply'],'buttons'=>$result['buttons']??[],'appointment_id'=>$result['appointment_id']??0];
                 $this->upsert('receipts',['id_tenant'=>$tenant,'message_key'=>$messageKey],['result_json'=>$this->json($result)]);
                 if(!$this->db->transStatus())throw new \RuntimeException('Conversazione non salvata.');
                 $this->db->transCommit();
             }catch(\Throwable $e){$this->db->transRollback();throw $e;}
             return $result;
         }finally{$this->unlock($lock);}
+    }
+
+    public function receipt(int $tenant,string $messageKey): ?array
+    {
+        if(!$this->ready())return null;
+        $row=$this->table('receipts')->where(['id_tenant'=>$tenant,'message_key'=>$messageKey])->get(1)->getRowArray();
+        return $row?json_decode($row['result_json'],true):null;
     }
 
     public function requests(int $tenant): array

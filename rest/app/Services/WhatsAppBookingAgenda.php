@@ -51,7 +51,8 @@ class WhatsAppBookingAgenda
 
     public function choices(array $c,array $s,string $step): array
     {
-        $catalog=$this->catalog();$visits=array_values(array_filter($catalog['visits'],static fn($v)=>in_array((int)$v['id'],$c['single_visit']?[$c['default_visit_id']]:$c['visit_ids'],true)));
+        $catalog=$this->catalog();$visits=array_values(array_filter($catalog['visits'],static fn($v)=>in_array((int)$v['id'],$c['visit_ids'],true)));
+        if($c['single_visit'])$visits=[['id'=>0,'label'=>'Appuntamento','duration'=>0]];
         // Offer only visits that fit at least one free span in this doctor’s agenda.
         $slots=$this->availableSlots($c);
         $result=[];
@@ -59,7 +60,7 @@ class WhatsAppBookingAgenda
             if(isset($s['visit_id']) && (int)$visit['id']!==(int)$s['visit_id'])continue;
             foreach($slots as $index=>$slot){
                 if(isset($s['day']) && $s['day']!==$slot['data_slot'])continue;
-                if(!$this->fits($slots,$index,(int)$visit['duration']))continue;
+                if(!$c['single_visit'] && !$this->fits($slots,$index,(int)$visit['duration']))continue;
                 if($step==='visit'){$result[(int)$visit['id']]=$visit;break;}
                 if($step==='day')$result[$slot['data_slot']]=['id'=>$slot['data_slot'],'label'=>(new \DateTimeImmutable($slot['data_slot']))->format('d/m/Y')];
                 if($step==='time')$result[(int)$slot['id_slot']]=['id'=>(int)$slot['id_slot'],'label'=>(new \DateTimeImmutable($slot['ora_inizio']))->format('H:i').' · '.$this->locationLabel($slot,$catalog),'start'=>$slot['ora_inizio']];
@@ -115,9 +116,10 @@ class WhatsAppBookingAgenda
     public function summary(array $c,array $s): string
     {
         $catalog=$this->catalog();$visits=array_column($catalog['visits'],null,'id');$doctors=array_column($catalog['doctors'],null,'id');
-        $v=$visits[$s['visit_id']]??null;if(!$v)throw new WhatsAppBookingUnavailable('Prestazione non disponibile.');
+        $v=$c['single_visit']?['label'=>'Appuntamento','duration'=>0]:($visits[$s['visit_id']??0]??null);if(!$v)throw new WhatsAppBookingUnavailable('Prestazione non disponibile.');
         $slot=$this->db->table('dap11_agenda_slot')->where('id_slot',(int)$s['slot']['id'])->where('id_dot',$c['doctor_id'])->where('data_slot',$s['day'])->get(1)->getRowArray();
         if(!$slot)throw new WhatsAppBookingUnavailable('Orario non disponibile.');
+        if($c['single_visit'])$v['duration']=(int)((strtotime($slot['ora_fine'])-strtotime($slot['ora_inizio']))/60);
         // Never disclose registry details based only on possession of a tax code.
         $patient=empty($s['patient']['id_client'])||!empty($s['patient']['name_supplied'])?trim(($s['patient']['nome']??'').' '.($s['patient']['cognome']??'')):'Anagrafica associata tramite codice fiscale';
         return "Riepilogo prenotazione\n".$v['label'].' · '.$v['duration']." minuti\n".($doctors[$c['doctor_id']]['label']??'')."\n".$this->locationLabel($slot,$catalog)."\n".date('d/m/Y',strtotime($s['day'])).' alle '.date('H:i',strtotime($slot['ora_inizio']))."\nPaziente: ".$patient;
@@ -155,7 +157,7 @@ class WhatsAppBookingAgenda
                 if(empty($patient['id_client']))$patient['id_client']=$this->createPatient($patient,$c['doctor_id']);
             }
             $id=(new AgendaAppointmentModel($this->db))->saveAppointment([
-                'id_slot'=>(int)$s['slot']['id'],'id_dot'=>$c['doctor_id'],'id_tipo_visita'=>(int)$s['visit_id'],
+                'id_slot'=>(int)$s['slot']['id'],'id_dot'=>$c['doctor_id'],'id_tipo_visita'=>$c['single_visit']?0:(int)$s['visit_id'], 'visit_type_required'=>!$c['single_visit'],
                 'visit_types_feature_enabled'=>true,'slot_lock_required'=>false,'check_active_locks'=>true,
                 'id_client'=>(int)$patient['id_client'],'id_paziente'=>(int)$patient['id_client'],
                 'nome'=>$patient['nome'],'cognome'=>$patient['cognome'],'cellulare'=>$this->phone,'note'=>$marker,
@@ -167,6 +169,51 @@ class WhatsAppBookingAgenda
             if(preg_match('/slot|occupat|bloccata|disponibil|prenotato/i',$e->getMessage()))throw new WhatsAppBookingUnavailable('Orario non più disponibile.',0,$e);
             throw $e;
         }
+    }
+
+    public function cancellations(array $c,string $cf): array
+    {
+        $rows=$this->cancellationRows($c,$cf);$catalog=$this->catalog();$choices=[];
+        foreach($rows as $row){
+            if($row['stato']==='ANNULLATO')continue;
+            $choices[]=['id'=>(int)$row['id_appuntamento'],'label'=>date('d/m/Y H:i',strtotime($row['start'])).' · '.$this->locationLabel($row,$catalog)];
+        }
+        return $choices;
+    }
+
+    private function cancellationRows(array $c,string $cf): array
+    {
+        $phone=WhatsAppChatbotService::phoneKey($this->phone);
+        if($phone==='')return [];
+        $rows=$this->db->table('dap12_agenda_appuntamenti a')
+            ->select('a.*, s.id_amb_legacy, s.data_slot, COALESCE(a.ora_inizio_appuntamento,s.ora_inizio) AS start',false)
+            ->join('dap11_agenda_slot s','s.id_slot=a.id_slot')
+            ->join('dap02_clients p','p.id_client=COALESCE(a.id_client,a.id_paziente)')
+            ->where('a.id_dot',$c['doctor_id'])
+            ->where("UPPER(CONVERT(CAST(AES_DECRYPT(UNHEX(p.codice_fiscale), @key_str, p.vector_id) AS CHAR CHARACTER SET latin1) USING utf8mb4))",$cf)
+            ->where('COALESCE(a.ora_inizio_appuntamento,s.ora_inizio) >',date('Y-m-d H:i:s'))
+            ->orderBy('start')->get()->getResultArray();
+        // Match the number recorded on the appointment, never a tax code alone.
+        return array_values(array_filter($rows,static fn($row)=>WhatsAppChatbotService::phoneKey((string)($row['cellulare']??''))===$phone));
+    }
+
+    public function cancel(array $c,array $s): void
+    {
+        $id=(int)($s['cancel_appointment']['id']??0);
+        $this->db->transBegin();
+        try{
+            $rows=$this->cancellationRows($c,$s['cancel_cf']);$found=null;
+            foreach($rows as $row)if((int)$row['id_appuntamento']===$id)$found=$row;
+            if(!$found)throw new WhatsAppBookingUnavailable();
+            // Use the agenda's lock order: slots first, appointment second.
+            $this->db->query('SELECT id_slot FROM dap11_agenda_slot WHERE id_dot=? AND data_slot=? ORDER BY id_slot FOR UPDATE',[$c['doctor_id'],$found['data_slot']])->getResultArray();
+            $this->db->query('SELECT id_appuntamento FROM dap12_agenda_appuntamenti WHERE id_appuntamento=? FOR UPDATE',[$id])->getRowArray();
+            $fresh=null;foreach($this->cancellationRows($c,$s['cancel_cf']) as $row)if((int)$row['id_appuntamento']===$id)$fresh=$row;
+            if(!$fresh)throw new WhatsAppBookingUnavailable();
+            if($fresh['stato']!=='ANNULLATO')(new AgendaAppointmentModel($this->db))->deleteAppointment($id,0);
+            if(!$this->db->transStatus())throw new \RuntimeException('Annullamento non salvato.');
+            $this->db->transCommit();
+        }catch(\Throwable $e){$this->db->transRollback();throw $e;}
     }
 
     private function createPatient(array $p,int $doctor): int
