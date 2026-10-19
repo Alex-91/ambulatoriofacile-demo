@@ -44,7 +44,30 @@ try{
     verify($agenda->choices($c,['visit_id'=>2,'day'=>$day],'time')===[],'Incompatible duration excluded');
     $db->table('dap21_agenda_giorni_bloccati')->insert(['id_dot'=>10,'data_agenda'=>$day]);verify($agenda->choices($c,$s,'time')===[],'Blocked days excluded');$db->table('dap21_agenda_giorni_bloccati')->where('id_dot',10)->delete();
     $db->table('dap14_agenda_lock')->insert(['id_slot'=>1,'stato'=>'ATTIVO','token_lock'=>'test','expires_at'=>date('Y-m-d H:i:s',time()+3600)]);verify(count($agenda->choices($c,$s,'time'))===10,'Operator locks excluded');$db->table('dap14_agenda_lock')->where('id_slot',1)->delete();
-    $other=$c;$other['location_id']=2;verify($agenda->choices($other,$s,'time')===[],'Location isolation');
+    $other=$c;$other['location_id']=2;$other['location']='Sede obsoleta';$other['lead_hours']=168;$other['window_days']=1;
+    verify(count($agenda->choices($other,$s,'time'))===11,'Legacy chatbot filters do not override agenda');
+    $db->query('ALTER TABLE dap42_ambulatori ADD indirizzo VARCHAR(120), ADD citta VARCHAR(80)');
+    $db->query("UPDATE dap42_ambulatori SET indirizzo='Via Esempio 1',citta='Roma' WHERE id_amb_legacy=2");
+    $db->query("INSERT INTO dap03_personale VALUES(2,20,1,HEX(AES_ENCRYPT('Anna',@key_str,@init_vector)),HEX(AES_ENCRYPT('Seconda',@key_str,@init_vector)),@init_vector)");
+    foreach([[100,10,2,'09:00:00','09:15:00'],[101,10,2,'09:15:00','09:30:00'],[102,20,2,'14:00:00','14:30:00']] as [$slotId,$doctor,$site,$start,$end]){
+        $db->table('dap11_agenda_slot')->insert(['id_slot'=>$slotId,'id_dot'=>$doctor,'data_slot'=>$day,'ora_inizio'=>$day.' '.$start,'ora_fine'=>$day.' '.$end,'stato'=>'LIBERO','id_stanza'=>2,'id_amb_legacy'=>$site]);
+    }
+    $multi=$agenda->choices($c,$s,'time');
+    verify(count($multi)===12,'Parallel site slots preserve contiguous duration spans');
+    $north=array_values(array_filter($multi,static fn($v)=>$v['id']===100))[0];
+    verify(str_contains($north['label'],'Studio nord, Via Esempio 1, Roma'),'Slot label derives address from agenda site');
+    verify(!in_array(102,array_column($multi,'id')),'Other doctor slots never leak');
+    $second=$c;$second['doctor_id']=20;
+    verify(array_column($agenda->choices($second,$s,'time'),'id')===[102],'Switching doctor switches entire agenda');
+    $summary=$agenda->summary($other,$s+['slot'=>$north,'patient'=>['nome'=>'Test','cognome'=>'Agenda']]);
+    verify(str_contains($summary,'Studio nord, Via Esempio 1, Roma')&&!str_contains($summary,'obsoleta'),'Summary uses selected slot actual site');
+    $db->table('dap11_agenda_slot')->where('id_slot >=',100)->delete();
+    foreach([['+1 hour',110],['+120 days',111]] as [$offset,$slotId]){
+        $start=(new DateTimeImmutable('now',new DateTimeZone('Europe/Rome')))->modify($offset);
+        $db->table('dap11_agenda_slot')->insert(['id_slot'=>$slotId,'id_dot'=>10,'data_slot'=>$start->format('Y-m-d'),'ora_inizio'=>$start->format('Y-m-d H:i:s'),'ora_fine'=>$start->modify('+30 minutes')->format('Y-m-d H:i:s'),'stato'=>'LIBERO','id_stanza'=>1,'id_amb_legacy'=>1]);
+        verify(in_array($start->format('Y-m-d'),array_column($agenda->choices($other,['visit_id'=>1],'day'),'id')),'Agenda dates are not limited by chatbot lead time or horizon');
+    }
+    $db->table('dap11_agenda_slot')->where('id_slot >=',110)->delete();
     $s+=['slot'=>$slots[0],'patient'=>['nome'=>'Mario','cognome'=>'Rossi','codice_fiscale'=>'RSSMRA85T10A562S'],'booking_key'=>bin2hex(random_bytes(16))];
     $id=$agenda->book($c,$s);verify($id>0,'Appointment created');verify($db->table('dap45_agenda_appuntamenti_slot')->where('id_appuntamento',$id)->countAllResults()===2,'Both slots reserved');
     verify($agenda->patient('RSSMRA85T10A562S')['nome']==='Mario','Encrypted patient created and exact tax code lookup');verify($agenda->patient('RSSMRA85')===null,'Partial tax code rejected');

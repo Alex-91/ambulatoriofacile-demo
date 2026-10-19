@@ -41,5 +41,8 @@ foreach(['cf','both'] as $mode){$c['patient_mode']=$mode;$c['single_visit']=true
 $p=new class extends BookingFakePort {public function choices($c,$s,$step){return array_map(static fn($i)=>['id'=>$i,'label'=>'Opzione '.$i],range(1,12));}};
 $r=$engine->advance($c,[],'prenota',$p);check(str_contains($r['reply'],'8. Opzione 8')&&!str_contains($r['reply'],'Opzione 9'),'Eight numbered choices');$r=$engine->advance($c,$r['state'],'altro',$p);check(str_contains($r['reply'],'1. Opzione 9'),'Next choices page');
 $c['single_visit']=false;
-foreach(['doctor_id'=>2,'visit_ids'=>[2],'location_id'=>4,'keywords'=>['annulla']] as $key=>$value){try{WhatsAppBookingConfig::validate(array_replace($c,[$key=>$value]),$catalog);check(false,'Invalid config accepted');}catch(InvalidArgumentException $expected){check(true,'Invalid config rejected');}}
+foreach(['doctor_id'=>2,'visit_ids'=>[2],'keywords'=>['annulla']] as $key=>$value){try{WhatsAppBookingConfig::validate(array_replace($c,[$key=>$value]),$catalog);check(false,'Invalid config accepted');}catch(InvalidArgumentException $expected){check(true,'Invalid config rejected');}}
+$auto=WhatsAppBookingConfig::normalize(['doctor_id'=>1,'visit_ids'=>[1],'location_id'=>999,'location'=>'Obsoleta','lead_hours'=>168,'window_days'=>1]);
+WhatsAppBookingConfig::validate($auto,$catalog);
+check(array_intersect(['location_id','location','lead_hours','window_days'],array_keys($auto))===[],'Legacy availability overrides discarded');
 echo "PASS $checks checks: booking paths, patient modes, validation, confirmation, conflicts, handoff, cancellation and tenant catalog.\n";

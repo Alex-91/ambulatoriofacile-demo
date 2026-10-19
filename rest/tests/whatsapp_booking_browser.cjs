@@ -25,6 +25,7 @@ const server=http.createServer(async(req,res)=>{
  const page=await browser.newPage({viewport:{width:1440,height:1080}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
  try{
   await page.goto('http://127.0.0.1:'+server.address().port);
+  for(const key of ['location','location_id','lead_hours','window_days'])assert.equal(await page.locator('[name="booking['+key+']"]').count(),0,'Agenda field must not be configurable: '+key);
   await page.locator('#wb-single').check();assert(await page.locator('#wb-order').isHidden());assert(await page.locator('#wb-default').isVisible());
   await page.locator('#wb-patient').selectOption('name');assert(await page.locator('#wb-unknown').isHidden());
   const send=async(text,expected)=>{await page.locator('#wb-message').fill(text);await page.locator('#wb-chat-form button').click();await page.waitForFunction(s=>document.querySelector('#wb-chat').lastElementChild.textContent.includes(s),expected);};
