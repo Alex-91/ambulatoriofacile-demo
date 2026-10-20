@@ -25,7 +25,7 @@ const server=http.createServer(async(req,res)=>{
  const page=await browser.newPage({viewport:{width:1440,height:1080}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
  try{
   await page.goto('http://127.0.0.1:'+server.address().port);
-  const mainBox=await page.locator('#wb-app').boundingBox(),menuBox=await page.locator('.wb-navigation').boundingBox();assert(menuBox.x>=mainBox.x+mainBox.width,'Shared menu must be on the right');assert(await page.locator('.wb-navigation').isVisible());
+  const mainBox=await page.locator('#wb-app').boundingBox(),menuBox=await page.locator('.wb-navigation').boundingBox();assert(menuBox.x+menuBox.width<=mainBox.x,'Shared menu must be on the left');assert(await page.locator('.wb-navigation').isVisible());
   for(const key of ['location','location_id','lead_hours','window_days'])assert.equal(await page.locator('[name="booking['+key+']"]').count(),0,'Agenda field must not be configurable: '+key);
   await page.locator('#wb-single').check();assert(await page.locator('#wb-order').isHidden());assert.equal(await page.locator('[name="booking[default_visit_id]"]').count(),0);
   await page.locator('#wb-patient').selectOption('name');assert(await page.locator('#wb-unknown').isHidden());
