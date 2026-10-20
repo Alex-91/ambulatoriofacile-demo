@@ -27,6 +27,26 @@ class WhatsAppBookingService
         $row=$this->table('configs')->where('id_tenant',$tenant)->get(1)->getRowArray();
         return WhatsAppBookingConfig::normalize(json_decode($row['config_json']??'{}',true)?:[]);
     }
+    public function active(int $tenant): bool
+    {
+        if(!$this->ready() || !$this->enabled($tenant))return false;
+        $c=$this->config($tenant);
+        return $c['configured'] && $c['assistant_enabled'];
+    }
+    public function setActive(int $tenant,bool $active): void
+    {
+        if(!$this->ready())throw new \RuntimeException('Configurazione WhatsApp non disponibile.');
+        if(!$this->enabled($tenant))throw new \RuntimeException('Il chatbot non è abilitato dalla piattaforma per questo spazio.');
+        $c=$this->config($tenant);
+        if($active){
+            if(!$c['configured'])throw new \RuntimeException('Salva prima la configurazione del chatbot.');
+            $agenda=$this->agenda($tenant);$agenda->assertBookingReady();
+            WhatsAppBookingConfig::validate($c,$agenda->catalog());
+        }
+        $c['assistant_enabled']=$active;
+        $this->upsert('configs',['id_tenant'=>$tenant],['config_json'=>$this->json($c)]);
+        $this->clearSessions($tenant);
+    }
     public function clearSessions(int $tenant): void
     {
         if($this->ready())$this->table('sessions')->where('id_tenant',$tenant)->delete();
@@ -36,6 +56,7 @@ class WhatsAppBookingService
         if(!$this->ready())throw new \RuntimeException('Applicare prima la migrazione delle prenotazioni WhatsApp.');
         if(!$this->enabled($tenant))throw new \RuntimeException('Chatbot non abilitato per questo spazio.');
         $c=WhatsAppBookingConfig::normalize($input);
+        $c['assistant_enabled']=$this->config($tenant)['assistant_enabled'];
         $agenda=$this->agenda($tenant);$agenda->assertBookingReady();
         WhatsAppBookingConfig::validate($c,$agenda->catalog());$c['configured']=true;
         $this->upsert('configs',['id_tenant'=>$tenant],['config_json'=>$this->json($c)]);
@@ -52,10 +73,11 @@ class WhatsAppBookingService
     /** Serialized per tenant/phone, with durable reply receipts and a 30-minute session. */
     public function incoming(int $tenant,string $phone,string $messageKey,string $text,bool $legacyAction=false): ?array
     {
-        if(!$this->ready()||!$this->enabled($tenant))return null;
+        if(!$this->active($tenant))return null;
         $lock='wa-book-'.substr(hash('sha256',$tenant.'|'.$phone),0,48);
         $this->lock($lock);
         try {
+            if(!$this->active($tenant))return null;
             $receipt=$this->table('receipts')->where(['id_tenant'=>$tenant,'message_key'=>$messageKey])->get(1)->getRowArray();
             if($receipt)return json_decode($receipt['result_json'],true);
             $c=$this->config($tenant);if(!$c['configured'])return null;

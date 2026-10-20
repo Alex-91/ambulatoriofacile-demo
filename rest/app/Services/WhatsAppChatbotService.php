@@ -214,7 +214,7 @@ class WhatsAppChatbotService
 
         try {
             $config = $this->configForTenant($tenantId);
-            if (empty($config['enabled']) || $isGroup || $messageType !== 'text' || $text === '') {
+            if (empty($config['enabled']) || !(new WhatsAppBookingService($this->platformDb))->config($tenantId)['assistant_enabled'] || $isGroup || $messageType !== 'text' || $text === '') {
                 $this->finishMessage($messageRowId, ['status' => 'ignored']);
                 return ['ok' => true, 'status' => 'ignored'];
             }
@@ -582,7 +582,7 @@ class WhatsAppChatbotService
      */
     private function retryReply(int $messageRowId, int $tenantId, string $recipient, array $claim): array
     {
-        if (($claim['action_name'] ?? '') === 'booking' && empty($this->configForTenant($tenantId)['enabled'])) {
+        if (!(new WhatsAppBookingService($this->platformDb))->config($tenantId)['assistant_enabled'] || (($claim['action_name'] ?? '') === 'booking' && !(new WhatsAppBookingService($this->platformDb))->active($tenantId))) {
             $this->finishMessage($messageRowId, ['status' => 'ignored']);
             return ['ok' => true, 'status' => 'ignored'];
         }

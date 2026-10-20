@@ -123,6 +123,23 @@ try{
     $db->query('CREATE TABLE platform_whatsapp_chatbot_interactions (id_tenant INT,phone_key VARCHAR(32),status VARCHAR(20),expires_at DATETIME)');
     $db->resetDataCache();$db->table('platform_whatsapp_chatbot_interactions')->insert(['id_tenant'=>1,'phone_key'=>'393330000009','status'=>'pending','expires_at'=>date('Y-m-d H:i:s',time()+3600)]);
     verify($service->incoming(1,'393330000009',hash('sha256','reminder-priority'),'1',true)===null,'Pending reminder keeps priority when no assistant conversation is active');
+    $before=$service->config(1);$appointments=$db->table('dap12_agenda_appuntamenti')->countAllResults();
+    verify($service->active(1),'Existing configured chatbot remains active');
+    $service->setActive(1,false);
+    verify(!$service->active(1) && $service->enabled(1),'Tenant switch does not change platform permission');
+    verify($service->config(1)===array_replace($before,['assistant_enabled'=>false]),'Switch preserves configuration');
+    verify($db->table('platform_whatsapp_booking_sessions')->where('id_tenant',1)->countAllResults()===0,'Switch clears conversation sessions');
+    verify($service->incoming(1,'393330000008',hash('sha256','auto-first'),'ciao')===null,'Paused chatbot does not replay prior receipt');
+    verify($service->incoming(1,'393330000008',hash('sha256','paused-new'),'ciao')===null,'Paused chatbot ignores new messages');
+    $service->save(1,array_replace($direct,['assistant_enabled'=>true]));verify(!$service->active(1),'Saving settings cannot override power switch');
+    verify($db->table('dap12_agenda_appuntamenti')->countAllResults()===$appointments,'Switch does not alter appointments');
+    try{$service->setActive(2,true);verify(false,'Unconfigured activation accepted');}catch(RuntimeException $e){verify(str_contains($e->getMessage(),'configurazione'),'Unconfigured activation rejected');}
+    verify($service->config(2)['assistant_enabled'],'Other tenant configuration unchanged');
+    $db->table('platform_whatsapp_chatbots')->where('id_tenant',1)->update(['is_enabled'=>0]);
+    try{$service->setActive(1,true);verify(false,'Platform restriction bypassed');}catch(RuntimeException $e){verify(str_contains($e->getMessage(),'piattaforma'),'Platform disable takes precedence');}
+    $db->table('platform_whatsapp_chatbots')->where('id_tenant',1)->update(['is_enabled'=>1]);$service->setActive(1,true);
+    verify($service->active(1),'Tenant can reactivate');
+    $fresh=$service->incoming(1,'393330000008',hash('sha256','reactivated'),'ciao');verify(str_contains($fresh['reply'],$direct['welcome']),'Reactivation starts fresh conversation');
     echo "PASS $count MySQL integration checks: migration, encryption, isolation, locks, booking, idempotency, approval, delivery retry and three concurrent writers.\n";
     $db->close();Database::connect('platform')->close();
 }finally{$admin->query('DROP DATABASE '.$name);$admin->close();}

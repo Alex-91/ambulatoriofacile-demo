@@ -90,6 +90,7 @@ $routes->get('login/piattaforma/chatbot-whatsapp', 'Login\PlatformWhatsAppChatbo
 $routes->post('login/piattaforma/chatbot-whatsapp/save', 'Login\PlatformWhatsAppChatbotController::save', ['filter'=>'whatsappbookingcsrf']);
 $routes->get('login/spazio/chatbot-whatsapp', 'Tenant\WhatsAppBooking::index');
 $routes->post('login/spazio/chatbot-whatsapp/save', 'Tenant\WhatsAppBooking::save', ['filter'=>'whatsappbookingcsrf']);
+$routes->post('login/spazio/chatbot-whatsapp/toggle', 'Tenant\WhatsAppBooking::toggle', ['filter'=>'whatsappbookingcsrf']);
 $routes->post('login/spazio/chatbot-whatsapp/preview', 'Tenant\WhatsAppBooking::preview', ['filter'=>'whatsappbookingcsrf']);
 $routes->post('login/spazio/chatbot-whatsapp/resolve', 'Tenant\WhatsAppBooking::resolve', ['filter'=>'whatsappbookingcsrf']);
 $routes->get('login/piattaforma/spazi-clienti', 'Login\PlatformTenantSpacesController::index');
@@ -165,6 +166,7 @@ $routes->get('piattaforma/chatbot-whatsapp', 'Login\PlatformWhatsAppChatbotContr
 $routes->post('piattaforma/chatbot-whatsapp/save', 'Login\PlatformWhatsAppChatbotController::save', ['filter'=>'whatsappbookingcsrf']);
 $routes->get('spazio/chatbot-whatsapp', 'Tenant\WhatsAppBooking::index');
 $routes->post('spazio/chatbot-whatsapp/save', 'Tenant\WhatsAppBooking::save', ['filter'=>'whatsappbookingcsrf']);
+$routes->post('spazio/chatbot-whatsapp/toggle', 'Tenant\WhatsAppBooking::toggle', ['filter'=>'whatsappbookingcsrf']);
 $routes->post('spazio/chatbot-whatsapp/preview', 'Tenant\WhatsAppBooking::preview', ['filter'=>'whatsappbookingcsrf']);
 $routes->post('spazio/chatbot-whatsapp/resolve', 'Tenant\WhatsAppBooking::resolve', ['filter'=>'whatsappbookingcsrf']);
 $routes->get('piattaforma/spazi-clienti', 'Login\PlatformTenantSpacesController::index');

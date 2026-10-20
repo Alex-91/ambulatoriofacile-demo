@@ -36,6 +36,16 @@ class WhatsAppBooking extends BaseController
             return redirect()->to(portal_tenant_space_url('chatbot-whatsapp'))->with('success','Configurazione prenotazioni aggiornata.');
         }catch(\Throwable $e){return redirect()->to(portal_tenant_space_url('chatbot-whatsapp'))->withInput()->with('errors',[$e->getMessage()]);}
     }
+    public function toggle()
+    {
+        if($guard=$this->guard())return $guard;
+        try{
+            $value=$this->request->getPost('assistant_enabled');
+            if(!in_array($value,['0','1'],true))throw new \InvalidArgumentException('Stato del chatbot non valido.');
+            (new WhatsAppBookingService())->setActive($this->tenantId,$value==='1');
+            return redirect()->to(portal_tenant_space_url('chatbot-whatsapp'))->with('success',$value==='1'?'Chatbot acceso.':'Chatbot spento. La configurazione è stata conservata.');
+        }catch(\Throwable $e){return redirect()->to(portal_tenant_space_url('chatbot-whatsapp'))->with('errors',[$e->getMessage()]);}
+    }
     public function resolve()
     {
         if($guard=$this->guard())return $guard;

@@ -6,7 +6,7 @@ final class WhatsAppBookingConfig
 {
     public static function defaults(): array
     {
-        return ['configured' => false, 'start_mode'=>'auto', 'idle_minutes'=>30, 'cancellation'=>true, 'keywords' => ['prenota', 'appuntamento', 'visita'],
+        return ['configured' => false, 'assistant_enabled'=>true, 'start_mode'=>'auto', 'idle_minutes'=>30, 'cancellation'=>true, 'keywords' => ['prenota', 'appuntamento', 'visita'],
             'order' => 'day', 'single_visit' => false, 'visit_ids' => [],
             'doctor_id' => 0,
             'confirmation' => 'auto', 'patient_mode' => 'cf', 'unknown_patient' => 'create',
@@ -18,7 +18,7 @@ final class WhatsAppBookingConfig
     public static function normalize(array $input): array
     {
         $c = self::defaults();
-        foreach (['configured','single_visit','handoff','cancellation'] as $key) $c[$key] = filter_var($input[$key] ?? $c[$key], FILTER_VALIDATE_BOOLEAN);
+        foreach (['configured','assistant_enabled','single_visit','handoff','cancellation'] as $key) $c[$key] = filter_var($input[$key] ?? $c[$key], FILTER_VALIDATE_BOOLEAN);
         foreach (['start_mode'=>['auto','keyword'], 'order'=>['visit','day'], 'confirmation'=>['auto','manual'], 'patient_mode'=>['name','birth','cf','both'], 'unknown_patient'=>['create','staff']] as $key=>$values) {
             $c[$key] = in_array($input[$key] ?? null, $values, true) ? $input[$key] : $c[$key];
         }

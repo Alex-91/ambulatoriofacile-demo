@@ -12,7 +12,7 @@ httpCheck(!WhatsAppBookingAccess::canManage(array_replace($member,['invitation_s
 httpCheck(!WhatsAppBookingAccess::canManage(null),'Deleted membership denied');
 httpCheck(WhatsAppBookingAccess::canManage(array_replace($member,['tenant_role'=>'doctor','is_app_admin'=>1])),'App administrator access');
 $routes=service('routes');$routes->loadRoutes();
-foreach(['login/',''] as $prefix)foreach(['spazio/chatbot-whatsapp/save','spazio/chatbot-whatsapp/preview','spazio/chatbot-whatsapp/resolve','piattaforma/chatbot-whatsapp/save'] as $path){
+foreach(['login/',''] as $prefix)foreach(['spazio/chatbot-whatsapp/toggle','spazio/chatbot-whatsapp/save','spazio/chatbot-whatsapp/preview','spazio/chatbot-whatsapp/resolve','piattaforma/chatbot-whatsapp/save'] as $path){
     $options=$routes->getRoutesOptions($prefix.$path,'POST');httpCheck(in_array('whatsappbookingcsrf',(array)($options['filter']??[]),true),'CSRF route '.$prefix.$path);
 }
 $request=new \CodeIgniter\HTTP\IncomingRequest(config(\Config\App::class),new \CodeIgniter\HTTP\URI('http://booking-test.invalid/'),null,new \CodeIgniter\HTTP\UserAgent());$request->setMethod('POST');$request->setGlobal('post',[]);
