@@ -57,3 +57,5 @@ Il gateway Go espone `POST /v1/accounts/{accountID}/messages/interactive`, prote
 
 ## Accensione dallo spazio
 Il responsabile dello spazio (tenant master/admin o amministratore applicativo autorizzato) può accendere e spegnere l’assistente dalla pagina. L’abilitazione della piattaforma resta necessaria e non può essere aggirata. Lo spegnimento conserva configurazione e appuntamenti, sospende il flusso prenotazioni e i suoi tentativi di risposta, e azzera le sessioni. L’anteprima e la modifica delle impostazioni restano disponibili. Le impostazioni senza il nuovo campo mantengono il comportamento precedente. Nessuna nuova migration richiesta.
+
+La voce Assistente WhatsApp e il collegamento dalle funzioni dello spazio sono nascosti quando manca l’abilitazione della piattaforma. Lo spegnimento locale conserva la voce per consentire la riaccensione.

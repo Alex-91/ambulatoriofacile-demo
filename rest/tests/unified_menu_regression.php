@@ -47,3 +47,13 @@ $catalog=UnifiedMenuService::groupLinks([['href'=>'/admin/fatturazione/gestione?
 check(count($catalog['Impostazioni'])===2 && count($catalog['Report'])===1,'Catalog configuration and integrations must be separated from billing activities');
 check(array_keys(UnifiedMenuService::tiles('Impostazioni',$catalog['Impostazioni']))===['Catalogo prestazioni','Integrazioni'],'Catalog and integration tiles must match prototype');
 check(UnifiedMenuService::sectionUrl('Amministrazione',[['href'=>'/admin/fatturazione-documenti']])==='/admin/fatturazione-documenti','Navigation must target real pages directly');
+
+foreach(['/spazio/chatbot-whatsapp','/login/spazio/chatbot-whatsapp','/demo/login/spazio/chatbot-whatsapp','/app/spazio/chatbot-whatsapp'] as $path){
+    $links=[['href'=>$path,'label'=>'Assistente WhatsApp']];
+    check(UnifiedMenuService::filterEnabledLinks($links,[])===[],'Platform-disabled chatbot must be hidden: '.$path);
+    check(UnifiedMenuService::filterEnabledLinks($links,['whatsapp_assistant_platform'=>false])===[],'Explicit platform disable hides chatbot');
+    check(UnifiedMenuService::filterEnabledLinks($links,['whatsapp_assistant_platform'=>true,'assistant_enabled'=>false])===$links,'Local pause must retain access to reactivation');
+}
+$platform=[['href'=>'/login/piattaforma/chatbot-whatsapp','label'=>'Abilitazioni chatbot']];
+check(UnifiedMenuService::filterEnabledLinks($platform,[])===$platform,'Platform activation console stays accessible');
+echo "PASS WhatsApp menu: platform gate, URL prefixes, local pause and platform console.\n";

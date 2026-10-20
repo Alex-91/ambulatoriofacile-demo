@@ -421,7 +421,7 @@ class MenuResolverService
         }
 
         $tenantContextFlags = [
-            'spazio/chatbot-whatsapp' => !empty($context['can_manage_tenant_features']) || !empty($context['can_manage_tenant_users']),
+            'spazio/chatbot-whatsapp' => (!empty($context['can_manage_tenant_features']) || !empty($context['can_manage_tenant_users'])) && WhatsAppBookingAccess::platformEnabled((int)($context['tenant_id']??0)),
 
             'spazio/utenti' => !empty($context['can_manage_tenant_users']),
             'spazio/dispositivi-otp' => !empty($context['can_manage_otp_devices']),
@@ -463,6 +463,13 @@ class MenuResolverService
      */
     private function injectFeatureAwareAdminMenus(array $menuItems, int $tenantId): array
     {
+        if(!WhatsAppBookingAccess::platformEnabled($tenantId)){
+            $menuItems=array_values(array_filter($menuItems,static function(array $row): bool {
+                $path=trim(strtolower((string)parse_url((string)($row['link']??''),PHP_URL_PATH)),'/');
+                return !preg_match('~^(?:(?:app|demo)/)?(?:login/)?spazio/chatbot-whatsapp(?:/|$)~',$path);
+            }));
+        }
+
         $menuItems = $this->injectVisitTypesMenu($menuItems, $tenantId);
         $menuItems = $this->injectBillingMenu($menuItems, $tenantId);
         $menuItems = $this->injectPolyclinicMenu($menuItems, $tenantId);

@@ -53,6 +53,7 @@ final class UnifiedMenuService
             } catch (\Throwable) { /* No clinical links for an inactive or unauthorized staff profile. */ }
         }
         $features=(new TenantFeatureService())->resolveEffectiveFeatureMapForTenant($this->tenantId());
+        $features['whatsapp_assistant_platform']=WhatsAppBookingAccess::platformEnabled($this->tenantId());
         foreach ($groups as $name=>$links) {
             $groups[$name]=self::filterEnabledLinks($links,$features);
         }
@@ -66,6 +67,7 @@ final class UnifiedMenuService
             $path=trim(strtolower((string)parse_url($link['href'],PHP_URL_PATH)),'/');
             $path=preg_replace('~^(?:app|demo)/~','',$path);
             $required=[];
+            if(preg_match('~^(?:login/)?spazio/chatbot-whatsapp(?:/|$)~',$path))$required[]='whatsapp_assistant_platform';
             $module=\App\Libraries\TenantFeatureRegistry::resolveFeatureKeyFromRoutePath($path);
             if ($module) $required[]=$module;
             if (preg_match('~(?:^|/)(?:sistema-ts|fatturazione-ts)(?:[-/]|$)~',$path)) $required[]='ts_billing';
