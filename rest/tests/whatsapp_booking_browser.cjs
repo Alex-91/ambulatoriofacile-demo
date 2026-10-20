@@ -24,8 +24,16 @@ const server=http.createServer(async(req,res)=>{
  const browser=await chromium.launch({headless:true,...(process.env.BROWSER_EXE?{executablePath:process.env.BROWSER_EXE}:{})});
  const page=await browser.newPage({viewport:{width:1440,height:1080}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
  try{
+  // Simulate the old, cached right-sidebar CSS. A corrected page must request a new URL.
+  let staleCssRequests=0;
+  await page.route('**/public/assets/css/whatsapp-booking.css',async route=>{
+   if(!new URL(route.request().url()).search){staleCssRequests++;await route.fulfill({contentType:'text/css',body:fs.readFileSync(path.join(root,'public/assets/css/whatsapp-booking.css'),'utf8').replace('grid-template-columns:260px minmax(0,1fr)','grid-template-columns:minmax(0,1fr) 260px')});}else await route.continue();
+  });
   await page.goto('http://127.0.0.1:'+server.address().port);
-  const mainBox=await page.locator('#wb-app').boundingBox(),menuBox=await page.locator('.wb-navigation').boundingBox();assert(menuBox.x+menuBox.width<=mainBox.x,'Shared menu must be on the left');assert(await page.locator('.wb-navigation').isVisible());
+  const cssUrl=await page.locator('link[href*="whatsapp-booking.css"]').getAttribute('href');
+  assert.match(cssUrl,/\?v=[a-f0-9]{16}$/,'Stylesheet must be content-versioned');assert.equal(staleCssRequests,0,'Old stylesheet must not be reused');
+
+  const mainBox=await page.locator('#wb-app').boundingBox(),menuBox=await page.locator('.wb-navigation').boundingBox();assert(menuBox.x+menuBox.width<=mainBox.x,'Shared menu must be on the left');assert(await page.locator('.wb-navigation').isVisible());assert(menuBox.width<=280 && mainBox.width>700,'Sidebar must remain narrow and content usable');
   for(const key of ['location','location_id','lead_hours','window_days'])assert.equal(await page.locator('[name="booking['+key+']"]').count(),0,'Agenda field must not be configurable: '+key);
   await page.locator('#wb-single').check();assert(await page.locator('#wb-order').isHidden());assert.equal(await page.locator('[name="booking[default_visit_id]"]').count(),0);
   await page.locator('#wb-patient').selectOption('name');assert(await page.locator('#wb-unknown').isHidden());
@@ -49,7 +57,7 @@ const server=http.createServer(async(req,res)=>{
   await page.locator('#wb-chat button:enabled').first().click();await page.waitForFunction(()=>document.querySelector('#wb-chat').lastElementChild.textContent.includes('Mantieni'));
   await page.locator('#wb-chat button:enabled').filter({hasText:'Annulla appuntamento'}).click();await page.waitForFunction(()=>document.querySelector('#wb-chat').lastElementChild.textContent.includes('Appuntamento annullato'));
   fs.mkdirSync(path.join(root,'output/whatsapp-booking'),{recursive:true});await page.screenshot({path:path.join(root,'output/whatsapp-booking/desktop.png'),fullPage:true});
-  for(const width of [768,390,320]){await page.setViewportSize({width,height:900});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+1),'Horizontal overflow at '+width);}
+  for(const width of [1920,1440,1024,768,390,320]){await page.setViewportSize({width,height:900});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+1),'Horizontal overflow at '+width);}
   await page.screenshot({path:path.join(root,'output/whatsapp-booking/mobile.png'),fullPage:true});assert.deepEqual(errors,[]);
   console.log('PASS browser: real view and JS; single visit; name and fiscal-code paths; automatic/manual confirmation; responsive 1440/768/390/320px; no JS errors.');
  }finally{await browser.close();server.close();}
