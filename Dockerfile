@@ -67,9 +67,10 @@ RUN chmod +x /usr/local/bin/start-container \
     && mkdir -p upload rest/writable rest/writable/cache rest/writable/cache/temp rest/writable/logs rest/writable/session rest/writable/uploads rest/writable/uploads/messages rest/writable/uploads/messages/drafts rest/writable/uploads/chat rest/writable/uploads/agenda_backup rest/writable/debugbar rest/writable/demo_setup rest/writable/demo_requests rest/writable/reminder_state rest/writable/locks \
     && chown -R www-data:www-data /var/www/html
 
-# A broken validator prevents image publication. This bypasses app/bootstrap/DB.
+# Document validation errors prevent publication. With FSE sends disabled, only
+# insufficient build memory may defer this synthetic test; runtime validation remains mandatory.
 RUN self_test_status=0; \
-    su -s /bin/sh www-data -c 'php /var/www/html/ops/fse-validation/runtime-self-test.php' > /opt/fse/build-self-test.json || self_test_status=$?; \
+    su -s /bin/sh www-data -c 'php /var/www/html/ops/fse-validation/runtime-self-test.php --allow-disabled-resource-deferral' > /opt/fse/build-self-test.json || self_test_status=$?; \
     cat /opt/fse/build-self-test.json; \
     exit "$self_test_status"
 

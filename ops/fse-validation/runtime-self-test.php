@@ -27,7 +27,8 @@ try {
     if ($config->allowProduction || $config->allowToscanaStage) throw new RuntimeException('SELF_TEST_LIVE_FLAGS');
     // Build workers share host memory with the live apps. Wait for headroom;
     // never lower the same admission threshold used by the production worker.
-    $deadline = microtime(true) + 120;
+    $allowResourceDeferral = in_array('--allow-disabled-resource-deferral', $argv ?? [], true);
+    $deadline = microtime(true) + ($allowResourceDeferral ? 0 : 120);
     do {
         $available = \App\Services\FseValidationJobs::availableMemoryMiB(
             @file_get_contents('/proc/meminfo'), @file_get_contents('/sys/fs/cgroup/memory.max'),
@@ -68,7 +69,17 @@ try {
     $report['toscana_stage_enabled'] = false;
     $report['status'] = 'passed_offline_runtime';
 } catch (Throwable $e) {
+    $resourceFailure = $e->getMessage() === 'SELF_TEST_INSUFFICIENT_MEMORY'
+        || str_starts_with($e->getMessage(), 'Risorse temporaneamente insufficienti');
+    if ($resourceFailure && !empty($allowResourceDeferral) && isset($config)
+        && !$config->allowProduction && !$config->allowToscanaStage) {
+        $report['status'] = 'deferred_insufficient_memory';
+        $report['production_sends_enabled'] = false;
+        $report['toscana_stage_enabled'] = false;
+        $report['error_code'] = 'SELF_TEST_INSUFFICIENT_MEMORY';
+    } else {
     $report['error_code'] = preg_match('/^SELF_TEST_[A-Z_]+$/D', $e->getMessage()) ? $e->getMessage() : 'SELF_TEST_FAILED';
+    }
 }
 $report['completed_at'] = gmdate('c');
 // Clean only recognized empty self-test directories and semaphore files, never recurse.
@@ -78,4 +89,4 @@ foreach (['slot-0.lock','maintenance.lock'] as $name) {
 }
 foreach ([$private . '/fse2/validation-jobs', $private . '/fse2', $private] as $path) if (is_dir($path)) @rmdir($path);
 echo json_encode($report, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n";
-exit($report['status'] === 'passed_offline_runtime' ? 0 : 2);
+exit(in_array($report['status'], ['passed_offline_runtime', 'deferred_insufficient_memory'], true) ? 0 : 2);
