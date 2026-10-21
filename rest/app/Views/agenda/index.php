@@ -3101,6 +3101,12 @@
             color: var(--agenda-appointment-text, var(--agenda-team-column-entry-text, #ffffff));
         }
 
+        .agenda-team-mobile-entry.has-visit-type-color {
+            background: var(--agenda-slot-bg, #3c8dbc);
+            border: 1px solid var(--agenda-slot-border, #2f74a0);
+            color: var(--agenda-appointment-text, var(--agenda-slot-text, #fff));
+        }
+
         .agenda-team-mobile-entry.has-visit-type-color .agenda-team-mobile-entry-time,
         .agenda-team-mobile-entry.is-booked .agenda-team-mobile-entry-time {
             background: var(--agenda-team-pill-bg, rgba(255, 255, 255, 0.18));
