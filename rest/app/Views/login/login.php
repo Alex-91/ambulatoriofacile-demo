@@ -228,6 +228,11 @@ window.addEventListener('load', function () {
             <input type="button" id="submit" value="Login">
             <input type="button" id="register" value="Registrati" >
 			      <input type="button" id="reset" value="Password Dimenticata?">
+            <div id="loginPushPanel" hidden>
+              <button type="button" id="loginEnablePush" aria-describedby="loginPushStatus" style="background:#e9f5f3;color:#185c55;">Attiva notifiche</button>
+              <p id="loginPushStatus" role="status" aria-live="polite" style="margin-top:8px;font-size:13px;line-height:1.45;color:#4f5f65;">Attiva le notifiche su questa app, poi accedi per associarle al tuo account.</p>
+            </div>
+            <script src="<?= base_url('public/assets/js/login-push-notifications.js') ?>?v=1" defer></script>
 <script src="<?= base_url('js/pwa.js') ?>" defer></script>
 
             <input type="button" style="display:none;" id="installPWA" value="Installa l'app">
@@ -243,8 +248,8 @@ window.addEventListener('load', function () {
     line-height:1.4;
   ">
     <span style="display:block;">
-      Dopo l'installazione &egrave; necessario effettuare un primo accesso dall'app
-      per abilitare le notifiche e ricevere l'OTP.
+      Dopo l'installazione apri l'app, premi "Attiva notifiche" e poi accedi.
+      Le notifiche sono disponibili anche senza OTP al login.
     </span>
   </div>
 </div>

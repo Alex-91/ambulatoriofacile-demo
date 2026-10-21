@@ -967,7 +967,9 @@ if ($headerMenuUserId > 0 && !$hasTenantMasterAccess) {
 
     var endpoint = sub.endpoint || '';
     var endpointKey = registrationStorageKey();
-    if (endpoint && localStorage.getItem(endpointKey) === endpoint) return;
+    // A login opt-in must refresh the account association even if cached locally.
+    var pendingLoginPush = localStorage.getItem('push_login_activation_pending') === '1';
+    if (endpoint && localStorage.getItem(endpointKey) === endpoint && !pendingLoginPush) return;
 
     var body = new URLSearchParams({
       endpoint: endpoint,
@@ -993,6 +995,7 @@ if ($headerMenuUserId > 0 && !$hasTenantMasterAccess) {
     try { json = await res.json(); } catch (_) {}
     if (json && json.ok && endpoint) {
       localStorage.setItem(endpointKey, endpoint);
+      localStorage.removeItem('push_login_activation_pending');
     }
   }
 
