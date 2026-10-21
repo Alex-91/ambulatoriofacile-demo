@@ -25,9 +25,36 @@ try {
         'FseCdaRsaBuilderService','FseSyntheticDocument'] as $class) require APPPATH . 'Services/' . $class . '.php';
     $config = new \App\Config\Fse2();
     if ($config->allowProduction || $config->allowToscanaStage) throw new RuntimeException('SELF_TEST_LIVE_FLAGS');
-    $validator = new \App\Services\FseArtifactValidationService($config);
+    // Build workers share host memory with the live apps. Wait for headroom;
+    // never lower the same admission threshold used by the production worker.
+    $deadline = microtime(true) + 120;
+    do {
+        $available = \App\Services\FseValidationJobs::availableMemoryMiB(
+            @file_get_contents('/proc/meminfo'), @file_get_contents('/sys/fs/cgroup/memory.max'),
+            @file_get_contents('/sys/fs/cgroup/memory.current'));
+        $report['resources'] = ['minimum_mib'=>$config->validatorMinAvailableMiB,
+            'available_mib'=>$available === null ? null : (int) floor($available)];
+        if ($config->validatorMinAvailableMiB <= 0 || ($available !== null && $available >= $config->validatorMinAvailableMiB)) break;
+        if (microtime(true) >= $deadline) throw new RuntimeException('SELF_TEST_INSUFFICIENT_MEMORY');
+        sleep(5);
+    } while (true);
+    $validator = new class($config) extends \App\Services\FseArtifactValidationService {
+        public string $diagnosticCode = 'SELF_TEST_RUNTIME';
+        protected function run(array $job): array {
+            try { return parent::run($job); }
+            catch (\Throwable $e) {
+                // Only fixed technical codes; no worker output, paths or document values.
+                if (str_starts_with($e->getMessage(), 'Risorse temporaneamente insufficienti')) {
+                    $this->diagnosticCode = 'SELF_TEST_INSUFFICIENT_MEMORY';
+                } elseif (preg_match('/^Controlli FSE non superati: ([A-Z0-9_]{1,80})/', $e->getMessage(), $match)) {
+                    $this->diagnosticCode = 'SELF_TEST_' . $match[1];
+                }
+                throw $e;
+            }
+        }
+    };
     $report['readiness'] = $validator->readiness(true);
-    if (($report['readiness']['artifacts'] ?? '') !== 'passed') throw new RuntimeException('SELF_TEST_RUNTIME');
+    if (($report['readiness']['artifacts'] ?? '') !== 'passed') throw new RuntimeException($validator->diagnosticCode);
     if (($report['readiness']['trust_material'] ?? '') !== 'missing') throw new RuntimeException('SELF_TEST_UNEXPECTED_TRUST');
     $cda = (new \App\Services\FseCdaRsaBuilderService())->build(\App\Services\FseSyntheticDocument::data());
     $pdf = $validator->buildPdf($cda);
