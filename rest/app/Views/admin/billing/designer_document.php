@@ -4,6 +4,8 @@ $template=$preview['template']??[];
 $designer=BillingDocumentDesigner::fromConfig($template);
 $branding=$template['branding']??[]; $fiscal=$template['fiscal_data']??[]; $document=$preview['document']??[];
 $patient=$template['patient_details']??[];
+$accent=$branding['accent_color']??'#2c8895';
+if (!preg_match('/^#[0-9a-fA-F]{6}$/', $accent)) $accent='#2c8895';
 $money=static fn($v)=>'EUR '.number_format((float)$v,2,',','.');
 $values=$document;
 foreach (['patient_address','patient_city','patient_postal_code','patient_province','patient_email','patient_phone','patient_mobile'] as $key) $values[$key]=$patient[$key]??$document[$key]??'';
@@ -46,7 +48,7 @@ $renderBlock=static function(array $block) use ($values,$branding,$catalog,$prev
  $termsLabelContent=$type==='terms' && trim((string)$value)==='' && trim($element['label'])!=='';
  if ($termsLabelContent) $value=$element['label'];
  if (trim((string)$value)==='') continue; ?>
-   <div class="db-element <?= in_array($type,['title','total'],true)?'db-emphasis':'' ?>">
+   <div class="db-element db-field-<?= esc($type) ?> <?= in_array($type,['title','total'],true)?'db-emphasis':'' ?>">
      <?php if ($element['show_label'] && !$termsLabelContent): ?><div class="db-label"><?= $safe($label) ?></div><?php endif; ?>
      <div><?= $safe($value) ?></div>
    </div>
@@ -100,6 +102,15 @@ body { margin:0; font-family:DejaVu Sans,Arial,sans-serif; font-size:11pt; color
 .db-items thead { display:table-header-group; } .db-items tr { page-break-inside:avoid; }
 .db-signature { padding-top:14mm; border-bottom:0.25mm solid #788494; }
 hr { border:0; border-top:0.25mm solid #d7dde5; }
+.db-items th { background:#edf6f7; color:<?= esc($accent) ?>; font-size:8pt; text-transform:uppercase; letter-spacing:.4pt; }
+.db-items td { padding:3mm 2mm; font-size:9pt; }
+.db-items td:nth-child(3), .db-items th:nth-child(3) { text-align:center; }
+.db-items td:nth-child(4), .db-items td:nth-child(5), .db-items th:nth-child(4), .db-items th:nth-child(5) { text-align:right; }
+.db-field-title { font-size:23pt; letter-spacing:1pt; }
+.db-field-issuer_name, .db-field-patient_name { font-weight:bold; }
+.db-field-total { background:#edf6f7; color:<?= esc($accent) ?>; padding:4mm; margin-top:3mm; }
+.db-field-notes > .db-label, .db-field-terms > .db-label { border-bottom:.25mm solid <?= esc($accent) ?>; padding-bottom:2mm; margin-bottom:3mm; color:<?= esc($accent) ?>; text-transform:uppercase; letter-spacing:1pt; }
+.db-field-footer { border-top:.25mm solid <?= esc($accent) ?>; padding-top:3mm; font-size:8pt; color:#607278; }
 <?php if (empty($pdfMode)): ?>
 @media screen { body { background:#e8ecf2; padding:12mm; } .db-sheet { width:186mm; min-height:273mm; padding:0; margin:auto; background:white; box-shadow:0 0 0 12mm white; } }
 <?php endif; ?>

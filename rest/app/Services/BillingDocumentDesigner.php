@@ -70,10 +70,12 @@ class BillingDocumentDesigner
             $blocks[]=array_merge(['name'=>$name,'span'=>$span,'elements'=>array_map(static fn($t)=>['type'=>$t,'show_label'=>!in_array($t,['title','subtitle','logo','text'],true)],$types)],$style);
         };
         if ($l['show_header']??true) {
-            $types=['title']; if (!empty($b['header_subtitle'])) $types[]='subtitle';
+            $types=[];
             if (($l['show_logo']??true) && ($b['logo_mode']??'none')!=='none') $types[]='logo';
             foreach (['issuer_name','issuer_address','issuer_tax_code','issuer_vat_number','issuer_pec','issuer_pension'] as $key) if ($b['show_'.$key]??true) $types[]=$key;
-            $add('Intestazione',$types,12,($b['header_style']??'')==='plain'?[]:['background'=>$b['accent_color']??'#2c8895','color'=>'#ffffff']);
+            $add('Professionista',$types,6,['padding'=>0]);
+            $types=['title']; if (!empty($b['header_subtitle'])) $types[]='subtitle';
+            $add('Intestazione',$types,6,['align'=>'right','padding'=>0,'color'=>$b['accent_color']??'#2c8895']);
             $types=[]; foreach (['document_number','issue_date','payment_method','payment_date','patient_name','patient_tax_code','patient_address','patient_city','patient_postal_code','patient_province','patient_email','patient_phone','patient_mobile'] as $key) if (!empty($b['header_'.$key])) $types[]=$key;
             if (!empty($b['show_header_opposition'])) $types[]='opposition';
             $add('Dati in alto',$types);

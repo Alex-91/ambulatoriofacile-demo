@@ -67,13 +67,14 @@ if (!empty($pensionFund['enabled']) && trim((string) ($pensionFund['name'] ?? ''
 <head>
   <meta charset="UTF-8">
   <style>
+    @page { size:A4 portrait; margin:16mm; }
     body { font-family: DejaVu Sans, Arial, sans-serif; color:#1f2d3d; font-size:12px; margin:0; }
-    .header { background:<?= esc($accentColor) ?>; color:#fff; padding:22px 26px; }
+    .header { background:#fff; color:<?= esc($accentColor) ?>; padding:0 0 22px; border-bottom:1px solid <?= esc($accentColor) ?>; }
     .title { font-size:24px; font-weight:700; margin:0 0 6px 0; }
     .subtitle { font-size:12px; opacity:.95; }
-    .body { padding:24px 26px; }
-    .box { border:1px solid #dfe8eb; border-radius:10px; padding:12px 14px; margin-bottom:14px; }
-    .label { font-size:10px; text-transform:uppercase; letter-spacing:.05em; color:#677b82; font-weight:700; margin-bottom:4px; }
+    .body { padding:24px 0; }
+    .box { padding:10px 0; margin-bottom:18px; }
+    .label { font-size:10px; text-transform:uppercase; letter-spacing:.05em; color:<?= esc($accentColor) ?>; font-weight:700; margin-bottom:8px; }
     .value { font-size:13px; line-height:1.45; }
     .row { width:100%; margin-bottom:14px; }
     .row:after { content:""; display:block; clear:both; }
@@ -81,17 +82,20 @@ if (!empty($pensionFund['enabled']) && trim((string) ($pensionFund['name'] ?? ''
     .col-50.right { float:right; }
     table { width:100%; border-collapse:collapse; }
     th, td { border-bottom:1px solid #e5ecef; padding:8px 10px; text-align:left; }
-    th { background:#f7fafb; font-size:10px; text-transform:uppercase; letter-spacing:.05em; color:#61767d; }
-    .totals { width:280px; margin-left:auto; }
+    th { background:#edf6f7; font-size:10px; text-transform:uppercase; letter-spacing:.05em; color:#61767d; }
+    .totals { width:100%; margin-left:auto; }
     .totals td { border-bottom:none; padding:5px 0; }
     .totals td:last-child { text-align:right; font-weight:700; }
-    .footer { padding:16px 26px 24px; color:#607278; font-size:10px; }
+    .totals tr:last-child td { background:#edf6f7; color:<?= esc($accentColor) ?>; padding:12px 8px; font-size:16px; }
+    thead { display:table-header-group; } tr { page-break-inside:avoid; }
+    td { vertical-align:top; word-wrap:break-word; }
+    .footer { border-top:1px solid <?= esc($accentColor) ?>; padding:16px 0; color:#607278; font-size:10px; }
   </style>
 </head>
 <body>
   <?php if (!empty($layout['show_header'])): ?>
     <div class="header" style="<?= ($branding['header_style'] ?? '') === 'plain' ? 'background:#fff;color:#222;border-bottom:1px solid #ddd;' : '' ?>">
-      <?= view('admin/billing/document_header', compact('template', 'branding', 'layout', 'fields', 'fiscalData', 'issuerName', 'issuerLocation', 'pensionFundLabel', 'headerTitle', 'headerSubtitle', 'resolvedLogoUrl', 'document', 'preview')) ?>
+      <?= view('admin/billing/document_header', compact('template', 'branding', 'layout', 'fields', 'fiscalData', 'issuerName', 'issuerLocation', 'pensionFundLabel', 'headerTitle', 'headerSubtitle', 'resolvedLogoUrl', 'document', 'preview') + ['professionalStyle' => true]) ?>
     </div>
   <?php endif; ?>
 
@@ -116,7 +120,7 @@ if (!empty($pensionFund['enabled']) && trim((string) ($pensionFund['name'] ?? ''
       </div>
       <?php endif; ?>
         <?php if (!empty($layout['show_patient_box'])): ?>
-        <div class="col-50 right">
+        <div class="col-50<?= ($layout['show_document_box'] ?? true) ? ' right' : '' ?>">
           <div class="box">
             <div class="label"><?= esc((string) ($labels['patient_section_title'] ?? 'Dati paziente')) ?></div>
             <?php if (!empty($fields['show_patient_name'])): ?>

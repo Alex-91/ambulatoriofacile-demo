@@ -34,6 +34,20 @@ if (!empty($branding['show_header_opposition'])) {
     $metadata[] = 'Opposizione invio al Sistema TS: ' . (!empty($document['ts_opposition_flag']) ? 'Sì' : 'No');
 }
 ?>
+<?php if (!empty($professionalStyle)): ?>
+<table style="width:100%;table-layout:fixed;color:inherit;">
+<tr><td style="width:55%;vertical-align:top;border:0;padding:0 20px 0 0;">
+<?php if (!empty($layout['show_logo']) && ($branding['logo_mode'] ?? 'none') !== 'none' && $resolvedLogoUrl !== ''): ?>
+<img src="<?= esc($resolvedLogoUrl) ?>" style="max-width:130px;max-height:56px;margin-bottom:10px;" alt="Logo studio">
+<?php endif; ?>
+<?php foreach ($issuerLines as $i => $line): ?><div style="font-size:<?= $i === 0 ? '18' : '11' ?>px;line-height:1.6;<?= $i === 0 ? 'font-weight:bold;' : '' ?>"><?= esc($line) ?></div><?php endforeach; ?>
+<?php if (($branding['show_issuer_extra'] ?? true) && trim((string) ($branding['header_extra'] ?? '')) !== ''): ?><div style="margin-top:6px;"><?= nl2br(esc((string) $branding['header_extra'])) ?></div><?php endif; ?>
+</td><td style="vertical-align:top;text-align:right;border:0;padding:0;">
+<div style="font-size:26px;font-weight:bold;letter-spacing:1px;"><?= esc($headerTitle) ?></div>
+<?php if ($headerSubtitle !== ''): ?><div style="margin-top:6px;"><?= esc($headerSubtitle) ?></div><?php endif; ?>
+<?php foreach ($metadata as $line): ?><div style="margin-top:6px;font-size:11px;"><?= esc($line) ?></div><?php endforeach; ?>
+</td></tr></table>
+<?php return; endif; ?>
 <table style="width:100%;border-collapse:collapse;table-layout:fixed;color:inherit;">
   <tr>
     <td style="vertical-align:top;border:0;padding:0 16px 0 0;overflow-wrap:anywhere;word-wrap:break-word;">
