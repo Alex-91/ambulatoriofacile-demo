@@ -443,7 +443,7 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
               <div class="box-body">
                 <?php if ($businessMode): ?>
                   <p>Documento intestato alla struttura, senza collegamento a un paziente. Puoi salvare una bozza oppure confermare la fattura e scaricare il PDF.</p>
-                  <p class="text-muted">L’invio elettronico allo SdI non è disponibile da questa schermata.</p>
+                  <p class="text-muted">L’invio elettronico reale allo SdI non è ancora disponibile. <a href="<?= site_url('admin/fatturazione-strutture/sdi') ?>">Mostra i percorsi SDI: XML, PEC e provider API (dimostrazione)</a>.</p>
                 <?php else: ?>
                 <div class="alert alert-info">
                   Il documento resta nel modulo Fatturazione. Se attivi questa sezione e salvi la fattura come definitiva, la ritroverai nel modulo Sistema TS tra quelle da inviare. Se vuoi, puoi anche inviarla subito direttamente da qui.

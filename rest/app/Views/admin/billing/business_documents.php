@@ -9,6 +9,7 @@
 <main class="col-md-9">
 <h1>Fatture a strutture</h1>
 <p>Fatture professionali intestate a cliniche, aziende ed enti.</p>
+<p><a class="btn btn-info" href="<?= site_url('admin/fatturazione-strutture/sdi') ?>">Invio SDI · dimostrazione</a> <span class="text-muted">XML / Portale AdE, PEC e provider API</span></p>
 <?php if (!empty($success)): ?><div class="alert alert-success"><?= esc($success) ?></div><?php endif; ?>
 <?php foreach ($errors as $error): ?><div class="alert alert-danger"><?= esc($error) ?></div><?php endforeach; ?>
 <?php if (empty($listing['table_available'])): ?>

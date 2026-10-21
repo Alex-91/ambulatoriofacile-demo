@@ -280,6 +280,7 @@ $routes->group('admin', static function($routes){
     $routes->post('fatturazione-documento/save', 'Admin\BillingDocumentSettingsController::save');
     $routes->post('fatturazione-documento/preview', 'Admin\BillingDocumentSettingsController::previewDesigner');
     $routes->get('fatturazione-strutture', 'Admin\BillingDocumentsController::businessIndex');
+    $routes->get('fatturazione-strutture/sdi', 'Admin\BillingSdiController::index');
     $routes->get('fatturazione-strutture/nuovo', 'Admin\BillingDocumentsController::businessCreate');
     $routes->get('fatturazione-strutture/modifica/(:num)', 'Admin\BillingDocumentsController::businessEdit/$1');
     $routes->post('fatturazione-strutture/save', 'Admin\BillingDocumentsController::businessSave');
