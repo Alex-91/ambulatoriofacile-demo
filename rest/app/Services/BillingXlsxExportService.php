@@ -136,10 +136,13 @@ class BillingXlsxExportService
         if (str_starts_with($key, 'business_')) { return $snapshot['patient_details'][$key] ?? ''; }
         switch ($key) {
             case 'patient_tax_code': return ($row['patient_tax_code'] ?? '') ?: ($snapshot['patient_details']['business_vat_number'] ?? '');
+            case 'patient_name': return BillingExportFormat::patientName($row, $snapshot);
             case 'services':
                 $items = json_decode((string) ($row['line_items_json'] ?? ''), true);
                 return implode(' | ', (array) ($row['service_descriptions'] ?? array_column(is_array($items) ? $items : [], 'description')));
-            case 'patient_address': return trim(($snapshot['patient_details']['patient_address'] ?? '').' '.($snapshot['patient_details']['patient_city'] ?? ''));
+            case 'patient_address':
+                $details = (array) ($snapshot['patient_details'] ?? []);
+                return implode(' ', array_filter(array_map(static fn($key) => trim((string) ($details[$key] ?? '')), ['patient_address', 'patient_postal_code', 'patient_city', 'patient_province'])));
             case 'issuer_name': return $snapshot['fiscal_data']['business_name'] ?? '';
             case 'issuer_address':
                 $fiscal = (array) ($snapshot['fiscal_data'] ?? []);

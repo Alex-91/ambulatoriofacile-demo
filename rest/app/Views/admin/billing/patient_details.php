@@ -1,6 +1,6 @@
 <?php
 $patientDetails = is_array($template['patient_details'] ?? null) ? $template['patient_details'] : [];
-$patientLabels = ['address' => 'Indirizzo', 'city' => 'Comune', 'email' => 'Email', 'phone' => 'Telefono', 'mobile' => 'Cellulare'];
+$patientLabels = ['address' => 'Indirizzo', 'city' => 'Comune', 'postal_code' => 'CAP', 'province' => 'Provincia', 'email' => 'Email', 'phone' => 'Telefono', 'mobile' => 'Cellulare'];
 foreach ($patientLabels as $key => $label):
     $value = trim((string) ($patientDetails['patient_' . $key] ?? $document['patient_' . $key] ?? ''));
     if (empty($fields['show_patient_' . $key]) || $value === '') {

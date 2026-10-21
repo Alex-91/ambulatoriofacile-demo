@@ -28,6 +28,7 @@ class BillingDocumentExportService
                 }
             }
             $documents = $this->documents ?? new BillingDocumentService();
+            $usedNames = [];
             foreach ($rows as $row) {
                 $id = (int) $row['id_billing_document'];
                 $preview = $documents->buildPreviewContext($tenantId, $id);
@@ -37,7 +38,7 @@ class BillingDocumentExportService
                 $pdf->setPaper('A4', 'portrait');
                 $pdf->render();
                 $body = $pdf->output();
-                $name = 'fattura_' . preg_replace('/[^a-zA-Z0-9_-]/', '_', $row['document_number']) . '_' . $id . '.pdf';
+                $name = BillingExportFormat::filename($preview['document'], $usedNames);
                 if ($zip === null) {
                     return ['body' => $body, 'type' => 'application/pdf', 'name' => $name];
                 }

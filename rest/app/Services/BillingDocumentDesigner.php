@@ -13,7 +13,7 @@ class BillingDocumentDesigner
             'issuer_pec'=>'Professionista: PEC', 'issuer_pension'=>'Cassa previdenziale', 'issuer_extra'=>'Righe professionista',
             'document_type'=>'Tipo documento', 'document_number'=>'Numero documento', 'issue_date'=>'Data emissione',
             'patient_name'=>'Paziente: nome', 'patient_tax_code'=>'Paziente: codice fiscale',
-            'patient_address'=>'Paziente: indirizzo', 'patient_city'=>'Paziente: comune', 'patient_email'=>'Paziente: email',
+            'patient_address'=>'Paziente: indirizzo', 'patient_city'=>'Paziente: comune', 'patient_postal_code'=>'Paziente: CAP', 'patient_province'=>'Paziente: provincia', 'patient_email'=>'Paziente: email',
             'patient_phone'=>'Paziente: telefono', 'patient_mobile'=>'Paziente: cellulare',
             'payment_method'=>'Metodo pagamento', 'payment_date'=>'Data pagamento', 'due_date'=>'Scadenza',
             'opposition'=>'Opposizione TS', 'line_items'=>'Tabella prestazioni', 'subtotal'=>'Subtotale',
@@ -74,7 +74,7 @@ class BillingDocumentDesigner
             if (($l['show_logo']??true) && ($b['logo_mode']??'none')!=='none') $types[]='logo';
             foreach (['issuer_name','issuer_address','issuer_tax_code','issuer_vat_number','issuer_pec','issuer_pension'] as $key) if ($b['show_'.$key]??true) $types[]=$key;
             $add('Intestazione',$types,12,($b['header_style']??'')==='plain'?[]:['background'=>$b['accent_color']??'#2c8895','color'=>'#ffffff']);
-            $types=[]; foreach (['document_number','issue_date','payment_method','payment_date','patient_name','patient_tax_code','patient_address','patient_city','patient_email','patient_phone','patient_mobile'] as $key) if (!empty($b['header_'.$key])) $types[]=$key;
+            $types=[]; foreach (['document_number','issue_date','payment_method','payment_date','patient_name','patient_tax_code','patient_address','patient_city','patient_postal_code','patient_province','patient_email','patient_phone','patient_mobile'] as $key) if (!empty($b['header_'.$key])) $types[]=$key;
             if (!empty($b['show_header_opposition'])) $types[]='opposition';
             $add('Dati in alto',$types);
             if (($b['show_issuer_extra']??true) && !empty($b['header_extra'])) $add('Professionista — testo',['issuer_extra']);
@@ -83,7 +83,7 @@ class BillingDocumentDesigner
         $add('Professionista',$types);
         if (!empty($f['show_issuer_extra']) && !empty($b['header_extra'])) $add('Righe professionista',['issuer_extra']);
         if ($l['show_document_box']??true) { $types=['document_type']; foreach (['document_number','issue_date'] as $key) if ($f['show_'.$key]??true) $types[]=$key; $add('Documento',$types,6); }
-        if ($l['show_patient_box']??true) { $types=[]; foreach (['patient_name','patient_tax_code','patient_address','patient_city','patient_email','patient_phone','patient_mobile'] as $key) if (!empty($f['show_'.$key])) $types[]=$key; $add($config['labels']['patient_section_title']??'Paziente',$types,6); }
+        if ($l['show_patient_box']??true) { $types=[]; foreach (['patient_name','patient_tax_code','patient_address','patient_city','patient_postal_code','patient_province','patient_email','patient_phone','patient_mobile'] as $key) if (!empty($f['show_'.$key])) $types[]=$key; $add($config['labels']['patient_section_title']??'Paziente',$types,6); }
         if ($f['show_line_items']??true) $add('Prestazioni',['line_items']);
         if ($l['show_payment_box']??true) { $types=['due_date']; foreach (['payment_method','payment_date'] as $key) if ($f['show_'.$key]??true) $types[]=$key; $add($config['labels']['payment_section_title']??'Pagamento',$types,6); }
         $types=['subtotal']; if ($f['show_vat_summary']??true) $types[]='vat'; if ($f['show_stamp_duty']??true) $types[]='stamp'; $types[]='total'; $add('Totali',$types,6);
@@ -101,7 +101,7 @@ class BillingDocumentDesigner
     public static function sample(array $config): array
     {
         return ['template'=>$config,'tenant'=>['tenant_name'=>'Studio medico di esempio'], 'document_type_label'=>'Fattura', 'payment_method_label'=>'Carta / POS', 'generated_at'=>date('d/m/Y H:i'),
-            'document'=>['document_number'=>'FT-2026-0017','issue_date'=>'2026-09-25','payment_date'=>'2026-09-25','due_date'=>'2026-10-25', 'patient_name'=>'Giulia Bianchi','patient_tax_code'=>'BNCGLI90L41H501R','patient_address'=>'Via Roma 10','patient_city'=>'Firenze','patient_email'=>'paziente@example.test','patient_phone'=>'055 000000','patient_mobile'=>'333 0000000','subtotal_amount'=>130,'stamp_duty_amount'=>2,'amount_total'=>132,'vat_rate'=>0,'vat_nature'=>'Esente art. 10','notes'=>'Prestazioni sanitarie di esempio.'],
+            'document'=>['document_number'=>'FT-2026-0017','issue_date'=>'2026-09-25','payment_date'=>'2026-09-25','due_date'=>'2026-10-25', 'patient_name'=>'Giulia Bianchi','patient_tax_code'=>'BNCGLI90L41H501R','patient_address'=>'Via Roma 10','patient_city'=>'Firenze','patient_postal_code'=>'50100','patient_province'=>'FI','patient_email'=>'paziente@example.test','patient_phone'=>'055 000000','patient_mobile'=>'333 0000000','subtotal_amount'=>130,'stamp_duty_amount'=>2,'amount_total'=>132,'vat_rate'=>0,'vat_nature'=>'Esente art. 10','notes'=>'Prestazioni sanitarie di esempio.'],
             'line_items'=>[['description'=>'Visita specialistica con controllo e referto','quantity'=>1,'unit_amount'=>130,'line_total'=>130]]];
     }
 }

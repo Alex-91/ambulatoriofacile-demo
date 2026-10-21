@@ -194,10 +194,10 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
               </a>
             <?php endif; ?>
             <?php if ($documentId > 0 && $tableAvailable): ?>
-              <a class="btn btn-info" href="<?= site_url('admin/fatturazione-documenti/preview/' . $documentId) ?>" style="margin-left:8px;">
+              <a target="_blank" rel="noopener" class="btn btn-info" href="<?= site_url('admin/fatturazione-documenti/preview/' . $documentId) ?>" style="margin-left:8px;">
                 <i class="fa fa-eye"></i> Preview
               </a>
-              <a class="btn btn-success" href="<?= site_url('admin/fatturazione-documenti/pdf/' . $documentId) ?>" style="margin-left:8px;">
+              <a target="_blank" rel="noopener" class="btn btn-success" href="<?= site_url('admin/fatturazione-documenti/pdf/' . $documentId) ?>" style="margin-left:8px;">
                 <i class="fa fa-file-pdf-o"></i> PDF
               </a>
               <?php if ($linkedTsDocumentId > 0): ?>
@@ -348,6 +348,8 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
                       <input class="form-control" type="text" name="patient_city" maxlength="120" value="<?= esc($fieldValue('patient_city')) ?>" placeholder="Cerca comune" autocomplete="off">
                     </div>
                   </div>
+                  <div class="col-md-3"><div class="form-group"><label>CAP</label><input class="form-control" type="text" name="patient_postal_code" maxlength="12" value="<?= esc($fieldValue('patient_postal_code')) ?>"></div></div>
+                  <div class="col-md-3"><div class="form-group"><label>Provincia</label><input class="form-control" type="text" name="patient_province" maxlength="2" value="<?= esc($fieldValue('patient_province')) ?>"></div></div>
                   <div class="col-md-12">
                     <div class="patient-autocomplete-menu" data-role="patient-results"></div>
                     <small class="patient-autocomplete-help" data-role="patient-help">
@@ -497,7 +499,7 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
                   </button>
                 <?php endif; ?>
                 <?php if ($documentId > 0 && $tableAvailable): ?>
-                  <a class="btn btn-info" href="<?= site_url('admin/fatturazione-documenti/preview/' . $documentId) ?>" style="margin-left:8px;">
+                  <a target="_blank" rel="noopener" class="btn btn-info" href="<?= site_url('admin/fatturazione-documenti/preview/' . $documentId) ?>" style="margin-left:8px;">
                     <i class="fa fa-eye"></i> Preview
                   </a>
                 <?php endif; ?>
@@ -518,7 +520,7 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
 <script src="<?= base_url('public/bootstrap/js/bootstrap.min.js') ?>"></script>
 <?= view('partials/italian_address_autocomplete_init', [
     'groups' => [
-        ['municipality' => 'input[name="patient_city"]'],
+        ['municipality' => 'input[name="patient_city"]', 'postalCode' => 'input[name="patient_postal_code"]', 'province' => 'input[name="patient_province"]'],
     ],
 ]) ?>
 <script>
@@ -643,6 +645,8 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
         $email.val($.trim(patient.patient_email || patient.email || ''));
         $address.val($.trim(patient.patient_address || patient.address || ''));
         $city.val($.trim(patient.patient_city || patient.city || ''));
+        $root.find('[name="patient_postal_code"]').val($.trim(patient.patient_postal_code || ''));
+        $root.find('[name="patient_province"]').val($.trim(patient.patient_province || ''));
         syncHiddenPatientName();
         hideResults();
         refreshLinkedState(true);

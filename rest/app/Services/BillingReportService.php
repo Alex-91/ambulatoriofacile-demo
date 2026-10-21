@@ -89,7 +89,15 @@ class BillingReportService
         $localStateLabels = $this->documents->localStateLabels();
         $tsSyncLabels = $this->documents->tsSyncStateLabels();
 
+        $currentConfig = (new BillingDocumentSettingsService())->resolveOutputConfig($tenantId);
+
         foreach ($rows as &$row) {
+            $row = BillingDocumentService::resolveOutputDocument($row, $currentConfig);
+            $snapshot = json_decode((string) ($row['template_snapshot_json'] ?? ''), true);
+            $outputTemplate = $currentConfig;
+            if (isset($snapshot['recipient_type'])) $outputTemplate['recipient_type'] = $snapshot['recipient_type'];
+            $outputTemplate['patient_details'] = (array) ($snapshot['patient_details'] ?? []);
+            $row['template_snapshot_json'] = json_encode($outputTemplate, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
             $documentType = (string) ($row['document_type'] ?? '');
             $paymentMethod = (string) ($row['payment_method'] ?? '');
             $localState = (string) ($row['local_state'] ?? '');
@@ -221,7 +229,15 @@ class BillingReportService
         if (count($rows) !== count($ids)) {
             throw new \RuntimeException('Una o più fatture selezionate non sono disponibili in questo spazio. Ricarica la lista.');
         }
+        $currentConfig = (new BillingDocumentSettingsService())->resolveOutputConfig($tenantId);
+
         foreach ($rows as &$row) {
+            $row = BillingDocumentService::resolveOutputDocument($row, $currentConfig);
+            $snapshot = json_decode((string) ($row['template_snapshot_json'] ?? ''), true);
+            $outputTemplate = $currentConfig;
+            $outputTemplate['patient_details'] = (array) ($snapshot['patient_details'] ?? []);
+            if (isset($snapshot['recipient_type'])) $outputTemplate['recipient_type'] = $snapshot['recipient_type'];
+            $row['template_snapshot_json'] = json_encode($outputTemplate, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
             $row['document_type_label'] = $this->documents->documentTypeLabels()[$row['document_type']] ?? $row['document_type'];
             $row['payment_method_label'] = $this->documents->paymentMethodLabels()[$row['payment_method']] ?? $row['payment_method'];
             $row['local_state_label'] = $this->documents->localStateLabels()[$row['local_state']] ?? $row['local_state'];

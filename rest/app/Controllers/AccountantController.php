@@ -126,10 +126,11 @@ class AccountantController extends Controller
     {
         if (!($grant = $this->authorized($doctor))) { return $this->denied(); }
         try {
-            $body = $this->invoicePdf($grant, $id);
+            $filename = '';
+            $body = $this->invoicePdf($grant, $id, $filename);
             if (!$this->grantUnchanged($grant)) { return $this->denied(); }
             (new AccountantDelegationService())->audit((int) $grant['id'], 'invoice_pdf', 'Documento #' . $id);
-            return $this->download($body, 'fattura-' . $id . '.pdf', 'application/pdf');
+            return $this->download($body, $filename, 'application/pdf');
         } catch (\Throwable $e) { return $this->response->setStatusCode(404)->setBody('Documento non disponibile.'); }
     }
 
@@ -179,13 +180,14 @@ class AccountantController extends Controller
         return (new BillingReportService())->buildReportForTenant((int) $grant['tenant_id'], $filters);
     }
 
-    private function invoicePdf(array $grant, int $id): string
+    private function invoicePdf(array $grant, int $id, ?string &$filename = null): string
     {
         $preview = (new BillingDocumentService())->buildPreviewContext((int) $grant['tenant_id'], $id);
         $preview['document']['_export_tenant_id'] = (int) $grant['tenant_id'];
         if (!AccountantAccessPolicy::documentAllowed($preview['document'] ?? [], (int) $grant['tenant_id'], $grant['from_date'])) {
             throw new \RuntimeException('Documento non autorizzato.');
         }
+        $filename = \App\Services\BillingExportFormat::filename($preview['document']);
         return $this->pdf(view('admin/billing/document_pdf', ['preview' => $preview]), false, (int) $grant['tenant_id']);
     }
 
@@ -201,9 +203,10 @@ class AccountantController extends Controller
                 if (!$zip->addFromString('riepilogo.csv', (new BillingReportService())->buildAccountantCsv($report))) {
                     throw new \RuntimeException('Scrittura archivio fallita.');
                 }
+                $usedNames = [];
                 foreach ($report['documents'] as $row) {
                     $id = (int) $row['id_billing_document'];
-                    if (!$zip->addFromString('fattura-' . $id . '.pdf', $this->invoicePdf($grant, $id))) {
+                    if (!$zip->addFromString(\App\Services\BillingExportFormat::filename($row, $usedNames), $this->invoicePdf($grant, $id))) {
                         throw new \RuntimeException('Scrittura archivio fallita.');
                     }
                 }

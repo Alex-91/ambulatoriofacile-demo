@@ -312,7 +312,7 @@ if (trim((string) ($filters['date_from'] ?? '')) !== '' || trim((string) ($filte
                           ?>
                           <tr>
                             <td>
-                              <a class="billing-document-number" href="<?= site_url('admin/fatturazione-documenti/modifica/' . $documentId) ?>"><?= esc((string) ($row['document_number'] ?? '-')) ?></a>
+                              <a target="_blank" rel="noopener" class="billing-document-number" href="<?= site_url('admin/fatturazione-documenti/modifica/' . $documentId) ?>"><?= esc((string) ($row['document_number'] ?? '-')) ?></a>
                               <small class="text-muted" style="display:block;"><?= esc((string) ($row['document_type_label'] ?? '')) ?></small>
                             </td>
                             <td><?= esc($formatDate((string) ($row['issue_date'] ?? ''))) ?></td>

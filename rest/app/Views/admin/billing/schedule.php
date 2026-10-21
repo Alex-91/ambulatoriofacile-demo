@@ -111,7 +111,7 @@ $stateLabels = [
                         $searchText = mb_strtolower(trim((string) ($row['document_number'] ?? '') . ' ' . (string) ($row['patient_name'] ?? '')));
                       ?>
                       <tr class="billing-schedule-row" data-state="<?= esc($state, 'attr') ?>" data-search="<?= esc($searchText, 'attr') ?>">
-                        <td><a class="billing-document-number" href="<?= site_url('admin/fatturazione-documenti/modifica/' . $documentId) ?>"><?= esc((string) ($row['document_number'] ?? '-')) ?></a><small>Emessa il <?= esc($row['issue_date'] !== '' ? date('d/m/Y', strtotime((string) $row['issue_date'])) : '-') ?></small></td>
+                        <td><a target="_blank" rel="noopener" class="billing-document-number" href="<?= site_url('admin/fatturazione-documenti/modifica/' . $documentId) ?>"><?= esc((string) ($row['document_number'] ?? '-')) ?></a><small>Emessa il <?= esc($row['issue_date'] !== '' ? date('d/m/Y', strtotime((string) $row['issue_date'])) : '-') ?></small></td>
                         <td><span class="billing-client-name"><?= esc((string) ($row['patient_name'] ?? '-')) ?></span><?php if (trim((string) ($row['patient_email'] ?? '')) !== ''): ?><small><?= esc((string) $row['patient_email']) ?></small><?php endif; ?></td>
                         <td class="billing-schedule-due <?= $state === 'overdue' ? 'is-overdue' : '' ?>"><?= $due !== '' ? esc(date('d/m/Y', strtotime($due))) : '—' ?><?php if ($state === 'overdue'): ?><small><?= abs((int) ($row['days_to_due'] ?? 0)) ?> giorni di ritardo</small><?php elseif ($state === 'upcoming'): ?><small>tra <?= (int) ($row['days_to_due'] ?? 0) ?> giorni</small><?php endif; ?></td>
                         <td><span class="billing-payment-method"><i class="fa fa-credit-card"></i> <?= esc((string) ($row['payment_method_label'] ?? '-')) ?></span></td>
@@ -134,7 +134,7 @@ $stateLabels = [
                               <button class="billing-icon-action" type="submit" title="Segna come non pagata" aria-label="Segna come non pagata"><i class="fa fa-undo"></i></button>
                             </form>
                           <?php endif; ?>
-                          <a class="billing-icon-action" href="<?= site_url('admin/fatturazione-documenti/modifica/' . $documentId) ?>" title="Apri fattura" aria-label="Apri fattura"><i class="fa fa-pencil"></i></a>
+                          <a target="_blank" rel="noopener" class="billing-icon-action" href="<?= site_url('admin/fatturazione-documenti/modifica/' . $documentId) ?>" title="Apri fattura" aria-label="Apri fattura"><i class="fa fa-pencil"></i></a>
                         </td>
                       </tr>
                     <?php endforeach; ?>

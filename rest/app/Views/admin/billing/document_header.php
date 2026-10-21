@@ -26,7 +26,7 @@ $metadata = [];
     }
 }
 $patientHeaderDetails = is_array($template['patient_details'] ?? null) ? $template['patient_details'] : [];
-foreach (['patient_name' => "Nome paziente",'patient_tax_code' => "Codice fiscale paziente",'patient_address' => "Indirizzo paziente",'patient_city' => "Comune paziente",'patient_email' => "Email paziente",'patient_phone' => "Telefono paziente",'patient_mobile' => "Cellulare paziente"] as $key => $label) {
+foreach (['patient_name' => "Nome paziente",'patient_tax_code' => "Codice fiscale paziente",'patient_address' => "Indirizzo paziente",'patient_city' => "Comune paziente",'patient_postal_code' => 'CAP paziente','patient_province' => 'Provincia paziente','patient_email' => "Email paziente",'patient_phone' => "Telefono paziente",'patient_mobile' => "Cellulare paziente"] as $key => $label) {
     $value = trim((string) ($patientHeaderDetails[$key] ?? $document[$key] ?? ''));
     if (!empty($branding['header_' . $key]) && $value !== '') $metadata[] = $label . ': ' . $value;
 }

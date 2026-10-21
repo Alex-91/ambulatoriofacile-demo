@@ -6,7 +6,7 @@ $branding=$template['branding']??[]; $fiscal=$template['fiscal_data']??[]; $docu
 $patient=$template['patient_details']??[];
 $money=static fn($v)=>'EUR '.number_format((float)$v,2,',','.');
 $values=$document;
-foreach (['patient_address','patient_city','patient_email','patient_phone','patient_mobile'] as $key) $values[$key]=$patient[$key]??$document[$key]??'';
+foreach (['patient_address','patient_city','patient_postal_code','patient_province','patient_email','patient_phone','patient_mobile'] as $key) $values[$key]=$patient[$key]??$document[$key]??'';
 $values=array_merge($values,[
  'title'=>trim($branding['header_title']??'')?:($template['document_title']??'Fattura'), 'subtitle'=>$branding['header_subtitle']??'',
  'issuer_name'=>trim($fiscal['business_name']??'')?:($preview['tenant']['tenant_name']??''),
@@ -107,7 +107,7 @@ hr { border:0; border-top:0.25mm solid #d7dde5; }
 .db-toolbar a { color:white; margin-right:16px; }
 @media print { .db-sheet { width:100%; } .db-toolbar { display:none; } }
 </style></head><body>
-<?php if (!empty($showToolbar)): ?><nav class="db-toolbar"><a href="<?= site_url('admin/fatturazione-documenti/modifica/'.(int)($document['id_billing_document']??0)) ?>">Torna al documento</a><a href="<?= site_url('admin/fatturazione-documenti/pdf/'.(int)($document['id_billing_document']??0)) ?>">Apri PDF</a><a href="#" onclick="window.print();return false;">Stampa</a></nav><?php endif; ?>
+<?php if (!empty($showToolbar)): ?><nav class="db-toolbar"><a href="<?= site_url('admin/fatturazione-documenti/modifica/'.(int)($document['id_billing_document']??0)) ?>">Torna al documento</a><a target="_blank" rel="noopener" href="<?= site_url('admin/fatturazione-documenti/pdf/'.(int)($document['id_billing_document']??0)) ?>">Apri PDF</a><a href="#" onclick="window.print();return false;">Stampa</a></nav><?php endif; ?>
 <main class="db-sheet">
 <?php foreach ($rows as $row): $break=$row[0]['page_break']; ?>
 <?php if (count($row)===1 && $row[0]['span']===12): ?>

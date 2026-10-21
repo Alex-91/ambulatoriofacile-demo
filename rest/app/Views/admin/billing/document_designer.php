@@ -25,7 +25,7 @@ $catalog=\App\Services\BillingDocumentDesigner::catalog();
 <form id="bd-form" action="<?= site_url('admin/fatturazione-documento/save') ?>" method="post" data-preview-url="<?= site_url('admin/fatturazione-documento/preview') ?>">
 <?= csrf_field() ?><input type="hidden" name="designer_json" id="bd-json">
 <div class="bd-toolbar"><button type="button" id="bd-add">＋ Nuovo blocco</button><button type="button" id="bd-undo" disabled>Annulla modifica</button><button type="button" id="bd-redo" disabled>Ripristina</button><span class="bd-grow"></span><button type="button" id="bd-preview">Anteprima A4</button><button type="button" id="bd-pdf">PDF di prova</button><button class="bd-primary" type="submit">Salva modello</button></div>
-<p class="bd-help">Trascina la maniglia dei blocchi per spostarli. Usa ½ o ⅓ per affiancarli. Puoi anche usare le frecce, da tastiera o da telefono. Le modifiche salvate si applicano alle nuove fatture.</p>
+<p class="bd-help">Trascina la maniglia dei blocchi per spostarli. Usa ½ o ⅓ per affiancarli. Puoi anche usare le frecce, da tastiera o da telefono. Il modello e le diciture attuali si applicano anche alle fatture già emesse. Numeri, date, riferimenti, importi e pagamenti restano invariati.</p>
 <div id="bd-status" role="status" aria-live="polite"></div>
 <div class="bd-split"><div class="bd-workspace">
 <aside class="bd-library"><h2>Elementi</h2><p>Seleziona un blocco, poi aggiungi qualsiasi elemento.</p><input id="bd-search" type="search" placeholder="Cerca un elemento…" aria-label="Cerca elemento"><div id="bd-catalog"></div>

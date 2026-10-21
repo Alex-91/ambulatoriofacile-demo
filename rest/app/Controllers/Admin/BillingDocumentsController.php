@@ -252,6 +252,8 @@ class BillingDocumentsController extends BillingAdminBaseController
                     'patient_email' => $this->request->getPost('patient_email'),
                     'patient_address' => $this->request->getPost('patient_address'),
                     'patient_city' => $this->request->getPost('patient_city'),
+                    'patient_postal_code' => $this->request->getPost('patient_postal_code'),
+                    'patient_province' => $this->request->getPost('patient_province'),
                     'payment_method' => $this->request->getPost('payment_method'),
                     'item_description' => $this->request->getPost('item_description'),
                     'item_qty' => $this->request->getPost('item_qty'),
@@ -598,6 +600,16 @@ class BillingDocumentsController extends BillingAdminBaseController
             $linkedPatient['patient_city'] ?? '',
             $sourceContext['patient_city'] ?? '',
         ]);
+        $document['patient_postal_code'] = $this->firstNonEmptyValue([
+            $document['patient_postal_code'] ?? '',
+            $linkedPatient['patient_postal_code'] ?? '',
+            $sourceContext['patient_postal_code'] ?? '',
+        ]);
+        $document['patient_province'] = $this->firstNonEmptyValue([
+            $document['patient_province'] ?? '',
+            $linkedPatient['patient_province'] ?? '',
+            $sourceContext['patient_province'] ?? '',
+        ]);
 
         $composedPatientName = trim((string) (preg_replace(
             '/\s+/',
@@ -811,7 +823,7 @@ class BillingDocumentsController extends BillingAdminBaseController
 
             $this->documents->markPdfGenerated($tenantId, $documentId);
 
-            $filename = 'documento_fatturazione_' . (int) ($preview['document']['id_billing_document'] ?? 0) . '.pdf';
+            $filename = \App\Services\BillingExportFormat::filename($preview['document']);
 
             return $this->response
                 ->setHeader('Content-Type', 'application/pdf')

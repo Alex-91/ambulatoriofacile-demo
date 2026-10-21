@@ -152,7 +152,7 @@ $error = trim((string) ($error ?? ''));
                               <?php endif; ?>
                             </td>
                             <td>
-                              <a class="btn btn-default btn-xs" href="<?= site_url('admin/fatturazione-documenti/modifica/' . (int) ($row['id_billing_document'] ?? 0)) ?>">
+                              <a target="_blank" rel="noopener" class="btn btn-default btn-xs" href="<?= site_url('admin/fatturazione-documenti/modifica/' . (int) ($row['id_billing_document'] ?? 0)) ?>">
                                 <i class="fa fa-file-text-o"></i> Fattura
                               </a>
                               <?php if ((int) ($row['linked_ts_document_id'] ?? 0) > 0): ?>
@@ -208,7 +208,7 @@ $error = trim((string) ($error ?? ''));
                           <td><?= esc((string) ($row['ts_protocol'] ?? '-')) ?></td>
                           <td><?= esc((string) ($row['ts_state'] ?? 'accepted')) ?></td>
                           <td>
-                            <a class="btn btn-default btn-xs" href="<?= site_url('admin/fatturazione-documenti/modifica/' . (int) ($row['id_billing_document'] ?? 0)) ?>">
+                            <a target="_blank" rel="noopener" class="btn btn-default btn-xs" href="<?= site_url('admin/fatturazione-documenti/modifica/' . (int) ($row['id_billing_document'] ?? 0)) ?>">
                               <i class="fa fa-file-text-o"></i> Fattura
                             </a>
                             <a class="btn btn-info btn-xs" href="<?= site_url('admin/sistema-ts/documenti/ricevuta/download-latest/' . (int) ($row['linked_ts_document_id'] ?? 0)) ?>">

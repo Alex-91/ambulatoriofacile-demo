@@ -137,7 +137,7 @@ $environmentLabel = defined('ENVIRONMENT') && ENVIRONMENT === 'production' ? 'Pr
                           ?>
                           <tr>
                             <td>
-                              <a class="billing-document-number" href="<?= site_url('admin/fatturazione-documenti/modifica/' . $documentId) ?>">
+                              <a target="_blank" rel="noopener" class="billing-document-number" href="<?= site_url('admin/fatturazione-documenti/modifica/' . $documentId) ?>">
                                 <?= esc((string) ($row['document_number'] ?? '-')) ?>
                               </a>
                             </td>
@@ -146,10 +146,10 @@ $environmentLabel = defined('ENVIRONMENT') && ENVIRONMENT === 'production' ? 'Pr
                             <td class="text-right billing-table-total">&euro; <?= number_format((float) ($row['amount_total'] ?? 0), 2, ',', '.') ?></td>
                             <td><span class="billing-state-pill <?= $isIssued ? 'is-issued' : 'is-draft' ?>"><?= esc((string) ($row['local_state_label'] ?? $row['local_state'] ?? '-')) ?></span></td>
                             <td class="text-right">
-                              <a class="billing-icon-action" href="<?= site_url('admin/fatturazione-documenti/modifica/' . $documentId) ?>" aria-label="Apri documento">
+                              <a target="_blank" rel="noopener" class="billing-icon-action" href="<?= site_url('admin/fatturazione-documenti/modifica/' . $documentId) ?>" aria-label="Apri documento">
                                 <i class="fa fa-eye"></i>
                               </a>
-                              <a class="billing-icon-action" href="<?= site_url('admin/fatturazione-documenti/pdf/' . $documentId) ?>" aria-label="Scarica PDF">
+                              <a target="_blank" rel="noopener" class="billing-icon-action" href="<?= site_url('admin/fatturazione-documenti/pdf/' . $documentId) ?>" aria-label="Scarica PDF">
                                 <i class="fa fa-download"></i>
                               </a>
                             </td>

@@ -101,7 +101,7 @@ if (!empty($pensionFund['enabled']) && trim((string) ($pensionFund['name'] ?? ''
 <body>
   <div class="toolbar">
     <a href="<?= site_url('admin/fatturazione-documenti/modifica/' . (int) ($document['id_billing_document'] ?? 0)) ?>">Torna al documento</a>
-    <a href="<?= site_url('admin/fatturazione-documenti/pdf/' . (int) ($document['id_billing_document'] ?? 0)) ?>">Apri PDF</a>
+    <a target="_blank" rel="noopener" href="<?= site_url('admin/fatturazione-documenti/pdf/' . (int) ($document['id_billing_document'] ?? 0)) ?>">Apri PDF</a>
     <a href="#" onclick="window.print(); return false;">Stampa</a>
   </div>
 

@@ -549,7 +549,7 @@ class BillingDocumentService
         }
         // Preserve the patient's print details at the time of saving the document.
         $template['patient_details'] = array_intersect_key($normalized, array_flip([
-            'patient_last_name', 'patient_first_name', 'patient_address', 'patient_city',
+            'patient_last_name', 'patient_first_name', 'patient_address', 'patient_city', 'patient_postal_code', 'patient_province',
             'patient_email', 'patient_phone', 'patient_mobile',
             'recipient_type', 'business_vat_number', 'business_postal_code', 'business_province',
             'business_country', 'business_recipient_code', 'business_pec',
@@ -685,10 +685,10 @@ class BillingDocumentService
             throw new \RuntimeException('Documento fatturazione non trovato.');
         }
 
-        $template = $this->decodeJsonArray((string) ($document['template_snapshot_json'] ?? ''));
-        if ($template === []) {
-            $template = (array) (($this->settings->resolveTenantSettings($tenantId))['config'] ?? []);
-        }
+        $snapshot = $this->decodeJsonArray((string) ($document['template_snapshot_json'] ?? ''));
+        $currentTemplate = $this->settings->resolveOutputConfig($tenantId);
+        $template = $this->resolveRenderingTemplate($snapshot, $currentTemplate);
+        $document = self::resolveOutputDocument($document, $currentTemplate);
 
         $lineItems = $this->decodeLineItems((string) ($document['line_items_json'] ?? ''));
         $tenantContext = $this->tenantDbContext->resolveTenantContext($tenantId);
@@ -707,6 +707,28 @@ class BillingDocumentService
             'collection_balance'=>UnifiedBillingArchive::manages($context['db'],$documentId)?(new PolyclinicAdministrationService($context['db']))->balance($documentId):null,
             'generated_at' => date('Y-m-d H:i:s'),
         ];
+    }
+
+    /** Apply current configuration without rewriting the saved invoice. */
+    private function resolveRenderingTemplate(array $snapshot, array $current): array
+    {
+        $template = $current;
+        if (isset($snapshot['recipient_type'])) {
+            $template['recipient_type'] = $snapshot['recipient_type'];
+        }
+        $template['patient_details'] = (array) ($snapshot['patient_details'] ?? []);
+        return $template;
+    }
+
+    public static function resolveOutputDocument(array $document, array $current): array
+    {
+        if (BillingBusinessRecipient::isBusiness($document)) return $document;
+        // Nature is configurable invoice wording; amounts and transaction references
+        // continue to come from the document itself.
+        if (array_key_exists('default_nature', (array) ($current['vat'] ?? []))) {
+            $document['vat_nature'] = (string) $current['vat']['default_nature'];
+        }
+        return $document;
     }
 
     public function markPdfGenerated(int $tenantId, int $documentId): void
@@ -865,6 +887,8 @@ class BillingDocumentService
             'patient_email' => '',
             'patient_address' => '',
             'patient_city' => '',
+            'patient_postal_code' => '',
+            'patient_province' => '',
             'payment_method' => $paymentMethod,
             'payment_status' => 'unpaid',
             'subtotal_amount' => 0,
@@ -1097,6 +1121,8 @@ class BillingDocumentService
             'patient_email' => trim((string) ($payload['patient_email'] ?? '')),
             'patient_address' => trim((string) ($payload['patient_address'] ?? '')),
             'patient_city' => trim((string) ($payload['patient_city'] ?? '')),
+            'patient_postal_code' => trim((string) ($payload['patient_postal_code'] ?? '')),
+            'patient_province' => strtoupper(trim((string) ($payload['patient_province'] ?? ''))),
             'payment_method' => $paymentMethod,
             'line_items' => $lineItems,
             'subtotal_amount' => round($subtotal, 2),
@@ -1311,6 +1337,12 @@ class BillingDocumentService
         }
         if ($db->fieldExists('residenza_comune', 'dap02_clients')) {
             $fieldMap['residenza_comune'] = $patientCity;
+        }
+
+        foreach (['cap'=>'patient_postal_code', 'provincia'=>'patient_province', 'residenza_cap'=>'patient_postal_code', 'residenza_provincia'=>'patient_province'] as $column=>$field) {
+            if ($db->fieldExists($column, 'dap02_clients')) {
+                $fieldMap[$column] = trim((string) ($normalized[$field] ?? ''));
+            }
         }
 
         $set = ['vector_id = COALESCE(vector_id, @sync_vector)'];

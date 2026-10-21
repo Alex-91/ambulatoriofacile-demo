@@ -262,7 +262,7 @@ if (!is_string($supportedExpenseDetailsJson) || $supportedExpenseDetailsJson ===
             <?php if ($isBillingSourceDocument && $billingSourceDocumentId > 0): ?>
               <div class="alert alert-info" style="margin:12px 0 0 0;">
                 Documento TS generato dalla fattura #<?= $billingSourceDocumentId ?>.
-                <a href="<?= site_url('admin/fatturazione-documenti/modifica/' . $billingSourceDocumentId) ?>" style="margin-left:8px;">
+                <a target="_blank" rel="noopener" href="<?= site_url('admin/fatturazione-documenti/modifica/' . $billingSourceDocumentId) ?>" style="margin-left:8px;">
                   Apri fattura origine
                 </a>
               </div>

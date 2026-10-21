@@ -1,0 +1,37 @@
+<?php
+require __DIR__ . '/billing_xlsx_regression.php';
+use App\Services\BillingExportFormat;
+
+$names = [];
+check(BillingExportFormat::filename(['document_number'=>'FT-2026-0006','id_billing_document'=>8], $names) === 'FT-2026-0006.pdf', 'Download uses the official number, not the database ID');
+check(BillingExportFormat::filename(['document_number'=>'FT-2026-0006'], $names) === 'FT-2026-0006-2.pdf', 'ZIP duplicate filenames remain unique');
+$unsafe = BillingExportFormat::filename(['document_number'=>"../../FT/1\r\n\"unsafe"]);
+check(!preg_match('/[.\\\\\/\r\n"]/', substr($unsafe, 0, -4)), 'Filename excludes path traversal and header injection');
+check(BillingExportFormat::filename(['id_billing_document'=>8]) === 'fattura-8.pdf', 'Unnumbered documents retain a fallback');
+$details = ['patient_first_name'=>'MARIA ÉLENA','patient_last_name'=>'DE ROSSI','patient_address'=>'Via <Roma> 10','patient_city'=>'Roma','patient_postal_code'=>'00100','patient_province'=>'RM'];
+$row = ['patient_name'=>'DE ROSSI MARIA ÉLENA','template_snapshot_json'=>json_encode(['patient_details'=>$details])];
+$xml = sheetXml($exporter->build([$row], ['patient_name','patient_address']));
+check((string)$xml->xpath('//s:c[@r="A2"]/s:is/s:t')[0] === 'Maria Élena De Rossi', 'Excel preserves compound names and Unicode while ordering first name before surname');
+check((string)$xml->xpath('//s:c[@r="B2"]/s:is/s:t')[0] === 'Via <Roma> 10 00100 Roma RM', 'Excel contains the complete address and leading-zero CAP');
+check(BillingExportFormat::patientName(['patient_name'=>'DE ROSSI MARIA'],[]) === 'DE ROSSI MARIA', 'Ambiguous historical free-form names are preserved');
+$template = $sanitize->invoke($settings, ['fields'=>['show_patient_address'=>true,'show_patient_city'=>true,'show_patient_postal_code'=>true,'show_patient_province'=>true]]);
+check($template['fields']['show_patient_postal_code'] && $template['fields']['show_patient_province'], 'Address visibility settings persist');
+$template['patient_details']=$details;
+$fields=$template['fields']; $document=[];
+ob_start(); require dirname(__DIR__).'/app/Views/admin/billing/patient_details.php'; $html=ob_get_clean();
+check(str_contains($html,'00100') && str_contains($html,'RM') && str_contains($html,'&lt;Roma&gt;'), 'Invoice renders saved CAP and province with escaped address');
+$lookup=(new ReflectionClass(App\Services\TenantPatientLookupService::class))->newInstanceWithoutConstructor();
+$map=new ReflectionMethod($lookup, 'mapTenantPatientRows');
+$mapped=$map->invoke($lookup,[['id_client'=>1,'cap'=>'00100','provincia'=>'RM']]);
+check($mapped[0]['patient_postal_code']==='00100' && $mapped[0]['patient_province']==='RM', 'Patient lookup carries existing address values into billing');
+$sampleTemplate=$template;
+unset($sampleTemplate['patient_details']);
+$preview=App\Services\BillingDocumentDesigner::sample($sampleTemplate);
+$pdfMode=true;
+ob_start(); require dirname(__DIR__).'/app/Views/admin/billing/designer_document.php'; $sampleHtml=ob_get_clean();
+check(str_contains($sampleHtml,'50100') && str_contains($sampleHtml,'FI'), 'Editor preview and sample PDF display CAP and province without real patient data');
+$preview['template']['patient_details']=$details;
+$pdfMode=true;
+ob_start(); require dirname(__DIR__).'/app/Views/admin/billing/designer_document.php'; $html=ob_get_clean();
+check(str_contains($html,'00100') && str_contains($html,'RM') && str_contains($html,'&lt;Roma&gt;'), 'Visual invoice designer renders the saved complete address');
+echo "PASS: accountant filename, collision, Unicode name, complete address, visibility and patient lookup regressions\n";

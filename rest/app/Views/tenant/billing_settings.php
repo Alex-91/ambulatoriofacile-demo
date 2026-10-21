@@ -222,10 +222,10 @@ if ($serviceRows === []) {
                     <div class="form-group">
                       <label>Natura IVA</label>
                       <input class="form-control" name="default_vat_nature" maxlength="16" value="<?= esc($fieldValue('default_vat_nature', $vat['default_nature'] ?? '')) ?>" placeholder="Es. N4 o esente">
-                      <small class="help-block">Testo riportato in fattura.</small>
+                      <small class="help-block">Dicitura aggiornata anche nei PDF e negli export delle fatture già emesse.</small>
                     </div>
                   </div>
-                  <span class="config-help">Usati come proposta nei nuovi documenti; puoi cambiarli sulla singola fattura.</span>
+                  <span class="config-help">Aliquota e bollo restano quelli salvati nelle fatture già emesse; la dicitura Natura IVA segue la configurazione attuale.</span>
                 </section>
 
                 <section class="config-card config-pension-card">

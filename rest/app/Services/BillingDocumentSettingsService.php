@@ -53,6 +53,16 @@ class BillingDocumentSettingsService
     }
 
     /** Read-only preferences for exports; access is checked by the calling controller. */
+    public function resolveOutputConfig(int $tenantId): array
+    {
+        if ($tenantId <= 0) { throw new \InvalidArgumentException('Spazio non valido.'); }
+        $feature = $this->featuresModel->findByKey(BillingModule::FEATURE_KEY);
+        $row = $feature ? $this->preferencesModel->where('id_tenant', $tenantId)
+            ->where('id_feature', (int) $feature['id_feature'])->first() : null;
+        return $this->sanitizeConfig($this->decodeConfig((string) ($row['config_json'] ?? '')));
+    }
+
+    /** Read-only preferences for exports; access is checked by the calling controller. */
     public function resolveXlsxColumns(int $tenantId): array
     {
         if ($tenantId <= 0) { throw new \InvalidArgumentException('Spazio non valido.'); }
@@ -196,6 +206,8 @@ class BillingDocumentSettingsService
                 'header_patient_tax_code' => false,
                 'header_patient_address' => false,
                 'header_patient_city' => false,
+                'header_patient_postal_code' => false,
+                'header_patient_province' => false,
                 'header_patient_email' => false,
                 'header_patient_phone' => false,
                 'header_patient_mobile' => false,
@@ -228,6 +240,8 @@ class BillingDocumentSettingsService
                 'show_patient_tax_code' => true,
                 'show_patient_address' => false,
                 'show_patient_city' => false,
+                'show_patient_postal_code' => false,
+                'show_patient_province' => false,
                 'show_patient_email' => false,
                 'show_patient_phone' => false,
                 'show_patient_mobile' => false,
@@ -384,6 +398,8 @@ class BillingDocumentSettingsService
                 'header_patient_tax_code' => $this->toBool($branding['header_patient_tax_code'] ?? false),
                 'header_patient_address' => $this->toBool($branding['header_patient_address'] ?? false),
                 'header_patient_city' => $this->toBool($branding['header_patient_city'] ?? false),
+                'header_patient_postal_code' => $this->toBool($branding['header_patient_postal_code'] ?? false),
+                'header_patient_province' => $this->toBool($branding['header_patient_province'] ?? false),
                 'header_patient_email' => $this->toBool($branding['header_patient_email'] ?? false),
                 'header_patient_phone' => $this->toBool($branding['header_patient_phone'] ?? false),
                 'header_patient_mobile' => $this->toBool($branding['header_patient_mobile'] ?? false),
@@ -416,6 +432,8 @@ class BillingDocumentSettingsService
                 'show_patient_tax_code' => $this->toBool($fields['show_patient_tax_code'] ?? $defaults['fields']['show_patient_tax_code']),
                 'show_patient_address' => $this->toBool($fields['show_patient_address'] ?? false),
                 'show_patient_city' => $this->toBool($fields['show_patient_city'] ?? false),
+                'show_patient_postal_code' => $this->toBool($fields['show_patient_postal_code'] ?? false),
+                'show_patient_province' => $this->toBool($fields['show_patient_province'] ?? false),
                 'show_patient_email' => $this->toBool($fields['show_patient_email'] ?? false),
                 'show_patient_phone' => $this->toBool($fields['show_patient_phone'] ?? false),
                 'show_patient_mobile' => $this->toBool($fields['show_patient_mobile'] ?? false),

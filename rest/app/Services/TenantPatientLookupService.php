@@ -165,6 +165,16 @@ class TenantPatientLookupService
             $this->decryptedColumnOrEmpty($clientColumns, 'comune_secondario'),
             $this->decryptedColumnOrEmpty($clientColumns, 'citta'),
         ]);
+        $postalExpr = $this->firstNonEmptySql([
+            $this->decryptedColumnOrEmpty($clientColumns, 'residenza_cap'),
+            $this->decryptedColumnOrEmpty($clientColumns, 'cap_secondario'),
+            $this->decryptedColumnOrEmpty($clientColumns, 'cap'),
+        ]);
+        $provinceExpr = $this->firstNonEmptySql([
+            $this->decryptedColumnOrEmpty($clientColumns, 'residenza_provincia'),
+            $this->decryptedColumnOrEmpty($clientColumns, 'provincia_secondaria'),
+            $this->decryptedColumnOrEmpty($clientColumns, 'provincia'),
+        ]);
         $usernameExpr = $hasUsersTable ? "COALESCE(u.username, '')" : "''";
         $joinUsersSql = $hasUsersTable
             ? 'LEFT JOIN dap01_users u ON u.id_user = c.id_user'
@@ -190,7 +200,9 @@ class TenantPatientLookupService
                     {$mobileExpr} AS cellulare,
                     {$phoneExpr} AS telefono,
                     {$addressExpr} AS indirizzo,
-                    {$cityExpr} AS citta
+                    {$cityExpr} AS citta,
+                    {$postalExpr} AS cap,
+                    {$provinceExpr} AS provincia
                 FROM dap02_clients c
                 {$joinUsersSql}
             ",
@@ -280,6 +292,8 @@ class TenantPatientLookupService
                 'patient_email' => $email,
                 'patient_address' => $address,
                 'patient_city' => $city,
+                'patient_postal_code' => trim((string) ($row['cap'] ?? '')),
+                'patient_province' => trim((string) ($row['provincia'] ?? '')),
                 'email' => $email,
                 'mobile' => $mobile,
                 'phone' => $phone,
