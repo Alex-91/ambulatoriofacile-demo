@@ -120,7 +120,32 @@
    const wrap=node('label','Sposta in un altro blocco'), sel=node('select');const empty=node('option','Scegli blocco…');empty.value='';sel.append(empty);model.blocks.forEach((other,j)=>{if(j===selected)return;const o=node('option',(j+1)+'. '+other.name);o.value=j;sel.append(o);});sel.onchange=()=>{if(sel.value!=='')transfer(selected,i,+sel.value,model.blocks[+sel.value].elements.length);};wrap.append(sel);props.append(wrap,node('hr'));
   });
  }
- function renderCatalog(){const q=$('bd-search').value.toLowerCase();$('bd-catalog').replaceChildren();Object.entries(catalog).filter(([,name])=>name.toLowerCase().includes(q)).forEach(([type,name])=>{const b=button('＋ '+name,()=>addElement(type),name);b.className='bd-catalog-item';b.draggable=true;b.ondragstart=e=>{drag={kind:'palette',type};e.dataTransfer.setData('text/plain',type);};b.ondragend=()=>{drag=null;};$('bd-catalog').append(b);});}
+ const catalogGroups=[
+  ['Intestazione',['title','subtitle','logo']],
+  ['Professionista',Object.keys(catalog).filter(type=>type.startsWith('issuer_'))],
+  ['Documento',['document_type','document_number','issue_date']],
+  ['Paziente',Object.keys(catalog).filter(type=>type.startsWith('patient_'))],
+  ['Pagamenti e TS',['payment_method','payment_date','due_date','opposition']],
+  ['Prestazioni e totali',['line_items','subtotal','vat','stamp','total']],
+  ['Testi e impaginazione',['notes','terms','footer','signature','text','divider','spacer']]
+ ];
+ // Keep future catalog entries available even before a category is assigned.
+ const categorized=new Set(catalogGroups.flatMap(([,types])=>types));
+ catalogGroups.push(['Altri elementi',Object.keys(catalog).filter(type=>!categorized.has(type))]);
+ const openCatalogGroups=new Set(['Intestazione','Paziente']);
+ function renderCatalog(){
+  const q=$('bd-search').value.trim().toLocaleLowerCase('it');$('bd-catalog').replaceChildren();let found=0;
+  catalogGroups.forEach(([groupName,types])=>{
+   const matches=types.filter(type=>catalog[type]&&(groupName+' '+catalog[type]).toLocaleLowerCase('it').includes(q));if(!matches.length)return;
+   found+=matches.length;
+   const group=node('details',undefined,'bd-catalog-group');group.open=!!q||openCatalogGroups.has(groupName);
+   const summary=node('summary',groupName);summary.append(node('span','· '+matches.length,'bd-catalog-count'));group.append(summary);
+   group.addEventListener('toggle',()=>{if(group.isConnected&&!q){if(group.open)openCatalogGroups.add(groupName);else openCatalogGroups.delete(groupName);}});
+   matches.forEach(type=>{const name=catalog[type],b=button('＋ '+name,()=>addElement(type),name);b.className='bd-catalog-item';b.draggable=true;b.ondragstart=e=>{drag={kind:'palette',type};e.dataTransfer.setData('text/plain',type);};b.ondragend=()=>{drag=null;};group.append(b);});
+   $('bd-catalog').append(group);
+  });
+  if(!found)$('bd-catalog').append(node('p','Nessun elemento trovato.'));
+ }
  $('bd-add').onclick=addBlock;$('bd-add-bottom').onclick=addBlock;$('bd-search').oninput=renderCatalog;
  $('bd-undo').onclick=()=>{if(!past.length)return;future.push(snapshot());restore(past.pop());dirty=true;render();};
  $('bd-redo').onclick=()=>{if(!future.length)return;past.push(snapshot());restore(future.pop());dirty=true;render();};

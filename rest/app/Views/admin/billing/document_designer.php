@@ -14,12 +14,12 @@ $catalog=\App\Services\BillingDocumentDesigner::catalog();
 <link rel="stylesheet" href="<?= base_url('public/dist/css/skins/_all-skins.min.css') ?>">
 <link rel="stylesheet" href="<?= base_url('public/assets/fontawesome/css/all.min.css') ?>">
 <link rel="stylesheet" href="<?= base_url('public/assets/fontawesome/css/v4-shims.min.css') ?>">
-<link rel="stylesheet" href="<?= base_url('public/assets/css/billing-designer.css?v=20260927-menu') ?>">
+<link rel="stylesheet" href="<?= base_url('public/assets/css/billing-designer.css?v=20261021-studio') ?>">
 <link rel="stylesheet" href="<?= base_url('public/assets/css/billing-sections.css?v=20260927-group') ?>">
 </head><body class="billing-unified-page skin-blue sidebar-mini"><div class="wrapper">
 <?= view('partials/header',['menu_items'=>$menu_items??[]]) ?>
 <main class="content-wrapper"><section class="content"><div class="row"><aside class="col-md-3"><?= view('partials/sidebar_admin',['menu_items'=>$menu_items??[]]) ?></aside><div class="col-md-9"><section class="bd-app">
-<header class="bd-top"><div><a href="<?= site_url('admin/fatturazione') ?>">← Fatturazione</a><h1>Disegna il tuo documento</h1><p>Componi i blocchi, scegli i contenuti, controlla la stampa.</p></div><span class="bd-badge">A4 · griglia di stampa</span></header>
+<header class="bd-top"><div><a href="<?= site_url('admin/fatturazione') ?>">← Fatturazione / Documento fatturazione</a><h1>Disegna il tuo documento</h1><p>Componi i blocchi, affianca i contenuti e cura ogni dettaglio.</p></div><span class="bd-badge">Studio documenti · A4</span></header>
 <?php if (!empty($success)): ?><div class="alert alert-success"><?= esc($success) ?></div><?php endif; ?>
 <?php foreach (($errors??[]) as $error): ?><div class="alert alert-danger"><?= esc(is_array($error)?implode(' ',$error):$error) ?></div><?php endforeach; ?>
 <form id="bd-form" action="<?= site_url('admin/fatturazione-documento/save') ?>" method="post" data-preview-url="<?= site_url('admin/fatturazione-documento/preview') ?>">
@@ -27,8 +27,8 @@ $catalog=\App\Services\BillingDocumentDesigner::catalog();
 <div class="bd-toolbar"><button type="button" id="bd-add">＋ Nuovo blocco</button><button type="button" id="bd-undo" disabled>Annulla modifica</button><button type="button" id="bd-redo" disabled>Ripristina</button><span class="bd-grow"></span><button type="button" id="bd-preview">Anteprima A4</button><button type="button" id="bd-pdf">PDF di prova</button><button class="bd-primary" type="submit">Salva modello</button></div>
 <p class="bd-help">Trascina la maniglia dei blocchi per spostarli. Usa ½ o ⅓ per affiancarli. Puoi anche usare le frecce, da tastiera o da telefono. Il modello e le diciture attuali si applicano anche alle fatture già emesse. Numeri, date, riferimenti, importi e pagamenti restano invariati.</p>
 <div id="bd-status" role="status" aria-live="polite"></div>
-<div class="bd-split"><div class="bd-workspace">
-<aside class="bd-library"><h2>Elementi</h2><p>Seleziona un blocco, poi aggiungi qualsiasi elemento.</p><input id="bd-search" type="search" placeholder="Cerca un elemento…" aria-label="Cerca elemento"><div id="bd-catalog"></div>
+<div class="bd-workspace">
+<aside class="bd-library"><h2>Elementi disponibili</h2><p>Clicca per inserire nel blocco selezionato, oppure trascina.</p><input id="bd-search" type="search" placeholder="Cerca tra <?= count($catalog) ?> elementi…" aria-label="Cerca elemento"><div id="bd-catalog"></div>
 <details class="bd-settings"><summary>Impostazioni del documento</summary>
 <label>Titolo documento<input name="document_title" value="<?= $value('document_title',$config['document_title']??'Fattura') ?>"></label>
 <label>Prefisso numerazione<input name="document_code_prefix" maxlength="12" value="<?= $value('document_code_prefix',$config['document_code_prefix']??'FT') ?>"></label>
@@ -45,12 +45,13 @@ $catalog=\App\Services\BillingDocumentDesigner::catalog();
 <label><input type="checkbox" name="ts_<?= esc($key) ?>" value="1" <?= !empty($config['integration_ts'][$key])?'checked':'' ?>> <?= esc($label) ?></label>
 <?php endforeach; ?></details>
 </aside>
-<section class="bd-stage"><div class="bd-stage-label"><span>DOCUMENTO · ORDINE DI STAMPA</span><span id="bd-count"></span></div><div id="bd-canvas" aria-label="Blocchi del documento"></div><button type="button" id="bd-add-bottom">＋ Aggiungi un blocco in fondo</button></section>
+<section class="bd-stage"><div class="bd-stage-label"><span>COMPOSIZIONE · ORDINE DI STAMPA</span><span id="bd-count"></span></div><div id="bd-canvas" aria-label="Blocchi del documento"></div><button type="button" id="bd-add-bottom">＋ Aggiungi un blocco in fondo</button>
+<aside class="bd-live"><div class="bd-live-heading"><strong>Anteprima in tempo reale</strong><span id="bd-live-status" role="status">Preparazione…</span></div><p>Dati di esempio · formato A4</p><div id="bd-live-viewport"><div id="bd-live-paper"><iframe id="bd-live-frame" title="Anteprima in tempo reale del documento" sandbox="allow-same-origin"></iframe></div></div></aside></section>
 <aside class="bd-inspector"><h2>Proprietà del blocco</h2><div id="bd-properties"></div><div class="bd-note"><strong>Stampa protetta</strong><p>Margini A4 di 12 mm. Nessuna posizione assoluta o sovrapposizione. Tabelle e testi lunghi occupano una riga intera e continuano sulle pagine successive.</p><p>Il PDF di prova usa lo stesso motore delle fatture. Controllalo prima di salvare, soprattutto dopo modifiche a logo, testo e dimensioni.</p></div></aside>
-</div><aside class="bd-live"><div class="bd-live-heading"><strong>Anteprima in tempo reale</strong><span id="bd-live-status" role="status">Preparazione…</span></div><p>Dati di esempio · formato A4</p><div id="bd-live-viewport"><div id="bd-live-paper"><iframe id="bd-live-frame" title="Anteprima in tempo reale del documento" sandbox="allow-same-origin"></iframe></div></div></aside></div></form>
+</div></form>
 <dialog id="bd-preview-dialog"><div class="bd-dialog-top"><strong>Anteprima con dati di esempio</strong><button type="button" id="bd-close-preview">Chiudi</button></div><iframe id="bd-frame" title="Anteprima A4" sandbox="allow-same-origin"></iframe></dialog>
 </section></div></div></section></main></div>
 <script id="bd-initial" type="application/json"><?= json_encode(['model'=>$initial,'catalog'=>$catalog,'csrfName'=>csrf_token()],JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_UNESCAPED_UNICODE) ?></script>
 <script src="<?= base_url('public/plugins/jQuery/jQuery-2.1.4.min.js') ?>"></script><script src="<?= base_url('public/bootstrap/js/bootstrap.min.js') ?>"></script>
-<script src="<?= base_url('public/assets/js/billing-designer.js') ?>"></script>
+<script src="<?= base_url('public/assets/js/billing-designer.js?v=20261021-studio') ?>"></script>
 </body></html>

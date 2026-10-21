@@ -18,13 +18,22 @@ const server=http.createServer(async(req,res)=>{
 });
 (async()=>{
  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
- const browser=await chromium.launch({headless:true});
+ const browser=await chromium.launch({headless:true,...(process.env.BROWSER_CHANNEL?{channel:process.env.BROWSER_CHANNEL}:{})});
  const page=await browser.newPage({viewport:{width:1720,height:1080}});const errors=[];page.on('pageerror',e=>errors.push(e.message));
  try{
  await page.goto(`http://127.0.0.1:${server.address().port}/`);
  await page.locator('#bd-live-status').filter({hasText:'Aggiornata'}).waitFor();
  const read=()=>page.locator('#bd-json').inputValue().then(JSON.parse);
  assert((await read()).blocks.length>=6);
+ const catalogCount=await page.locator('#bd-catalog button').count();
+ const seedCount=await page.locator('#bd-initial').textContent().then(text=>Object.keys(JSON.parse(text).catalog).length);
+ assert.equal(catalogCount,seedCount,'Every catalog element remains accessible');
+ await page.locator('#bd-search').fill('Paziente');
+ assert.equal(await page.locator('#bd-catalog details:not([open])').count(),0,'Search opens matching categories');
+ await page.locator('#bd-search').fill('nessun-elemento-inesistente');
+ assert.equal(await page.locator('#bd-catalog button').count(),0);
+ await page.locator('#bd-search').fill('');
+ assert.equal(await page.locator('#bd-catalog button').count(),catalogCount);
  // Real pointer drag on the production handlers.
  const first=page.locator('.bd-block').nth(0),second=page.locator('.bd-block').nth(1);
  const before=(await read()).blocks.map(b=>b.name);
@@ -46,6 +55,12 @@ const server=http.createServer(async(req,res)=>{
  await page.locator('#bd-redo').click();assert.equal(await page.locator('[name=branding_terms_text]').inputValue(),'INFORMATIVA-UNICA-UI');
  await page.locator('#bd-preview').click();await page.locator('#bd-preview-dialog').waitFor({state:'visible'});await page.locator('#bd-close-preview').click();
  await page.screenshot({path:'rest/build/billing-port/editor.png',fullPage:true});
+ for(const width of [1024,768,375]){
+  await page.setViewportSize({width,height:900});
+  assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'No page overflow at '+width+'px');
+  assert(await page.locator('#bd-add').isVisible());assert(await page.locator('#bd-properties').isVisible());
+  await page.screenshot({path:'rest/build/billing-port/editor-'+width+'.png',fullPage:true});
+ }
  assert.deepEqual(errors,[]);console.log('PASS: pointer drag, undo/redo, thirds, live rendering, terms editing, shared text undo, enlarged preview; no JS errors');
  }finally{await browser.close();server.close();}
 })().catch(e=>{console.error(e);server.close();process.exitCode=1;});
