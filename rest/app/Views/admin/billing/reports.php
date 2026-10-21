@@ -395,7 +395,8 @@ if (trim((string) ($filters['date_from'] ?? '')) !== '' || trim((string) ($filte
           : (format === 'pdf' ? exportFormat.getAttribute('data-pdf-url') : (format === 'xlsx' ? exportFormat.getAttribute('data-xlsx-url') : ''));
         exportFormat.value = '';
         if (targetUrl) {
-          window.location.href = targetUrl;
+          if (format === 'pdf') window.open(targetUrl, '_blank', 'noopener');
+          else window.location.href = targetUrl;
         }
       });
     }

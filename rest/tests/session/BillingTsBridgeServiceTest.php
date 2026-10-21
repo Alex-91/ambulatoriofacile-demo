@@ -17,7 +17,7 @@ final class BillingTsBridgeServiceTest extends CIUnitTestCase
         try {
             foreach ([\App\Models\BillingDocumentModel::class=>['billing_documents','id_billing_document'], \App\Models\TsDocumentModel::class=>['ts_documents','id_ts_document']] as $class=>[$table,$key]) {
                 $fields=(new \ReflectionClass($class))->getDefaultProperties()['allowedFields'];
-                $fields=array_diff(array_unique(array_merge($fields,['created_at','updated_at'])),[$key]);
+                $fields=array_diff(array_unique(array_merge($fields,['created_at','updated_at', ...($table === 'billing_documents' ? ['deleted_at'] : [])])),[$key]);
                 $db->query("CREATE TABLE $table ($key INTEGER PRIMARY KEY AUTOINCREMENT,".implode(',',array_map(static fn($f)=>$f.' TEXT',$fields)).')');
             }
             $billing=new \App\Models\BillingDocumentModel($db);$ts=new \App\Models\TsDocumentModel($db);

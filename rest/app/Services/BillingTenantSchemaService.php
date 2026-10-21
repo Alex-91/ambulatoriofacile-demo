@@ -16,6 +16,7 @@ class BillingTenantSchemaService
         '2026-07-06-000003_CreateBillingDocumentsTable.php',
         '2026-08-03-000001_AddBillingCollectionsAndEmailDelivery.php',
         '2026-10-08-100001_ProtectBillingNumbering.php',
+        '2026-10-21-100001_AddBillingSoftDeletion.php',
     ];
 
     private TenantCatalogService $tenantCatalog;
@@ -139,6 +140,7 @@ class BillingTenantSchemaService
 
         $fieldNames = array_map('strtolower', $db->getFieldNames('billing_documents'));
         foreach ([
+            'deleted_at',
             'document_number',
             'document_type',
             'issue_date',

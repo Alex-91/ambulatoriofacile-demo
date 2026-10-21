@@ -58,7 +58,7 @@ class BillingDocumentService
         $context = $this->resolveTenantDocumentContext($tenantId);
         $db = $context['db'];
         $summary = $this->emptySummary();
-        $rows = $db->table('billing_documents')
+        $rows = $db->table('billing_documents')->where('billing_documents.deleted_at', null)
             ->select('local_state, COUNT(*) AS total_count')
             ->groupBy('local_state')
             ->get()
@@ -81,7 +81,7 @@ class BillingDocumentService
 
         $monthStart = date('Y-m-01');
         $nextMonthStart = date('Y-m-01', strtotime('+1 month'));
-        $monthRevenue = $db->table('billing_documents')
+        $monthRevenue = $db->table('billing_documents')->where('billing_documents.deleted_at', null)
             ->selectSum('amount_total', 'total_amount')
             ->where('local_state', 'issued')
             ->where('payment_status', 'paid')
@@ -91,7 +91,7 @@ class BillingDocumentService
             ->getRowArray();
         $summary['month_revenue'] = (float) ($monthRevenue['total_amount'] ?? 0);
 
-        $collectionRows = $db->table('billing_documents')
+        $collectionRows = $db->table('billing_documents')->where('billing_documents.deleted_at', null)
             ->select('payment_status, COUNT(*) AS total_count, SUM(amount_total) AS total_amount')
             ->where('local_state', 'issued')
             ->groupBy('payment_status')
@@ -110,7 +110,7 @@ class BillingDocumentService
             $summary['outstanding_amount'] += $amount;
         }
 
-        $overdue = $db->table('billing_documents')
+        $overdue = $db->table('billing_documents')->where('billing_documents.deleted_at', null)
             ->select('COUNT(*) AS total_count')
             ->where('local_state', 'issued')
             ->where('payment_status !=', 'paid')
@@ -120,7 +120,7 @@ class BillingDocumentService
             ->getRowArray();
         $summary['overdue_count'] = (int) ($overdue['total_count'] ?? 0);
 
-        $toSend = $db->table('billing_documents')
+        $toSend = $db->table('billing_documents')->where('billing_documents.deleted_at', null)
             ->select('COUNT(*) AS total_count')
             ->where('local_state', 'issued')
             ->where('invoice_email_sent_at IS NULL', null, false)
@@ -128,7 +128,7 @@ class BillingDocumentService
             ->getRowArray();
         $summary['to_send_count'] = (int) ($toSend['total_count'] ?? 0);
 
-        $recent = $db->table('billing_documents')
+        $recent = $db->table('billing_documents')->where('billing_documents.deleted_at', null)
             ->select('id_billing_document, document_number, patient_name, issue_date, due_date, amount_total, local_state, payment_status')
             ->orderBy('issue_date', 'DESC')
             ->orderBy('id_billing_document', 'DESC')
@@ -170,7 +170,7 @@ class BillingDocumentService
 
         $context = $this->resolveTenantDocumentContext($tenantId);
         $db = $context['db'];
-        $builder = $db->table('billing_documents');
+        $builder = $db->table('billing_documents')->where('billing_documents.deleted_at', null);
         if ($businessOnly) {
             $builder->like('template_snapshot_json', '"recipient_type":"business"');
         }
@@ -197,6 +197,18 @@ class BillingDocumentService
     /**
      * @return array<string, mixed>
      */
+    public function previewNumberForTenant(int $tenantId, string $date): string
+    {
+        $parsed = \DateTimeImmutable::createFromFormat('!Y-m-d', $date);
+        if (!$parsed || $parsed->format('Y-m-d') !== $date) {
+            throw new \InvalidArgumentException('Data di emissione non valida.');
+        }
+        $this->assertDocumentsSchemaReady($tenantId);
+        $context = $this->resolveTenantDocumentContext($tenantId);
+        $settings = $this->settings->resolveTenantSettings($tenantId);
+        return (new BillingNumberingService())->preview($context['db'], $settings['config'] ?? [], $date);
+    }
+
     public function buildFormContext(int $tenantId, int $documentId = 0): array
     {
         $settings = $this->settings->resolveTenantSettings($tenantId);
@@ -237,6 +249,7 @@ class BillingDocumentService
         }
 
         return [
+            'number_preview' => ($document['local_state'] ?? '') === 'issued' ? '' : (new BillingNumberingService())->preview($context['db'], $template, $document['issue_date']),
             'document' => $document,
             'line_items' => $lineItems,
             'template' => $template,
@@ -270,7 +283,7 @@ class BillingDocumentService
 
         $context = $this->resolveTenantDocumentContext($tenantId);
         $db = $context['db'];
-        $documents = $db->table('billing_documents')
+        $documents = $db->table('billing_documents')->where('billing_documents.deleted_at', null)
             ->select('id_billing_document, document_number, issue_date, due_date, payment_date, patient_name, patient_email, payment_method, payment_status, amount_total, invoice_email_sent_at, last_reminder_sent_at, reminder_count')
             ->where('local_state', 'issued')
             ->get(max(1, min(1000, $limit)))

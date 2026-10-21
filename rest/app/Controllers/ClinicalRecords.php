@@ -120,7 +120,7 @@ class ClinicalRecords extends BaseController
             if (!(new \App\Services\FseFeatureService())->isEnabledForTenant((int)$tenant['id_tenant'])) throw new \RuntimeException('Modulo FSE non attivo per questo spazio.');
             $file=$s->downloadFseReport($patientId,$documentId);
             return $this->privateResponse()->setHeader('Content-Type','application/pdf')
-                ->setHeader('Content-Disposition','attachment; filename="'.$file['name'].'"')->setBody($file['bytes']);
+                ->setHeader('Content-Disposition','inline; filename="'.$file['name'].'"')->setBody($file['bytes']);
         } catch (\Throwable $e) { return $this->failure($e); }
     }
     private function mutate(int $patientId,callable $action,string $message)

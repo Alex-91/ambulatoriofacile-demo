@@ -113,6 +113,18 @@ class BillingDocumentsController extends BillingAdminBaseController
         ]);
     }
 
+    public function numberPreview()
+    {
+        if ($guard = $this->ensureAccess()) return $guard;
+        $tenantScope = $this->resolveTenantScope();
+        try {
+            $number = $this->documents->previewNumberForTenant((int) ($tenantScope['tenant_id'] ?? 0), (string) $this->request->getGet('date'));
+            return $this->response->setHeader('Cache-Control', 'no-store')->setJSON(['number' => $number]);
+        } catch (\Throwable $e) {
+            return $this->response->setStatusCode(400)->setJSON(['error' => 'Anteprima numero non disponibile. Verifica la data.']);
+        }
+    }
+
     public function create()
     {
         if ($guard = $this->ensureAccess()) {
@@ -741,6 +753,7 @@ class BillingDocumentsController extends BillingAdminBaseController
                 ? 'Fattura ' . $documentNumber . ' eliminata correttamente.'
                 : 'Fattura eliminata correttamente.';
 
+            $message .= ' Documento conservato e numero riservato: la numerazione continua. Gli eventuali invii fiscali restano invariati.';
             if ($deletedTsDocuments !== []) {
                 $message .= ' Rimossa anche la bozza TS collegata.';
             }

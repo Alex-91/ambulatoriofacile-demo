@@ -26,13 +26,25 @@ final class BillingNumberingService
 
     public function allocate(BaseConnection $db, array $template, string $date): string
     {
+        return $this->nextNumber($db, $template, $date, true);
+    }
+
+    /** Read-only estimate: does not reserve or consume a number. */
+    public function preview(BaseConnection $db, array $template, string $date): string
+    {
+        return $this->nextNumber($db, $template, $date, false);
+    }
+
+    private function nextNumber(BaseConnection $db, array $template, string $date, bool $reserve): string
+    {
         $config = self::config((array) ($template['numbering'] ?? []));
         $year = substr($date, 0, 4);
         $scope = $config['mode'] === 'annual' ? $year : 'continuous';
         $row = $db->table('billing_numbering_counters')->where('scope', $scope)->get()->getRowArray();
         $next = (int) ($row['last_number'] ?? 0);
-        if (!$row) {
-            // Start above the historical maximum, never fill holes left by older software.
+        {
+            // Reconcile every allocation: switching modes must not resume a stale counter.
+            // Include archived invoices, and never fill historical gaps.
             $history = $db->table('billing_documents')->select('document_number, issue_date');
             if ($config['mode'] === 'annual') {
                 $history->where('issue_date >=', $year . '-01-01')->where('issue_date <=', $year . '-12-31');
@@ -52,6 +64,7 @@ final class BillingNumberingService
             $number = $prefix . '-' . ($config['mode'] === 'annual' ? $year . '-' : '')
                 . str_pad((string) $next, $config['digits'], '0', STR_PAD_LEFT);
         } while ($db->table('billing_documents')->where('document_number', $number)->countAllResults() > 0);
+        if (!$reserve) return $number;
         $builder = $db->table('billing_numbering_counters');
         $ok = $row ? $builder->where('scope', $scope)->update(['last_number' => $next])
             : $builder->insert(['scope' => $scope, 'last_number' => $next]);

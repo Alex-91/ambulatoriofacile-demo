@@ -53,7 +53,7 @@ class BillingTsBridgeService
             ];
         }
 
-        $rows = $db->table('billing_documents')
+        $rows = $db->table('billing_documents')->where('billing_documents.deleted_at', null)
             ->select('id_billing_document, id_client, document_number, document_type, issue_date, payment_date, patient_name, patient_tax_code, payment_method, amount_total, vat_rate, vat_nature, ts_sync_enabled, ts_expense_type_code, ts_opposition_flag, linked_ts_document_id, ts_sync_state, local_state, updated_at')
             ->where('local_state', 'issued')
             ->where('ts_sync_enabled', 1)
@@ -122,7 +122,7 @@ class BillingTsBridgeService
             return [];
         }
 
-        $billingRows = $db->table('billing_documents')
+        $billingRows = $db->table('billing_documents')->where('billing_documents.deleted_at', null)
             ->select('id_billing_document, linked_ts_document_id, ts_sync_state, local_state')
             ->whereIn('id_billing_document', $billingDocumentIds)
             ->get()
@@ -190,61 +190,24 @@ class BillingTsBridgeService
             throw new \RuntimeException('Fattura non trovata.');
         }
 
-        UnifiedBillingArchive::assertOrdinaryMutation($db,$billingDocumentId);
-        $relatedTsDocuments = $this->loadRelatedTsDocumentsForBilling($db, $billingDocument);
-        $primaryTsDocument = $this->resolvePrimaryTsDocument($billingDocument, $relatedTsDocuments);
-        $actionState = $this->buildBillingDocumentActionState($billingDocument, $primaryTsDocument);
-
-        if (empty($actionState['can_delete'])) {
-            throw new \RuntimeException(trim((string) ($actionState['locked_reason'] ?? 'La fattura non può essere eliminata.')));
-        }
-
-        $relatedTsDocumentIds = [];
-        foreach ($relatedTsDocuments as $tsDocument) {
-            if (!is_array($tsDocument)) {
-                continue;
-            }
-
-            $tsDocumentId = (int) ($tsDocument['id_ts_document'] ?? 0);
-            if ($tsDocumentId <= 0) {
-                continue;
-            }
-
-            if ($this->isBillingTsDocumentSent($tsDocument) || trim((string) ($tsDocument['local_state'] ?? '')) === 'sending') {
-                throw new \RuntimeException('La fattura risulta già inviata o in invio a TS e non può essere eliminata.');
-            }
-
-            $relatedTsDocumentIds[] = $tsDocumentId;
-        }
-
-        $relatedTsDocumentIds = array_values(array_unique($relatedTsDocumentIds));
-
+        UnifiedBillingArchive::assertOrdinaryMutation($db, $billingDocumentId);
         if (!$db->transBegin()) {
             throw new \RuntimeException('Impossibile avviare la cancellazione protetta.');
         }
-
         try {
             (new BillingNumberingService())->lock($db);
-            $lockedDocument = $billingDocuments->find($billingDocumentId);
-            if (!is_array($lockedDocument) || ($lockedDocument['local_state'] ?? '') === 'issued') {
-                throw new \RuntimeException('La fattura è definitiva o non più disponibile: cancellazione bloccata.');
+            $billingDocument = $billingDocuments->find($billingDocumentId);
+            if (!is_array($billingDocument)) {
+                throw new \RuntimeException('Fattura non più disponibile.');
             }
-            if ($relatedTsDocumentIds !== []) {
-                $db->table('ts_documents')
-                    ->whereIn('id_ts_document', $relatedTsDocumentIds)
-                    ->delete();
-            }
-
-            $billingDocuments->update($billingDocumentId, [
-                'updated_by' => $userId > 0 ? $userId : null,
-            ]);
-            $billingDocuments->delete($billingDocumentId);
-
-            if (!$db->transStatus()) {
+            // Preserve the fiscal record, reserved number and TS history.
+            if (!$billingDocuments->update($billingDocumentId, ['updated_by' => $userId > 0 ? $userId : null])
+                || !$billingDocuments->delete($billingDocumentId) || !$db->transStatus()) {
                 throw new \RuntimeException('Cancellazione fattura non riuscita.');
             }
-
-            $db->transCommit();
+            if (!$db->transCommit()) {
+                throw new \RuntimeException('Conferma della cancellazione non riuscita.');
+            }
         } catch (\Throwable $e) {
             $db->transRollback();
             throw $e;
@@ -253,7 +216,7 @@ class BillingTsBridgeService
         return [
             'billing_document_id' => $billingDocumentId,
             'document_number' => trim((string) ($billingDocument['document_number'] ?? '')),
-            'deleted_ts_document_ids' => $relatedTsDocumentIds,
+            'deleted_ts_document_ids' => [],
         ];
     }
 
@@ -709,10 +672,10 @@ class BillingTsBridgeService
 
         return [
             'can_edit' => $canManage,
-            'can_delete' => $canManage,
+            'can_delete' => true,
             'locked' => !$canManage,
             'locked_reason' => ($billingDocument['local_state'] ?? '') === 'issued'
-                ? 'Fattura definitiva: numero e documento devono essere conservati; modifica e cancellazione non consentite.'
+                ? 'Fattura definitiva: numero e documento devono essere conservati; modifica non consentita. La cancellazione locale conserva il documento.'
                 : $this->buildBillingDocumentLockMessage($billingDocument, $tsDocument),
             'linked_ts_document_id' => $linkedTsDocumentId,
             'ts_local_state' => trim((string) ($tsDocument['local_state'] ?? '')),

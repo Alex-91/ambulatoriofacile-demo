@@ -165,7 +165,7 @@ class BillingReportsController extends BillingAdminBaseController
 
             return $this->response
                 ->setHeader('Content-Type', 'application/pdf')
-                ->setHeader('Content-Disposition', 'attachment; filename="' . $filename . '"')
+                ->setHeader('Content-Disposition', 'inline; filename="' . $filename . '"')
                 ->setHeader('Cache-Control', 'no-store, max-age=0')
                 ->setBody($dompdf->output());
         } catch (\Throwable $e) {

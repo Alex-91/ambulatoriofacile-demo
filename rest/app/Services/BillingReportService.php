@@ -74,7 +74,7 @@ class BillingReportService
             return $this->emptyReport($filters, 'Archivio fatture non disponibile per questo spazio.');
         }
 
-        $builder = $db->table('billing_documents')
+        $builder = $db->table('billing_documents')->where('billing_documents.deleted_at', null)
             ->select('id_billing_document, document_number, document_type, issue_date, payment_date, patient_name, patient_tax_code, payment_method, line_items_json, subtotal_amount, stamp_duty_amount, vat_rate, vat_nature, amount_total, notes, ts_expense_type_code, ts_sync_state, local_state, payment_status, due_date, ts_opposition_flag, template_snapshot_json');
 
         $this->applyFilters($builder, $filters);
@@ -223,7 +223,7 @@ class BillingReportService
         }
         $ids = array_values(array_unique($ids));
         $context = $this->tenantDbContext->resolveTenantContext($tenantId);
-        $rows = $context['db']->table('billing_documents')
+        $rows = $context['db']->table('billing_documents')->where('billing_documents.deleted_at', null)
             ->whereIn('id_billing_document', $ids)->orderBy('issue_date', 'ASC')->orderBy('id_billing_document', 'ASC')
             ->get()->getResultArray();
         if (count($rows) !== count($ids)) {

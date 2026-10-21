@@ -285,6 +285,7 @@ $routes->group('admin', static function($routes){
     $routes->get('fatturazione-strutture/modifica/(:num)', 'Admin\BillingDocumentsController::businessEdit/$1');
     $routes->post('fatturazione-strutture/save', 'Admin\BillingDocumentsController::businessSave');
     $routes->get('fatturazione-documenti', 'Admin\BillingDocumentsController::index');
+    $routes->get('fatturazione-documenti/numero-previsto', 'Admin\BillingDocumentsController::numberPreview');
     $routes->get('fatturazione-documenti/nuovo', 'Admin\BillingDocumentsController::create');
     $routes->get('fatturazione-documenti/modifica/(:num)', 'Admin\BillingDocumentsController::edit/$1');
     $routes->get('fatturazione-documenti/pazienti/search', 'Admin\BillingDocumentsController::searchPatients');

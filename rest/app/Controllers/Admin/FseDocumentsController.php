@@ -118,7 +118,8 @@ class FseDocumentsController extends FseAdminBaseController
         if ($guard = $this->ensureAccess()) return $guard;
         try {
             $artifact = $this->documents->downloadArtifact((int) $this->resolveTenantScope()['tenant_id'], $id, $kind);
-            return $this->response->download($artifact['path'], null)->setFileName($artifact['name']);
+            $download = $this->response->download($artifact['path'], null)->setFileName($artifact['name']);
+            return in_array($kind, ['unsigned', 'signed'], true) ? $download->inline() : $download;
         } catch (\Throwable $e) { return redirect()->to(site_url('admin/fse2/documenti/modifica/' . $id))->with('errors', ['generic' => $e->getMessage()]); }
     }
 

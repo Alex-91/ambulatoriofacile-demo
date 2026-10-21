@@ -170,7 +170,7 @@ if ($serviceRows === []) {
                       <input id="numbering_digits" name="numbering_digits" type="number" min="1" max="8" required class="form-control" value="<?= esc($fieldValue('numbering_digits', $config['numbering']['digits'] ?? 4)) ?>">
                     </div>
                   </div>
-                  <p class="config-help">La ripartenza segue l’anno della data di emissione. L’anno è sempre incluso nella numerazione annuale. Cambiare prefisso o formato non azzera i contatori già utilizzati. I numeri sono univoci per questo spazio, anche tra tipi di documento diversi. I documenti definitivi non possono essere riscritti.</p>
+                  <p class="config-help">La ripartenza segue l’anno della data di emissione. L’anno è sempre incluso nella numerazione annuale. Cambiare prefisso o formato non azzera i contatori già utilizzati. I numeri sono univoci per questo spazio, anche tra tipi di documento diversi. I documenti definitivi non possono essere riscritti. La cancellazione conserva documento e numero: il progressivo non torna indietro e il numero non viene riutilizzato.</p>
                 </section>
 
                 <section class="config-card config-card-full config-services-card">

@@ -110,7 +110,7 @@
 	   <div class="privacy-checkbox">
                 <label>
                     <input type="checkbox" id="privacy" required />
-                    Accetto la <a href="./privacy-policy.pdf" download>privacy policy</a> e i <a href="./cookie-policy.pdf" download>cookie policy</a>
+                    Accetto la <a target="_blank" rel="noopener" href="./privacy-policy.pdf">privacy policy</a> e i <a target="_blank" rel="noopener" href="./cookie-policy.pdf">cookie policy</a>
                 </label>
                 <div id="privacy-error" style="color: red; display: none;"></div>
             </div>

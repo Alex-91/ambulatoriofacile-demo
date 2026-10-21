@@ -348,7 +348,7 @@ $environmentLabel = defined('ENVIRONMENT') && ENVIRONMENT === 'production' ? 'Pr
                               <a class="billing-icon-action billing-ts-link-action" href="<?= site_url('admin/sistema-ts/documenti/modifica/' . (int) ($row['linked_ts_document_id'] ?? 0)) ?>" aria-label="Apri documento TS"><i class="fa fa-exchange"></i></a>
                             <?php endif; ?>
                             <?php if ($canDelete): ?>
-                              <form method="post" action="<?= site_url('admin/fatturazione-documenti/elimina/' . $documentId) ?>" class="billing-delete-form" onsubmit="return confirm('Confermi la cancellazione della fattura?');">
+                              <form method="post" action="<?= site_url('admin/fatturazione-documenti/elimina/' . $documentId) ?>" class="billing-delete-form" onsubmit="return confirm('Cancellare dagli elenchi? Documento e numero saranno conservati. Eventuali invii fiscali non vengono annullati.');">
                                 <?= csrf_field() ?>
                                 <button class="billing-icon-action billing-delete-action" type="submit" aria-label="Elimina documento"><i class="fa fa-trash"></i></button>
                               </form>

@@ -34,7 +34,7 @@ final class UnifiedBillingArchive
         $clinic=new PolyclinicAdministrationService($db);
         $summary['month_revenue']=0; $summary['outstanding_amount']=0;
         $summary['paid_count']=0; $summary['unpaid_count']=0; $summary['overdue_count']=0;
-        foreach ($db->table('billing_documents')->where('local_state','issued')->get()->getResultArray() as $d) {
+        foreach ($db->table('billing_documents')->where('billing_documents.deleted_at', null)->where('local_state','issued')->get()->getResultArray() as $d) {
             $id=(int)$d['id_billing_document']; $managed=self::manages($db,$id);
             if ($d['document_type']==='credit_note') {
                 if (!$managed && $d['payment_status']==='paid' && substr((string)$d['payment_date'],0,7)===date('Y-m')) $summary['month_revenue']-=abs((float)$d['amount_total']);

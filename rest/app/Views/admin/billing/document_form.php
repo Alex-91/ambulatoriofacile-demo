@@ -227,8 +227,9 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
                 <div class="row">
                   <div class="col-md-3">
                     <div class="form-group">
-                      <label>Numero documento *</label>
-                      <input class="form-control" type="text" name="document_number" readonly placeholder="Assegnato alla conferma definitiva" maxlength="32" value="<?= esc($fieldValue('document_number')) ?>">
+                      <label>Numero documento <?= ($document['local_state'] ?? '') === 'issued' ? '' : 'previsto' ?></label>
+<?php if (($document['local_state'] ?? '') !== 'issued'): ?><small class="help-block">Confermato all’emissione; può cambiare se nel frattempo viene emessa un’altra fattura.</small><?php endif; ?>
+                      <input class="form-control" type="text" id="billing-number-preview" name="document_number" readonly placeholder="Anteprima non disponibile" maxlength="32" value="<?= esc(($document['local_state'] ?? '') === 'issued' ? $fieldValue('document_number') : ($formContext['number_preview'] ?? '')) ?>">
                     </div>
                   </div>
                   <div class="col-md-3">
@@ -1033,5 +1034,27 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
     });
   })(jQuery);
 </script>
+<?php if (($document['local_state'] ?? '') !== 'issued' && $tableAvailable): ?>
+<script>
+(function () {
+  const number = document.getElementById('billing-number-preview');
+  const date = document.querySelector('[name="issue_date"]');
+  let revision = 0;
+  async function refreshNumber() {
+    const current = ++revision;
+    number.value = '';
+    if (!date.value || !date.validity.valid) return;
+    try {
+      const response = await fetch(<?= json_encode(site_url('admin/fatturazione-documenti/numero-previsto')) ?> + '?date=' + encodeURIComponent(date.value), {credentials:'same-origin', cache:'no-store'});
+      if (!response.ok) throw new Error('preview');
+      const result = await response.json();
+      if (revision === current) number.value = result.number || '';
+    } catch (_) { if (revision === current) number.placeholder = 'Anteprima non disponibile'; }
+  }
+  if (number && date) { date.addEventListener('change', refreshNumber); refreshNumber(); }
+})();
+</script>
+<?php endif; ?>
+
 </body>
 </html>

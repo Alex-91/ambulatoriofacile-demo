@@ -14,7 +14,7 @@ final class UnifiedBillingTest extends CIUnitTestCase
         require_once APPPATH.'Database/Migrations/2026-07-06-000003_CreateBillingDocumentsTable.php';
         require_once APPPATH.'Database/Polyclinic/CreatePolyclinicAdministration.php';
         (new \App\Database\Migrations\CreateBillingDocumentsTable(\Config\Database::forge($this->db)))->up();
-        foreach (['due_date','payment_status','paid_at','patient_email','invoice_email_sent_at','last_reminder_sent_at','email_last_recipient','email_last_error','reminder_count'] as $column) $this->db->query('ALTER TABLE billing_documents ADD '.$column.' TEXT');
+        foreach (['deleted_at','due_date','payment_status','paid_at','patient_email','invoice_email_sent_at','last_reminder_sent_at','email_last_recipient','email_last_error','reminder_count'] as $column) $this->db->query('ALTER TABLE billing_documents ADD '.$column.' TEXT');
         (new \App\Database\Polyclinic\CreatePolyclinicAdministration(\Config\Database::forge($this->db)))->up();
         $this->db->table('billing_documents')->insert(['document_number'=>'OLD-1','issue_date'=>'2026-09-21','patient_name'=>'Originale','amount_total'=>'50','local_state'=>'issued']);
         foreach ([1,2] as $id) {

@@ -301,7 +301,7 @@ final class BillingDocumentServiceTest extends CIUnitTestCase
     public function testProtectedNumberingLifecycleOnRealDatabase(): void
     {
         $db = Database::connect(['DBDriver'=>'SQLite3','database'=>':memory:','DBPrefix'=>'','DBDebug'=>true], false);
-        $fields = (new ReflectionClass(\App\Models\BillingDocumentModel::class))->getDefaultProperties()['allowedFields'];
+        $fields = array_merge((new ReflectionClass(\App\Models\BillingDocumentModel::class))->getDefaultProperties()['allowedFields'], ['deleted_at']);
         $db->query('CREATE TABLE billing_documents (id_billing_document INTEGER PRIMARY KEY AUTOINCREMENT,'.implode(',', array_map(static fn($f)=>$f.' TEXT', $fields)).')');
         require_once APPPATH . 'Database/Migrations/2026-10-08-100001_ProtectBillingNumbering.php';
         (new \App\Database\Migrations\ProtectBillingNumbering(Database::forge($db)))->up();
@@ -332,7 +332,7 @@ final class BillingDocumentServiceTest extends CIUnitTestCase
         $this->assertSame(1, (int)$db->table('billing_numbering_counters')->get()->getRowArray()['last_number']);
         $bridge = (new ReflectionClass(\App\Services\BillingTsBridgeService::class))->newInstanceWithoutConstructor();
         $action = (new ReflectionMethod($bridge,'buildBillingDocumentActionState'))->invoke($bridge,$issued,null);
-        $this->assertFalse($action['can_delete']);
+        $this->assertTrue($action['can_delete'], 'Issued invoices can be archived while retaining their number');
         $this->assertFalse($action['can_edit']);
         unset($payload['id_billing_document']);
         $payload['issue_date'] = '2027-01-01';

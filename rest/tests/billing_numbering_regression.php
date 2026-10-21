@@ -31,7 +31,13 @@ $db->query('CREATE TABLE billing_documents (id INTEGER PRIMARY KEY, document_num
 $migration = new ProtectBillingNumbering(Database::forge($db));
 $migration->up();
 $migration->up();
+$previewService = new BillingNumberingService();
+verifyNumbering($previewService->preview($db, [], '2026-12-31') === 'FT-2026-0001', 'Preview shows first number');
+verifyNumbering($previewService->preview($db, [], '2026-12-31') === 'FT-2026-0001', 'Repeated preview does not consume numbers');
+verifyNumbering($db->table('billing_numbering_counters')->countAllResults() === 0, 'Preview writes no counters');
 verifyNumbering(issueNumber($db, [], '2026-12-31') === 'FT-2026-0001', 'First annual number');
+verifyNumbering($previewService->preview($db, [], '2026-12-31') === 'FT-2026-0002', 'Preview sees concurrent emission');
+verifyNumbering($previewService->preview($db, [], '2027-01-01') === 'FT-2027-0001', 'Preview follows issue year');
 verifyNumbering(issueNumber($db, [], '2027-01-01') === 'FT-2027-0001', 'Annual reset');
 verifyNumbering(issueNumber($db, [], '2026-12-31') === 'FT-2026-0002', 'Backdated year retains counter');
 issueNumber($db, [], '2027-01-01', false);

@@ -31,6 +31,11 @@ class BillingTenantDatabaseContextService
         }
 
         $db = $this->tenantDbConnector->connect($tenant);
+        if ($db->tableExists('billing_documents') && !$db->fieldExists('deleted_at', 'billing_documents')) {
+            $status = (new BillingTenantSchemaService($this->tenantCatalog, $this->tenantDbConnector))->ensureTenantSchemaReady((int) $tenant['id_tenant']);
+            if (empty($status['ready'])) throw new \RuntimeException('Archivio fatture non aggiornato: ' . ($status['message'] ?? 'allineamento richiesto'));
+            $db->resetDataCache();
+        }
 
         return [
             'tenant' => $tenant,

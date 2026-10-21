@@ -133,7 +133,7 @@
   return '';
  }
  async function preview(mode){
-  if(busy){if(mode!=='live')pendingMode=mode;return;}const error=validate();if(error){$('bd-live-status').textContent='Anteprima non aggiornata: '+error;livePending=false;return message(error);}busy=true;livePending=false;clearTimeout(liveTimer);const revision=liveRevision;if(mode!=='live')message('Preparazione '+(mode==='pdf'?'PDF':'anteprima')+'…');
+  if(busy){if(mode!=='live')pendingMode=mode;return;}const error=validate();if(error){$('bd-live-status').textContent='Anteprima non aggiornata: '+error;livePending=false;return message(error);}const pdfTab=mode==='pdf'?window.open('about:blank','_blank'):null;if(mode==='pdf'&&!pdfTab)return message('Consenti le nuove schede per aprire il PDF.');if(pdfTab)pdfTab.opener=null;busy=true;livePending=false;clearTimeout(liveTimer);const revision=liveRevision;if(mode!=='live')message('Preparazione '+(mode==='pdf'?'PDF':'anteprima')+'…');
   $('bd-json').value=JSON.stringify(model);const data=new FormData(form);data.set('preview_mode',mode);
   form.querySelector('button[type=submit]').disabled=true;$('bd-preview').disabled=true;$('bd-pdf').disabled=true;
   try {
@@ -141,12 +141,12 @@
    if(!(response.headers.get('content-type')||'').includes('application/json'))throw Error('Sessione scaduta o risposta non valida. Ricarica la pagina dopo aver copiato eventuali testi non salvati.');
    const result=await response.json();if(result.csrf)form.elements[seed.csrfName].value=result.csrf;if(!response.ok||result.error)throw Error(result.error||'Anteprima non disponibile.');
    if(mode==='pdf'){
-    const bytes=Uint8Array.from(atob(result.pdf),c=>c.charCodeAt(0));const url=URL.createObjectURL(new Blob([bytes],{type:'application/pdf'}));const a=node('a');a.href=url;a.download='anteprima-modello.pdf';a.click();setTimeout(()=>URL.revokeObjectURL(url),60000);message('PDF di prova generato: '+result.pages+' pagine. Controlla il file prima di salvare.');
+    const bytes=Uint8Array.from(atob(result.pdf),c=>c.charCodeAt(0));const url=URL.createObjectURL(new Blob([bytes],{type:'application/pdf'}));pdfTab.location.replace(url);setTimeout(()=>URL.revokeObjectURL(url),60000);message('PDF di prova generato: '+result.pages+' pagine. Controlla il file prima di salvare.');
    }else{
     if(revision===liveRevision){$('bd-live-frame').srcdoc=result.html;$('bd-live-status').textContent='Aggiornata';}
     if(mode!=='live'){$('bd-frame').srcdoc=result.html;$('bd-preview-dialog').showModal();message('Anteprima aggiornata con dati di esempio.');}
    }
-  }catch(e){$('bd-live-status').textContent='Anteprima non aggiornata: '+e.message;if(mode!=='live')message(e.message);}finally{busy=false;form.querySelector('button[type=submit]').disabled=false;$('bd-preview').disabled=false;$('bd-pdf').disabled=false;if(pendingMode){const next=pendingMode;pendingMode=null;setTimeout(()=>preview(next),0);}else if(livePending){clearTimeout(liveTimer);liveTimer=setTimeout(()=>preview('live'),150);}}
+  }catch(e){if(pdfTab)pdfTab.close();$('bd-live-status').textContent='Anteprima non aggiornata: '+e.message;if(mode!=='live')message(e.message);}finally{busy=false;form.querySelector('button[type=submit]').disabled=false;$('bd-preview').disabled=false;$('bd-pdf').disabled=false;if(pendingMode){const next=pendingMode;pendingMode=null;setTimeout(()=>preview(next),0);}else if(livePending){clearTimeout(liveTimer);liveTimer=setTimeout(()=>preview('live'),150);}}
  }
  $('bd-preview').onclick=()=>preview('html');$('bd-pdf').onclick=()=>preview('pdf');$('bd-close-preview').onclick=()=>$('bd-preview-dialog').close();
  window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='';}});
