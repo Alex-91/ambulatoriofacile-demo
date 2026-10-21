@@ -160,7 +160,15 @@ class AgendaAppointmentNotificationService
             ]);
         }
 
-        if ($actorIsDoctor && $actorUserId > 0 && $actorLegacyIdDot > 0 && $actorLegacyIdDot !== $targetLegacyIdDot) {
+        // Il responsabile dello studio puo' avere un account Admin separato
+        // dal proprio profilo medico e quindi nessun id_dot personale.
+        $actorAdmin = !$actorIsDoctor && $actorUserId > 0
+            ? $this->personaleModel->getPersonaleDecryptedByUserId($actorUserId)
+            : null;
+        $actorIsAdmin = (int) ($actorAdmin['tipo'] ?? 0) === StaffDoctorAccessService::TIPO_ADMIN;
+        $isOtherDoctor = $actorIsDoctor && $actorLegacyIdDot > 0 && $actorLegacyIdDot !== $targetLegacyIdDot;
+
+        if ($actorUserId > 0 && $actorUserId !== (int) ($targetDoctor['id_user'] ?? 0) && ($actorIsAdmin || $isOtherDoctor)) {
             if (!$targetIsDoctor) {
                 $result['doctor_cross_booking'] = [
                     'enabled' => false,
@@ -169,14 +177,18 @@ class AgendaAppointmentNotificationService
             } else {
                 $crossPlan = $this->settingsService->resolveDispatchPlan((int) ($tenant['id_tenant'] ?? 0), AppointmentNotificationSettingsService::TYPE_DOCTOR_CROSS_BOOKING);
                 if (!empty($crossPlan['enabled']) && !empty($crossPlan['channels'])) {
-                    $actorDoctor = $this->agendaModel->getAgendaProfessionalByLegacyId($actorLegacyIdDot);
-                    if ($actorDoctor === null || !$this->isDoctorAgendaProfessional($actorDoctor)) {
+                    $actorDoctor = $actorIsAdmin
+                        ? $actorAdmin
+                        : $this->agendaModel->getAgendaProfessionalByLegacyId($actorLegacyIdDot);
+                    if ($actorDoctor === null || (!$actorIsAdmin && !$this->isDoctorAgendaProfessional($actorDoctor))) {
                         $result['doctor_cross_booking'] = [
                             'enabled' => false,
                             'reason' => 'actor_user_not_doctor',
                         ];
                     } else {
-                        $actorContact = $this->personaleModel->getPersonaleDecryptedById((int) ($actorDoctor['id_personale'] ?? 0)) ?? [];
+                        $actorContact = $actorIsAdmin
+                            ? $actorAdmin
+                            : ($this->personaleModel->getPersonaleDecryptedById((int) ($actorDoctor['id_personale'] ?? 0)) ?? []);
                         $actorLabel = $this->buildDoctorLabel($actorDoctor, $actorContact);
                         $doctorRecipient = $this->buildDoctorRecipient($targetDoctor, $targetContact, $doctorLabel);
                         $message = $this->buildCrossDoctorMessage($actorLabel, $patientLabel, $scheduledFor, $visitReason, $notes);
@@ -189,8 +201,8 @@ class AgendaAppointmentNotificationService
                             $doctorRecipient,
                             $message,
                             [
-                                'subject' => 'Nuovo appuntamento inserito da un medico',
-                                'otp_subject' => 'Nuovo appuntamento inserito da un medico',
+                                'subject' => $actorIsAdmin ? 'Nuovo appuntamento inserito dal responsabile dello studio' : 'Nuovo appuntamento inserito da un medico',
+                                'otp_subject' => $actorIsAdmin ? 'Nuovo appuntamento inserito dal responsabile dello studio' : 'Nuovo appuntamento inserito da un medico',
                                 'notification_title' => $this->buildCrossDoctorNotificationTitle($patientLabel, $scheduledFor),
                                 'notification_body' => $this->buildCrossDoctorNotificationBody($actorLabel, $patientLabel, $scheduledFor, $visitReason),
                                 'push_url' => $agendaUrl,
