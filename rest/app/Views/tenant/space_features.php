@@ -619,6 +619,9 @@ $canSubmitSpaceSettings = ($manageableRows !== []) || $hasSupplementalSpaceContr
               <?php if(\App\Services\WhatsAppBookingAccess::platformEnabled((int)($tenantContext->tenantId??0))): ?>
               <a class="btn btn-default" href="<?= portal_tenant_space_url('chatbot-whatsapp') ?>"><i class="fa fa-comments"></i> Assistente WhatsApp</a>
               <?php endif ?>
+              <?php if ((new \App\Services\PatientBookingSettings())->enabled((int)($tenantContext->tenantId ?? 0))): ?>
+                <a class="btn btn-default" href="<?= portal_tenant_space_url('prenotazione-online') ?>"><i class="fa fa-calendar-plus-o"></i> Prenotazione online</a>
+              <?php endif ?>
               <?php if ($appointmentNotificationsAvailable): ?>
                 <a class="btn btn-default" href="<?= portal_tenant_space_url('notifiche-appuntamenti') ?>">
                   <i class="fa fa-comments"></i> Apri centro notifiche appuntamenti

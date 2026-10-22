@@ -464,6 +464,12 @@ class MenuRegistryService
                 ],
             ],
             [
+                'key'=>'spazio/prenotazione-online','link'=>'spazio/prenotazione-online',
+                'title'=>'Prenotazione online','icon'=>'fa-calendar-plus-o','order'=>2204,
+                'group'=>'Console spazio','description'=>'Prenota una visita con i professionisti dello spazio.',
+                'route_prefixes'=>['spazio/prenotazione-online','login/spazio/prenotazione-online'],
+            ],
+            [
                 'key' => 'spazio/chatbot-whatsapp', 'link' => 'spazio/chatbot-whatsapp',
                 'title' => 'Assistente WhatsApp', 'icon' => 'fa-comments', 'order' => 2205,
                 'group' => 'Console spazio', 'description' => 'Percorso di prenotazione e richieste alla segreteria.',
@@ -607,6 +613,12 @@ class MenuRegistryService
                     'piattaforma/whatsapp',
                     'piattaforma/whatsapp/refresh',
                 ],
+            ],
+            [
+                'key'=>'piattaforma/prenotazione-online','link'=>'piattaforma/prenotazione-online',
+                'title'=>'Prenotazione online','icon'=>'fa-calendar-plus-o','order'=>555,
+                'group'=>'Console piattaforma','description'=>'Abilita la prenotazione online nei singoli spazi.',
+                'route_prefixes'=>['piattaforma/prenotazione-online','login/piattaforma/prenotazione-online'],
             ],
             [
                 'key' => 'piattaforma/chatbot-whatsapp',

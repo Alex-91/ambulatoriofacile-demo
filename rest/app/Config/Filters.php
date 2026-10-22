@@ -49,6 +49,7 @@ public function __construct()
         'navigationtest' => \App\Filters\NavigationTestFilter::class,
         'accountantisolation' => \App\Filters\AccountantIsolationFilter::class,
         'csrf'          => CSRF::class,
+        'patientbookingcsrf' => \App\Filters\PatientBookingCsrfFilter::class,
         'whatsappbookingcsrf' => \App\Filters\WhatsAppBookingCsrfFilter::class,
         'fsecsrf'       => \App\Filters\FseCsrfFilter::class,
         'polycliniccsrf' => \App\Filters\BillingCsrfFilter::class,
@@ -202,6 +203,10 @@ public function __construct()
     // Scoped to FSE, billing and TS forms; GET also issues the CSRF cookie.
     // Include GET so cookie-based CSRF protection also issues the initial cookie.
     public array $filters = [
+        'patientbookingcsrf' => [
+            'before'=>['spazio/prenotazione-online','spazio/prenotazione-online/*','login/spazio/prenotazione-online','login/spazio/prenotazione-online/*','piattaforma/prenotazione-online','piattaforma/prenotazione-online/*','login/piattaforma/prenotazione-online','login/piattaforma/prenotazione-online/*'],
+            'after'=>['spazio/prenotazione-online','spazio/prenotazione-online/*','login/spazio/prenotazione-online','login/spazio/prenotazione-online/*','piattaforma/prenotazione-online','piattaforma/prenotazione-online/*','login/piattaforma/prenotazione-online','login/piattaforma/prenotazione-online/*'],
+        ],
         'polycliniccsrf' => ['before'=>['admin/accettazione','admin/fatturazione-poliambulatori','admin/fatturazione-poliambulatori/*','admin/fatturazione/gestione','admin/fatturazione/gestione/*'], 'after'=>['admin/accettazione','admin/fatturazione-poliambulatori','admin/fatturazione-poliambulatori/*','admin/fatturazione/gestione','admin/fatturazione/gestione/*']],
         'administrationcsrf' => ['before'=>['admin/amministrazione','admin/amministrazione/*'], 'after'=>['admin/amministrazione','admin/amministrazione/*']],
         'clinicalcsrf' => ['before'=>['cartella-clinica/*'], 'after'=>['cartella-clinica/*']],

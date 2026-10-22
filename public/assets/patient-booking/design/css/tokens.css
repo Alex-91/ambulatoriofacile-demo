@@ -1,0 +1,52 @@
+/* Token visivi della prenotazione online (Ambulatorio Facile).
+   Sono gli stessi valori scritti inline nelle tavole: usali per non reinterpretare. */
+:root {
+  /* Font: Inter (../font/inter.css), pesi 400, 500, 600, 700. Cifre tabellari per orari e date. */
+  --font-sans: Inter, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+
+  /* Superfici e testo */
+  --bg-pagina: #f6f8fa;
+  --bg-card: #ffffff;
+  --bordo: #e2e8f0;          /* hairline 1px */
+  --bordo-hover: #cbd5e1;
+  --testo: #1a1a2e;
+  --testo-secondario: #64748b;
+  --navy: #08364F;           /* titoli forti, monogramma dello studio */
+
+  /* Brand */
+  --primario: #00795f;       /* CTA e TUTTO il testo teal (accessibile) */
+  --primario-hover: #006a51;
+  --accento: #00ac8d;        /* solo superfici e icone grandi, mai testo piccolo */
+  --teal-chiaro: #e6f6f2;    /* selezioni e badge, con testo #00795f */
+  --logo-af: #00A184;
+
+  /* Semantici: testo su sfondo */
+  --successo: #00795f; --successo-bg: #e6f6f2;
+  --attenzione: #8a5600; --attenzione-bg: #fff4dc;
+  --errore: #b42318; --errore-bg: #fdecea;
+  --info: #0067a1; --info-bg: #e8f2fa;
+
+  /* Raggi */
+  --raggio-card: 12px;
+  --raggio-input: 10px;      /* anche i bottoni */
+  --raggio-pill: 999px;
+  --raggio-sheet: 16px;      /* solo angoli superiori */
+
+  /* Ombra: solo barra CTA fissa e bottom sheet. Le card non hanno ombra. */
+  --ombra-sollevata: 0 -1px 0 #e2e8f0, 0 -8px 24px rgba(8, 54, 79, 0.06);
+
+  /* Spaziatura: scala 4/8/12/16/20/24/32/40 */
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 20px; --s6: 24px; --s8: 32px; --s10: 40px;
+
+  /* Tipografia mobile (desktop: titolo 30/38) */
+  --titolo: 600 24px/30px var(--font-sans);
+  --sottotitolo: 400 15px/22px var(--font-sans);
+  --corpo: 400 16px/24px var(--font-sans);
+  --etichetta: 500 14px/20px var(--font-sans);
+  --micro: 400 13px/18px var(--font-sans);  /* mai sotto 13px */
+
+  /* Interazione */
+  --touch-min: 44px;
+  --cta-altezza-mobile: 52px;
+  --focus-ring: 2px solid #00795f;        /* con offset 2px */
+}

@@ -88,6 +88,20 @@ $routes->get('login/piattaforma/whatsapp', 'Login\PlatformWhatsAppConversationsC
 $routes->get('login/piattaforma/whatsapp/refresh', 'Login\PlatformWhatsAppConversationsController::refresh');
 $routes->get('login/piattaforma/chatbot-whatsapp', 'Login\PlatformWhatsAppChatbotController::index');
 $routes->post('login/piattaforma/chatbot-whatsapp/save', 'Login\PlatformWhatsAppChatbotController::save', ['filter'=>'whatsappbookingcsrf']);
+foreach (['', 'login/'] as $patientBookingPrefix) {
+    $routes->get($patientBookingPrefix.'piattaforma/prenotazione-online', 'Login\PlatformPatientBookingController::index');
+    $routes->post($patientBookingPrefix.'piattaforma/prenotazione-online/save', 'Login\PlatformPatientBookingController::save');
+    $routes->get($patientBookingPrefix.'spazio/prenotazione-online', 'Tenant\PatientBooking::index');
+    $routes->get($patientBookingPrefix.'spazio/prenotazione-online/paziente', 'Tenant\PatientBooking::patient');
+    $routes->get($patientBookingPrefix.'spazio/prenotazione-online/admin/(:segment)', 'Tenant\PatientBooking::index/$1');
+    $routes->post($patientBookingPrefix.'spazio/prenotazione-online/editor/(:segment)', 'Tenant\PatientBooking::editor/$1');
+    $routes->post($patientBookingPrefix.'spazio/prenotazione-online/save', 'Tenant\PatientBooking::save');
+    $routes->get($patientBookingPrefix.'spazio/prenotazione-online/api/(:segment)', 'Tenant\PatientBooking::api/$1');
+    $routes->get($patientBookingPrefix.'spazio/prenotazione-online/api/prenotazioni/(:segment)', 'Tenant\PatientBooking::api/prenotazioni/$1');
+    $routes->post($patientBookingPrefix.'spazio/prenotazione-online/api/prenotazioni', 'Tenant\PatientBooking::api/prenotazioni');
+    $routes->post($patientBookingPrefix.'spazio/prenotazione-online/api/prenotazioni/(:segment)/annulla', 'Tenant\PatientBooking::api/prenotazioni/$1/annulla');
+    $routes->post($patientBookingPrefix.'spazio/prenotazione-online/api/prenotazioni/(:segment)/sposta', 'Tenant\PatientBooking::api/prenotazioni/$1/sposta');
+}
 $routes->get('login/spazio/chatbot-whatsapp', 'Tenant\WhatsAppBooking::index');
 $routes->post('login/spazio/chatbot-whatsapp/save', 'Tenant\WhatsAppBooking::save', ['filter'=>'whatsappbookingcsrf']);
 $routes->post('login/spazio/chatbot-whatsapp/toggle', 'Tenant\WhatsAppBooking::toggle', ['filter'=>'whatsappbookingcsrf']);

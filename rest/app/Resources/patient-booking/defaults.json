@@ -1,0 +1,136 @@
+{
+  "versione": 1,
+  "aspetto": {
+    "logo_url": null,
+    "logo_alt": "Poliambulatorio Santa Chiara",
+    "mostra_nome_con_logo": true
+  },
+  "testi": {
+    "benvenuto_titolo": null,
+    "benvenuto_sottotitolo": null,
+    "nota_riepilogo": null
+  },
+  "passi": [
+    {
+      "id": "prestazione",
+      "attivo": true
+    },
+    {
+      "id": "professionista",
+      "attivo": true
+    },
+    {
+      "id": "sede",
+      "attivo": true
+    },
+    {
+      "id": "orario",
+      "attivo": true
+    },
+    {
+      "id": "perchi",
+      "attivo": true
+    },
+    {
+      "id": "verifica",
+      "attivo": true
+    },
+    {
+      "id": "dati",
+      "attivo": true
+    },
+    {
+      "id": "riepilogo",
+      "attivo": true
+    }
+  ],
+  "scelte": {
+    "primo_disponibile": true,
+    "salta_professionista_se_unico": true,
+    "salta_sede_se_unica": true,
+    "prestazione_predefinita": null,
+    "professionista_predefinito": null
+  },
+  "accesso": {
+    "modalita": "approvazione",
+    "ore_scadenza_richieste": 24
+  },
+  "verifica": {
+    "richiesta": true,
+    "metodi": [
+      "whatsapp",
+      "email"
+    ],
+    "sms_tetto_giornaliero": 50
+  },
+  "senza_verifica": {
+    "recapito": "almeno_uno"
+  },
+  "dati": {
+    "cellulare": "obbligatorio",
+    "email": "facoltativo",
+    "nascita": "nascosto",
+    "codice_fiscale": "nascosto",
+    "note": "facoltativo"
+  },
+  "limiti": {
+    "attive_per_recapito": 2,
+    "stessa_prestazione": 1,
+    "assenze_per_approvazione": 2
+  },
+  "regole": {
+    "preavviso_minimo_min": 120,
+    "giorni_prenotabili": 90,
+    "preavviso_modifica_ore": 24,
+    "spostamento_consentito": true,
+    "minuti_riserva": 10
+  },
+  "protezioni": {
+    "verifiche_per_numero_ora": 3,
+    "verifiche_per_dispositivo_ora": 5,
+    "email_per_indirizzo_ora": 3,
+    "email_tetto_giornaliero": 100,
+    "prefissi_esteri": [],
+    "senza_verifica_per_dispositivo_giorno": 3,
+    "senza_verifica_per_ip_giorno": 5,
+    "soglia_anomalia_ora": 10,
+    "giorni_dispositivo": 30
+  },
+  "comunicazioni": {
+    "nome_nei_messaggi": "Poliambulatorio Santa Chiara",
+    "mostra_prestazione_nei_messaggi": false,
+    "contatti": {
+      "telefono": "0571 123 456",
+      "whatsapp": "333 123 4567",
+      "email": "segreteria@poliambulatoriosantachiara.it"
+    },
+    "privacy_url": "https://poliambulatoriosantachiara.it/privacy"
+  },
+  "catalogo": {
+    "prestazioni": [
+      {
+        "id_tipo_visita": 12,
+        "online": true,
+        "nome_pubblico": "Visita dermatologica",
+        "descrizione": null,
+        "preparazione": null,
+        "prezzo": "100 €",
+        "modalita": null
+      }
+    ],
+    "professionisti": [
+      {
+        "id_dot": 7,
+        "online": true,
+        "prestazioni": [
+          12
+        ],
+        "sedi": [
+          1,
+          2
+        ],
+        "modalita": null
+      }
+    ]
+  }
+}

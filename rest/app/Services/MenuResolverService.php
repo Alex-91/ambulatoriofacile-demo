@@ -421,6 +421,7 @@ class MenuResolverService
         }
 
         $tenantContextFlags = [
+            'spazio/prenotazione-online' => (!empty($context['can_manage_tenant_features']) || !empty($context['can_manage_tenant_users'])) && (new PatientBookingSettings())->enabled((int)$context['tenant_id']),
             'spazio/chatbot-whatsapp' => (!empty($context['can_manage_tenant_features']) || !empty($context['can_manage_tenant_users'])) && WhatsAppBookingAccess::platformEnabled((int)($context['tenant_id']??0)),
 
             'spazio/utenti' => !empty($context['can_manage_tenant_users']),

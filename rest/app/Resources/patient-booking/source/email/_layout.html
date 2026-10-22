@@ -1,0 +1,88 @@
+<!doctype html>
+<!--
+  SHELL COMUNE DELLE EMAIL DI PRENOTAZIONE ONLINE (paziente e studio)
+  Da convertire nella view CodeIgniter 4: rest/app/Views/emails/booking/_layout.php
+  Ogni email e' questa shell piu' un contenuto diverso nel segnaposto {{contenuto}} (vedi P1... e S1... in questa cartella).
+
+  SEGNAPOSTO (da sostituire con <?= esc($var) ?>, tranne quelli marcati HTML che sono gia' markup fidato)
+  {{oggetto}}                 oggetto della email, max 60 caratteri, mai prestazione, specialita' o nome del paziente. Con nomi di studio lunghi si usa il "nome nei messaggi" breve (README, sezione 7.3)
+  {{preheader}}               anteprima nascosta, stesse regole dell'oggetto (nel codice P7 il preheader mostra il codice)
+  {{nome_studio}}             nome commerciale dello studio, testo (testata)
+  {{etichetta_testata}}       "Prenotazione online" per il paziente, "Avviso per la segreteria" per lo studio
+  {{contenuto}}               HTML: i blocchi della email (badge, titolo, righe, bottoni, box). Vedi _componenti.html
+  {{logo_studio_url}}         URL https assoluto del logo dello studio (PNG con fondo trasparente, mostrato a 160 px). Se manca: omettere l'img e lasciare il solo nome
+  {{ragione_sociale}}         ragione sociale del titolare del trattamento
+  {{partita_iva}}             partita IVA del titolare
+  {{indirizzo_titolare}}      indirizzo del titolare
+  {{telefono_studio}}         telefono come si legge; {{telefono_studio_href}} lo stesso in formato +39 senza spazi
+  {{email_studio}}            email della segreteria (stessa del Reply-To)
+  {{url_informativa_privacy}} informativa privacy dello studio (obbligatoria in ogni email)
+  {{logo_af_url}}             https://ambulatoriofacile.it/images/email/logo-green.png (420x89, mostrato a 120x25). Compare SOLO qui, nel footer
+  {{riga_servizio_html}}      HTML: riga di servizio con il link Preferenze. Paziente: "Email di servizio relativa alla tua prenotazione. Per smettere di ricevere i promemoria: Preferenze." Studio: "Avviso di servizio per la segreteria. ...". P7 e P8 (email di sicurezza, solo su richiesta del destinatario): nessun link Preferenze, solo "Email di servizio relativa alla tua richiesta di verifica (o di accesso). Arriva solo quando la chiedi tu."
+
+  REGOLE
+  - Larghezza 600, tabelle, CSS in linea, una sola media query (max-width 620) per il mobile.
+  - Nessun JavaScript, nessun font esterno (Inter se installato, altrimenti Arial): niente richieste a terzi, per il GDPR.
+  - Il bottone ha il ramo VML per Outlook desktop: la larghezza del VML e' 542 px (600 meno bordo e padding della card). Se cambi il padding, cambia anche quel numero.
+  - meta color-scheme: light. Le email non hanno modalita' scura.
+  - Mai dati sanitari in testata o footer. Il logo di Ambulatorio Facile compare solo nel footer.
+-->
+<html lang="it" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="color-scheme" content="light">
+<meta name="supported-color-schemes" content="light">
+<meta name="x-apple-disable-message-reformatting">
+<meta name="format-detection" content="telephone=no, date=no, address=no, email=no">
+<title>{{oggetto}}</title>
+<!--[if mso]><noscript><xml><o:OfficeDocumentSettings><o:AllowPNG/><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript><![endif]-->
+<style>
+  body { margin:0; padding:0; background-color:#f6f8fa; }
+  table { mso-table-lspace:0pt; mso-table-rspace:0pt; }
+  img { border:0; outline:none; text-decoration:none; -ms-interpolation-mode:bicubic; }
+  @media only screen and (max-width:620px) {
+    .container { width:100% !important; }
+    .gut { padding-left:16px !important; padding-right:16px !important; }
+    .card-pad { padding:20px !important; }
+    .h1 { font-size:24px !important; line-height:30px !important; }
+    .rl { display:block !important; width:100% !important; padding:12px 0 0 !important; border-top:0 !important; border-bottom:0 !important; }
+    .rv { display:block !important; width:100% !important; padding:2px 0 12px !important; border-top:0 !important; }
+    .stack { display:block !important; width:100% !important; padding-right:0 !important; }
+    .code { font-size:34px !important; letter-spacing:6px !important; padding-left:6px !important; }
+  }
+</style>
+</head>
+<body style="margin:0;padding:0;background-color:#f6f8fa;">
+<div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;">{{preheader}}</div>
+<div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;">&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;</div>
+<div role="article" aria-roledescription="email" aria-label="{{oggetto}}" lang="it" dir="ltr">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f6f8fa" style="background-color:#f6f8fa;"><tr><td align="center" class="gut" style="padding:32px 16px 40px;">
+<!--[if mso]><table role="presentation" width="600" align="center" cellpadding="0" cellspacing="0" border="0"><tr><td><![endif]-->
+<table role="presentation" class="container" width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;text-align:left;">
+<tr><td style="padding:0 4px 16px;">
+<p style="margin:0;font-family:Inter,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;font-size:18px;line-height:24px;font-weight:700;color:#08364F;">{{nome_studio}}</p>
+<p style="margin:2px 0 0;font-family:Inter,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;font-size:13px;line-height:18px;font-weight:400;color:#5b6b7f;">{{etichetta_testata}}</p>
+</td></tr>
+<tr><td>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#ffffff" style="background-color:#ffffff;border:1px solid #e2e8f0;border-radius:16px;"><tr><td class="card-pad" style="padding:28px;">
+{{contenuto}}
+</td></tr></table>
+</td></tr>
+<tr><td style="padding:28px 4px 0;">
+<img src="{{logo_studio_url}}" width="160" height="48" alt="{{nome_studio}}" style="display:block;width:160px;height:auto;border:0;outline:none;text-decoration:none;font-family:Inter,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;font-size:15px;line-height:20px;font-weight:700;color:#08364F;">
+<p style="margin:14px 0 0;font-family:Inter,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;font-size:13px;line-height:20px;font-weight:400;color:#1a1a2e;"><strong style="font-weight:600;">{{ragione_sociale}}</strong> · P.IVA {{partita_iva}}<br>{{indirizzo_titolare}}<br>Tel. <a href="tel:{{telefono_studio_href}}" style="color:#1a1a2e;text-decoration:underline;">{{telefono_studio}}</a> · <a href="mailto:{{email_studio}}" style="color:#1a1a2e;text-decoration:underline;">{{email_studio}}</a><br><a href="{{url_informativa_privacy}}" style="display:inline-block;padding:10px 0 0;color:#00795f;font-weight:600;text-decoration:underline;">Informativa privacy</a></p>
+</td></tr>
+<tr><td style="padding:20px 4px 0;"><div style="height:1px;line-height:1px;font-size:1px;background-color:#e2e8f0;">&nbsp;</div></td></tr>
+<tr><td style="padding:20px 4px 0;">
+<img src="{{logo_af_url}}" width="120" height="25" alt="Ambulatorio Facile" style="display:block;width:120px;height:auto;border:0;outline:none;text-decoration:none;">
+<p style="margin:12px 0 0;font-family:Inter,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;font-size:13px;line-height:20px;font-weight:400;color:#5b6b7f;">Prenotazioni gestite con Ambulatorio Facile per conto di {{ragione_sociale}}, titolare del trattamento dei dati.</p>
+<p style="margin:8px 0 0;font-family:Inter,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;font-size:13px;line-height:20px;font-weight:400;color:#5b6b7f;">{{riga_servizio_html}}</p>
+</td></tr>
+</table>
+<!--[if mso]></td></tr></table><![endif]-->
+</td></tr></table>
+</div>
+</body>
+</html>
