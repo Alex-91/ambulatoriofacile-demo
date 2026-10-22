@@ -26,7 +26,7 @@ file_put_contents($dest.'/fattura-professionale-essenziale.pdf',$pdf->output());
 // Every catalog element remains accepted, ordered and rendered in a saved model.
 $blocks=[];
 foreach(Designer::catalog() as $type=>$label) $blocks[]=['name'=>$label,'elements'=>[['type'=>$type,'label'=>'CAMPO-'.$type,'show_label'=>true,'text'=>'CONTENUTO-LIBERO']]];
-$config['designer']=Designer::validate(['version'=>1,'preset'=>'essential-v1','blocks'=>$blocks]);
+$config['designer']=Designer::validate(['version'=>1,'preset'=>'essential-v1','universal_fields'=>true,'blocks'=>$blocks]);
 check(Designer::fromConfig($config)===$config['designer'],'Saved model remains identical');
 $preview=Designer::sample($config);
 foreach(Designer::catalog() as $type=>$label) $preview['document'][$type]=$preview['document'][$type]??'VALORE';
@@ -35,6 +35,9 @@ $preview['template']['branding']['header_extra']='ALBO-PROFESSIONALE';
 $preview['template']['fiscal_data']['tax_code']='CF-EMITTENTE';
 $preview['template']['fiscal_data']['pec']='studio@example.test';
 $preview['template']['pension_fund']=['enabled'=>true,'name'=>'CASSA','registration_number'=>'123','contribution_rate'=>2];
+$preview['template']['recipient_type']='business';
+$preview['template']['patient_details']['business_vat_number']='01234567890';
+$preview['template']['fiscal_data']['iban']='IT00TEST';
 $html=str_replace("\u{200B}",'',view('admin/billing/designer_document',['preview'=>$preview,'pdfMode'=>true]));
 foreach(Designer::catalog() as $type=>$label) {
  if(in_array($type,['logo','divider','spacer','line_items'],true)) continue;

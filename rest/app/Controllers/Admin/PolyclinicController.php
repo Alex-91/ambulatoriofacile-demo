@@ -168,9 +168,10 @@ class PolyclinicController extends BillingAdminBaseController
                 if ($state) { $id=(int)($state['mapping'][$id]??0); if (!$id) throw new DomainException('Documento precedente non trovato.'); }
             }
             $document=$service->document($id);
-            $template=json_decode($document['template_snapshot_json']??'{}',true)??[];
+            $snapshot=json_decode($document['template_snapshot_json']??'{}',true)??[];
+            $template=\App\Services\BillingDocumentService::resolveRenderingTemplate($snapshot,(new \App\Services\BillingDocumentSettingsService())->resolveOutputConfig($tenantId));
             $preview=['document_type_label'=>$document['document_type']==='credit_note'?'Nota di credito':'Fattura', 'tenant'=>['tenant_name'=>$this->resolveTenantScope()['tenant_name']], 'document'=>$document,
-                'template'=>$template,'line_items'=>json_decode($document['line_items_json']??'[]',true)??[]];
+                'template'=>$template,'payment_method_label'=>\App\Services\BillingDocumentService::paymentMethodLabels()[$document['payment_method']??'']??($document['payment_method']??''),'line_items'=>json_decode($document['line_items_json']??'[]',true)??[]];
             $options=(new \App\Services\BillingPdfOptionsFactory())->create($tenantId);
             $options->setIsRemoteEnabled(false);
             $pdf=new \Dompdf\Dompdf($options);

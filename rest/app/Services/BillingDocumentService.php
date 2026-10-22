@@ -727,13 +727,20 @@ class BillingDocumentService
     }
 
     /** Apply current configuration without rewriting the saved invoice. */
-    private function resolveRenderingTemplate(array $snapshot, array $current): array
+    public static function resolveRenderingTemplate(array $snapshot, array $current): array
     {
         $template = $current;
         if (isset($snapshot['recipient_type'])) {
             $template['recipient_type'] = $snapshot['recipient_type'];
         }
         $template['patient_details'] = (array) ($snapshot['patient_details'] ?? []);
+        if (($snapshot['polyclinic_recipient']['type'] ?? '') === 'business') {
+            $recipient = $snapshot['polyclinic_recipient'];
+            $template['recipient_type'] = 'business';
+            foreach (['vat_number'=>'business_vat_number', 'address'=>'patient_address', 'postal_code'=>'business_postal_code', 'city'=>'patient_city', 'province'=>'business_province', 'recipient_code'=>'business_recipient_code', 'pec'=>'business_pec', 'country'=>'business_country'] as $source=>$target) {
+                $template['patient_details'][$target] = $recipient[$source] ?? '';
+            }
+        }
         if (isset($snapshot['document_stamp'])) $template['document_stamp'] = $snapshot['document_stamp'];
         return $template;
     }
@@ -972,7 +979,7 @@ class BillingDocumentService
     /**
      * @return array<string, string>
      */
-    public function paymentMethodLabels(): array
+    public static function paymentMethodLabels(): array
     {
         return [
             'cash' => 'Contanti',

@@ -535,6 +535,7 @@ class BillingDocumentSettingsService
                 'province' => strtoupper($this->sanitizeText($fiscalData['province'] ?? '', 4, '')),
                 'pec' => strtolower($this->sanitizeText($fiscalData['pec'] ?? '', 190, '')),
                 'recipient_code' => strtoupper($this->sanitizeText($fiscalData['recipient_code'] ?? '', 16, '')),
+                'iban' => strtoupper($this->sanitizeText($fiscalData['iban'] ?? '', 34, '')),
             ],
             'email_delivery' => [
                 'default_due_days' => max(0, min(365, (int) (

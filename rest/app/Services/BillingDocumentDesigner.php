@@ -15,6 +15,7 @@ class BillingDocumentDesigner
             'patient_name'=>'Paziente: nome', 'patient_tax_code'=>'Paziente: codice fiscale',
             'patient_address'=>'Paziente: indirizzo', 'patient_city'=>'Paziente: comune', 'patient_postal_code'=>'Paziente: CAP', 'patient_province'=>'Paziente: provincia', 'patient_email'=>'Paziente: email',
             'patient_phone'=>'Paziente: telefono', 'patient_mobile'=>'Paziente: cellulare',
+            'business_details'=>'Dati fiscali destinatario struttura', 'issuer_iban'=>'IBAN emittente',
             'payment_method'=>'Metodo pagamento', 'payment_date'=>'Data pagamento', 'due_date'=>'Scadenza',
             'opposition'=>'Opposizione TS', 'line_items'=>'Tabella prestazioni', 'subtotal'=>'Subtotale',
             'vat'=>'IVA / natura', 'stamp'=>'Marca da bollo', 'total'=>'Totale documento',
@@ -28,8 +29,9 @@ class BillingDocumentDesigner
         if (!is_array($raw) || ($raw['version'] ?? null) !== 1 || !is_array($raw['blocks'] ?? null)) {
             throw new \InvalidArgumentException('Modello visuale non valido. Ricarica la pagina.');
         }
-        if (count($raw['blocks']) < 1 || count($raw['blocks']) > 40) throw new \InvalidArgumentException('Inserisci da 1 a 40 blocchi.');
+        if (count($raw['blocks']) < 1 || count($raw['blocks']) > 42) throw new \InvalidArgumentException('Inserisci da 1 a 42 blocchi.');
         $out = ['version'=>1, 'blocks'=>[]];
+        if (!empty($raw['universal_fields'])) $out['universal_fields']=true;
         if (($raw['preset'] ?? '') === 'essential-v1') $out['preset']='essential-v1';
         foreach ($raw['blocks'] as $i=>$block) {
             if (!is_array($block)) throw new \InvalidArgumentException('Blocco non valido.');
@@ -67,7 +69,7 @@ class BillingDocumentDesigner
     {
         if (!empty($config['designer'])) {
             $model=self::validate($config['designer']);
-            return ($model['preset']??'')==='essential-v1' ? $model : self::essential($model);
+            return self::universalFields(($model['preset']??'')==='essential-v1' ? $model : self::essential($model));
         }
         $blocks=[]; $b=$config['branding']??[]; $f=$config['fields']??[]; $l=$config['layout']??[];
         $add = static function(string $name,array $types,int $span=12,array $style=[]) use (&$blocks): void {
@@ -102,7 +104,26 @@ class BillingDocumentDesigner
                 $blocks[array_key_last($blocks)]['elements'][0]['label'] = $label;
             }
         }
-        return self::essential(self::validate(['version'=>1,'blocks'=>$blocks]));
+        return self::universalFields(self::essential(self::validate(['version'=>1,'blocks'=>$blocks])));
+    }
+
+    /** Add editable fields once; subsequent removals and customizations are respected. */
+    private static function universalFields(array $model): array
+    {
+        if (!empty($model['universal_fields'])) return $model;
+        $present=[];
+        foreach ($model['blocks'] as $block) foreach ($block['elements'] as $element) $present[]=$element['type'];
+        foreach (['business_details'=>'Dati struttura', 'issuer_iban'=>'Coordinate pagamento'] as $type=>$name) {
+            if (in_array($type,$present,true)) continue;
+            $block=['name'=>$name,'span'=>12,'section'=>'text','font'=>10,'padding'=>0,'background'=>'#ffffff','color'=>'#20353d','elements'=>[['type'=>$type,'show_label'=>$type==='issuer_iban']]];
+            $position=count($model['blocks']);
+            foreach ($model['blocks'] as $i=>$existing) {
+                if (($existing['section']??'')===($type==='business_details'?'patient':'payment')) { $position=$i+1; break; }
+            }
+            array_splice($model['blocks'],$position,0,[$block]);
+        }
+        $model['universal_fields']=true;
+        return self::validate($model);
     }
 
     /** Upgrade the presentation only: every selected element and its text is retained. */
@@ -119,6 +140,8 @@ class BillingDocumentDesigner
                     continue;
                 }
                 $group=match(true) {
+                    $type==='business_details'=>'patient',
+                    $type==='issuer_iban'=>'payment',
                     $type==='logo'||str_starts_with($type,'issuer_')=>'issuer',
                     str_starts_with($type,'patient_')=>'patient',
                     $type==='line_items'=>'items',
@@ -149,8 +172,8 @@ class BillingDocumentDesigner
             $blocks[]=$block;
         }
         // Very large bespoke models must remain editable without exceeding the schema limit.
-        if (count($blocks)>40 || $blocks===[]) $blocks=$model['blocks'];
-        return self::validate(['version'=>1,'preset'=>'essential-v1','blocks'=>$blocks]);
+        if (count($blocks)>(!empty($model['universal_fields'])?42:40) || $blocks===[]) $blocks=$model['blocks'];
+        return self::validate(['version'=>1,'preset'=>'essential-v1','universal_fields'=>!empty($model['universal_fields']),'blocks'=>$blocks]);
     }
 
     public static function sample(array $config): array

@@ -53,5 +53,5 @@ $catalog=\App\Services\BillingDocumentDesigner::catalog();
 </section></div></div></section></main></div>
 <script id="bd-initial" type="application/json"><?= json_encode(['model'=>$initial,'catalog'=>$catalog,'csrfName'=>csrf_token()],JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_UNESCAPED_UNICODE) ?></script>
 <script src="<?= base_url('public/plugins/jQuery/jQuery-2.1.4.min.js') ?>"></script><script src="<?= base_url('public/bootstrap/js/bootstrap.min.js') ?>"></script>
-<script src="<?= base_url('public/assets/js/billing-designer.js?v=20261022-essential') ?>"></script>
+<script src="<?= base_url('public/assets/js/billing-designer.js?v=20261022-universal') ?>"></script>
 </body></html>

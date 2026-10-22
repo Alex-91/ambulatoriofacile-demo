@@ -14,14 +14,14 @@
  function restore(raw){const state=JSON.parse(raw);model=state.model;Object.entries(state.fields).forEach(([key,value])=>{const el=form.elements[key];if(el) {if(el.type==='checkbox')el.checked=value;else el.value=value;}});}
  function changed(fn,refreshProperties=true){past.push(snapshot());if(past.length>50)past.shift();future=[];fn();dirty=true;render(refreshProperties);}
  function newBlock(){return {name:'Nuovo blocco',span:12,background:'#ffffff',color:'#202b3c',align:'left',font:11,padding:3,border:false,page_break:false,elements:[]};}
- function addBlock(){if(model.blocks.length>=40)return message('Puoi usare fino a 40 blocchi.');changed(()=>{model.blocks.push(newBlock());selected=model.blocks.length-1;});}
+ function addBlock(){if(model.blocks.length>=42)return message('Puoi usare fino a 42 blocchi.');changed(()=>{model.blocks.push(newBlock());selected=model.blocks.length-1;});}
  function message(text){status.textContent=text;}
  function select(i){selected=i;render();}
  function warnings(){const types=model.blocks.flatMap(b=>b.elements.map(e=>e.type));const notes=[];if(!types.includes('line_items'))notes.push('La tabella prestazioni non è presente.');if(!types.includes('total'))notes.push('Il totale documento non è presente.');if(model.blocks.some(b=>!b.elements.length))notes.push('I blocchi vuoti vengono mantenuti come spazio.');return notes.join(' ');}
  function moveBlock(from,to){if(to<0||to>=model.blocks.length||from===to)return;changed(()=>{const [b]=model.blocks.splice(from,1);model.blocks.splice(to,0,b);selected=to;});}
  function addElement(type,target=selected){
   const b=model.blocks[target];if(!b)return;
-  if(dedicated.has(type) && b.elements.length){if(model.blocks.length>=40)return message('Massimo 40 blocchi.');changed(()=>{const next=newBlock();next.name=catalog[type];next.elements=[{type,text:'',label:'',show_label:false}];model.blocks.splice(target+1,0,next);selected=target+1;});message('Inserito in un blocco dedicato per consentire la stampa su più pagine.');return;}
+  if(dedicated.has(type) && b.elements.length){if(model.blocks.length>=42)return message('Massimo 42 blocchi.');changed(()=>{const next=newBlock();next.name=catalog[type];next.elements=[{type,text:'',label:'',show_label:false}];model.blocks.splice(target+1,0,next);selected=target+1;});message('Inserito in un blocco dedicato per consentire la stampa su più pagine.');return;}
   if(b.elements.some(e=>dedicated.has(e.type)))return message('Questo blocco contiene un testo lungo o una tabella. Aggiungi un altro blocco.');
   if(b.elements.length>=12)return message('Massimo 12 elementi per blocco.');
   changed(()=>{if(dedicated.has(type))b.span=12;b.elements.push({type,text:type==='text'?'Scrivi qui il tuo testo':'',label:'',show_label:!['title','subtitle','text','logo','divider','spacer','signature'].includes(type)});});
@@ -98,7 +98,7 @@
   inputControl('Dimensione testo',b.font,v=>b.font=+v,'select',[9,10,11,12,13,14].map(n=>[n,n+' pt']));
   inputControl('Spazio interno',b.padding,v=>b.padding=+v,'select',[0,1,2,3,4,5,6].map(n=>[n,n+' mm']));
   inputControl('Bordo visibile',b.border,v=>b.border=v,'checkbox');inputControl('Inizia su una nuova pagina',b.page_break,v=>b.page_break=v,'checkbox');
-  props.append(button('Duplica blocco',()=>{if(model.blocks.length>=40)return;changed(()=>{model.blocks.splice(selected+1,0,JSON.parse(JSON.stringify(b)));selected++;});}),button('Elimina blocco',()=>{if(model.blocks.length===1)return message('Mantieni almeno un blocco.');changed(()=>model.blocks.splice(selected,1));}));
+  props.append(button('Duplica blocco',()=>{if(model.blocks.length>=42)return;changed(()=>{model.blocks.splice(selected+1,0,JSON.parse(JSON.stringify(b)));selected++;});}),button('Elimina blocco',()=>{if(model.blocks.length===1)return message('Mantieni almeno un blocco.');changed(()=>model.blocks.splice(selected,1));}));
   props.append(node('hr'),node('h2','Contenuti del blocco'));
   b.elements.forEach((el,i)=>{
    props.append(node('strong',(i+1)+'. '+catalog[el.type]));

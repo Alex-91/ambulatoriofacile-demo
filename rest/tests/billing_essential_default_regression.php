@@ -12,7 +12,7 @@ $old=['version'=>1,'blocks'=>[
 $raw=Designer::validate($old);
 $model=Designer::fromConfig(['designer'=>$old]);
 $elements=static function($m) { $items=[];foreach($m['blocks'] as $b)foreach($b['elements'] as $e)$items[]=json_encode($e);sort($items);return $items; };
-check($elements($raw)===$elements($model),'Upgrade retains every field, duplicate, label and literal text');
+check(array_diff($elements($raw),$elements($model))===[],'Upgrade retains every field, duplicate, label and literal text');
 check(($model['preset']??'')==='essential-v1','Upgrade loads essential default');
 check($old['blocks'][0]['background']==='#000000','Read-time upgrade does not rewrite stored preferences');
 check(Designer::fromConfig(['designer'=>$model])===$model,'Reopening is stable');

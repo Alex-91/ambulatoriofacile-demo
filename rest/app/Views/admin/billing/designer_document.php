@@ -4,6 +4,9 @@ $template=$preview['template']??[];
 $designer=BillingDocumentDesigner::fromConfig($template);
 $branding=$template['branding']??[]; $fiscal=$template['fiscal_data']??[]; $document=$preview['document']??[];
 $patient=$template['patient_details']??[];
+$business=($template['recipient_type']??'')==='business';
+if (isset($patient['business_postal_code'])) $patient['patient_postal_code']=$patient['patient_postal_code']??$patient['business_postal_code'];
+if (isset($patient['business_province'])) $patient['patient_province']=$patient['patient_province']??$patient['business_province'];
 $accent=$branding['accent_color']??'#2c8895';
 if (!preg_match('/^#[0-9a-fA-F]{6}$/', $accent)) $accent='#2c8895';
 $money=static fn($v)=>'EUR '.number_format((float)$v,2,',','.');
@@ -19,13 +22,25 @@ $values=array_merge($values,[
  'opposition'=>!empty($document['ts_opposition_flag'])?'Sì':'No', 'subtotal'=>$money($document['subtotal_amount']??0), 'total'=>$money($document['amount_total']??0),
  'vat'=>isset($template['document_stamp']) ? $money((float)$document['amount_total']-(float)$document['subtotal_amount']-\App\Services\BillingStampDuty::chargedAmount($document)) : ($document['vat_rate']??0).'% '.($document['vat_nature']??''), 'stamp'=>(float)($document['stamp_duty_amount']??0)>0?$money($document['stamp_duty_amount']):'',
  'terms'=>$branding['terms_text']??'', 'footer'=>$branding['footer_note']??'',
+ 'issuer_iban'=>$fiscal['iban']??'',
 ]);
+$businessLines=[];
+$selectedTypes=[]; foreach ($designer['blocks'] as $block) foreach ($block['elements'] as $element) $selectedTypes[]=$element['type'];
+if ($business) {
+    foreach (['Partita IVA'=>$patient['business_vat_number']??'', 'Codice fiscale'=>$document['patient_tax_code']??'', 'Indirizzo'=>$patient['patient_address']??'', 'Comune'=>trim(($patient['business_postal_code']??'').' '.($patient['patient_city']??'').' '.($patient['business_province']??'')), 'Paese'=>$patient['business_country']??'', 'Email'=>$document['patient_email']??'', 'Codice destinatario'=>$patient['business_recipient_code']??'', 'PEC'=>$patient['business_pec']??''] as $label=>$value) {
+        $separateField=['Codice fiscale'=>'patient_tax_code','Indirizzo'=>'patient_address','Email'=>'patient_email'][$label]??null;
+        if ($separateField && in_array($separateField,$selectedTypes,true)) continue;
+        if (trim((string)$value)!=='') $businessLines[]=$label.': '.$value;
+    }
+    $values['vat']=$money((float)$document['amount_total']-(float)$document['subtotal_amount']-\App\Services\BillingStampDuty::chargedAmount($document)).' '.($document['vat_nature']??'');
+}
+$values['business_details']=implode("\n",$businessLines);
 // The old generic title is a default, not an invoice-specific heading.
 if (trim((string)($branding['header_title']??''))==='' && ($values['title']??'')==='Documento fatturazione') $values['title']=$preview['document_type_label']??'Fattura';
 $catalog=BillingDocumentDesigner::catalog();
 // Break very long unspaced values too: Dompdf cannot wrap every Unicode token with CSS alone.
 $safe=static function($value, int $wrap=35): string { $text=(string)$value; $text=preg_replace('/([^\s]{'.$wrap.'})(?=[^\s])/u', '$1' . "\u{200B}", $text); return nl2br(esc($text)); };
-$renderBlock=static function(array $block) use ($values,$branding,$catalog,$preview,$safe,$money,$document): void {
+$renderBlock=static function(array $block) use ($values,$branding,$catalog,$preview,$safe,$money,$document,$business): void {
  $widthPt=(186*$block['span']/12-2*$block['padding']-3)*2.8346;
  $wrap=max(5,min(35,(int)floor($widthPt/($block['font']*1.55))));
  $safeText=$safe; $safe=static fn($v, $limit=null)=>$safeText($v,$limit??$wrap);
@@ -34,6 +49,7 @@ $renderBlock=static function(array $block) use ($values,$branding,$catalog,$prev
  <div class="db-block db-section-<?= esc($block['section']??'') ?>" style="<?= esc($style) ?>">
  <?php if (in_array($block['section']??'', ['patient','items','payment'],true)): ?><table class="db-section-heading"><tr><td class="db-heading-label"><?= $safe($block['name']) ?></td><td class="db-heading-rule"><div></div></td></tr></table><?php endif; ?>
  <?php foreach ($block['elements'] as $element): $type=$element['type']; $label=$element['label']?:$catalog[$type]; ?>
+ <?php if ($business && $element['label']==='' && str_starts_with($type,'patient_')) $label=str_replace('Paziente:','Destinatario:',$label); ?>
  <?php if ($type==='line_items'): ?>
    <table class="db-items"><thead><tr><th style="width:40%">Prestazione</th><th style="width:23%">IVA / Esenzione</th><th style="width:7%">Qta</th><th style="width:15%">Prezzo</th><th style="width:15%">Importo</th></tr></thead><tbody>
    <?php foreach ($preview['line_items']??[] as $item): ?>
@@ -61,6 +77,10 @@ $renderBlock=static function(array $block) use ($values,$branding,$catalog,$prev
 };
 $rows=[]; $row=[]; $used=0;
 foreach ($designer['blocks'] as $block) {
+ if ($block['elements']!==[] && array_diff(array_column($block['elements'],'type'),['business_details','issuer_iban'])===[]) {
+     $hasValue=false; foreach ($block['elements'] as $element) if (trim((string)($values[$element['type']]??''))!=='') $hasValue=true;
+     if (!$hasValue) continue;
+ }
  // A table cell cannot split across pages in Dompdf. Promote tall columns to a
  // normal full-width flow instead of clipping unusually long real-world data.
  if ($block['span']<12) {
@@ -117,6 +137,7 @@ hr { border:0; border-top:0.25mm solid #d7dde5; }
 .db-section-heading { position:relative; color:#075563; margin:0 0 4mm; text-transform:uppercase; letter-spacing:1.4pt; font-size:1em; font-weight:bold; }
 
 .db-section-heading { width:100%; border-collapse:collapse; }
+.db-section-heading, .db-field-notes > .db-label, .db-field-terms > .db-label { page-break-after:avoid; }
 .db-heading-label { width:1%; white-space:nowrap; padding:0 4mm 0 0; }
 .db-heading-rule { vertical-align:middle; padding:0; } .db-heading-rule > div { border-top:.25mm solid #71aeb6; }
 .db-section-issuer .db-field-issuer_name { color:#075563; font-size:1.8em; }
