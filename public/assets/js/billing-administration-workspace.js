@@ -1,6 +1,12 @@
 (function(){
 'use strict';
 const root=document.getElementById('billing-workspace');if(!root)return;
+const createInvoice=root.querySelector('#bw-create-invoice');
+if(createInvoice){
+ document.addEventListener('click',event=>{if(!createInvoice.contains(event.target))createInvoice.open=false;});
+ document.addEventListener('keydown',event=>{if(event.key==='Escape'&&createInvoice.open){createInvoice.open=false;createInvoice.querySelector('summary').focus();}});
+ createInvoice.addEventListener('focusout',event=>{if(event.relatedTarget&&!createInvoice.contains(event.relatedTarget))createInvoice.open=false;});
+}
 const data=JSON.parse(document.getElementById('bw-data').textContent),byId=new Map(data.map(d=>[String(d.id),d]));
 const rows=Array.from(root.querySelectorAll('.bw-row')),selected=new Set();let active=null,reverse=false,cashTab='open',submitting=false;
 const get=id=>document.getElementById(id),form=get('bw-bulk-form'),cashView=root.dataset.mode==='cash';
