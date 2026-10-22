@@ -245,7 +245,7 @@ class BillingDocumentService
         } else {
             $snapshot = $this->decodeJsonArray((string) ($document['template_snapshot_json'] ?? ''));
             $details = is_array($snapshot['patient_details'] ?? null) ? $snapshot['patient_details'] : [];
-            $document = array_merge($details, $document);
+            $document = array_merge($details, $document, BillingStampDuty::document($document));
         }
 
         return [
@@ -556,7 +556,11 @@ class BillingDocumentService
         if ($current !== null && BillingBusinessRecipient::isBusiness($current) !== (($payload['recipient_type'] ?? 'patient') === 'business')) {
             throw new \RuntimeException('Il tipo di intestatario non può essere cambiato: apri il documento dalla sua sezione di fatturazione.');
         }
+        // Missing fields from older callers must preserve existing fiscal choices.
+        if ($current !== null) $payload += BillingStampDuty::document($current);
         $normalized = $this->normalizePayload($payload, $template, $tenantId);
+        $template['document_stamp'] = array_intersect_key($normalized, BillingStampDuty::defaults($template));
+        $template['document_stamp']['stamp_base_amount'] = $normalized['stamp_base_amount'];
         if (($normalized['recipient_type'] ?? '') === 'business') {
             $template['recipient_type'] = 'business';
         }
@@ -730,11 +734,14 @@ class BillingDocumentService
             $template['recipient_type'] = $snapshot['recipient_type'];
         }
         $template['patient_details'] = (array) ($snapshot['patient_details'] ?? []);
+        if (isset($snapshot['document_stamp'])) $template['document_stamp'] = $snapshot['document_stamp'];
         return $template;
     }
 
     public static function resolveOutputDocument(array $document, array $current): array
     {
+        $snapshot = json_decode((string) ($document['template_snapshot_json'] ?? '{}'), true);
+        if (isset($snapshot['document_stamp'])) return $document;
         if (BillingBusinessRecipient::isBusiness($document)) return $document;
         // Nature is configurable invoice wording; amounts and transaction references
         // continue to come from the document itself.
@@ -905,7 +912,7 @@ class BillingDocumentService
             'payment_method' => $paymentMethod,
             'payment_status' => 'unpaid',
             'subtotal_amount' => 0,
-            'stamp_duty_amount' => $this->normalizeMoney($defaults['stamp_duty_amount'] ?? 0),
+            'stamp_duty_amount' => !empty(BillingStampDuty::settings($template)['automatic']) ? 0 : $this->normalizeMoney($defaults['stamp_duty_amount'] ?? 0),
             'vat_rate' => $vatRate,
             'vat_nature' => $vatNature,
             'amount_total' => 0,
@@ -917,7 +924,7 @@ class BillingDocumentService
                 ? ($tsEnabled ? 'ready' : 'waiting_module')
                 : 'not_requested',
             'local_state' => 'draft',
-        ];
+        ] + BillingStampDuty::defaults($template);
     }
 
     /**
@@ -1101,7 +1108,8 @@ class BillingDocumentService
         $lineItems = $this->normalizeLineItems(
             $payload['item_description'] ?? [],
             $payload['item_qty'] ?? [],
-            $payload['item_unit_amount'] ?? []
+            $payload['item_unit_amount'] ?? [],
+            $payload['item_tax_treatment'] ?? []
         );
         $mappedExpenseType = $business ? null : $this->tsProfiles->resolveExpenseTypeForLineItems($tenantId, $lineItems);
         $subtotal = 0.0;
@@ -1109,15 +1117,16 @@ class BillingDocumentService
             $subtotal += (float) ($item['line_total'] ?? 0);
         }
 
-        $stampDuty = $this->normalizeMoney($payload['stamp_duty_amount'] ?? 0);
-        $amountTotal = round($subtotal + $stampDuty, 2);
-        if ($business) {
-            $amountTotal = round($amountTotal + round($subtotal * $this->normalizeMoney($payload['vat_rate'] ?? 0) / 100, 2), 2);
+        $stamp = BillingStampDuty::normalize($payload, $template, $lineItems);
+        $stampDuty = $stamp['stamp_duty_amount'];
+        $amountTotal = round($subtotal + ($stamp['stamp_charge_customer'] ? $stampDuty : 0), 2);
+        if ($business || array_key_exists('stamp_mode', $payload)) {
+            $amountTotal = round($amountTotal + BillingStampDuty::taxAmount($lineItems, $this->normalizeMoney($payload['vat_rate'] ?? 0)), 2);
         }
         $tsSyncEnabled = $this->toBool($payload['ts_sync_enabled'] ?? false);
         $tsEnabled = $this->tsFeatures->isEnabledForTenant($tenantId);
 
-        return ($business ? BillingBusinessRecipient::details($payload) : []) + [
+        return $stamp + ($business ? BillingBusinessRecipient::details($payload) : []) + [
             'id_billing_document' => (int) ($payload['id_billing_document'] ?? 0),
             'id_client' => (int) ($payload['id_client'] ?? 0),
             'document_number' => $documentNumber,
@@ -1160,7 +1169,7 @@ class BillingDocumentService
      * @param mixed $unitAmounts
      * @return array<int, array<string, mixed>>
      */
-    private function normalizeLineItems($descriptions, $quantities, $unitAmounts): array
+    private function normalizeLineItems($descriptions, $quantities, $unitAmounts, $treatments = []): array
     {
         $descriptions = is_array($descriptions) ? $descriptions : [];
         $quantities = is_array($quantities) ? $quantities : [];
@@ -1186,7 +1195,7 @@ class BillingDocumentService
                 'quantity' => $quantity,
                 'unit_amount' => $unitAmount,
                 'line_total' => round($quantity * $unitAmount, 2),
-            ];
+            ] + BillingStampDuty::lineTax((string) ($treatments[$index] ?? ''));
         }
 
         return $items;
@@ -1219,6 +1228,14 @@ class BillingDocumentService
         }
         if ((array) ($normalized['line_items'] ?? []) === []) {
             $errors[] = 'Inserisci almeno una riga nel documento.';
+        }
+        if (!empty($normalized['ts_sync_enabled'])) {
+            foreach ($normalized['line_items'] as $item) {
+                if (!empty($item['tax_treatment'])) {
+                    $errors[] = 'La preparazione TS richiede un unico trattamento IVA: usa Come il documento sulle righe oppure disattiva la preparazione TS per questa fattura mista.';
+                    break;
+                }
+            }
         }
         if ((float) ($normalized['amount_total'] ?? 0) <= 0) {
             $errors[] = 'Il totale del documento deve essere maggiore di zero.';
@@ -1277,7 +1294,7 @@ class BillingDocumentService
                 'quantity' => $quantity > 0 ? $quantity : 1.0,
                 'unit_amount' => $unitAmount,
                 'line_total' => $lineTotal,
-            ];
+            ] + BillingStampDuty::lineTax((string) ($row['tax_treatment'] ?? ''));
         }
 
         return $items;

@@ -17,7 +17,7 @@ $values=array_merge($values,[
  'issuer_pension'=>!empty($template['pension_fund']['enabled'])?trim(($template['pension_fund']['name']??'').' '.($template['pension_fund']['registration_number']??'').' '.($template['pension_fund']['contribution_rate']??'').' %'):'',
  'issuer_extra'=>$branding['header_extra']??'', 'document_type'=>$preview['document_type_label']??'Documento', 'payment_method'=>$preview['payment_method_label']??'',
  'opposition'=>!empty($document['ts_opposition_flag'])?'Sì':'No', 'subtotal'=>$money($document['subtotal_amount']??0), 'total'=>$money($document['amount_total']??0),
- 'vat'=>($document['vat_rate']??0).'% '.($document['vat_nature']??''), 'stamp'=>(float)($document['stamp_duty_amount']??0)>0?$money($document['stamp_duty_amount']):'',
+ 'vat'=>isset($template['document_stamp']) ? $money((float)$document['amount_total']-(float)$document['subtotal_amount']-\App\Services\BillingStampDuty::chargedAmount($document)) : ($document['vat_rate']??0).'% '.($document['vat_nature']??''), 'stamp'=>(float)($document['stamp_duty_amount']??0)>0?$money($document['stamp_duty_amount']):'',
  'terms'=>$branding['terms_text']??'', 'footer'=>$branding['footer_note']??'',
 ]);
 $catalog=BillingDocumentDesigner::catalog();
@@ -34,7 +34,7 @@ $renderBlock=static function(array $block) use ($values,$branding,$catalog,$prev
  <?php if ($type==='line_items'): ?>
    <table class="db-items"><thead><tr><th style="width:40%">Prestazione</th><th style="width:23%">IVA / Esenzione</th><th style="width:7%">Qta</th><th style="width:15%">Prezzo</th><th style="width:15%">Importo</th></tr></thead><tbody>
    <?php foreach ($preview['line_items']??[] as $item): ?>
-     <tr><td><?= $safe($item['description']??'',16) ?></td><td><?= esc(number_format((float)($document['vat_rate']??0),2,',','.')) ?>%<?php if (trim((string)($document['vat_nature']??''))!==''): ?><br><?= $safe($document['vat_nature'],9) ?><?php endif; ?></td><td><?= $safe($item['quantity']??1) ?></td><td><?= esc($money($item['unit_amount']??0)) ?></td><td><?= esc($money($item['line_total']??0)) ?></td></tr>
+     <tr><td><?= $safe($item['description']??'',16) ?></td><td><?= $safe(\App\Services\BillingStampDuty::lineLabel($item, $document), 16) ?></td><td><?= $safe($item['quantity']??1) ?></td><td><?= esc($money($item['unit_amount']??0)) ?></td><td><?= esc($money($item['line_total']??0)) ?></td></tr>
    <?php endforeach; ?></tbody></table>
  <?php elseif ($type==='logo'): $logo=trim($branding['logo_url']??''); if ($logo!=='' && ($branding['logo_mode']??'none')!=='none'): if (!preg_match('#^https?://#i',$logo)) $logo=base_url(ltrim($logo,'/')); ?>
    <img class="db-logo" src="<?= esc($logo) ?>" alt="Logo studio">
@@ -129,4 +129,5 @@ hr { border:0; border-top:0.25mm solid #d7dde5; }
  <?php if ($used<12): ?><td style="width:<?= (12-$used)/12*100 ?>%"></td><?php endif; ?>
  </tr></tbody></table>
 <?php endif; endforeach; ?>
+<?= view('admin/billing/stamp_notice', ['document'=>$document]) ?>
 </main></body></html>

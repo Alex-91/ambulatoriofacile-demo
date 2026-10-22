@@ -39,6 +39,8 @@ class BillingXlsxExportService
             'business_country' => ['Paese destinatario', 'text', 18],
             'business_recipient_code' => ['Codice destinatario', 'text', 22],
             'business_pec' => ['PEC destinatario', 'text', 36],
+            'stamp_charged_amount' => ['Bollo addebitato', 'money', 19],
+            'stamp_wording' => ['Assolvimento bollo', 'text', 60],
         ];
     }
 
@@ -133,6 +135,8 @@ class BillingXlsxExportService
 
     private function value(string $key, array $row, array $snapshot)
     {
+        if ($key === 'stamp_charged_amount') return BillingStampDuty::chargedAmount($row);
+        if ($key === 'stamp_wording') return BillingStampDuty::wording($row);
         if (str_starts_with($key, 'business_')) { return $snapshot['patient_details'][$key] ?? ''; }
         switch ($key) {
             case 'patient_tax_code': return ($row['patient_tax_code'] ?? '') ?: ($snapshot['patient_details']['business_vat_number'] ?? '');

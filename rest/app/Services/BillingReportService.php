@@ -97,6 +97,7 @@ class BillingReportService
             $outputTemplate = $currentConfig;
             if (isset($snapshot['recipient_type'])) $outputTemplate['recipient_type'] = $snapshot['recipient_type'];
             $outputTemplate['patient_details'] = (array) ($snapshot['patient_details'] ?? []);
+            if (isset($snapshot['document_stamp'])) $outputTemplate['document_stamp'] = $snapshot['document_stamp'];
             $row['template_snapshot_json'] = json_encode($outputTemplate, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
             $documentType = (string) ($row['document_type'] ?? '');
             $paymentMethod = (string) ($row['payment_method'] ?? '');
@@ -236,6 +237,7 @@ class BillingReportService
             $snapshot = json_decode((string) ($row['template_snapshot_json'] ?? ''), true);
             $outputTemplate = $currentConfig;
             $outputTemplate['patient_details'] = (array) ($snapshot['patient_details'] ?? []);
+            if (isset($snapshot['document_stamp'])) $outputTemplate['document_stamp'] = $snapshot['document_stamp'];
             if (isset($snapshot['recipient_type'])) $outputTemplate['recipient_type'] = $snapshot['recipient_type'];
             $row['template_snapshot_json'] = json_encode($outputTemplate, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
             $row['document_type_label'] = $this->documents->documentTypeLabels()[$row['document_type']] ?? $row['document_type'];

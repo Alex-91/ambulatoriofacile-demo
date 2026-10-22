@@ -783,6 +783,9 @@ class BillingTsBridgeService
      */
     private function validateBillingEligibility(array $billingDocument): array
     {
+        foreach ((array) json_decode((string) ($billingDocument['line_items_json'] ?? '[]'), true) as $item) {
+            if (!empty($item['tax_treatment'])) return ['blocked'=>true, 'message'=>'La preparazione TS di fatture con trattamento IVA per riga non è disponibile.'];
+        }
         if (BillingBusinessRecipient::isBusiness($billingDocument)) {
             return ['blocked' => true, 'message' => 'Le fatture a strutture non sono destinate al Sistema TS.'];
         }

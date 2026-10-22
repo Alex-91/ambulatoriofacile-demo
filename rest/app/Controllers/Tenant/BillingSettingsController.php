@@ -120,6 +120,15 @@ class BillingSettingsController extends BaseController
                 'mode' => $this->requestString('numbering_mode', (string) ($current['numbering']['mode'] ?? 'annual'), 20),
                 'digits' => $this->requestString('numbering_digits', (string) ($current['numbering']['digits'] ?? 4), 10),
             ],
+            'stamp_duty' => $this->request->getPost('stamp_settings_present') !== null ? [
+                'automatic' => $this->request->getPost('stamp_automatic') === '1',
+                'charge_customer' => $this->request->getPost('stamp_charge_customer') === '1',
+                'nature' => $this->requestString('stamp_nature', 'N4', 16),
+                'method' => $this->requestString('stamp_method', 'adhesive', 16),
+                'authorization_number' => $this->requestString('stamp_authorization_number', '', 190),
+                'authorization_date' => $this->requestString('stamp_authorization_date', '', 10),
+                'authorization_office' => $this->requestString('stamp_authorization_office', '', 190),
+            ] : ($current['stamp_duty'] ?? \App\Services\BillingStampDuty::settings($current)),
             'defaults' => [
                 'stamp_duty_amount' => $this->requestString('default_stamp_duty_amount', (string) ($defaults['stamp_duty_amount'] ?? '0.00'), 10),
                 'document_type' => $this->requestString('default_document_type', (string) ($defaults['document_type'] ?? 'invoice'), 20),

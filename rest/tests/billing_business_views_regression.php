@@ -1,6 +1,7 @@
 <?php
 // Render synthetic UI only: no application bootstrap, .env, sessions or database.
 if (PHP_SAPI !== 'cli') exit(1);
+require_once dirname(__DIR__).'/app/Services/BillingStampDuty.php';
 function esc($value) { return htmlspecialchars((string)$value,ENT_QUOTES,'UTF-8'); }
 function old($key) { return null; }
 function session() { return new class { public function get($key) { return []; } public function getFlashdata($key) { return null; } }; }
@@ -9,7 +10,7 @@ function site_url($path='') { return '/'.$path; }
 function csrf_field() { return '<input type="hidden" name="csrf_test" value="synthetic">'; }
 function view($name,$data=[]) {
     if ($name==='partials/sidebar_admin') return '<div class="box box-solid"><div class="box-body"><a href="#">Fatturazione</a><hr><strong>Fatture a strutture</strong><hr><a href="#">Lista fatture</a></div></div>';
-    if ($name!=='admin/billing/business_fields') return '';
+    if (!in_array($name, ['admin/billing/business_fields','admin/billing/stamp_fields'], true)) return '';
     extract($data);ob_start();require dirname(__DIR__).'/app/Views/'.$name.'.php';return ob_get_clean();
 }
 function verifyBusinessView($ok,$message) { if (!$ok) throw new RuntimeException($message); }

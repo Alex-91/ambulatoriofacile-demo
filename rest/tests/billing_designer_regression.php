@@ -1,5 +1,8 @@
 <?php
 require __DIR__.'/billing_header_regression.php';
+if (!function_exists('view')) {
+    function view($name, $data=[]) { extract($data); ob_start(); require dirname(__DIR__).'/app/Views/'.$name.'.php'; return ob_get_clean(); }
+}
 require_once dirname(__DIR__,2).'/vendor/autoload.php';
 use App\Services\BillingDocumentDesigner as Designer;
 $legacy=$settings->defaultConfig();

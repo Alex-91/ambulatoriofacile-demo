@@ -217,7 +217,7 @@ if ($serviceRows === []) {
                     <div class="form-group">
                       <label>Marca da bollo predefinita (€)</label>
                       <input class="form-control" type="number" min="0" max="9999" step="0.01" name="default_stamp_duty_amount" value="<?= esc($fieldValue('default_stamp_duty_amount', $defaults['stamp_duty_amount'] ?? '0.00')) ?>">
-                      <small class="help-block">Importo proposto nelle nuove fatture, modificabile prima del salvataggio. Usa 0 per non applicarlo automaticamente.</small>
+                      <small class="help-block">Importo proposto quando il calcolo automatico del bollo è disattivato.</small>
                     </div>
                     <div class="form-group">
                       <label>Natura IVA</label>
@@ -228,6 +228,7 @@ if ($serviceRows === []) {
                   <span class="config-help">Aliquota e bollo restano quelli salvati nelle fatture già emesse; la dicitura Natura IVA segue la configurazione attuale.</span>
                 </section>
 
+                <?= view('tenant/billing_stamp_settings', compact('config', 'fieldValue', 'fieldBool')) ?>
                 <section class="config-card config-pension-card">
                   <div class="config-card-head">
                     <div>
@@ -359,7 +360,7 @@ if ($serviceRows === []) {
               <section class="config-card" style="margin-bottom:20px;padding:20px;">
                 <h2>Esportazione Excel (XLSX)</h2><p><a href="<?= site_url('admin/fatturazione-commercialista') ?>">Gestisci la delega al commercialista</a></p>
                 <p>Scegli le colonne e il loro ordine. La stessa configurazione viene usata anche dal commercialista con delega.</p>
-                <p class="config-help">Imponibile: onorario registrato, escluso il bollo. Marca da bollo: importo addebitato in fattura (2 € se riaddebitato, 0 € se assente). Importi in euro.</p>
+                <p class="config-help">Imponibile: onorario registrato, escluso il bollo. Marca da bollo: imposta indicata sul documento. Bollo addebitato: quota aggiunta al totale da incassare (0 se a carico dell’emittente). Importi in euro.</p>
                 <input type="hidden" name="xlsx_columns_present" value="1">
                 <?php
                   $xlsxFields = \App\Services\BillingXlsxExportService::fields();

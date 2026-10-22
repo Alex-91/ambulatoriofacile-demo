@@ -151,7 +151,7 @@ if (!empty($pensionFund['enabled']) && trim((string) ($pensionFund['name'] ?? ''
           <?php foreach ($lineItems as $item): ?>
             <tr>
               <td><?= esc((string) ($item['description'] ?? '')) ?></td>
-              <td style="overflow-wrap:break-word;word-wrap:break-word;"><?= esc(number_format((float) ($document['vat_rate'] ?? 0), 2, ',', '.')) ?>%<?php if (trim((string) ($document['vat_nature'] ?? '')) !== ''): ?><br><?= nl2br(esc((string) $document['vat_nature'])) ?><?php endif; ?></td>
+              <td style="overflow-wrap:break-word;word-wrap:break-word;"><?= esc(\App\Services\BillingStampDuty::lineLabel($item, $document)) ?></td>
               <td><?= esc((string) ($item['quantity'] ?? '1')) ?></td>
               <td>EUR <?= number_format((float) ($item['unit_amount'] ?? 0), 2, ',', '.') ?></td>
               <td>EUR <?= number_format((float) ($item['line_total'] ?? 0), 2, ',', '.') ?></td>
@@ -189,7 +189,7 @@ if (!empty($pensionFund['enabled']) && trim((string) ($pensionFund['name'] ?? ''
             </tr>
             <?php if (!empty($fields['show_stamp_duty']) && (float) ($document['stamp_duty_amount'] ?? 0) > 0): ?>
               <tr>
-                <td>Marca da bollo</td>
+                <td>Marca da bollo<?= \App\Services\BillingStampDuty::document($document)['stamp_charge_customer'] ? '' : ' (a carico emittente)' ?></td>
                 <td>EUR <?= number_format((float) ($document['stamp_duty_amount'] ?? 0), 2, ',', '.') ?></td>
               </tr>
             <?php endif; ?>
@@ -197,7 +197,7 @@ if (!empty($pensionFund['enabled']) && trim((string) ($pensionFund['name'] ?? ''
               <tr>
                 <td>IVA/Natura</td>
                 <td>
-                  <?= esc((string) ($document['vat_rate'] ?? '0')) ?>%
+                  <?php if (isset($template['document_stamp'])): ?>EUR <?= number_format((float)$document['amount_total'] - (float)$document['subtotal_amount'] - \App\Services\BillingStampDuty::chargedAmount($document), 2, ',', '.') ?><?php else: ?><?= esc((string) ($document['vat_rate'] ?? '0')) ?>%<?php endif; ?>
                   <?php if (trim((string) ($document['vat_nature'] ?? '')) !== ''): ?>
                     / <?= esc((string) ($document['vat_nature'] ?? '')) ?>
                   <?php endif; ?>
@@ -244,5 +244,6 @@ if (!empty($pensionFund['enabled']) && trim((string) ($pensionFund['name'] ?? ''
       <?php endif; ?>
     </div>
   <?php endif; ?>
+<?= view('admin/billing/stamp_notice', ['document'=>$document]) ?>
 </body>
 </html>

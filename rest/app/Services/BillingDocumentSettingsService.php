@@ -89,6 +89,7 @@ class BillingDocumentSettingsService
             throw new \RuntimeException('Feature Fatturazione non trovata nel catalogo piattaforma.');
         }
 
+        $rawConfig['stamp_duty'] = $rawConfig['stamp_duty'] ?? $current['config']['stamp_duty'] ?? BillingStampDuty::settings([]);
         $rawConfig['xlsx_columns'] = $rawConfig['xlsx_columns'] ?? $current['config']['xlsx_columns'] ?? BillingXlsxExportService::defaultColumns();
         $rawConfig['numbering'] = $rawConfig['numbering'] ?? $current['config']['numbering'] ?? [];
         $config = $this->sanitizeConfig($rawConfig);
@@ -171,6 +172,7 @@ class BillingDocumentSettingsService
     public function defaultConfig(): array
     {
         return [
+            'stamp_duty' => BillingStampDuty::settings([]),
             'xlsx_columns' => BillingXlsxExportService::defaultColumns(),
             'version' => 2,
             'document_title' => 'Documento fatturazione',
@@ -354,7 +356,22 @@ class BillingDocumentSettingsService
             $defaultExpenseType = (string) $defaults['defaults']['ts_expense_type_code'];
         }
 
+        $stampSettings = BillingStampDuty::settings($rawConfig);
+        $stampSettings['automatic'] = $this->toBool($stampSettings['automatic']);
+        $stampSettings['charge_customer'] = $this->toBool($stampSettings['charge_customer']);
+        if (!array_key_exists($stampSettings['nature'], BillingStampDuty::NATURES)
+            || !in_array($stampSettings['method'], ['adhesive', 'virtual'], true)) {
+            throw new \InvalidArgumentException('Configurazione bollo non valida.');
+        }
+        foreach (['authorization_number', 'authorization_office', 'authorization_date'] as $key) {
+            $stampSettings[$key] = $this->sanitizeText($stampSettings[$key], 190, '');
+        }
+        if ($stampSettings['method'] === 'virtual' && ($stampSettings['authorization_number'] === ''
+            || !BillingStampDuty::validDate($stampSettings['authorization_date']))) {
+            throw new \InvalidArgumentException('Indica numero e data dell’autorizzazione al bollo virtuale.');
+        }
         return [
+            'stamp_duty' => $stampSettings,
             'xlsx_columns' => BillingXlsxExportService::validateColumns($rawConfig['xlsx_columns'] ?? BillingXlsxExportService::defaultColumns()),
             'version' => 2,
             'document_title' => $this->sanitizeText(

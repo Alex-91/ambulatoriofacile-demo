@@ -89,6 +89,7 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
             'description' => trim((string) ($oldDescriptions[$i] ?? '')),
             'quantity' => trim((string) ($oldQuantities[$i] ?? '')),
             'unit_amount' => trim((string) ($oldUnitAmounts[$i] ?? '')),
+            'tax_treatment' => (string) ($oldInput['item_tax_treatment'][$i] ?? ''),
         ];
     }
 } else {
@@ -97,6 +98,7 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
             'description' => trim((string) ($item['description'] ?? '')),
             'quantity' => trim((string) ($item['quantity'] ?? '')),
             'unit_amount' => trim((string) ($item['unit_amount'] ?? '')),
+            'tax_treatment' => (string) ($item['tax_treatment'] ?? ''),
         ];
     }
     while (count($itemRows) < 6) {
@@ -399,6 +401,7 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
                           <th>Descrizione</th>
                           <th style="width:120px;">Qta</th>
                           <th style="width:160px;">Importo unitario</th>
+                          <th style="width:210px;">Trattamento IVA</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -414,19 +417,24 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
                             <td>
                               <input class="form-control" type="number" name="item_unit_amount[]" step="0.01" min="0" value="<?= esc((string) ($row['unit_amount'] ?? '')) ?>" placeholder="120.00">
                             </td>
+                            <td><select class="form-control" name="item_tax_treatment[]">
+                            <?php foreach (\App\Services\BillingStampDuty::lineTreatments() as $key=>$label): ?>
+                            <option value="<?= esc($key) ?>" <?= ($row['tax_treatment'] ?? '') === $key ? 'selected' : '' ?>><?= esc($label) ?></option>
+                            <?php endforeach; ?></select></td>
                           </tr>
                         <?php endforeach; ?>
                       </tbody>
                     </table>
                   </div>
-                  <small class="text-muted"><?= $businessMode ? 'Descrivi liberamente le prestazioni, ad esempio: prestazioni professionali di ottobre. Il totale comprende le righe, l’eventuale IVA e il bollo.' : 'Lascia vuote le righe inutilizzate. Il totale viene calcolato automaticamente dalla somma delle righe più la marca da bollo.' ?></small>
+                  <small class="text-muted"><?= $businessMode ? 'Descrivi liberamente le prestazioni, ad esempio: prestazioni professionali di ottobre. Il totale comprende le righe, l’eventuale IVA e il bollo.' : 'Lascia vuote le righe inutilizzate. Il totale comprende prestazioni, eventuale IVA e bollo addebitato. Per TS lascia il trattamento delle righe su Come il documento.' ?></small>
                 </div>
 
                 <div class="row">
                   <div class="col-md-4">
                     <div class="form-group">
-                      <label>Marca da bollo</label>
+                      <label>Marca da bollo (€)</label>
                       <input class="form-control" type="number" step="0.01" min="0" name="stamp_duty_amount" value="<?= esc($fieldValue('stamp_duty_amount', '0')) ?>">
+                      <small class="help-block">Modificando l’importo passi al calcolo manuale. Seleziona Automatico per ripristinare il calcolo.</small>
                     </div>
                   </div>
                   <div class="col-md-8">
@@ -439,6 +447,9 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
               </div>
             </div>
 
+            <div class="box box-default"><div class="box-header with-border"><h3 class="box-title">Bollo e assolvimento</h3></div>
+              <div class="box-body"><?= view('admin/billing/stamp_fields', compact('template', 'fieldValue', 'businessMode')) ?></div>
+            </div>
             <div class="box box-default">
               <div class="box-header with-border">
                 <h3 class="box-title"><?= $businessMode ? 'Salvataggio fattura' : 'Preparazione Sistema TS' ?></h3>
@@ -519,6 +530,7 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
 </div>
 <script src="<?= base_url('public/plugins/jQuery/jQuery-2.1.4.min.js') ?>"></script>
 <script src="<?= base_url('public/bootstrap/js/bootstrap.min.js') ?>"></script>
+<script src="<?= base_url('public/assets/js/billing-stamp.js') ?>" defer></script>
 <?= view('partials/italian_address_autocomplete_init', [
     'groups' => [
         ['municipality' => 'input[name="patient_city"]', 'postalCode' => 'input[name="patient_postal_code"]', 'province' => 'input[name="patient_province"]'],

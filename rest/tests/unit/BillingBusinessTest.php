@@ -27,6 +27,7 @@ final class BillingBusinessTest extends CIUnitTestCase
     {
         $db = Database::connect(['DBDriver'=>'SQLite3', 'database'=>':memory:', 'DBPrefix'=>'', 'DBDebug'=>true], false);
         $fields = (new ReflectionClass(BillingDocumentModel::class))->getDefaultProperties()['allowedFields'];
+        $fields[] = 'deleted_at';
         $db->query('CREATE TABLE billing_documents (id_billing_document INTEGER PRIMARY KEY AUTOINCREMENT,'.implode(',',array_map(static fn($f)=>$f.' TEXT', $fields)).')');
         require_once APPPATH.'Database/Migrations/2026-10-08-100001_ProtectBillingNumbering.php';
         (new \App\Database\Migrations\ProtectBillingNumbering(Database::forge($db)))->up();
@@ -122,5 +123,70 @@ final class BillingBusinessTest extends CIUnitTestCase
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('partita IVA o il codice fiscale');
         $service->saveDraftForTenant(1,$payload);
+    }
+
+    public function testAutomaticStampThresholdsMixedTaxAndManualOverride(): void
+    {
+        [$service] = $this->fixture();
+        foreach ([['77.47',0,77.47],['77.48',2,79.48],['100',2,102]] as [$net,$stamp,$total]) {
+            $p = array_replace($this->payload(), ['item_qty'=>[1], 'item_unit_amount'=>[$net], 'vat_rate'=>0,
+                'stamp_mode'=>'automatic', 'stamp_nature'=>'N4', 'stamp_duty_amount'=>999]);
+            $d=$service->saveDraftForTenant(1,$p)['document'];
+            $this->assertEquals($stamp,$d['stamp_duty_amount']);
+            $this->assertEquals($total,$d['amount_total']);
+        }
+        $p['item_description']=['Esente','Imponibile'];$p['item_qty']=[1,1];
+        $p['item_unit_amount']=[60,100];$p['item_tax_treatment']=['N4','IVA22'];
+        $d=$service->saveDraftForTenant(1,$p)['document'];
+        $this->assertEquals(0,$d['stamp_duty_amount']);$this->assertEquals(182,$d['amount_total']);
+        $p['item_unit_amount']=[80,100];
+        $d=$service->saveDraftForTenant(1,$p)['document'];
+        $this->assertEquals(2,$d['stamp_duty_amount']);$this->assertEquals(204,$d['amount_total']);
+        $p['stamp_mode']='manual';$p['stamp_duty_amount']=0;
+        $d=$service->saveDraftForTenant(1,$p)['document'];
+        $this->assertEquals(0,$d['stamp_duty_amount']);$this->assertEquals(202,$d['amount_total']);
+        $reopened=$service->buildFormContext(1,(int)$d['id_billing_document']);
+        $this->assertSame('IVA22',$reopened['line_items'][1]['tax_treatment']);
+        $this->assertSame('manual',$reopened['document']['stamp_mode']);
+    }
+
+    public function testStampBorneByDoctorPersistsAndTsUsesOnlyChargedTotal(): void
+    {
+        [$service] = $this->fixture();
+        $p=array_replace($this->payload(), ['recipient_type'=>'patient','id_client'=>0,'patient_last_name'=>'Rossi',
+            'patient_first_name'=>'Anna','ts_sync_enabled'=>0,'item_qty'=>[1],'item_unit_amount'=>[100],
+            'vat_rate'=>0,'stamp_mode'=>'automatic','stamp_charge_customer'=>0,'stamp_method'=>'adhesive',
+            'stamp_identifier'=>'00123456789012']);
+        $d=$service->saveDraftForTenant(1,$p)['document'];
+        $this->assertEquals(2,$d['stamp_duty_amount']);$this->assertEquals(100,$d['amount_total']);
+        $form=$service->buildFormContext(1,(int)$d['id_billing_document']);
+        $this->assertFalse($form['document']['stamp_charge_customer']);
+        $this->assertSame('00123456789012',$form['document']['stamp_identifier']);
+        $bridge=(new ReflectionClass(BillingTsBridgeService::class))->newInstanceWithoutConstructor();
+        $ts=(new ReflectionMethod($bridge,'buildTsValidationPayload'))->invoke($bridge,$d,[],1);
+        $this->assertEquals(100,$ts['amount_total']);
+        $p['stamp_charge_customer']=1;
+        $charged=$service->saveDraftForTenant(1,$p)['document'];
+        $ts=(new ReflectionMethod($bridge,'buildTsValidationPayload'))->invoke($bridge,$charged,[],1);
+        $this->assertEquals(102,$ts['amount_total']);
+        $wording=\App\Services\BillingStampDuty::wording($d);
+        $this->assertStringContainsString('00123456789012',$wording);
+        $this->assertStringContainsString('non addebitata',$wording);
+    }
+
+    public function testCreditNoteGetsItsOwnStampAndAuthorizationSnapshot(): void
+    {
+        [$service] = $this->fixture();
+        $p=array_replace($this->payload(), ['document_type'=>'credit_note','item_qty'=>[1],'item_unit_amount'=>[80],
+            'vat_rate'=>0,'stamp_mode'=>'automatic','stamp_method'=>'virtual',
+            'stamp_authorization_number'=>'AUTH-2026','stamp_authorization_date'=>'2026-10-01']);
+        $d=$service->saveDraftForTenant(1,$p)['document'];
+        $this->assertEquals(2,$d['stamp_duty_amount']);
+        $this->assertStringContainsString('AUTH-2026 del 01/10/2026',\App\Services\BillingStampDuty::wording($d));
+        $snapshot=json_decode($d['template_snapshot_json'],true);
+        $render=(new ReflectionMethod($service,'resolveRenderingTemplate'))->invoke($service,$snapshot,['stamp_duty'=>['authorization_number'=>'NEW']]);
+        $this->assertSame('AUTH-2026',$render['document_stamp']['stamp_authorization_number']);
+        $p['item_unit_amount']=[40];$d=$service->saveDraftForTenant(1,$p)['document'];
+        $this->assertEquals(0,$d['stamp_duty_amount']);
     }
 }

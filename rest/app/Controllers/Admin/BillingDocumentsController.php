@@ -139,6 +139,7 @@ class BillingDocumentsController extends BillingAdminBaseController
         if ($appointmentPrefill !== []) {
             $formContext = $this->applyAppointmentPrefill($formContext, $appointmentPrefill);
         }
+        if ($this->businessMode) $formContext['document']['stamp_method'] = 'sdi';
         if (!$this->businessMode) $formContext = $this->populatePatientDocumentFields($tenantId, $formContext);
         $formContext['edit_locked'] = false;
         $formContext['edit_lock_reason'] = '';
@@ -271,6 +272,11 @@ class BillingDocumentsController extends BillingAdminBaseController
                     'item_qty' => $this->request->getPost('item_qty'),
                     'item_unit_amount' => $this->request->getPost('item_unit_amount'),
                     'stamp_duty_amount' => $this->request->getPost('stamp_duty_amount'),
+                    'item_tax_treatment' => $this->request->getPost('item_tax_treatment'),
+                    ...array_filter(array_combine(
+                        array_keys(\App\Services\BillingStampDuty::defaults([])),
+                        array_map(fn($key) => $this->request->getPost($key), array_keys(\App\Services\BillingStampDuty::defaults([])))
+                    ), static fn($value) => $value !== null),
                     'vat_rate' => $this->request->getPost('vat_rate'),
                     'vat_nature' => $this->request->getPost('vat_nature'),
                     'notes' => $this->request->getPost('notes'),
