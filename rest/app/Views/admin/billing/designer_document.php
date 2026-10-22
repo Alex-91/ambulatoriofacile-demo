@@ -89,7 +89,7 @@ if ($row!==[]) $rows[]=$row;
 <style>
 @page { size:A4 portrait; margin:12mm; }
 * { box-sizing:border-box; }
-body { margin:0; font-family:DejaVu Sans,Arial,sans-serif; font-size:11pt; color:#202b3c; line-height:1.4; }
+body { margin:0; font-family:"DejaVu Sans",sans-serif; font-size:11pt; color:#202b3c; line-height:1.4; }
 .db-sheet { width:100%; }
 .db-row { width:100%; table-layout:fixed; border-collapse:collapse; margin-bottom:3mm; page-break-inside:avoid; }
 .db-cell { vertical-align:top; padding:0 1.5mm; }
@@ -97,37 +97,38 @@ body { margin:0; font-family:DejaVu Sans,Arial,sans-serif; font-size:11pt; color
 .db-full { margin-bottom:3mm; }
 .db-block { overflow-wrap:break-word; word-wrap:break-word; }
 .db-element { margin-bottom:2mm; } .db-element:last-child { margin-bottom:0; }
-.db-label { font-size:8pt; opacity:.8; margin-bottom:0.7mm; }
+.db-label { font-size:1em; font-weight:normal; margin-bottom:0.7mm; }
 .db-emphasis { font-weight:bold; font-size:1.4em; }
 .db-logo { max-width:100%; width:auto; height:auto; max-height:22mm; }
-.db-items { width:100%; table-layout:fixed; border-collapse:collapse; font-size:10pt; }
+.db-items { width:100%; table-layout:fixed; border-collapse:collapse; font-size:inherit; }
 .db-items th,.db-items td { padding:2mm; border-bottom:0.25mm solid #d7dde5; vertical-align:top; text-align:left; overflow-wrap:break-word; word-wrap:break-word; }
 .db-items thead { display:table-header-group; } .db-items tr { page-break-inside:avoid; }
 .db-signature { padding-top:14mm; border-bottom:0.25mm solid #788494; }
 hr { border:0; border-top:0.25mm solid #d7dde5; }
-.db-items th { background:#edf6f7; color:<?= esc($accent) ?>; font-size:8pt; text-transform:uppercase; letter-spacing:.4pt; }
-.db-items td { padding:3mm 2mm; font-size:9pt; }
+.db-items th { background:#edf6f7; color:<?= esc($accent) ?>; font-size:1em; font-weight:bold; text-transform:uppercase; letter-spacing:.4pt; }
+.db-items td { padding:3mm 2mm; font-size:inherit; }
 .db-items td:nth-child(3), .db-items th:nth-child(3) { text-align:center; }
 .db-items td:nth-child(4), .db-items td:nth-child(5), .db-items th:nth-child(4), .db-items th:nth-child(5) { text-align:right; }
 .db-field-title { font-size:2em; letter-spacing:1pt; }
 .db-field-issuer_name, .db-field-patient_name { font-weight:bold; }
 .db-field-total { background:#edf6f7; color:<?= esc($accent) ?>; padding:4mm; margin-top:3mm; }
-.db-field-notes > .db-label, .db-field-terms > .db-label { border-bottom:.25mm solid <?= esc($accent) ?>; padding-bottom:2mm; margin-bottom:3mm; color:<?= esc($accent) ?>; text-transform:uppercase; letter-spacing:1pt; }
+.db-field-notes > .db-label, .db-field-terms > .db-label { border-bottom:.25mm solid <?= esc($accent) ?>; padding-bottom:2mm; margin-bottom:3mm; color:#176b77; font-size:1em; font-weight:bold; text-transform:uppercase; letter-spacing:.8pt; }
 .db-field-footer { border-top:.25mm solid <?= esc($accent) ?>; padding-top:3mm; font-size:8pt; color:#607278; }
-.db-section-heading { color:#176b77; border-bottom:.25mm solid #71aeb6; padding-bottom:2mm; margin:3mm 0 3mm; text-transform:uppercase; letter-spacing:1.2pt; font-size:9pt; font-weight:bold; }
+.db-section-heading { color:#176b77; border-bottom:.25mm solid #71aeb6; padding-bottom:2mm; margin:3mm 0 3mm; text-transform:uppercase; letter-spacing:.8pt; font-size:1em; font-weight:bold; }
 .db-section-issuer .db-field-issuer_name { color:#176b77; font-size:1.5em; }
 .db-section-issuer .db-field-issuer_name > .db-default-label, .db-section-issuer .db-field-issuer_address > .db-default-label { display:none; }
 .db-section-document .db-label, .db-section-document .db-value { display:inline; }
 .db-section-document .db-label { margin-right:2mm; }
 .db-section-document .db-field-title { color:#176b77; text-transform:uppercase; }
 .db-section-totals .db-element { margin-left:45%; }
-.db-section-totals .db-label { display:inline; font-size:9pt; }
+.db-section-totals .db-label { display:inline; font-size:1em; }
 .db-section-totals .db-value { display:inline; margin-left:5mm; }
 .db-section-totals .db-field-total { margin-top:4mm; padding:4mm; }
+.db-field-total .db-label { font-weight:bold; }
 .db-section-patient .db-label, .db-section-payment .db-label { display:inline; margin-right:3mm; }
 .db-section-patient .db-value, .db-section-payment .db-value { display:inline; }
 .db-section-patient .db-field-patient_name > .db-default-label { display:none; }
-.db-section-patient .db-field-patient_name { font-size:1.2em; }
+.db-section-patient .db-field-patient_name { font-size:1em; }
 <?php if (empty($pdfMode)): ?>
 @media screen { body { background:#e8ecf2; padding:12mm; } .db-sheet { width:186mm; min-height:273mm; padding:0; margin:auto; background:white; box-shadow:0 0 0 12mm white; } }
 <?php endif; ?>
