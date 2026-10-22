@@ -199,7 +199,7 @@ if ($oldDescriptions !== [] || $oldQuantities !== [] || $oldUnitAmounts !== []) 
               <a target="_blank" rel="noopener" class="btn btn-info" href="<?= site_url('admin/fatturazione-documenti/preview/' . $documentId) ?>" style="margin-left:8px;">
                 <i class="fa fa-eye"></i> Preview
               </a>
-              <a target="_blank" rel="noopener" class="btn btn-success" href="<?= site_url('admin/fatturazione-documenti/pdf/' . $documentId) ?>" style="margin-left:8px;">
+              <a target="_blank" rel="noopener" class="btn btn-success" href="<?= \App\Services\BillingExportFormat::pdfUrl((int) $documentId) ?>" style="margin-left:8px;">
                 <i class="fa fa-file-pdf-o"></i> PDF
               </a>
               <?php if ($linkedTsDocumentId > 0): ?>

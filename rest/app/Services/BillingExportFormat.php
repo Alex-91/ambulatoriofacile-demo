@@ -3,6 +3,13 @@ namespace App\Services;
 
 final class BillingExportFormat
 {
+    /** A fresh URL also bypasses copies cached before PDF responses used no-store. */
+    public static function pdfUrl(int $documentId): string
+    {
+        return site_url('admin/fatturazione-documenti/pdf/' . $documentId)
+            . '?render=' . bin2hex(random_bytes(8));
+    }
+
     public static function filename(array $document, array &$used = []): string
     {
         $number = trim((string) ($document['document_number'] ?? ''));

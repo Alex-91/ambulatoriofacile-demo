@@ -149,7 +149,7 @@ $environmentLabel = defined('ENVIRONMENT') && ENVIRONMENT === 'production' ? 'Pr
                               <a target="_blank" rel="noopener" class="billing-icon-action" href="<?= site_url('admin/fatturazione-documenti/modifica/' . $documentId) ?>" aria-label="Apri documento">
                                 <i class="fa fa-eye"></i>
                               </a>
-                              <a target="_blank" rel="noopener" class="billing-icon-action" href="<?= site_url('admin/fatturazione-documenti/pdf/' . $documentId) ?>" aria-label="Scarica PDF">
+                              <a target="_blank" rel="noopener" class="billing-icon-action" href="<?= \App\Services\BillingExportFormat::pdfUrl((int) $documentId) ?>" aria-label="Scarica PDF">
                                 <i class="fa fa-download"></i>
                               </a>
                             </td>

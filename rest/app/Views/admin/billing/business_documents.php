@@ -24,7 +24,7 @@
 <td><?= esc($document['patient_name']) ?></td><td>€ <?= number_format((float) $document['amount_total'], 2, ',', '.') ?></td>
 <td><?= esc($listing['local_state_labels'][$document['local_state']] ?? $document['local_state']) ?><br><small><?= esc($listing['payment_status_labels'][$document['payment_status']] ?? '') ?></small></td>
 <td><a target="_blank" rel="noopener" class="btn btn-default btn-sm" href="<?= site_url('admin/fatturazione-strutture/modifica/'.$id) ?>">Apri</a>
-<a target="_blank" rel="noopener" class="btn btn-default btn-sm" href="<?= site_url('admin/fatturazione-documenti/pdf/'.$id) ?>">PDF</a>
+<a target="_blank" rel="noopener" class="btn btn-default btn-sm" href="<?= \App\Services\BillingExportFormat::pdfUrl((int) $id) ?>">PDF</a>
 <form method="post" action="<?= site_url('admin/fatturazione-documenti/elimina/'.$id) ?>" style="display:inline" onsubmit="return confirm('Cancellare dagli elenchi? Documento e numero saranno conservati. Eventuali invii fiscali non vengono annullati.');"><?= csrf_field() ?><button type="submit" class="btn btn-danger btn-sm">Cancella</button></form></td></tr>
 <?php endforeach; ?>
 <?php if (!$documents): ?><tr><td colspan="5">Nessuna fattura a strutture. Crea la prima fattura inserendo i dati del destinatario e le prestazioni.</td></tr><?php endif; ?>

@@ -326,7 +326,7 @@ $environmentLabel = defined('ENVIRONMENT') && ENVIRONMENT === 'production' ? 'Pr
                           <td class="text-right billing-archive-actions-cell">
                             <a target="_blank" rel="noopener" class="billing-icon-action" href="<?= site_url('admin/fatturazione-documenti/modifica/' . $documentId) ?>" aria-label="<?= $canEdit ? 'Modifica' : 'Apri' ?> documento"><i class="fa <?= $canEdit ? 'fa-pencil' : 'fa-folder-open-o' ?>"></i></a>
                             <a target="_blank" rel="noopener" class="billing-icon-action" href="<?= site_url('admin/fatturazione-documenti/preview/' . $documentId) ?>" aria-label="Anteprima documento"><i class="fa fa-eye"></i></a>
-                            <a target="_blank" rel="noopener" class="billing-icon-action" href="<?= site_url('admin/fatturazione-documenti/pdf/' . $documentId) ?>" aria-label="Scarica PDF"><i class="fa fa-download"></i></a>
+                            <a target="_blank" rel="noopener" class="billing-icon-action" href="<?= \App\Services\BillingExportFormat::pdfUrl((int) $documentId) ?>" aria-label="Scarica PDF"><i class="fa fa-download"></i></a>
                             <?php if ($localState === 'issued'): ?>
                               <a class="billing-icon-action billing-email-action" href="<?= site_url('admin/fatturazione-documenti/email/' . $documentId) ?>" title="Invia fattura via email" aria-label="Invia fattura via email"><i class="fa fa-envelope-o"></i></a>
                               <?php if ($paymentStatus !== 'paid' && $invoiceSentAt !== ''): ?>

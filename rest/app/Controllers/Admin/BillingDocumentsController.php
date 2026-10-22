@@ -846,6 +846,9 @@ class BillingDocumentsController extends BillingAdminBaseController
 
             return $this->response
                 ->setHeader('Content-Type', 'application/pdf')
+                ->setHeader('Cache-Control', 'private, no-store, no-cache, must-revalidate, max-age=0')
+                ->setHeader('Pragma', 'no-cache')
+                ->setHeader('Expires', '0')
                 ->setHeader('Content-Disposition', 'inline; filename="' . $filename . '"')
                 ->setBody($dompdf->output());
         } catch (\Throwable $e) {
