@@ -735,17 +735,8 @@ public function eseguiRepairRecurringExtraSlots()
 
     protected function getTeamDayDoctorsForCurrentUser(): array
     {
-        $mediciVisibili = $this->getOrderedVisibleDoctorsForCurrentUser();
-        if (!$this->isTeamDayViewFeatureEnabled()) {
-            return $mediciVisibili;
-        }
-
-        $teamDoctors = $this->getOrderedAgendaProfessionals();
-        if (count($teamDoctors) > 1) {
-            return $teamDoctors;
-        }
-
-        return $mediciVisibili;
+        // La vista team deve rispettare gli stessi permessi della singola agenda.
+        return $this->getOrderedVisibleDoctorsForCurrentUser();
     }
 
     protected function doctorListContainsId(array $medici, int $idDot): bool
