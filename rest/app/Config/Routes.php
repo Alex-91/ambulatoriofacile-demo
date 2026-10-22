@@ -305,7 +305,8 @@ $routes->group('admin', static function($routes){
     $routes->get('fatturazione-statistiche', 'Admin\BillingReportsController::index');
     $routes->get('fatturazione-statistiche/export', 'Admin\BillingReportsController::export');
     $routes->get('fatturazione-statistiche/export-pdf', 'Admin\BillingReportsController::exportPdf');
-    $routes->get('fatturazione-scadenzario', 'Admin\BillingScheduleController::index');
+    $routes->get('fatturazione-scadenzario', 'Admin\BillingDocumentsController::schedule');
+    $routes->get('fatturazione-scadenzario/preesistente', 'Admin\BillingScheduleController::index');
     $routes->get('sistema-ts', 'Admin\TsDashboardController::index');
     $routes->get('sistema-ts/diagnostica', 'Admin\TsDiagnosticsController::index');
     $routes->get('sistema-ts/diagnostica/download', 'Admin\TsDiagnosticsController::download');

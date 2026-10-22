@@ -1,6 +1,22 @@
 <?php
-$activeNode=static function(array $node) use (&$activeNode,$current): bool {
-    if(isset($node['href']))return strtok($node['href'],'?')===$current;
+$bestHref = ''; $bestScore = -1;
+$findActive = static function(array $nodes) use (&$findActive, &$bestHref, &$bestScore, $current): void {
+    foreach ($nodes as $node) {
+        if (isset($node['href'])) {
+            foreach ($node['area_links'] ?? [$node] as $link) {
+                if (\App\Services\AdministrationNavigation::matches($link['href'], $current) && strlen($link['href']) > $bestScore) {
+                    $bestHref = $link['href']; $bestScore = strlen($link['href']);
+                }
+            }
+        } else $findActive($node['children'] ?? []);
+    }
+};
+$findActive($tree);
+$activeNode=static function(array $node) use (&$activeNode,$bestHref): bool {
+    if(isset($node['href'])) {
+        foreach ($node['area_links'] ?? [$node] as $link) if ($link['href'] === $bestHref) return true;
+        return false;
+    }
     foreach($node['children']??[] as $child)if($activeNode($child))return true;
     return false;
 };

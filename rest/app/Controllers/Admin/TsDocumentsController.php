@@ -64,6 +64,18 @@ class TsDocumentsController extends TsAdminBaseController
             : site_url('admin/sistema-ts/documenti');
 
         try {
+            // A single field prevents PHP max_input_vars from silently truncating large selections.
+            $encodedIds = $this->request->getPost('billing_document_ids_json');
+            if (is_string($encodedIds)) {
+                $decodedIds = json_decode($encodedIds, true, 8, JSON_THROW_ON_ERROR);
+                if (!is_array($decodedIds) || !array_is_list($decodedIds)) {
+                    throw new \InvalidArgumentException('Selezione fatture non valida.');
+                }
+                foreach ($decodedIds as $id) if (!is_int($id) && !(is_string($id) && ctype_digit($id))) {
+                    throw new \InvalidArgumentException('Selezione fatture non valida.');
+                }
+                $billingDocumentIds = $decodedIds;
+            }
             $report = $this->billingTsBridge->sendBillingDocumentsBulk($tenantId, $billingDocumentIds, $this->currentAdminUserId());
             $sentCount = (int) ($report['sent_count'] ?? 0);
             $blockedCount = (int) ($report['blocked_count'] ?? 0);

@@ -30,8 +30,9 @@
         link.download = filename;
         document.body.appendChild(link); link.click(); link.remove();
         setTimeout(function () { URL.revokeObjectURL(href); }, 1000);
+        return true;
       })
-      .catch(function (error) { window.alert(error.message || 'Esportazione non riuscita. Riprova.'); })
+      .catch(function (error) { window.alert(error.message || 'Esportazione non riuscita. Riprova.'); return false; })
       .finally(refresh);
   };
 })();

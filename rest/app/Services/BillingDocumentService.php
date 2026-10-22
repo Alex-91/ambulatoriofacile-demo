@@ -178,7 +178,7 @@ class BillingDocumentService
             ->select('id_billing_document, document_number, document_type, issue_date, payment_date, due_date, patient_name, patient_tax_code, patient_email, payment_method, payment_status, paid_at, amount_total, local_state, invoice_email_sent_at, last_reminder_sent_at, reminder_count, email_last_recipient, email_last_error, ts_sync_enabled, ts_sync_state, linked_ts_document_id, updated_at')
             ->orderBy('issue_date', 'DESC')
             ->orderBy('id_billing_document', 'DESC')
-            ->get(max(1, $limit))
+            ->get(max(0, $limit))
             ->getResultArray();
 
         return [

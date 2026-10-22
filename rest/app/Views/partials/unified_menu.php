@@ -2,12 +2,13 @@
 helper(['session_auth', 'form']);
 $navigation = new \App\Services\UnifiedMenuService();
 $groups = $navigation->groups();
-$current = current_url();
+$current = current_url() . (($query = (string) service('uri')->getQuery()) !== '' ? '?' . $query : '');
+$organized = \App\Services\AdministrationNavigation::organize((new \App\Services\NavigationLayoutService())->tree($navigation->tenantId(), $groups));
 ?>
 <nav class="af-unified-menu box box-solid" aria-label="Menu principale">
   <div class="box-header"><strong>Menu</strong></div>
   <div class="box-body">
-  <?= view('partials/unified_menu_tree', ['tree'=>(new \App\Services\NavigationLayoutService())->tree($navigation->tenantId(),$groups),'current'=>$current], ['saveData'=>false]) ?>
+  <?= view('partials/unified_menu_tree', ['tree'=>$organized['tree'],'current'=>$current], ['saveData'=>false]) ?>
   <?php if (session_has_tenant_master_access() && $navigation->tenantId() !== 4): ?>
     <form method="post" action="<?= site_url('preferenze-navigazione/menu') ?>" class="af-menu-rollback">
       <?= csrf_field() ?><input type="hidden" name="return_to" value="<?= esc(current_url()) ?>">
@@ -18,6 +19,7 @@ $current = current_url();
   <?php endif ?>
   </div>
 </nav>
+<?= view('admin/billing/area_tabs', ['areas'=>$organized['areas'], 'current'=>$current], ['saveData'=>false]) ?>
 <style>
 .af-unified-menu .af-menu-section>summary{display:flex!important;align-items:center;gap:0;list-style:none;font-weight:500}.af-unified-menu summary::-webkit-details-marker{display:none}.af-unified-menu .af-menu-chevron{width:14px;height:14px;margin-left:auto;flex-shrink:0;transition:transform .15s}.af-menu-section[open]>.af-menu-chevron,.af-menu-section[open]>summary>.af-menu-chevron{transform:rotate(90deg)}.af-unified-menu .af-unified-entry,.af-unified-menu .af-unified-child{display:flex!important;align-items:center;text-decoration:none}.af-unified-menu .af-unified-child{font-size:12px;line-height:1.4;padding:9px 8px 9px 12px!important;border-radius:6px}.af-unified-menu .af-unified-child:hover,.af-unified-menu summary:hover{background:#f4f7fa}.af-menu-children{margin:2px 3px 10px 18px;border-left:1px solid #dce5ec;padding-left:6px}.af-menu-subtitle{font-size:10px;letter-spacing:.4px;color:#63798a;padding:13px 10px 4px;text-transform:uppercase}.af-unified-menu .af-unified-child .af-menu-icon{opacity:.75}
 .af-unified-menu{background:#fff;border:0!important;box-shadow:none!important;font:14px/1.5 system-ui,sans-serif}.af-unified-menu .box-header{display:none}.af-unified-menu .af-unified-entry{text-decoration:none;margin:2px 0;font-weight:500!important;border-radius:7px!important}.af-unified-menu .af-unified-entry:hover{background:#f4f7fa}.af-menu-divider{border-top:1px solid #dce5ec;margin:20px 10px 10px;padding-top:16px;color:#63798a;font-size:10px;text-transform:uppercase;letter-spacing:1px}.af-menu-account{border-top:1px solid #dce5ec;margin-top:18px}

@@ -10,7 +10,7 @@ final class BillingWorkspacePresenter
     {
         if (!$documents) return [];
         $ids=array_map('intval',array_column($documents,'id_billing_document'));
-        $stored=array_column($db->table('billing_documents')->select('id_billing_document,line_items_json')->whereIn('id_billing_document',$ids)->get()->getResultArray(),null,'id_billing_document');
+        $stored=array_column($db->table('billing_documents')->select('id_billing_document,line_items_json,template_snapshot_json')->whereIn('id_billing_document',$ids)->get()->getResultArray(),null,'id_billing_document');
         $unified=(bool)UnifiedBillingArchive::state($db);
         $managed=$unified?array_column($db->table('pc_document_state')->whereIn('billing_id',$ids)->get()->getResultArray(),null,'billing_id'):[];
         $orders=$unified?$db->table('pc_orders')->whereIn('billing_id',$ids)->get()->getResultArray():[];
@@ -19,6 +19,8 @@ final class BillingWorkspacePresenter
         $clinic=$unified?new PolyclinicAdministrationService($db):null;
         foreach($documents as &$row) {
             $id=(int)$row['id_billing_document'];
+            $template = json_decode($stored[$id]['template_snapshot_json'] ?? '{}', true) ?: [];
+            $row['recipient_type'] = ($template['recipient_type'] ?? '') === 'business' ? 'business' : 'patient';
             $row['managed']=isset($managed[$id]);
             $total=PolyclinicMoney::cents($row['amount_total']);
             $credit=$row['document_type']==='credit_note';

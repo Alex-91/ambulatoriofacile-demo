@@ -21,14 +21,7 @@ class BillingDocumentsController extends BillingAdminBaseController
 
     public function businessIndex()
     {
-        if ($guard = $this->ensureAccess()) return $guard;
-        $scope = $this->resolveTenantScope();
-        return view('admin/billing/business_documents', [
-            'menu_items' => $this->adminMenuItems(),
-            'listing' => $this->documents->listDocumentsForTenant((int) $scope['tenant_id'], 250, true),
-            'success' => session()->getFlashdata('success'),
-            'errors' => session()->getFlashdata('errors') ?? [],
-        ]);
+        return $this->index('business');
     }
 
     public function businessCreate()
@@ -64,7 +57,12 @@ class BillingDocumentsController extends BillingAdminBaseController
         $this->patientLookup = new TenantPatientLookupService();
     }
 
-    public function index()
+    public function schedule()
+    {
+        return $this->index('cash');
+    }
+
+    public function index(string $workspaceMode = 'documents')
     {
         if ($guard = $this->ensureAccess()) {
             return $guard;
@@ -73,9 +71,8 @@ class BillingDocumentsController extends BillingAdminBaseController
         $tenantScope = $this->resolveTenantScope();
         $tenantId = (int) ($tenantScope['tenant_id'] ?? 0);
         $moduleStatus = $this->moduleStatus->describe($this->currentTenantContext(), $tenantId);
-        // The archive handles paging in the interface, so load enough rows to
-        // keep the current filters and bulk TS selection complete.
-        $listing = $this->documents->listDocumentsForTenant($tenantId, 250);
+        // The selection must cover the complete archive, not just the newest 250 rows.
+        $listing = $this->documents->listDocumentsForTenant($tenantId, 0);
         $documentIds = array_values(array_filter(array_map(
             static fn(array $row): int => (int) ($row['id_billing_document'] ?? 0),
             is_array($listing['documents'] ?? null) ? $listing['documents'] : []
@@ -101,6 +98,7 @@ class BillingDocumentsController extends BillingAdminBaseController
             $listing['documents']=(new \App\Services\BillingWorkspacePresenter())->enrich($workspaceDb,$listing['documents'],$capabilities);
         }
         return view('admin/billing/workspace', [
+            'workspaceMode'=>$workspaceMode,
             'capabilities'=>$capabilities,
             'workspaceUnified'=>$workspaceUnified,
             'menu_items' => $this->adminMenuItems(),
