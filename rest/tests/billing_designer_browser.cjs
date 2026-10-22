@@ -3,11 +3,13 @@ const fs=require('fs'),http=require('http'),path=require('path'),{spawn}=require
 const root=path.resolve(__dirname,'../..');process.chdir(root);
 fs.mkdirSync('rest/build/billing-port',{recursive:true});
 fs.writeFileSync('rest/build/billing-port/editor.html',require('child_process').execFileSync(process.env.PHP_BIN||'php',['-d','xdebug.mode=off','rest/tests/_support/billing_port_fixture.php']));
+let savedFields=null;
 const server=http.createServer(async(req,res)=>{
  if(req.method==='POST'){
   const chunks=[];for await(const chunk of req)chunks.push(chunk);
   const request=new Request('http://localhost'+req.url,{method:'POST',headers:req.headers,body:Buffer.concat(chunks)});
   const fields=Object.fromEntries(await request.formData());
+  if(req.url.endsWith('/save')){savedFields=fields;res.setHeader('Content-Type','text/html');res.end('<p>Saved in fixture</p>');return;}
   const proc=spawn((process.env.PHP_BIN||'php'),['-d','xdebug.mode=off','rest/tests/_support/billing_port_fixture.php','render']);let html='',error='';
   proc.stdout.on('data',d=>html+=d);proc.stderr.on('data',d=>error+=d);proc.stdin.end(JSON.stringify(fields));
   proc.on('exit',code=>{res.setHeader('Content-Type','application/json');res.end(JSON.stringify(code?{error}:fields.preview_mode==='default'?JSON.parse(html):{html,csrf:'synthetic'}));});return;
@@ -28,14 +30,20 @@ const server=http.createServer(async(req,res)=>{
  const catalogCount=await page.locator('#bd-catalog button').count();
  const seedCount=await page.locator('#bd-initial').textContent().then(text=>Object.keys(JSON.parse(text).catalog).length);
  assert.equal(catalogCount,seedCount,'Every catalog element remains accessible');
+ assert(await page.locator('#bd-library').isHidden());
+ assert.equal(await page.locator('#bd-sections button').count(),(await read()).blocks.length);
+ await page.locator('#bd-show-library').click();
  await page.locator('#bd-search').fill('Paziente');
  assert.equal(await page.locator('#bd-catalog details:not([open])').count(),0,'Search opens matching categories');
  await page.locator('#bd-search').fill('nessun-elemento-inesistente');
  assert.equal(await page.locator('#bd-catalog button').count(),0);
  await page.locator('#bd-search').fill('');
  assert.equal(await page.locator('#bd-catalog button').count(),catalogCount);
+ await page.locator('#bd-close-library').click();
+ await page.locator('.bd-composition summary').click();
  // Real pointer drag on the production handlers.
  const first=page.locator('.bd-block').nth(0),second=page.locator('.bd-block').nth(1);
+ await first.scrollIntoViewIfNeeded();
  const before=(await read()).blocks.map(b=>b.name);
  const handle=await first.locator('.bd-handle').first().boundingBox(),target=await second.boundingBox();
  await page.mouse.move(handle.x+10,handle.y+10);await page.mouse.down();await page.mouse.move(target.x+target.width/2,target.y+target.height/2,{steps:12});await page.mouse.up();
@@ -43,7 +51,10 @@ const server=http.createServer(async(req,res)=>{
  await page.locator('#bd-undo').click();assert.equal((await read()).blocks[0].name,before[0]);
  await page.locator('#bd-redo').click();assert.equal((await read()).blocks[1].name,before[0]);
  await page.locator('#bd-add').click();
+ await page.locator('[data-property-tab=style]').click();
  await page.locator('#bd-properties label').filter({hasText:'Larghezza'}).locator('select').selectOption('4');
+ await page.locator('[data-property-tab=content]').click();
+ await page.locator('#bd-show-library').click();
  await page.locator('#bd-search').fill('Testo libero');await page.locator('#bd-catalog button').click();
  await page.locator('#bd-properties textarea').fill('TESTO-VISIBILE-ANTEPRIMA');
  await page.waitForFunction(()=>document.querySelector('#bd-live-frame').contentDocument?.body?.textContent.replace(/\u200b/g,'').includes('TESTO-VISIBILE-ANTEPRIMA'));
@@ -55,6 +66,7 @@ const server=http.createServer(async(req,res)=>{
  await page.locator('#bd-redo').click();assert.equal(await page.locator('[name=branding_terms_text]').inputValue(),'INFORMATIVA-UNICA-UI');
  await page.locator('#bd-preview').click();await page.locator('#bd-preview-dialog').waitFor({state:'visible'});await page.locator('#bd-close-preview').click();
  const beforeReset=await read();
+ await page.locator('#bd-show-settings').click();
  await page.locator('#bd-default').click();
  await page.locator('#bd-status').filter({hasText:'Modello essenziale applicato'}).waitFor();
  await page.waitForFunction(()=>document.querySelector('#bd-live-status').textContent==='Aggiornata');
@@ -63,6 +75,9 @@ const server=http.createServer(async(req,res)=>{
  assert(afterReset.blocks.some(b=>b.elements.some(e=>e.text==='TESTO-VISIBILE-ANTEPRIMA')),'Default retains unsaved text');
  await page.locator('#bd-undo').click();assert.deepEqual(await read(),beforeReset,'Default can be undone');
  await page.locator('#bd-redo').click();assert.deepEqual(await read(),afterReset,'Default can be reapplied');
+ await page.locator('#bd-close-settings').click();
+ await page.locator('.bd-composition summary').click();
+ await page.locator('#bd-sections button').first().click();
  await page.screenshot({path:'rest/build/billing-port/editor.png',fullPage:true});
  for(const width of [1024,768,375]){
   await page.setViewportSize({width,height:900});
@@ -70,6 +85,11 @@ const server=http.createServer(async(req,res)=>{
   assert(await page.locator('#bd-add').isVisible());assert(await page.locator('#bd-properties').isVisible());
   await page.screenshot({path:'rest/build/billing-port/editor-'+width+'.png',fullPage:true});
  }
+ await page.locator('#bd-live-status').filter({hasText:'Aggiornata'}).waitFor();
+ const expectedModel=await read();
+ await Promise.all([page.waitForURL('**/save'),page.locator('#bd-save').click()]);
+ assert.deepEqual(JSON.parse(savedFields.designer_json),expectedModel,'Save submits the complete model');
+ assert.equal(savedFields.csrf_test,'synthetic');assert.equal(savedFields.branding_terms_text,'INFORMATIVA-UNICA-UI');
  assert.deepEqual(errors,[]);console.log('PASS: pointer drag, undo/redo, thirds, live rendering, terms editing, shared text undo, enlarged preview; no JS errors');
- }finally{await browser.close();server.close();}
-})().catch(e=>{console.error(e);server.close();process.exitCode=1;});
+ }finally{await browser.close();server.closeAllConnections();server.close();}
+})().catch(e=>{console.error(e);server.closeAllConnections();server.close();process.exitCode=1;});
