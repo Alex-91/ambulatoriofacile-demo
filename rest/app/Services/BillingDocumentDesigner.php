@@ -30,6 +30,7 @@ class BillingDocumentDesigner
         }
         if (count($raw['blocks']) < 1 || count($raw['blocks']) > 40) throw new \InvalidArgumentException('Inserisci da 1 a 40 blocchi.');
         $out = ['version'=>1, 'blocks'=>[]];
+        if (($raw['preset'] ?? '') === 'essential-v1') $out['preset']='essential-v1';
         foreach ($raw['blocks'] as $i=>$block) {
             if (!is_array($block)) throw new \InvalidArgumentException('Blocco non valido.');
             $span = (int) ($block['span'] ?? 12);
@@ -50,6 +51,7 @@ class BillingDocumentDesigner
             $color = (string) ($block['color'] ?? '#202b3c');
             if (!preg_match('/^#[0-9a-fA-F]{6}$/',$background) || !preg_match('/^#[0-9a-fA-F]{6}$/',$color)) throw new \InvalidArgumentException('Colore non valido.');
             $out['blocks'][] = [
+                'section'=>in_array($block['section']??'', ['issuer','document','patient','items','totals','payment','text'],true)?$block['section']:'',
                 'id'=>'b'.$i, 'name'=>trim((string) ($block['name'] ?? 'Blocco')),
                 'span'=>$span,'background'=>$background,'color'=>$color,
                 'align'=>in_array($block['align'] ?? '',['left','center','right'],true)?$block['align']:'left',
@@ -63,7 +65,10 @@ class BillingDocumentDesigner
 
     public static function fromConfig(array $config): array
     {
-        if (!empty($config['designer'])) return self::validate($config['designer']);
+        if (!empty($config['designer'])) {
+            $model=self::validate($config['designer']);
+            return ($model['preset']??'')==='essential-v1' ? $model : self::essential($model);
+        }
         $blocks=[]; $b=$config['branding']??[]; $f=$config['fields']??[]; $l=$config['layout']??[];
         $add = static function(string $name,array $types,int $span=12,array $style=[]) use (&$blocks): void {
             if ($types===[]) return;
@@ -97,7 +102,55 @@ class BillingDocumentDesigner
                 $blocks[array_key_last($blocks)]['elements'][0]['label'] = $label;
             }
         }
-        return self::validate(['version'=>1,'blocks'=>$blocks]);
+        return self::essential(self::validate(['version'=>1,'blocks'=>$blocks]));
+    }
+
+    /** Upgrade the presentation only: every selected element and its text is retained. */
+    public static function essential(array $model): array
+    {
+        $model=self::validate($model);
+        $groups=array_fill_keys(['issuer','document','patient','items','totals','payment','text'], []);
+        $extras=[];
+        foreach ($model['blocks'] as $block) {
+            foreach ($block['elements'] as $element) {
+                $type=$element['type'];
+                if (in_array($type,['issuer_extra','notes','terms','signature','footer','text','divider','spacer'],true)) {
+                    $extras[]=array_merge($block,['span'=>12,'elements'=>[$element],'section'=>'text']);
+                    continue;
+                }
+                $group=match(true) {
+                    $type==='logo'||str_starts_with($type,'issuer_')=>'issuer',
+                    str_starts_with($type,'patient_')=>'patient',
+                    $type==='line_items'=>'items',
+                    in_array($type,['subtotal','vat','stamp','total'],true)=>'totals',
+                    in_array($type,['payment_method','payment_date','due_date','opposition'],true)=>'payment',
+                    default=>'document',
+                };
+                $groups[$group][]=$element;
+            }
+        }
+        $blocks=[];
+        $add=static function(string $name,array $elements,int $span,string $section) use (&$blocks): void {
+            foreach (array_chunk($elements, $section==='items'?1:12) as $chunk) {
+                $blocks[]=['name'=>$name,'span'=>$span,'section'=>$section,'font'=>10,'padding'=>0,
+                    'background'=>'#ffffff','color'=>'#20353d','align'=>in_array($section,['document','totals'],true)?'right':'left','elements'=>$chunk];
+            }
+        };
+        $add('Professionista',$groups['issuer'],6,'issuer');
+        $add('Documento',$groups['document'],6,'document');
+        $add('Intestata a',$groups['patient'],12,'patient');
+        $add('Prestazioni',$groups['items'],12,'items');
+        // Full-width totals flow can paginate; its contents align to the right in CSS.
+        $add('Riepilogo',$groups['totals'],12,'totals');
+        $add('Pagamento',$groups['payment'],12,'payment');
+        foreach ($extras as $block) {
+            $block['background']='#ffffff'; $block['color']='#20353d'; $block['border']=false;
+            $block['padding']=0; $block['font']=10;
+            $blocks[]=$block;
+        }
+        // Very large bespoke models must remain editable without exceeding the schema limit.
+        if (count($blocks)>40 || $blocks===[]) $blocks=$model['blocks'];
+        return self::validate(['version'=>1,'preset'=>'essential-v1','blocks'=>$blocks]);
     }
 
     public static function sample(array $config): array

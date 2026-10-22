@@ -10,7 +10,7 @@ const server=http.createServer(async(req,res)=>{
   const fields=Object.fromEntries(await request.formData());
   const proc=spawn((process.env.PHP_BIN||'php'),['-d','xdebug.mode=off','rest/tests/_support/billing_port_fixture.php','render']);let html='',error='';
   proc.stdout.on('data',d=>html+=d);proc.stderr.on('data',d=>error+=d);proc.stdin.end(JSON.stringify(fields));
-  proc.on('exit',code=>{res.setHeader('Content-Type','application/json');res.end(JSON.stringify(code?{error}:{html,csrf:'synthetic'}));});return;
+  proc.on('exit',code=>{res.setHeader('Content-Type','application/json');res.end(JSON.stringify(code?{error}:fields.preview_mode==='default'?JSON.parse(html):{html,csrf:'synthetic'}));});return;
  }
  const file=req.url==='/'?path.join(root,'rest/build/billing-port/editor.html'):path.join(root,decodeURIComponent(req.url.split('?')[0]));
  if(!(file.startsWith(path.join(root,'public')+path.sep)||file===path.join(root,'rest/build/billing-port/editor.html'))||!fs.existsSync(file)){res.statusCode=404;res.end();return;}
@@ -54,6 +54,15 @@ const server=http.createServer(async(req,res)=>{
  await page.locator('#bd-undo').click();assert.equal(await page.locator('[name=branding_terms_text]').inputValue(),'');
  await page.locator('#bd-redo').click();assert.equal(await page.locator('[name=branding_terms_text]').inputValue(),'INFORMATIVA-UNICA-UI');
  await page.locator('#bd-preview').click();await page.locator('#bd-preview-dialog').waitFor({state:'visible'});await page.locator('#bd-close-preview').click();
+ const beforeReset=await read();
+ await page.locator('#bd-default').click();
+ await page.locator('#bd-status').filter({hasText:'Modello essenziale applicato'}).waitFor();
+ await page.waitForFunction(()=>document.querySelector('#bd-live-status').textContent==='Aggiornata');
+ const afterReset=await read();
+ assert.equal(afterReset.preset,'essential-v1');
+ assert(afterReset.blocks.some(b=>b.elements.some(e=>e.text==='TESTO-VISIBILE-ANTEPRIMA')),'Default retains unsaved text');
+ await page.locator('#bd-undo').click();assert.deepEqual(await read(),beforeReset,'Default can be undone');
+ await page.locator('#bd-redo').click();assert.deepEqual(await read(),afterReset,'Default can be reapplied');
  await page.screenshot({path:'rest/build/billing-port/editor.png',fullPage:true});
  for(const width of [1024,768,375]){
   await page.setViewportSize({width,height:900});

@@ -1,5 +1,5 @@
 <?php
-require __DIR__.'/billing_header_regression.php';
+require __DIR__.'/billing_legacy_render_regression.php';
 use App\Services\BillingDocumentDesigner;
 $config=$settings->defaultConfig();
 $config['designer']=BillingDocumentDesigner::validate(['version'=>1,'blocks'=>[

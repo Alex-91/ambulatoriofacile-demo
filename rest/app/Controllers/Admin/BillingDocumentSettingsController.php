@@ -227,6 +227,9 @@ class BillingDocumentSettingsController extends BillingAdminBaseController
             $scope=$this->resolveTenantScope();
             $settings=$this->settingsService->resolveTenantSettings((int)($scope['tenant_id']??0));
             $config=$this->requestConfigPayload($settings['config']);
+            if ($this->request->getPost('preview_mode')==='default') {
+                return $this->response->setJSON(['model'=>\App\Services\BillingDocumentDesigner::essential($config['designer']), 'csrf'=>csrf_hash()]);
+            }
             $preview=\App\Services\BillingDocumentDesigner::sample($config);
             $html=view('admin/billing/designer_document',['preview'=>$preview,'pdfMode'=>$this->request->getPost('preview_mode')==='pdf']);
             $result=['html'=>$html];

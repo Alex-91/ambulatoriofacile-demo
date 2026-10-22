@@ -14,17 +14,17 @@ $catalog=\App\Services\BillingDocumentDesigner::catalog();
 <link rel="stylesheet" href="<?= base_url('public/dist/css/skins/_all-skins.min.css') ?>">
 <link rel="stylesheet" href="<?= base_url('public/assets/fontawesome/css/all.min.css') ?>">
 <link rel="stylesheet" href="<?= base_url('public/assets/fontawesome/css/v4-shims.min.css') ?>">
-<link rel="stylesheet" href="<?= base_url('public/assets/css/billing-designer.css?v=20261021-studio') ?>">
+<link rel="stylesheet" href="<?= base_url('public/assets/css/billing-designer.css?v=20261022-essential') ?>">
 <link rel="stylesheet" href="<?= base_url('public/assets/css/billing-sections.css?v=20260927-group') ?>">
 </head><body class="billing-unified-page skin-blue sidebar-mini"><div class="wrapper">
 <?= view('partials/header',['menu_items'=>$menu_items??[]]) ?>
 <main class="content-wrapper"><section class="content"><div class="row"><aside class="col-md-3"><?= view('partials/sidebar_admin',['menu_items'=>$menu_items??[]]) ?></aside><div class="col-md-9"><section class="bd-app">
-<header class="bd-top"><div><a href="<?= site_url('admin/fatturazione') ?>">← Fatturazione / Documento fatturazione</a><h1>Disegna il tuo documento</h1><p>Componi i blocchi, affianca i contenuti e cura ogni dettaglio.</p></div><span class="bd-badge">Studio documenti · A4</span></header>
+<header class="bd-top"><div><a href="<?= site_url('admin/fatturazione') ?>">← Fatturazione / Documento fatturazione</a><h1>Disegna il tuo documento</h1><p>Modello essenziale predefinito: personalizza liberamente blocchi, campi e stile.</p></div><span class="bd-badge">Studio documenti · A4</span></header>
 <?php if (!empty($success)): ?><div class="alert alert-success"><?= esc($success) ?></div><?php endif; ?>
 <?php foreach (($errors??[]) as $error): ?><div class="alert alert-danger"><?= esc(is_array($error)?implode(' ',$error):$error) ?></div><?php endforeach; ?>
 <form id="bd-form" action="<?= site_url('admin/fatturazione-documento/save') ?>" method="post" data-preview-url="<?= site_url('admin/fatturazione-documento/preview') ?>">
 <?= csrf_field() ?><input type="hidden" name="designer_json" id="bd-json">
-<div class="bd-toolbar"><button type="button" id="bd-add">＋ Nuovo blocco</button><button type="button" id="bd-undo" disabled>Annulla modifica</button><button type="button" id="bd-redo" disabled>Ripristina</button><span class="bd-grow"></span><button type="button" id="bd-preview">Anteprima A4</button><button type="button" id="bd-pdf">PDF di prova</button><button class="bd-primary" type="submit">Salva modello</button></div>
+<div class="bd-toolbar"><button type="button" id="bd-add">＋ Nuovo blocco</button><button type="button" id="bd-undo" disabled>Annulla modifica</button><button type="button" id="bd-redo" disabled>Ripristina</button><button type="button" id="bd-default">Modello essenziale predefinito</button><span class="bd-grow"></span><button type="button" id="bd-preview">Anteprima A4</button><button type="button" id="bd-pdf">PDF di prova</button><button class="bd-primary" type="submit">Salva modello</button></div>
 <p class="bd-help">Trascina la maniglia dei blocchi per spostarli. Usa ½ o ⅓ per affiancarli. Puoi anche usare le frecce, da tastiera o da telefono. Il modello e le diciture attuali si applicano anche alle fatture già emesse. Numeri, date, riferimenti, importi e pagamenti restano invariati.</p>
 <div id="bd-status" role="status" aria-live="polite"></div>
 <div class="bd-workspace">
@@ -53,5 +53,5 @@ $catalog=\App\Services\BillingDocumentDesigner::catalog();
 </section></div></div></section></main></div>
 <script id="bd-initial" type="application/json"><?= json_encode(['model'=>$initial,'catalog'=>$catalog,'csrfName'=>csrf_token()],JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_UNESCAPED_UNICODE) ?></script>
 <script src="<?= base_url('public/plugins/jQuery/jQuery-2.1.4.min.js') ?>"></script><script src="<?= base_url('public/bootstrap/js/bootstrap.min.js') ?>"></script>
-<script src="<?= base_url('public/assets/js/billing-designer.js?v=20261021-studio') ?>"></script>
+<script src="<?= base_url('public/assets/js/billing-designer.js?v=20261022-essential') ?>"></script>
 </body></html>

@@ -20,6 +20,8 @@ $values=array_merge($values,[
  'vat'=>isset($template['document_stamp']) ? $money((float)$document['amount_total']-(float)$document['subtotal_amount']-\App\Services\BillingStampDuty::chargedAmount($document)) : ($document['vat_rate']??0).'% '.($document['vat_nature']??''), 'stamp'=>(float)($document['stamp_duty_amount']??0)>0?$money($document['stamp_duty_amount']):'',
  'terms'=>$branding['terms_text']??'', 'footer'=>$branding['footer_note']??'',
 ]);
+// The old generic title is a default, not an invoice-specific heading.
+if (trim((string)($branding['header_title']??''))==='' && ($values['title']??'')==='Documento fatturazione') $values['title']=$preview['document_type_label']??'Fattura';
 $catalog=BillingDocumentDesigner::catalog();
 // Break very long unspaced values too: Dompdf cannot wrap every Unicode token with CSS alone.
 $safe=static function($value, int $wrap=35): string { $text=(string)$value; $text=preg_replace('/([^\s]{'.$wrap.'})(?=[^\s])/u', '$1' . "\u{200B}", $text); return nl2br(esc($text)); };
@@ -29,7 +31,8 @@ $renderBlock=static function(array $block) use ($values,$branding,$catalog,$prev
  $safeText=$safe; $safe=static fn($v, $limit=null)=>$safeText($v,$limit??$wrap);
  $style='background:'.$block['background'].';color:'.$block['color'].';text-align:'.$block['align'].';font-size:'.$block['font'].'pt;padding:'.$block['padding'].'mm;'.($block['border']?'border:0.25mm solid #d7dde5;':'');
  ?>
- <div class="db-block" style="<?= esc($style) ?>">
+ <div class="db-block db-section-<?= esc($block['section']??'') ?>" style="<?= esc($style) ?>">
+ <?php if (in_array($block['section']??'', ['patient','items','payment'],true)): ?><div class="db-section-heading"><?= $safe($block['name']) ?></div><?php endif; ?>
  <?php foreach ($block['elements'] as $element): $type=$element['type']; $label=$element['label']?:$catalog[$type]; ?>
  <?php if ($type==='line_items'): ?>
    <table class="db-items"><thead><tr><th style="width:40%">Prestazione</th><th style="width:23%">IVA / Esenzione</th><th style="width:7%">Qta</th><th style="width:15%">Prezzo</th><th style="width:15%">Importo</th></tr></thead><tbody>
@@ -49,8 +52,8 @@ $renderBlock=static function(array $block) use ($values,$branding,$catalog,$prev
  if ($termsLabelContent) $value=$element['label'];
  if (trim((string)$value)==='') continue; ?>
    <div class="db-element db-field-<?= esc($type) ?> <?= in_array($type,['title','total'],true)?'db-emphasis':'' ?>">
-     <?php if ($element['show_label'] && !$termsLabelContent): ?><div class="db-label"><?= $safe($label) ?></div><?php endif; ?>
-     <div><?= $safe($value) ?></div>
+     <?php if ($element['show_label'] && !$termsLabelContent): ?><div class="db-label <?= $element['label']===''?'db-default-label':'' ?>"><?= $safe($label) ?></div><?php endif; ?>
+     <div class="db-value"><?= $safe($value) ?></div>
    </div>
  <?php endif; endforeach; ?>
  </div>
@@ -106,11 +109,25 @@ hr { border:0; border-top:0.25mm solid #d7dde5; }
 .db-items td { padding:3mm 2mm; font-size:9pt; }
 .db-items td:nth-child(3), .db-items th:nth-child(3) { text-align:center; }
 .db-items td:nth-child(4), .db-items td:nth-child(5), .db-items th:nth-child(4), .db-items th:nth-child(5) { text-align:right; }
-.db-field-title { font-size:23pt; letter-spacing:1pt; }
+.db-field-title { font-size:2em; letter-spacing:1pt; }
 .db-field-issuer_name, .db-field-patient_name { font-weight:bold; }
 .db-field-total { background:#edf6f7; color:<?= esc($accent) ?>; padding:4mm; margin-top:3mm; }
 .db-field-notes > .db-label, .db-field-terms > .db-label { border-bottom:.25mm solid <?= esc($accent) ?>; padding-bottom:2mm; margin-bottom:3mm; color:<?= esc($accent) ?>; text-transform:uppercase; letter-spacing:1pt; }
 .db-field-footer { border-top:.25mm solid <?= esc($accent) ?>; padding-top:3mm; font-size:8pt; color:#607278; }
+.db-section-heading { color:#176b77; border-bottom:.25mm solid #71aeb6; padding-bottom:2mm; margin:3mm 0 3mm; text-transform:uppercase; letter-spacing:1.2pt; font-size:9pt; font-weight:bold; }
+.db-section-issuer .db-field-issuer_name { color:#176b77; font-size:1.5em; }
+.db-section-issuer .db-field-issuer_name > .db-default-label, .db-section-issuer .db-field-issuer_address > .db-default-label { display:none; }
+.db-section-document .db-label, .db-section-document .db-value { display:inline; }
+.db-section-document .db-label { margin-right:2mm; }
+.db-section-document .db-field-title { color:#176b77; text-transform:uppercase; }
+.db-section-totals .db-element { margin-left:45%; }
+.db-section-totals .db-label { display:inline; font-size:9pt; }
+.db-section-totals .db-value { display:inline; margin-left:5mm; }
+.db-section-totals .db-field-total { margin-top:4mm; padding:4mm; }
+.db-section-patient .db-label, .db-section-payment .db-label { display:inline; margin-right:3mm; }
+.db-section-patient .db-value, .db-section-payment .db-value { display:inline; }
+.db-section-patient .db-field-patient_name > .db-default-label { display:none; }
+.db-section-patient .db-field-patient_name { font-size:1.2em; }
 <?php if (empty($pdfMode)): ?>
 @media screen { body { background:#e8ecf2; padding:12mm; } .db-sheet { width:186mm; min-height:273mm; padding:0; margin:auto; background:white; box-shadow:0 0 0 12mm white; } }
 <?php endif; ?>

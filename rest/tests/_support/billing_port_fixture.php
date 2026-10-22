@@ -16,6 +16,7 @@ if (($argv[1]??'')==='render') {
  foreach(['header_title','header_subtitle','header_extra','terms_text','footer_note','logo_url'] as $key)$cfg['branding'][$key]=$input['branding_'.$key]??'';
  $cfg['document_title']=$input['document_title']??'Fattura';
  $cfg['branding']['logo_mode']=isset($input['branding_logo_enabled'])?'path':'none';
+ if (($input['preview_mode']??'')==='default') { echo json_encode(['model'=>App\Services\BillingDocumentDesigner::essential($cfg['designer']),'csrf'=>'synthetic']); exit; }
  $preview=App\Services\BillingDocumentDesigner::sample($cfg);
  require dirname(__DIR__,2).'/app/Views/admin/billing/designer_document.php';
 } else {
