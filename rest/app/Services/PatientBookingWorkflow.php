@@ -15,6 +15,7 @@ final class PatientBookingWorkflow
         $c['catalogo']=['prestazioni'=>[],'professionisti'=>[]];
         $c['comunicazioni']['nome_nei_messaggi']='';
         $c['comunicazioni']['contatti']=['telefono'=>'','email'=>'','whatsapp'=>''];
+        $c['comunicazioni']['visibili']=['telefono'=>true,'email'=>true,'whatsapp'=>false,'sedi'=>true,'orari'=>false];
         $c['comunicazioni']['privacy_url']='';
         $c['aspetto']['logo_alt']='Logo dello spazio';
         return $c;
@@ -44,7 +45,8 @@ final class PatientBookingWorkflow
         foreach(['orario','dati','riepilogo'] as $id) if(!in_array($id,$active,true)) self::fail('Orario, I tuoi dati e Riepilogo devono restare attivi.');
         if(end($ids)!=='riepilogo') self::fail('Il riepilogo deve essere l’ultimo passo.');
         foreach(['prestazione','professionista','sede'] as $id) if(in_array($id,$active,true) && array_search($id,$active)>array_search('orario',$active)) self::fail('Data e orario deve seguire Prestazione, Professionista e Sede.');
-        if(in_array('verifica',$active,true) || !empty($c['verifica']['richiesta']) || $c['accesso']['modalita']!=='aperta') self::fail('Questa versione usa la prenotazione interna senza verifica e con conferma immediata.');
+        if(in_array('verifica',$active,true) || !empty($c['verifica']['richiesta'])) self::fail('Il percorso nello spazio è senza verifica.');
+        if(!in_array($c['accesso']['modalita'],['aperta','approvazione','invito'],true)) self::fail('Senza verifica non puoi limitare le prenotazioni ai pazienti in archivio.');
         foreach(['prestazione_predefinita'=>'visits','professionista_predefinito'=>'doctors'] as $key=>$bucket) {
             $id=$c['scelte'][$key];$c['scelte'][$key]=$id===null||$id===''?null:(string)(int)$id;
             if($c['scelte'][$key]!==null && !in_array((int)$id,$settings[$bucket],true)) self::fail('La scelta predefinita deve essere abilitata nel catalogo.');
@@ -53,19 +55,31 @@ final class PatientBookingWorkflow
         if(!in_array('professionista',$active,true) && !$settings['first_available'] && !$c['scelte']['professionista_predefinito'] && count($settings['doctors'])>1) self::fail('Scegli un professionista predefinito oppure abilita Il primo disponibile.');
         foreach(['salta_professionista_se_unico','salta_sede_se_unica'] as $key) $c['scelte'][$key]=!empty($c['scelte'][$key]);
         if(!in_array($c['senza_verifica']['recapito'],['almeno_uno','cellulare','email','facoltativo'],true)) self::fail('Regola dei recapiti non valida.');
-        foreach(['cellulare','email','note'] as $key) if(!in_array($c['dati'][$key],['obbligatorio','facoltativo','nascosto'],true)) self::fail('Configurazione dei campi non valida.');
-        // These fields require a dedicated patient-data persistence flow before enabling them.
-        if($c['dati']['nascita']!=='nascosto'||$c['dati']['codice_fiscale']!=='nascosto') self::fail('Data di nascita e codice fiscale non sono disponibili nel percorso interno.');
+        foreach(['cellulare','email','note','nascita','codice_fiscale'] as $key) if(!in_array($c['dati'][$key],['obbligatorio','facoltativo','nascosto'],true)) self::fail('Configurazione dei campi non valida.');
+        foreach(['limiti'=>['attive_per_recapito'=>[1,10],'stessa_prestazione'=>[1,5],'assenze_per_approvazione'=>[1,10]],'accesso'=>['ore_scadenza_richieste'=>[1,168]],'protezioni'=>['senza_verifica_per_dispositivo_giorno'=>[1,100],'senza_verifica_per_ip_giorno'=>[1,100],'soglia_anomalia_ora'=>[1,1000],'email_tetto_giornaliero'=>[1,10000]]] as $section=>$fields) foreach($fields as $key=>[$min,$max]) {
+            if(filter_var($c[$section][$key],FILTER_VALIDATE_INT)===false || $c[$section][$key]<$min || $c[$section][$key]>$max) self::fail('Controlla i limiti e i tempi: inserisci un numero valido.');
+            $c[$section][$key]=(int)$c[$section][$key];
+        }
         foreach(['benvenuto_titolo'=>120,'benvenuto_sottotitolo'=>500,'nota_riepilogo'=>1000] as $key=>$max) {
             $value=trim((string)($c['testi'][$key]??''));if(mb_strlen($value)>$max) self::fail('Testo troppo lungo.');$c['testi'][$key]=$value===''?null:$value;
         }
-        $logo=$c['aspetto']['logo_url'];
-        if($logo!==null && $logo!=='') {
-            if(!preg_match('#^data:image/(png|jpeg);base64,([A-Za-z0-9+/=]+)$#D',$logo,$m)) self::fail('Il logo deve essere PNG o JPEG.');
-            $bytes=base64_decode($m[2],true);$info=$bytes===false?false:@getimagesizefromstring($bytes);
-            if(!$info || strlen($bytes)>1048576 || $info[0]>4096 || $info[1]>4096 || $info['mime']!=='image/'.$m[1]) self::fail('Logo non valido: massimo 1 MB e 4096 pixel.');
-        } else $c['aspetto']['logo_url']=null;
+        foreach(['prestazioni'=>'id_tipo_visita','professionisti'=>'id_dot'] as $bucket=>$idKey){
+            if(!is_array($c['catalogo'][$bucket]))self::fail('Catalogo non valido.');
+            $seen=[];
+            foreach($c['catalogo'][$bucket] as &$item){
+                if(!is_array($item) || !filter_var($item[$idKey]??null,FILTER_VALIDATE_INT) || isset($seen[$item[$idKey]]))self::fail('Catalogo non valido.');
+                $item[$idKey]=(int)$item[$idKey];$seen[$item[$idKey]]=true;$item['online']=!empty($item['online']);
+                if(!in_array($item['modalita']??null,[null,'aperta','approvazione'],true))self::fail('Modalità del catalogo non disponibile senza verifica.');
+                foreach(['nome_pubblico'=>120,'descrizione'=>1000,'preparazione'=>1000,'prezzo'=>30] as $field=>$max)if(isset($item[$field])){if(!is_scalar($item[$field])||mb_strlen((string)$item[$field])>$max)self::fail('Testo del catalogo non valido.');$item[$field]=trim((string)$item[$field]);}
+                foreach(['prestazioni','sedi'] as $field)if(isset($item[$field])){$item[$field]=array_values(array_unique(array_map('intval',(array)$item[$field])));if(array_filter($item[$field],fn($id)=>$id<=0))self::fail('Associazione del catalogo non valida.');}
+            }unset($item);
+        }
+        $c['verifica']['richiesta']=false;$c['verifica']['metodi']=[];
+        $c['regole']['minuti_riserva']=0;
+        $c['comunicazioni']['mostra_prestazione_nei_messaggi']=!empty($c['comunicazioni']['mostra_prestazione_nei_messaggi']);
+        $c['aspetto']['logo_url']=PatientBookingLogo::validate($c['aspetto']['logo_url']);
         $c['aspetto']['mostra_nome_con_logo']=!empty($c['aspetto']['mostra_nome_con_logo']);
+        foreach($c['comunicazioni']['visibili'] as $key=>$value)$c['comunicazioni']['visibili'][$key]=(bool)$value;
         $c['regole']['spostamento_consentito']=!empty($c['regole']['spostamento_consentito']);
         return $c;
     }

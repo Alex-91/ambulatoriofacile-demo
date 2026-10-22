@@ -26,7 +26,7 @@ class PlatformPatientBookingController extends BaseController
             try {
                 $db=(new TenantDatabaseConnector())->connect($tenant);
                 $catalog=(new PatientBookingAgenda($db,$state,0))->catalog(true);
-                $ready=$settings->ready() && $db->tableExists('patient_online_bookings') && (new AgendaVisitTypeSchemaService($db))->isReady();
+                $ready=$settings->ready() && \App\Services\PatientBookingSchema::ready($db) && (new AgendaVisitTypeSchemaService($db))->isReady();
             } catch (\Throwable $e) { log_message('error','Patient booking catalog unavailable for tenant {id}',['id'=>$id]); }
         }
         return view('admin/patient_booking',['tenants'=>$tenants,'tenant'=>$tenant,'state'=>$state,'catalog'=>$catalog,'ready'=>$ready,
@@ -47,7 +47,7 @@ class PlatformPatientBookingController extends BaseController
             $config['suspended']=$settings['config']['suspended'];
             $enabled=$this->request->getPost('enabled')==='1';
             if ($enabled) {
-                if (!$db->tableExists('patient_online_bookings') || !(new AgendaVisitTypeSchemaService($db))->isReady()) throw new PatientBookingException('schema_non_installato');
+                if (!\App\Services\PatientBookingSchema::ready($db) || !(new AgendaVisitTypeSchemaService($db))->isReady()) throw new PatientBookingException('schema_non_installato');
                 $cat=(new PatientBookingAgenda($db,$settings,0))->catalog(true);
                 foreach (['doctors'=>'professionisti','visits'=>'prestazioni','locations'=>'sedi'] as $key=>$bucket) {
                     if (array_diff(array_map('intval',(array)($config[$key]??[])),array_map('intval',array_column($cat[$bucket],'id')))) throw new PatientBookingException('configurazione_non_valida');

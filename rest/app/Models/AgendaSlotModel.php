@@ -87,6 +87,12 @@ public function getSlotsCalendario(int $idDot, string $date, string $view = 'day
         ? "COALESCE(amb.nome, s.ambulatorio, '') AS ambulatorio_label,"
         : "COALESCE(s.ambulatorio, '') AS ambulatorio_label,";
     $pazSpecExpr = $this->buildPazSpecSelectSql($hasAppointmentClientColumn);
+    $patientOnlineSelect = $this->db->tableExists('patient_online_bookings')
+        ? 'EXISTS(SELECT 1 FROM patient_online_bookings pb WHERE pb.id_appuntamento=a.id_appuntamento) AS patient_online_unverified,'
+        : '0 AS patient_online_unverified,';
+    $patientOnlineSelect .= $this->db->tableExists('patient_booking_absences')
+        ? 'EXISTS(SELECT 1 FROM patient_online_bookings pb JOIN patient_booking_absences pa ON pa.booking_ref=pb.booking_ref WHERE pb.id_appuntamento=a.id_appuntamento) AS patient_online_absent,'
+        : '0 AS patient_online_absent,';
     $appointmentStartExpr = $this->appointmentTableHasField('ora_inizio_appuntamento')
         ? 'COALESCE(a.ora_inizio_appuntamento, s.ora_inizio)'
         : 's.ora_inizio';
@@ -129,6 +135,7 @@ public function getSlotsCalendario(int $idDot, string $date, string $view = 'day
     {$patientReminderSmsSelect}
     {$patientRegistryVisibilitySelect}
     {$pazSpecExpr}
+    {$patientOnlineSelect}
     a.note,
     {$createdByUsernameSelect}
     a.motivo_visita,

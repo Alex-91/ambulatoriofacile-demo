@@ -246,6 +246,7 @@
     <?= view('partials/italian_address_autocomplete_style') ?>
 
     <style>
+.agenda-patient-pending{border:1.5px dashed #8a5600!important;background:#fff!important;color:#8a5600!important;}
    
         #nota_giorno_text {
     resize: vertical;
@@ -4593,6 +4594,7 @@ if ($appointmentModalRenderOrderKeys === []) {
                     <button type="button" class="btn btn-danger" id="btnDeleteAppointment" style="display:none;">
                         <i class="fa fa-trash"></i> Elimina appuntamento
                     </button>
+                    <button type="button" class="btn btn-default" id="btnPatientBookingAbsence" style="display:none;">Non si è presentato</button>
                     </details>
                 </div>
 
@@ -7762,7 +7764,7 @@ function renderAgendaSlotLayer() {
             extraClass = 'is-free';
         } else {
             titolo = nominativo !== '' ? nominativo : 'Appuntamento';
-            extraClass = 'is-booked';
+            extraClass = 'is-booked' + (slot.stato_appuntamento === 'IN_ATTESA' ? ' agenda-patient-pending' : '');
 
             if (isSpecialPatient) {
                 extraClass += ' is-booked-spec';
@@ -9246,6 +9248,8 @@ function setAppointmentModalEditingState(isEditing) {
 
     $('#appointmentModal .modal-title').text(isEditing ? 'Modifica appuntamento' : 'Gestione appuntamento');
     $('#btnDeleteAppointment').toggle(!!isEditing);
+    var onlinePast = isEditing && appointmentModalSlot && Number(appointmentModalSlot.patient_online_unverified) && moment(appointmentModalSlot.appointment_ora_fine || appointmentModalSlot.ora_fine).isBefore(moment());
+    $('#btnPatientBookingAbsence').toggle(!!onlinePast).text(appointmentModalSlot && Number(appointmentModalSlot.patient_online_absent) ? 'Rimuovi assenza' : 'Non si è presentato');
     $saveButton
         .data('default-html', buttonHtml)
         .html(buttonHtml)
@@ -10154,7 +10158,7 @@ function buildAgendaTeamDayMobileRecords(columns) {
 
             record.kind = 'booked';
             record.interactiveType = column.giorno_bloccato ? '' : 'booked';
-            record.extraClass = 'is-booked' + (isAgendaSearchFocusedSlot(slot) ? ' is-search-focus' : '');
+            record.extraClass = 'is-booked' + (slot.stato_appuntamento === 'IN_ATTESA' ? ' agenda-patient-pending' : '') + (isAgendaSearchFocusedSlot(slot) ? ' is-search-focus' : '');
             record.primaryLabel = primaryLabel;
             record.secondaryLabel = compactNote !== '' ? compactNote : (noteEvento !== '' ? noteEvento : '');
             record.contactLabel = contactLabel;
@@ -10528,7 +10532,7 @@ function buildAgendaTeamDayColumnEntries(column, bounds, pixelsPerMinute, entryH
 
         var color = column.giorno_bloccato ? '#d9534f' : (isSpecialPatient ? getAgendaSpecialPatientColor(pazSpec, slot) : '#3c8dbc');
         var bookedStyle = entryStyle;
-        var bookedClass = 'agenda-team-entry';
+        var bookedClass = 'agenda-team-entry' + (slot.stato_appuntamento === 'IN_ATTESA' ? ' agenda-patient-pending' : '');
 
         if (isAgendaSearchFocusedSlot(slot)) {
             bookedClass += ' is-search-focus';
@@ -11222,6 +11226,9 @@ function buildAppointmentNoteDisplay(row, options) {
     var note = $.trim((row && row.note) || '');
     var createdByLabel = getCreatedByLabel(row);
     var pieces = [];
+    if (row && row.stato_appuntamento === 'IN_ATTESA') pieces.push('Da confermare');
+    if (row && Number(row.patient_online_unverified)) pieces.push('Non verificato');
+    if (row && Number(row.patient_online_absent)) pieces.push('Non si è presentato');
 
     if (visitType !== '') {
         pieces.push(visitType);
@@ -12420,6 +12427,16 @@ $('#nota_giorno_text').on('blur', function() {
         });
     });
 
+    $('#btnPatientBookingAbsence').on('click', async function() {
+        var button=this;button.disabled=true;
+        try {
+            var headers={'Content-Type':'application/json'};headers[<?= json_encode(csrf_header()) ?>]=window.AGENDA_CONFIG.csrfTokenValue;
+            var response=await fetch(<?= json_encode(portal_tenant_space_url('prenotazione-online/api/presenza')) ?>,{method:'POST',credentials:'same-origin',headers:headers,body:JSON.stringify({appuntamento:Number($('#app_id_appuntamento').val()),assente:!Number(appointmentModalSlot.patient_online_absent)})});
+            var result=await response.json();if(result.csrf)window.AGENDA_CONFIG.csrfTokenValue=result.csrf;
+            if(!response.ok)throw Error(result.messaggio||'Registrazione non riuscita.');
+            $('#appointmentModal').modal('hide');caricaTutto();
+        }catch(error){alert(error.message);}finally{button.disabled=false;}
+    });
     $('#btnDeleteAppointment').on('click', function() {
         var idApp = $('#app_id_appuntamento').val();
 

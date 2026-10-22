@@ -46,6 +46,10 @@ try {
     }
     $q=['prestazione'=>'1','professionista'=>'10','sede'=>'1','dal'=>$day,'al'=>$day];
     check(count($agenda->catalog()['professionisti'])===1,'Only enabled professionals');
+    $custom=$settings;$custom['config']['workflow']['catalogo']=['prestazioni'=>[['id_tipo_visita'=>1,'online'=>true,'nome_pubblico'=>'Nome pubblico','prezzo'=>'100']],'professionisti'=>[['id_dot'=>10,'online'=>true,'prestazioni'=>[2],'sedi'=>[1]]]];
+    $customAgenda=new PatientBookingAgenda($db,$custom,55);check($customAgenda->catalog()['prestazioni'][0]['nome']==='Nome pubblico','Public service name from catalogue');
+    try{$customAgenda->availability($q);throw new RuntimeException('Doctor service restriction bypassed');}catch(PatientBookingException $e){check($e->status===409,'Doctor service restriction enforced');}
+
     check(count($agenda->availability($q)['giorni'][$day]['orari'])===11,'45 minute visit on 30 minute slots');
     $db->table('dap21_agenda_giorni_bloccati')->insert(['id_dot'=>10,'data_agenda'=>$day]);
     check(!$agenda->availability($q)['giorni'][$day]['orari'],'Blocked day');$db->table('dap21_agenda_giorni_bloccati')->where('id_dot',10)->delete();
@@ -71,11 +75,73 @@ try {
     try{(new PatientBookingAgenda($db,$noMove,55))->move($p['ref'],['data'=>$day,'ora'=>'11:00']);throw new RuntimeException('Move restriction bypassed');}catch(PatientBookingException $e){check($e->reason==='spostamento_non_consentito','Move disabled by server');}
     try{$agenda->book($body,bin2hex(random_bytes(16)));throw new RuntimeException('Occupied slot booked');}catch(PatientBookingException $e){check($e->reason==='slot_non_disponibile','Occupied slot rejected');}
     try{(new PatientBookingAgenda($db,$settings,99))->cancel($p['ref']);throw new RuntimeException('Foreign booking cancelled');}catch(PatientBookingException $e){check($e->status===404,'Ownership checked on cancellation');}
+    try{(new \App\Services\PatientBookingRecords($db))->enforceLimits('+393478126650','rosa@example.test',2,\App\Services\PatientBookingWorkflow::resolve($settings['config']),$day.' 09:15:00',$day.' 10:00:00');throw new RuntimeException('Contact overlap accepted');}catch(PatientBookingException $e){check($e->reason==='appuntamento_sovrapposto','Overlapping visits for same contact rejected');}
     $moved=$agenda->move($p['ref'],['data'=>$day,'ora'=>'11:00']);check($moved['ora']==='11:00','Atomic move');
     check($db->table('dap11_agenda_slot')->where('id_slot',1)->get()->getRowArray()['stato']==='LIBERO','Old slot restored');
     check($agenda->move($p['ref'],['data'=>$day,'ora'=>'11:00'])['ref']===$p['ref'],'Move retry no-op');
     $cancel=$agenda->cancel($p['ref']);check($cancel['stato']==='annullata','Cancellation persisted');
     check($db->table('dap11_agenda_slot')->where('stato','PRENOTATO')->countAllResults()===0,'Cancellation restores all covered slots');
+    $approval=$settings;$approval['config']['workflow']['accesso']['modalita']='approvazione';
+    $approval['config']['workflow']['dati']['nascita']='obbligatorio';
+    $requestBody=$body;$requestBody['paziente']['nascita']='03/04/1980';$requestBody['slot']['ora']='12:00';
+    $pendingAgenda=new PatientBookingAgenda($db,$approval,55);
+    $pending=$pendingAgenda->book($requestBody,bin2hex(random_bytes(16)));
+    check($pending['stato']==='in_attesa','Approval mode creates pending booking');
+    check(count($pendingAgenda->requests())===1,'Real administration request list');
+    $metadata=(new \App\Services\PatientBookingRecords($db))->details($pending['ref']);
+    check($metadata['data']['nascita']==='1980-04-03','Birth date encrypted and recoverable');
+    $raw=$db->table('patient_booking_details')->where('booking_ref',$pending['ref'])->get()->getRowArray();
+    check(!str_contains($raw['data_encrypted'],'1980'),'No plaintext birth date');
+    $db->query('CREATE TABLE dap02_clients (id_client INT AUTO_INCREMENT PRIMARY KEY,nome TEXT,cognome TEXT,cellulare TEXT,email TEXT,codice_fiscale TEXT,data_nascita TEXT,vector_id VARBINARY(16))');$db->resetDataCache();
+    $other=new PatientBookingAgenda($db,$approval,99);
+    check($other->resolveRequest($pending['ref'],'conferma',['collega'=>['nuova'=>true]])['stato']==='confermata','Tenant administrator can confirm another author request');
+    check($db->table('dap02_clients')->countAllResults()===1 && count($other->patientMatches($pending['ref']))===1,'Explicit encrypted registry creation and match');
+    check($other->resolveRequest($pending['ref'],'conferma')['stato']==='confermata','Confirmation retry is idempotent');
+    $another=$requestBody;$another['slot']['ora']='13:00';
+    try{$pendingAgenda->book($another,bin2hex(random_bytes(16)));throw new RuntimeException('Limit bypass');}catch(PatientBookingException $e){check($e->reason==='prestazione_gia_prenotata','Per-service contact limit');}
+    $pendingAgenda->cancel($pending['ref']);
+    $pending=$pendingAgenda->book($requestBody,bin2hex(random_bytes(16)));
+    check($other->resolveRequest($pending['ref'],'rifiuta')['stato']==='rifiutata','Request rejected');
+    $pending=$pendingAgenda->book($requestBody,bin2hex(random_bytes(16)));
+    $db->table('patient_booking_details')->where('booking_ref',$pending['ref'])->update(['expires_at'=>gmdate('Y-m-d H:i:s',time()-60)]);
+    check($pendingAgenda->expire()===1 && $pendingAgenda->detail($pending['ref'])['stato']==='scaduta','Expired request releases agenda');
+    $pending=$pendingAgenda->book($requestBody,bin2hex(random_bytes(16)));
+    $other->contactAction($pending['ref'],'blocca');$other->resolveRequest($pending['ref'],'rifiuta');
+    try{$pendingAgenda->book($requestBody,bin2hex(random_bytes(16)));throw new RuntimeException('Block bypass');}catch(PatientBookingException $e){check($e->reason==='prenotazioni_sospese','Blocked contact enforced');}
+    $other->contactAction($pending['ref'],'sblocca');
+    $invited=$settings;$invited['config']['workflow']['accesso']['modalita']='invito';$inviteAgenda=new PatientBookingAgenda($db,$invited,55);
+    $token=$inviteAgenda->invite(['prestazione'=>'1','professionista'=>'10','sede'=>'1']);
+    $requestBody['invito']=$token;$booked=$inviteAgenda->book($requestBody,bin2hex(random_bytes(16)));
+    check($booked['stato']==='confermata','Single use internal invitation');
+    try{$inviteAgenda->validateInvite($token);throw new RuntimeException('Invite reused');}catch(PatientBookingException $e){check($e->status===410,'Used invitation rejected');}
+    $inviteAgenda->cancel($booked['ref']);
+    $records=new \App\Services\PatientBookingRecords($db);
+    $records->contact(['nome'=>'Rosa','cellulare'=>'3478126650','testo'=>'Richiamatemi','privacy_letta'=>true],55);
+    $contacts=$records->contacts();check(count($contacts)===1 && $contacts[0]['testo']==='Richiamatemi','Encrypted contact request');
+    $records->closeContact((int)$contacts[0]['id']);check(!$records->contacts(),'Contact request completed');
+    $new=$agenda->book($body,bin2hex(random_bytes(16)));
+    $appointment=(int)$db->table('patient_online_bookings')->where('booking_ref',$new['ref'])->get()->getRowArray()['id_appuntamento'];
+    try{$records->absence($appointment,55,true);throw new RuntimeException('Future absence accepted');}catch(PatientBookingException $e){check($e->status===409,'No absence on future booking');}
+    $db->table('dap12_agenda_appuntamenti')->where('id_appuntamento',$appointment)->update(['ora_fine_appuntamento'=>'2020-01-01 10:00:00']);
+    $records->absence($appointment,55,true);$records->absence($appointment,55,true);
+    check($db->table('patient_booking_absences')->countAllResults()===1,'Absence retry idempotent');
+    $agenda->cancel($new['ref']);
+    $forced=$settings;$forced['config']['workflow']['limiti']['assenze_per_approvazione']=1;
+    $forcedAgenda=new PatientBookingAgenda($db,$forced,55);$forcedBooking=$forcedAgenda->book($body,bin2hex(random_bytes(16)));
+    check($forcedBooking['stato']==='in_attesa','Absence threshold forces approval in open mode');
+    $forcedAgenda->cancel($forcedBooking['ref']);
+    $db->table('patient_booking_absences')->emptyTable();
+    $new=$agenda->book($body,bin2hex(random_bytes(16)));
+    $delivered=[];$sender=static function($to,$message,$ics)use(&$delivered){$delivered[]=[$to,$message,$ics];return true;};
+    $mailSettings=$settings;$mailSettings['config']['email']='studio@example.test';
+    $notifications=new \App\Services\PatientBookingNotifications($db,['id_tenant'=>1,'tenant_name'=>'Studio test'],$mailSettings,$sender);
+    $result=$notifications->run('https://example.test/internal',100);
+    check($result['sent']>0 && $result['failed']===0,'Outbox delivers using fake transport');
+    check($notifications->run('https://example.test/internal',100)['sent']===0,'Outbox does not resend');
+    foreach($delivered as [$to,$message,$ics]){check(!str_contains($message['html'],'poliambulatoriosantachiara.it')&&!str_contains($message['html'],'Franco Rinaldi'),'No sample contact in delivered messages');}
+    $appointment=(int)$db->table('patient_online_bookings')->where('booking_ref',$new['ref'])->get()->getRowArray()['id_appuntamento'];
+    (new \App\Models\AgendaAppointmentModel($db))->deleteAppointment($appointment,0);$agenda->expire();
+    check($records->details($new['ref'])['status']==='annullata','Native agenda cancellation synchronized');
     $workers=[];
     for($n=0;$n<3;$n++) {
         $args=[PHP_BINARY,'-d','xdebug.mode=off',__FILE__,'--isolated-local-mysql','worker',$name,base64_encode(json_encode([$settings,$body,200+$n,bin2hex(random_bytes(16))]))];

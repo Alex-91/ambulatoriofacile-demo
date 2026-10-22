@@ -153,10 +153,20 @@ async function chiama(metodo, percorso, corpo, intestazioni={}) {
   // Serialize all requests, including reads, because CSRF tokens can rotate on writes.
   const perform=async()=>{
     if (metodo==='POST' && percorso==='/prenotazioni') corpo={...corpo, privacy_letta:state.draft.dati.privacy, per:state.draft.perChi, autorizzato:state.draft.autorizzato};
-    const r=await fetch(API_BASE+percorso,{method:metodo,credentials:'same-origin',headers:{'Content-Type':'application/json',[BOOT.csrfHeader]:csrfToken,...intestazioni},body:corpo?JSON.stringify(corpo):undefined});
+    if (metodo==='POST' && percorso==='/contatto') corpo={...corpo,privacy_letta:state.ui.contatto.privacy};
+    const url=new URL(API_BASE+percorso,location.href);
+    const invitation=new URLSearchParams(location.search).get('invito');
+    if(invitation)url.searchParams.set('invito',invitation);
+    if(BOOT.draftPreview)url.searchParams.set('bozza','1');
+    if(corpo && percorso==='/prenotazioni')corpo.invito=invitation;
+    const r=await fetch(url,{method:metodo,credentials:'same-origin',headers:{'Content-Type':'application/json',[BOOT.csrfHeader]:csrfToken,...intestazioni},body:corpo?JSON.stringify(corpo):undefined});
     let body;try{body=await r.json();}catch(e){throw new ErroreApi(r.status,{errore:'riprova'});}
     if(body.csrf)csrfToken=body.csrf;
-    if(!r.ok)throw new ErroreApi(r.status,body);
+    if(!r.ok){
+      if(r.status===401){location.href=BOOT.back;throw new ErroreApi(r.status,body);}
+      if(['limite_prenotazioni','prestazione_gia_prenotata'].includes(body.errore))throw new ErroreApi(422,{...body,errore:'limite_raggiunto',massimo:BOOT.catalog.regole.max_attive});
+      throw new ErroreApi(r.status,body);
+    }
     return body;
   };
   const result=requestQueue.then(perform,perform);requestQueue=result.catch(()=>{});return result;
@@ -754,7 +764,7 @@ function sSospese() {
 function sInvito(inv) {
   const pres = prestazione(inv.prestazione); const pro = PROFESSIONISTI[inv.professionista]; const sede = SEDI[inv.sede];
   return `<p class="eyebrow">Invito personale</p>
-    ${titolo(`Ciao ${esc(inv.nome)}, lo studio ti invita a prenotare`, `Scegli tu l'orario. Il link è personale e vale per una sola prenotazione, fino al ${giornoMese(inv.valido_fino)}.`)}
+    ${titolo(`Ciao${inv.nome ? ' '+esc(inv.nome) : ''}, lo studio ti invita a prenotare`, `Scegli tu l'orario. Il link è personale e vale per una sola prenotazione, fino al ${giornoMese(inv.valido_fino)}.`)}
     <div class="card recap">
       <div class="recap-row">${icon('steth')}<div class="recap-main"><p class="recap-label">Prestazione</p><p class="recap-val">${esc(pres.nome)}</p><p class="recap-sub">${pres.durata} minuti${pres.prezzo == null ? '' : ' · ' + pres.prezzo + ' €, paghi in studio'}</p></div></div>
       <div class="recap-row">${icon('user')}<div class="recap-main"><p class="recap-label">Professionista</p><p class="recap-val">${nomePro(pro)}</p></div></div>
@@ -1864,6 +1874,9 @@ function render({ nuova = false } = {}) {
   disegnaCta(out.cta, !!passo);
   disegnaLaterale(out.laterale || def.laterale || (passo ? 'riepilogo' : 'studio'), out.cta, !!passo);
 
+  const visible=cfg().comunicazioni.visibili||{};
+  document.querySelectorAll('.contact-list a').forEach(a=>{const kind=a.href.startsWith('tel:')?'telefono':a.href.startsWith('mailto:')?'email':'whatsapp';a.hidden=visible[kind]===false||(kind==='whatsapp'&&!STUDIO.whatsapp);});
+  document.querySelectorAll('#side .sede-list').forEach(el=>el.hidden=visible.sedi===false);
   document.title = `${titoloDocumento(s)} · ${esc(STUDIO.nome)}`;
 
   if (nuova) {
@@ -2927,7 +2940,7 @@ function aggiornaDemo() {}
 for (const handlers of [CLICK,CHANGE]) for (const key of Object.keys(handlers)) if (/^(demo-|cfg-)/.test(key)) delete handlers[key];
 CLICK['simula-wa']=()=>{};
 CLICK['esci']=()=>{location.href=BOOT.back;};
-CLICK.contatto=()=>{location.href=STUDIO.telHref;};
+
 CLICK.avvisami=()=>{location.href=STUDIO.telHref;};
 
 (async function avvio() {
@@ -2939,6 +2952,7 @@ CLICK.avvisami=()=>{location.href=STUDIO.telHref;};
   await ricaricaCatalogo();
   render();
   avviato = true;
+  const params=new URLSearchParams(location.search); const combination=combinazioni().find(c=>['prestazione','professionista','sede'].every(key=>!params.get(key)||params.get(key)===c[key])); if(combination){for(const key of ['prestazione','professionista','sede'])if(params.get(key))state.draft[key]=combination[key];render();}
   const bookingRef=new URLSearchParams(location.search).get('ref'); if(bookingRef && /^[A-Z2-9]{6}$/.test(bookingRef)) vai('dettaglio',{ref:bookingRef});
   if (window.ResizeObserver) new ResizeObserver(aggiornaAltezzaBarra).observe($('#bar'));
 })();

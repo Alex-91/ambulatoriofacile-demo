@@ -31,10 +31,20 @@ async function chiama(metodo, percorso, corpo, intestazioni={}) {
   // Serialize all requests, including reads, because CSRF tokens can rotate on writes.
   const perform=async()=>{
     if (metodo==='POST' && percorso==='/prenotazioni') corpo={...corpo, privacy_letta:state.draft.dati.privacy, per:state.draft.perChi, autorizzato:state.draft.autorizzato};
-    const r=await fetch(API_BASE+percorso,{method:metodo,credentials:'same-origin',headers:{'Content-Type':'application/json',[BOOT.csrfHeader]:csrfToken,...intestazioni},body:corpo?JSON.stringify(corpo):undefined});
+    if (metodo==='POST' && percorso==='/contatto') corpo={...corpo,privacy_letta:state.ui.contatto.privacy};
+    const url=new URL(API_BASE+percorso,location.href);
+    const invitation=new URLSearchParams(location.search).get('invito');
+    if(invitation)url.searchParams.set('invito',invitation);
+    if(BOOT.draftPreview)url.searchParams.set('bozza','1');
+    if(corpo && percorso==='/prenotazioni')corpo.invito=invitation;
+    const r=await fetch(url,{method:metodo,credentials:'same-origin',headers:{'Content-Type':'application/json',[BOOT.csrfHeader]:csrfToken,...intestazioni},body:corpo?JSON.stringify(corpo):undefined});
     let body;try{body=await r.json();}catch(e){throw new ErroreApi(r.status,{errore:'riprova'});}
     if(body.csrf)csrfToken=body.csrf;
-    if(!r.ok)throw new ErroreApi(r.status,body);
+    if(!r.ok){
+      if(r.status===401){location.href=BOOT.back;throw new ErroreApi(r.status,body);}
+      if(['limite_prenotazioni','prestazione_gia_prenotata'].includes(body.errore))throw new ErroreApi(422,{...body,errore:'limite_raggiunto',massimo:BOOT.catalog.regole.max_attive});
+      throw new ErroreApi(r.status,body);
+    }
     return body;
   };
   const result=requestQueue.then(perform,perform);requestQueue=result.catch(()=>{});return result;
@@ -49,6 +59,11 @@ replace("'nota-legale'() { toast('Nel prodotto vero qui si apre l\\'informativa 
 // Never claim that a notification was sent from this internal test entry point.
 replace('function doveScriviamo(canale, cellulare, email) {', 'function doveScriviamo(canale, cellulare, email) {\n  return null; /* Delivery is deferred until the public patient channel is configured. */');
 replace("const standalone = () => (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;", 'const standalone = () => true; // No installable public patient application in this phase.');
+replace('  document.title = `${titoloDocumento(s)} · ${STUDIO.nome}`;', `  const visible=cfg().comunicazioni.visibili||{};
+  document.querySelectorAll('.contact-list a').forEach(a=>{const kind=a.href.startsWith('tel:')?'telefono':a.href.startsWith('mailto:')?'email':'whatsapp';a.hidden=visible[kind]===false||(kind==='whatsapp'&&!STUDIO.whatsapp);});
+  document.querySelectorAll('#side .sede-list').forEach(el=>el.hidden=visible.sedi===false);
+  document.title = \`\${titoloDocumento(s)} · \${STUDIO.nome}\`;`);
+replace('Ciao ${esc(inv.nome)}, lo studio ti invita a prenotare', "Ciao${inv.nome ? ' '+esc(inv.nome) : ''}, lo studio ti invita a prenotare");
 replace('const gestibile = verificato();','const gestibile = true; // The authenticated operator can manage bookings they created.');
 replace("${azione('move', 'Sposta l\\'appuntamento', 'sposta')}", "${cfg().regole.spostamento_consentito ? azione('move', 'Sposta l\\'appuntamento', 'sposta') : ''}");
 replace("return verificato() ? null : conMiePrenotazioni() ? 'mie-accesso' : 'benvenuto';", "return null; // Server authorizes management against the authenticated operator.");
@@ -73,11 +88,11 @@ js=js.replaceAll("${sede.online ? 'Videochiamata' : sede.nome}","${sede.online ?
 const preflight=`for (const handlers of [CLICK,CHANGE]) for (const key of Object.keys(handlers)) if (/^(demo-|cfg-)/.test(key)) delete handlers[key];
 CLICK['simula-wa']=()=>{};
 CLICK['esci']=()=>{location.href=BOOT.back;};
-CLICK.contatto=()=>{location.href=STUDIO.telHref;};
+
 CLICK.avvisami=()=>{location.href=STUDIO.telHref;};
 `;
 js=js.replace('(async function avvio() {',preflight+'\n(async function avvio() {');
-js=js.replace('avviato = true;',"avviato = true;\n  const bookingRef=new URLSearchParams(location.search).get('ref'); if(bookingRef && /^[A-Z2-9]{6}$/.test(bookingRef)) vai('dettaglio',{ref:bookingRef});");
+js=js.replace('avviato = true;',"avviato = true;\n  const params=new URLSearchParams(location.search); const combination=combinazioni().find(c=>['prestazione','professionista','sede'].every(key=>!params.get(key)||params.get(key)===c[key])); if(combination){for(const key of ['prestazione','professionista','sede'])if(params.get(key))state.draft[key]=combination[key];render();}\n  const bookingRef=new URLSearchParams(location.search).get('ref'); if(bookingRef && /^[A-Z2-9]{6}$/.test(bookingRef)) vai('dettaglio',{ref:bookingRef});");
 const css=source.match(/<style>([\s\S]*?)<\/style>/)[1];
 const asset=path.join(root,'public/assets/patient-booking');fs.mkdirSync(asset,{recursive:true});
 fs.writeFileSync(path.join(asset,'booking.css'),css);

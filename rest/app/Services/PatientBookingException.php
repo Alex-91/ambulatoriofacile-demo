@@ -3,7 +3,7 @@ namespace App\Services;
 
 final class PatientBookingException extends \RuntimeException
 {
-    public function __construct(public readonly string $reason, public readonly int $status = 422)
+    public function __construct(public readonly string $reason, public readonly int $status = 422, public readonly array $data=[])
     {
         parent::__construct($reason);
     }
