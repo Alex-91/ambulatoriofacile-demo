@@ -32,7 +32,7 @@ $renderBlock=static function(array $block) use ($values,$branding,$catalog,$prev
  $style='background:'.$block['background'].';color:'.$block['color'].';text-align:'.$block['align'].';font-size:'.$block['font'].'pt;padding:'.$block['padding'].'mm;'.($block['border']?'border:0.25mm solid #d7dde5;':'');
  ?>
  <div class="db-block db-section-<?= esc($block['section']??'') ?>" style="<?= esc($style) ?>">
- <?php if (in_array($block['section']??'', ['patient','items','payment'],true)): ?><div class="db-section-heading"><?= $safe($block['name']) ?></div><?php endif; ?>
+ <?php if (in_array($block['section']??'', ['patient','items','payment'],true)): ?><table class="db-section-heading"><tr><td class="db-heading-label"><?= $safe($block['name']) ?></td><td class="db-heading-rule"><div></div></td></tr></table><?php endif; ?>
  <?php foreach ($block['elements'] as $element): $type=$element['type']; $label=$element['label']?:$catalog[$type]; ?>
  <?php if ($type==='line_items'): ?>
    <table class="db-items"><thead><tr><th style="width:40%">Prestazione</th><th style="width:23%">IVA / Esenzione</th><th style="width:7%">Qta</th><th style="width:15%">Prezzo</th><th style="width:15%">Importo</th></tr></thead><tbody>
@@ -52,7 +52,7 @@ $renderBlock=static function(array $block) use ($values,$branding,$catalog,$prev
  if ($termsLabelContent) $value=$element['label'];
  if (trim((string)$value)==='') continue; ?>
    <div class="db-element db-field-<?= esc($type) ?> <?= in_array($type,['title','total'],true)?'db-emphasis':'' ?>">
-     <?php if ($element['show_label'] && !$termsLabelContent): ?><div class="db-label <?= $element['label']===''?'db-default-label':'' ?>"><?= $safe($label) ?></div><?php endif; ?>
+     <?php if ($element['show_label'] && !$termsLabelContent): ?><div class="db-label <?= $element['label']===''?'db-default-label':'' ?>"><?php if (in_array($type,['notes','terms'],true)): ?><table class="db-section-heading"><tr><td class="db-heading-label"><?= $safe($label) ?></td><td class="db-heading-rule"><div></div></td></tr></table><?php else: ?><?= $safe($label) ?><?php endif; ?></div><?php endif; ?>
      <div class="db-value"><?= $safe($value) ?></div>
    </div>
  <?php endif; endforeach; ?>
@@ -109,21 +109,29 @@ hr { border:0; border-top:0.25mm solid #d7dde5; }
 .db-items td { padding:3mm 2mm; font-size:inherit; }
 .db-items td:nth-child(3), .db-items th:nth-child(3) { text-align:center; }
 .db-items td:nth-child(4), .db-items td:nth-child(5), .db-items th:nth-child(4), .db-items th:nth-child(5) { text-align:right; }
-.db-field-title { font-size:2em; letter-spacing:1pt; }
+.db-field-title { font-size:2.8em; letter-spacing:2pt; line-height:1.15; margin-bottom:4mm; }
 .db-field-issuer_name, .db-field-patient_name { font-weight:bold; }
 .db-field-total { background:#edf6f7; color:<?= esc($accent) ?>; padding:4mm; margin-top:3mm; }
-.db-field-notes > .db-label, .db-field-terms > .db-label { border-bottom:.25mm solid <?= esc($accent) ?>; padding-bottom:2mm; margin-bottom:3mm; color:#176b77; font-size:1em; font-weight:bold; text-transform:uppercase; letter-spacing:.8pt; }
+.db-field-notes > .db-label, .db-field-terms > .db-label { position:relative; margin-bottom:4mm; color:#075563; font-size:1em; font-weight:bold; text-transform:uppercase; letter-spacing:1.4pt; }
 .db-field-footer { border-top:.25mm solid <?= esc($accent) ?>; padding-top:3mm; font-size:8pt; color:#607278; }
-.db-section-heading { color:#176b77; border-bottom:.25mm solid #71aeb6; padding-bottom:2mm; margin:3mm 0 3mm; text-transform:uppercase; letter-spacing:.8pt; font-size:1em; font-weight:bold; }
-.db-section-issuer .db-field-issuer_name { color:#176b77; font-size:1.5em; }
+.db-section-heading { position:relative; color:#075563; margin:0 0 4mm; text-transform:uppercase; letter-spacing:1.4pt; font-size:1em; font-weight:bold; }
+
+.db-section-heading { width:100%; border-collapse:collapse; }
+.db-heading-label { width:1%; white-space:nowrap; padding:0 4mm 0 0; }
+.db-heading-rule { vertical-align:middle; padding:0; } .db-heading-rule > div { border-top:.25mm solid #71aeb6; }
+.db-section-issuer .db-field-issuer_name { color:#075563; font-size:1.8em; }
+.db-section-issuer, .db-section-document { margin-top:0; margin-bottom:0; }
+
+.db-section-payment { margin-top:3mm; }
+.db-section-text .db-field-notes, .db-section-text .db-field-terms { margin-top:3mm; }
 .db-section-issuer .db-field-issuer_name > .db-default-label, .db-section-issuer .db-field-issuer_address > .db-default-label { display:none; }
 .db-section-document .db-label, .db-section-document .db-value { display:inline; }
 .db-section-document .db-label { margin-right:2mm; }
-.db-section-document .db-field-title { color:#176b77; text-transform:uppercase; }
+.db-section-document .db-field-title { color:#075563; text-transform:uppercase; }
 .db-section-totals .db-element { margin-left:45%; }
 .db-section-totals .db-label { display:inline; font-size:1em; }
 .db-section-totals .db-value { display:inline; margin-left:5mm; }
-.db-section-totals .db-field-total { margin-top:4mm; padding:4mm; }
+.db-section-totals .db-field-total { margin-top:5mm; padding:4mm 3mm; color:#075563; }
 .db-field-total .db-label { font-weight:bold; }
 .db-section-patient .db-label, .db-section-payment .db-label { display:inline; margin-right:3mm; }
 .db-section-patient .db-value, .db-section-payment .db-value { display:inline; }
