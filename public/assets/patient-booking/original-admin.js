@@ -53,7 +53,86 @@
   submit.addEventListener('click',async()=>{if(Object.values(controls).some(input=>!input.reportValidity()))return;submit.disabled=true;for(const [key,input]of Object.entries(controls))draft.comunicazioni.contatti[key]=input.value.trim();dirty=true;try{await save();for(const [key,input]of Object.entries(controls)){const label=document.getElementById('mostra-'+key)?.closest('label');if(label)label.lastElementChild.lastElementChild.textContent=input.value.trim()||'Non configurato';}dialog.close();}catch(e){message(e.message,true);}finally{submit.disabled=false;}});
   actions.append(cancel,submit);dialog.append(actions);dialog.addEventListener('close',()=>dialog.remove());document.body.append(dialog);dialog.showModal();controls.telefono.focus();
  }));
- all('a').filter(a=>a.textContent.trim()==='Prestazioni e professionisti').forEach(a=>a.addEventListener('click',async e=>{e.preventDefault();try{const response=await fetch(boot.adminBase+'/A01-regole');const reference=new DOMParser().parseFromString(await response.text(),'text/html');const template=reference.querySelector('#chi-tutti').closest('label');const dialog=document.createElement('dialog');dialog.style.cssText=reference.querySelector('section').style.cssText;dialog.style.maxWidth='720px';dialog.style.width='90vw';dialog.style.maxHeight='85vh';const title=reference.querySelector('h2').cloneNode(true);title.textContent='Prestazioni e professionisti';dialog.append(title);const selection={},catalogEdit=structuredClone(draft.catalogo);for(const [key,bucket]of Object.entries({visits:'prestazioni',doctors:'professionisti',locations:'sedi'})){selection[key]=new Set(boot.selection?.[key]||boot.catalog[bucket].map(item=>Number(item.id)));const heading=title.cloneNode(true);heading.textContent={visits:'Prestazioni',doctors:'Professionisti',locations:'Sedi'}[key];dialog.append(heading);for(const item of boot.catalog[bucket]){const row=template.cloneNode(true),input=row.querySelector('input');const check=template.querySelector('[data-ctl]').cloneNode(true);check.style.borderRadius='5px';row.replaceChildren(input,check,document.createTextNode([item.titolo,item.nome,item.cognome].filter(Boolean).join(' ')));input.style.position='static';input.style.opacity='1';input.style.width='20px';input.style.height='20px';check.remove();input.type='checkbox';input.removeAttribute('id');input.name=key;input.value=item.id;input.checked=selection[key].has(Number(item.id));input.addEventListener('change',()=>input.checked?selection[key].add(Number(item.id)):selection[key].delete(Number(item.id)));dialog.append(row);if(key==='visits'||key==='doctors'){const bucket=key==='visits'?'prestazioni':'professionisti',idKey=key==='visits'?'id_tipo_visita':'id_dot';let metadata=catalogEdit[bucket].find(m=>Number(m[idKey])===Number(item.id));if(!metadata){metadata={[idKey]:Number(item.id),online:true,modalita:null};catalogEdit[bucket].push(metadata);}const field=(label,value,change)=>{const wrap=document.createElement('label');wrap.style.cssText='display:block;margin:8px 0 8px 34px;font-size:14px';wrap.textContent=label;const control=reference.querySelector('#preavviso').cloneNode(true);control.removeAttribute('id');control.removeAttribute('aria-describedby');control.type='text';control.style.width='100%';control.value=value||'';control.addEventListener('input',()=>change(control.value));wrap.append(control);dialog.append(wrap);};if(key==='visits'){for(const [name,label] of Object.entries({nome_pubblico:'Nome pubblico',descrizione:'Descrizione',preparazione:'Preparazione',prezzo:'Prezzo'}))field(label,metadata[name]||(name==='nome_pubblico'?item.nome:''),v=>metadata[name]=v||null);}else{const label=document.createElement('p');label.textContent='Prestazioni del professionista';dialog.append(label);for(const visit of boot.catalog.prestazioni){const l=document.createElement('label'),c=document.createElement('input');c.type='checkbox';c.checked=!metadata.prestazioni||metadata.prestazioni.includes(Number(visit.id));c.addEventListener('change',()=>{metadata.prestazioni??=boot.catalog.prestazioni.map(v=>Number(v.id));metadata.prestazioni=c.checked?[...new Set([...metadata.prestazioni,Number(visit.id)])]:metadata.prestazioni.filter(id=>id!==Number(visit.id));});l.append(c,document.createTextNode(visit.nome));dialog.append(l);}}const mode=document.createElement('select');mode.setAttribute('aria-label','Modalità per '+item.nome);for(const [v,label] of [['','Come lo spazio'],['aperta','Conferma immediata'],['approvazione','Richiesta da confermare']])mode.add(new Option(label,v));mode.value=metadata.modalita||'';mode.addEventListener('change',()=>metadata.modalita=mode.value||null);dialog.append(mode);}}}const buttons=[...reference.querySelectorAll('button')];const saveButton=buttons.find(b=>b.textContent.trim()==='Salva le modifiche').cloneNode(true),cancelButton=buttons.find(b=>b.textContent.trim()==='Annulla le modifiche').cloneNode(true);cancelButton.addEventListener('click',()=>dialog.close());saveButton.addEventListener('click',async()=>{saveButton.disabled=true;try{await send('catalog',{...Object.fromEntries(Object.entries(selection).map(([key,ids])=>[key,[...ids]])),catalogo:catalogEdit});location.reload();}catch(error){message(error.message,true);saveButton.disabled=false;}});dialog.append(cancelButton,saveButton);dialog.addEventListener('close',()=>dialog.remove());document.body.append(dialog);dialog.showModal();}catch(error){message(error.message,true);}}));
+ all('a').filter(a=>a.textContent.trim()==='Prestazioni e professionisti').forEach(a=>a.addEventListener('click',async e=>{
+  e.preventDefault();if(a.getAttribute('aria-busy')==='true')return;a.setAttribute('aria-busy','true');
+  try{
+   const script=all('script[src]').find(s=>s.src.includes('/patient-booking/original-admin.js'));
+   const componentUrl=new URL('design/tavole/html/X01-componenti.html',script.src);
+   const flowUrl=new URL('design/tavole/html/A04-configurazione-flusso.html',script.src);
+   const references=await Promise.all([boot.adminBase+'/A01-regole',componentUrl,flowUrl].map(async url=>{const response=await fetch(url,{credentials:'same-origin'});if(!response.ok)throw Error('Impossibile aprire il catalogo. Riprova.');return new DOMParser().parseFromString(await response.text(),'text/html');}));
+   const [reference,components,flow]=references,template=reference.querySelector('#chi-tutti').closest('label');
+   const dialog=document.createElement('dialog');dialog.dataset.bookingCatalog='';dialog.setAttribute('aria-labelledby','booking-catalog-title');
+   dialog.style.cssText='box-sizing:border-box;width:calc(100% - 32px);max-width:800px;max-height:calc(100dvh - 32px);margin:auto;padding:0;border:1px solid #e2e8f0;border-radius:12px;background:#ffffff;color:#1a1a2e;font-size:16px;line-height:24px;overflow:hidden;flex-direction:column;';
+   dialog.style.fontFamily=getComputedStyle(a.closest('[style*="font-family"]')||a).fontFamily;
+   const style=document.createElement('style');style.textContent=`
+    [data-booking-catalog] .catalog-header,[data-booking-catalog] .catalog-footer{flex:none;padding:20px 24px;background:#ffffff}
+    [data-booking-catalog] .catalog-header{border-bottom:1px solid #e2e8f0}
+    [data-booking-catalog] .catalog-body{overflow:auto;min-height:0;padding:24px;display:grid;gap:24px}
+    [data-booking-catalog] .catalog-card{padding:16px;border:1px solid #e2e8f0;border-radius:12px;background:#ffffff;min-width:0}
+    [data-booking-catalog] .catalog-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:12px}
+    [data-booking-catalog] .catalog-field-wide{grid-column:1/-1}
+    [data-booking-catalog] .catalog-associations{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 16px;margin-top:8px}
+    [data-booking-catalog] .catalog-footer{display:flex;flex-wrap:wrap;gap:12px;justify-content:flex-end;border-top:1px solid #e2e8f0}
+    [data-booking-catalog] input,[data-booking-catalog] select,[data-booking-catalog] textarea{font-family:inherit;max-width:100%}
+    @media(max-width:600px){[data-booking-catalog] .catalog-header,[data-booking-catalog] .catalog-footer,[data-booking-catalog] .catalog-body{padding:16px}[data-booking-catalog] .catalog-fields,[data-booking-catalog] .catalog-associations{grid-template-columns:minmax(0,1fr)}[data-booking-catalog] .catalog-footer button{flex:1;white-space:normal;min-height:44px;height:auto}}
+   `;
+   const header=document.createElement('header');header.className='catalog-header';
+   const title=reference.querySelector('h2').cloneNode(true);title.id='booking-catalog-title';title.textContent='Prestazioni e professionisti';header.append(title);
+   const body=document.createElement('div');body.className='catalog-body';
+   const footer=document.createElement('footer');footer.className='catalog-footer';
+   const selection={},catalogEdit=structuredClone(draft.catalogo);
+   function checkbox(text,checked,onchange,name,id){
+    const row=template.cloneNode(true),input=row.querySelector('input'),check=row.querySelector('[data-ctl]').cloneNode(true),label=document.createElement('span');
+    row.style.cssText='position:relative;display:flex;align-items:center;gap:12px;min-height:44px;box-sizing:border-box;cursor:pointer;';
+    row.removeAttribute('for');input.type='checkbox';input.removeAttribute('id');input.name=name;input.value=id;input.checked=checked;
+    check.style.borderRadius='5px';check.style.marginTop='0';label.style.cssText='min-width:0;font-size:15px;line-height:22px;font-weight:500;color:#1a1a2e;overflow-wrap:anywhere;';label.textContent=text;
+    row.replaceChildren(input,check,label);input.addEventListener('change',()=>{onchange(input.checked);paint();});return row;
+   }
+   function field(host,key,labelText,value,onchange,{multiline=false,wide=false,price=false}={}){
+    const group=document.createElement('div');if(wide)group.className='catalog-field-wide';
+    const label=components.querySelector('label[for=x-norm]').cloneNode(false);label.textContent=labelText;
+    const input=(multiline?flow.querySelector('#testo-sottotitolo'):components.querySelector('#x-norm')).cloneNode(true);
+    input.id=key;label.htmlFor=key;input.removeAttribute('aria-describedby');input.removeAttribute('value');input.value=value||'';input.style.textAlign='left';input.style.marginTop='8px';
+    if(price)input.inputMode='decimal';input.maxLength=price?30:multiline?1000:120;
+    input.addEventListener('input',()=>onchange(input.value));group.append(label,input);host.append(group);
+   }
+   function modeField(host,key,item,metadata){
+    const group=document.createElement('div'),label=components.querySelector('label[for=x-norm]').cloneNode(false);label.textContent='Modalità di prenotazione';label.htmlFor=key;
+    const frame=flow.querySelector('#prestazione-predefinita').parentElement.cloneNode(true),select=frame.querySelector('select');
+    select.id=key;select.removeAttribute('aria-describedby');select.setAttribute('aria-label','Modalità per '+item.nome);select.replaceChildren();
+    for(const [value,text]of [['','Come lo spazio'],['aperta','Conferma immediata'],['approvazione','Richiesta da confermare']])select.add(new Option(text,value));
+    select.value=metadata.modalita||'';select.addEventListener('change',()=>metadata.modalita=select.value||null);group.append(label,frame);host.append(group);
+   }
+   for(const [key,bucket]of Object.entries({visits:'prestazioni',doctors:'professionisti',locations:'sedi'})){
+    selection[key]=new Set(boot.selection?.[key]||boot.catalog[bucket].map(item=>Number(item.id)));
+    const section=document.createElement('section'),heading=title.cloneNode(true),list=document.createElement('div');heading.removeAttribute('id');heading.textContent={visits:'Prestazioni',doctors:'Professionisti',locations:'Sedi'}[key];heading.style.marginBottom='12px';list.style.cssText='display:grid;gap:12px;';section.append(heading,list);body.append(section);
+    if(!boot.catalog[bucket].length){const empty=document.createElement('p');empty.style.cssText='margin:0;font-size:14px;line-height:20px;color:#64748b;';empty.textContent='Nessun elemento disponibile.';list.append(empty);}
+    for(const item of boot.catalog[bucket]){
+     const card=document.createElement('div');card.className='catalog-card';card.dataset.catalogItem=key+'-'+item.id;
+     const name=[item.titolo,item.nome,item.cognome].filter(Boolean).join(' ');
+     card.append(checkbox(name,selection[key].has(Number(item.id)),checked=>checked?selection[key].add(Number(item.id)):selection[key].delete(Number(item.id)),key,item.id));list.append(card);
+     if(key==='locations')continue;
+     const metadataBucket=key==='visits'?'prestazioni':'professionisti',idKey=key==='visits'?'id_tipo_visita':'id_dot';let metadata=catalogEdit[metadataBucket].find(m=>Number(m[idKey])===Number(item.id));
+     if(!metadata){metadata={[idKey]:Number(item.id),online:true,modalita:null};catalogEdit[metadataBucket].push(metadata);}
+     const fields=document.createElement('div');fields.className='catalog-fields';card.append(fields);const prefix='booking-catalog-'+key+'-'+item.id;
+     if(key==='visits'){
+      field(fields,prefix+'-nome','Nome pubblico',metadata.nome_pubblico||item.nome,value=>metadata.nome_pubblico=value||null,{wide:true});
+      field(fields,prefix+'-descrizione','Descrizione',metadata.descrizione,value=>metadata.descrizione=value||null,{multiline:true});
+      field(fields,prefix+'-preparazione','Preparazione',metadata.preparazione,value=>metadata.preparazione=value||null,{multiline:true});
+      field(fields,prefix+'-prezzo','Prezzo',metadata.prezzo,value=>metadata.prezzo=value||null,{price:true});
+     }else{
+      const associations=document.createElement('div');associations.className='catalog-field-wide';const label=components.querySelector('label[for=x-norm]').cloneNode(false);label.removeAttribute('for');label.textContent='Prestazioni del professionista';const options=document.createElement('div');options.className='catalog-associations';associations.append(label,options);fields.append(associations);
+      for(const visit of boot.catalog.prestazioni)options.append(checkbox(visit.nome,!metadata.prestazioni||metadata.prestazioni.includes(Number(visit.id)),checked=>{metadata.prestazioni??=boot.catalog.prestazioni.map(v=>Number(v.id));metadata.prestazioni=checked?[...new Set([...metadata.prestazioni,Number(visit.id)])]:metadata.prestazioni.filter(id=>id!==Number(visit.id));},'doctor-'+item.id+'-visits',visit.id));
+     }
+     modeField(fields,prefix+'-modalita',item,metadata);
+    }
+   }
+   const error=document.createElement('p');error.hidden=true;error.setAttribute('role','alert');error.style.cssText='margin:0 24px 16px;font-size:14px;line-height:20px;color:#b42318;';
+   const buttons=[...reference.querySelectorAll('button')],saveButton=buttons.find(b=>b.textContent.trim()==='Salva le modifiche').cloneNode(true),cancelButton=buttons.find(b=>b.textContent.trim()==='Annulla le modifiche').cloneNode(true);
+   cancelButton.addEventListener('click',()=>dialog.close());saveButton.addEventListener('click',async()=>{saveButton.disabled=true;error.hidden=true;try{await send('catalog',{...Object.fromEntries(Object.entries(selection).map(([key,ids])=>[key,[...ids]])),catalogo:catalogEdit});location.reload();}catch(e){error.textContent=e.message;error.hidden=false;saveButton.disabled=false;}});
+   footer.append(cancelButton,saveButton);dialog.append(style,header,body,error,footer);dialog.addEventListener('close',()=>dialog.remove());document.body.append(dialog);dialog.showModal();dialog.style.display='flex';paint();
+  }catch(error){message(error.message,true);}finally{a.removeAttribute('aria-busy');}
+ }));
  bind('preavviso','regole.preavviso_minimo_min',v=>Number(v)*60);if($('#preavviso'))$('#preavviso').value=value('regole.preavviso_minimo_min')/60;
  for(const [name,key]of Object.entries({'dato-cellulare':'cellulare','dato-email':'email','dato-nascita':'nascita','dato-cf':'codice_fiscale','dato-note':'note'}))all('input[name='+name+']').forEach(el=>{el.checked=el.value===draft.dati[key];el.addEventListener('change',()=>{draft.dati[key]=el.value;changed();});});
  for(const [id,mode]of Object.entries({'chi-archivio':'archivio','chi-approvazione':'approvazione','chi-tutti':'aperta','chi-invito':'invito','acc-archivio':'archivio','acc-approvazione':'approvazione','acc-aperta':'aperta','acc-invito':'invito','var-archivio':'archivio','var-approvazione':'approvazione','var-aperta':'aperta','var-invito':'invito'})){const el=document.getElementById(id);if(el){el.checked=draft.accesso.modalita===mode;el.addEventListener('change',()=>{draft.accesso.modalita=mode;changed();});}}
