@@ -1,6 +1,8 @@
 # Reset notturno demo
 
-## Obiettivo
+## Modalità seed precedente
+
+La demo pubblica allineata usa la modalità `aligned_snapshot` descritta sotto. Questa sezione documenta soltanto il seed precedente, destinato alle demo che non hanno una base allineata.
 
 Rigenerare ogni notte il database demo con:
 
@@ -89,6 +91,41 @@ Alternative, solo se preferisci un trigger esterno:
 
 ## Note operative
 
-- La finestra rolling parte dalla data corrente; se capita nel weekend, gli appuntamenti partono dal primo giorno lavorativo utile.
-- Il report JSON del reset viene salvato in `rest/writable/demo_setup/`.
+- Nella modalità seed la finestra rolling parte dalla data corrente; se capita nel weekend, gli appuntamenti partono dal primo giorno lavorativo utile.
+- Il report JSON del seed viene salvato in `rest/writable/demo_setup/`.
 - Il login reale non viene toccato.
+
+## Base allineata al master (demo pubblica)
+
+La demo pubblica usa una base privata acquisita dopo l'allineamento allo spazio di prova. Il reset ripristina l'intero database demo, i ruoli, le preferenze, le associazioni della segreteria e gli allegati della base. Le prove dei visitatori e le loro sessioni vengono eliminate. Il reset non si collega al database di login.
+
+Configurazione del solo ambiente demo:
+
+```dotenv
+DEMO_DATASET_RESET_MODE=aligned_snapshot
+DEMO_ALIGNED_BASELINE=master-aligned-20261023
+DEMO_AUTO_RESET_ENABLED=1
+DEMO_AUTO_RESET_HOUR=2
+DEMO_AUTO_RESET_MINUTE=15
+DEMO_AUTO_RESET_TZ=Europe/Rome
+RUN_DEMO_SEED=0
+```
+
+La base rimane nei volumi persistenti in `rest/writable/demo-baselines/`, protetta dall'accesso HTTP. Ogni ripristino salva prima una copia di recupero privata con data e ora. La base originale non viene sovrascritta.
+
+Per acquisire una nuova base dopo aver preparato tutti i moduli, usare un nome nuovo:
+
+```bash
+php /var/www/html/rest/tools/AlignedDemoSnapshot.php capture --baseline=master-aligned-20261023
+php /var/www/html/rest/tools/AlignedDemoSnapshot.php verify --baseline=master-aligned-20261023
+```
+
+Impostare poi `DEMO_ALIGNED_BASELINE` sul nome verificato. Per eseguire subito lo stesso reset usato di notte:
+
+```bash
+php /var/www/html/rest/spark demo:reset-dataset
+```
+
+Gli orari e le date dell'agenda avanzano per settimane intere rispetto alla settimana della base: gli stessi giorni della settimana restano popolati e la finestra futura rimane disponibile. Dati clinici, documenti e date di audit conservano la loro cronologia.
+
+Un controllo fallito della base o dello schema interrompe il reset senza richiamare il vecchio seed. Dopo migration che introducono nuove tabelle preparare e verificare una nuova base. Durante i pochi secondi del ripristino la demo risponde con un avviso temporaneo; in caso di errore la transazione viene annullata e gli allegati precedenti vengono ripristinati. Il comando restituisce un errore, così il loop ritenta senza segnare la giornata come completata.

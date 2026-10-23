@@ -25,7 +25,7 @@ class ResetDemoDataset extends BaseCommand
 
         if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $startDate)) {
             CLI::error('La data deve essere nel formato YYYY-MM-DD.');
-            return;
+            return EXIT_ERROR;
         }
 
         try {
@@ -52,6 +52,7 @@ class ResetDemoDataset extends BaseCommand
             CLI::write('Report: ' . (string) ($result['report_path'] ?? ''));
         } catch (\Throwable $e) {
             CLI::error('Reset dataset demo fallito: ' . $e->getMessage());
+            return EXIT_ERROR;
         }
     }
 

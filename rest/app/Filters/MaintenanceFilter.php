@@ -13,6 +13,12 @@ class MaintenanceFilter implements FilterInterface
 
     public function before(RequestInterface $request, $arguments = null)
     {
+        if (!is_cli() && (string) env('DB_DATABASE', '') === 'ambulatoriofacile_demo'
+            && is_file(WRITEPATH . 'demo-reset-in-progress')) {
+            return service('response')->setStatusCode(503)->setHeader('Retry-After', '30')
+                ->setHeader('Cache-Control', 'no-store')
+                ->setBody('La demo si sta preparando. Riprova tra pochi secondi.');
+        }
         if (is_cli() || ! $this->isMaintenanceEnabled()) {
             return null;
         }

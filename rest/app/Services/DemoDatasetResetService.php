@@ -11,6 +11,27 @@ class DemoDatasetResetService
      */
     public function run(array $options = []): array
     {
+        $mode = strtolower($this->readEnvValue('DEMO_DATASET_RESET_MODE'));
+        $aligned = false;
+        if ($mode === '' && $this->readEnvValue('DB_DATABASE') === 'ambulatoriofacile_demo') {
+            try {
+                $tenant = \Config\Database::connect('platform')->table('platform_tenants')
+                    ->where('tenant_key', 'demo_ambulatoriofacile')->get(1)->getRowArray();
+                $metadata = json_decode((string) ($tenant['metadata_json'] ?? ''), true);
+                $aligned = is_array($metadata) && ($metadata['source'] ?? '') === 'master-test-demo-alignment';
+            } catch (\Throwable $e) {
+                throw new \RuntimeException('Impossibile verificare la base demo: reset annullato.', 0, $e);
+            }
+        }
+        if ($mode === 'aligned_snapshot' || $aligned) {
+            require_once rtrim(ROOTPATH, DIRECTORY_SEPARATOR) . '/tools/AlignedDemoSnapshot.php';
+            return \AlignedDemoSnapshot::run('restore', [
+                'start_date' => (string) ($options['agenda_start_date'] ?? date('Y-m-d')),
+            ]);
+        }
+        if ($mode !== '' && $mode !== 'seed') {
+            throw new \RuntimeException('Modalità reset demo non riconosciuta.');
+        }
         $scriptPath = rtrim(ROOTPATH, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'tools' . DIRECTORY_SEPARATOR . 'SeedDemoData.php';
         if (!is_file($scriptPath)) {
             throw new \RuntimeException('Script demo seed non trovato: ' . $scriptPath);
