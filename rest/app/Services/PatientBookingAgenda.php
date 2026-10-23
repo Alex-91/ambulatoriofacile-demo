@@ -21,11 +21,12 @@ final class PatientBookingAgenda
         $visits=$this->db->table('dap44_agenda_tipi_visita')->where('attivo',1)->get()->getResultArray();
         $locations=$this->db->table('dap42_ambulatori')->get()->getResultArray();
         $config=$this->settings['config'];
-        $custom=PatientBookingWorkflow::resolve($config)['catalogo'];
+        $workflow=PatientBookingWorkflow::resolve($config);$custom=$workflow['catalogo'];
+        $siteRequired=PatientBookingWorkflow::stepEnabled($workflow,'sede');
         $customVisits=array_column($custom['prestazioni'],null,'id_tipo_visita');
         $customDoctors=array_column($custom['professionisti'],null,'id_dot');
         $doctors=array_values(array_filter($doctors,static fn($r)=>$all || in_array((int)$r['id'],$config['doctors'],true)));
-        $locations=array_values(array_filter($locations,static fn($r)=>$all || in_array((int)$r['id_amb_legacy'],$config['locations'],true)));
+        $locations=array_values(array_filter($locations,static fn($r)=>$all || (!$config['locations'] && !$siteRequired) || in_array((int)$r['id_amb_legacy'],$config['locations'],true)));
         $visits=array_values(array_filter($visits,static fn($r)=>(int)$r['durata_minuti']>0 && ($all || in_array((int)$r['id_tipo_visita'],$config['visits'],true))));
         // A doctor/site pair must exist in this tenant's agenda; never invent a relation.
         $pairs=$this->db->table('dap11_agenda_slot')->select('id_dot,id_amb_legacy')->distinct()->get()->getResultArray();
@@ -34,6 +35,7 @@ final class PatientBookingAgenda
             $doctor['id']=(string)$doctor['id']; $doctor['qualifica']='';
             $doctor['sedi']=array_values(array_unique(array_map(static fn($r)=>(string)$r['id_amb_legacy'],array_filter($pairs,static fn($r)=>(string)$r['id_dot']===$doctor['id'] && in_array((string)$r['id_amb_legacy'],$locationIds,true)))));
             if(!$all && isset($customDoctors[$doctor['id']]['sedi']))$doctor['sedi']=array_values(array_intersect($doctor['sedi'],array_map('strval',$customDoctors[$doctor['id']]['sedi'])));
+            $doctor['senza_sede']=!$siteRequired && (bool)array_filter($pairs,static fn($r)=>(string)$r['id_dot']===$doctor['id'] && empty($r['id_amb_legacy']));
         } unset($doctor);
         if(!$all)$doctors=array_values(array_filter($doctors,fn($d)=>($customDoctors[$d['id']]['online']??true)));
         $services=[];
@@ -76,12 +78,14 @@ final class PatientBookingAgenda
     public function availability(array $q): array
     {
         $this->expire();
+        $existing=!empty($q['prenotazione']);
+        if($existing)$q=array_replace($q,$this->detail((string)$q['prenotazione']));
         $now=new \DateTimeImmutable('now',new \DateTimeZone('Europe/Rome'));
         $from=(string)($q['dal']??$now->format('Y-m-d'));
         $first=!empty($q['prima_disponibilita']);
         $to=$first?$now->modify('+'.$this->settings['config']['days'].' days')->format('Y-m-d'):(string)($q['al']??$from);
         if (!self::validDay($from) || !self::validDay($to) || $to<$from || (!$first && (strtotime($to)-strtotime($from))/86400>13)) throw new PatientBookingException('intervallo_non_valido');
-        $slots=$this->slots($q,$from,$to);
+        $slots=$this->slots($q,$from,$to,$existing);
         if ($first) return ['primo'=>$slots?self::publicSlot($slots[0]):null];
         $days=[];
         for ($d=new \DateTimeImmutable($from);$d->format('Y-m-d')<=$to;$d=$d->modify('+1 day')) {
@@ -94,24 +98,38 @@ final class PatientBookingAgenda
         return ['giorni'=>$days];
     }
 
-    private function slots(array $q,string $from,string $to): array
+    private function slots(array $q,string $from,string $to,bool $existing=false): array
     {
         if(!empty($this->settings['config']['suspended']) || !PatientBookingSettings::configured($this->settings['config'])) throw new PatientBookingException('prenotazioni_sospese',403);
         $cat=$this->catalog(); $services=array_column($cat['prestazioni'],null,'id');
-        $visit=$services[(string)($q['prestazione']??'')]??null;
-        if (!$visit) throw new PatientBookingException('prestazione_non_valida');
         $config=$this->settings['config'];
-        $doctor=(string)($q['professionista']??'primo'); $site=(string)($q['sede']??'');
-        if ($doctor==='primo' && !$config['first_available'] && count($cat['professionisti'])>1) throw new PatientBookingException('professionista_non_valido');
-        $doctors=$doctor==='primo'?$visit['professionisti']:[$doctor];
-        if(array_diff($doctors,$visit['professionisti']))throw new PatientBookingException('professionista_non_valido',409);
-        if (array_diff($doctors,array_column($cat['professionisti'],'id')) || ($site!=='' && !in_array($site,array_column($cat['sedi'],'id'),true))) throw new PatientBookingException('configurazione_cambiata',409);
-        if (!$doctors || !$config['locations']) return [];
+        $workflow=PatientBookingWorkflow::resolve($config);
+        $visitId=(string)($q['prestazione']??'');
+        if($visitId==='' && !$existing && !PatientBookingWorkflow::stepEnabled($workflow,'prestazione'))$visitId=(string)($workflow['scelte']['prestazione_predefinita']??'');
+        $visit=$services[$visitId]??null;
+        $needsService=PatientBookingWorkflow::stepEnabled($workflow,'prestazione') || !empty($workflow['scelte']['prestazione_predefinita']);
+        if (!$visit && ($visitId!=='' || ($needsService && !$existing))) throw new PatientBookingException('prestazione_non_valida');
+        $doctor=(string)($q['professionista']??'');$doctor=$doctor===''?'primo':$doctor;$site=(string)($q['sede']??'');
+        if($doctor==='primo' && !$existing && !PatientBookingWorkflow::stepEnabled($workflow,'professionista') && !empty($workflow['scelte']['professionista_predefinito']))$doctor=(string)$workflow['scelte']['professionista_predefinito'];
+        if ($doctor==='primo' && !$config['first_available'] && PatientBookingWorkflow::stepEnabled($workflow,'professionista') && count($cat['professionisti'])>1) throw new PatientBookingException('professionista_non_valido');
+        $eligible=$visit['professionisti']??array_column($cat['professionisti'],'id');
+        $doctors=$doctor==='primo'?$eligible:[$doctor];
+        if(array_diff($doctors,$eligible))throw new PatientBookingException('professionista_non_valido',409);
+        $siteRequired=PatientBookingWorkflow::stepEnabled($workflow,'sede');
+        if (array_diff($doctors,array_column($cat['professionisti'],'id')) || ($site!=='' && !(!$siteRequired && $site==='0') && !in_array($site,array_column($cat['sedi'],'id'),true))) throw new PatientBookingException('configurazione_cambiata',409);
+        if (!$doctors) return [];
         $now=new \DateTimeImmutable('now',new \DateTimeZone('Europe/Rome'));
-        $query=$this->db->table('dap11_agenda_slot')->whereIn('id_dot',$doctors)->whereIn('id_amb_legacy',$site!==''?[(int)$site]:$config['locations'])
+        $query=$this->db->table('dap11_agenda_slot')->whereIn('id_dot',$doctors)
             ->where('data_slot >=',$from)->where('data_slot <=',$to)->where('stato','LIBERO')
             ->where('ora_inizio >=',$now->modify('+'.$config['min_notice'].' minutes')->format('Y-m-d H:i:s'))
             ->where('ora_inizio <=',$now->modify('+'.$config['days'].' days')->format('Y-m-d H:i:s'));
+        if($site==='0' && !$siteRequired)$query->groupStart()->where('id_amb_legacy',0)->orWhere('id_amb_legacy',null)->groupEnd();
+        elseif($site!=='')$query->where('id_amb_legacy',(int)$site);
+        elseif($config['locations']){
+            $query->groupStart()->whereIn('id_amb_legacy',$config['locations']);
+            if(!$siteRequired)$query->orWhere('id_amb_legacy',null)->orWhere('id_amb_legacy',0);
+            $query->groupEnd();
+        }
         $rows=$query->get()->getResultArray();
         $locks=$this->db->table('dap14_agenda_lock')->where('stato','ATTIVO')->where('expires_at >=',$now->format('Y-m-d H:i:s'))->get()->getResultArray();
         $locked=array_fill_keys(array_column($locks,'id_slot'),true);
@@ -120,20 +138,27 @@ final class PatientBookingAgenda
         $holidays=$this->db->tableExists('dap48_gio_ros')?array_column($this->db->table('dap48_gio_ros')->get()->getResultArray(),'gio_ros'):[];
         $appointments=$this->db->query("SELECT a.id_dot,COALESCE(a.ora_inizio_appuntamento,s.ora_inizio) AS start_at,COALESCE(a.ora_fine_appuntamento,s.ora_fine) AS end_at FROM dap12_agenda_appuntamenti a JOIN dap11_agenda_slot s ON s.id_slot=a.id_slot WHERE a.stato <> 'ANNULLATO' AND s.data_slot >= ? AND s.data_slot <= ?",[$from,$to])->getResultArray();
         $doctorSites=array_column($cat['professionisti'],'sedi','id');
-        $rows=array_values(array_filter($rows,static function($s)use($locked,$days,$holidays,$appointments,$doctorSites){
-            if(!in_array((string)$s['id_amb_legacy'],$doctorSites[$s['id_dot']]??[],true))return false;
+        $withoutSite=array_column($cat['professionisti'],'senza_sede','id');
+        $rows=array_values(array_filter($rows,static function($s)use($locked,$days,$holidays,$appointments,$doctorSites,$withoutSite){
+            if(empty($s['id_amb_legacy']) ? empty($withoutSite[$s['id_dot']]) : !in_array((string)$s['id_amb_legacy'],$doctorSites[$s['id_dot']]??[],true))return false;
             $d=new \DateTimeImmutable($s['data_slot']);
             if (isset($locked[$s['id_slot']]) || isset($days[$s['id_dot'].'|'.$s['data_slot']]) || $d->format('w')==='0') return false;
             foreach (['d/m','d/m/Y','j/n','j/n/Y'] as $format) if (in_array($d->format($format),$holidays,true)) return false;
             foreach ($appointments as $a) if ((int)$a['id_dot']===(int)$s['id_dot'] && $a['start_at']<$s['ora_fine'] && $a['end_at']>$s['ora_inizio']) return false;
             return true;
         }));
-        return self::spans($rows,$visit['durata']);
+        $minutes=$visit['durata']??($existing?(int)($q['durata']??0):0);
+        if($minutes>0)return self::spans($rows,$minutes);
+        $result=[];
+        foreach($rows as $row)if($row['ora_fine']>$row['ora_inizio'])$result[]=$row+['ids'=>[(int)$row['id_slot']],'end'=>$row['ora_fine']];
+        usort($result,static fn($a,$b)=>[$a['ora_inizio'],$a['id_dot'],$a['id_slot']]<=>[$b['ora_inizio'],$b['id_dot'],$b['id_slot']]);
+        return $result;
     }
 
     private static function publicSlot(array $slot): array
     {
-        return ['data'=>$slot['data_slot'],'ora'=>ltrim(substr($slot['ora_inizio'],11,5),'0'),'professionista'=>(string)$slot['id_dot'],'sede'=>(string)$slot['id_amb_legacy']];
+        return ['data'=>$slot['data_slot'],'ora'=>ltrim(substr($slot['ora_inizio'],11,5),'0'),'professionista'=>(string)$slot['id_dot'],'sede'=>(string)($slot['id_amb_legacy']??''),
+            'durata'=>(int)((strtotime($slot['end'])-strtotime($slot['ora_inizio']))/60)];
     }
     private static function validDay(string $day): bool
     {
@@ -169,15 +194,24 @@ final class PatientBookingAgenda
         if($workflow['dati']['note']==='nascosto') $body['nota']='';
         $active=array_column(array_filter($workflow['passi'],fn($step)=>$step['attivo']),'id');
         if(!in_array('perchi',$active,true) && ($body['per']??'me')!=='me') throw new PatientBookingException('dati_non_validi');
-        if(!in_array('prestazione',$active,true) && (string)$s['prestazione']!==(string)$workflow['scelte']['prestazione_predefinita']) throw new PatientBookingException('dati_non_validi');
-        if(!in_array('professionista',$active,true) && $workflow['scelte']['professionista_predefinito'] && (string)$s['professionista']!==(string)$workflow['scelte']['professionista_predefinito']) throw new PatientBookingException('dati_non_validi');
+        if(!in_array('prestazione',$active,true)){
+            $expected=$workflow['scelte']['prestazione_predefinita'];
+            if(!empty($s['prestazione']) && (string)$s['prestazione']!==(string)$expected)throw new PatientBookingException('dati_non_validi');
+            $s['prestazione']=$expected?:null;
+        }
+        if(!in_array('professionista',$active,true) && $workflow['scelte']['professionista_predefinito']){
+            if(!empty($s['professionista']) && (string)$s['professionista']!==(string)$workflow['scelte']['professionista_predefinito'])throw new PatientBookingException('dati_non_validi');
+            $s['professionista']=(string)$workflow['scelte']['professionista_predefinito'];
+        }
         $doctor=(int)($s['professionista']??0);
         $lock='patient-web-book-'.substr(hash('sha256',$this->db->database),0,40);
         if ((int)($this->db->query('SELECT GET_LOCK(?,10) AS acquired',[$lock])->getRowArray()['acquired']??0)!==1) throw new PatientBookingException('riprova',503);
         try {
             $this->db->transBegin();
             try {
-                $this->db->query('SELECT id_slot FROM dap11_agenda_slot WHERE id_dot=? AND data_slot=? ORDER BY id_slot FOR UPDATE',[$doctor,$s['data']])->getResultArray();
+                $lockDoctors=$doctor>0?[$doctor]:$this->settings['config']['doctors'];
+                sort($lockDoctors);
+                if($lockDoctors)$this->db->query('SELECT id_slot FROM dap11_agenda_slot WHERE id_dot IN ('.implode(',',array_fill(0,count($lockDoctors),'?')).') AND data_slot=? ORDER BY id_slot FOR UPDATE',[...$lockDoctors,$s['data']])->getResultArray();
                 $old=$this->db->table('patient_online_bookings')->where('author_id',$this->actor)->where('idempotency_key',$key)->get()->getRowArray();
                 if ($old) {
                     if (!hash_equals($old['request_hash'],$hash)) throw new PatientBookingException('richiesta_cambiata',409);
@@ -187,12 +221,17 @@ final class PatientBookingAgenda
                 $matches=$this->slots($s,$s['data'],$s['data']); $chosen=null;
                 foreach ($matches as $slot) if (self::publicSlot($slot)['ora']===ltrim($s['ora'],'0')) { $chosen=$slot; break; }
                 if (!$chosen) throw new PatientBookingException('slot_non_disponibile',409,['alternative'=>array_map([self::class,'publicSlot'],array_slice($matches,0,3))]);
-                $records->enforceLimits($phone,$email,(int)$s['prestazione'],$workflow,$chosen['ora_inizio'],$chosen['end']);
+                $doctor=(int)$chosen['id_dot'];$s['professionista']=(string)$doctor;$s['sede']=(string)($chosen['id_amb_legacy']??'');
+                if($workflow['accesso']['modalita']!=='invito'){
+                    $customDoctor=array_column($workflow['catalogo']['professionisti'],null,'id_dot')[$doctor]??[];
+                    $workflow['accesso']['modalita']=$customDoctor['modalita']??$customService['modalita']??PatientBookingWorkflow::resolve($this->settings['config'])['accesso']['modalita'];
+                }
+                $records->enforceLimits($phone,$email,(int)($s['prestazione']??0),$workflow,$chosen['ora_inizio'],$chosen['end']);
                 $records->enforceRequestLimits($this->requestContext,$workflow);
                 // Internal trial: operator identity authorizes the action; supplied patient data is never used to identify/link an existing registry record.
                 $id=(new AgendaAppointmentModel($this->db))->saveAppointment([
-                    'id_slot'=>(int)$chosen['id_slot'],'id_dot'=>$doctor,'id_tipo_visita'=>(int)$s['prestazione'],
-                    'visit_types_feature_enabled'=>true,'visit_type_required'=>true,'slot_lock_required'=>false,'check_active_locks'=>true,
+                    'id_slot'=>(int)$chosen['id_slot'],'id_dot'=>$doctor,'id_tipo_visita'=>!empty($s['prestazione'])?(int)$s['prestazione']:null,
+                    'visit_types_feature_enabled'=>true,'visit_type_required'=>!empty($s['prestazione']),'slot_lock_required'=>false,'check_active_locks'=>true,
                     'custom_appointment_time_feature_enabled'=>true,'custom_time_enabled'=>true,
                     'custom_start_time'=>substr($chosen['ora_inizio'],11,5),'custom_end_time'=>substr($chosen['end'],11,5),
                     'nome'=>trim($p['nome']),'cognome'=>trim($p['cognome']),'cellulare'=>$phone,'email'=>$email,
@@ -225,7 +264,8 @@ final class PatientBookingAgenda
         $state=$metadata['status']??'confermata';
         if($row['stato']==='ANNULLATO' && !in_array($state,['rifiutata','scaduta'],true))$state='annullata';
         return ['ref'=>$ref,'stato'=>$state,'data'=>$row['data_slot'],'scade_il'=>$metadata['expires_at']??null,'created_at'=>$row['created_at'],
-            'ora'=>ltrim(substr($row['ora_inizio_appuntamento']?:$row['ora_inizio'],11,5),'0'),'prestazione'=>(string)$row['id_tipo_visita'],
+            'ora'=>ltrim(substr($row['ora_inizio_appuntamento']?:$row['ora_inizio'],11,5),'0'),'prestazione'=>!empty($row['id_tipo_visita'])?(string)$row['id_tipo_visita']:null,
+            'durata'=>(int)($row['durata_minuti']??0),
             'professionista'=>(string)$row['id_dot'],'sede'=>(string)$row['id_amb_legacy'],'paziente'=>['nome'=>$row['nome'],'cognome'=>$row['cognome']],
             'cellulare'=>$row['cellulare'],'email'=>$row['email'],'prenotante'=>$metadata['data']['prenotante']??null,'canale'=>null,'verificata'=>false,'notificata'=>$this->db->table('patient_booking_outbox')->where('booking_ref',$ref)->where('sequence',(int)($metadata['sequence']??0))->where('state','sent')->whereIn('event',['requested.patient','confirmed.patient'])->countAllResults()>0,'ics_sequence'=>(int)($metadata['sequence']??0)];
     }
@@ -276,14 +316,14 @@ final class PatientBookingAgenda
                 if (!$row || $p['stato']!=='confermata' || $start <= (new \DateTimeImmutable('now',new \DateTimeZone('Europe/Rome')))->modify('+'.$this->settings['config']['cancel_hours'].' hours')) throw new PatientBookingException('preavviso_insufficiente',409);
                 // Retry to the already selected destination is a no-op.
                 if ($p['data']===$day && $p['ora']===ltrim($time,'0')) { $this->db->transCommit(); return $p; }
-                $matches=$this->slots($p,$day,$day); $chosen=null;
+                $matches=$this->slots($p,$day,$day,true); $chosen=null;
                 foreach ($matches as $slot) if (self::publicSlot($slot)['ora']===ltrim($time,'0')) { $chosen=$slot; break; }
                 if (!$chosen) throw new PatientBookingException('slot_non_disponibile',409,['alternative'=>array_map([self::class,'publicSlot'],array_slice($matches,0,3))]);
                 // The model retains/replaces dap45 links and restores the old slots in this outer transaction.
                 (new PatientBookingRecords($this->db))->enforceLimits($p['cellulare'],$p['email'],(int)$p['prestazione'],PatientBookingWorkflow::resolve($this->settings['config']),$chosen['ora_inizio'],$chosen['end'],$ref);
                 $this->db->table('dap12_agenda_appuntamenti')->where('id_appuntamento',$row['id_appuntamento'])->update(['id_slot'=>(int)$chosen['id_slot']]);
                 (new AgendaAppointmentModel($this->db))->updateAppointment(array_merge($row,[
-                    'id_tipo_visita'=>(int)$p['prestazione'],'visit_types_feature_enabled'=>true,'visit_type_required'=>true,
+                    'id_tipo_visita'=>!empty($p['prestazione'])?(int)$p['prestazione']:null,'visit_types_feature_enabled'=>true,'visit_type_required'=>!empty($p['prestazione']),
                     'custom_appointment_time_feature_enabled'=>true,'custom_time_enabled'=>true,
                     'custom_start_time'=>substr($chosen['ora_inizio'],11,5),'custom_end_time'=>substr($chosen['end'],11,5),
                 ]));

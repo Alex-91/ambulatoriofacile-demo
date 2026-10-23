@@ -10,7 +10,7 @@ final class PatientBookingEmail
         if(!isset(self::TEMPLATES[$type]))throw new PatientBookingException('non_trovata',404);
         $html=file_get_contents(APPPATH.'Resources/patient-booking/source/email/'.self::TEMPLATES[$type].'.html');
         $w=PatientBookingWorkflow::resolve($config);$doctors=array_column($catalog['professionisti'],null,'id');$sites=array_column($catalog['sedi'],null,'id');
-        if(str_starts_with($type,'P') && empty($w['comunicazioni']['mostra_prestazione_nei_messaggi']))$html=preg_replace('/<tr><td[^>]*>Prestazione<\/td><td.*?<\/td><\/tr>/s','',$html);
+        if(empty($p['prestazione']) || (str_starts_with($type,'P') && empty($w['comunicazioni']['mostra_prestazione_nei_messaggi'])))$html=preg_replace('/<tr><td[^>]*>Prestazione<\/td><td.*?<\/td><\/tr>/s','',$html);
         $doc=$doctors[$p['professionista']]??[];$site=$sites[$p['sede']]??[];
         $name=$tenant['tenant_name'];$doctor=trim(implode(' ',[$doc['titolo']??'',$doc['nome']??'',$doc['cognome']??'']));
         $date=new \DateTimeImmutable($p['data'].' '.$p['ora'],new \DateTimeZone('Europe/Rome'));
@@ -78,7 +78,7 @@ final class PatientBookingEmail
     public static function calendar(array $p,array $catalog): string
     {
         $visit=array_column($catalog['prestazioni'],null,'id')[$p['prestazione']]??[];
-        $start=new \DateTimeImmutable($p['data'].' '.$p['ora'],new \DateTimeZone('Europe/Rome'));$end=$start->modify('+'.(int)($visit['durata']??30).' minutes');
+        $start=new \DateTimeImmutable($p['data'].' '.$p['ora'],new \DateTimeZone('Europe/Rome'));$end=$start->modify('+'.(int)($p['durata']??$visit['durata']??30).' minutes');
         $utc=new \DateTimeZone('UTC');
         return implode("\r\n",['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//AmbulatorioFacile//Prenotazione//IT','METHOD:'.(($p['stato']??'')==='annullata'?'CANCEL':'PUBLISH'),'BEGIN:VEVENT','UID:'.$p['ref'].'-'.hash('sha256',$p['created_at']??$p['ref']).'@ambulatoriofacile','DTSTAMP:'.gmdate('Ymd\THis\Z'),'DTSTART:'.$start->setTimezone($utc)->format('Ymd\THis\Z'),'DTEND:'.$end->setTimezone($utc)->format('Ymd\THis\Z'),'SEQUENCE:'.(int)$p['ics_sequence'],'STATUS:'.(($p['stato']??'')==='annullata'?'CANCELLED':'CONFIRMED'),'SUMMARY:Appuntamento','END:VEVENT','END:VCALENDAR','']);
     }

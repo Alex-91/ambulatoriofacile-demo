@@ -1,6 +1,6 @@
 // Loopback-only visual preview. Synthetic fixtures and memory only; no application DB.
 const fs=require('fs'),path=require('path'),http=require('http'),{execFileSync}=require('child_process');
-const root=path.resolve(__dirname,'..');
+const root=path.resolve(__dirname,'..'),withoutLocation=process.argv.includes('--without-location');
 const catalog={
  professionisti:[{id:'10',nome:'Elena',cognome:'Conti',titolo:'Dott.ssa',qualifica:'',sedi:['1','2']},{id:'20',nome:'Luca',cognome:'Romano',titolo:'Dott.',qualifica:'',sedi:['1']}],
  prestazioni:[{id:'1',nome:'Prima visita',specialita:'Prestazioni',durata:45,prezzo:null,professionisti:['10','20'],sedi:['1','2'],parole:'Prima visita'},{id:'2',nome:'Visita di controllo',specialita:'Prestazioni',durata:30,prezzo:null,professionisti:['10','20'],sedi:['1','2'],parole:'Controllo'}],
@@ -11,6 +11,15 @@ let bookings=[],contacts=[],invites=new Map();
 function php(file,input){return execFileSync('php',['-d','xdebug.mode=off',path.join(root,'rest/tests/_support',file)],{input:JSON.stringify(input),encoding:'utf8',stdio:['pipe','pipe','pipe']});}
 function normalize(c){return JSON.parse(php('patient_booking_admin_preview.php',{mode:'config',config:c}));}
 config=normalize(config).config;
+if(withoutLocation){
+ catalog.professionisti[0].nome='Alice';catalog.professionisti[0].cognome='Moretti';
+ catalog.professionisti.forEach(d=>{d.sedi=[];d.senza_sede=true;});catalog.sedi=[];
+ config.visits=[];config.locations=[];config.first_available=false;
+ config.workflow.passi.forEach(p=>{if(['prestazione','professionista','sede','perchi'].includes(p.id))p.attivo=false;});
+ config.workflow.scelte.prestazione_predefinita=config.workflow.scelte.professionista_predefinito=null;
+ config=normalize(config).config;
+}
+
 function currentCatalog(c=config){return {...catalog,professionisti:catalog.professionisti.filter(p=>c.doctors.includes(+p.id)),prestazioni:catalog.prestazioni.filter(p=>c.visits.includes(+p.id)).map(p=>({...p,professionisti:p.professionisti.filter(id=>c.doctors.includes(+id)),sedi:p.sedi.filter(id=>c.locations.includes(+id))})),sedi:catalog.sedi.filter(p=>c.locations.includes(+p.id)),config:normalize(c).workflow,prenotazioni_attive:!config.suspended,modalita:normalize(config).workflow.accesso.modalita,invito:null,regole:{max_attive:100,finestra_giorni:c.days,preavviso_sposta_ore:c.cancel_hours,riserva_minuti:0}};}
 const server=http.createServer(async(req,res)=>{
  try {
@@ -68,9 +77,9 @@ const server=http.createServer(async(req,res)=>{
   else if(u.pathname==='/api/catalogo')result={...currentCatalog(draftConfig),invito:invites.get(u.searchParams.get('invito'))||null};
   else if(u.pathname==='/api/disponibilita'){
    const doctor=u.searchParams.get('professionista'),site=u.searchParams.get('sede');
-   const slot={data:u.searchParams.get('dal')||'2026-11-12',ora:'9:00',professionista:doctor==='primo'||!doctor?String(config.doctors[0]):doctor,sede:site||String(config.locations[0])};
+   const slot={data:u.searchParams.get('dal')||'2026-11-12',ora:'9:00',professionista:doctor==='primo'||!doctor?String(config.doctors[0]):doctor,sede:site||(withoutLocation?'':String(config.locations[0])),durata:withoutLocation?20:45};
    if(u.searchParams.get('prima_disponibilita'))result={primo:slot};else{const giorni={};const until=u.searchParams.get('al')||slot.data;for(let day=slot.data;day<=until;day=new Date(new Date(day+'T12:00:00Z').getTime()+86400000).toISOString().slice(0,10))giorni[day]={stato:'posti',orari:[{...slot,data:day},{...slot,data:day,ora:'10:00'}]};result={giorni};}
-  }else if(u.pathname==='/api/prenotazioni'&&req.method==='POST'){const p={...body.slot,paziente:body.paziente,ref:'ABC'+String(234+bookings.length),stato:config.workflow.accesso.modalita==='approvazione'?'in_attesa':'confermata',created_at:new Date().toISOString().slice(0,19).replace('T',' '),scade_il:new Date(Date.now()+86400000).toISOString().slice(0,19).replace('T',' '),...body.contatto,canale:null,verificata:false,ics_sequence:0};bookings.push(p);result={prenotazione:p};}
+  }else if(u.pathname==='/api/prenotazioni'&&req.method==='POST'){const p={...body.slot,durata:withoutLocation?20:45,paziente:body.paziente,ref:'ABC'+String(234+bookings.length),stato:config.workflow.accesso.modalita==='approvazione'?'in_attesa':'confermata',created_at:new Date().toISOString().slice(0,19).replace('T',' '),scade_il:new Date(Date.now()+86400000).toISOString().slice(0,19).replace('T',' '),...body.contatto,canale:null,verificata:false,ics_sequence:0};bookings.push(p);result={prenotazione:p};}
   else if(u.pathname==='/api/prenotazioni/mie')result={prenotazioni:bookings};
   else {const p=bookings.find(p=>p.ref===u.pathname.split('/')[3]);if(!p){res.statusCode=404;result={errore:'non_trovata'};}else{if(u.pathname.endsWith('/annulla'))p.stato='annullata';if(u.pathname.endsWith('/sposta'))Object.assign(p,{data:body.data,ora:body.ora});result={prenotazione:p};}}
   res.setHeader('Content-Type','application/json');res.end(JSON.stringify({...result,csrf:'preview'}));return;

@@ -77,6 +77,6 @@
 <dialog id="sheet" class="sheet" aria-labelledby="sheet-titolo"></dialog>
 
 
-<script>window.patientBooking = <?= json_encode($bookingBootstrap, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_THROW_ON_ERROR) ?>;</script><script src="<?= base_url('public/assets/patient-booking/booking.js') ?>"></script>
+<script>window.patientBooking = <?= json_encode($bookingBootstrap, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_THROW_ON_ERROR) ?>;</script><script src="<?= base_url('public/assets/patient-booking/booking.js').'?v='.substr(hash_file('sha256',dirname(__DIR__,4).'/public/assets/patient-booking/booking.js'),0,16) ?>"></script>
 </body>
 </html>

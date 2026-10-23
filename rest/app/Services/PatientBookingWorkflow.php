@@ -4,6 +4,11 @@ namespace App\Services;
 /** Configuration for the authenticated, manual-contact booking journey. */
 final class PatientBookingWorkflow
 {
+    public static function stepEnabled(array $workflow,string $id): bool
+    {
+        foreach($workflow['passi']??self::defaults()['passi'] as $step)if($step['id']===$id)return !empty($step['attivo']);
+        return false;
+    }
     public static function defaults(): array
     {
         $c=json_decode(file_get_contents(APPPATH.'Resources/patient-booking/defaults.json'),true,512,JSON_THROW_ON_ERROR);
@@ -51,8 +56,6 @@ final class PatientBookingWorkflow
             $id=$c['scelte'][$key];$c['scelte'][$key]=$id===null||$id===''?null:(string)(int)$id;
             if($c['scelte'][$key]!==null && !in_array((int)$id,$settings[$bucket],true)) self::fail('La scelta predefinita deve essere abilitata nel catalogo.');
         }
-        if(!in_array('prestazione',$active,true) && !$c['scelte']['prestazione_predefinita']) self::fail('Scegli una prestazione predefinita prima di nascondere il passo.');
-        if(!in_array('professionista',$active,true) && !$settings['first_available'] && !$c['scelte']['professionista_predefinito'] && count($settings['doctors'])>1) self::fail('Scegli un professionista predefinito oppure abilita Il primo disponibile.');
         foreach(['salta_professionista_se_unico','salta_sede_se_unica'] as $key) $c['scelte'][$key]=!empty($c['scelte'][$key]);
         if(!in_array($c['senza_verifica']['recapito'],['almeno_uno','cellulare','email','facoltativo'],true)) self::fail('Regola dei recapiti non valida.');
         foreach(['cellulare','email','note','nascita','codice_fiscale'] as $key) if(!in_array($c['dati'][$key],['obbligatorio','facoltativo','nascosto'],true)) self::fail('Configurazione dei campi non valida.');

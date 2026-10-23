@@ -56,9 +56,6 @@ function validaConfig(c, studio = { whatsappCollegato: !!STUDIO.whatsapp, presta
     if (attivi.includes(id) && pos('orario') >= 0 && pos(id) > pos('orario')) errori.push(`"${NOMI_PASSI.orario}" deve venire dopo "${NOMI_PASSI[id]}".`);
   }
   if (conVerifica && pos('dati') >= 0 && pos('dati') < pos('verifica')) errori.push('"I tuoi dati" deve venire dopo la verifica: chi è già paziente trova i dati compilati.');
-  if (!attivi.includes('prestazione') && !c.scelte.prestazione_predefinita) errori.push('Con il passo Prestazione spento serve una prestazione predefinita.');
-  if (!c.scelte.primo_disponibile && !attivi.includes('professionista') && !c.scelte.professionista_predefinito
-      && studio.prestazioni.some(p => p.professionisti.length > 1)) errori.push('Senza "Il primo disponibile" e con il passo Professionista spento serve un professionista predefinito.');
   if (c.verifica.richiesta && attivi.includes('verifica') && !c.verifica.metodi.length) errori.push('Con la verifica attiva serve almeno un metodo (WhatsApp, email o SMS).');
   if (c.verifica.metodi.includes('whatsapp') && !studio.whatsappCollegato) errori.push('Per verificare con WhatsApp lo studio deve avere il numero WhatsApp collegato al gestionale.');
   if (c.accesso.modalita === 'archivio' && !conVerifica) errori.push('"Solo pazienti già in archivio" non è ammessa senza verifica: non si può sapere chi è davvero.');
@@ -316,8 +313,14 @@ function combinazioni() {
   const pros = state.catalogo ? state.catalogo.professionisti.map(p => p.id) : Object.keys(PROFESSIONISTI);
   const sedi = state.catalogo ? state.catalogo.sedi.map(s => s.id) : Object.keys(SEDI);
   const lista = [];
-  for (const p of catPrestazioni()) for (const pro of p.professionisti) for (const sede of p.sedi) {
-    if (pros.includes(pro) && sedi.includes(sede) && AGENDE[pro] && AGENDE[pro].sedi[sede]) lista.push({ prestazione: p.id, professionista: pro, sede });
+  const services = !passoAttivo('prestazione') && !cfg().scelte.prestazione_predefinita
+    ? [{ id: null, professionisti: pros, sedi }] : catPrestazioni();
+  for (const p of services) for (const pro of p.professionisti) {
+    if (!pros.includes(pro) || !AGENDE[pro]) continue;
+    const doctor = (state.catalogo?.professionisti || []).find(d => d.id === pro);
+    const sites = Object.keys(AGENDE[pro].sedi);
+    if (!passoAttivo('sede') && doctor?.senza_sede) sites.push('');
+    for (const sede of sites) if (sede === '' || (sedi.includes(sede) && p.sedi.includes(sede))) lista.push({ prestazione:p.id, professionista:pro, sede });
   }
   combinazioniCache = { catalogo: state.catalogo, lista };
   return lista;
@@ -353,6 +356,7 @@ function unicaScelta(passo) {
 // una sola scelta possibile. Le scelte automatiche restano visibili nel riepilogo, senza "Modifica".
 function riempiAutomatici() {
   const d = state.draft; const sc = cfg().scelte;
+  if (!passoAttivo('prestazione') && state.catalogo?.modalita !== 'invito') d.prestazione = sc.prestazione_predefinita || null;
   if (!d.prestazione) {
     if (!passoAttivo('prestazione')) d.prestazione = sc.prestazione_predefinita;
     else if (unicaScelta('prestazione')) d.prestazione = opzioni('prestazione')[0];
@@ -361,13 +365,13 @@ function riempiAutomatici() {
     if (!passoAttivo('professionista')) {
       // Spento: il professionista predefinito, l'unico possibile, oppure il sistema col primo posto libero.
       if (sc.professionista_predefinito) d.professionista = sc.professionista_predefinito;
-      else if (d.prestazione) { const o = opzioni('professionista'); d.professionista = o.length === 1 ? o[0] : 'primo'; }
+      else { const o = opzioni('professionista'); d.professionista = o.length === 1 ? o[0] : 'primo'; }
     } else if (unicaScelta('professionista')) d.professionista = opzioni('professionista')[0];
   }
   if (!d.sede) {
     if (!passoAttivo('sede')) {
       // Spenta: l'unica sede possibile, altrimenti quella del primo posto libero (decide l'orario scelto).
-      if (d.prestazione && d.professionista) { const o = opzioni('sede'); if (o.length === 1) d.sede = o[0]; }
+      if (d.professionista) { const o = opzioni('sede'); if (o.length === 1) d.sede = o[0]; }
     } else if (unicaScelta('sede')) d.sede = opzioni('sede')[0];
   }
 }
@@ -442,7 +446,7 @@ function guardia(s) {
     if (s === 'codice') return state.ui.otp.inviato && state.ui.otp.contesto === 'prenota' ? null : 'telefono';
     const manca = primoDaFare(s);                                             // un passo precedente non è completo
     if (manca) return manca;
-    if (s === 'orario' && !(d.prestazione && d.professionista)) return 'benvenuto';
+    if (s === 'orario' && ((!d.prestazione && (passoAttivo('prestazione') || cfg().scelte.prestazione_predefinita)) || !d.professionista)) return 'benvenuto';
     return null;
   }
   switch (s) {
@@ -541,8 +545,8 @@ const nomePro = p => `${p.titolo} ${p.nome} ${p.cognome}`;
 const nomeProBreve = p => `${p.titolo} ${p.cognome}`;
 const conArticolo = p => `${p.titolo === 'Dott.ssa' ? 'la' : 'il'} ${nomePro(p)}`;
 const iniziali = (n, c) => `${(n || '?')[0]}${(c || '')[0] || ''}`.toUpperCase();
-const indirizzo = s => (s.online ? s.indirizzo : `${s.indirizzo}, ${s.cap} ${s.citta} (${s.prov})`);
-const linkMaps = s => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${s.indirizzo}, ${s.cap} ${s.citta} ${s.prov}`)}`;
+const indirizzo = s => !s ? '' : (s.online ? s.indirizzo : `${s.indirizzo}, ${s.cap} ${s.citta} (${s.prov})`);
+const linkMaps = s => !s ? '#' : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${s.indirizzo}, ${s.cap} ${s.citta} ${s.prov}`)}`;
 const formattaCell = c => (c.length === 10 ? `${c.slice(0, 3)} ${c.slice(3, 6)} ${c.slice(6)}` : c);
 function normalizzaCell(v) {
   let c = String(v || '').replace(/[^\d+]/g, '');
@@ -656,7 +660,7 @@ function rigaRiepilogo() {
   if (pro) parti.push(nomeProBreve(pro));
   else if (d.professionista === 'primo') parti.push('Il primo disponibile');
   const sede = SEDI[sedeDi(d)];
-  if (sede) parti.push(sede.online ? 'Videochiamata' : sede.nome);
+  if (sede) parti.push(sede?.online ? 'Videochiamata' : sede.nome);
   return parti.join(' · ');
 }
 
@@ -693,7 +697,7 @@ function sBenvenuto() {
   const primo = ordine().find(p => p !== 'codice' && serve(p));
   const sotto = verificaRichiesta()
     ? 'Scegli la prestazione e l\'orario che preferisci. Confermi con una verifica veloce, senza creare un account.'
-    : 'Scegli la prestazione e l\'orario che preferisci. Non serve creare un account.';
+    : passoAttivo('prestazione') ? 'Scegli la prestazione e l\'orario che preferisci. Non serve creare un account.' : 'Scegli il giorno e l\'orario che preferisci. Non serve creare un account.';
   const INIZIO = { professionista: 'Scegli il professionista', sede: 'Scegli la sede', orario: 'Scegli il giorno e l\'orario', perchi: 'Inizia la prenotazione', telefono: 'Inizia la prenotazione', dati: 'Inizia la prenotazione' };
   const scelta = primo === 'prestazione'
     ? `${campoRicerca('cerca-home', true)}
@@ -766,9 +770,9 @@ function sInvito(inv) {
   return `<p class="eyebrow">Invito personale</p>
     ${titolo(`Ciao${inv.nome ? ' '+esc(inv.nome) : ''}, lo studio ti invita a prenotare`, `Scegli tu l'orario. Il link è personale e vale per una sola prenotazione, fino al ${giornoMese(inv.valido_fino)}.`)}
     <div class="card recap">
-      <div class="recap-row">${icon('steth')}<div class="recap-main"><p class="recap-label">Prestazione</p><p class="recap-val">${esc(pres.nome)}</p><p class="recap-sub">${pres.durata} minuti${pres.prezzo == null ? '' : ' · ' + pres.prezzo + ' €, paghi in studio'}</p></div></div>
+      ${pres ? `<div class="recap-row">${icon('steth')}<div class="recap-main"><p class="recap-label">Prestazione</p><p class="recap-val">${esc(pres?.nome || '')}</p><p class="recap-sub">${pres?.durata} minuti${pres?.prezzo == null ? '' : ' · ' + pres?.prezzo + ' €, paghi in studio'}</p></div></div>` : ''}
       <div class="recap-row">${icon('user')}<div class="recap-main"><p class="recap-label">Professionista</p><p class="recap-val">${nomePro(pro)}</p></div></div>
-      <div class="recap-row">${icon('pin')}<div class="recap-main"><p class="recap-label">Sede</p><p class="recap-val">${esc(sede.nome)}</p><p class="recap-sub">${esc(indirizzo(sede))}</p></div></div>
+      ${sede ? `<div class="recap-row">${icon('pin')}<div class="recap-main"><p class="recap-label">Sede</p><p class="recap-val">${esc(sede?.nome || '')}</p><p class="recap-sub">${esc(indirizzo(sede))}</p></div></div>` : ''}
     </div>
     <button type="button" class="btn btn-primary btn-lg btn-block mt20" data-action="usa-invito">Scegli l'orario</button>
     <p class="micro on-bg center mt16">Per altre visite chiama lo <a href="${esc(STUDIO.telHref)}">${esc(STUDIO.telefono)}</a>.</p>`;
@@ -781,8 +785,8 @@ function sPrestazione() {
   const chip = s => `<button type="button" class="chip" id="spec-${norm(s)}" data-action="specialita" data-val="${s}" aria-pressed="${attiva === s}">${s}</button>`;
   // Con professionista o sede scelti prima, l'elenco mostra solo le prestazioni possibili.
   const v = vincoli('prestazione'); const pro = PROFESSIONISTI[v.professionista]; const sede = SEDI[v.sede];
-  const filtro = pro ? ` Qui trovi quelle con ${conArticolo(pro)}${sede ? (sede.online ? ', in videochiamata' : `, a ${esc(sede.nome)}`) : ''}.`
-    : sede ? (sede.online ? ' Qui trovi quelle in videochiamata.' : ` Qui trovi quelle della sede di ${esc(sede.nome)}.`) : '';
+  const filtro = pro ? ` Qui trovi quelle con ${conArticolo(pro)}${sede ? (sede?.online ? ', in videochiamata' : `, a ${esc(sede?.nome || '')}`) : ''}.`
+    : sede ? (sede?.online ? ' Qui trovi quelle in videochiamata.' : ` Qui trovi quelle della sede di ${esc(sede?.nome || '')}.`) : '';
   return {
     html: `${titolo('Cosa ti serve?', `Scegli la prestazione. Durata e prezzo sono indicativi e paghi in studio.${filtro}`)}
       ${campoRicerca('cerca-elenco', false)}
@@ -808,13 +812,14 @@ function primoPer(pres, pro, sede) {
     state.cache.primi.set(k, undefined);
     api.disponibilita({ prestazione: pres, professionista: pro, sede, prima_disponibilita: 1 })
       .then(r => { state.cache.primi.set(k, r.primo); ridisegnaSe(['professionista', 'sede']); })
-      .catch(() => state.cache.primi.delete(k));
+      .catch(() => { state.cache.primi.set(k, { errore:true }); ridisegnaSe(['professionista', 'sede']); });
   }
   return state.cache.primi.get(k);
 }
 function badgePrimo(primo, etichetta = 'Primo posto libero') {
   if (primo === undefined) return '<span class="sk sk-pill" aria-hidden="true"></span>';
-  if (primo === null) return badge('Nessun posto nei prossimi 90 giorni', 'warn', 'calendar-x');
+  if (primo?.errore) return badge('Disponibilità non leggibile. Riprova.', 'warn', 'warning');
+  if (primo === null) return badge('Nessun posto nei prossimi '+cfg().regole.giorni_prenotabili+' giorni', 'warn', 'calendar-x');
   if (diffGiorni(OGGI_ISO, primo.data) > 30) return badge(`${etichetta}: ${dataMedia(primo.data)}`, 'warn', 'calendar');
   return badge(`${etichetta}: ${dataMedia(primo.data)}`, 'ok', 'calendar');
 }
@@ -828,19 +833,19 @@ function sProfessionista() {
   const cardPrimo = cfg().scelte.primo_disponibile ? `<button type="button" class="opt ${sel('primo') ? 'is-selected' : ''}" id="pro-primo" data-action="professionista" data-id="primo">
       <span class="icon-tile">${icon('zap')}</span>
       <span class="opt-body"><span class="opt-title">Il primo disponibile</span>
-        <span class="opt-sub">Ti proponiamo l'orario libero più vicino.</span>${pres ? badgePrimo(primoPer(pres.id, 'primo', v.sede)) : ''}</span>
+        <span class="opt-sub">Ti proponiamo l'orario libero più vicino.</span>${badgePrimo(primoPer(pres?.id || null, 'primo', v.sede))}</span>
       <span class="opt-end">${sel('primo') ? icon('check') : icon('chev-right')}</span></button>` : '';
   const cards = pros.map(p => {
     const sediPro = [...new Set(combinazioni().filter(c => c.professionista === p.id && (!pres || c.prestazione === pres.id) && (!v.sede || c.sede === v.sede)).map(c => c.sede))];
-    const online = sediPro.length > 0 && sediPro.every(s => SEDI[s].online);
-    const sedi = sediPro.map(s => SEDI[s].nome).join(', ');
+    const online = sediPro.length > 0 && sediPro.every(s => SEDI[s]?.online);
+    const sedi = sediPro.map(s => (SEDI[s]?.nome || '')).join(', ');
     return `<button type="button" class="opt ${sel(p.id) ? 'is-selected' : ''}" id="pro-${p.id}" data-action="professionista" data-id="${p.id}">
       <span class="avatar" aria-hidden="true">${iniziali(p.nome, p.cognome)}</span>
       <span class="opt-body"><span class="opt-title">${nomePro(p)}</span><span class="opt-sub">${p.qualifica}</span>
-        <span class="opt-meta"><span>${icon(online ? 'video' : 'pin')}${sedi}</span></span>${pres ? badgePrimo(primoPer(pres.id, p.id, v.sede)) : ''}</span>
+        <span class="opt-meta"><span>${icon(online ? 'video' : 'pin')}${sedi}</span></span>${badgePrimo(primoPer(pres?.id || null, p.id, v.sede))}</span>
       <span class="opt-end">${sel(p.id) ? icon('check') : icon('chev-right')}</span></button>`;
   }).join('');
-  const sotto = pres ? `${esc(pres.nome)}, ${pres.durata} minuti${sedeV && !sedeV.online ? `, sede di ${sedeV.nome}` : ''}`
+  const sotto = pres ? `${esc(pres?.nome || '')}, ${pres?.durata} minuti${sedeV && !sedeV.online ? `, sede di ${sedeV.nome}` : ''}`
     : sedeV ? (sedeV.online ? 'I professionisti che ricevono in videochiamata.' : `I professionisti della sede di ${sedeV.nome}.`) : 'Scegli il professionista. Dopo vedi le sue prestazioni.';
   return { html: `${titolo('Con chi?', sotto)}<div class="stack">${cardPrimo}${cards}</div>` };
 }
@@ -857,7 +862,7 @@ function sSede() {
     return `<div class="opt-wrap ${sel ? 'is-selected' : ''}">
       <button type="button" class="opt" id="sede-${id}" data-action="sede" data-id="${id}">
         <span class="icon-tile neutral">${icon(s.online ? 'video' : 'building')}</span>
-        <span class="opt-body"><span class="opt-title">${esc(s.nome)}</span><span class="opt-sub">${esc(indirizzo(s))}</span>${pres ? badgePrimo(primoPer(pres.id, v.professionista || 'primo', id)) : ''}</span>
+        <span class="opt-body"><span class="opt-title">${esc(s.nome)}</span><span class="opt-sub">${esc(indirizzo(s))}</span>${badgePrimo(primoPer(pres?.id || null, v.professionista || 'primo', id))}</span>
         <span class="opt-end">${sel ? icon('check') : icon('chev-right')}</span></button>
       ${s.online ? '' : `<div class="opt-foot"><a href="${linkMaps(s)}" target="_blank" rel="noopener">${icon('nav', 'ico-sm')}Apri in Maps<span class="sr-only"> la sede di ${esc(s.nome)} (nuova scheda)</span></a></div>`}
     </div>`;
@@ -879,7 +884,7 @@ function sediDiOrario(p) {
 function parametriOrario() {
   if (state.ui.screen === 'sposta') {
     const p = prenotazioneCorrente();
-    return p ? { modo: 'sposta', prestazione: p.prestazione, professionista: p.professionista, sede: p.sede, attuale: p } : null;
+    return p ? { modo: 'sposta', prestazione: p.prestazione, professionista: p.professionista, sede: p.sede, durata:p.durata, prenotazione:p.ref, attuale: p } : null;
   }
   const d = state.draft;
   return { modo: 'prenota', prestazione: d.prestazione, professionista: d.professionista, sede: d.sede };
@@ -896,7 +901,7 @@ function caricaPagine(p, pagine) {
   const mancanti = [...new Set(pagine)].filter(k => k >= 0 && k <= MAX_PAGINA() && !disp.pagine.has(k) && !disp.inCorso.has(k));
   if (!mancanti.length) return;
   mancanti.forEach(k => disp.inCorso.add(k));
-  Promise.all(mancanti.map(k => api.disponibilita({ prestazione: p.prestazione, professionista: p.professionista, sede: p.sede, dal: inizioPagina(k), al: piuGiorni(inizioPagina(k), 13) })
+  Promise.all(mancanti.map(k => api.disponibilita({ prestazione: p.prestazione, professionista: p.professionista, sede: p.sede, prenotazione:p.prenotazione, dal: inizioPagina(k), al: piuGiorni(inizioPagina(k), 13) })
     .then(r => { Object.assign(disp.giorni, r.giorni); disp.pagine.add(k); })
     .finally(() => disp.inCorso.delete(k))))
     .then(() => ridisegnaSe(['orario', 'sposta']))
@@ -905,14 +910,14 @@ function caricaPagine(p, pagine) {
 function caricaPrimo(p) {
   const disp = dispPer(p); if (disp.primoInCorso) return;
   disp.primoInCorso = true;
-  api.disponibilita({ prestazione: p.prestazione, professionista: p.professionista, sede: p.sede, prima_disponibilita: 1 })
+  api.disponibilita({ prestazione: p.prestazione, professionista: p.professionista, sede: p.sede, prenotazione:p.prenotazione, prima_disponibilita: 1 })
     .then(r => { disp.primo = r.primo; ridisegnaSe(['orario', 'sposta']); })
     .catch(e => { disp.primoInCorso = false; erroreRete(e); });
 }
 function caricaProssimo(p, iso) {
   const disp = dispPer(p); if (iso in disp.prossimo) return;
   disp.prossimo[iso] = undefined;
-  api.disponibilita({ prestazione: p.prestazione, professionista: p.professionista, sede: p.sede, prima_disponibilita: 1, dal: piuGiorni(iso, 1) })
+  api.disponibilita({ prestazione: p.prestazione, professionista: p.professionista, sede: p.sede, prenotazione:p.prenotazione, prima_disponibilita: 1, dal: piuGiorni(iso, 1) })
     .then(r => { disp.prossimo[iso] = r.primo; ridisegnaSe(['orario', 'sposta']); })
     .catch(e => { delete disp.prossimo[iso]; erroreRete(e); });
 }
@@ -936,10 +941,11 @@ function sOrario() {
   const sede = SEDI[p.sede];
   const chi = pro ? conArticolo(pro) : 'il primo professionista disponibile';
   // Sede non scelta (passo spento): vale quella dell'orario libero, scritta sotto ogni orario.
-  const dove = sede ? (sede.online ? 'in videochiamata' : `a ${esc(sede.nome)}`) : `nella sede con il posto libero (${sediDiOrario(p).map(s => SEDI[s].nome).join(' o ')})`;
+  const nomiSedi = sediDiOrario(p).map(s => SEDI[s]?.nome).filter(Boolean);
+  const dove = sede ? (sede?.online ? 'in videochiamata' : `a ${esc(sede?.nome || '')}`) : nomiSedi.length ? `nella sede con il posto libero (${nomiSedi.join(' o ')})` : '';
   const testa = sposta
-    ? titolo('Scegli il nuovo orario', `${esc(pres.nome)} con ${chi} ${dove}. Il tuo appuntamento di ${dataLunga(p.attuale.data)} alle ${p.attuale.ora} resta valido finché non confermi.`)
-    : titolo('Quando vuoi venire?', `${esc(pres.nome)} con ${chi} ${dove}.`);
+    ? titolo('Scegli il nuovo orario', `${pres ? esc(pres?.nome || '') : 'Appuntamento'} con ${chi}${dove ? ' '+dove : ''}. Il tuo appuntamento di ${dataLunga(p.attuale.data)} alle ${p.attuale.ora} resta valido finché non confermi.`)
+    : titolo('Quando vuoi venire?', `${pres ? esc(pres?.nome || '') : 'Appuntamento'} con ${chi}${dove ? ' '+dove : ''}.`);
   const disp = dispPer(p); const k = chiaveDisp(p);
 
   if (disp.primo === undefined) { caricaPrimo(p); return { html: testa + scheletroOrario(), cta: ctaOrario(p) }; }
@@ -1065,12 +1071,12 @@ function orariDelGiorno(p, disp, giorno, sel) {
   const piuSedi = !p.sede && sediDiOrario(p).length > 1; // sede non scelta: sotto l'orario si legge dove
   const gruppi = ['Mattina', 'Pomeriggio', 'Sera'].filter(f => fasce[f]).map(f => `<div class="slot-group"><p class="slot-label" aria-hidden="true">${f}</p><div class="slot-grid">
       ${fasce[f].map(o => {
-        const on = o.ora === selQui; const nomeSede = SEDI[o.sede].online ? 'Video' : SEDI[o.sede].nome;
-        return `<button type="button" role="radio" class="slot ${piuSedi ? 'has-sede' : ''}" id="slot-${o.ora.replace(':', '')}" data-action="ora" data-ora="${o.ora}" data-pro="${o.professionista}" data-sede="${o.sede}"
+        const on = o.ora === selQui; const nomeSede = SEDI[o.sede]?.online ? 'Video' : (SEDI[o.sede]?.nome || '');
+        return `<button type="button" role="radio" class="slot ${piuSedi ? 'has-sede' : ''}" id="slot-${o.ora.replace(':', '')}" data-action="ora" data-ora="${o.ora}" data-pro="${o.professionista}" data-sede="${o.sede}" data-durata="${o.durata || prestazione(p.prestazione)?.durata || ''}"
           aria-checked="${on}" tabindex="${o.ora === primoFocus ? 0 : -1}" aria-label="${o.ora}, ${f.toLowerCase()}${p.professionista === 'primo' ? `, con ${nomePro(PROFESSIONISTI[o.professionista])}` : ''}${piuSedi ? `, sede di ${nomeSede}` : ''}">${on ? icon('check') : ''}<span>${o.ora}</span>${piuSedi ? `<span class="slot-sede" aria-hidden="true">${nomeSede}</span>` : ''}</button>`;
       }).join('')}</div></div>`).join('');
   const n = g.orari.length;
-  return `${titoloGiorno}<p class="micro" style="margin-bottom:16px">${n === 1 ? '1 orario libero' : `${n} orari liberi`} · visita di ${prestazione(p.prestazione).durata} minuti</p>
+  return `${titoloGiorno}<p class="micro" style="margin-bottom:16px">${n === 1 ? '1 orario libero' : `${n} orari liberi`}${prestazione(p.prestazione) ? ' · visita di '+(prestazione(p.prestazione)?.durata || p.durata)+' minuti' : ''}</p>
     ${attuale ? `<p class="micro" style="margin:-8px 0 16px">Il tuo orario attuale è alle ${attuale}.</p>` : ''}
     <div role="radiogroup" aria-labelledby="orari-t" data-roving="lineare">${gruppi}</div>
     <p class="micro slots-note">${p.modo === 'sposta' ? 'Il vecchio orario si libera solo quando confermi lo spostamento.'
@@ -1086,12 +1092,12 @@ function ctaOrario(p) {
 // ----- S16 Nessuna disponibilità -----
 function nessunaDisponibilita(p, primo) {
   const pres = prestazione(p.prestazione); const pro = PROFESSIONISTI[p.professionista];
-  const altri = pres.professionisti.length > 1;
+  const altri = (pres?.professionisti || (state.catalogo?.professionisti || [])).length > 1 && passoAttivo('professionista');
   const finestra = primo ? 30 : (state.catalogo ? state.catalogo.regole.finestra_giorni : 90);
   return `<div class="card mt8">
       <div class="mark neutral" style="margin:0 0 16px">${icon('calendar-x')}</div>
       <h2 class="h2">Nessun orario libero nei prossimi ${finestra} giorni</h2>
-      <p class="mt8">Al momento ${pro ? conArticolo(pro) : 'nessun professionista'} non ha posti liberi per la ${esc(pres.nome.toLowerCase())} fino al ${giornoMese(piuGiorni(OGGI_ISO, finestra))}.
+      <p class="mt8">Al momento ${pro ? conArticolo(pro) : 'nessun professionista'} non ha posti liberi ${pres ? 'per la '+esc(pres.nome.toLowerCase())+' ' : ''}fino al ${giornoMese(piuGiorni(OGGI_ISO, finestra))}.
       ${primo ? `Il primo posto libero è <strong>${dataLunga(primo.data)} alle ${primo.ora}</strong>.` : ''}</p>
       <div class="btn-row mt20">
         ${primo ? `<button type="button" class="btn btn-primary btn-lg btn-block" data-action="oltre30">Vedi gli orari di ${MESI[daIso(primo.data).getMonth()]}</button>` : ''}
@@ -1436,6 +1442,7 @@ function sDati() {
 
 // ----- S09 Riepilogo -----
 function rigaRecap({ ic, label, val, sub, passo, aria }) {
+  if (!val) return '';
   return `<div class="recap-row">${icon(ic)}<div class="recap-main"><p class="recap-label">${label}</p><p class="recap-val">${val}</p>${sub ? `<p class="recap-sub">${sub}</p>` : ''}</div>
     ${passo ? `<button type="button" class="btn-link" data-action="modifica" data-passo="${passo}" aria-label="Modifica ${aria}">Modifica</button>` : ''}</div>`;
 }
@@ -1466,9 +1473,9 @@ function righeRiepilogo(d, modificabile) {
     ? rigaRecap({ ic: 'chat', label: 'Conferma e promemoria', val: canale ? canale.nome : '', sub: contatti, passo: modificabile && 'dati', aria: 'i contatti' })
     : rigaRecap({ ic: 'chat', label: 'Ti contatteremo a', val: contatti || 'Nessun recapito', sub: contatti ? (dove ? `Conferma e promemoria ${dove}` : '') : 'Lo studio non potrà avvisarti se l\'appuntamento cambia.', passo: modificabile && 'dati', aria: 'i contatti' });
   return [
-    rigaRecap({ ic: 'steth', label: 'Prestazione', val: esc(pres.nome), sub: `${pres.durata} minuti${pres.prezzo == null ? '' : ' · ' + pres.prezzo + ' €, paghi in studio'}`, passo: conModifica('prestazione'), aria: 'la prestazione' }),
+    rigaRecap({ ic: 'steth', label: 'Prestazione', val: esc(pres?.nome || ''), sub: `${pres?.durata} minuti${pres?.prezzo == null ? '' : ' · ' + pres?.prezzo + ' €, paghi in studio'}`, passo: conModifica('prestazione'), aria: 'la prestazione' }),
     rigaRecap({ ic: 'user', label: 'Professionista', val: pro ? nomePro(pro) : 'Il primo disponibile', sub: d.professionista === 'primo' && pro ? 'Il primo disponibile per questo orario' : '', passo: conModifica('professionista'), aria: 'il professionista' }),
-    rigaRecap({ ic: sede.online ? 'video' : 'pin', label: 'Sede', val: sede.online ? 'Videochiamata' : `${esc(sede.nome)}`, sub: sede.online ? sede.indirizzo : `${esc(indirizzo(sede))} · <a href="${linkMaps(sede)}" target="_blank" rel="noopener">Apri in Maps</a>`, passo: conModifica('sede'), aria: 'la sede' }),
+    rigaRecap({ ic: sede?.online ? 'video' : 'pin', label: 'Sede', val: sede?.online ? 'Videochiamata' : `${esc(sede?.nome || '')}`, sub: sede?.online ? sede.indirizzo : `${esc(indirizzo(sede))} · <a href="${linkMaps(sede)}" target="_blank" rel="noopener">Apri in Maps</a>`, passo: conModifica('sede'), aria: 'la sede' }),
     rigaRecap({ ic: 'calendar', label: 'Data e ora', val: `<span class="tnum">${maiuscola(dataLungaAnno(d.data))}, ${d.ora}</span>`, sub: traQuanto(d.data) ? maiuscola(traQuanto(d.data)) : '', passo: modificabile && 'orario', aria: 'data e ora' }),
     rigaRecap({ ic: d.perChi === 'altro' ? 'users' : 'user', label: 'Paziente', val: nomePaz, sub: d.perChi === 'altro' ? `Prenotata da ${esc(d.dati.nome)} ${esc(d.dati.cognome)}` : '', passo: modificabile && passoAttivo('perchi') && 'perchi', aria: 'il paziente' }),
     rigaContatti,
@@ -1518,7 +1525,7 @@ function sPreso() {
         ${alt.map((a, i) => `<label class="rcard ${scelta === i ? 'is-selected' : ''}" for="alt-${i}">
           <input type="radio" name="alt" id="alt-${i}" value="${i}" data-change="alternativa" ${scelta === i ? 'checked' : ''}>
           <span class="icon-tile ${scelta === i ? '' : 'neutral'}">${icon('calendar')}</span>
-          <span class="opt-body"><span class="opt-title tnum">${maiuscola(dataLunga(a.data))}, ${a.ora}</span><span class="opt-sub">${nomePro(PROFESSIONISTI[a.professionista])} · ${SEDI[a.sede].nome}</span></span>
+          <span class="opt-body"><span class="opt-title tnum">${maiuscola(dataLunga(a.data))}, ${a.ora}</span><span class="opt-sub">${nomePro(PROFESSIONISTI[a.professionista])} · ${(SEDI[a.sede]?.nome || '')}</span></span>
           <span class="rcard-mark" aria-hidden="true"></span></label>`).join('')}
       </div></fieldset>
       <button type="button" class="btn-link mt12" data-action="tutti-orari">Vedi tutti gli orari</button>`,
@@ -1587,14 +1594,15 @@ function sEsito() {
     html: `<div class="result">${testa}${timeline}</div>
       <div class="card ticket">
         <div class="ticket-head"><div><p class="micro">Codice prenotazione</p><p class="code">${p.ref}</p>${gestibile ? '' : '<p class="micro">Conservalo: ti serve se chiami lo studio.</p>'}</div>${badgeStato(p.stato)}</div>
-        <div class="recap-row">${icon('calendar')}<div class="recap-main"><p class="recap-label">Data e ora</p><p class="recap-val tnum">${maiuscola(dataLungaAnno(p.data))}, ${p.ora}</p><p class="recap-sub">${pres.durata} minuti · ${maiuscola(traQuanto(p.data))}</p></div></div>
-        <div class="recap-row">${icon('steth')}<div class="recap-main"><p class="recap-label">Prestazione</p><p class="recap-val">${esc(pres.nome)}</p><p class="recap-sub">${nomePro(pro)}</p></div></div>
-        <div class="recap-row">${icon(sede.online ? 'video' : 'pin')}<div class="recap-main"><p class="recap-label">Sede</p><p class="recap-val">${sede.online ? 'Videochiamata' : esc(sede.nome)}</p><p class="recap-sub">${esc(indirizzo(sede))}</p></div></div>
+        <div class="recap-row">${icon('calendar')}<div class="recap-main"><p class="recap-label">Data e ora</p><p class="recap-val tnum">${maiuscola(dataLungaAnno(p.data))}, ${p.ora}</p><p class="recap-sub">${p.durata || pres?.durata} minuti · ${maiuscola(traQuanto(p.data))}</p></div></div>
+        ${pres ? `<div class="recap-row">${icon('steth')}<div class="recap-main"><p class="recap-label">Prestazione</p><p class="recap-val">${esc(pres?.nome || '')}</p><p class="recap-sub">${nomePro(pro)}</p></div></div>` : ''}
+        ${!pres && pro ? rigaRecap({ic:'user',label:'Professionista',val:nomePro(pro)}) : ''}
+        ${sede ? `<div class="recap-row">${icon(sede?.online ? 'video' : 'pin')}<div class="recap-main"><p class="recap-label">Sede</p><p class="recap-val">${sede?.online ? 'Videochiamata' : esc(sede?.nome || '')}</p><p class="recap-sub">${esc(indirizzo(sede))}</p></div></div>` : ''}
         <div class="recap-row">${icon('user')}<div class="recap-main"><p class="recap-label">Paziente</p><p class="recap-val">${nomePaz}</p>${p.prenotante ? `<p class="recap-sub">Prenotata da ${esc(p.prenotante.nome)} ${esc(p.prenotante.cognome)}</p>` : ''}</div></div>
       </div>
       <div class="actions three">
         ${menuCalendario(p, 'esito')}
-        ${sede.online ? '' : `<a class="btn btn-secondary btn-block" href="${linkMaps(sede)}" target="_blank" rel="noopener">${icon('nav')}Come arrivare</a>`}
+        ${!sede || sede.online ? '' : `<a class="btn btn-secondary btn-block" href="${linkMaps(sede)}" target="_blank" rel="noopener">${icon('nav')}Come arrivare</a>`}
         ${gestibile || conMiePrenotazioni() ? `<button type="button" class="btn btn-secondary btn-block" data-action="${gestibile ? 'gestisci' : 'apri-mie'}" data-ref="${p.ref}">${attesa ? 'Gestisci la richiesta' : 'Gestisci la prenotazione'}</button>` : ''}
       </div>
       ${attesa && gestibile ? `<p class="center mt16"><button type="button" class="btn-link danger" data-action="annulla" data-ref="${p.ref}">Annulla la richiesta</button></p>` : ''}
@@ -1644,7 +1652,7 @@ function cardBooking(p, tab) {
   return `<li><button type="button" class="card bk" id="bk-${p.ref}" data-action="gestisci" data-ref="${p.ref}">
       <span class="date-tile ${tab === 'prossime' ? '' : 'past'}" aria-hidden="true"><b>${d.getDate()}</b><span>${MESI_BREVI[d.getMonth()]}</span></span>
       <span class="bk-body"><span class="bk-when">${maiuscola(dataLunga(p.data))}, ${p.ora}</span>
-        <span class="bk-what">${esc(pres.nome)} · ${nomeProBreve(pro)} · ${sede.online ? 'Video' : esc(sede.nome)}</span>
+        <span class="bk-what">${esc(pres?.nome || '')} · ${nomeProBreve(pro)} · ${sede?.online ? 'Video' : esc(sede?.nome || '')}</span>
         ${p.prenotante ? `<span class="bk-what">Per ${esc(p.paziente.nome)} ${esc(p.paziente.cognome)}</span>` : ''}
         ${badgeStato(p.stato)}</span>
       <span class="opt-end">${icon('chev-right')}</span></button></li>`;
@@ -1692,9 +1700,9 @@ function sDettaglio() {
     html: `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">${badgeStato(p.stato)}${attiva && futura ? badge(maiuscola(traQuanto(p.data)), 'neutral', 'clock') : ''}</div>
       ${titolo(`${maiuscola(dataLunga(p.data))}, ${p.ora}`, p.stato === 'in_attesa' ? 'Lo studio deve ancora confermare la richiesta. Ti scriviamo appena lo fa.' : p.stato === 'annullata' ? 'Questa prenotazione è stata annullata.' : '')}
       <div class="card recap">
-        ${rigaRecap({ ic: 'steth', label: 'Prestazione', val: esc(pres.nome), sub: `${pres.durata} minuti${pres.prezzo == null ? '' : ' · ' + pres.prezzo + ' €, paghi in studio'}` })}
+        ${rigaRecap({ ic: 'steth', label: 'Prestazione', val: esc(pres?.nome || ''), sub: `${pres?.durata} minuti${pres?.prezzo == null ? '' : ' · ' + pres?.prezzo + ' €, paghi in studio'}` })}
         ${rigaRecap({ ic: 'user', label: 'Professionista', val: nomePro(pro) })}
-        ${rigaRecap({ ic: sede.online ? 'video' : 'pin', label: 'Sede', val: sede.online ? 'Videochiamata' : sede.nome, sub: indirizzo(sede) })}
+        ${rigaRecap({ ic: sede?.online ? 'video' : 'pin', label: 'Sede', val: sede?.online ? 'Videochiamata' : (sede?.nome || ''), sub: indirizzo(sede) })}
         ${rigaRecap({ ic: 'user', label: 'Paziente', val: `${esc(p.paziente.nome)} ${esc(p.paziente.cognome)}`, sub: p.prenotante ? `Prenotata da ${esc(p.prenotante.nome)} ${esc(p.prenotante.cognome)}` : '' })}
         ${rigaRecap({ ic: 'info', label: 'Codice prenotazione', val: `<span class="code" style="font-size:17px">${p.ref}</span>` })}
       </div>
@@ -1710,7 +1718,7 @@ function sDettaglio() {
               <a href="${linkOutlook(p)}" target="_blank" rel="noopener">${icon('ext')}<span>Outlook.com<small>Si apre in una nuova scheda</small></span></a>
             </div>
           </div>
-          ${sede.online ? '' : `<a class="act" href="${linkMaps(sede)}" target="_blank" rel="noopener">${icon('nav')}<span>Come arrivare<small>${esc(indirizzo(sede))}</small></span><span class="opt-end">${icon('ext', 'ico-sm')}</span></a>`}
+          ${!sede || sede.online ? '' : `<a class="act" href="${linkMaps(sede)}" target="_blank" rel="noopener">${icon('nav')}<span>Come arrivare<small>${esc(indirizzo(sede))}</small></span><span class="opt-end">${icon('ext', 'ico-sm')}</span></a>`}
           <div class="act-wrap">
             <button type="button" class="act" data-action="menu-contatti" data-menu="contatti-${p.ref}" aria-expanded="${contattiAperti}" aria-controls="menu-contatti" id="contatti-btn">${icon('phone')}<span>Contatta lo studio</span><span class="opt-end">${icon('chev-down')}</span></button>
             <div class="menu" id="menu-contatti" ${contattiAperti ? '' : 'hidden'}>
@@ -1737,7 +1745,7 @@ function sSpostaConferma() {
         <span class="move-arrow">${icon('arrow-down')}</span>
         <div class="move-box new"><p class="move-label">A</p><p class="move-when">${maiuscola(dataLunga(n.data))}, ${n.ora}</p></div>
       </div>
-      <p class="micro on-bg mt16">${esc(prestazione(p.prestazione).nome)} con ${conArticolo(PROFESSIONISTI[p.professionista])}, ${SEDI[p.sede].online ? 'in videochiamata' : `sede di ${SEDI[p.sede].nome}`}. Ti mandiamo la conferma del nuovo orario.</p>`,
+      <p class="micro on-bg mt16">${esc((prestazione(p.prestazione)?.nome || 'Appuntamento'))} con ${conArticolo(PROFESSIONISTI[p.professionista])}, ${SEDI[p.sede]?.online ? 'in videochiamata' : `sede di ${(SEDI[p.sede]?.nome || '')}`}. Ti mandiamo la conferma del nuovo orario.</p>`,
   };
 }
 
@@ -1954,9 +1962,9 @@ function disegnaLaterale(tipo, cta, nelFlusso) {
     side.innerHTML = `<section class="summary" aria-labelledby="sum-t">
       <h2 class="summary-title" id="sum-t">La tua prenotazione</h2>
       <div class="sum-list">
-        ${riga('steth', 'Prestazione', pres && esc(pres.nome), pres && `${pres.durata} minuti · ${pres.prezzo == null ? '' : pres.prezzo + ' €'}`)}
+        ${riga('steth', 'Prestazione', pres && esc(pres?.nome || ''), pres && `${pres?.durata} minuti · ${pres?.prezzo == null ? '' : pres?.prezzo + ' €'}`)}
         ${riga('user', 'Professionista', pro ? nomePro(pro) : d.professionista === 'primo' ? 'Il primo disponibile' : null)}
-        ${riga(sede && sede.online ? 'video' : 'pin', 'Sede', sede && (sede.online ? 'Videochiamata' : sede.nome), sede && !sede.online && indirizzo(sede))}
+        ${riga(sede && sede?.online ? 'video' : 'pin', 'Sede', sede && (sede?.online ? 'Videochiamata' : sede.nome), sede && !sede?.online && indirizzo(sede))}
         ${riga('calendar', 'Quando', d.data && d.ora && `<span class="tnum">${maiuscola(dataLunga(d.data))}, ${d.ora}</span>`, d.data && d.ora && maiuscola(traQuanto(d.data)))}
         ${perChi}
       </div>
@@ -1971,7 +1979,7 @@ function disegnaLaterale(tipo, cta, nelFlusso) {
       <div class="sum-list">
         <div class="sum-row">${icon('calendar')}<div><p class="sum-label">Orario attuale</p><p class="sum-val tnum">${maiuscola(dataLunga(p.data))}, ${p.ora}</p></div></div>
         <div class="sum-row ${state.ui.sposta ? '' : 'is-empty'}">${icon('move')}<div><p class="sum-label">Nuovo orario</p><p class="sum-val tnum">${state.ui.sposta ? `${maiuscola(dataLunga(state.ui.sposta.data))}, ${state.ui.sposta.ora}` : 'Da scegliere'}</p></div></div>
-        <div class="sum-row">${icon('steth')}<div><p class="sum-label">Prestazione</p><p class="sum-val">${esc(prestazione(p.prestazione).nome)}</p><p class="sum-sub">${nomePro(PROFESSIONISTI[p.professionista])}</p></div></div>
+        <div class="sum-row">${icon('steth')}<div><p class="sum-label">Prestazione</p><p class="sum-val">${esc((prestazione(p.prestazione)?.nome || 'Appuntamento'))}</p><p class="sum-sub">${nomePro(PROFESSIONISTI[p.professionista])}</p></div></div>
       </div><div class="side-cta">${cta ? bottoneCta(cta) : ''}</div></section>` : '';
     $('#cta-inline').innerHTML = '';
   } else {
@@ -2366,7 +2374,7 @@ const CLICK = {
   ora(el) {
     const v = { data: state.ui.giorno, ora: el.dataset.ora };
     if (state.ui.screen === 'sposta') state.ui.sposta = v;
-    else Object.assign(state.draft, { data: v.data, ora: v.ora, proAssegnato: el.dataset.pro, sedeAssegnata: el.dataset.sede });
+    else Object.assign(state.draft, { data: v.data, ora: v.ora, proAssegnato: el.dataset.pro, sedeAssegnata: el.dataset.sede, durata: Number(el.dataset.durata) || null });
     render();
     annuncia(`Selezionato ${dataLunga(v.data)} alle ${v.ora}.`);
   },
@@ -2374,7 +2382,7 @@ const CLICK = {
     const p = parametriOrario(); const primo = dispPer(p).primo; if (!primo) return;
     state.ui.giorno = primo.data;
     if (state.ui.screen === 'sposta') state.ui.sposta = { data: primo.data, ora: primo.ora };
-    else Object.assign(state.draft, { data: primo.data, ora: primo.ora, proAssegnato: primo.professionista, sedeAssegnata: primo.sede });
+    else Object.assign(state.draft, { data: primo.data, ora: primo.ora, proAssegnato: primo.professionista, sedeAssegnata: primo.sede, durata: primo.durata || null });
     render();
     annuncia(`Selezionato il primo orario libero: ${dataLunga(primo.data)} alle ${primo.ora}.`);
   },
@@ -2865,9 +2873,9 @@ function piega(riga) {
 }
 function creaIcs(p, annullo = false) {
   const sede = SEDI[p.sede];
-  const inizio = minutiDi(p.ora); const fine = inizio + (p.durata || prestazione(p.prestazione).durata);
+  const inizio = minutiDi(p.ora); const fine = inizio + (p.durata || (prestazione(p.prestazione)?.durata || p.durata));
   const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
-  const luogo = sede.online ? 'Videochiamata: il link arriva il giorno prima' : `${esc(STUDIO.nome)}, ${esc(indirizzo(sede))}`;
+  const luogo = sede?.online ? 'Videochiamata: il link arriva il giorno prima' : `${esc(STUDIO.nome)}, ${esc(indirizzo(sede))}`;
   const descr = [`Codice prenotazione: ${p.ref}`, `Per spostare o annullare: ${linkGestione(p)}`, `Telefono dello studio: ${esc(STUDIO.telefono)}`].join('\n');
   const righe = [
     'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Ambulatorio Facile//Prenotazione online//IT', 'CALSCALE:GREGORIAN', `METHOD:${annullo ? 'CANCEL' : 'PUBLISH'}`,
@@ -2902,13 +2910,13 @@ function scaricaIcs(p, annullo = false) {
 function linkGoogle(p) {
   const sede = SEDI[p.sede]; const i = minutiDi(p.ora); const f = i + (p.durata || 30);
   return `https://calendar.google.com/calendar/render?${query({ action: 'TEMPLATE', text: SUMMARY_ICS, dates: `${compatta(p.data, i)}/${compatta(p.data, f)}`, ctz: 'Europe/Rome',
-    location: sede.online ? 'Videochiamata' : indirizzo(sede), details: `Codice prenotazione: ${p.ref}\nPer spostare o annullare: ${linkGestione(p)}` })}`;
+    location: sede?.online ? 'Videochiamata' : indirizzo(sede), details: `Codice prenotazione: ${p.ref}\nPer spostare o annullare: ${linkGestione(p)}` })}`;
 }
 function linkOutlook(p) {
   const sede = SEDI[p.sede]; const i = minutiDi(p.ora); const f = i + (p.durata || 30); const tz = offsetRoma(p.data);
   const t = m => `${p.data}T${pad(Math.floor(m / 60))}:${pad(m % 60)}:00${tz}`;
   return `https://outlook.live.com/calendar/0/action/compose?${query({ subject: SUMMARY_ICS, startdt: t(i), enddt: t(f),
-    location: sede.online ? 'Videochiamata' : indirizzo(sede), body: `Codice prenotazione: ${p.ref}. Per spostare o annullare: ${linkGestione(p)}` })}`;
+    location: sede?.online ? 'Videochiamata' : indirizzo(sede), body: `Codice prenotazione: ${p.ref}. Per spostare o annullare: ${linkGestione(p)}` })}`;
 }
 
 // --- S22 Offline ---

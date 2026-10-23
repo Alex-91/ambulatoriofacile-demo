@@ -15,7 +15,7 @@ try {
         echo \App\Services\PatientBookingEmail::render($input['type'],$p,['tenant_name'=>'Studio dimostrativo'],$c,$input['catalog'],'/paziente')['html'];exit;
     }
     if(($input['mode']??'')==='transition') {
-        if($input['action']==='catalog'){foreach(['doctors','visits','locations'] as $key)$c[$key]=array_map('intval',$input['payload'][$key]);if(isset($input['payload']['catalogo']))$c['workflow']['catalogo']=$input['payload']['catalogo'];}
+        if($input['action']==='catalog'){foreach(['doctors','visits','locations'] as $key)$c[$key]=array_map('intval',$input['payload'][$key]);if(isset($input['payload']['catalogo'])){$c['workflow']['catalogo']=$input['payload']['catalogo'];if(isset($c['editor']['draft']))$c['editor']['draft']['catalogo']=$input['payload']['catalogo'];}}
         else $c=\App\Services\PatientBookingEditor::transition($c,$input['action'],$input['payload']??[],1);
         echo json_encode(['config'=>$c,'state'=>\App\Services\PatientBookingEditor::state(['config'=>$c,'revision'=>$input['revision']+1])],JSON_THROW_ON_ERROR);exit;
     }

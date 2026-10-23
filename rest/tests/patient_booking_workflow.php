@@ -9,9 +9,20 @@ $bad=$w;$bad['passi'][0]['id']='sede';rejectWorkflow($bad,$s,'Duplicate steps');
 $bad=$w;$bad['passi'][3]['attivo']=false;rejectWorkflow($bad,$s,'Mandatory time step');
 $bad=$w;[$bad['passi'][0],$bad['passi'][3]]=[$bad['passi'][3],$bad['passi'][0]];rejectWorkflow($bad,$s,'Time follows choices');
 $bad=$w;[$bad['passi'][0],$bad['passi'][7]]=[$bad['passi'][7],$bad['passi'][0]];rejectWorkflow($bad,$s,'Summary last');
-$bad=$w;$bad['passi'][0]['attivo']=false;rejectWorkflow($bad,$s,'Hidden service needs default');
+$bad=$w;$bad['passi'][0]['attivo']=false;checkWorkflow(W::validate($bad,$s)['scelte']['prestazione_predefinita']===null,'Hidden service does not need a default');
 $bad['scelte']['prestazione_predefinita']=1;checkWorkflow(W::validate($bad,$s)['scelte']['prestazione_predefinita']==='1','Valid default service');
 $bad['scelte']['prestazione_predefinita']=99;rejectWorkflow($bad,$s,'Cross-catalog default rejected');
+for($mask=0;$mask<8;$mask++){
+    $optional=$w;
+    foreach($optional['passi'] as &$step)if(in_array($step['id'],['prestazione','professionista','sede'],true))$step['attivo']=(bool)($mask & (1<<array_search($step['id'],['prestazione','professionista','sede'],true)));
+    unset($step);$settings=$s;$settings['first_available']=false;
+    $valid=W::validate($optional,$settings);
+    checkWorkflow(count($valid['passi'])===8,'All combinations of optional choices can be published');
+}
+$onlyTime=$s;$onlyTime['workflow']=$optional;$onlyTime['visits']=[];$onlyTime['locations']=[];
+foreach($onlyTime['workflow']['passi'] as &$step)if(in_array($step['id'],['prestazione','professionista','sede'],true))$step['attivo']=false;unset($step);
+$onlyTime['privacy_url']='https://studio.example/privacy';
+checkWorkflow(S::configured($onlyTime),'Time-only booking needs no service or location catalogue');
 $bad=$w;$bad['verifica']['richiesta']=true;rejectWorkflow($bad,$s,'Verification not simulated');
 $bad=$w;$bad['aspetto']['logo_url']='javascript:alert(1)';rejectWorkflow($bad,$s,'Unsafe logo rejected');
 $bad=$w;$bad['aspetto']['logo_url']='data:image/png;base64,AAAA';rejectWorkflow($bad,$s,'Invalid image bytes rejected');

@@ -1,0 +1,47 @@
+const {chromium}=require('playwright'),assert=require('assert'),fs=require('fs');
+(async()=>{
+ const origin=process.argv[2],browser=await chromium.launch({headless:true,executablePath:process.env.BROWSER_EXE});
+ const page=await browser.newPage({viewport:{width:1280,height:1000}}),errors=[],availability=[];let submitted;
+ page.on('pageerror',e=>errors.push(e.message));page.on('dialog',d=>d.accept());
+ page.on('request',r=>{if(r.url().includes('/api/disponibilita?'))availability.push(new URL(r.url()));if(r.method()==='POST'&&r.url().endsWith('/api/prenotazioni'))submitted=r.postDataJSON();});
+ fs.mkdirSync('output/patient-booking/time-only',{recursive:true});
+ try{
+  await page.goto(origin+'/admin/A04-configurazione-flusso');
+  assert.equal(await page.locator('[data-step=prestazione] span[aria-hidden=true]').first().innerText(),'1');
+  assert.equal(await page.locator('#prestazione-predefinita').inputValue(),'');
+  assert.equal(await page.locator('#professionista-predefinito').inputValue(),'');
+  assert(!(await page.locator('#prestazione-predefinita-aiuto').innerText()).includes('Obbligatoria'));
+  const [published]=await Promise.all([page.waitForResponse(r=>r.url().endsWith('/editor/publish')),page.getByRole('button',{name:'Pubblica',exact:true}).first().click()]);
+  assert.equal(published.status(),200);
+  await page.goto(origin+'/paziente');
+  await page.getByRole('button',{name:"Scegli il giorno e l'orario",exact:true}).click();
+  await page.locator('#screen [data-action=ora]').first().waitFor();
+  assert.equal(new URL(page.url()).hash,'#orario');
+  assert(availability.every(u=>!u.searchParams.has('prestazione')));
+  assert.equal(await page.locator('#screen [data-action=prestazione],#screen [data-action=professionista],#screen [data-action=sede]').count(),0);
+  await page.screenshot({path:'output/patient-booking/time-only/desktop-orari.png'});
+  await page.locator('#screen [data-action=ora]').first().click();
+  await page.getByRole('button',{name:'Scegli questo orario',exact:true}).first().click();
+  await page.locator('#dati-nome').fill('Rosa');await page.locator('#dati-cognome').fill('Bianchi');
+  await page.locator('#dati-email').fill('rosa@example.test');await page.locator('#canale-email').check();await page.locator('#dati-privacy').check();
+  await page.locator('[data-action=cta]').filter({visible:true}).first().click();
+  await page.locator('#screen .recap-row').first().waitFor();
+  assert.equal(await page.locator('#screen .recap-label').filter({hasText:/^(Prestazione|Sede)$/}).count(),0);
+  assert((await page.locator('#screen').innerText()).includes('Alice Moretti'));
+  const [booked]=await Promise.all([page.waitForResponse(r=>r.url().endsWith('/api/prenotazioni')),page.getByRole('button',{name:'Conferma la prenotazione',exact:true}).first().click()]);
+  assert.equal(booked.status(),200);assert.equal(submitted.slot.prestazione,null);assert.equal(submitted.slot.professionista,'10');assert.equal(submitted.slot.sede,'');
+  await page.getByRole('heading',{name:/Ci vediamo/}).waitFor();
+  assert(!(await page.locator('#screen').innerText()).includes('undefined'));
+  assert.equal(await page.locator('#screen .recap-label').filter({hasText:/^(Prestazione|Sede)$/}).count(),0);
+  assert((await page.locator('#screen').innerText()).includes('20 minuti'));
+  assert((await page.locator('#screen').innerText()).includes('Alice Moretti'));
+  assert((await page.evaluate(()=>creaIcs(state.draft.esito))).includes('T092000'));
+  await page.screenshot({path:'output/patient-booking/time-only/desktop-conferma.png'});
+  await page.setViewportSize({width:390,height:844});await page.goto(origin+'/paziente');
+  await page.getByRole('button',{name:"Scegli il giorno e l'orario",exact:true}).click();
+  await page.locator('#screen [data-action=ora]').first().waitFor();
+  await page.screenshot({path:'output/patient-booking/time-only/mobile-orari.png'});
+  assert.deepEqual(errors,[]);
+  console.log('PASS time-only: publish without catalogue defaults, no visit/site requirement, real slot contract, assigned doctor, native duration, summary, confirmation, desktop/mobile, no browser errors.');
+ }catch(e){console.error('Screen:',await page.locator('#screen').innerText());console.error('Browser errors:',errors);throw e;}finally{await browser.close();}
+})().catch(e=>{console.error(e);process.exitCode=1;});

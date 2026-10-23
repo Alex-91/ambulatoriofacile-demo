@@ -152,5 +152,43 @@ try {
     $out=[];foreach($workers as [$proc,$pipes]){$out[]=trim(stream_get_contents($pipes[1]));$err=stream_get_contents($pipes[2]);fclose($pipes[1]);fclose($pipes[2]);check(proc_close($proc)===0,'Worker successful: '.$err);}
     check(count(array_filter($out,static fn($s)=>$s==='booked'))===1,'Three concurrent bookings: exactly one succeeds');
     check(count(array_filter($out,static fn($s)=>$s==='slot_non_disponibile'))===2,'Two concurrent conflicts');
+
+    // Regression: Alice has free agenda slots with no location, even though the
+    // online catalogue still contains a different location from an older setup.
+    $db->query("INSERT INTO dap03_personale VALUES(3,1000000012,1,HEX(AES_ENCRYPT('Alice',@key_str,@init_vector)),HEX(AES_ENCRYPT('Moretti',@key_str,@init_vector)),HEX(AES_ENCRYPT('Dott.ssa',@key_str,@init_vector)),@init_vector)");
+    foreach([[100,'09:00','09:20','LIBERO'],[101,'09:20','09:40','LIBERO'],[102,'11:00','11:40','LIBERO'],[103,'12:00','12:20','PRENOTATO']] as [$slotId,$start,$end,$state])$db->table('dap11_agenda_slot')->insert(['id_slot'=>$slotId,'id_dot'=>1000000012,'data_slot'=>$day,'ora_inizio'=>$day.' '.$start.':00','ora_fine'=>$day.' '.$end.':00','stato'=>$state,'id_stanza'=>null,'id_amb_legacy'=>null]);
+    $timeSettings=$settings;$timeSettings['config']['doctors']=[1000000012,20];$timeSettings['config']['visits']=[];$timeSettings['config']['locations']=[1];$timeSettings['config']['first_available']=false;
+    $timeSettings['config']['workflow']=\App\Services\PatientBookingWorkflow::defaults();
+    foreach($timeSettings['config']['workflow']['passi'] as &$step)if(in_array($step['id'],['prestazione','professionista','sede'],true))$step['attivo']=false;unset($step);
+    $timeAgenda=new PatientBookingAgenda($db,$timeSettings,77);$timeQuery=['dal'=>$day,'al'=>$day];
+    $available=$timeAgenda->availability($timeQuery)['giorni'][$day]['orari'];
+    check(count($available)===3,'Alice null-location slots come from her actual agenda and occupied slots stay excluded');
+    check($available[0]['professionista']==='1000000012'&&$available[0]['sede']===''&&$available[0]['durata']===20,'Time-only availability assigns the doctor and native slot duration');
+    check(!$timeAgenda->availability($timeQuery+['sede'=>'1'])['giorni'][$day]['orari'],'An explicit physical site never matches an unassigned slot');
+    $db->table('dap14_agenda_lock')->insert(['id_slot'=>100,'stato'=>'ATTIVO','token_lock'=>'operator-time','expires_at'=>$day.' 23:00:00']);
+    check(count($timeAgenda->availability($timeQuery)['giorni'][$day]['orari'])===2,'Operator locks are respected for time-only booking');$db->table('dap14_agenda_lock')->where('token_lock','operator-time')->delete();
+    $timeBody=['slot'=>['data'=>$day,'ora'=>'9:00'],'paziente'=>['nome'=>'Test','cognome'=>'Solo orario'],'contatto'=>['cellulare'=>'3470000000','email'=>'orario@example.test'],'privacy_letta'=>true,'per'=>'me'];$timeKey=bin2hex(random_bytes(16));
+    $native=$timeAgenda->book($timeBody,$timeKey);
+    check($native['prestazione']===null&&$native['professionista']==='1000000012'&&$native['sede']===''&&$native['durata']===20,'A real agenda appointment needs neither a service nor a patient-selected doctor/site');
+    $nativeId=(int)$db->table('patient_online_bookings')->where('booking_ref',$native['ref'])->get()->getRowArray()['id_appuntamento'];$nativeRow=$db->table('dap12_agenda_appuntamenti')->where('id_appuntamento',$nativeId)->get()->getRowArray();
+    check($nativeRow['id_tipo_visita']===null&&$nativeRow['ora_fine_appuntamento']===$day.' 09:20:00','No hidden visit type is saved and the native end time is preserved');
+    check($timeAgenda->book($timeBody,$timeKey)['ref']===$native['ref'],'Time-only submission is idempotent');
+    $relocation=$timeAgenda->availability($timeQuery+['prenotazione'=>$native['ref']])['giorni'][$day]['orari'];
+    check($relocation[0]['durata']===20,'Move availability keeps the existing appointment duration');
+    $native=$timeAgenda->move($native['ref'],['data'=>$day,'ora'=>'11:00']);
+    check($native['durata']===20&&$native['prestazione']===null&&$native['ora']==='11:00','A service-less appointment can move into a longer native slot without changing duration');
+    $ics=\App\Services\PatientBookingEmail::calendar($native,$timeAgenda->catalog());$icsEnd=(new DateTimeImmutable($day.' 11:20',new DateTimeZone('Europe/Rome')))->setTimezone(new DateTimeZone('UTC'))->format('Ymd\THis\Z');
+    check(str_contains($ics,'DTEND:'.$icsEnd),'Calendar export uses the actual duration without a service');
+    $timeAgenda->cancel($native['ref']);
+    check(count($timeAgenda->availability($timeQuery)['giorni'][$day]['orari'])===3,'Cancellation releases all native slots');
+    $explicit=$timeBody;$explicit['slot']['professionista']='10';
+    try{$timeAgenda->book($explicit,bin2hex(random_bytes(16)));throw new RuntimeException('Foreign doctor accepted in time-only flow');}catch(PatientBookingException $e){check($e->status===409,'Time-only booking keeps the selected-doctor allowlist');}
+
+    $defaults=$timeSettings;$defaults['config']['visits']=[2];$defaults['config']['workflow']['scelte']['prestazione_predefinita']='2';$defaults['config']['workflow']['scelte']['professionista_predefinito']='1000000012';
+    $defaultAgenda=new PatientBookingAgenda($db,$defaults,77);
+    check($defaultAgenda->availability($timeQuery)['giorni'][$day]['orari'][0]['durata']===30,'Optional administrative defaults resolve even when omitted from the availability request');
+    $defaultBooking=$defaultAgenda->book($timeBody,bin2hex(random_bytes(16)));
+    check($defaultBooking['prestazione']==='2'&&$defaultBooking['durata']===30&&$defaultBooking['professionista']==='1000000012','An explicitly configured optional default still works without patient questions');
+    $defaultAgenda->cancel($defaultBooking['ref']);
     echo "PASS $count MySQL checks: isolated schema, tenant settings, real agenda, locks, duration, retries, cancellation, move, concurrency.\n";
 } finally { $admin->query('DROP DATABASE '.$name); }

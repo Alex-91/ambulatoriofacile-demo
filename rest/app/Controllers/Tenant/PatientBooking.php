@@ -43,7 +43,9 @@ class PatientBooking extends BaseController
         $config['regole']['preavviso_modifica_ore']=$c['cancel_hours'];
         $config['comunicazioni']['privacy_url']=$c['privacy_url'];
         $config['comunicazioni']['contatti']=['telefono'=>$c['telefono'],'email'=>$c['email'],'whatsapp'=>''];
-        return $cat+['config'=>$config,'prenotazioni_attive'=>PatientBookingSettings::configured($c) && empty($c['suspended']) && (bool)($cat['professionisti'] && $cat['prestazioni'] && $cat['sedi']),
+        return $cat+['config'=>$config,'prenotazioni_attive'=>PatientBookingSettings::configured($c) && empty($c['suspended']) && (bool)$cat['professionisti']
+            && (!PatientBookingWorkflow::stepEnabled($config,'prestazione') || (bool)$cat['prestazioni'])
+            && (!PatientBookingWorkflow::stepEnabled($config,'sede') || (bool)$cat['sedi']),
             'modalita'=>$config['accesso']['modalita'],'invito'=>$this->request->getGet('invito')?$this->agenda()->validateInvite((string)$this->request->getGet('invito')):null,'revisione'=>$this->settings['revision'],
             'regole'=>['max_attive'=>$config['limiti']['attive_per_recapito'],'finestra_giorni'=>$c['days'],'preavviso_sposta_ore'=>$c['cancel_hours'],'riserva_minuti'=>0,'scadenza_richiesta_ore'=>$config['accesso']['ore_scadenza_richieste']]];
     }
@@ -76,7 +78,7 @@ class PatientBooking extends BaseController
                 $c=$this->settings['config'];$catalog=$this->agenda()->catalog(true);
                 foreach(['doctors'=>'professionisti','visits'=>'prestazioni','locations'=>'sedi'] as $key=>$bucket){
                     $ids=array_values(array_unique(array_map('intval',(array)($payload[$key]??[]))));
-                    if(!$ids || array_diff($ids,array_map('intval',array_column($catalog[$bucket],'id'))))throw new \InvalidArgumentException('Seleziona almeno un elemento valido per ogni elenco.');
+                    if(($key==='doctors' && !$ids) || array_diff($ids,array_map('intval',array_column($catalog[$bucket],'id'))))throw new \InvalidArgumentException('Seleziona almeno un professionista e solo elementi del catalogo dello spazio.');
                     $c[$key]=$ids;
                 }
                 if(isset($payload['catalogo'])){

@@ -36,7 +36,10 @@ final class PatientBookingSettings
     }
     public static function configured(array $config): bool
     {
-        return !empty($config['doctors']) && !empty($config['visits']) && !empty($config['locations'])
+        $workflow=$config['workflow']??[];
+        $service=PatientBookingWorkflow::stepEnabled($workflow,'prestazione') || !empty($workflow['scelte']['prestazione_predefinita']);
+        return !empty($config['doctors']) && (!$service || !empty($config['visits']))
+            && (!PatientBookingWorkflow::stepEnabled($workflow,'sede') || !empty($config['locations']))
             && filter_var($config['privacy_url']??'',FILTER_VALIDATE_URL)
             && str_starts_with($config['privacy_url'],'https://');
     }
