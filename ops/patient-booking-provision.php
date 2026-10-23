@@ -7,6 +7,9 @@ declare(strict_types=1);
 if (PHP_SAPI !== 'cli') { http_response_code(403); exit(1); }
 $mode = $argv[1] ?? 'audit';
 if (!in_array($mode, ['audit', 'install'], true)) exit(2);
+$target = $argv[2] ?? '';
+$expectedUrls = ['demo'=>'https://ambulatoriofacile.it/demo/', 'login'=>'https://ambulatoriofacile.it/app/'];
+if (!isset($expectedUrls[$target]) || !is_file('/.dockerenv')) exit(2);
 define('FCPATH', '/var/www/html/rest/public/');
 require FCPATH . '../app/Config/Paths.php';
 require FCPATH . '../system/Boot.php';
@@ -33,16 +36,25 @@ class PatientBookingProvisionBoot extends \CodeIgniter\Boot
 try {
     chdir(FCPATH);
     PatientBookingProvisionBoot::start(new \Config\Paths());
+    if (config('App')->baseURL !== $expectedUrls[$target]) throw new RuntimeException('Unexpected deployment');
     $platform = \Config\Database::connect('platform');
-    if ($platform->database === 'ambulatoriofacile_demo') throw new RuntimeException('Frozen demo excluded');
+    // The online demo has the same DB name as the frozen local demo. Allow only
+    // the explicitly selected production container and its non-local DB server.
+    $onlineDemoHost = $target === 'demo' && !in_array(strtolower($platform->hostname), ['localhost','127.0.0.1','::1'], true)
+        ? $platform->hostname : null;
+    $isFrozenDemo = static fn(string $database, string $host, int $port): bool =>
+        $database === 'ambulatoriofacile_demo' && ($host !== $onlineDemoHost || $port !== (int)$platform->port);
+    if ($isFrozenDemo($platform->database, $platform->hostname, (int)$platform->port)) throw new RuntimeException('Frozen demo excluded');
     if ($mode === 'install') \App\Services\PatientBookingSchema::platform($platform);
     $ready = $platform->tableExists('platform_patient_booking_settings');
     $rows = $ready ? $platform->table('platform_patient_booking_settings s')
         ->select('s.id_tenant,s.revision,t.tenant_name,t.tenant_key,t.is_active')
         ->join('platform_tenants t', 't.id_tenant=s.id_tenant')
         ->where('s.enabled', 1)->orderBy('s.id_tenant')->get()->getResultArray() : [];
-    $report = ['mode'=>$mode,'base_url'=>config('App')->baseURL,'platform_ready'=>$ready,
+    $report = ['mode'=>$mode,'target'=>$target,'base_url'=>config('App')->baseURL,'platform_ready'=>$ready,
         'platform_fingerprint'=>hash('sha256', $platform->hostname.':'.$platform->port.'/'.$platform->database),
+        'available_spaces'=>$platform->tableExists('platform_tenants') ? $platform->table('platform_tenants')
+            ->select('id_tenant,tenant_name,tenant_key,is_active')->orderBy('id_tenant')->get()->getResultArray() : [],
         'spaces'=>[]];
     $failed = false;
     foreach ($rows as $row) {
@@ -53,7 +65,7 @@ try {
             $tenant = (new \App\Services\TenantCatalogService())->getTenantById($result['id']);
             $connector = new \App\Services\TenantDatabaseConnector();
             $connection = $connector->resolveDatabaseSettings($tenant);
-            if ($connection['db_name'] === 'ambulatoriofacile_demo') {
+            if ($isFrozenDemo($connection['db_name'], $connection['db_host'], (int)$connection['db_port'])) {
                 $result['skipped']='frozen_demo'; $report['spaces'][]=$result; continue;
             }
             $db = $connector->connect($tenant);
