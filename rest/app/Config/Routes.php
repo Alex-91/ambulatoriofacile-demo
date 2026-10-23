@@ -102,6 +102,9 @@ foreach (['', 'login/'] as $patientBookingPrefix) {
     $routes->post($patientBookingPrefix.'spazio/prenotazione-online/api/contatto', 'Tenant\PatientBooking::api/contatto');
     $routes->post($patientBookingPrefix.'spazio/prenotazione-online/api/presenza', 'Tenant\PatientBooking::api/presenza');
     $routes->post($patientBookingPrefix.'spazio/prenotazione-online/api/chiudi-contatto', 'Tenant\PatientBooking::api/chiudi-contatto');
+    $routes->post($patientBookingPrefix.'spazio/prenotazione-online/api/otp/invia', 'Tenant\PatientBooking::api/otp/invia');
+    $routes->post($patientBookingPrefix.'spazio/prenotazione-online/api/otp/verifica', 'Tenant\PatientBooking::api/otp/verifica');
+    $routes->delete($patientBookingPrefix.'spazio/prenotazione-online/api/sessione', 'Tenant\PatientBooking::api/sessione');
     $routes->post($patientBookingPrefix.'spazio/prenotazione-online/save', 'Tenant\PatientBooking::save');
     $routes->get($patientBookingPrefix.'spazio/prenotazione-online/api/(:segment)', 'Tenant\PatientBooking::api/$1');
     $routes->get($patientBookingPrefix.'spazio/prenotazione-online/api/prenotazioni/(:segment)', 'Tenant\PatientBooking::api/prenotazioni/$1');
