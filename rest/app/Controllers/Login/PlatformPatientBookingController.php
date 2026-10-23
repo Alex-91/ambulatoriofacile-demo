@@ -3,7 +3,7 @@ namespace App\Controllers\Login;
 
 use App\Controllers\BaseController;
 use App\Models\PlatformTenantsModel;
-use App\Services\{PlatformAdminAccessService, PatientBookingSettings, PatientBookingAgenda, PatientBookingException, TenantCatalogService, TenantDatabaseConnector, AgendaVisitTypeSchemaService};
+use App\Services\{PlatformAdminAccessService, PatientBookingSettings, PatientBookingException, TenantCatalogService, TenantDatabaseConnector, AgendaVisitTypeSchemaService};
 
 class PlatformPatientBookingController extends BaseController
 {
@@ -21,15 +21,14 @@ class PlatformPatientBookingController extends BaseController
         $id=(int)$this->request->getGet('tenant_id');
         $tenant=null; foreach($tenants as $row) if((int)$row['id_tenant']===$id) $tenant=$row;
         $settings=new PatientBookingSettings(); $state=$settings->get($id);
-        $catalog=['professionisti'=>[],'prestazioni'=>[],'sedi'=>[]]; $ready=false;
+        $ready=false;
         if ($tenant) {
             try {
                 $db=(new TenantDatabaseConnector())->connect($tenant);
-                $catalog=(new PatientBookingAgenda($db,$state,0))->catalog(true);
                 $ready=$settings->ready() && \App\Services\PatientBookingSchema::ready($db) && (new AgendaVisitTypeSchemaService($db))->isReady();
-            } catch (\Throwable $e) { log_message('error','Patient booking catalog unavailable for tenant {id}',['id'=>$id]); }
+            } catch (\Throwable $e) { log_message('error','Patient booking schema unavailable for tenant {id}',['id'=>$id]); }
         }
-        return view('admin/patient_booking',['tenants'=>$tenants,'tenant'=>$tenant,'state'=>$state,'catalog'=>$catalog,'ready'=>$ready,
+        return view('admin/patient_booking',['tenants'=>$tenants,'tenant'=>$tenant,'state'=>$state,'ready'=>$ready,
             'error'=>session()->getFlashdata('booking_error'),'success'=>session()->getFlashdata('booking_success')]);
     }
     public function save()
@@ -39,24 +38,16 @@ class PlatformPatientBookingController extends BaseController
         try {
             $tenant=(new TenantCatalogService())->getTenantById($id);
             if (!$tenant || empty($tenant['is_active'])) throw new PatientBookingException('spazio_non_valido');
-            $service=new PatientBookingSettings(); $settings=$service->get($id);
+            $service=new PatientBookingSettings();
             $db=(new TenantDatabaseConnector())->connect($tenant);
-            $config=(array)$this->request->getPost('booking');
-            $config['workflow']=$settings['config']['workflow'];
-            $config['editor']=$settings['config']['editor'];
-            $config['suspended']=$settings['config']['suspended'];
             $enabled=$this->request->getPost('enabled')==='1';
             if ($enabled) {
                 if (!\App\Services\PatientBookingSchema::ready($db) || !(new AgendaVisitTypeSchemaService($db))->isReady()) throw new PatientBookingException('schema_non_installato');
-                $cat=(new PatientBookingAgenda($db,$settings,0))->catalog(true);
-                foreach (['doctors'=>'professionisti','visits'=>'prestazioni','locations'=>'sedi'] as $key=>$bucket) {
-                    if (array_diff(array_map('intval',(array)($config[$key]??[])),array_map('intval',array_column($cat[$bucket],'id')))) throw new PatientBookingException('configurazione_non_valida');
-                }
             }
-            $service->save($id,$config,$enabled,(int)session()->get('platform_user_id'),(int)$this->request->getPost('revision'));
-            return redirect()->to(portal_platform_url('prenotazione-online').'?tenant_id='.$id)->with('booking_success','Configurazione salvata.');
+            $service->setEnabled($id,$enabled,(int)session()->get('platform_user_id'),(int)$this->request->getPost('revision'));
+            return redirect()->to(portal_platform_url('prenotazione-online').'?tenant_id='.$id)->with('booking_success','Abilitazione del modulo aggiornata. La configurazione è gestita nello spazio.');
         } catch (\Throwable $e) {
-            $message=$e instanceof PatientBookingException && $e->reason==='configurazione_cambiata'?'La configurazione è cambiata. Ricarica la pagina prima di salvare.':'Configurazione non salvata. Verifica catalogo, recapiti, informativa privacy e installazione del modulo.';
+            $message=$e instanceof PatientBookingException && $e->reason==='configurazione_cambiata'?'La configurazione è cambiata. Ricarica la pagina prima di salvare.':'Abilitazione non aggiornata. Verifica l’installazione del modulo nello spazio.';
             return redirect()->to(portal_platform_url('prenotazione-online').'?tenant_id='.$id)->with('booking_error',$message);
         }
     }

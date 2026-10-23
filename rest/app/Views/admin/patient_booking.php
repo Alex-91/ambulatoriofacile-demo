@@ -1,8 +1,8 @@
-<?php helper(['portal','form']); $c=$state['config']; ?>
+<?php helper(['portal','form']); ?>
 <!DOCTYPE html><html lang="it"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Prenotazione online | AmbulatorioFacile</title>
 <link rel="stylesheet" href="<?= base_url('public/bootstrap/css/bootstrap.min.css') ?>"><link rel="stylesheet" href="<?= base_url('public/dist/css/AdminLTE.css') ?>"><link rel="stylesheet" href="<?= base_url('public/dist/css/skins/_all-skins.min.css') ?>"></head>
 <body class="skin-blue sidebar-mini"><div class="wrapper"><?= view('partials/header',['menu_items'=>[],'portal_console_header'=>true]) ?><div class="content-wrapper"><main class="content">
-<h1>Prenotazione online</h1><p>Abilita il percorso interno nei singoli spazi e scegli i professionisti, le prestazioni e le sedi prenotabili.</p>
+<h1>Prenotazione online</h1><p>Abilita o disabilita il modulo nei singoli spazi. Ogni cliente gestisce la configurazione nel proprio spazio.</p>
 <?php if($error): ?><div class="alert alert-danger"><?= esc($error) ?></div><?php endif ?>
 <?php if($success): ?><div class="alert alert-success"><?= esc($success) ?></div><?php endif ?>
 <form method="get" action="<?= esc(portal_platform_url('prenotazione-online'),'attr') ?>"><label for="pb-tenant">Spazio</label><select class="form-control" id="pb-tenant" name="tenant_id"><option value="">Seleziona uno spazio</option><?php foreach($tenants as $row): ?><option value="<?= (int)$row['id_tenant'] ?>" <?= (int)($tenant['id_tenant']??0)===(int)$row['id_tenant']?'selected':'' ?>><?= esc($row['tenant_name']) ?></option><?php endforeach ?></select><button class="btn btn-default" type="submit">Apri</button></form>
@@ -11,13 +11,6 @@
 <form method="post" action="<?= esc(portal_platform_url('prenotazione-online/save'),'attr') ?>"><?= csrf_field() ?><input type="hidden" name="tenant_id" value="<?= (int)$tenant['id_tenant'] ?>"><input type="hidden" name="revision" value="<?= (int)$state['revision'] ?>">
 <div class="box box-primary"><div class="box-body">
 <label><input type="checkbox" name="enabled" value="1" <?= $state['enabled']?'checked':'' ?> <?= !$ready?'disabled':'' ?>> Attiva prenotazione online nello spazio</label>
-<p>La voce “Prenotazione online” apre il percorso come paziente. Gli appuntamenti confermati vengono salvati nell’agenda. Accesso riservato ai responsabili dello spazio.</p>
-<?php foreach(['doctors'=>['professionisti','Professionisti abilitati'],'visits'=>['prestazioni','Prestazioni prenotabili'],'locations'=>['sedi','Sedi prenotabili']] as $key=>[$bucket,$label]): ?>
-<fieldset><legend><?= esc($label) ?></legend><?php foreach($catalog[$bucket] as $item): ?><label style="display:block;font-weight:normal"><input type="checkbox" name="booking[<?= $key ?>][]" value="<?= (int)$item['id'] ?>" <?= in_array((int)$item['id'],$c[$key],true)?'checked':'' ?>> <?= esc(trim(($item['titolo']??'').' '.$item['nome'].' '.($item['cognome']??''))) ?><?= isset($item['durata'])?' · '.(int)$item['durata'].' minuti':'' ?></label><?php endforeach ?></fieldset>
-<?php endforeach ?>
-<p>Le prestazioni selezionate sono disponibili per tutti i professionisti abilitati, nelle sedi presenti nelle rispettive agende.</p>
-<label><input type="checkbox" name="booking[first_available]" value="1" <?= $c['first_available']?'checked':'' ?>> Mostra “Il primo disponibile”</label>
-<?php foreach(['telefono'=>'Telefono dello spazio','email'=>'Email dello spazio','privacy_url'=>'Informativa privacy dello spazio (https)'] as $key=>$label): ?><div class="form-group"><label for="pb-<?= $key ?>"><?= esc($label) ?></label><input class="form-control" id="pb-<?= $key ?>" name="booking[<?= $key ?>]" value="<?= esc($c[$key],'attr') ?>" type="<?= $key==='privacy_url'?'url':($key==='email'?'email':'text') ?>"></div><?php endforeach ?>
-<?php foreach(['min_notice'=>['Preavviso minimo in minuti',0,10080],'days'=>['Giorni prenotabili',1,365],'cancel_hours'=>['Preavviso annullamento in ore',0,168]] as $key=>[$label,$min,$max]): ?><div class="form-group"><label for="pb-<?= $key ?>"><?= esc($label) ?></label><input class="form-control" type="number" id="pb-<?= $key ?>" name="booking[<?= $key ?>]" value="<?= (int)$c[$key] ?>" min="<?= $min ?>" max="<?= $max ?>" required></div><?php endforeach ?>
-<button type="submit" class="btn btn-primary">Salva configurazione</button></div></div></form><?php endif ?>
+<p>Il responsabile dello spazio sceglie professionisti, prestazioni, sedi, recapiti, informativa privacy, regole e workflow dalla propria amministrazione.</p>
+<button type="submit" class="btn btn-primary" <?= !$ready?'disabled':'' ?>>Salva abilitazione</button></div></div></form><?php endif ?>
 </main></div></div><script src="<?= base_url('public/plugins/jQuery/jQuery-2.1.4.min.js') ?>"></script><script src="<?= base_url('public/bootstrap/js/bootstrap.min.js') ?>"></script><script src="<?= base_url('public/dist/js/app.min.js') ?>"></script></body></html>

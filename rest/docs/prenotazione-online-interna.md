@@ -6,6 +6,8 @@ Implementazione sul branch `codex/complete-patient-booking`. Le tavole A01–A05
 
 Solo spazio autenticato, abilitato dal super amministratore. Il bottone dell'amministrazione apre il percorso paziente. Nessuna route pubblica, verifica identità, OTP o prenotazione WhatsApp. Recapiti manuali, badge Non verificato, nessun collegamento automatico all'anagrafica. I link e QR puntano allo stesso ingresso interno e richiedono l'accesso allo spazio.
 
+Il super amministratore gestisce esclusivamente l'abilitazione del modulo per spazio: non imposta catalogo, professionisti, sedi, recapiti, privacy o workflow. L'attivazione è consentita anche prima che il cliente configuri questi dati. I tenant master/admin dello spazio gestiscono tutte le scelte dalle tavole A01–A05, inclusi «Prestazioni e professionisti» e «Modifica i contatti». Le bozze possono essere incomplete; la pubblicazione e l'accesso agli orari prenotabili richiedono catalogo e privacy validi. Disattivazione e riattivazione da piattaforma conservano configurazione e bozze del cliente. Le scritture dello spazio non possono cambiare l'abilitazione e rispettano la revisione concorrente.
+
 La preview `node ops/preview-patient-booking.cjs` usa dati sintetici in memoria e non il database applicativo. Le email di prova della preview sono simulate. I test MySQL avviano un database temporaneo su loopback 13371 e lo eliminano a fine prova.
 
 ## Installazione al rilascio

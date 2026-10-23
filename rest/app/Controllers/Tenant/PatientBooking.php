@@ -43,7 +43,7 @@ class PatientBooking extends BaseController
         $config['regole']['preavviso_modifica_ore']=$c['cancel_hours'];
         $config['comunicazioni']['privacy_url']=$c['privacy_url'];
         $config['comunicazioni']['contatti']=['telefono'=>$c['telefono'],'email'=>$c['email'],'whatsapp'=>''];
-        return $cat+['config'=>$config,'prenotazioni_attive'=>empty($c['suspended']) && (bool)($cat['professionisti'] && $cat['prestazioni'] && $cat['sedi']),
+        return $cat+['config'=>$config,'prenotazioni_attive'=>PatientBookingSettings::configured($c) && empty($c['suspended']) && (bool)($cat['professionisti'] && $cat['prestazioni'] && $cat['sedi']),
             'modalita'=>$config['accesso']['modalita'],'invito'=>$this->request->getGet('invito')?$this->agenda()->validateInvite((string)$this->request->getGet('invito')):null,'revisione'=>$this->settings['revision'],
             'regole'=>['max_attive'=>$config['limiti']['attive_per_recapito'],'finestra_giorni'=>$c['days'],'preavviso_sposta_ore'=>$c['cancel_hours'],'riserva_minuti'=>0,'scadenza_richiesta_ore'=>$config['accesso']['ore_scadenza_richieste']]];
     }
@@ -61,7 +61,7 @@ class PatientBooking extends BaseController
                 'assetUrl'=>portal_tenant_space_url('prenotazione-online/asset'),
                 'selection'=>array_intersect_key($this->settings['config'],array_flip(['doctors','visits','locations'])),
                 'stats'=>(new \App\Services\PatientBookingRecords((new TenantDatabaseConnector())->connect($this->tenant)))->counters(),
-                'navigation'=>['Agenda'=>portal_tenant_space_url('agenda'),'Pazienti'=>portal_tenant_space_url('pazienti'),'Impostazioni'=>portal_tenant_space_url('profilo-operativo'),'Modifica i contatti'=>portal_tenant_space_url('profilo-operativo')],
+                'navigation'=>['Agenda'=>portal_tenant_space_url('agenda'),'Pazienti'=>portal_tenant_space_url('pazienti'),'Impostazioni'=>portal_tenant_space_url('profilo-operativo')],
                 'requests'=>$board==='A02-richieste'?$this->agenda()->requests():[],
             ]);
         } catch (\Throwable $e) { return $this->failure($e); }
@@ -84,7 +84,7 @@ class PatientBooking extends BaseController
                     if(isset($c['editor']['draft']))$c['editor']['draft']['catalogo']=$payload['catalogo'];
                 }
             }else $c=\App\Services\PatientBookingEditor::transition($this->settings['config'],$action,$payload,$this->actor);
-            $store=new PatientBookingSettings();$store->save((int)$this->tenant['id_tenant'],$c,true,$this->actor,$this->settings['revision']);
+            $store=new PatientBookingSettings();$store->saveConfiguration((int)$this->tenant['id_tenant'],$c,$this->actor,$this->settings['revision']);
             return $this->response->setJSON(['state'=>\App\Services\PatientBookingEditor::state($store->get((int)$this->tenant['id_tenant'])),'csrf'=>csrf_hash()]);
         } catch(\InvalidArgumentException $e) {return $this->response->setStatusCode(422)->setJSON(['messaggio'=>$e->getMessage(),'csrf'=>csrf_hash()]);}
         catch(\Throwable $e) {return $this->failure($e);}
@@ -118,7 +118,8 @@ class PatientBooking extends BaseController
             }
             // Only the platform master can change enabled. Revision CAS also protects against a concurrent revocation.
             if((int)$this->request->getPost('revision')!==$this->settings['revision']) throw new PatientBookingException('configurazione_cambiata',409);
-            (new PatientBookingSettings())->save((int)$this->tenant['id_tenant'],$c,true,$this->actor,$this->settings['revision']);
+            if (!PatientBookingSettings::configured($c)) throw new \InvalidArgumentException('Completa catalogo e informativa privacy prima di pubblicare.');
+            (new PatientBookingSettings())->saveConfiguration((int)$this->tenant['id_tenant'],$c,$this->actor,$this->settings['revision']);
             return redirect()->to(portal_tenant_space_url('prenotazione-online'))->with('booking_success','Configurazione salvata. Il percorso paziente è aggiornato.');
         } catch (\Throwable $e) {
             $message=$e instanceof \InvalidArgumentException?$e->getMessage():($e instanceof PatientBookingException && $e->reason==='configurazione_cambiata'?'La configurazione è cambiata. Ricarica prima di salvare.':'Salvataggio non riuscito. Controlla catalogo, contatti e informativa privacy.');
@@ -197,7 +198,7 @@ class PatientBooking extends BaseController
     }
     private function applyDraft(): void
     {
-        $this->settings['config']=\App\Services\PatientBookingEditor::transition($this->settings['config'],'publish',[],$this->actor);
+        $this->settings['config']=\App\Services\PatientBookingEditor::transition($this->settings['config'],'publish',[],$this->actor,false);
     }
     public function asset(string $kind)
     {

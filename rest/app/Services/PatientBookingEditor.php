@@ -8,9 +8,9 @@ final class PatientBookingEditor
         $c=$state['config'];$editor=$c['editor']??[];
         return ['etag'=>$state['revision'],'published'=>PatientBookingWorkflow::resolve($c),
             'draft'=>$editor['draft']??PatientBookingWorkflow::resolve($c),'history'=>$editor['history']??[],
-            'publishedRevision'=>$editor['published_revision']??1,'suspended'=>!empty($c['suspended'])];
+            'publishedRevision'=>$editor['published_revision']??1,'suspended'=>!empty($c['suspended']),'configured'=>PatientBookingSettings::configured($c)];
     }
-    public static function transition(array $config,string $action,array $payload,int $actor): array
+    public static function transition(array $config,string $action,array $payload,int $actor,bool $requireConfigured=true): array
     {
         $editor=$config['editor']??[];$published=PatientBookingWorkflow::resolve($config);
         if($action==='suspend') {
@@ -28,6 +28,8 @@ final class PatientBookingEditor
             $config['first_available']=!empty($draft['scelte']['primo_disponibile']);
             foreach(['preavviso_minimo_min'=>'min_notice','giorni_prenotabili'=>'days','preavviso_modifica_ore'=>'cancel_hours'] as $from=>$to) $config[$to]=$draft['regole'][$from];
             $config['privacy_url']=$draft['comunicazioni']['privacy_url'];
+            foreach(['telefono','email'] as $key) $config[$key]=trim((string)($draft['comunicazioni']['contatti'][$key]??''));
+            if ($requireConfigured && !PatientBookingSettings::configured($config)) throw new \InvalidArgumentException('Completa Prestazioni e professionisti, sedi e informativa privacy prima di pubblicare.');
             $config['workflow']=PatientBookingWorkflow::validate($draft,$config);
             $rev=(int)($editor['published_revision']??1);
             $editor['history'][]=['revision'=>$rev,'config'=>$published,'author'=>$actor,'date'=>gmdate('c'),'note'=>mb_substr((string)($payload['note']??''),0,500)];

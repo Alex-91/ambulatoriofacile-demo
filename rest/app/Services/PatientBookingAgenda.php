@@ -96,7 +96,7 @@ final class PatientBookingAgenda
 
     private function slots(array $q,string $from,string $to): array
     {
-        if(!empty($this->settings['config']['suspended'])) throw new PatientBookingException('prenotazioni_sospese',403);
+        if(!empty($this->settings['config']['suspended']) || !PatientBookingSettings::configured($this->settings['config'])) throw new PatientBookingException('prenotazioni_sospese',403);
         $cat=$this->catalog(); $services=array_column($cat['prestazioni'],null,'id');
         $visit=$services[(string)($q['prestazione']??'')]??null;
         if (!$visit) throw new PatientBookingException('prestazione_non_valida');

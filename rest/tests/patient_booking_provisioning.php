@@ -66,6 +66,35 @@ try {
     $result = $failing->runEnabled($url);
     provisionCheck($result['failed'] === 1 && $result['processed'] === 1 && !str_contains(json_encode($result), 'Sensitive'), 'A failed space is reported safely and does not stop other spaces');
 
+    $db->query('INSERT INTO platform_tenants VALUES(4,1)');
+    $store->setEnabled(4,true,9,0);
+    $owned=$store->get(4);
+    provisionCheck($owned['enabled'] && !PatientBookingSettings::configured($owned['config']) && $owned['config']===PatientBookingSettings::defaults(), 'Platform can enable a fresh module without choosing anything for the client');
+    $draft=\App\Services\PatientBookingEditor::transition($owned['config'],'save',['draft'=>\App\Services\PatientBookingWorkflow::resolve($owned['config'])],4);
+    $store->saveConfiguration(4,$draft,4,1);
+    provisionCheck(isset($store->get(4)['config']['editor']['draft']), 'Client can save an initial draft with no catalog or privacy yet');
+    try {\App\Services\PatientBookingEditor::transition($draft,'publish',[],4); throw new RuntimeException('Incomplete booking published');}
+    catch(InvalidArgumentException $e){provisionCheck(true,'Incomplete configuration cannot open patient bookings');}
+    $owned=$store->get(4);$client=$owned['config'];
+    $client['doctors']=[1];$client['visits']=[1];$client['locations']=[1];
+    $client['editor']['draft']['comunicazioni']['contatti']=['telefono'=>'0612345678','email'=>'cliente@example.test','whatsapp'=>''];
+    $client['editor']['draft']['comunicazioni']['privacy_url']='https://cliente.example.test/privacy';
+    $client=\App\Services\PatientBookingEditor::transition($client,'publish',[],4);
+    $client['enabled']=false; // A forged configuration field must not change entitlement.
+    $store->saveConfiguration(4,$client,4,2);
+    $owned=$store->get(4);
+    provisionCheck($owned['enabled'] && PatientBookingSettings::configured($owned['config']) && $owned['config']['email']==='cliente@example.test' && $owned['config']['telefono']==='0612345678', 'Client owns and publishes catalog, privacy and contacts without changing module entitlement');
+    $raw=$db->table('platform_patient_booking_settings')->where('id_tenant',4)->get()->getRowArray()['config_json'];
+    $store->setEnabled(4,false,9,3);
+    provisionCheck(!$store->enabled(4) && $db->table('platform_patient_booking_settings')->where('id_tenant',4)->get()->getRowArray()['config_json']===$raw, 'Platform revocation preserves customer configuration byte for byte');
+    try{$store->saveConfiguration(4,$client,4,3);throw new RuntimeException('Client reenabled revoked module');}
+    catch(\App\Services\PatientBookingException $e){provisionCheck($e->status===403,'Client cannot reenable a revoked module');}
+    $store->setEnabled(4,true,9,4);
+    provisionCheck($db->table('platform_patient_booking_settings')->where('id_tenant',4)->get()->getRowArray()['config_json']===$raw, 'Reactivation restores the same client configuration');
+    try{$store->saveConfiguration(4,$client,4,3);throw new RuntimeException('Stale client write accepted');}
+    catch(\App\Services\PatientBookingException $e){provisionCheck($e->status===409,'Stale tenant edits cannot overwrite platform changes');}
+    provisionCheck($store->get(3)['config']['privacy_url']==='https://example.test/privacy','Customer configuration stays isolated between spaces');
+
     // Exercise the real template cleanup on synthetic data only.
     $service = (new ReflectionClass(TenantInfrastructureProvisioningService::class))->newInstanceWithoutConstructor();
     $reset = new ReflectionMethod($service, 'resetProvisioningTemplateData');
