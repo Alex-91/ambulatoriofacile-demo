@@ -23,7 +23,7 @@ class InstallPatientBooking extends BaseCommand
         $tenant = (new TenantCatalogService())->getTenantById($id);
         if (!$tenant) { CLI::error('Spazio inesistente.'); return; }
         $db = (new TenantDatabaseConnector())->connect($tenant);
-        if ($db->database === 'ambulatoriofacile_demo') {
+        if (PatientBookingSchema::isFrozenDemoDatabase($db)) {
             CLI::error('Database della demo congelata escluso.'); return;
         }
         PatientBookingSchema::tenant($db);

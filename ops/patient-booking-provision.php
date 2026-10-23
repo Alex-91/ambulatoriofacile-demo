@@ -4,9 +4,12 @@ declare(strict_types=1);
 // Run in the deployed container, using its own configuration. No patient data is printed.
 // audit is read-only; install calls the existing, idempotent module installer only
 // for active spaces whose platform booking setting is already enabled.
+// prepare-all explicitly prepares every active space, without enabling any.
 if (PHP_SAPI !== 'cli') { http_response_code(403); exit(1); }
 $mode = $argv[1] ?? 'audit';
-if (!in_array($mode, ['audit', 'install'], true)) exit(2);
+if (!in_array($mode, ['audit', 'install', 'prepare-all', 'audit-all'], true)) exit(2);
+$installing = in_array($mode, ['install', 'prepare-all'], true);
+$all = in_array($mode, ['prepare-all', 'audit-all'], true);
 $target = $argv[2] ?? '';
 $expectedUrls = ['demo'=>'https://ambulatoriofacile.it/demo/', 'login'=>'https://ambulatoriofacile.it/app/'];
 if (!isset($expectedUrls[$target]) || !is_file('/.dockerenv')) exit(2);
@@ -45,12 +48,16 @@ try {
     $isFrozenDemo = static fn(string $database, string $host, int $port): bool =>
         $database === 'ambulatoriofacile_demo' && ($host !== $onlineDemoHost || $port !== (int)$platform->port);
     if ($isFrozenDemo($platform->database, $platform->hostname, (int)$platform->port)) throw new RuntimeException('Frozen demo excluded');
-    if ($mode === 'install') \App\Services\PatientBookingSchema::platform($platform);
+    if ($installing) \App\Services\PatientBookingSchema::platform($platform);
     $ready = $platform->tableExists('platform_patient_booking_settings');
-    $rows = $ready ? $platform->table('platform_patient_booking_settings s')
-        ->select('s.id_tenant,s.revision,t.tenant_name,t.tenant_key,t.is_active')
-        ->join('platform_tenants t', 't.id_tenant=s.id_tenant')
-        ->where('s.enabled', 1)->orderBy('s.id_tenant')->get()->getResultArray() : [];
+    $rows = [];
+    if ($ready) {
+        $query = $platform->table('platform_tenants t')
+            ->select('t.id_tenant,s.revision,s.enabled,t.tenant_name,t.tenant_key,t.is_active')
+            ->join('platform_patient_booking_settings s', 't.id_tenant=s.id_tenant', 'left');
+        if (!$all) $query->where('s.enabled', 1);
+        $rows = $query->orderBy('t.id_tenant')->get()->getResultArray();
+    }
     $report = ['mode'=>$mode,'target'=>$target,'base_url'=>config('App')->baseURL,'platform_ready'=>$ready,
         'platform_fingerprint'=>hash('sha256', $platform->hostname.':'.$platform->port.'/'.$platform->database),
         'available_spaces'=>$platform->tableExists('platform_tenants') ? $platform->table('platform_tenants')
@@ -59,7 +66,7 @@ try {
     $failed = false;
     foreach ($rows as $row) {
         $result = ['id'=>(int)$row['id_tenant'],'name'=>$row['tenant_name'],'key'=>$row['tenant_key'],
-            'active'=>(bool)$row['is_active'],'revision'=>(int)$row['revision']];
+            'active'=>(bool)$row['is_active'],'enabled'=>(bool)$row['enabled'],'revision'=>(int)$row['revision']];
         if (!$result['active']) { $result['skipped']='inactive'; $report['spaces'][]=$result; continue; }
         try {
             $tenant = (new \App\Services\TenantCatalogService())->getTenantById($result['id']);
@@ -71,19 +78,22 @@ try {
             $db = $connector->connect($tenant);
             $result['database_fingerprint']=hash('sha256', $db->hostname.':'.$db->port.'/'.$db->database);
             $settings = (new \App\Services\PatientBookingSettings())->get($result['id']);
-            if (!$settings['enabled']) throw new RuntimeException('Space disabled during provisioning');
-            if ($mode === 'install') \App\Services\PatientBookingSchema::tenant($db);
+            if (!$all && !$settings['enabled']) throw new RuntimeException('Space disabled during provisioning');
+            if ($installing) {
+                \App\Services\PatientBookingSchema::tenant($db);
+                $db->resetDataCache();
+            }
             $result['schema_ready']=\App\Services\PatientBookingSchema::ready($db);
             $result['agenda_ready']=(new \App\Services\AgendaVisitTypeSchemaService($db))->isReady();
             $state = $db->query("SHOW COLUMNS FROM dap12_agenda_appuntamenti LIKE 'stato'")->getRowArray();
             $result['pending_state_ready']=$state && (!str_starts_with(strtolower($state['Type']), 'enum(') || str_contains($state['Type'], "'IN_ATTESA'"));
             if ($result['schema_ready']) {
-                $catalog=(new \App\Services\PatientBookingAgenda($db,$settings,0))->catalog();
+                $catalog=(new \App\Services\PatientBookingAgenda($db,$settings,0))->catalog($all);
                 $result['catalog_counts']=array_map('count', array_intersect_key($catalog,array_flip(['professionisti','prestazioni','sedi'])));
                 $result['outbox_states']=$db->table('patient_booking_outbox')->select('state,COUNT(*) AS total')->groupBy('state')->get()->getResultArray();
                 $result['bookings_without_metadata']=(int)$db->query('SELECT COUNT(*) AS total FROM patient_online_bookings b LEFT JOIN patient_booking_details d ON d.booking_ref=b.booking_ref WHERE d.booking_ref IS NULL')->getRowArray()['total'];
             }
-            if ($mode==='install' && (!$result['schema_ready'] || !$result['agenda_ready'] || !$result['pending_state_ready'])) $failed=true;
+            if ($installing && (!$result['schema_ready'] || !$result['agenda_ready'] || !$result['pending_state_ready'])) $failed=true;
         } catch (\Throwable $e) {
             // Database connection errors can contain credentials: never print their message.
             $result['error']=get_class($e); $failed=true;

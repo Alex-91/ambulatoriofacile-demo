@@ -27,6 +27,8 @@ try {
     if (!$bookingReady) { throw 'Disposable MySQL did not start' }
     & php -d xdebug.mode=off (Join-Path $bookingRepo 'rest/tests/patient_booking_mysql.php') --isolated-local-mysql
     if ($LASTEXITCODE -ne 0) { throw 'Patient booking regression failed' }
+    & php -d xdebug.mode=off (Join-Path $bookingRepo 'rest/tests/patient_booking_provisioning.php') --isolated-local-mysql
+    if ($LASTEXITCODE -ne 0) { throw 'Patient booking provisioning regression failed' }
 } finally {
     $bookingProcess.Refresh()
     if (!$bookingProcess.HasExited) {

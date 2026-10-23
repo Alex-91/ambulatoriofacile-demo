@@ -6,6 +6,16 @@ use CodeIgniter\Database\BaseConnection;
 /** Invoked by the explicit installer only; HTTP requests never repair schemas. */
 final class PatientBookingSchema
 {
+    public static function isFrozenDemoDatabase(BaseConnection $db): bool
+    {
+        if ($db->database !== 'ambulatoriofacile_demo') return false;
+        // The live Coolify demo and the frozen local snapshot share a DB name.
+        // Only the live demo container may maintain the remote namesake.
+        return !is_file('/.dockerenv')
+            || config('App')->baseURL !== 'https://ambulatoriofacile.it/demo/'
+            || in_array(strtolower($db->hostname), ['localhost', '127.0.0.1', '::1'], true);
+    }
+
     public static function ready(BaseConnection $db): bool
     {
         foreach(['patient_online_bookings','patient_booking_details','patient_booking_contacts','patient_booking_blocks','patient_booking_events','patient_booking_invites','patient_booking_outbox','patient_booking_absences'] as $table)if(!$db->tableExists($table))return false;
@@ -18,10 +28,12 @@ final class PatientBookingSchema
             config_json MEDIUMTEXT NOT NULL, revision INT NOT NULL DEFAULT 1,
             updated_by INT NOT NULL, updated_at DATETIME NOT NULL
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+        $db->resetDataCache();
     }
 
     public static function tenant(BaseConnection $db): void
     {
+        if (self::isFrozenDemoDatabase($db)) throw new \RuntimeException('Database della demo congelata escluso.');
         $db->query("CREATE TABLE IF NOT EXISTS patient_booking_absences (
             booking_ref CHAR(6) PRIMARY KEY, created_by INT NOT NULL, created_at DATETIME NOT NULL
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
@@ -73,5 +85,6 @@ final class PatientBookingSchema
             UNIQUE KEY uq_patient_online_appointment (id_appuntamento),
             UNIQUE KEY uq_patient_online_retry (author_id,idempotency_key)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+        $db->resetDataCache();
     }
 }

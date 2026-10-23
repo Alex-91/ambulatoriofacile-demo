@@ -18,7 +18,19 @@ Le email relative alle operazioni sono accodate nella stessa transazione della p
 php spark prenota:scadenze --tenant ID --patient-url https://HOST/login/spazio/prenotazione-online/paziente
 ```
 
-`ops/setup-patient-booking-maintenance.ps1` prepara la task Coolify ogni cinque minuti per target e spazio espliciti; supporta `-DryRun`. Schema e task non sono stati installati in produzione durante questo intervento. Gli invii falliti rimangono registrati senza un reinvio automatico ambiguo. Il trasporto email è quello già configurato per lo spazio.
+`ops/setup-patient-booking-maintenance.ps1` prepara la task Coolify ogni cinque minuti; supporta `-DryRun`, `-TenantId ID` oppure `-AllEnabled`. La modalità `-AllEnabled` crea una sola task per ambiente e rilegge gli spazi attivi abilitati a ogni esecuzione, includendo quelli creati in futuro. Gli invii falliti rimangono registrati senza un reinvio automatico ambiguo. Il trasporto email è quello già configurato per lo spazio.
+
+La migration `2026-10-23-100001_CreatePatientBookingSchema.php` è inclusa nel normale provisioning dei nuovi spazi e prepara le tabelle senza abilitarli. Quando un nuovo DB viene creato copiando un template, i dati delle prenotazioni e le eventuali abilitazioni copiate vengono rimossi dalla procedura di inizializzazione. Il rollback della migration conserva i dati. La demo congelata locale resta esclusa; la demo Coolify online usa un database omonimo su un server diverso.
+
+Per predisporre gli spazi esistenti senza abilitarli, eseguire nel relativo container `php ops/patient-booking-provision.php prepare-all demo` oppure `prepare-all login`. `audit-all` verifica in sola lettura tutti gli spazi. Il comando controlla l'URL dell'ambiente, non stampa dati dei pazienti e restituisce un codice non zero se una verifica fallisce. Non modifica cataloghi, workflow o abilitazioni.
+
+Esempio per il job unico di login:
+
+```powershell
+./ops/setup-patient-booking-maintenance.ps1 -Target login -AllEnabled -PatientUrl https://ambulatoriofacile.it/login/spazio/prenotazione-online/paziente
+```
+
+Per demo usare il target `demo` e l'URL `https://ambulatoriofacile.it/demo/login/spazio/prenotazione-online/paziente`. I job non installano schemi e non elaborano spazi disabilitati. Se uno spazio fallisce, gli altri vengono comunque elaborati e il comando segnala l'errore.
 
 ## Verifica
 
