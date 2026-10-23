@@ -1,7 +1,7 @@
 <?php
 namespace App\Services;
 
-/** Configuration for the authenticated, manual-contact booking journey. */
+/** Configuration for the authenticated booking journey. */
 final class PatientBookingWorkflow
 {
     public static function stepEnabled(array $workflow,string $id): bool
@@ -12,7 +12,7 @@ final class PatientBookingWorkflow
     public static function defaults(): array
     {
         $c=json_decode(file_get_contents(APPPATH.'Resources/patient-booking/defaults.json'),true,512,JSON_THROW_ON_ERROR);
-        $c['verifica']=['richiesta'=>false,'metodi'=>[]];
+        $c['verifica']=['richiesta'=>false,'metodi'=>[],'sms_tetto_giornaliero'=>50];
         foreach($c['passi'] as &$step) if($step['id']==='verifica') $step['attivo']=false;
         unset($step);
         $c['accesso']['modalita']='aperta';
@@ -50,7 +50,11 @@ final class PatientBookingWorkflow
         foreach(['orario','dati','riepilogo'] as $id) if(!in_array($id,$active,true)) self::fail('Orario, I tuoi dati e Riepilogo devono restare attivi.');
         if(end($ids)!=='riepilogo') self::fail('Il riepilogo deve essere l’ultimo passo.');
         foreach(['prestazione','professionista','sede'] as $id) if(in_array($id,$active,true) && array_search($id,$active)>array_search('orario',$active)) self::fail('Data e orario deve seguire Prestazione, Professionista e Sede.');
-        if(in_array('verifica',$active,true) || !empty($c['verifica']['richiesta'])) self::fail('Il percorso nello spazio è senza verifica.');
+        $verification=!empty($c['verifica']['richiesta']);
+        if(in_array('verifica',$active,true)!==$verification)self::fail('Il passo di verifica e la richiesta di verifica devono essere attivati insieme.');
+        if($verification && array_search('verifica',$active)>array_search('dati',$active))self::fail('La verifica deve precedere I tuoi dati.');
+        if(!is_array($c['verifica']['metodi']) || array_diff($c['verifica']['metodi'],['sms']))self::fail('Per questo percorso è disponibile la verifica tramite SMS.');
+        if($verification && !in_array('sms',$c['verifica']['metodi'],true))self::fail('Attiva il metodo SMS per richiedere la verifica del numero.');
         if(!in_array($c['accesso']['modalita'],['aperta','approvazione','invito'],true)) self::fail('Senza verifica non puoi limitare le prenotazioni ai pazienti in archivio.');
         foreach(['prestazione_predefinita'=>'visits','professionista_predefinito'=>'doctors'] as $key=>$bucket) {
             $id=$c['scelte'][$key];$c['scelte'][$key]=$id===null||$id===''?null:(string)(int)$id;
@@ -77,7 +81,10 @@ final class PatientBookingWorkflow
                 foreach(['prestazioni','sedi'] as $field)if(isset($item[$field])){$item[$field]=array_values(array_unique(array_map('intval',(array)$item[$field])));if(array_filter($item[$field],fn($id)=>$id<=0))self::fail('Associazione del catalogo non valida.');}
             }unset($item);
         }
-        $c['verifica']['richiesta']=false;$c['verifica']['metodi']=[];
+        $c['verifica']['richiesta']=$verification;$c['verifica']['metodi']=array_values(array_unique($c['verifica']['metodi']));
+        $cap=$c['verifica']['sms_tetto_giornaliero']??50;
+        if(filter_var($cap,FILTER_VALIDATE_INT)===false || $cap<1 || $cap>1000)self::fail('Il tetto giornaliero degli SMS deve essere tra 1 e 1000.');
+        $c['verifica']['sms_tetto_giornaliero']=(int)$cap;
         $c['regole']['minuti_riserva']=0;
         $c['comunicazioni']['mostra_prestazione_nei_messaggi']=!empty($c['comunicazioni']['mostra_prestazione_nei_messaggi']);
         $c['aspetto']['logo_url']=PatientBookingLogo::validate($c['aspetto']['logo_url']);

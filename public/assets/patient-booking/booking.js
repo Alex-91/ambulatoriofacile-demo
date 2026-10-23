@@ -160,7 +160,7 @@ async function chiama(metodo, percorso, corpo, intestazioni={}) {
     let body;try{body=await r.json();}catch(e){throw new ErroreApi(r.status,{errore:'riprova'});}
     if(body.csrf)csrfToken=body.csrf;
     if(!r.ok){
-      if(r.status===401){location.href=BOOT.back;throw new ErroreApi(r.status,body);}
+      if(r.status===401 && body.errore!=='verifica_richiesta'){location.href=BOOT.back;throw new ErroreApi(r.status,body);}
       if(['limite_prenotazioni','prestazione_gia_prenotata'].includes(body.errore))throw new ErroreApi(422,{...body,errore:'limite_raggiunto',massimo:BOOT.catalog.regole.max_attive});
       throw new ErroreApi(r.status,body);
     }
@@ -247,7 +247,7 @@ const posPasso = id => { const i = cfg().passi.filter(p => p.attivo || p.id === 
 // Verifica spenta (passo spento o verifica.richiesta false): prenotazione senza registrazione.
 const verificaRichiesta = () => cfg().verifica.richiesta && passoAttivo('verifica');
 // Metodi accesi, nell'ordine scelto dallo studio. Valgono per la prenotazione e per "Le mie prenotazioni".
-const metodiVerifica = () => cfg().verifica.metodi.filter(m => METODI_VERIFICA.includes(m));
+const metodiVerifica = () => cfg().verifica.metodi.filter(m => METODI_VERIFICA.includes(m) && (m !== 'sms' || state.catalogo?.sms_disponibile !== false));
 const conMiePrenotazioni = () => metodiVerifica().length > 0;
 const testoCfg = (k, predefinito) => { const t = cfg().testi[k]; return t ? esc(t) : predefinito; };
 const catPrestazioni = () => (state.catalogo ? state.catalogo.prestazioni : PRESTAZIONI);
@@ -454,7 +454,8 @@ function guardia(s) {
       if (d.esito && d.esito.stato === 'annullata') { state.draft = nuovaBozza(d); return 'benvenuto'; }
       return d.esito ? null : 'benvenuto';
     case 'preso': return state.ui.alternative.length ? null : 'orario';
-    case 'mie': case 'dettaglio': case 'sposta': case 'sposta-conferma': case 'annullata':
+    case 'mie': return verificato() || !conMiePrenotazioni() ? null : 'mie-accesso';
+    case 'dettaglio': case 'sposta': case 'sposta-conferma': case 'annullata':
       return null; // Server authorizes management against the authenticated operator.
     case 'mie-codice': return state.ui.otp.inviato && state.ui.otp.contesto === 'mie' ? null : 'mie-accesso';
     case 'mie-accesso': return verificato() ? 'mie' : conMiePrenotazioni() ? null : 'benvenuto';
@@ -612,7 +613,7 @@ function riservaValida() {
 }
 // Banner della riserva: compare SOLO dopo la verifica del codice (senza verifica non c'è riserva).
 function bannerRiserva(compatto = false) {
-  if (!verificaRichiesta()) return '';
+  if (!verificaRichiesta() || !cfg().regole.minuti_riserva) return '';
   const r = state.draft.riserva; const d = state.draft;
   const serve = verificato() && d.data && d.ora && ['dati', 'riepilogo'].includes(state.ui.screen);
   if (!r && !serve) return '';
@@ -1497,7 +1498,7 @@ function sRiepilogo() {
   return {
     cta: senza
       ? { label: richiesta ? 'Invia la richiesta' : 'Conferma la prenotazione', azione: azioni.inviaPrenotazione }
-      : { label: richiesta ? 'Invia la richiesta' : 'Conferma la prenotazione', azione: azioni.inviaPrenotazione, pronto: riservaValida(), avviso: scaduta ? 'Il tempo per confermare è scaduto. Tocca "Riprova con lo stesso orario".' : 'Tocca "Riprova con lo stesso orario" per tenere l\'orario.' },
+      : { label: richiesta ? 'Invia la richiesta' : 'Conferma la prenotazione', azione: azioni.inviaPrenotazione, pronto: verificato() && (!cfg().regole.minuti_riserva || riservaValida()), avviso: scaduta ? 'Il tempo per confermare è scaduto. Tocca "Riprova con lo stesso orario".' : 'Verifica il numero per confermare la prenotazione.' },
     html: `${titolo('Controlla e conferma', 'Tocca Modifica su una riga per cambiarla: il resto non si perde.')}
       ${bannerRiserva()}
       <div class="card recap">${righeRiepilogo(d, true)}</div>
@@ -1962,9 +1963,9 @@ function disegnaLaterale(tipo, cta, nelFlusso) {
     side.innerHTML = `<section class="summary" aria-labelledby="sum-t">
       <h2 class="summary-title" id="sum-t">La tua prenotazione</h2>
       <div class="sum-list">
-        ${riga('steth', 'Prestazione', pres && esc(pres?.nome || ''), pres && `${pres?.durata} minuti · ${pres?.prezzo == null ? '' : pres?.prezzo + ' €'}`)}
+        ${pres || passoAttivo('prestazione') ? riga('steth', 'Prestazione', pres && esc(pres?.nome || ''), pres && `${pres?.durata} minuti · ${pres?.prezzo == null ? '' : pres?.prezzo + ' €'}`) : ''}
         ${riga('user', 'Professionista', pro ? nomePro(pro) : d.professionista === 'primo' ? 'Il primo disponibile' : null)}
-        ${riga(sede && sede?.online ? 'video' : 'pin', 'Sede', sede && (sede?.online ? 'Videochiamata' : sede.nome), sede && !sede?.online && indirizzo(sede))}
+        ${sede || passoAttivo('sede') ? riga(sede && sede?.online ? 'video' : 'pin', 'Sede', sede && (sede?.online ? 'Videochiamata' : sede.nome), sede && !sede?.online && indirizzo(sede)) : ''}
         ${riga('calendar', 'Quando', d.data && d.ora && `<span class="tnum">${maiuscola(dataLunga(d.data))}, ${d.ora}</span>`, d.data && d.ora && maiuscola(traQuanto(d.data)))}
         ${perChi}
       </div>
@@ -2013,6 +2014,8 @@ const azioni = {
   },
   // Riserva di 10 minuti (solo con numero verificato). Gestisce tutti i "no" del server.
   async prendiRiserva(opz = {}) {
+    // This internal journey books atomically at confirmation; it does not promise a temporary hold.
+    if (!cfg().regole.minuti_riserva) return true;
     const d = state.draft;
     setBusy(true);
     try {
@@ -2049,7 +2052,7 @@ const azioni = {
       const token = await turnstile();
       const r = await api.otpInvia({ cellulare: c, metodo: o.metodo, email: o.email, contesto, turnstile_token: token, trappola });
       Object.assign(o, { contesto, cellulare: c, inviato: true, rimandaDa: Date.now() + 60000, errore: null, cifre: ['', '', '', '', '', ''], antibot: false,
-        messaggio: r.messaggio || '', waLink: r.wa_link || '', waAperto: false, scade: Date.now() + 600000 });
+        messaggio: r.messaggio || '', waLink: r.wa_link || '', waAperto: false, scade: r.scade_il || Date.now() + 600000 });
       setBusy(false);
       vai(contesto === 'mie' ? 'mie-codice' : 'codice');
       annuncia(o.metodo === 'email' ? `Ti abbiamo mandato il codice a ${o.email}.` : o.metodo === 'sms' ? `Ti abbiamo mandato un SMS al ${formattaCell(c)}.` : 'Ora manda il messaggio già scritto su WhatsApp.');
@@ -2062,6 +2065,7 @@ const azioni = {
         state.ui.errori = { cell: 'Oggi non possiamo mandare altri SMS di verifica. Scegli un altro modo per verificare.' };
       } else if (e.status === 429) state.ui.errori = { cell: 'Hai chiesto troppi codici per questo numero. Riprova tra un\'ora oppure chiama lo studio.' };
       else if (e.status === 423) state.ui.errori = { cell: 'Per sicurezza i tentativi per questo numero sono bloccati per 15 minuti.' };
+      else if (e.status === 503) state.ui.errori = { cell: e.body.messaggio || 'Non è stato possibile inviare l’SMS. Riprova o contatta lo studio.' };
       else if (e.status === 422 && e.body.errore === 'email_non_valida') state.ui.errori = { email: 'Scrivi un indirizzo email completo, ad esempio nome@esempio.it.' };
       else if (e.status === 422 && e.body.errore === 'email_usa_e_getta') state.ui.errori = { email: 'Questo indirizzo email non è accettato. Usa la tua email personale.' };
       else if (e.status === 422) state.ui.errori = { cell: 'Scrivi un cellulare italiano, ad esempio 347 123 4567.' };
@@ -2074,12 +2078,13 @@ const azioni = {
     try {
       setBusy(true);
       const token = await turnstile();
-      await api.otpInvia({ cellulare: o.cellulare, metodo: o.metodo, email: o.email, contesto: o.contesto, turnstile_token: token });
-      Object.assign(o, { rimandaDa: Date.now() + 60000, errore: null, cifre: ['', '', '', '', '', ''] });
+      const r = await api.otpInvia({ cellulare: o.cellulare, metodo: o.metodo, email: o.email, contesto: o.contesto, turnstile_token: token });
+      Object.assign(o, { rimandaDa: r.rimanda_da || Date.now() + 60000, scade: r.scade_il || Date.now() + 600000, errore: null, cifre: ['', '', '', '', '', ''] });
       toast(o.metodo === 'sms' ? 'Ti abbiamo mandato un nuovo SMS.' : 'Ti abbiamo mandato un nuovo codice.');
     } catch (e) {
       if (e.status === 429) { o.errore = 'Hai chiesto troppi codici per questo numero. Riprova tra un\'ora oppure chiama lo studio.'; o.rimandaDa = Date.now() + 3600000; }
       else if (e.status === 423) { o.bloccatoFino = e.body.bloccato_fino; o.errore = 'Per sicurezza abbiamo bloccato i tentativi per 15 minuti.'; }
+      else if (e.status === 503) { o.errore = e.body.messaggio || 'Non è stato possibile inviare l’SMS. Riprova o contatta lo studio.'; }
       else erroreRete(e);
     } finally { setBusy(false); render(); const b = $('#otp-0'); if (b && !b.disabled) b.focus(); }
   },
@@ -2155,7 +2160,7 @@ const azioni = {
     state.ui.tentato.dati = false;
     avanti('dati');
   },
-  // Prenotazione senza registrazione: Turnstile, poi creazione con controllo atomico dell'orario (nessuna riserva prima).
+  // Creazione atomica nell'agenda; con verifica attiva il server controlla anche la prova SMS.
   async inviaSenzaVerifica() {
     const d = state.draft;
     if (state.ui.busy || state.ui.antibotConferma) return;
@@ -2190,35 +2195,8 @@ const azioni = {
     }
   },
   async inviaPrenotazione() {
-    const d = state.draft;
-    if (!verificaRichiesta()) return azioni.inviaSenzaVerifica();
-    if (!riservaValida()) { toast('L\'orario non è più tenuto per te. Tocca "Riprova con lo stesso orario".', 'warn'); return; }
-    d.idemKey = d.idemKey || uuid(); // Idempotency-Key: un doppio tocco non crea due prenotazioni
-    setBusy(true);
-    const paz = d.perChi === 'altro'
-      ? { nome: d.assistito.nome.trim(), cognome: d.assistito.cognome.trim(), nascita: d.assistito.nascita }
-      : { nome: d.dati.nome.trim(), cognome: d.dati.cognome.trim(), nascita: d.dati.nascita };
-    try {
-      const r = await api.creaPrenotazione({
-        riserva: d.riserva.token,
-        paziente: paz,
-        prenotante: d.perChi === 'altro' ? { nome: d.dati.nome.trim(), cognome: d.dati.cognome.trim() } : null,
-        anagrafica: { nome: d.dati.nome.trim(), cognome: d.dati.cognome.trim(), email: d.dati.email.trim(), nascita: d.dati.nascita, cf: d.dati.cf.trim().toUpperCase() },
-        email: d.dati.email.trim(), canale: d.dati.canale, nota: d.dati.nota.trim(),
-      }, d.idemKey);
-      d.esito = r.prenotazione; d.completata = true; d.riserva = null; d.idemKey = null;
-      invalidaCache();
-      setBusy(false);
-      vai('esito', { replace: true });
-      annuncia(d.esito.stato === 'in_attesa' ? 'Richiesta inviata allo studio.' : 'Prenotazione confermata.');
-    } catch (e) {
-      setBusy(false); d.idemKey = null;
-      if (e.status === 409 && e.body.errore === 'slot_non_disponibile') {
-        d.riserva = null; state.ui.alternative = e.body.alternative || []; state.ui.altScelta = 0; invalidaCache();
-        vai('preso');
-      } else if (e.status === 410) { if (d.riserva) d.riserva.scaduta = true; render(); }
-      else erroreRete(e);
-    }
+    if (verificaRichiesta() && !verificato()) { vai('telefono'); return; }
+    return azioni.inviaSenzaVerifica();
   },
   async scegliAlternativa() {
     const a = state.ui.alternative[state.ui.altScelta]; if (!a) return;
@@ -2326,7 +2304,7 @@ const CLICK = {
   cta() { if (!ctaCorrente || state.ui.busy) return; if (ctaCorrente.pronto === false) { toast(ctaCorrente.avviso || 'Completa il passo per continuare.', 'warn'); return; } ctaCorrente.azione(); },
   indietro,
   home() { if (state.ui.screen !== 'benvenuto') vai('benvenuto'); },
-  'apri-mie'() { vai('mie'); },
+  'apri-mie'() { vai(verificato() || !conMiePrenotazioni() ? 'mie' : 'mie-accesso'); },
   tutte() { state.ui.specialita = 'Tutte'; vai('prestazione'); },
   contatto() { state.ui.tentato.contatto = false; vai('contatto'); },
   'pulisci-ricerca'() { state.ui.query = ''; aggiornaRicerca(); const i = $('#screen input[type="search"]'); if (i) { i.value = ''; i.focus(); } },
@@ -2946,7 +2924,7 @@ function aggiornaDemo() {}
 
 for (const handlers of [CLICK,CHANGE]) for (const key of Object.keys(handlers)) if (/^(demo-|cfg-)/.test(key)) delete handlers[key];
 CLICK['simula-wa']=()=>{};
-CLICK['esci']=()=>{location.href=BOOT.back;};
+CLICK['esci']=async()=>{try{await api.esci();}finally{location.href=BOOT.back;}};
 
 CLICK.avvisami=()=>{location.href=STUDIO.telHref;};
 

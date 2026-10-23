@@ -62,7 +62,7 @@ final class PatientBookingDesign
             $texts=[[$p['paziente']['nome'].' '.$p['paziente']['cognome'],implode(' · ',array_filter([$p['cellulare'],$p['email']]))],[$visit['nome']??'',trim(implode(' ',[$doctor['titolo']??'',$doctor['nome']??'',$doctor['cognome']??''])).' · '.($sites[$p['sede']]['nome']??'')],[(new \DateTimeImmutable($p['data']))->format('d/m/Y'),$p['ora'].' · '.($visit['durata']??'').' min']];
             foreach($texts as $i=>$values)foreach($values as $j=>$value)$xp->query('./div',$cols->item($i))->item($j)->textContent=$value;
             $expiry=$xp->query('./span',$cols->item(2))->item(0);$expiry->textContent='Scade tra '.max(0,(int)ceil((strtotime(($p['scade_il']??'').' UTC')-time())/60)).' minuti';
-            $badges=$xp->query('./div[2]/div[1]',$row)->item(0);$badge=$xp->query('./span[1]',$badges)->item(0)->cloneNode(true);$badge->textContent='Non verificato';while($badges->firstChild)$badges->removeChild($badges->firstChild);$badges->appendChild($badge);
+            $badges=$xp->query('./div[2]/div[1]',$row)->item(0);$badge=$xp->query('./span[1]',$badges)->item(0)->cloneNode(true);$badge->textContent=!empty($p['verificata'])?'Verificato tramite SMS':'Non verificato';while($badges->firstChild)$badges->removeChild($badges->firstChild);$badges->appendChild($badge);
             foreach($xp->query('.//button',$row) as $button)$button->setAttribute('data-request-action',trim($button->textContent)==='Conferma'?'conferma':'rifiuta');
             $list->appendChild($row);
         }

@@ -3,6 +3,7 @@
 if (($argv[1] ?? '') !== '--isolated-local-mysql') exit(2);
 require __DIR__.'/_support/whatsapp_booking_bootstrap.php';
 require APPPATH.'Database/Migrations/2026-10-23-100001_CreatePatientBookingSchema.php';
+require APPPATH.'Database/Migrations/2026-10-23-110001_CreatePatientBookingOtp.php';
 
 use Config\Database;
 use App\Services\{PatientBookingSchema, PatientBookingSettings, PatientBookingMaintenanceRunner, TenantInfrastructureProvisioningService};
@@ -27,6 +28,9 @@ try {
     $migration = new CreatePatientBookingSchema(Database::forge($db));
     $migration->up();
     provisionCheck(PatientBookingSchema::ready($db), 'A new tenant receives all booking tables');
+    $db->query('DROP TABLE patient_booking_otp');$db->resetDataCache();
+    $otpMigration=new \App\Database\Migrations\CreatePatientBookingOtp(Database::forge($db));$otpMigration->up();$otpMigration->up();$otpMigration->down();
+    provisionCheck(PatientBookingSchema::ready($db),'An existing space receives the OTP upgrade idempotently');
     $state = $db->query("SHOW COLUMNS FROM dap12_agenda_appuntamenti LIKE 'stato'")->getRowArray();
     provisionCheck(str_contains($state['Type'], "'IN_ATTESA'") && $state['Default'] === 'CONFERMATO', 'Pending state added, existing default preserved');
     $db->query("INSERT INTO patient_booking_contacts(author_id,data_encrypted,vector_id,created_at) VALUES(1,'synthetic','synthetic',NOW())");
@@ -96,10 +100,12 @@ try {
     provisionCheck($store->get(3)['config']['privacy_url']==='https://example.test/privacy','Customer configuration stays isolated between spaces');
 
     // Exercise the real template cleanup on synthetic data only.
+    $db->query("INSERT INTO patient_booking_otp (id,tenant_id,author_id,phone_hash,device_hash,ip_hash,code_hash,state,created_at,expires_at) VALUES(REPEAT('a',64),1,1,REPEAT('b',64),REPEAT('c',64),REPEAT('d',64),REPEAT('e',64),'sent',NOW(),NOW())");
     $service = (new ReflectionClass(TenantInfrastructureProvisioningService::class))->newInstanceWithoutConstructor();
     $reset = new ReflectionMethod($service, 'resetProvisioningTemplateData');
     $reset->invoke($service, $db->connID, $name);
     provisionCheck($db->table('patient_booking_contacts')->countAllResults() === 0 && $db->table('platform_patient_booking_settings')->countAllResults() === 0, 'New tenant template cleanup removes copied booking data and enablements');
+    provisionCheck($db->table('patient_booking_otp')->countAllResults()===0,'A new space cannot inherit a verified device or pending SMS code');
     $identity = new \CodeIgniter\Database\MySQLi\Connection(provisioningConnection('ambulatoriofacile_demo'));
     provisionCheck(PatientBookingSchema::isFrozenDemoDatabase($identity), 'Local frozen DB identity remains excluded without connecting to it');
     echo "PASS $checks provisioning checks: migration, disabled defaults, future enablement, isolation, template cleanup.\n";

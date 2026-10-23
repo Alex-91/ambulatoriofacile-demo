@@ -7,7 +7,7 @@ const catalog={
  sedi:[{id:'1',nome:'Sede centrale',indirizzo:'Via di esempio 10',cap:'00100',citta:'Roma',prov:'RM'},{id:'2',nome:'Seconda sede',indirizzo:'Via di esempio 20',cap:'00100',citta:'Roma',prov:'RM'}]
 };
 let config={doctors:[10,20],visits:[1,2],locations:[1,2],telefono:'0612345678',email:'segreteria@example.test',privacy_url:'https://example.test/privacy',first_available:true,min_notice:120,days:90,cancel_hours:24,workflow:{}},revision=1;
-let bookings=[],contacts=[],invites=new Map();
+let bookings=[],contacts=[],invites=new Map(),otpPhone='',otpVerified=false;
 function php(file,input){return execFileSync('php',['-d','xdebug.mode=off',path.join(root,'rest/tests/_support',file)],{input:JSON.stringify(input),encoding:'utf8',stdio:['pipe','pipe','pipe']});}
 function normalize(c){return JSON.parse(php('patient_booking_admin_preview.php',{mode:'config',config:c}));}
 config=normalize(config).config;
@@ -75,11 +75,18 @@ const server=http.createServer(async(req,res)=>{
   else if(u.pathname==='/api/richieste')result={richieste:bookings.filter(p=>p.stato==='in_attesa')};
   else if(u.pathname.startsWith('/api/richieste/')){const p=bookings.find(p=>p.ref===u.pathname.split('/')[3]);if(!p)throw Error('Non trovata');if(u.pathname.endsWith('/conferma'))p.stato='confermata';else if(u.pathname.endsWith('/rifiuta'))p.stato='rifiutata';result={prenotazione:p};}
   else if(u.pathname==='/api/catalogo')result={...currentCatalog(draftConfig),invito:invites.get(u.searchParams.get('invito'))||null};
+  // Synthetic OTP fixture only. The production controller uses PatientBookingVerification.
+  else if(u.pathname==='/api/otp/invia'){otpPhone=body.cellulare;otpVerified=false;result={ok:true};}
+  else if(u.pathname==='/api/otp/verifica'){if(body.codice!=='654321'||body.cellulare!==otpPhone){res.statusCode=422;result={errore:'codice_errato',tentativi_rimasti:4};}else{otpVerified=true;result={cellulare:otpPhone,paziente:null,metodo:'sms'};}}
+  else if(u.pathname==='/api/sessione'){otpVerified=false;result={ok:true};}
   else if(u.pathname==='/api/disponibilita'){
    const doctor=u.searchParams.get('professionista'),site=u.searchParams.get('sede');
    const slot={data:u.searchParams.get('dal')||'2026-11-12',ora:'9:00',professionista:doctor==='primo'||!doctor?String(config.doctors[0]):doctor,sede:site||(withoutLocation?'':String(config.locations[0])),durata:withoutLocation?20:45};
    if(u.searchParams.get('prima_disponibilita'))result={primo:slot};else{const giorni={};const until=u.searchParams.get('al')||slot.data;for(let day=slot.data;day<=until;day=new Date(new Date(day+'T12:00:00Z').getTime()+86400000).toISOString().slice(0,10))giorni[day]={stato:'posti',orari:[{...slot,data:day},{...slot,data:day,ora:'10:00'}]};result={giorni};}
-  }else if(u.pathname==='/api/prenotazioni'&&req.method==='POST'){const p={...body.slot,durata:withoutLocation?20:45,paziente:body.paziente,ref:'ABC'+String(234+bookings.length),stato:config.workflow.accesso.modalita==='approvazione'?'in_attesa':'confermata',created_at:new Date().toISOString().slice(0,19).replace('T',' '),scade_il:new Date(Date.now()+86400000).toISOString().slice(0,19).replace('T',' '),...body.contatto,canale:null,verificata:false,ics_sequence:0};bookings.push(p);result={prenotazione:p};}
+  }else if(u.pathname==='/api/prenotazioni'&&req.method==='POST'){
+   if(config.workflow.verifica.richiesta&&(!otpVerified||body.contatto.cellulare!==otpPhone)){res.statusCode=401;result={errore:'verifica_richiesta'};}
+   else{const p={...body.slot,durata:withoutLocation?20:45,paziente:body.paziente,ref:'ABC'+String(234+bookings.length),stato:config.workflow.accesso.modalita==='approvazione'?'in_attesa':'confermata',created_at:new Date().toISOString().slice(0,19).replace('T',' '),scade_il:new Date(Date.now()+86400000).toISOString().slice(0,19).replace('T',' '),...body.contatto,canale:null,verificata:otpVerified,ics_sequence:0};bookings.push(p);result={prenotazione:p};}
+  }
   else if(u.pathname==='/api/prenotazioni/mie')result={prenotazioni:bookings};
   else {const p=bookings.find(p=>p.ref===u.pathname.split('/')[3]);if(!p){res.statusCode=404;result={errore:'non_trovata'};}else{if(u.pathname.endsWith('/annulla'))p.stato='annullata';if(u.pathname.endsWith('/sposta'))Object.assign(p,{data:body.data,ora:body.ora});result={prenotazione:p};}}
   res.setHeader('Content-Type','application/json');res.end(JSON.stringify({...result,csrf:'preview'}));return;

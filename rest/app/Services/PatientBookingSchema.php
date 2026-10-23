@@ -18,7 +18,7 @@ final class PatientBookingSchema
 
     public static function ready(BaseConnection $db): bool
     {
-        foreach(['patient_online_bookings','patient_booking_details','patient_booking_contacts','patient_booking_blocks','patient_booking_events','patient_booking_invites','patient_booking_outbox','patient_booking_absences'] as $table)if(!$db->tableExists($table))return false;
+        foreach(['patient_online_bookings','patient_booking_details','patient_booking_contacts','patient_booking_blocks','patient_booking_events','patient_booking_invites','patient_booking_outbox','patient_booking_absences','patient_booking_otp'] as $table)if(!$db->tableExists($table))return false;
         return true;
     }
     public static function platform(BaseConnection $db): void
@@ -34,6 +34,16 @@ final class PatientBookingSchema
     public static function tenant(BaseConnection $db): void
     {
         if (self::isFrozenDemoDatabase($db)) throw new \RuntimeException('Database della demo congelata escluso.');
+        $db->query("CREATE TABLE IF NOT EXISTS patient_booking_otp (
+            id CHAR(64) PRIMARY KEY, tenant_id INT NOT NULL, author_id INT NOT NULL,
+            phone_hash CHAR(64) NOT NULL, device_hash CHAR(64) NOT NULL, ip_hash CHAR(64) NOT NULL,
+            code_hash CHAR(64) NOT NULL, state VARCHAR(20) NOT NULL, attempts INT NOT NULL DEFAULT 0,
+            created_at DATETIME NOT NULL, expires_at DATETIME NOT NULL, verified_until DATETIME NULL,
+            INDEX ix_booking_otp_phone(tenant_id,phone_hash,created_at),
+            INDEX ix_booking_otp_device(tenant_id,device_hash,created_at),
+            INDEX ix_booking_otp_ip(tenant_id,ip_hash,created_at),
+            INDEX ix_booking_otp_daily(tenant_id,created_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
         $db->query("CREATE TABLE IF NOT EXISTS patient_booking_absences (
             booking_ref CHAR(6) PRIMARY KEY, created_by INT NOT NULL, created_at DATETIME NOT NULL
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");

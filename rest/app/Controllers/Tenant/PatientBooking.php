@@ -30,15 +30,26 @@ class PatientBooking extends BaseController
     private function agenda(): PatientBookingAgenda
     {
         $device=session()->get('patient_booking_device');if(!$device){$device=bin2hex(random_bytes(32));session()->set('patient_booking_device',$device);}
-        return new PatientBookingAgenda((new TenantDatabaseConnector())->connect($this->tenant),$this->settings,$this->actor,['device'=>$device,'ip'=>$this->request->getIPAddress()]);
+        return new PatientBookingAgenda((new TenantDatabaseConnector())->connect($this->tenant),$this->settings,$this->actor,$this->bookingContext());
+    }
+    private function bookingContext(): array
+    {
+        return ['tenant'=>(int)$this->tenant['id_tenant'],'device'=>(string)session()->get('patient_booking_device'),'ip'=>$this->request->getIPAddress(),'verification'=>session()->get('patient_booking_verified_'.$this->tenant['id_tenant'])];
+    }
+    private function verification(): \App\Services\PatientBookingVerification
+    {
+        return new \App\Services\PatientBookingVerification((new TenantDatabaseConnector())->connect($this->tenant),(int)$this->tenant['id_tenant'],$this->actor,$this->bookingContext());
+    }
+    private function checkVerification(array $config): void
+    {
+        if(empty($config['workflow']['verifica']['richiesta']))return;
+        if(!(new TenantDatabaseConnector())->connect($this->tenant)->tableExists('patient_booking_otp'))throw new \InvalidArgumentException('Lo schema della verifica SMS deve essere installato prima di pubblicare.');
+        if(!\App\Services\PatientBookingVerification::smsConfigured((int)$this->tenant['id_tenant']))throw new \InvalidArgumentException('Configura il servizio SMS dello spazio prima di pubblicare la verifica del numero.');
     }
     private function catalog(): array
     {
         $cat=$this->agenda()->catalog(); $c=$this->settings['config'];
         $config=PatientBookingWorkflow::resolve($c);
-        $config['verifica']=['richiesta'=>false,'metodi'=>[]];
-        foreach($config['passi'] as &$step) if ($step['id']==='verifica') $step['attivo']=false;
-        unset($step);
         $config['scelte']['primo_disponibile']=$c['first_available'];
         $config['regole']['preavviso_modifica_ore']=$c['cancel_hours'];
         $config['comunicazioni']['privacy_url']=$c['privacy_url'];
@@ -46,7 +57,7 @@ class PatientBooking extends BaseController
         return $cat+['config'=>$config,'prenotazioni_attive'=>PatientBookingSettings::configured($c) && empty($c['suspended']) && (bool)$cat['professionisti']
             && (!PatientBookingWorkflow::stepEnabled($config,'prestazione') || (bool)$cat['prestazioni'])
             && (!PatientBookingWorkflow::stepEnabled($config,'sede') || (bool)$cat['sedi']),
-            'modalita'=>$config['accesso']['modalita'],'invito'=>$this->request->getGet('invito')?$this->agenda()->validateInvite((string)$this->request->getGet('invito')):null,'revisione'=>$this->settings['revision'],
+            'modalita'=>$config['accesso']['modalita'],'sms_disponibile'=>in_array('sms',$config['verifica']['metodi'],true) && $this->verification()->available($config),'invito'=>$this->request->getGet('invito')?$this->agenda()->validateInvite((string)$this->request->getGet('invito')):null,'revisione'=>$this->settings['revision'],
             'regole'=>['max_attive'=>$config['limiti']['attive_per_recapito'],'finestra_giorni'=>$c['days'],'preavviso_sposta_ore'=>$c['cancel_hours'],'riserva_minuti'=>0,'scadenza_richiesta_ore'=>$config['accesso']['ore_scadenza_richieste']]];
     }
     public function index(string $board='A01-regole')
@@ -62,6 +73,7 @@ class PatientBooking extends BaseController
                 'apiUrl'=>portal_tenant_space_url('prenotazione-online/api'),
                 'assetUrl'=>portal_tenant_space_url('prenotazione-online/asset'),
                 'selection'=>array_intersect_key($this->settings['config'],array_flip(['doctors','visits','locations'])),
+                'smsConfigured'=>\App\Services\PatientBookingVerification::smsConfigured((int)$this->tenant['id_tenant']),
                 'stats'=>(new \App\Services\PatientBookingRecords((new TenantDatabaseConnector())->connect($this->tenant)))->counters(),
                 'navigation'=>['Agenda'=>portal_tenant_space_url('agenda'),'Pazienti'=>portal_tenant_space_url('pazienti'),'Impostazioni'=>portal_tenant_space_url('profilo-operativo')],
                 'requests'=>$board==='A02-richieste'?$this->agenda()->requests():[],
@@ -86,6 +98,7 @@ class PatientBooking extends BaseController
                     if(isset($c['editor']['draft']))$c['editor']['draft']['catalogo']=$payload['catalogo'];
                 }
             }else $c=\App\Services\PatientBookingEditor::transition($this->settings['config'],$action,$payload,$this->actor);
+            if($action==='publish')$this->checkVerification($c);
             $store=new PatientBookingSettings();$store->saveConfiguration((int)$this->tenant['id_tenant'],$c,$this->actor,$this->settings['revision']);
             return $this->response->setJSON(['state'=>\App\Services\PatientBookingEditor::state($store->get((int)$this->tenant['id_tenant'])),'csrf'=>csrf_hash()]);
         } catch(\InvalidArgumentException $e) {return $this->response->setStatusCode(422)->setJSON(['messaggio'=>$e->getMessage(),'csrf'=>csrf_hash()]);}
@@ -121,6 +134,7 @@ class PatientBooking extends BaseController
             // Only the platform master can change enabled. Revision CAS also protects against a concurrent revocation.
             if((int)$this->request->getPost('revision')!==$this->settings['revision']) throw new PatientBookingException('configurazione_cambiata',409);
             if (!PatientBookingSettings::configured($c)) throw new \InvalidArgumentException('Completa catalogo e informativa privacy prima di pubblicare.');
+            $this->checkVerification($c);
             (new PatientBookingSettings())->saveConfiguration((int)$this->tenant['id_tenant'],$c,$this->actor,$this->settings['revision']);
             return redirect()->to(portal_tenant_space_url('prenotazione-online'))->with('booking_success','Configurazione salvata. Il percorso paziente è aggiornato.');
         } catch (\Throwable $e) {
@@ -159,6 +173,17 @@ class PatientBooking extends BaseController
             $agenda=$this->agenda();
             $records=new \App\Services\PatientBookingRecords((new TenantDatabaseConnector())->connect($this->tenant));
             if ($method==='GET' && $action==='catalogo') $data=$this->catalog();
+            elseif($method==='POST' && $action==='otp' && $ref==='invia'){
+                session()->remove('patient_booking_verified_'.$this->tenant['id_tenant']);
+                $data=$this->verification()->send((array)$this->request->getJSON(true),PatientBookingWorkflow::resolve($this->settings['config']));
+            }
+            elseif($method==='POST' && $action==='otp' && $ref==='verifica'){
+                $data=$this->verification()->verify((array)$this->request->getJSON(true),PatientBookingWorkflow::resolve($this->settings['config']));
+                session()->set('patient_booking_verified_'.$this->tenant['id_tenant'],$data['proof']);unset($data['proof']);
+            }
+            elseif($method==='DELETE' && $action==='sessione'){
+                $this->verification()->revoke();session()->remove('patient_booking_verified_'.$this->tenant['id_tenant']);$data=['ok'=>true];
+            }
             elseif($method==='GET' && $action==='richieste') $data=['richieste'=>$agenda->requests()];
             elseif($method==='GET' && $action==='contatti') $data=['contatti'=>$records->contacts()];
             elseif($method==='POST' && $action==='presenza') {$body=(array)$this->request->getJSON(true);$records->absence((int)($body['appuntamento']??0),$this->actor,!empty($body['assente']));$data=['ok'=>true];}
@@ -196,7 +221,11 @@ class PatientBooking extends BaseController
         if (!$e instanceof PatientBookingException) log_message('error','Patient booking failed: {class}',['class'=>get_class($e)]);
         return $this->response->setStatusCode($e instanceof PatientBookingException?$e->status:503)->setJSON([
             'errore'=>$e instanceof PatientBookingException?$e->reason:'riprova',
-            'messaggio'=>'Qualcosa non ha funzionato. Riprova tra qualche secondo.','csrf'=>csrf_hash()]+($e instanceof PatientBookingException?$e->data:[]));
+            'messaggio'=>match($e instanceof PatientBookingException?$e->reason:''){
+                'sms_non_configurato'=>'Il servizio SMS dello spazio non è configurato. Contatta lo studio.',
+                'invio_sms_non_riuscito'=>'Non è stato possibile inviare l’SMS. Riprova o contatta lo studio.',
+                'verifica_richiesta'=>'Verifica il numero di cellulare prima di confermare la prenotazione.',
+                default=>'Qualcosa non ha funzionato. Riprova tra qualche secondo.'},'csrf'=>csrf_hash()]+($e instanceof PatientBookingException?$e->data:[]));
     }
     private function applyDraft(): void
     {

@@ -4,7 +4,15 @@ Implementazione sul branch `codex/complete-patient-booking`. Le tavole A01–A05
 
 ## Accesso e ambiente
 
-Solo spazio autenticato, abilitato dal super amministratore. Il bottone dell'amministrazione apre il percorso paziente. Nessuna route pubblica, verifica identità, OTP o prenotazione WhatsApp. Recapiti manuali, badge Non verificato, nessun collegamento automatico all'anagrafica. I link e QR puntano allo stesso ingresso interno e richiedono l'accesso allo spazio.
+Solo spazio autenticato, abilitato dal super amministratore. Il bottone dell'amministrazione apre il percorso paziente. Nessuna route pubblica o prenotazione WhatsApp. Il percorso iniziale resta senza verifica, con recapiti manuali. Lo spazio può attivare e pubblicare la verifica del numero tramite SMS; non comporta un collegamento automatico all'anagrafica. I link e QR puntano allo stesso ingresso interno e richiedono l'accesso allo spazio.
+
+### Verifica SMS
+
+In «Verifica e accesso», attivare «Verifica con SMS» e premere «Pubblica». Il metodo, il passo «Verifica che sei tu» e l'opzione «Prenotazione senza registrazione» restano sincronizzati. La pubblicazione richiede un provider SMS configurato e lo schema OTP installato; una bozza non cambia il percorso pubblicato. Il trasporto riutilizza il servizio SMS e il plafond mensile dello spazio, oltre al tetto giornaliero scelto dal cliente.
+
+Il codice a sei cifre dura dieci minuti, consente cinque tentativi e ha un intervallo di reinvio di un minuto. Dopo cinque errori il numero è bloccato per quindici minuti. Limiti per numero, dispositivo e IP proteggono l'invio; codici e numeri non sono conservati in chiaro nella tabella OTP. La prova dura trenta minuti ed è legata a spazio, operatore, dispositivo e numero: il server rifiuta la conferma se manca, scade o riguarda un numero diverso. L'orario viene occupato atomicamente alla conferma, senza una riserva temporanea. Errori del provider non fanno avanzare il paziente. WhatsApp, email e accesso automatico all'archivio rimangono indisponibili in questo percorso.
+
+La migration `2026-10-23-110001_CreatePatientBookingOtp.php` e l'installer idempotente preparano `patient_booking_otp` anche per i nuovi spazi senza attivare la verifica. Il job esistente elimina le prove più vecchie di due giorni. La procedura di copia dei template elimina anche le prove OTP.
 
 Il super amministratore gestisce esclusivamente l'abilitazione del modulo per spazio: non imposta catalogo, professionisti, sedi, recapiti, privacy o workflow. L'attivazione è consentita anche prima che il cliente configuri questi dati. I tenant master/admin dello spazio gestiscono tutte le scelte dalle tavole A01–A05, inclusi «Prestazioni e professionisti» e «Modifica i contatti». Le bozze possono essere incomplete; la pubblicazione e l'accesso agli orari prenotabili richiedono catalogo e privacy validi. Disattivazione e riattivazione da piattaforma conservano configurazione e bozze del cliente. Le scritture dello spazio non possono cambiare l'abilitazione e rispettano la revisione concorrente.
 
@@ -42,6 +50,7 @@ Per demo usare il target `demo` e l'URL `https://ambulatoriofacile.it/demo/login
 - `php -d xdebug.mode=off rest/tests/patient_booking_assets.php`
 - `./ops/test-patient-booking-mysql.ps1`
 - `node rest/tests/patient_booking_browser.cjs`
+- `node rest/tests/patient_booking_sms_browser.cjs http://127.0.0.1:PORTA` su preview appena avviata con `--without-location` (trasporto sintetico, nessun SMS reale)
 - `node rest/tests/patient_booking_original_browser.cjs http://127.0.0.1:PORTA` su preview appena avviata
 - `node rest/tests/patient_booking_admin_actions.cjs http://127.0.0.1:PORTA`
 

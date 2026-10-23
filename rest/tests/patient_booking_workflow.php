@@ -23,7 +23,12 @@ $onlyTime=$s;$onlyTime['workflow']=$optional;$onlyTime['visits']=[];$onlyTime['l
 foreach($onlyTime['workflow']['passi'] as &$step)if(in_array($step['id'],['prestazione','professionista','sede'],true))$step['attivo']=false;unset($step);
 $onlyTime['privacy_url']='https://studio.example/privacy';
 checkWorkflow(S::configured($onlyTime),'Time-only booking needs no service or location catalogue');
-$bad=$w;$bad['verifica']['richiesta']=true;rejectWorkflow($bad,$s,'Verification not simulated');
+$bad=$w;$bad['verifica']['richiesta']=true;rejectWorkflow($bad,$s,'Verification cannot silently skip its screen');
+$sms=$bad;foreach($sms['passi'] as &$step)if($step['id']==='verifica')$step['attivo']=true;unset($step);
+rejectWorkflow($sms,$s,'Verification needs an available delivery method');
+$sms['verifica']['metodi']=['sms'];checkWorkflow(W::validate($sms,$s)['verifica']['richiesta'],'SMS verification can be published');
+$unsupported=$sms;$unsupported['verifica']['metodi']=['whatsapp'];rejectWorkflow($unsupported,$s,'Unconnected OTP transport cannot be published');
+$sms['verifica']['sms_tetto_giornaliero']=0;rejectWorkflow($sms,$s,'SMS daily cap validated');
 $bad=$w;$bad['aspetto']['logo_url']='javascript:alert(1)';rejectWorkflow($bad,$s,'Unsafe logo rejected');
 $bad=$w;$bad['aspetto']['logo_url']='data:image/png;base64,AAAA';rejectWorkflow($bad,$s,'Invalid image bytes rejected');
 $bad=$w;$bad['senza_verifica']['recapito']='email';$bad['testi']['benvenuto_titolo']='Prenota qui';$s['workflow']=W::validate($bad,$s);$s['cancel_hours']=48;

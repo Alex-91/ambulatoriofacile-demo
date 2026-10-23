@@ -28,6 +28,7 @@ class TenantInfrastructureProvisioningService
      */
     private array $templateRuntimeResetTables = [
         'patient_booking_absences',
+        'patient_booking_otp',
         'patient_booking_contacts',
         'patient_booking_events',
         'patient_booking_invites',

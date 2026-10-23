@@ -78,6 +78,10 @@ try {
             $db = $connector->connect($tenant);
             $result['database_fingerprint']=hash('sha256', $db->hostname.':'.$db->port.'/'.$db->database);
             $settings = (new \App\Services\PatientBookingSettings())->get($result['id']);
+            $workflow=\App\Services\PatientBookingWorkflow::resolve($settings['config']);
+            $result['sms_configured']=\App\Services\PatientBookingVerification::smsConfigured($result['id']);
+            $result['verification_required']=!empty($workflow['verifica']['richiesta']);
+            $result['draft_verification_required']=!empty($settings['config']['editor']['draft']['verifica']['richiesta']);
             if (!$all && !$settings['enabled']) throw new RuntimeException('Space disabled during provisioning');
             if ($installing) {
                 \App\Services\PatientBookingSchema::tenant($db);

@@ -177,7 +177,8 @@ final class PatientBookingAgenda
         foreach (['nome','cognome'] as $field) if (trim((string)($p[$field]??''))==='' || mb_strlen((string)$p[$field])>80) throw new PatientBookingException('dati_non_validi');
         $phone=preg_replace('/[\s()-]/','',(string)($contact['cellulare']??'')); $email=trim((string)($contact['email']??''));
         $workflow=PatientBookingWorkflow::resolve($this->settings['config']);
-        if(!empty($workflow['verifica']['richiesta']))throw new PatientBookingException('sessione_assente',401);
+        $verified=!empty($workflow['verifica']['richiesta']);
+        if($verified)(new PatientBookingVerification($this->db,(int)($this->requestContext['tenant']??0),$this->actor,$this->requestContext))->proof($phone);
         if($workflow['accesso']['modalita']!=='invito'){
             $customService=array_column($workflow['catalogo']['prestazioni'],null,'id_tipo_visita')[(int)($s['prestazione']??0)]??[];
             $customDoctor=array_column($workflow['catalogo']['professionisti'],null,'id_dot')[(int)($s['professionista']??0)]??[];
@@ -186,8 +187,9 @@ final class PatientBookingAgenda
         if(!in_array($workflow['accesso']['modalita'],['aperta','approvazione','invito'],true)) throw new PatientBookingException('prima_visita_al_telefono',403);
         $records=new PatientBookingRecords($this->db);
         $extra=$records->validateData($body,$workflow);
+        $extra['verificata']=$verified;$extra['metodo_verifica']=$verified?'sms':null;
         $extra['last_slot']=['data'=>$s['data'],'ora'=>$s['ora']];
-        $required=$workflow['senza_verifica']['recapito'];
+        $required=$verified?'cellulare':$workflow['senza_verifica']['recapito'];
         if (($phone!=='' && !preg_match('/^(?:\+?39)?3\d{8,9}$/D',$phone)) || ($email!=='' && (!filter_var($email,FILTER_VALIDATE_EMAIL)||strlen($email)>120)) || ($required==='almeno_uno' && $phone==='' && $email==='') || ($required==='cellulare' && $phone==='') || ($required==='email' && $email==='') || mb_strlen((string)($body['nota']??''))>1000) throw new PatientBookingException('dati_non_validi');
         if($phone!=='')$phone='+39'.preg_replace('/^(?:\+?39)?(?=3\d{8,9}$)/','',$phone);
         if($workflow['dati']['note']==='obbligatorio' && trim((string)($body['nota']??''))==='') throw new PatientBookingException('dati_non_validi');
@@ -267,7 +269,7 @@ final class PatientBookingAgenda
             'ora'=>ltrim(substr($row['ora_inizio_appuntamento']?:$row['ora_inizio'],11,5),'0'),'prestazione'=>!empty($row['id_tipo_visita'])?(string)$row['id_tipo_visita']:null,
             'durata'=>(int)($row['durata_minuti']??0),
             'professionista'=>(string)$row['id_dot'],'sede'=>(string)$row['id_amb_legacy'],'paziente'=>['nome'=>$row['nome'],'cognome'=>$row['cognome']],
-            'cellulare'=>$row['cellulare'],'email'=>$row['email'],'prenotante'=>$metadata['data']['prenotante']??null,'canale'=>null,'verificata'=>false,'notificata'=>$this->db->table('patient_booking_outbox')->where('booking_ref',$ref)->where('sequence',(int)($metadata['sequence']??0))->where('state','sent')->whereIn('event',['requested.patient','confirmed.patient'])->countAllResults()>0,'ics_sequence'=>(int)($metadata['sequence']??0)];
+            'cellulare'=>$row['cellulare'],'email'=>$row['email'],'prenotante'=>$metadata['data']['prenotante']??null,'canale'=>null,'verificata'=>!empty($metadata['data']['verificata']),'notificata'=>$this->db->table('patient_booking_outbox')->where('booking_ref',$ref)->where('sequence',(int)($metadata['sequence']??0))->where('state','sent')->whereIn('event',['requested.patient','confirmed.patient'])->countAllResults()>0,'ics_sequence'=>(int)($metadata['sequence']??0)];
     }
 
     public function cancel(string $ref,array $body=[]): array
@@ -337,7 +339,13 @@ final class PatientBookingAgenda
     public function mine(): array
     {
         if (!$this->db->tableExists('patient_online_bookings')) return [];
-        $rows=$this->db->table('patient_online_bookings')->where('author_id',$this->actor)->orderBy('id','DESC')->get(100)->getResultArray();
+        $query=$this->db->table('patient_online_bookings b')->select('b.*')->where('b.author_id',$this->actor);
+        $workflow=PatientBookingWorkflow::resolve($this->settings['config']);
+        if(!empty($workflow['verifica']['metodi'])){
+            $proof=(new PatientBookingVerification($this->db,(int)($this->requestContext['tenant']??0),$this->actor,$this->requestContext))->proof();
+            $query->join('patient_booking_details d','d.booking_ref=b.booking_ref')->where('d.phone_hash',$proof['phone_hash']);
+        }
+        $rows=$query->orderBy('b.id','DESC')->get(100)->getResultArray();
         return array_map(fn($r)=>$this->detail($r['booking_ref']),$rows);
     }
 
@@ -391,6 +399,7 @@ final class PatientBookingAgenda
     public function expire(): int
     {
         if(!$this->db->tableExists('patient_booking_details'))return 0;
+        if($this->db->tableExists('patient_booking_otp'))$this->db->table('patient_booking_otp')->where('created_at <',gmdate('Y-m-d H:i:s',time()-172800))->delete();
         $this->synchronizeAgenda();
         $rows=$this->db->table('patient_booking_details')->where('status','in_attesa')->where('expires_at <=',gmdate('Y-m-d H:i:s'))->get()->getResultArray();
         foreach($rows as $row)$this->resolveRequest($row['booking_ref'],'scadenza');return count($rows);

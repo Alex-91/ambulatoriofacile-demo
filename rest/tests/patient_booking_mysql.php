@@ -190,5 +190,53 @@ try {
     $defaultBooking=$defaultAgenda->book($timeBody,bin2hex(random_bytes(16)));
     check($defaultBooking['prestazione']==='2'&&$defaultBooking['durata']===30&&$defaultBooking['professionista']==='1000000012','An explicitly configured optional default still works without patient questions');
     $defaultAgenda->cancel($defaultBooking['ref']);
-    echo "PASS $count MySQL checks: isolated schema, tenant settings, real agenda, locks, duration, retries, cancellation, move, concurrency.\n";
+    // Real OTP persistence and server enforcement, with a synthetic SMS transport only.
+    $verifiedSettings=$timeSettings;$verifiedSettings['config']['workflow']['verifica']['richiesta']=true;$verifiedSettings['config']['workflow']['verifica']['metodi']=['sms'];
+    foreach($verifiedSettings['config']['workflow']['passi'] as &$step)if($step['id']==='verifica')$step['attivo']=true;unset($step);
+    $otpWorkflow=\App\Services\PatientBookingWorkflow::resolve($verifiedSettings['config']);
+    $context=['tenant'=>1,'device'=>'synthetic-device-a','ip'=>'192.0.2.5'];$code='';$deliveredPhone='';
+    $smsTransport=static function($phone,$message)use(&$code,&$deliveredPhone){preg_match('/\b(\d{6})\b/',$message,$m);$code=$m[1];$deliveredPhone=$phone;return ['ok'=>true];};
+    $verification=new \App\Services\PatientBookingVerification($db,1,77,$context,$smsTransport);
+    $verifiedAgenda=new PatientBookingAgenda($db,$verifiedSettings,77,$context);
+    try{$verifiedAgenda->book($timeBody,bin2hex(random_bytes(16)));throw new RuntimeException('Unverified booking accepted');}catch(PatientBookingException $e){check($e->reason==='verifica_richiesta','Server rejects a booking before SMS proof');}
+    $smsBody=['metodo'=>'sms','cellulare'=>$timeBody['contatto']['cellulare']];
+    $sent=$verification->send($smsBody,$otpWorkflow);
+    check($sent['ok']&&$deliveredPhone==='+393470000000'&&!isset($sent['codice']),'SMS goes to canonical phone and no usable code is returned');
+    $row=$db->table('patient_booking_otp')->orderBy('created_at','DESC')->get(1)->getRowArray();
+    check(!str_contains(json_encode($row),'3470000000')&&$row['code_hash']!==$code,'OTP storage contains hashes, never raw phone/code');
+    try{$verification->send($smsBody,$otpWorkflow);throw new RuntimeException('Rapid resend accepted');}catch(PatientBookingException $e){check($e->status===429,'SMS resend cooldown enforced');}
+    try{$verification->verify($smsBody+['codice'=>'000000'],$otpWorkflow);throw new RuntimeException('Bad code accepted');}catch(PatientBookingException $e){check($e->status===422&&$e->data['tentativi_rimasti']===4,'Wrong code consumes a persistent attempt');}
+    $wrongDevice=new \App\Services\PatientBookingVerification($db,1,77,array_replace($context,['device'=>'synthetic-device-b']),$smsTransport);
+    try{$wrongDevice->verify($smsBody+['codice'=>$code],$otpWorkflow);throw new RuntimeException('Other device code accepted');}catch(PatientBookingException $e){check($e->status===410,'OTP is bound to the requesting device');}
+    $wrongTenant=new \App\Services\PatientBookingVerification($db,2,77,$context,$smsTransport);
+    try{$wrongTenant->verify($smsBody+['codice'=>$code],$otpWorkflow);throw new RuntimeException('Other tenant code accepted');}catch(PatientBookingException $e){check($e->status===410,'OTP is bound to the space even with shared databases');}
+    $proof=$verification->verify($smsBody+['codice'=>$code],$otpWorkflow);
+    check($proof['cellulare']==='3470000000'&&$proof['paziente']===null,'Correct SMS proves the number without disclosing registry data');
+    try{$verification->verify($smsBody+['codice'=>$code],$otpWorkflow);throw new RuntimeException('Code replay accepted');}catch(PatientBookingException $e){check($e->status===410,'A code is single use');}
+    $proofContext=$context+['verification'=>$proof['proof']];
+    $verifiedAgenda=new PatientBookingAgenda($db,$verifiedSettings,77,$proofContext);
+    $wrongPhone=$timeBody;$wrongPhone['contatto']['cellulare']='3470000001';
+    try{$verifiedAgenda->book($wrongPhone,bin2hex(random_bytes(16)));throw new RuntimeException('Phone substitution accepted');}catch(PatientBookingException $e){check($e->reason==='verifica_richiesta','Verified number cannot be replaced in the booking payload');}
+    $verifiedBooking=$verifiedAgenda->book($timeBody,bin2hex(random_bytes(16)));
+    check($verifiedBooking['verificata']&&$verifiedBooking['cellulare']==='+393470000000','Only after verification is a real appointment confirmed and marked verified');
+    check(count($verifiedAgenda->mine())>=1,'Verified patient can retrieve bookings for this number');
+    try{(new PatientBookingAgenda($db,$verifiedSettings,77,$context))->mine();throw new RuntimeException('Bookings listed before OTP');}catch(PatientBookingException $e){check($e->reason==='verifica_richiesta','My bookings requires server proof');}
+    $verifiedAgenda->cancel($verifiedBooking['ref']);
+    $db->table('patient_booking_otp')->where('id',$proof['proof'])->update(['verified_until'=>gmdate('Y-m-d H:i:s',time()-1)]);
+    try{$verifiedAgenda->book($timeBody,bin2hex(random_bytes(16)));throw new RuntimeException('Expired proof accepted');}catch(PatientBookingException $e){check($e->reason==='verifica_richiesta','Expired verification cannot confirm a booking');}
+    // Restart with a fresh synthetic number/device to exercise expiry, lockout and delivery failure.
+    $smsBody['cellulare']='3470000002';$verification->send($smsBody,$otpWorkflow);$oldCode=$code;
+    $last=$db->table('patient_booking_otp')->where('state','sent')->orderBy('created_at','DESC')->get(1)->getRowArray();
+    $db->table('patient_booking_otp')->where('id',$last['id'])->update(['expires_at'=>gmdate('Y-m-d H:i:s',time()-1)]);
+    try{$verification->verify($smsBody+['codice'=>$oldCode],$otpWorkflow);throw new RuntimeException('Expired code accepted');}catch(PatientBookingException $e){check($e->status===410,'Expired SMS code rejected');}
+    $smsBody['cellulare']='3470000003';$verification->send($smsBody,$otpWorkflow);
+    for($i=0;$i<5;$i++)try{$verification->verify($smsBody+['codice'=>'000000'],$otpWorkflow);}catch(PatientBookingException $e){check($e->status===($i===4?423:422),'Five persistent attempts lead to lockout');}
+    try{$verification->send($smsBody,$otpWorkflow);throw new RuntimeException('Locked number resent');}catch(PatientBookingException $e){check($e->status===423,'Lockout also blocks new SMS requests');}
+    $failedContext=['tenant'=>1,'device'=>'synthetic-failed','ip'=>'192.0.2.6'];
+    $failed=new \App\Services\PatientBookingVerification($db,1,77,$failedContext,static fn()=>['ok'=>false]);
+    try{$failed->send(['metodo'=>'sms','cellulare'=>'3470000004'],$otpWorkflow);throw new RuntimeException('Failed SMS acknowledged');}catch(PatientBookingException $e){check($e->reason==='invio_sms_non_riuscito','Provider failure is visible and cannot confirm the booking');}
+    $capWorkflow=$otpWorkflow;$capWorkflow['verifica']['sms_tetto_giornaliero']=1;
+    check(!$failed->available($capWorkflow),'Unavailable daily SMS budget is exposed without disabling the verification requirement');
+    try{$failed->send(['metodo'=>'sms','cellulare'=>'3470000005'],$capWorkflow);throw new RuntimeException('Daily quota bypass');}catch(PatientBookingException $e){check($e->reason==='tetto_sms','Space daily verification budget is enforced');}
+    echo "PASS $count MySQL checks: isolated schema, agenda, concurrency, SMS delivery, OTP expiry/attempts/isolation and required proof.\n";
 } finally { $admin->query('DROP DATABASE '.$name); }
