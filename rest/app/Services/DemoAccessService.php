@@ -355,6 +355,21 @@ class DemoAccessService
             TenantContextService::SESSION_KEY,
         ]);
 
+        $legacyTenantSession = new LegacyTenantSessionService();
+        $legacyTenantSession->clearAllPending();
+        $tenant = (new PlatformTenantsModel())->findByTenantKey(self::DEMO_TENANT_KEY);
+        if ($this->isMasterAlignedDemoTenant($tenant)) {
+            if ((string) ($tenant['db_name'] ?? '') !== (string) $this->db->database) {
+                throw new \RuntimeException('Lo spazio demo non corrisponde al database attivo.');
+            }
+            $legacyTenantSession->queuePendingRuntime(
+                $tenant,
+                (int) $user['id_user'],
+                (int) $user['tipo_user'],
+                'demo_public_access'
+            );
+        }
+
         $result = (new LegacyLoginHandoffService())->bootstrapDemoSessionByUserId((int) $user['id_user'], $resolvedUsername);
         if (($result['resp'] ?? 'KO') !== 'OK') {
             throw new \RuntimeException('Impossibile aprire la sessione demo richiesta.');
