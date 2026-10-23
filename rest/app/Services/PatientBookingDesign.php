@@ -1,7 +1,7 @@
 <?php
 namespace App\Services;
 
-/** Uses the exported HTML verbatim; only asset/routes and runtime data are injected. */
+/** Keeps the exported booking controls inside the existing tenant portal. */
 final class PatientBookingDesign
 {
     public const BOARDS=['A01-regole','A02-richieste','A03-link-aspetto','A04-configurazione-flusso','A05-configurazione-verifica'];
@@ -18,8 +18,34 @@ final class PatientBookingDesign
         foreach(self::BOARDS as $name) $html=str_replace('href="'.$name.'.html"','href="'.esc($boot['adminBase'].'/'.$name,'attr').'"',$html);
         $html=preg_replace('/href="(?:M\d\d|D\d\d|G\d\d)[^"]*\.html"/','href="'.esc($boot['patientUrl'],'attr').'" target="_blank" rel="noopener"',$html);
         $boot['board']=$board;
-        $html=str_replace('</body>','<script>window.bookingAdmin='.json_encode($boot,JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_THROW_ON_ERROR).';</script><script src="'.base_url('public/assets/patient-booking/original-admin.js').'"></script></body>',$html);
-        return $html;
+        return view('patient_booking/portal',[
+            'bookingContent'=>self::content($html,$board,$boot),
+            'bookingBoot'=>$boot,
+        ],['saveData'=>false]);
+    }
+
+    private static function content(string $html,string $board,array $boot): string
+    {
+        $dom=new \DOMDocument();$old=libxml_use_internal_errors(true);$dom->loadHTML($html);libxml_clear_errors();libxml_use_internal_errors($old);
+        $xp=new \DOMXPath($dom);$content='';
+        foreach($xp->query('//head/link | //head/style[1]') as $asset)$content.=$dom->saveHTML($asset);
+        foreach($xp->query('//main') as $index=>$main){
+            // The exported search, account header and global sidebar belong to the mockup,
+            // not to the booking module. Navigation comes from the portal's shared partials.
+            $header=$xp->query('./header',$main)->item(0);
+            foreach($xp->query('./div[.//strong[contains(.,"Area del team Ambulatorio Facile.")]]',$main) as $platformBanner)$main->removeChild($platformBanner);
+            $notification=$header?$xp->query('.//button[starts-with(@aria-label,"Notifiche")]',$header)->item(0):null;
+            $heading=$xp->query('.//h1/ancestor::div[contains(@style,"justify-content: space-between")][1]',$main)->item(0);
+            if($notification && $heading)$heading->appendChild($notification);
+            if($header)$main->removeChild($header);
+            if($board==='A03-link-aspetto')$main->setAttribute('data-booking-pane',$index===0?'link':'aspetto');
+            foreach($xp->query('.//a',$main) as $link){
+                if(trim($link->textContent)==='Aspetto e comunicazioni')$link->setAttribute('href',$boot['adminBase'].'/A03-link-aspetto#aspetto');
+            }
+            foreach($xp->query('.//p[contains(.,"scrivi all\'assistenza di Ambulatorio Facile")]',$main) as $help)$help->textContent='Per cambiare il percorso di prenotazione, il logo o i metodi di accesso usa Configura il percorso.';
+            $content.=$dom->saveHTML($main);
+        }
+        return $content;
     }
 
     private static function requests(string $html,array $boot): string

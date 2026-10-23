@@ -1,0 +1,5 @@
+.booking-portal-shell{display:grid;grid-template-columns:260px minmax(0,1fr);gap:24px;max-width:1600px;margin:auto;padding:24px;align-items:start}
+.booking-portal-navigation,#patient-booking-admin{min-width:0}
+#patient-booking-admin{display:block;font-family:Inter,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;font-size:16px;font-weight:400;line-height:normal;color:#1a1a2e;background:#f6f8fa;container-type:inline-size}
+@media(max-width:991px){.booking-portal-shell{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:560px){.booking-portal-shell{padding:15px;gap:16px}}

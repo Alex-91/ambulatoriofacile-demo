@@ -1,4 +1,5 @@
 <?php
+define('FCPATH',dirname(__DIR__,3).DIRECTORY_SEPARATOR);
 require __DIR__.'/whatsapp_booking_bootstrap.php';
 helper(['url','form','portal']);
 $input=json_decode(stream_get_contents(STDIN),true,512,JSON_THROW_ON_ERROR);
@@ -19,6 +20,11 @@ try {
         echo json_encode(['config'=>$c,'state'=>\App\Services\PatientBookingEditor::state(['config'=>$c,'revision'=>$input['revision']+1])],JSON_THROW_ON_ERROR);exit;
     }
     if(($input['mode']??'')==='design') {
+        session()->set('menuDataAdmin',['result'=>[
+            ['titolo_menu'=>'Agenda','link'=>'agenda','icona'=>'fa-calendar'],
+            ['titolo_menu'=>'Menu personalizzato dello spazio','link'=>'pazienti','icona'=>'fa-users'],
+            ['titolo_menu'=>'Prenotazione online','link'=>'http://booking-test.invalid/admin','icona'=>'fa-calendar-check-o'],
+        ]]);
         echo \App\Services\PatientBookingDesign::render($input['board']??'A01-regole',[
             'tenant'=>'Studio dimostrativo','state'=>\App\Services\PatientBookingEditor::state(['config'=>$c,'revision'=>$input['revision']??1]),
             'catalog'=>$input['catalog'],'selection'=>array_intersect_key($c,array_flip(['doctors','visits','locations'])),'editorUrl'=>'/editor','adminBase'=>'/admin','patientUrl'=>'/paziente','csrf'=>'preview','csrfHeader'=>'X-CSRF-TOKEN','previewMode'=>true,'requests'=>$input['requests']??[],'apiUrl'=>'/api','assetUrl'=>'/asset',

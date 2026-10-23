@@ -4,7 +4,7 @@ const {chromium}=require('playwright'),assert=require('assert');
  const page=await browser.newPage({viewport:{width:1280,height:1000}}),errors=[];
  page.on('pageerror',e=>errors.push(e.message));page.on('dialog',d=>d.accept());
  try {
-  await page.goto(origin+'/admin/A03-link-aspetto');
+  await page.goto(origin+'/admin/A03-link-aspetto#aspetto');
   const before=await page.evaluate(()=>window.bookingAdmin.state.published.comunicazioni.contatti);
   await page.getByRole('link',{name:'Modifica i contatti',exact:true}).click();
   const dialog=page.locator('dialog');await dialog.waitFor();
@@ -21,7 +21,7 @@ const {chromium}=require('playwright'),assert=require('assert');
   await page.goto(origin+'/admin/A04-configurazione-flusso');
   const [published]=await Promise.all([page.waitForResponse(r=>r.url().endsWith('/editor/publish')),page.getByRole('button',{name:'Pubblica',exact:true}).first().click()]);
   assert.equal(published.status(),200);
-  await page.goto(origin+'/admin/A03-link-aspetto');
+  await page.goto(origin+'/admin/A03-link-aspetto#aspetto');
   const state=await page.evaluate(()=>window.bookingAdmin.state);
   assert.equal(state.published.comunicazioni.contatti.email,'cliente@example.test');
   assert.equal(state.published.comunicazioni.contatti.telefono,'0698765432');

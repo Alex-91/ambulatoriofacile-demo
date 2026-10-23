@@ -1,0 +1,23 @@
+/* The shadow root keeps portal Bootstrap/AdminLTE rules out of the ZIP artwork. */
+:host{display:block;min-width:0}
+main{width:100%;box-sizing:border-box}
+[hidden]{display:none!important}
+nav{overflow-x:auto;max-width:100%}
+@container(max-width:900px){
+    main>div>[style*="display: grid"]{grid-template-columns:minmax(0,1fr)!important}
+}
+@container(max-width:600px){
+    main>div{padding-left:16px!important;padding-right:16px!important}
+    main>div>div[style*="justify-content: space-between"]{flex-wrap:wrap}
+    [style*="grid-template-columns: repeat(2, minmax(0, 1fr))"],
+    [style*="grid-template-columns: minmax(0, 1fr) 200px"],
+    [style*="grid-template-columns: 180px minmax(0, 1fr) 168px"],
+    [style*="grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr)"],
+    ol[aria-label="Schermate del paziente, in ordine"]{grid-template-columns:minmax(0,1fr)!important}
+    [style*="grid-column: 1 / -1"]{grid-column:1/-1!important}
+    section[style*="padding: 20px 24px"],section[style*="padding: 24px"]{padding:16px!important}
+    section>div[style*="justify-content: space-between"],footer[style*="display: flex"]{flex-wrap:wrap}
+    div[style*="display: flex; gap: 8px;"],main>div>div>div[style*="flex: none;"]{flex-wrap:wrap}
+    main>div>div>div[style*="flex: none;"]{max-width:100%;min-width:0}
+    [style*="width: 348px"]{width:100%!important}
+}
