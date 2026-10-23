@@ -56,15 +56,16 @@ replace('const demoHint = html => `<div class="demo-hint" role="note"><b>DEMO</b
 between('function disegnaDemo()','/* ==========================================================================\n   12. AVVIO', 'function disegnaDemo() {}\nfunction aggiornaDemo() {}\n');
 replace("state.ui.cellulareInput = formattaCell(NUMERO_ROSA); // il pannello demo parte con Rosa", "state.ui.cellulareInput = ''; // No example patient data in the live form.");
 replace("'nota-legale'() { toast('Nel prodotto vero qui si apre l\\'informativa privacy o i termini dello studio.'); },", "'nota-legale'() { window.open(BOOT.privacy, '_blank', 'noopener,noreferrer'); },");
-// Never claim that a notification was sent from this internal test entry point.
-replace('function doveScriviamo(canale, cellulare, email) {', 'function doveScriviamo(canale, cellulare, email) {\n  return null; /* Delivery is deferred until the public patient channel is configured. */');
+// Preserve original email copy, but acknowledge delivery only after a successful send.
+replace("cf: '', canale: 'whatsapp', nota:", "cf: '', canale: null, nota:");
+replace('const dove = doveScriviamo(p.canale, p.cellulare, p.email);', 'const dove = p.notificata ? doveScriviamo(p.canale, p.cellulare, p.email) : null;');
 replace("const standalone = () => (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;", 'const standalone = () => true; // No installable public patient application in this phase.');
 replace('  document.title = `${titoloDocumento(s)} · ${STUDIO.nome}`;', `  const visible=cfg().comunicazioni.visibili||{};
   document.querySelectorAll('.contact-list a').forEach(a=>{const kind=a.href.startsWith('tel:')?'telefono':a.href.startsWith('mailto:')?'email':'whatsapp';a.hidden=visible[kind]===false||(kind==='whatsapp'&&!STUDIO.whatsapp);});
   document.querySelectorAll('#side .sede-list').forEach(el=>el.hidden=visible.sedi===false);
   document.title = \`\${titoloDocumento(s)} · \${STUDIO.nome}\`;`);
 replace('Ciao ${esc(inv.nome)}, lo studio ti invita a prenotare', "Ciao${inv.nome ? ' '+esc(inv.nome) : ''}, lo studio ti invita a prenotare");
-replace('const gestibile = verificato();','const gestibile = true; // The authenticated operator can manage bookings they created.');
+replace("`Accesso con il numero <span class=\"tnum\">+39 ${formattaCell(state.sessione.cellulare)}</span>.`", "state.sessione.cellulare ? `Accesso con il numero <span class=\"tnum\">+39 ${formattaCell(state.sessione.cellulare)}</span>.` : ''");
 replace("${azione('move', 'Sposta l\\'appuntamento', 'sposta')}", "${cfg().regole.spostamento_consentito ? azione('move', 'Sposta l\\'appuntamento', 'sposta') : ''}");
 replace("return verificato() ? null : conMiePrenotazioni() ? 'mie-accesso' : 'benvenuto';", "return null; // Server authorizes management against the authenticated operator.");
 replace("'apri-mie'() { vai(verificato() ? 'mie' : 'mie-accesso'); },", "'apri-mie'() { vai('mie'); },");
@@ -76,6 +77,7 @@ js=js.replaceAll('24 ore','${cfg().regole.preavviso_modifica_ore} ore');
 // literal messages at 24h until contextual copy is formatted by the renderer.
 js=js.replaceAll("'Mancano meno di ${cfg().regole.preavviso_modifica_ore} ore: per spostare o annullare chiama lo studio.'","`Mancano meno di ${cfg().regole.preavviso_modifica_ore} ore: per spostare o annullare chiama lo studio.`");
 js=js.replace(/'Mancano meno di \$\{cfg\(\)\.regole\.preavviso_modifica_ore\} ore: per (spostare|annullare) chiama lo studio\.'/g, match=>'`'+match.slice(1,-1)+'`');
+js=js.replaceAll('${p.prezzo} €', '${p.prezzo == null ? \'\' : p.prezzo + \' €\'}');
 // Preserve unknown prices as absent rather than displaying "null €".
 js=js.replaceAll('${pres.prezzo} €','${pres.prezzo == null ? \'\' : pres.prezzo + \' €\'}');
 js=js.replaceAll('${pres.durata} minuti · ${pres.prezzo == null ? \'\' : pres.prezzo + \' €\'}, paghi in studio', '${pres.durata} minuti${pres.prezzo == null ? \'\' : \' · \' + pres.prezzo + \' €, paghi in studio\'}');

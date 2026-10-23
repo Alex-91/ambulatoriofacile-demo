@@ -11,7 +11,7 @@ let bookings=[],contacts=[],invites=new Map();
 function php(file,input){return execFileSync('php',['-d','xdebug.mode=off',path.join(root,'rest/tests/_support',file)],{input:JSON.stringify(input),encoding:'utf8',stdio:['pipe','pipe','pipe']});}
 function normalize(c){return JSON.parse(php('patient_booking_admin_preview.php',{mode:'config',config:c}));}
 config=normalize(config).config;
-function currentCatalog(c=config){return {...catalog,professionisti:catalog.professionisti.filter(p=>c.doctors.includes(+p.id)),prestazioni:catalog.prestazioni.filter(p=>c.visits.includes(+p.id)).map(p=>({...p,professionisti:p.professionisti.filter(id=>c.doctors.includes(+id)),sedi:p.sedi.filter(id=>c.locations.includes(+id))})),sedi:catalog.sedi.filter(p=>c.locations.includes(+p.id)),config:normalize(c).workflow,prenotazioni_attive:true,modalita:normalize(config).workflow.accesso.modalita,invito:null,regole:{max_attive:100,finestra_giorni:c.days,preavviso_sposta_ore:c.cancel_hours,riserva_minuti:0}};}
+function currentCatalog(c=config){return {...catalog,professionisti:catalog.professionisti.filter(p=>c.doctors.includes(+p.id)),prestazioni:catalog.prestazioni.filter(p=>c.visits.includes(+p.id)).map(p=>({...p,professionisti:p.professionisti.filter(id=>c.doctors.includes(+id)),sedi:p.sedi.filter(id=>c.locations.includes(+id))})),sedi:catalog.sedi.filter(p=>c.locations.includes(+p.id)),config:normalize(c).workflow,prenotazioni_attive:!config.suspended,modalita:normalize(config).workflow.accesso.modalita,invito:null,regole:{max_attive:100,finestra_giorni:c.days,preavviso_sposta_ore:c.cancel_hours,riserva_minuti:0}};}
 const server=http.createServer(async(req,res)=>{
  try {
  const u=new URL(req.url,'http://127.0.0.1');res.setHeader('Cache-Control','no-store');

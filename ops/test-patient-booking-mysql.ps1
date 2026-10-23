@@ -15,8 +15,14 @@ try {
         Start-Sleep -Milliseconds 500
         $bookingProcess.Refresh()
         if ($bookingProcess.HasExited) { throw (Get-Content -Raw (Join-Path $bookingData 'stderr.log')) }
-        & $bookingAdmin --no-defaults --host=127.0.0.1 --port=13371 --user=root --connect-timeout=1 ping 2>$null | Out-Null
-        if ($LASTEXITCODE -eq 0) { $bookingReady = $true; break }
+        # A refused connection is expected while this isolated server starts.
+        $bookingPreviousErrorPreference = $ErrorActionPreference
+        try {
+            $ErrorActionPreference = 'Continue'
+            & $bookingAdmin --no-defaults --host=127.0.0.1 --port=13371 --user=root --connect-timeout=1 ping 2>$null | Out-Null
+            $bookingProbeExit = $LASTEXITCODE
+        } finally { $ErrorActionPreference = $bookingPreviousErrorPreference }
+        if ($bookingProbeExit -eq 0) { $bookingReady = $true; break }
     }
     if (!$bookingReady) { throw 'Disposable MySQL did not start' }
     & php -d xdebug.mode=off (Join-Path $bookingRepo 'rest/tests/patient_booking_mysql.php') --isolated-local-mysql

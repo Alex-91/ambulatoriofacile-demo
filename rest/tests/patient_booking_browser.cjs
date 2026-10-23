@@ -2,10 +2,10 @@ const {chromium}=require('playwright');
 const fs=require('fs'),path=require('path'),http=require('http'),assert=require('assert'),vm=require('vm'),{execFileSync}=require('child_process');
 const root=path.resolve(__dirname,'../..'),source=fs.readFileSync(path.join(root,'rest/app/Resources/patient-booking/source/prototipo.html'),'utf8');
 const script=source.match(/<script>([\s\S]*?)<\/script>/)[1];
-const fixtures=vm.runInNewContext(script.split('const FakeServer =')[0]+';({STUDIO,SEDI,PROFESSIONISTI,PRESTAZIONI})');
+const fixtures=vm.runInNewContext(script.split('const FakeServer =')[0]+';({STUDIO,SEDI,PROFESSIONISTI,PRESTAZIONI,AGENDE})');
 const config=JSON.parse(fs.readFileSync(path.join(root,'rest/app/Resources/patient-booking/defaults.json')));
 config.verifica={richiesta:false,metodi:[]};config.passi.find(p=>p.id==='verifica').attivo=false;config.accesso.modalita='aperta';config.dati.cellulare='facoltativo';
-const catalog={config,prenotazioni_attive:true,modalita:'aperta',invito:null,prestazioni:fixtures.PRESTAZIONI,professionisti:Object.values(fixtures.PROFESSIONISTI),sedi:Object.values(fixtures.SEDI),regole:{max_attive:2,finestra_giorni:90,preavviso_sposta_ore:24,riserva_minuti:0,scadenza_richiesta_ore:24}};
+const catalog={config,prenotazioni_attive:true,modalita:'aperta',invito:null,prestazioni:fixtures.PRESTAZIONI,professionisti:Object.values(fixtures.PROFESSIONISTI).map(p=>({...p,sedi:Object.keys(fixtures.AGENDE[p.id].sedi)})),sedi:Object.values(fixtures.SEDI),regole:{max_attive:2,finestra_giorni:90,preavviso_sposta_ore:24,riserva_minuti:0,scadenza_richiesta_ore:24}};
 const boot={studio:fixtures.STUDIO,catalog,api:'/api',csrf:'synthetic',csrfHeader:'X-CSRF-TOKEN',today:'2026-10-21T20:40:00',privacy:'https://studio.example/privacy',back:'/'};
 const html=execFileSync('php',['-d','xdebug.mode=off',path.join(__dirname,'_support/patient_booking_view.php')],{input:JSON.stringify(boot),encoding:'utf8'});
 const bookings=[];let posts=0;
@@ -37,7 +37,7 @@ const server=http.createServer(async(req,res)=>{
   res.setHeader('Content-Type',file.endsWith('.js')?'application/javascript':file.endsWith('.css')?'text/css':'application/octet-stream');res.end(fs.readFileSync(file));
  }catch(e){console.error(e);res.statusCode=500;res.end(JSON.stringify({errore:e.message}));}
 });
-(async()=>{
+if(require.main===module)(async()=>{
  await new Promise(r=>server.listen(0,'127.0.0.1',r));
  const browser=await chromium.launch({headless:true,...(process.env.BROWSER_EXE?{executablePath:process.env.BROWSER_EXE}:{})});
  const page=await browser.newPage({viewport:{width:1280,height:960}}),errors=[];
@@ -62,9 +62,12 @@ const server=http.createServer(async(req,res)=>{
   await page.screenshot({path:path.join(out,'summary.png'),fullPage:true});
   await page.locator('[data-action="cta"]').filter({visible:true}).first().click();
   await page.waitForFunction(()=>document.body.textContent.includes('ABC234'));
+  assert.equal(await page.evaluate(()=>{const p=PRESTAZIONI[0],price=p.prezzo;p.prezzo=null;const html=SCHERMATE.prestazione.render().html;p.prezzo=price;return html.includes('null €');}),false,'Absent price must not render null');
   assert.equal(posts,1);assert(!await page.getByText('Ti abbiamo mandato una conferma',{exact:false}).count());
   await page.screenshot({path:path.join(out,'confirmation.png'),fullPage:true});
-  await page.locator('[data-action="gestisci"]').first().click();await page.waitForSelector('[data-action="annulla"]');
+  assert(!(await page.locator('#screen').innerText()).includes('mandato'), 'Unsent notification must not be claimed');
+  await page.goto(origin+'/?ref=ABC234');await page.waitForSelector('[data-action="annulla"]');
+  assert.equal(await page.evaluate(()=>{state.sessione.cellulare=null;return typeof SCHERMATE.mie.render().html;}),'string','Internal bookings without verified number render');
   await page.locator('[data-action="annulla"]').first().click();
   await page.locator('[data-action="conferma-annulla"]').click();
   await page.waitForFunction(()=>document.body.textContent.includes('Prenotazione annullata'));
@@ -73,3 +76,5 @@ const server=http.createServer(async(req,res)=>{
   console.log('PASS browser: original layout 390/768/1280, dynamic catalogue, booking, CSRF/idempotency, real confirmation, management, no JS errors.');
  }catch(e){console.error('Browser errors',errors);console.error((await page.locator('body').innerText()).slice(0,2500));await page.screenshot({path:path.join(out,'failure.png'),fullPage:true});throw e;}finally {await browser.close();server.close();}
 })().catch(e=>{console.error(e);server.close();process.exitCode=1;});
+
+module.exports={server,fixtures,catalog,source,root};

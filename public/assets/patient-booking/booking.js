@@ -212,7 +212,7 @@ function nuovaBozza(base) {
     perChi: base ? base.perChi : 'me',
     assistito: base ? { ...base.assistito } : { nome: '', cognome: '', nascita: '' },
     autorizzato: base ? base.autorizzato : false,
-    dati: base ? { ...base.dati } : { nome: '', cognome: '', cellulare: '', email: '', nascita: '', cf: '', canale: 'whatsapp', nota: '', privacy: false },
+    dati: base ? { ...base.dati } : { nome: '', cognome: '', cellulare: '', email: '', nascita: '', cf: '', canale: null, nota: '', privacy: false },
     riserva: null, idemKey: null, esito: null, completata: false,
   };
 }
@@ -627,7 +627,7 @@ function cardPrestazione(p) {
       <span class="opt-title">${esc(p.nome)}</span>
       <span class="opt-meta">
         <span>${icon('clock')}${p.durata} min</span>
-        <span>${p.prezzo} €</span>
+        <span>${p.prezzo == null ? '' : p.prezzo + ' €'}</span>
         ${p.video ? `<span>${icon('video')}Videochiamata</span>` : ''}
       </span>
       ${p.etichetta ? badge(p.etichetta, 'info') : ''}
@@ -1446,7 +1446,6 @@ function recapiti(d) {
 }
 // "su WhatsApp e via email", "via email", "su SMS"... null se non c'è nessun recapito.
 function doveScriviamo(canale, cellulare, email) {
-  return null; /* Delivery is deferred until the public patient channel is configured. */
   const c = CANALI.find(x => x.id === canale);
   if (canale === 'email') return email ? 'via email' : null;
   const parti = [c && cellulare ? `su ${c.nome}` : null, email ? 'via email' : null].filter(Boolean);
@@ -1570,10 +1569,10 @@ function sEsito() {
   const p = state.draft.esito; const pres = prestazione(p.prestazione); const pro = PROFESSIONISTI[p.professionista]; const sede = SEDI[p.sede];
   const attesa = p.stato === 'in_attesa';
   const nomePaz = `${esc(p.paziente.nome)} ${esc(p.paziente.cognome)}`;
-  const dove = doveScriviamo(p.canale, p.cellulare, p.email);
+  const dove = p.notificata ? doveScriviamo(p.canale, p.cellulare, p.email) : null;
   // Senza verifica il dispositivo non è riconosciuto: si gestisce dal link nei messaggi, da "Le mie prenotazioni"
   // (se lo studio ha almeno un metodo di verifica) oppure per telefono. Il codice va conservato.
-  const gestibile = true; // The authenticated operator can manage bookings they created.
+  const gestibile = verificato();
   const testa = attesa
     ? `<div class="mark wait">${icon('hourglass')}</div>${titolo('Richiesta inviata', `Lo studio la conferma di solito entro poche ore, al massimo entro 24.${dove ? ` Ti scriviamo ${dove}.` : ' Conserva il codice prenotazione.'}`)}`
     : `<div class="mark ok"><svg viewBox="0 0 24 24" aria-hidden="true"><path class="draw" d="M20 6 9 17l-5-5"/></svg></div>
@@ -1651,7 +1650,7 @@ function cardBooking(p, tab) {
       <span class="opt-end">${icon('chev-right')}</span></button></li>`;
 }
 function sMie() {
-  const intest = titolo('Le tue prenotazioni', `Accesso con il numero <span class="tnum">+39 ${formattaCell(state.sessione.cellulare)}</span>.`);
+  const intest = titolo('Le tue prenotazioni', state.sessione.cellulare ? `Accesso con il numero <span class="tnum">+39 ${formattaCell(state.sessione.cellulare)}</span>.` : '');
   if (state.cache.mie === null) { caricaMie(); return { html: intest + scheletro(3), laterale: 'studio' }; }
   const g = gruppiMie(state.cache.mie); const tab = state.ui.mieTab;
   const tabs = [['prossime', 'Prossime'], ['passate', 'Passate'], ['annullate', 'Annullate']];

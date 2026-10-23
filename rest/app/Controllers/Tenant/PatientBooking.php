@@ -183,6 +183,7 @@ class PatientBooking extends BaseController
             if($method==='POST' && in_array($action,['prenotazioni','richieste'],true)){
                 try{(new \App\Services\PatientBookingNotifications((new TenantDatabaseConnector())->connect($this->tenant),$this->tenant,$this->settings))->run(portal_tenant_space_url('prenotazione-online/paziente'));}
                 catch(\Throwable $e){log_message('error','Patient booking notification dispatch deferred.');}
+                if(isset($data['prenotazione']['ref']))$data['prenotazione']=$agenda->detail($data['prenotazione']['ref'],$action==='richieste');
             }
             return $this->response->setJSON($data+['csrf'=>csrf_hash()]);
         } catch (\Throwable $e) { return $this->failure($e); }

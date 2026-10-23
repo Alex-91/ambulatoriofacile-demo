@@ -135,8 +135,10 @@ try {
     $delivered=[];$sender=static function($to,$message,$ics)use(&$delivered){$delivered[]=[$to,$message,$ics];return true;};
     $mailSettings=$settings;$mailSettings['config']['email']='studio@example.test';
     $notifications=new \App\Services\PatientBookingNotifications($db,['id_tenant'=>1,'tenant_name'=>'Studio test'],$mailSettings,$sender);
+    check($agenda->detail($new['ref'])['notificata']===false,'Pending outbox does not claim notification delivery');
     $result=$notifications->run('https://example.test/internal',100);
     check($result['sent']>0 && $result['failed']===0,'Outbox delivers using fake transport');
+    check($agenda->detail($new['ref'])['notificata']===true,'Booking acknowledges successful patient delivery');
     check($notifications->run('https://example.test/internal',100)['sent']===0,'Outbox does not resend');
     foreach($delivered as [$to,$message,$ics]){check(!str_contains($message['html'],'poliambulatoriosantachiara.it')&&!str_contains($message['html'],'Franco Rinaldi'),'No sample contact in delivered messages');}
     $appointment=(int)$db->table('patient_online_bookings')->where('booking_ref',$new['ref'])->get()->getRowArray()['id_appuntamento'];

@@ -227,7 +227,7 @@ final class PatientBookingAgenda
         return ['ref'=>$ref,'stato'=>$state,'data'=>$row['data_slot'],'scade_il'=>$metadata['expires_at']??null,'created_at'=>$row['created_at'],
             'ora'=>ltrim(substr($row['ora_inizio_appuntamento']?:$row['ora_inizio'],11,5),'0'),'prestazione'=>(string)$row['id_tipo_visita'],
             'professionista'=>(string)$row['id_dot'],'sede'=>(string)$row['id_amb_legacy'],'paziente'=>['nome'=>$row['nome'],'cognome'=>$row['cognome']],
-            'cellulare'=>$row['cellulare'],'email'=>$row['email'],'prenotante'=>$metadata['data']['prenotante']??null,'canale'=>null,'verificata'=>false,'ics_sequence'=>(int)($metadata['sequence']??0)];
+            'cellulare'=>$row['cellulare'],'email'=>$row['email'],'prenotante'=>$metadata['data']['prenotante']??null,'canale'=>null,'verificata'=>false,'notificata'=>$this->db->table('patient_booking_outbox')->where('booking_ref',$ref)->where('sequence',(int)($metadata['sequence']??0))->where('state','sent')->whereIn('event',['requested.patient','confirmed.patient'])->countAllResults()>0,'ics_sequence'=>(int)($metadata['sequence']??0)];
     }
 
     public function cancel(string $ref,array $body=[]): array
