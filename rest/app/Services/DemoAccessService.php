@@ -419,6 +419,11 @@ class DemoAccessService
             return;
         }
 
+        $tenant = (new PlatformTenantsModel())->find($tenantId);
+        if ($this->isMasterAlignedDemoTenant(is_array($tenant) ? $tenant : null)) {
+            return;
+        }
+
         $service = new TenantFeatureService();
         $enabledFeatureKeys = [];
 
@@ -660,10 +665,24 @@ class DemoAccessService
         ];
     }
 
+    private function isMasterAlignedDemoTenant(?array $tenant): bool
+    {
+        if ($tenant === null || ($tenant['tenant_key'] ?? '') !== self::DEMO_TENANT_KEY) {
+            return false;
+        }
+
+        $metadata = json_decode((string) ($tenant['metadata_json'] ?? ''), true);
+        return is_array($metadata) && ($metadata['source'] ?? '') === 'master-test-demo-alignment';
+    }
+
     private function ensurePlatformDemoTenant(): array
     {
         $model = new PlatformTenantsModel();
         $tenant = $model->findByTenantKey(self::DEMO_TENANT_KEY);
+        if ($this->isMasterAlignedDemoTenant($tenant)) {
+            return $tenant;
+        }
+
         $db = new \Config\Database();
         $default = $db->default;
         $passwordRef = trim((string) (env('tenant.provisioning.runtimePasswordRef') ?: env('TENANT_PROVISIONING_RUNTIME_PASSWORD_REF') ?: ''));
