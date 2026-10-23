@@ -1,5 +1,5 @@
-# Official PHP 8.2 Apache Bookworm, resolved 2026-09-13 (Python 3.11 runtime).
-FROM php@sha256:d2d7559c815220accfb1b48704a1ce59623aa21f7d2dcc9bff13838749a678d4
+# Official PHP 8.2.35 Apache Bookworm, resolved 2026-10-23 (security update).
+FROM php:8.2.35-apache-bookworm@sha256:5714c8607608e50d880a5f222fab556edecd4a11b9c50c81fce1c7932c1cf604
 
 ARG DEBIAN_FRONTEND=noninteractive
 ARG PHP_BUILD_JOBS=2
