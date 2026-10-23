@@ -645,7 +645,7 @@ public function eseguiRepairRecurringExtraSlots()
 
         $username = strtolower(trim((string)(session()->get('username') ?? '')));
         if ($username !== '' && strpos($username, 'demo.') === 0) {
-            return self::DEMO_DEFAULT_DATE;
+            return date('Y-m-d');
         }
 
         return date('Y-m-d');
